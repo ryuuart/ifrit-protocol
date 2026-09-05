@@ -1108,21 +1108,55 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release --target sketch_core_test \
-  sketch_canvas_test sketch_set_test sketch_draw_test sketch_live_test \
-  sketch_plate_test
+  sketch_canvas_test sketch_set_test sketch_draw_test sketch_kit_test \
+  sketch_live_test sketch_plate_test sketch_book_test
 ctest --test-dir build -C Release -R sketch_ --output-on-failure
 ```
 
-One test binary per feature, each linking that feature alone:
-`sketch_core_test` over the registry, the kind seam and where a sketch
-stands on disk, `sketch_canvas_test`, `sketch_set_test` and
-`sketch_draw_test` over the three sessions, `sketch_live_test` over the
-host and the resident set, `sketch_plate_test` over the sweep and Story MP4
-exporter, and `sketch_scry_test` over the shared web engine. The
-`sketch_*_bench` binaries beside them are Google Benchmark executables,
-not tests, built through the `benches` target.
+A binary exists only where it links a **strictly smaller** set of
+targets than its neighbours, or where what a runner must supply to run it
+differs — one per feature, each linking that feature alone.
+`sketch_core_test` covers the registry, the kind seam, the crash reporter
+and where a sketch stands on disk; `sketch_canvas_test`,
+`sketch_set_test` and `sketch_draw_test` the three sessions;
+`sketch_kit_test` the sheet a specimen stands on; `sketch_live_test` the
+host and the resident set; `sketch_plate_test` the sweep, the comparison
+of two directories of plates and the Story MP4 exporter;
+`sketch_book_test` the catalog seam with no window; and
+`sketch_scry_test` the shared web engine, which is the one binary here
+that is absent altogether without its SDK. The `sketch_*_bench` binaries
+beside them are Google Benchmark executables, not tests, built through
+the `benches` target.
 
-Two of the cases run no C++ at all. `sketch_readme_stems` resolves every
+A case asserts one behaviour a session or a host promises to a caller who
+has read only this page, and its name is that promise written as a
+sentence. It pins only what editing this library could falsify — a step
+count off a clock the host steps rather than reads, a projection's own
+arithmetic, the bytes two runs of one declaration agree on, the width a
+plate comes out at read from the constant the sweep uses — never a fitted
+tolerance, an anti-aliased byte or elapsed time. Pixel identity across a
+change is the plate ledger's to judge and what a frame costs is the bench
+ledger's. A claim made N times with one thing varying is one `TEST_P`
+with its rows named: which file an edit landed in and whether it is part
+of the sketch, over `AHeaderBesideABareSketch`,
+`AUnitBesideADirectorySketch`, `AnotherBareSketchBesideIt` and
+`AModuleInTheSharedLayer`.
+
+**What every session promises is written once.** A host steps, repaints
+and photographs a session without ever learning which runtime it is
+holding, so the six claims that follow from that live in
+`test/support/Sessions.h` — the canvas the body declared while it opened,
+the runtime the kind names, the lanes the runtime spends, a frame as the
+body's own time plus the runtime's, the oversample a still is worth
+taking at, and a repaint that draws the state the frames left and
+advances nothing. Each of the three session binaries instantiates them
+with a traits type naming its own fixture sketch, and what is left in
+each session's file is what only that runtime does: a canvas re-renders
+for its still and so takes one more step, a draw sketch's plate IS the
+surface earlier frames drew onto, a set is formed at the resolution of
+the canvas it is handed rather than magnified onto it.
+
+Two of the entries run no C++ at all. `sketch_readme_stems` resolves every
 sketch stem the documents in this tree name against the registry: a
 backticked snake_case token in a paragraph that is talking about
 sketches, studies or a study must name a file under `sketches/`, and one
@@ -1138,18 +1172,29 @@ fixtures, and is the only thing that would notice the extractor
 narrowing: a checker that silently resolves fewer stems still passes over
 the corpus.
 
-`test/Support.h` at the library root holds what every one of them opens a
-session with — the one font context and the one asset store a process
-holds, neither ever destroyed, because a context outlives everything
-shaped through it. A test target adds `test/` to its include path and
-spells `"Support.h"`. `live/test/Fixture.h` holds what both halves of
-`sketch_live_test` need beyond that: the compiled-in square, its registry
-entry, and a `Watched` file standing in a scratch directory of its own,
-which the shared `src/test/ScratchDir.h` empties on the way in and
-removes on the way out. `sketch_plate_test` registers its fixture sketches
-the way a sketch file does, so the sweep it drives walks a real registry —
-including one whose `available()` probe says no, which the sweep passes
-over rather than failing on and writes no plate for.
+Fixtures live in `test/support/`, reached as `"support/<name>.h"`, and
+nothing is written twice. `Fixtures.h` is the one asset store a process
+holds — never destroyed, because it outlives every session opened over it
+— beside the font context the whole tree shares, which is
+`src/test/Fonts.h`'s and not this library's. `Pixels.h` takes the
+readings off a picture: what a surface or an image holds, whether two
+plates are one picture, the box the drawn pixels stand in, and where that
+box stands as a fraction of the plate so two plates of different sizes
+can be compared. `Sessions.h` is the contract above. `live/test/Fixture.h`
+holds what both halves of `sketch_live_test` need beyond them: the
+compiled-in square, its registry entry, and a `Watched` file standing in
+a scratch directory of its own — bare, or in a directory named for it,
+which is the other shape a sketch takes — which the shared
+`src/test/ScratchDir.h` empties on the way in and removes on the way out.
+`sketch_plate_test` registers its fixture sketches the way a sketch file
+does, so the sweep it drives walks a real registry — including one whose
+`available()` probe says no, which the sweep passes over rather than
+failing on and writes no plate for.
+
+A wait inside a test is a COUNT OF TURNS and never an open loop: a build
+polled to completion and a forked child read to its fault both give up
+and say so, because a run that hangs reports nothing at all where a run
+that fails names the claim that broke.
 
 `Host::Options::siblingScanInterval` names how long the host waits
 between re-reads of the headers standing beside the sketch. It defaults

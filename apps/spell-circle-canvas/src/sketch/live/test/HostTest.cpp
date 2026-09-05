@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "Fixture.h"
-#include "Support.h"
+#include "support/Fixtures.h"
 
 namespace {
 
@@ -30,7 +30,6 @@ using namespace sigil::sketch;
 using sigil::sketch::test::fonts;
 using sigil::sketch::test::kSquare;
 using sigil::sketch::test::Watched;
-using sigil::sketch::test::WatchedDirectory;
 
 /** A body whose setup count makes a runtime-session restart observable. */
 struct Restarted : Sketch {
@@ -121,67 +120,67 @@ TEST(SketchHost, WritesACaptureAtTheScaleItIsAsked) {
   EXPECT_TRUE(std::filesystem::exists(out));
 }
 
-TEST(SketchHost, RebuildsWhenAHeaderBesideTheSketchIsEdited) {
-  // A sketch is one translation unit and more than one file: a helper
-  // beside it is reached by a quoted include, which needs no include
-  // path, so an edit to one has to rebuild the sketch. Otherwise what
-  // stays on screen is the code that stood before the edit, and nothing
-  // says so.
-  const Watched file("sigil_sketch_host_sibling");
+/** ONE EDIT, and whether it is an edit to the sketch.
+ *
+ *  A sketch is one translation unit and more than one file, and which
+ *  files those are depends on the shape it stands in. `written` is
+ *  relative to the watched directory. */
+struct Edit {
+  const char* what;
+  /** The entry stands in a directory named for it, so the sources
+   *  beside it are units of it rather than other sketches. */
+  bool inADirectoryOfItsOwn;
+  /** A shared layer is configured beside it. Its sources are units of
+   *  every sketch and its headers may be included by any. */
+  bool sharedLayer;
+  const char* written;
+  bool rebuilds;
+};
+
+class EditedFile : public ::testing::TestWithParam<Edit> {};
+
+TEST_P(EditedFile, StartsABuildExactlyWhenWhatWasEditedIsPartOfTheSketch) {
+  // What stays on screen after an edit the host did not see is the code
+  // that stood before it, with nothing to say so; what a rebuild of
+  // every open sketch costs is every save in a directory of them.
+  const Edit& edit = GetParam();
+  const Watched file(std::string("sigil_sketch_host_edit_") + edit.what,
+                     edit.inADirectoryOfItsOwn);
   Host::Options opts = options(file.path);
-  // The headers beside the sketch are read on their own cadence; asking
-  // for every poll is what lets the edit below be seen the moment it is
-  // made rather than whenever the cadence next comes round.
+  // The files beside a sketch are read on their own cadence; asking for
+  // every poll is what lets the edit below be seen the moment it is made
+  // rather than whenever the cadence next comes round.
   opts.siblingScanInterval = std::chrono::milliseconds(0);
+  if (edit.sharedLayer) {
+    opts.sharedDir = file.dir.path / "shared";
+    std::filesystem::create_directories(opts.sharedDir);
+  }
   Host host(std::move(opts), fonts());
   ASSERT_FALSE(host.compiling());
-  std::ofstream(file.dir.path / "palette.h") << "// a helper\n";
+
+  const std::filesystem::path written = file.dir.path / edit.written;
+  std::filesystem::create_directories(written.parent_path());
+  std::ofstream(written) << "// edited\n";
   host.poll();
-  EXPECT_TRUE(host.compiling());
+  EXPECT_EQ(host.compiling(), edit.rebuilds);
 }
 
-TEST(SketchHost, RebuildsWhenAUnitBesideADirectorySketchIsEdited) {
-  // A sketch that is a directory is every source beside its entry, so a
-  // unit written there is an edit to the sketch.
-  const WatchedDirectory file("sigil_sketch_host_unit");
-  Host::Options opts = options(file.path);
-  opts.siblingScanInterval = std::chrono::milliseconds(0);
-  Host host(std::move(opts), fonts());
-  ASSERT_FALSE(host.compiling());
-  std::ofstream(file.path.parent_path() / "tables.cpp") << "// a unit\n";
-  host.poll();
-  EXPECT_TRUE(host.compiling());
-}
-
-TEST(SketchHost, LeavesABareSketchAloneWhenAnotherSketchBesideItIsEdited) {
-  // Beside a bare sketch the other sources are other sketches. An edit
-  // to one of them is nothing to this one — a directory of sketches
-  // must not rebuild every open one whenever any of them is saved.
-  const Watched file("sigil_sketch_host_neighbour");
-  Host::Options opts = options(file.path);
-  opts.siblingScanInterval = std::chrono::milliseconds(0);
-  Host host(std::move(opts), fonts());
-  ASSERT_FALSE(host.compiling());
-  std::ofstream(file.dir.path / "other.cpp") << "// another sketch\n";
-  host.poll();
-  EXPECT_FALSE(host.compiling());
-}
-
-TEST(SketchHost, RebuildsWhenTheSharedLayerIsEdited) {
-  // The shared layer's sources are units of every sketch and its
-  // headers may be included by any, so an edit there rebuilds a bare
-  // sketch as surely as an edit to the sketch itself.
-  const Watched file("sigil_sketch_host_shared");
-  Host::Options opts = options(file.path);
-  opts.siblingScanInterval = std::chrono::milliseconds(0);
-  opts.sharedDir = file.dir.path / "shared";
-  std::filesystem::create_directories(opts.sharedDir);
-  Host host(std::move(opts), fonts());
-  ASSERT_FALSE(host.compiling());
-  std::ofstream(file.dir.path / "shared" / "palette.cpp") << "// a module\n";
-  host.poll();
-  EXPECT_TRUE(host.compiling());
-}
+INSTANTIATE_TEST_SUITE_P(
+    EditedFiles, EditedFile,
+    ::testing::Values(
+        // A helper beside a bare sketch is reached by a quoted include,
+        // which needs no include path, so an edit to it is an edit here.
+        Edit{"AHeaderBesideABareSketch", false, false, "palette.h", true},
+        // A sketch that is a directory is every source beside its entry.
+        Edit{"AUnitBesideADirectorySketch", true, false, "rain/tables.cpp",
+             true},
+        // Beside a bare sketch the other sources are other sketches, and
+        // an edit to one of them is nothing to this one.
+        Edit{"AnotherBareSketchBesideIt", false, false, "other.cpp", false},
+        // The shared layer's sources are units of every sketch.
+        Edit{"AModuleInTheSharedLayer", false, true, "shared/palette.cpp",
+             true}),
+    [](const ::testing::TestParamInfo<Edit>& row) { return row.param.what; });
 
 TEST(SketchHost, RefusesToBuildAgainstAFrameworkHeaderNewerThanTheHost) {
   // A sketch dylib compiled against a framework header the host binary
@@ -296,13 +295,22 @@ std::string stubCompiler(const std::filesystem::path& script) {
   return "/bin/sh " + script.string();
 }
 
-/** Runs one build of @p host to completion. */
-void buildOnce(Host& host) {
+/** Runs one build of @p host to completion, and says whether it got
+ *  there.
+ *
+ *  The wait is a COUNT OF TURNS rather than an open loop: a compiler
+ *  that never exits, or a build that never starts, would otherwise hang
+ *  the whole run, and a hung run reports nothing at all where a failed
+ *  one names the claim that broke. */
+[[nodiscard]] bool buildOnce(Host& host) {
+  constexpr int kTurns = 20000;
   host.poll();
-  while (host.compiling()) {
+  for (int turn = 0; turn < kTurns; ++turn) {
+    if (!host.compiling()) return true;
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
     host.poll();
   }
+  return false;
 }
 
 TEST(SketchHostBuildDir, TwoHostsInOneProcessNeverLinkOverEachOther) {
@@ -335,8 +343,8 @@ TEST(SketchHostBuildDir, TwoHostsInOneProcessNeverLinkOverEachOther) {
         file.path,
         std::filesystem::file_time_type::clock::now() +
             std::chrono::seconds(build));
-    buildOnce(square);
-    buildOnce(wide);
+    ASSERT_TRUE(buildOnce(square)) << "the square's build never finished";
+    ASSERT_TRUE(buildOnce(wide)) << "the wide sketch's build never finished";
   }
 
   std::vector<std::string> libraries;

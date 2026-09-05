@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "ScratchDir.h"
-#include "Support.h"
+#include "support/Fixtures.h"
 
 namespace {
 
@@ -269,7 +269,7 @@ TEST(Sweep, KeepsTheWidthCeilingForASketchThatDeclaresNoOversample) {
   ASSERT_EQ(0, sweep(options, fonts(), assets()));
   const Extent plate = extentOf(out.path / "plate_wide_plate.png");
   EXPECT_LT(plate.width, (unsigned)(kWideW * 2));
-  EXPECT_EQ(plate.width, 2400u);
+  EXPECT_EQ(plate.width, (unsigned)kPlateWidthCeiling);
 }
 
 TEST(Story, EncodesASelectedSketchAsVerticalMp4) {

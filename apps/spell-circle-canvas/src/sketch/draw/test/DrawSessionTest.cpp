@@ -13,7 +13,8 @@
 #include <string>
 #include <vector>
 
-#include "Support.h"
+#include "support/Fixtures.h"
+#include "support/Sessions.h"
 
 namespace {
 
@@ -72,33 +73,21 @@ class DrawSession : public ::testing::Test {
   SkCanvas& canvas() { return *surface->getCanvas(); }
 
   SkColor pixel(int x, int y) {
-    SkBitmap bitmap;
-    bitmap.allocPixels(surface->imageInfo());
-    EXPECT_TRUE(surface->readPixels(bitmap.pixmap(), 0, 0));
-    return bitmap.getColor(x, y);
+    return sigil::sketch::test::plateOf(*surface).getColor(x, y);
   }
 
   std::unique_ptr<Session> session;
   sk_sp<SkSurface> surface;
 };
 
-TEST_F(DrawSession, ReadsTheDeclarationBackAfterSetup) {
-  EXPECT_EQ(session->canvas().size, SkSize::Make(200, 120));
-  EXPECT_EQ(session->canvas().captureSeconds, 2.0);
-  EXPECT_FLOAT_EQ(session->canvas().background.fR, 0.0f);
-  EXPECT_EQ(Trail::draws, 0);  // setup draws nothing through draw()
-}
-
 TEST_F(DrawSession, StepsAtTheRateItIsGivenAndTheClockIsStepped) {
+  // Setup draws through the pen and not through draw(), so the body's
+  // own loop has not run at all until a frame arrives — and then it runs
+  // once per frame, off a clock stepped by the host rather than read.
+  EXPECT_EQ(Trail::draws, 0);
   for (int i = 0; i < 6; ++i) session->frame(canvas(), 1.0 / 60.0);
   EXPECT_EQ(Trail::draws, 6);
   EXPECT_NEAR(Trail::lastMillis, 100.0, 1e-6);
-  EXPECT_NEAR(session->timing().totalMs,
-              session->timing().updateMs + session->timing().drawMs, 1e-6);
-  ASSERT_EQ(session->lanes().size(), 2u);
-  EXPECT_STREQ(session->lanes()[0].name, "draw");
-  EXPECT_STREQ(session->lanes()[1].name, "blit");
-  EXPECT_FALSE(session->counters().empty());
 }
 
 TEST_F(DrawSession, TheCanvasKeepsWhatEarlierFramesDrew) {
@@ -135,18 +124,18 @@ TEST_F(DrawSession, SetupsDrawingLandsOnTheFirstFrame) {
   EXPECT_EQ(pixel(150, 100), SK_ColorBLACK);  // the declared ground
 }
 
-TEST_F(DrawSession, RepaintAndStillDoNotAdvance) {
+TEST_F(DrawSession, AStillIsTheKeptCanvasAndAdvancesNothing) {
+  // This runtime's plate IS the surface earlier frames drew onto, so a
+  // still presents it rather than describing anything again — every dot
+  // the trail has laid is in it and the body does not run.
   session->frame(canvas(), 1.0 / 60.0);
   session->frame(canvas(), 1.0 / 60.0);
   const int stepped = Trail::draws;
   canvas().clear(SK_ColorWHITE);
-  session->repaint(canvas());
-  EXPECT_EQ(pixel(20, 60), SK_ColorRED);
-  canvas().clear(SK_ColorWHITE);
   session->still(canvas());
+  EXPECT_EQ(pixel(20, 60), SK_ColorRED);
   EXPECT_EQ(pixel(40, 60), SK_ColorRED);
   EXPECT_EQ(Trail::draws, stepped);
-  EXPECT_FLOAT_EQ(session->oversample(), 1.0f);
 }
 
 TEST_F(DrawSession, ThePointerReachesThePenAndItsEdgesAreEvents) {
@@ -203,14 +192,16 @@ struct Slow : DrawSketch {
 };
 
 TEST(DrawSessionLoop, ARequestedFrameRateSkipsDraws) {
+  // The clock is stepped by the host rather than read off a wall, so a
+  // second of frames at sixty asking for thirty is an exact count and
+  // not a rate that came out about right.
   Slow::draws = 0;
   std::unique_ptr<Session> session = kindOf<Slow>()->open(fonts(), assets());
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(50, 50));
   for (int i = 0; i < 60; ++i)
     session->frame(*surface->getCanvas(), 1.0 / 60.0);
-  EXPECT_GE(Slow::draws, 29);
-  EXPECT_LE(Slow::draws, 31);
+  EXPECT_EQ(Slow::draws, 30);
 }
 
 /** A sketch whose simulation runs at a fixed rate whatever the host
@@ -290,10 +281,21 @@ TEST_F(DrawSessionFixedStep, TheDeclaredOversampleFormsTheKeptSurface) {
   EXPECT_NE(session->counters().find("150x150"), std::string::npos);
 }
 
-TEST(DrawSessionKind, NamesItsRuntime) {
-  const Kind kind = kindOf<Once>();
-  EXPECT_EQ(kind->runtime(), "draw");
-  EXPECT_TRUE(kind == kindOf<Once>());
-}
+/** The immediate-mode session's answers to what every session
+ *  promises. */
+struct DrawTraits {
+  static Kind kind() { return kindOf<Trail>(); }
+  static SkSize canvas() { return SkSize::Make(200, 120); }
+  static double captureSeconds() { return 2.0; }
+  static const char* runtime() { return "draw"; }
+  static std::vector<const char*> lanes() { return {"draw", "blit"}; }
+  /** The plate is the surface the frames drew onto, so there is nothing
+   *  to form again larger. */
+  static float oversample() { return 1.0f; }
+  static void reset() { Trail::draws = 0; }
+  static int bodyRuns() { return Trail::draws; }
+};
 
 }  // namespace
+
+INSTANTIATE_TYPED_TEST_SUITE_P(TheDrawSession, SessionContract, DrawTraits);

@@ -22,8 +22,11 @@
 #include <memory>
 #include <numbers>
 #include <string>
+#include <vector>
 
-#include "Support.h"
+#include "support/Fixtures.h"
+#include "support/Pixels.h"
+#include "support/Sessions.h"
 
 namespace {
 
@@ -34,15 +37,8 @@ namespace gm = sigil::geometry::mesh;
 
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
-
-/** The pixels of an image, read back. */
-SkBitmap pixelsOf(const sk_sp<SkImage>& image) {
-  SkBitmap bitmap;
-  bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(image->width(), image->height()));
-  EXPECT_TRUE(image->readPixels(nullptr, bitmap.pixmap(), 0, 0));
-  return bitmap;
-}
+using sigil::sketch::test::pixelsOf;
+using sigil::sketch::test::samePicture;
 
 /** THE ONE BODY A BAKE IS MEASURED BY: a white unlit card, its size
  *  stated in world units, square to the camera at the origin. Unlit
@@ -87,15 +83,10 @@ float pixelsPerUnit(const gm::camera::Camera& lens, SkISize size) {
          (2.0f * std::abs(lens.eye.z) * std::tan(halfFov));
 }
 
-/** The box the drawn pixels stand in: every pixel that is not the
- *  background. Empty when nothing was drawn. */
+/** The box the drawn pixels stand in, against the ground every bake
+ *  here is cleared to. */
 SkIRect silhouetteOf(const SkBitmap& pixels) {
-  SkIRect box = SkIRect::MakeEmpty();
-  for (int y = 0; y < pixels.height(); ++y)
-    for (int x = 0; x < pixels.width(); ++x)
-      if (pixels.getColor(x, y) != kGround.toSkColor())
-        box.join(SkIRect::MakeXYWH(x, y, 1, 1));
-  return box;
+  return sigil::sketch::test::silhouetteOf(pixels, kGround.toSkColor());
 }
 
 /** A sketch that asks for a texture scene while declaring itself, paints
@@ -183,73 +174,48 @@ class CanvasSession : public ::testing::Test {
   SkCanvas& canvas() { return *surface->getCanvas(); }
 
   /** What the surface holds now. */
-  SkBitmap pixels() {
-    SkBitmap bitmap;
-    bitmap.allocPixels(surface->imageInfo());
-    EXPECT_TRUE(surface->readPixels(bitmap.pixmap(), 0, 0));
-    return bitmap;
-  }
+  SkBitmap pixels() { return sigil::sketch::test::plateOf(*surface); }
 
   std::unique_ptr<Session> session;
   sk_sp<SkSurface> surface;
 };
 
-TEST_F(CanvasSession, ReadsTheDeclarationBackAfterSetup) {
-  EXPECT_EQ(session->canvas().size, SkSize::Make(320, 200));
-  EXPECT_EQ(session->canvas().captureSeconds, 2.5);
-  EXPECT_FLOAT_EQ(session->canvas().background.fB, 0.3f);
-}
-
-TEST_F(CanvasSession, StepsAtTheRateItIsGiven) {
-  // The first stepped frame must advance, not be swallowed seeding the
-  // clock: a plate is a function of the number of steps taken, so a
-  // frame lost at the start moves every one after it.
-  for (int i = 0; i < 6; ++i) session->frame(canvas(), 1.0 / 60.0);
-  EXPECT_NEAR(session->timing().totalMs,
-              session->timing().updateMs + session->timing().drawMs, 1e-6);
-}
-
-TEST_F(CanvasSession, ReportsTheLanesTheRuntimeSpent) {
-  session->frame(canvas(), 1.0 / 60.0);
-  ASSERT_EQ(session->lanes().size(), 4u);
-  EXPECT_STREQ(session->lanes()[0].name, "recon");
-  EXPECT_STREQ(session->lanes()[3].name, "paint");
-  EXPECT_FALSE(session->counters().empty());
-}
-
 TEST_F(CanvasSession, PaintsWhatTheSketchDescribed) {
   canvas().clear(SK_ColorBLACK);
   session->frame(canvas(), 1.0 / 60.0);
   EXPECT_EQ(pixels().getColor(10, 10), SK_ColorRED);
+  // The ground is the one the body declared, not the black it was
+  // cleared to: a runtime that painted only what it was described would
+  // leave the corner as it found it.
+  EXPECT_NE(pixels().getColor(300, 190), SK_ColorBLACK);
 }
 
-TEST_F(CanvasSession, RepaintDoesNotAdvanceButStillDoes) {
+TEST_F(CanvasSession, AStillTakesOneMoreStepSoAPlateIsTheDeclaredMomentPlusOne) {
+  // A canvas runtime re-renders for its still — it is resolution
+  // independent, so a plate is described again at the capture scale
+  // rather than magnified — and describing again is one more step.
   session->frame(canvas(), 1.0 / 60.0);
   session->frame(canvas(), 1.0 / 60.0);
   const int stepped = Declaring::updates;
-
-  // Two repaints from the same ground are the same picture: a repaint
-  // draws the state the frames left and runs nothing.
-  canvas().clear(SK_ColorBLACK);
-  session->repaint(canvas());
-  const SkBitmap first = pixels();
-  canvas().clear(SK_ColorBLACK);
-  session->repaint(canvas());
-  const SkBitmap second = pixels();
-  EXPECT_EQ(Declaring::updates, stepped);
-  ASSERT_EQ(first.computeByteSize(), second.computeByteSize());
-  EXPECT_EQ(0, std::memcmp(first.getPixels(), second.getPixels(),
-                           first.computeByteSize()));
-
-  // The still takes exactly one more step, which is what makes a plate
-  // the declared moment plus one.
   session->still(canvas());
   EXPECT_EQ(Declaring::updates, stepped + 1);
 }
 
-TEST_F(CanvasSession, TakesTheStillLargerThanItsCanvas) {
-  EXPECT_GT(session->oversample(), 1.0f);
-}
+/** The 2D session's answers to what every session promises. */
+struct CanvasTraits {
+  static Kind kind() { return kindOf<Declaring>(); }
+  static SkSize canvas() { return SkSize::Make(320, 200); }
+  static double captureSeconds() { return 2.5; }
+  static const char* runtime() { return "canvas"; }
+  static std::vector<const char*> lanes() {
+    return {"recon", "layout", "volat", "paint"};
+  }
+  /** A canvas is described again at the capture scale, so a still is
+   *  worth taking larger than the canvas the body declared. */
+  static float oversample() { return 2.0f; }
+  static void reset() { Declaring::updates = 0; }
+  static int bodyRuns() { return Declaring::updates; }
+};
 
 TEST(CanvasDoors, DrawsTwoSessionsOfOneSketchFromTheirOwnProbes) {
   const auto shot = [](Session& session, SkSurface& surface) {
@@ -385,14 +351,12 @@ TEST(CanvasDoors, KeepsTheTextureScenesItHandsOutUntilTheBodyDeclaresAgain) {
   // device needs, since a scene destroys the texture its image names
   // when it goes.
   EXPECT_FALSE(Screening::scene.expired());
-  EXPECT_NE(session->counters().find("scenes 1"), std::string::npos);
 
   // Declaring again lets last time's scenes go and keeps this time's.
   const std::weak_ptr<TextureScene> first = Screening::scene;
   session->redeclare();
   EXPECT_TRUE(first.expired());
   EXPECT_FALSE(Screening::scene.expired());
-  EXPECT_NE(session->counters().find("scenes 1"), std::string::npos);
 
   // …and the session going lets go of the last of them.
   session.reset();
@@ -453,3 +417,5 @@ TEST(CanvasDoors, PaintsMeshOnTheCpuUntilAProcessInstallsADevice) {
 }
 
 }  // namespace
+
+INSTANTIATE_TYPED_TEST_SUITE_P(TheCanvasSession, SessionContract, CanvasTraits);

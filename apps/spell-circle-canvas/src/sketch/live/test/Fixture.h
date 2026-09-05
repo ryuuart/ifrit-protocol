@@ -59,26 +59,22 @@ inline const Entry kWide{"wide", "wide", "Test", "", &wideKind};
  *  sketch, so a file dropped straight into the system temp directory
  *  would be watched alongside whatever else happens to be there.
  *
+ *  `inADirectoryOfItsOwn` stands the entry in a directory named for it,
+ *  which is the OTHER form a sketch takes: there the sources beside it
+ *  are units of it rather than other sketches, and that difference is
+ *  the whole of what separates the two shapes.
+ *
  *  Nothing here is ever compiled: what these tests ask about is a sketch
  *  the binary already carries, which is what makes selecting one
  *  instant. */
 struct Watched {
-  explicit Watched(std::string_view label) : dir(label) {
+  explicit Watched(std::string_view label, bool inADirectoryOfItsOwn = false)
+      : dir(label) {
     path = dir.path / "sketch.cpp";
-    std::ofstream(path) << "// watched, never built\n";
-  }
-
-  sigil::test::ScratchDir dir;
-  std::filesystem::path path;
-};
-
-/** THE DIRECTORY FORM of the same: the entry standing in a directory of
- *  its own name, so the sources beside it are units of it rather than
- *  other sketches. */
-struct WatchedDirectory {
-  explicit WatchedDirectory(std::string_view label) : dir(label) {
-    std::filesystem::create_directories(dir.path / "rain");
-    path = dir.path / "rain" / "rain.cpp";
+    if (inADirectoryOfItsOwn) {
+      std::filesystem::create_directories(dir.path / "rain");
+      path = dir.path / "rain" / "rain.cpp";
+    }
     std::ofstream(path) << "// watched, never built\n";
   }
 

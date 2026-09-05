@@ -9,8 +9,9 @@
 #
 # Each feature is its own archive with its own tests and benchmarks, and
 # links only the features beneath it. The fixtures every sketch test
-# binary shares — the one font context and the one asset store a process
-# holds — are test/Support.h.
+# binary shares are test/support/, reached as "support/<name>.h": the one
+# asset store a process holds, the readings a test takes off a picture,
+# and the contract every session answers whatever it draws through.
 sigil_library_root(SigilSketch
   BRIEF "Sketches: one file per scene, one registry, one host"
   DOCS ${CMAKE_CURRENT_LIST_DIR}/kit/README.md)

@@ -20,6 +20,17 @@ class Assets;
  *  name is what a baseline manifest holds, so it is spelled once. */
 inline constexpr std::string_view kPlatePrefix = "plate_";
 
+/** HOW WIDE A PLATE MAY BE before the oversample gives way rather than
+ *  the pixel count. It bounds what a HOST chose; a sketch that declares
+ *  an oversample of its own is rendered at exactly that, because the
+ *  reason to declare one is a grid a fractional scale would destroy.
+ *
+ *  Out here because it is the width a plate on disk comes out at, which
+ *  is a fact about the file rather than about the sweep's arithmetic:
+ *  anything that reads a plate and expects the ceiling reads it from
+ *  here rather than typing the number again. */
+inline constexpr float kPlateWidthCeiling = 2400.0f;
+
 /** WHAT ONE HEADLESS RUN DOES.
  *
  *  The sweep answers two questions that want opposite conditions, which

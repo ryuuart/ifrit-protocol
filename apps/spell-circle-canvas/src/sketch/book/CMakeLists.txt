@@ -268,10 +268,10 @@ add_test(NAME sketch_reload_directory
 # rows — asserting that a compiled-in canvas sketch's row names its
 # runtime, and that an unbuilt file opened by path learns its runtime
 # through learn(). It links no GPU and opens no window.
-add_executable(sketch_book_test test/CatalogTest.cpp)
-target_link_libraries(sketch_book_test PRIVATE
-  SigilSketchBook SigilSketchCanvas GTest::gtest_main Qt6::Core)
-target_include_directories(sketch_book_test PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../test
-  ${CMAKE_SOURCE_DIR}/src/test)
-add_test(NAME sketch_book_test COMMAND sketch_book_test)
+# SketchCatalog's header is beside its source rather than under
+# include/, because it names Qt types the library keeps to itself, so the
+# support directory is this one.
+sigil_test(sketch_book_test
+  SOURCES test/CatalogTest.cpp
+  LIBRARIES SigilSketchBook SigilSketchCanvas Qt6::Core
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR})

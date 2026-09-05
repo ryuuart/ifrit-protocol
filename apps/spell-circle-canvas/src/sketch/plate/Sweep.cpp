@@ -56,12 +56,6 @@ constexpr int kMaxWarmFrames = 240 - kProbeFrames;
 constexpr int kMaxSampleFrames = 120;
 constexpr int kCaptureFrame = kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
 
-/** How wide a plate may be before the oversample gives way rather than
- *  the pixel count. It bounds what a HOST chose; a sketch that declares
- *  an oversample of its own is rendered at exactly that, because the
- *  reason to declare one is a grid a fractional scale would destroy. */
-constexpr float kPlateWidthCeiling = 2400.0f;
-
 /** A plate on disk: encoded once, written once. The plate ledger hashes
  *  what lands here, so the encode is the picture's identity and a
  *  half-written file must read as a failure rather than as a plate. */

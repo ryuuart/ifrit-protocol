@@ -9,9 +9,11 @@
 #include <unistd.h>
 
 #include <array>
+#include <chrono>
 #include <csignal>
 #include <functional>
 #include <string>
+#include <thread>
 
 namespace {
 
@@ -44,12 +46,30 @@ Faulted faultIn(const std::function<void()>& body) {
   }
   ::close(pipes[1]);
   Faulted out;
+  // BOTH WAITS ARE COUNTED. A child that neither faults nor exits would
+  // hold an open read and then an open wait forever, and a run that
+  // hangs reports nothing at all where a run that fails names the claim
+  // that broke. A report is a few hundred bytes, so a child still
+  // writing after this many reads is one that will not stop.
+  constexpr int kReads = 64;
+  constexpr int kTurns = 5000;
   std::array<char, 4096> buffer{};
-  for (ssize_t n; (n = ::read(pipes[0], buffer.data(), buffer.size())) > 0;)
+  for (int read = 0; read < kReads; ++read) {
+    const ssize_t n = ::read(pipes[0], buffer.data(), buffer.size());
+    if (n <= 0) break;
     out.said.append(buffer.data(), (size_t)n);
+  }
   ::close(pipes[0]);
   int status = 0;
-  ::waitpid(child, &status, 0);
+  for (int turn = 0; turn < kTurns; ++turn) {
+    if (::waitpid(child, &status, WNOHANG) == child) break;
+    if (turn + 1 == kTurns) {
+      ::kill(child, SIGKILL);
+      ::waitpid(child, &status, 0);
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
   if (WIFSIGNALED(status)) out.signal = WTERMSIG(status);
   return out;
 }

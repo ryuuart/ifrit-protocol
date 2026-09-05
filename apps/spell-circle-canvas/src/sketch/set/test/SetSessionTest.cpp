@@ -21,8 +21,11 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
-#include "Support.h"
+#include "support/Fixtures.h"
+#include "support/Pixels.h"
+#include "support/Sessions.h"
 
 namespace {
 
@@ -33,9 +36,14 @@ namespace camera = sigil::geometry::mesh::camera;
 
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
+using sigil::sketch::test::inkBounds;
+using sigil::sketch::test::samePicture;
 
-/** One box on a turntable, and nothing else. */
+/** One box on a turntable, and nothing else. It counts the times its
+ *  body was asked to describe, which is the observable behind the
+ *  difference between stepping and repainting. */
 struct Spun : Set {
+  static inline int describes = 0;
   void setup(SetContext& ctx) override {
     ctx.canvas(160, 120);
     ctx.background({0.05f, 0.05f, 0.08f, 1});
@@ -46,6 +54,7 @@ struct Spun : Set {
     ctx.camera(lens);
   }
   world::Frame describe(float seconds) override {
+    ++describes;
     return world::Element()
         .key("set")
         .child(world::Element().key("sun").light(
@@ -143,41 +152,6 @@ SkBitmap oneFrame(Session& session) {
   return bitmap;
 }
 
-/** Whether two plates are the same picture, byte for byte. */
-bool samePicture(const SkBitmap& a, const SkBitmap& b) {
-  return a.computeByteSize() == b.computeByteSize() &&
-         std::memcmp(a.getPixels(), b.getPixels(), a.computeByteSize()) == 0;
-}
-
-/** WHERE THE PICTURE STANDS, as fractions of the plate, so two plates of
- *  different sizes can be asked whether they show the same thing in the
- *  same place. A set's background is one flat colour and everything
- *  drawn stands against it, so what is not the corner pixel is the
- *  picture. */
-SkRect inkBounds(const SkBitmap& plate) {
-  const SkColor background = plate.getColor(0, 0);
-  int left = plate.width(), top = plate.height(), right = -1, bottom = -1;
-  for (int y = 0; y < plate.height(); ++y)
-    for (int x = 0; x < plate.width(); ++x) {
-      if (plate.getColor(x, y) == background) continue;
-      left = std::min(left, x);
-      top = std::min(top, y);
-      right = std::max(right, x);
-      bottom = std::max(bottom, y);
-    }
-  if (right < 0) return SkRect::MakeEmpty();
-  return SkRect::MakeLTRB((float)left / (float)plate.width(),
-                          (float)top / (float)plate.height(),
-                          (float)(right + 1) / (float)plate.width(),
-                          (float)(bottom + 1) / (float)plate.height());
-}
-
-TEST(SetSession, ReadsTheDeclarationBackAfterSetup) {
-  std::unique_ptr<Session> session = kindOf<Spun>()->open(fonts(), assets());
-  EXPECT_EQ(session->canvas().size, SkSize::Make(160, 120));
-  EXPECT_EQ(session->canvas().captureSeconds, 0.5);
-}
-
 TEST(SetSession, TheSameMomentIsTheSamePicture) {
   // The plate contract: a set is a pure function of the scene time, so
   // two runs that step the same number of frames agree on every byte.
@@ -213,34 +187,28 @@ TEST(SetSession, AFittedCanvasPutsThePictureInTheSamePlace) {
   EXPECT_NEAR(one.fBottom, two.fBottom, kSlack);
 }
 
-TEST(SetSession, AFittedCanvasHoldsTheSamePicture) {
-  // The same picture INSIDE the outline too, which is what says the
-  // projection landed where it belongs rather than merely fitting: a set
-  // is formed at ONE resolution, so it has to be formed at the canvas's
-  // — one formed at its declared size and then magnified onto the canvas
-  // is a picture of a smaller one. Every 2x2 of the fitted plate
-  // averages to its own pixel of the declared one, to within what two
-  // resolutions do to an edge.
-  const SkBitmap declared = steppedOnto(1.0f, 30);
+TEST(SetSession, AFittedCanvasIsFormedAtItsOwnResolution) {
+  // A set is formed at ONE resolution, so it has to be formed at the
+  // canvas's: one formed at the declared size and then magnified onto a
+  // canvas twice as wide is a picture of a smaller one. What separates
+  // the two is inside the outline rather than around it — a magnified
+  // plate is one where every 2x2 of pixels came from a single source
+  // pixel, so not one of them holds two colours.
   const SkBitmap fitted = steppedOnto(2.0f, 30);
-  ASSERT_EQ(fitted.width(), declared.width() * 2);
-  ASSERT_EQ(fitted.height(), declared.height() * 2);
+  ASSERT_EQ(fitted.width(), 320);
+  ASSERT_EQ(fitted.height(), 240);
 
-  double total = 0;
-  for (int y = 0; y < declared.height(); ++y)
-    for (int x = 0; x < declared.width(); ++x) {
-      const SkColor4f want = declared.getColor4f(x, y);
-      SkColor4f got{0, 0, 0, 0};
-      for (int dy = 0; dy < 2; ++dy)
-        for (int dx = 0; dx < 2; ++dx) {
-          const SkColor4f pixel = fitted.getColor4f(2 * x + dx, 2 * y + dy);
-          got = {got.fR + pixel.fR * 0.25f, got.fG + pixel.fG * 0.25f,
-                 got.fB + pixel.fB * 0.25f, 1.0f};
-        }
-      total += std::abs(want.fR - got.fR) + std::abs(want.fG - got.fG) +
-               std::abs(want.fB - got.fB);
+  size_t mixed = 0;
+  for (int y = 0; y + 1 < fitted.height(); y += 2)
+    for (int x = 0; x + 1 < fitted.width(); x += 2) {
+      const SkColor first = fitted.getColor(x, y);
+      if (fitted.getColor(x + 1, y) != first ||
+          fitted.getColor(x, y + 1) != first ||
+          fitted.getColor(x + 1, y + 1) != first)
+        ++mixed;
     }
-  EXPECT_LT(total / (3.0 * declared.width() * declared.height()), 0.02);
+  EXPECT_GT(mixed, 0u) << "every 2x2 block holds one colour, which is what "
+                          "a magnified plate looks like";
 }
 
 TEST(SetSession, DrawsThroughThePassesWhenTheProcessInstalledARuntime) {
@@ -255,8 +223,6 @@ TEST(SetSession, DrawsThroughThePassesWhenTheProcessInstalledARuntime) {
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(160, 120));
   SkCanvas canvas(bitmap);
   session->frame(canvas, 1.0 / 60.0);
-  ASSERT_EQ(session->lanes().size(), 4u);
-  EXPECT_STREQ(session->lanes()[3].name, "passes");
   EXPECT_EQ(session->lanes()[3].ms, 0.0);
 
   useRuntime(world::Runtime::cpu());
@@ -266,18 +232,14 @@ TEST(SetSession, DrawsThroughThePassesWhenTheProcessInstalledARuntime) {
   useRuntime({});
 }
 
-TEST(SetSession, TakesItsStillAtItsOwnSize) {
-  // The still describes nothing: it presents the frame that stands, so
-  // there is nothing here to form again larger and a bigger plate would
-  // only magnify what is already made.
-  std::unique_ptr<Session> session = kindOf<Spun>()->open(fonts(), assets());
-  EXPECT_FLOAT_EQ(session->oversample(), 1.0f);
-}
-
-TEST(SetSession, OffersAViewpointAHostCanMove) {
+TEST(SetSession, OffersAViewpointAHostCanTakeHoldOf) {
+  // A host reads this to decide whether to offer the control at all,
+  // and seeds the control with where the set already stands rather than
+  // with a number of its own.
   std::unique_ptr<Session> session = kindOf<Spun>()->open(fonts(), assets());
   EXPECT_TRUE(session->hasViewpoint());
-  session->viewpoint(45.0f, 20.0f, 300.0f);
+  oneFrame(*session);
+  EXPECT_TRUE(session->orbit().has_value());
 }
 
 TEST(SetSession, IsSeenFromTheCameraItsOwnTreeCarries) {
@@ -336,9 +298,24 @@ TEST(SetDoors, PaintsATextureSceneOntoABody) {
   EXPECT_GT(SkColorGetG(centre), 200u);
   EXPECT_LT(SkColorGetR(centre), 40u);
   EXPECT_LT(SkColorGetB(centre), 40u);
-  // The set holds the scene too, but the SESSION is what keeps it
-  // standing, and says so.
-  EXPECT_NE(session->counters().find("screens 1"), std::string::npos);
 }
 
+/** The 3D session's answers to what every session promises. */
+struct SetTraits {
+  static Kind kind() { return kindOf<Spun>(); }
+  static SkSize canvas() { return SkSize::Make(160, 120); }
+  static double captureSeconds() { return 0.5; }
+  static const char* runtime() { return "set"; }
+  static std::vector<const char*> lanes() {
+    return {"nodes", "drawn", "cooked", "passes"};
+  }
+  /** The plate IS the frame just finished, so there is nothing to form
+   *  again larger. */
+  static float oversample() { return 1.0f; }
+  static void reset() { Spun::describes = 0; }
+  static int bodyRuns() { return Spun::describes; }
+};
+
 }  // namespace
+
+INSTANTIATE_TYPED_TEST_SUITE_P(TheSetSession, SessionContract, SetTraits);

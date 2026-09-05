@@ -29,7 +29,8 @@ sigil_library(SigilSketchCanvas PIC
 sigil_test(sketch_canvas_test
   SOURCES test/CanvasSessionTest.cpp
   LIBRARIES SigilSketchCanvas SigilComposeTexture SigilWorldElement
-            SigilWorldFrame SigilGeometryKit SigilMaterialKit)
+            SigilWorldFrame SigilGeometryKit SigilMaterialKit
+            SigilWeavePorts)
 
 sigil_bench(sketch_canvas_bench
   SOURCES bench/CanvasSessionBench.cpp
