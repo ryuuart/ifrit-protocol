@@ -137,7 +137,7 @@ def main() -> int:
     )
     argument_parser.add_argument(
         "--config",
-        default="Debug",
+        default="RelWithDebInfo",
         choices=["Debug", "Release", "RelWithDebInfo"],
         help="build configuration for the instrumented tree (default: Debug)",
     )

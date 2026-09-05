@@ -264,6 +264,9 @@ SECONDARY_TREES = {
 }
 
 
+SECONDARY_CONFIGURATION = "RelWithDebInfo"
+
+
 def secondary_presets(presets: dict) -> None:
     """Adds the configure, build and test preset of every secondary tree."""
     for name, tree in SECONDARY_TREES.items():
@@ -276,14 +279,25 @@ def secondary_presets(presets: dict) -> None:
                     **tree["cacheVariables"],
                     "VCPKG_INSTALLED_DIR": "${sourceDir}/build/vcpkg_installed",
                     "VCPKG_MANIFEST_INSTALL": "OFF",
+                    "CMAKE_DEFAULT_BUILD_TYPE": SECONDARY_CONFIGURATION,
                 },
             }
         )
-        presets["buildPresets"].append({"name": name, "configurePreset": name})
+        # An instrumented tree wants symbols, not a debug build: the
+        # instrumentation reads optimised code fine, and only a debugging
+        # session asks for Debug.
+        presets["buildPresets"].append(
+            {
+                "name": name,
+                "configurePreset": name,
+                "configuration": SECONDARY_CONFIGURATION,
+            }
+        )
         presets["testPresets"].append(
             {
                 "name": name,
                 "configurePreset": name,
+                "configuration": SECONDARY_CONFIGURATION,
                 "output": {"outputOnFailure": True},
                 "environment": tree["environment"],
             }
@@ -320,23 +334,30 @@ def write_user_presets(
                 "cacheVariables": {"CMAKE_PREFIX_PATH": str(qt_installation)},
                 "environment": {"PATH": f"{qt_installation / 'bin'}:$penv{{PATH}}"},
             },
+            # Release unless asked otherwise: the multi-config generator
+            # builds whatever configuration a build names, and a build that
+            # names none gets this one rather than Debug.
             {
                 "name": "main",
                 "inherits": main_inherits + ["ninja"],
+                "cacheVariables": {"CMAKE_DEFAULT_BUILD_TYPE": "Release"},
             },
             {
                 "name": "main-xcode",
                 "inherits": main_inherits + ["xcode"],
+                "cacheVariables": {"CMAKE_DEFAULT_BUILD_TYPE": "Release"},
             },
         ],
         "buildPresets": [
             {
                 "name": "main",
                 "configurePreset": "main",
+                "configuration": "Release",
             },
             {
                 "name": "main-xcode",
                 "configurePreset": "main-xcode",
+                "configuration": "Release",
             },
         ],
         "testPresets": [],
