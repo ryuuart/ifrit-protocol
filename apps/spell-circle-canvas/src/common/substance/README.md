@@ -50,7 +50,7 @@ graph.set("Season", 0.8f);
 graph.render();
 
 sk_sp<SkImage> normal = graph.output("normal");  // by usage or identifier
-material::Material leaves = material::kit::surface(material::textures::
+material::Material leaves = material::kit::surface(material::texture::
     fromUsageMap(graph.outputsByUsage(), graph.normalsAreDirectX()));
 ```
 
@@ -72,14 +72,14 @@ touching the SDK's types.
 
 **Usage is the key.** Every output the graph tagged with a channel is
 returned under that channel's canonical name — the vocabulary
-`material::textures::roleForUsage()` reads. Untagged outputs are keyed by
+`material::texture::roleForUsage()` reads. Untagged outputs are keyed by
 identifier. Both spellings a graph may use for the same slot
 (`diffuse` and `baseColor`) land on the same `Material` slot downstream.
 
 **Two inputs every graph has.** `$outputsize` (an Int2, log2 per axis)
 is what `setResolution()` sets. `$normalformat` (0 DirectX, 1 OpenGL)
 selects the normal map's green convention; the engine's default is
-DirectX, which is why `material::textures::fromUsageMap()` defaults
+DirectX, which is why `material::texture::fromUsageMap()` defaults
 `normalDirectX` to true. `Graph::normalsAreDirectX()` reads the
 input back, so the material builder can be handed the graph's own
 answer rather than a remembered one.

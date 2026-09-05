@@ -41,7 +41,7 @@ std::string resolveResourceDir(const std::string& configured) {
   if (!configured.empty()) return configured;
   std::string staged = executableAdjacentResourceDir();
   if (!staged.empty()) return staged;
-  return IFRIT_WEB_DEFAULT_RESOURCE_DIR;
+  return SIGILSCRY_DEFAULT_RESOURCE_DIR;
 }
 
 }  // namespace sigil::scry

@@ -262,6 +262,6 @@ format per megapixel over a generated gradient, and the SkImage door
 against the pixmap one so the readback's share is visible. The fixtures are
 committed 4x4 px files under `test/assets/` at the library root — one
 still per format plus a three-frame animation for each animated format —
-located through the `IFRIT_IMAGE_TEST_ASSET_DIR` compile definition, so
+located through the `SIGILIMAGE_TEST_ASSET_DIR` compile definition, so
 the test and the benchmark that measures against them both run from any
 working directory.

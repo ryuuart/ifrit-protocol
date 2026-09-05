@@ -99,7 +99,7 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
     static bool warned = false;
     if (!warned) {
       warned = true;
-      fprintf(stderr, "[world] 2D on the 3D device is unavailable: %s\n",
+      fprintf(stderr, "[geometry] 2D on the 3D device is unavailable: %s\n",
               adoptError.empty() ? "Graphite declined the adopted device"
                                  : adoptError.c_str());
     }

@@ -9,7 +9,9 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
-#include <sigilweave/shaders/PaintShaders.h>
+#include <include/core/SkShader.h>
+#include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilweave/style/Features.h>
 
 #include <cstdio>
@@ -18,6 +20,14 @@
 #include "DemoSupport.h"
 
 using namespace sigil::weave;
+
+namespace {
+/// A text-paint preset shaded by SigilMaterial's Skia backend.
+sk_sp<SkShader> shade(const sigil::material::Material& m) {
+  sigil::material::skia::install();
+  return sigil::material::skia::shader(m, {});
+}
+}  // namespace
 
 namespace {
 
@@ -91,14 +101,15 @@ void sceneNewFeatures(FontContext& fontContext,
     const SkRect bandBounds = SkRect::MakeXYWH(40, rowTop + 22, 900, 44);
     Paragraph paragraph;
 
-    // A PaintShaders preset behind plain ink: only the marker is shaded.
+    // A text-paint preset behind plain ink: only the marker is shaded.
     TextStyle meshMarked = style(26, kInk);
     Decoration meshHighlight;
     meshHighlight.kind = Decoration::Kind::kHighlight;
     SkPaint meshPaint;
     meshPaint.setAntiAlias(true);
     meshPaint.setAlphaf(0.55f);  // keep the ink readable through the band
-    meshPaint.setShader(PaintShaders::meshGradient(bandBounds, 1.5f));
+    meshPaint.setShader(
+        shade(sigil::material::kit::meshGradient(bandBounds, 1.5f)));
     meshHighlight.paint = meshPaint;
     meshMarked.paint.addDecoration(meshHighlight);
     paragraph.appendText(u8"a mesh-gradient marker ", meshMarked);

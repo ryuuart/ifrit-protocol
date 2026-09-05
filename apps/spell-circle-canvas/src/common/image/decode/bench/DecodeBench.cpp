@@ -97,7 +97,7 @@ void BM_DecodeImage_Fixture(benchmark::State& state) {
   const std::string name = format == kPng ? "still.png" : "still.jpg";
   state.SetLabel(name);
   const std::vector<std::byte> bytes =
-      readFile(std::string(IFRIT_IMAGE_TEST_ASSET_DIR) + "/" + name);
+      readFile(std::string(SIGILIMAGE_TEST_ASSET_DIR) + "/" + name);
   std::optional<ImageAsset> asset;
   for ([[maybe_unused]] auto iteration : state) {
     asset = decodeImage(bytes.data(), bytes.size(), {}, name);

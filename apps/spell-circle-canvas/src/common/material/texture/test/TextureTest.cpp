@@ -166,8 +166,8 @@ TEST(Texture, FillsAMaterialSlotAsALeaf) {
 }
 
 TEST(TextureSet, ClassifiesTheToolsNames) {
-  using textures::classify;
-  using textures::Role;
+  using texture::classify;
+  using texture::Role;
   // Substance Painter / Designer.
   EXPECT_EQ(classify("Rock_BaseColor.png").role, Role::BaseColor);
   EXPECT_EQ(classify("Rock_BaseColor.png").set, "Rock");
@@ -207,10 +207,10 @@ TEST(TextureSet, ClassifiesTheToolsNames) {
   // Nothing recognizable.
   EXPECT_EQ(classify("photo.png").role, Role::Unknown);
   EXPECT_EQ(classify("IMG_2048.png").role, Role::Unknown);
-  EXPECT_EQ(textures::roleForUsage("ambientOcclusion"), Role::Occlusion);
-  EXPECT_EQ(textures::roleForUsage("baseColor"), Role::BaseColor);
-  EXPECT_EQ(textures::roleForUsage("wibble"), Role::Unknown);
-  EXPECT_EQ(textures::name(Role::Packed), "packed");
+  EXPECT_EQ(texture::roleForUsage("ambientOcclusion"), Role::Occlusion);
+  EXPECT_EQ(texture::roleForUsage("baseColor"), Role::BaseColor);
+  EXPECT_EQ(texture::roleForUsage("wibble"), Role::Unknown);
+  EXPECT_EQ(texture::name(Role::Packed), "packed");
 }
 
 TEST(TextureSet, DiscoversAndDecodesByRole) {
@@ -225,11 +225,11 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
     std::fputs("x", f);
     std::fclose(f);
   }
-  const std::vector<textures::TextureSet> sets = textures::discover(dir);
+  const std::vector<texture::TextureSet> sets = texture::discover(dir);
   ASSERT_EQ(sets.size(), 2u);
   EXPECT_EQ(sets[0].name, "other");
   EXPECT_EQ(sets[1].name, "tiles");
-  const textures::TextureSet& tiles = sets[1];
+  const texture::TextureSet& tiles = sets[1];
   EXPECT_TRUE(tiles.normalDirectX);
   EXPECT_EQ(tiles.files.size(), 4u);
 
@@ -239,28 +239,28 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
     if (!img) img = solid(SK_ColorWHITE, 2, 2);
     return img;
   };
-  const textures::TextureMaps maps = textures::fromFiles(tiles, decode);
+  const texture::TextureMaps maps = texture::fromFiles(tiles, decode);
   EXPECT_EQ(maps.name, "tiles");
   EXPECT_TRUE(maps.normalDirectX);
-  ASSERT_NE(maps.map(textures::Role::BaseColor), nullptr);
-  EXPECT_EQ(maps.map(textures::Role::BaseColor)->image().get(),
+  ASSERT_NE(maps.map(texture::Role::BaseColor), nullptr);
+  EXPECT_EQ(maps.map(texture::Role::BaseColor)->image().get(),
             decoded["tiles_diff_1k.png"].get());
   // A scanned material is meant to repeat.
-  EXPECT_EQ(maps.map(textures::Role::BaseColor)->tileX(), SkTileMode::kRepeat);
-  EXPECT_EQ(maps.map(textures::Role::Packed)->image().get(),
+  EXPECT_EQ(maps.map(texture::Role::BaseColor)->tileX(), SkTileMode::kRepeat);
+  EXPECT_EQ(maps.map(texture::Role::Packed)->image().get(),
             decoded["tiles_arm_1k.png"].get());
-  EXPECT_EQ(maps.map(textures::Role::Emissive), nullptr);
+  EXPECT_EQ(maps.map(texture::Role::Emissive), nullptr);
   fs::remove_all(dir);
 
   // The usage door: the first word naming a role wins, in key order.
   const sk_sp<SkImage> a = solid(SK_ColorWHITE, 2, 2);
   const sk_sp<SkImage> b = solid(SK_ColorWHITE, 2, 2);
-  const textures::TextureMaps u = textures::fromUsageMap(
+  const texture::TextureMaps u = texture::fromUsageMap(
       {{"diffuse", a}, {"baseColor", b}, {"normal", b}, {"height", a}});
   EXPECT_TRUE(u.normalDirectX);
-  EXPECT_EQ(u.map(textures::Role::BaseColor)->image().get(), b.get());
-  EXPECT_EQ(u.map(textures::Role::Normal)->image().get(), b.get());
-  EXPECT_EQ(u.map(textures::Role::Height)->image().get(), a.get());
+  EXPECT_EQ(u.map(texture::Role::BaseColor)->image().get(), b.get());
+  EXPECT_EQ(u.map(texture::Role::Normal)->image().get(), b.get());
+  EXPECT_EQ(u.map(texture::Role::Height)->image().get(), a.get());
 }
 
 TEST(Surface, EnvironmentRoughnessBlursAndCaches) {

@@ -9,8 +9,10 @@
 
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
-#include <sigilweave/shaders/PaintShaders.h>
+#include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <cmath>
 
@@ -18,6 +20,14 @@
 #include "support/Layouts.h"
 
 using namespace sigil::weave;
+
+namespace {
+/// A text-paint preset shaded by SigilMaterial's Skia backend.
+sk_sp<SkShader> shade(const sigil::material::Material& m) {
+  sigil::material::skia::install();
+  return sigil::material::skia::shader(m, {});
+}
+}  // namespace
 using namespace sigil::weave::bench;
 
 namespace {
@@ -179,10 +189,10 @@ Scene wall(bool effects) {
     textStyle.paint.addUnderlay(PaintLayer::glow(0x772A77FF, 1.8f))
         .addUnderlay(PaintLayer::outline(0xFF061229, 0.7f));
     textStyle.paint.foreground.setShader(
-        PaintShaders::meshGradient(bounds, 1.25f));
+        shade(sigil::material::kit::meshGradient(bounds, 1.25f)));
     SkPaint stars;
     stars.setAntiAlias(true);
-    stars.setShader(PaintShaders::sparkle(bounds, 1.25f));
+    stars.setShader(shade(sigil::material::kit::sparkle(bounds, 1.25f)));
     stars.setBlendMode(SkBlendMode::kScreen);
     textStyle.paint.addOverlay(PaintLayer(std::move(stars)));
   }

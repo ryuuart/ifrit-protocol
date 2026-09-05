@@ -11,7 +11,7 @@
 # (4x4 px, a few hundred bytes each — one still per format plus a
 # 3-frame red/green/blue animation for each animated format, regenerable
 # with PIL + avifenc) and reach a binary through the
-# IFRIT_IMAGE_TEST_ASSET_DIR compile definition.
+# SIGILIMAGE_TEST_ASSET_DIR compile definition.
 #
 # The Skia codec set is guaranteed by the skia vcpkg features declared in
 # vcpkg.json (png/jpeg/webp are port defaults; avif is opted in there).

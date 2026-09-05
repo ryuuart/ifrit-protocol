@@ -36,7 +36,7 @@
  * THE TEXTURE SET IS GENERATED HERE, not read off the disk. A plate is a
  * function of the declaration, and what a machine happens to have under
  * `build/assets` is not; the floor's two maps are baked off the pattern
- * shelf's checker and handed through the same `textures::` door a
+ * shelf's checker and handed through the same `texture::` door a
  * scanned folder arrives by, so what is exercised is the vocabulary
  * rather than the filesystem. The maps the shelf has no tile for — a
  * tangent normal, a packed occlusion-roughness-metallic, a mask and an
@@ -190,13 +190,13 @@ sk_sp<SkImage> filaments(int period) {
 /** The generated floor set, keyed by the usage words a material tool
  *  tags its outputs with — the same door a discovered folder's files
  *  arrive through once they are decoded. */
-material::textures::TextureMaps floorMaps() {
+material::texture::TextureMaps floorMaps() {
   boost::container::map<std::string, sk_sp<SkImage>> byUsage;
   byUsage["baseColor"] =
       check({0.30f, 0.33f, 0.38f, 1}, {0.17f, 0.19f, 0.23f, 1}, 16.0f);
   byUsage["roughness"] =
       check({0.7f, 0.7f, 0.7f, 1}, {0.35f, 0.35f, 0.35f, 1}, 32.0f);
-  return material::textures::fromUsageMap(byUsage, /*normalDirectX=*/false);
+  return material::texture::fromUsageMap(byUsage, /*normalDirectX=*/false);
 }
 
 /** A card standing upright at @p x, wearing @p surface. */

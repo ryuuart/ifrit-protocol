@@ -3,7 +3,8 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
-#include <sigilweave/shaders/PaintShaders.h>
+#include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>
 #include <array>
@@ -17,6 +18,11 @@
 using namespace sigil::weave;
 
 namespace gallery {
+
+sk_sp<SkShader> shade(const sigil::material::Material& material) {
+  sigil::material::skia::install();
+  return sigil::material::skia::shader(material, {});
+}
 
 namespace {
 
@@ -120,22 +126,23 @@ class LayerShowcasePart final : public Scene {
           layoutMicroseconds = layoutTime.microseconds();
         });
 
-    // Runtime effects compile once inside PaintShaders. These calls only make
-    // new uniform blocks/shader instances; replacing them is paint-only and
-    // the existing shapes and layouts remain valid.
+    // Each preset's program compiles once per process. These calls only
+    // make new uniform blocks/shader instances; replacing them is
+    // paint-only and the existing shapes and layouts remain valid.
+    namespace kit = sigil::material::kit;
     const SkRect shaderBounds = SkRect::MakeWH(canvasWidth, canvasHeight);
     const float time = static_cast<float>(elapsedSeconds);
-    m_paints[3].foreground.setShader(PaintShaders::water(shaderBounds, time));
+    m_paints[3].foreground.setShader(shade(kit::water(shaderBounds, time)));
     m_paints[4].foreground.setShader(
-        PaintShaders::meshGradient(shaderBounds, time));
+        shade(kit::meshGradient(shaderBounds, time)));
     m_paints[4].overlays[0].paint.setShader(
-        PaintShaders::sparkle(shaderBounds, time));
+        shade(kit::sparkle(shaderBounds, time)));
     m_paragraphPaints[3].foreground.setShader(
-        PaintShaders::water(paragraphBounds, time));
+        shade(kit::water(paragraphBounds, time)));
     m_paragraphPaints[4].foreground.setShader(
-        PaintShaders::meshGradient(paragraphBounds, time));
+        shade(kit::meshGradient(paragraphBounds, time)));
     m_paragraphPaints[4].overlays[0].paint.setShader(
-        PaintShaders::sparkle(paragraphBounds, time));
+        shade(kit::sparkle(paragraphBounds, time)));
 
     // A separate translucent gradient is composited above the stars as a
     // traveling sheen, demonstrating that runtime and stock shaders layer in

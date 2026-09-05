@@ -10,7 +10,7 @@
 #include <boost/container/flat_map.hpp>
 #include <cctype>
 
-namespace sigil::material::textures {
+namespace sigil::material::texture {
 
 namespace {
 
@@ -255,4 +255,4 @@ TextureMaps fromUsageMap(
   return out;
 }
 
-}  // namespace sigil::material::textures
+}  // namespace sigil::material::texture

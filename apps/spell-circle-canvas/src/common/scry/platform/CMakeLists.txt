@@ -30,7 +30,7 @@ target_link_libraries(SigilScryPlatform
 # Fallback resource location (icudt67l.dat, cacert.pem) compiled in;
 # WebEngineConfig::resourceDir overrides it at runtime.
 target_compile_definitions(SigilScryPlatform PRIVATE
-  IFRIT_WEB_DEFAULT_RESOURCE_DIR="${Ultralight_RESOURCE_DIR}")
+  SIGILSCRY_DEFAULT_RESOURCE_DIR="${Ultralight_RESOURCE_DIR}")
 
 # Links the library it exercises and Ultralight for the types its
 # handlers take; no renderer is created, so it shares a process with

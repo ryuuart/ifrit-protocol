@@ -192,8 +192,8 @@ this archive.
   `paint::drawBatched()`, the same draws as free functions over a layout,
   and `paint::setMaterialResolver()`, the seam a pass carrying a
   SigilMaterial instance is shaded through. The archive links no renderer;
-  the shaders feature's `PaintShaders::installMaterialResolver()` installs
-  SigilMaterial's Skia backend there.
+  a host that wants materials shaded installs SigilMaterial's Skia backend
+  there, with the pass's bounds as the material's resolution.
 
 **`choreograph`** — `SigilWeaveChoreograph`, optional:
 
@@ -215,9 +215,7 @@ edits, DOM-Range style.
 `cache/SingleLineParagraphCache.h` caches single-style paragraphs by text,
 typeface, and quantized size, for high-frequency labels.
 
-Separate from the engine: **`shaders`** (`shaders/PaintShaders.h`,
-animated paint presets — SigilMaterial's text paint recipes shaded for a
-run's bounds and the clock), **`ports`** (`ports/SystemFontManager.h`, the OS
+Separate from the engine: **`ports`** (`ports/SystemFontManager.h`, the OS
 font manager), **`kit`** (`kit/`, the companion utilities, with its own
 README) and **`qt`** (`qt/SigilWeaveQt.h`, the Qt bridge).
 

@@ -30,7 +30,7 @@
 
 VkResult volkInitialize(void) {
   const char* candidates[] = {
-      getenv("SIGILWORLD_VULKAN_LIBRARY"), /* explicit override first */
+      getenv("SIGILGEOMETRY_VULKAN_LIBRARY"), /* explicit override first */
       "libvulkan.dylib",
       "libvulkan.1.dylib",
       "/opt/homebrew/lib/libvulkan.dylib",

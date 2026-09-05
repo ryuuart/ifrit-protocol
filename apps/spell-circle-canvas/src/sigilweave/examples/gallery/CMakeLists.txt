@@ -72,7 +72,8 @@ target_link_libraries(WeaveGallery
     SigilWeave   # the whole engine: layout, choreography, the label cache
     SigilWeaveQt # QFont/QString bridging
     SigilWeaveKit # rebuild/layout guards, glyph buckets, labels (kit/README.md)
-    SigilWeaveShaders # PaintShaders presets used by the effect scenes
+    SigilMaterialKit  # the text-paint presets the effect scenes shade
+    SigilMaterialSkia # and the Skia backend that shades them
     SigilWeavePorts # systemFontManager()
     Boost::container
 )

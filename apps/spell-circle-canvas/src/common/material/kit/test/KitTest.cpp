@@ -405,11 +405,11 @@ TEST(Surface, DressesADecodedSet) {
     s->getCanvas()->clear(SK_ColorGRAY);
     return s->makeImageSnapshot();
   }();
-  textures::TextureMaps maps;
+  texture::TextureMaps maps;
   maps.normalDirectX = true;
-  maps.maps[textures::Role::BaseColor] = Texture::of(image);
-  maps.maps[textures::Role::Packed] = Texture::of(image);
-  maps.maps[textures::Role::Emissive] = Texture::of(image);
+  maps.maps[texture::Role::BaseColor] = Texture::of(image);
+  maps.maps[texture::Role::Packed] = Texture::of(image);
+  maps.maps[texture::Role::Emissive] = Texture::of(image);
   const Material m = kit::surface(maps);
   // The packed image stands in for all three channel maps, at glTF's
   // order, and the scalars a map multiplies come up off zero.

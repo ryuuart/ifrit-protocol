@@ -6,11 +6,20 @@
 // between them with the scene's "mode" choice parameter. Only the effects
 // family includes this header — it is not a general factory registry.
 
+#include <include/core/SkRefCnt.h>
+#include <include/core/SkShader.h>
+#include <sigilmaterial/core/Material.h>
+
 #include <memory>
 
 #include "../include/GalleryScenes.h"
 
 namespace gallery {
+
+/// A text-paint preset (sigilmaterial/kit/TextPaint.h) shaded by
+/// SigilMaterial's Skia backend; the program compiles once per process,
+/// so a part may replace a paint's shader every frame.
+sk_sp<SkShader> shade(const sigil::material::Material& material);
 
 /// The layered-paint teaching showcase (five presets over one paragraph).
 std::unique_ptr<Scene> makeLayerShowcasePart();

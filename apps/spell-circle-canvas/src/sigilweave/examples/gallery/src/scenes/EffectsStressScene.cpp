@@ -1,7 +1,7 @@
 // Scene: a fully placed 2,000-word paragraph with four animated paint passes.
 #include <include/core/SkBlendMode.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
-#include <sigilweave/shaders/PaintShaders.h>
+#include <sigilmaterial/kit/TextPaint.h>
 
 #include <algorithm>
 #include <array>
@@ -127,12 +127,12 @@ class StressPart final : public Scene {
     const float time = static_cast<float>(elapsedSeconds);
     if (effectShader)
       m_effect.foreground.setShader(
-          PaintShaders::meshGradient(textBounds, time));
+          shade(sigil::material::kit::meshGradient(textBounds, time)));
     else
       m_effect.foreground.setShader(nullptr);
     if (m_effectStars && !m_effect.overlays.empty())
       m_effect.overlays[0].paint.setShader(
-          PaintShaders::sparkle(textBounds, time));
+          shade(sigil::material::kit::sparkle(textBounds, time)));
     m_paragraph.setPaint(0, m_textLength, m_effect);
 
     canvas->clear(0xFF050A18);

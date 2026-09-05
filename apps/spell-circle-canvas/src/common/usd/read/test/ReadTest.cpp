@@ -31,7 +31,7 @@ using namespace sigil::usd::test;
 namespace {
 
 std::filesystem::path asset(const char* name) {
-  return std::filesystem::path(IFRIT_USD_TEST_ASSET_DIR) / name;
+  return std::filesystem::path(SIGILUSD_TEST_ASSET_DIR) / name;
 }
 
 /** A committed fixture stage read into a Model, with what the read

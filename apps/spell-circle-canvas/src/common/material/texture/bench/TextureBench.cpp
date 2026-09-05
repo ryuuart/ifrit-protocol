@@ -65,7 +65,7 @@ void ClassifyName(benchmark::State& state) {
       "Metal049A_1K-PNG_AmbientOcclusion.png", "photo.png"};
   const char* name = kNames[state.range(0)];
   for ([[maybe_unused]] auto iteration : state) {
-    textures::Classified c = textures::classify(name);
+    texture::Classified c = texture::classify(name);
     benchmark::DoNotOptimize(c);
   }
 }

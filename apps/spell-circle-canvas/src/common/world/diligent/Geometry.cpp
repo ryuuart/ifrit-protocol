@@ -40,10 +40,6 @@ constexpr float kAmbient[4] = {0.12f, 0.12f, 0.15f, 1.0f};
 constexpr float kSpecular = 0.5f;
 constexpr float kShininess = 48.0f;
 constexpr float kRim = 0.25f;
-/** How many emitters one draw carries — the budget the light value
- *  declares and the host tier honours, so both tiers light a set with
- *  the same emitters rather than the device dropping the last four. */
-constexpr size_t kLights = 8;
 
 /** The four panorama slots the scaffold declares, and the sampler they
  *  are read with. Named here because the binding has to tell them from

@@ -10,7 +10,7 @@ if(APPLE)
   # The SDK's stock Metal shader source, embedded so the driver compiles
   # it at runtime on whatever device the host passes in.
   file(READ "${CMAKE_CURRENT_LIST_DIR}/metal/UltralightShaders.metal"
-       IFRIT_WEB_ULTRALIGHT_SHADER_SOURCE)
+       SIGILSCRY_ULTRALIGHT_SHADER_SOURCE)
   configure_file(metal/ShaderSource.h.in
                  "${CMAKE_CURRENT_BINARY_DIR}/generated/ShaderSource.h"
                  @ONLY)

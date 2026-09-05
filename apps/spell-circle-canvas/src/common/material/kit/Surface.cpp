@@ -181,8 +181,8 @@ const Texture* map(const Material& m, std::string_view slot) {
   return fill ? nullptr : texture;
 }
 
-Material surface(const textures::TextureMaps& maps, SurfaceParams base) {
-  using textures::Role;
+Material surface(const texture::TextureMaps& maps, SurfaceParams base) {
+  using texture::Role;
   const auto has = [&](Role role) { return maps.map(role) != nullptr; };
   // A packed occlusion-roughness-metallic image stands in for whichever
   // of the three a set did not ship separately, at glTF's channel order.

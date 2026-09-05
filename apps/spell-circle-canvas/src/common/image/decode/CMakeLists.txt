@@ -52,7 +52,7 @@ if(TARGET unofficial::skia::modules::svg)
   target_compile_definitions(image_decode_test PRIVATE SIGILIMAGE_HAS_SVG)
 endif()
 target_compile_definitions(image_decode_test PRIVATE
-  IFRIT_IMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
+  SIGILIMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
 )
 add_test(NAME image_decode_test COMMAND image_decode_test)
 
@@ -64,6 +64,6 @@ add_executable(image_decode_bench bench/DecodeBench.cpp)
 target_link_libraries(image_decode_bench PRIVATE SigilImageDecode
   SigilImageEncode benchmark::benchmark)
 target_compile_definitions(image_decode_bench PRIVATE
-  IFRIT_IMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
+  SIGILIMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
 )
 add_dependencies(benches image_decode_bench)

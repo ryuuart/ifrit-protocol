@@ -14,7 +14,8 @@ add_executable(weave_demo
   SceneFallback.cpp
   SceneNewFeatures.cpp
 )
-target_link_libraries(weave_demo PRIVATE SigilWeave SigilWeaveShaders
+target_link_libraries(weave_demo PRIVATE SigilWeave
+                                            SigilMaterialKit SigilMaterialSkia
                                             SigilWeavePorts SigilWeaveKit
                                             SigilImageEncode SigilIOSource
                                             Boost::container)

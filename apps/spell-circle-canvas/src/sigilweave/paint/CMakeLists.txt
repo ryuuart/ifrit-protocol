@@ -31,9 +31,9 @@ add_executable(weave_paint_test
 target_include_directories(weave_paint_test PRIVATE ${SIGIL_WEAVE_TEST_SUPPORT_DIR})
 target_link_libraries(weave_paint_test PRIVATE
   SigilWeavePaint
-  SigilWeaveShaders
   SigilWeavePorts
   SigilMaterialKit
+  SigilMaterialSkia
   GTest::gtest_main
 )
 add_test(NAME weave_paint_test COMMAND weave_paint_test)
@@ -44,8 +44,9 @@ add_executable(weave_paint_bench bench/PaintBench.cpp)
 target_include_directories(weave_paint_bench PRIVATE ${SIGIL_WEAVE_BENCH_SUPPORT_DIR})
 target_link_libraries(weave_paint_bench PRIVATE
   SigilWeavePaint
-  SigilWeaveShaders
   SigilWeavePorts
+  SigilMaterialKit
+  SigilMaterialSkia
   benchmark::benchmark
 )
 add_dependencies(benches weave_paint_bench)

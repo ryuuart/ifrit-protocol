@@ -946,7 +946,7 @@ and a level range a roughness reads across.
 `device/VolkShim.c`, and the `vkGetInstanceProcAddr` it resolves is
 handed to the hardware device — which refuses an adoption without one,
 because dispatching through a second copy of the same library is what
-makes two APIs stop being one device. `SIGILWORLD_VULKAN_LIBRARY` names a
+makes two APIs stop being one device. `SIGILGEOMETRY_VULKAN_LIBRARY` names a
 Vulkan library to open ahead of the built-in candidates. There is no
 Metal path, because Diligent has no Metal backend: `create` fails on a
 machine with no Vulkan runtime and says so, and on macOS the runtime is

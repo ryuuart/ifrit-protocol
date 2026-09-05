@@ -34,9 +34,9 @@
  *                   `MarkerSet`s.
  *   - cache/        `SingleLineParagraphCache` for high-frequency labels.
  *
- * Separate targets, never pulled in here: shaders/ (animated SkSL presets
- * for PaintStyle layers), ports/ (the OS font manager), kit/ (consumer
- * discipline: guards, buckets, labels) and qt/ (the Qt bridge).
+ * Separate targets, never pulled in here: ports/ (the OS font manager),
+ * kit/ (consumer discipline: guards, buckets, labels) and qt/ (the Qt
+ * bridge).
  */
 
 /** @defgroup unicode Unicode analysis
@@ -59,9 +59,8 @@
  *  layout/LayoutOptions.h, layout/PositionedRun.h,
  *  cache/SingleLineParagraphCache.h). */
 /** @defgroup paint Painting & effects
- *  Draw-time appearance: paint layers, decoration bands, and the preset
- *  shader library (the PaintStyle half of style/Style.h;
- *  decoration/Decoration.h; shaders/PaintShaders.h). */
+ *  Draw-time appearance: paint layers and decoration bands (the
+ *  PaintStyle half of style/Style.h; decoration/Decoration.h). */
 /** @defgroup query Query & markers
  *  Range search and edit-following marker sets (query/Query.h). */
 /** @defgroup animation Animation

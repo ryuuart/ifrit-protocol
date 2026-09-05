@@ -28,7 +28,7 @@
 #include <string_view>
 #include <vector>
 
-namespace sigil::material::textures {
+namespace sigil::material::texture {
 
 /** What a map is FOR. Packed is a three-channel occlusion (R),
  *  roughness (G), metallic (B) image — glTF's layout, and what
@@ -124,4 +124,4 @@ TextureMaps fromUsageMap(
     const boost::container::map<std::string, sk_sp<SkImage>>& byUsage,
     bool normalDirectX = true);
 
-}  // namespace sigil::material::textures
+}  // namespace sigil::material::texture

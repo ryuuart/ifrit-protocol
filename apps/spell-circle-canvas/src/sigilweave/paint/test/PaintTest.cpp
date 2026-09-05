@@ -14,8 +14,8 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 #include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilweave/paint/Paint.h>
-#include <sigilweave/shaders/PaintShaders.h>
 
 #include <memory>
 #include <utility>
@@ -132,7 +132,14 @@ TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
     EXPECT_EQ(coloured, 0) << "without a resolver the pass draws its paint";
   }
 
-  PaintShaders::installMaterialResolver();
+  // The resolver a host installs: SigilMaterial's Skia backend, with the
+  // pass's bounds as the material's resolution.
+  sigil::material::skia::install();
+  paint::setMaterialResolver(
+      [](const sigil::material::Material& m, const SkRect& bounds) {
+        return sigil::material::skia::shader(
+            m, {.resolution = {bounds.width(), bounds.height()}});
+      });
   EXPECT_TRUE(paint::hasMaterialResolver());
   for (bool batched : {false, true}) {
     const auto [inked, coloured] = render(batched);

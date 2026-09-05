@@ -5,9 +5,11 @@ float3 readNormal(float2 xy) {
   return len < 0.001 ? float3(0.0, 0.0, 1.0) : n / len;
 }
 
+// The equirect convention every consumer of an environment map shares:
+// u = 0.5 + atan2(d.x, -d.z) / 2pi, v = acos(d.y) / pi.
 float2 envUv(float3 dir) {
-  float u = atan(dir.x, dir.z) / 6.2831853 + 0.5;
-  float v = acos(clamp(-dir.y, -1.0, 1.0)) / 3.1415927;
+  float u = atan(dir.x, -dir.z) / 6.2831853 + 0.5;
+  float v = acos(clamp(dir.y, -1.0, 1.0)) / 3.1415927;
   return float2(u, v);
 }
 

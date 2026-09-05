@@ -16,6 +16,6 @@ target_include_directories(image_asset_test PRIVATE
   ${SIGIL_IMAGE_TEST_SUPPORT_DIR})
 target_link_libraries(image_asset_test PRIVATE SigilImageAsset GTest::gtest_main)
 target_compile_definitions(image_asset_test PRIVATE
-  IFRIT_IMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
+  SIGILIMAGE_TEST_ASSET_DIR="${SIGIL_IMAGE_TEST_ASSET_DIR}"
 )
 add_test(NAME image_asset_test COMMAND image_asset_test)

@@ -4,7 +4,7 @@
 namespace sigil::scry {
 
 inline constexpr char kUltralightShaderSource[] = R"ULSHADER(
-@IFRIT_WEB_ULTRALIGHT_SHADER_SOURCE@
+@SIGILSCRY_ULTRALIGHT_SHADER_SOURCE@
 )ULSHADER";
 
 } // namespace sigil::scry

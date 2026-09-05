@@ -693,7 +693,7 @@ exercise every feature this library has:
   key. The turntable is PARKED: a lab is read rather than watched, so the
   live picture and the plate are the same picture. The texture set is
   GENERATED in the study rather than read off
-  the disk, through the same `textures::` door a scanned folder arrives
+  the disk, through the same `texture::` door a scanned folder arrives
   by: a plate is a function of the declaration, and what a machine
   happens to have under `build/assets` is not.
 - **`scene_surfaces`** — a compose scene as an ordinary texture, and

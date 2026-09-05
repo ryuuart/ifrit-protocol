@@ -171,6 +171,6 @@ const Texture* map(const Material& m, std::string_view slot);
  *  scalar a present map multiplies started at one — left at its stock
  *  value a metallic map would multiply zero and never be seen — unless
  *  @p base already moved it. */
-Material surface(const textures::TextureMaps& maps, SurfaceParams base = {});
+Material surface(const texture::TextureMaps& maps, SurfaceParams base = {});
 
 }  // namespace sigil::material::kit

@@ -2,7 +2,7 @@
 // foregrounds, alongside the brighter, twinkling sparkle overlay.
 #include <include/core/SkBlendMode.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
-#include <sigilweave/shaders/PaintShaders.h>
+#include <sigilmaterial/kit/TextPaint.h>
 
 #include <algorithm>
 #include <array>
@@ -73,12 +73,13 @@ class LoudShadersPart final : public Scene {
     const SkRect shaderBounds =
         SkRect::MakeWH(canvasWidth, static_cast<float>(size.height()));
     const float time = static_cast<float>(elapsedSeconds);
+    namespace kit = sigil::material::kit;
     m_paints[0].foreground.setShader(
-        PaintShaders::starNest(shaderBounds, time * 0.005));
-    m_paints[1].foreground.setShader(PaintShaders::clouds(shaderBounds, time));
-    m_paints[2].foreground.setShader(PaintShaders::tunnel(shaderBounds, time));
+        shade(kit::starNest(shaderBounds, time * 0.005)));
+    m_paints[1].foreground.setShader(shade(kit::clouds(shaderBounds, time)));
+    m_paints[2].foreground.setShader(shade(kit::tunnel(shaderBounds, time)));
     m_paints[3].overlays[0].paint.setShader(
-        PaintShaders::sparkle(shaderBounds, time));
+        shade(kit::sparkle(shaderBounds, time)));
 
     for (size_t row = 0; row < m_paragraphs.size(); ++row)
       m_paragraphs[row].setPaint(0, m_textLengths[row], m_paints[row]);

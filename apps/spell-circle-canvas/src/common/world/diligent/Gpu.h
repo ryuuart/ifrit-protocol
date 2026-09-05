@@ -45,6 +45,13 @@
 
 namespace sigil::world::diligent {
 
+/** How many emitters one draw carries: the array every program here
+ *  declares, the same number for the scaffold and the mesh painter, so a
+ *  mesh drawn through the painter and the same mesh drawn as a body are
+ *  lit by the same emitters and the host tier honours the same count. A
+ *  description naming more is drawn with the first eight. */
+constexpr size_t kLights = 8;
+
 // The device every executor here stands on is SigilGeometry's — it is
 // the one point in the tree that can create a Diligent device — and this
 // is the name it is spelled by in this feature's own sources.
