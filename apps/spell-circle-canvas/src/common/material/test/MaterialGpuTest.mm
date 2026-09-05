@@ -25,7 +25,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Mask.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/core/Terms.h>
@@ -205,7 +205,7 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
   kit::SurfaceParams blue;
   blue.baseColor = {0.1f, 0.3f, 1, 1};
   for (const Blend blend : {Blend::Mix, Blend::Add, Blend::Multiply})
-    add({over(kit::unlit(red), kit::unlit(blue), kit::maskConstant(0.5f),
+    add({over(kit::unlit(red), kit::unlit(blue), maskConstant(0.5f),
               blend)});
 
   if (ocio::available()) add({ocio::exponent(2.2f)});

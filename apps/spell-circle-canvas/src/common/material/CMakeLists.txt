@@ -7,7 +7,10 @@
 # compiles its Slang body to SPIR-V and reports the layout a device
 # renderer writes uniforms at. The texture feature is the image side: a
 # texture as a comparable leaf, the tools' texture sets, the environment
-# and bevel producers, the atlas. Each backend is its own feature that
+# and bevel producers, the atlas. The mask feature is the third operand
+# of over(): where on a surface something applies, as a material read as
+# a scalar — a primitive of the value model that needs a texture, which
+# is why it stands beside the texture feature and not inside the core. Each backend is its own feature that
 # links the core and its renderer, so a consumer of the model alone links
 # no renderer. The colour feature is the leaf under the core: the value
 # a params struct holds and the OKLab round trip, linking nothing. The
@@ -27,6 +30,7 @@ sigil_library_root(SigilMaterial
 add_subdirectory(color)
 add_subdirectory(core)
 add_subdirectory(texture)
+add_subdirectory(mask)
 add_subdirectory(ocio)
 add_subdirectory(sdf)
 add_subdirectory(pattern)
@@ -38,9 +42,9 @@ add_subdirectory(slang)
 
 sigil_library(SigilMaterial
   INTERFACE SigilMaterialColor SigilMaterialCore SigilMaterialTexture
-            SigilMaterialOcio SigilMaterialSdf SigilMaterialPattern
-            SigilMaterialField SigilMaterialSkia SigilMaterialKit
-            SigilMaterialStock SigilMaterialSlang)
+            SigilMaterialMask SigilMaterialOcio SigilMaterialSdf
+            SigilMaterialPattern SigilMaterialField SigilMaterialSkia
+            SigilMaterialKit SigilMaterialStock SigilMaterialSlang)
 
 # THE PRIMITIVES AND THE LEAF, in one binary. The colour value, the
 # signed-distance surfaces, the tiles, the fields and the baked view

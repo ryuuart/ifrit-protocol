@@ -34,7 +34,7 @@
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Grained.h>
-#include <sigilmaterial/kit/Mask.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Surface.h>
@@ -137,10 +137,10 @@ struct OverUnder final : sketch::Sketch {
     material::skia::install();  // the SkSL compiler, once per process
 
     const material::Material mixed =
-        material::over(stone(), brass(), material::kit::maskMap(placedRamp()));
+        material::over(stone(), brass(), material::maskMap(placedRamp()));
     const material::Material twice = material::over(
         mixed, material::kit::board({.paint = {0.10f, 0.11f, 0.13f, 1}}),
-        material::kit::maskConstant(0.35f), material::Blend::Multiply);
+        material::maskConstant(0.35f), material::Blend::Multiply);
 
     ctx.composer
         .render(
@@ -153,7 +153,7 @@ struct OverUnder final : sketch::Sketch {
                                    "(0.32 to 0.70) \xc2\xb7 the blend \xc2\xb7 "
                                    "the bevel the slope normals come from (26 "
                                    "px)"),
-                               .footer = toU8("kit::maskVertexColor reads a "
+                               .footer = toU8("maskVertexColor reads a "
                                               "painted colour "
                                               "lane the same way maskMap reads "
                                               "an image "
@@ -351,7 +351,7 @@ struct OverUnder final : sketch::Sketch {
                                                                                 stone(),
                                                                                 brass(),
                                                                                 material::
-                                                                                    kit::maskConstant(
+                                                                                    maskConstant(
                                                                                         0.35f))),
                                                                         cell(
                                                                             "ov"
@@ -437,8 +437,8 @@ struct OverUnder final : sketch::Sketch {
                                                                             material::over(
                                                                                 stone(),
                                                                                 brass(),
-                                                                                material::kit::invert(
-                                                                                    material::kit::maskMap(
+                                                                                material::invertMask(
+                                                                                    material::maskMap(
                                                                                         placedRamp()))))},
                                                               .gap = 12}),
                                                   kit::cells({.cells = {cell("f"
@@ -535,8 +535,8 @@ struct OverUnder final : sketch::Sketch {
                                                                              material::over(
                                                                                  stone(),
                                                                                  brass(),
-                                                                                 material::kit::fit(
-                                                                                     material::kit::maskMap(placedRamp()), kLow,
+                                                                                 material::fitMask(
+                                                                                     material::maskMap(placedRamp()), kLow,
                                                                                      kHigh))),
                                                                         cell("m"
                                                                              "a"
@@ -662,7 +662,7 @@ struct OverUnder final : sketch::Sketch {
                                                                                  stone(),
                                                                                  brass(),
                                                                                  material::
-                                                                                     kit::maskSlope(
+                                                                                     maskSlope(
                                                                                          material::
                                                                                              bevelNormals(
                                                                                                  plate(),
@@ -776,7 +776,7 @@ struct OverUnder final : sketch::Sketch {
                                                                                  stone(),
                                                                                  brass(),
                                                                                  material::
-                                                                                     kit::maskHeight(
+                                                                                     maskHeight(
                                                                                          placedRamp(),
                                                                                          kLow,
                                                                                          kHigh,
@@ -820,7 +820,7 @@ struct OverUnder final : sketch::Sketch {
                                                                             material::over(
                                                                                 stone(),
                                                                                 brass(),
-                                                                                material::kit::maskMap(placedRamp()), material::Blend::Add)),
+                                                                                material::maskMap(placedRamp()), material::Blend::Add)),
                                                                         cell(
                                                                             "ov"
                                                                             "er"

@@ -9,7 +9,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Mask.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
@@ -77,20 +77,11 @@ void PbrBuild(benchmark::State& state) {
 }
 BENCHMARK(PbrBuild)->Arg(0)->Arg(1);
 
-void MaskBuild(benchmark::State& state) {
-  skia::install();
-  for ([[maybe_unused]] auto iteration : state) {
-    Material m = kit::maskConstant(0.5f);
-    benchmark::DoNotOptimize(m);
-  }
-}
-BENCHMARK(MaskBuild);
-
 void StackShader(benchmark::State& state) {
   skia::install();
   Material m = kit::surface();
   for (int i = 0; i < (int)state.range(0); ++i)
-    m = over(std::move(m), kit::unlit(), kit::maskConstant(0.5f));
+    m = over(std::move(m), kit::unlit(), maskConstant(0.5f));
   for ([[maybe_unused]] auto iteration : state) {
     sk_sp<SkShader> s = skia::shader(m, {});
     benchmark::DoNotOptimize(s);

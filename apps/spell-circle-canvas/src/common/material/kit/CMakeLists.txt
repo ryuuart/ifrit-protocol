@@ -15,11 +15,12 @@ set(SIGIL_MATERIAL_KIT_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material kit's shader modules")
 
 sigil_library(SigilMaterialKit
-  SOURCES Environments.cpp Grained.cpp LayerStyles.cpp Mask.cpp Patterns.cpp
+  SOURCES Environments.cpp Grained.cpp LayerStyles.cpp Patterns.cpp
           Recipes.cpp Surface.cpp Surfaces.cpp TextPaint.cpp
-  HEADERS Environments.h Grained.h LayerStyles.h Mask.h Patterns.h Recipes.h
+  HEADERS Environments.h Grained.h LayerStyles.h Patterns.h Recipes.h
           Surface.h Surfaces.h TextPaint.h
-  PUBLIC SigilMaterialPattern SigilMaterialColor Boost::container)
+  PUBLIC SigilMaterialPattern SigilMaterialColor SigilMaterialMask
+         Boost::container)
 sigil_shader_sources(SigilMaterialKit
   DIR ${SIGIL_MATERIAL_KIT_SHADER_DIR} NAMESPACE sigil::material::kit)
 

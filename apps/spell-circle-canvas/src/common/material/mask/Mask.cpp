@@ -8,16 +8,16 @@
  * a mask drawn on its own is a grey picture of where it applies.
  */
 
-#include "sigilmaterial/kit/Mask.h"
+#include "sigilmaterial/mask/Mask.h"
 
 #include <sigilmaterial/core/Program.h>
-#include <sigilshaders/MaterialKit.h>
+#include <sigilshaders/MaterialMask.h>
 
 #include <string>
 #include <string_view>
 #include <utility>
 
-namespace sigil::material::kit {
+namespace sigil::material {
 
 namespace {
 
@@ -34,11 +34,11 @@ const std::shared_ptr<const Recipe>& constantMaskRecipe() {
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.constant")
               .body(Target::SkSL,
-                    std::string(shaderSource("MaskFit.sksl"))
-                        .append(shaderSource("MaskConstant.sksl")))
+                    std::string(mask::shaderSource("MaskFit.sksl"))
+                        .append(mask::shaderSource("MaskConstant.sksl")))
               .body(Target::Slang,
-                    std::string(shaderSource("MaskFit.slang"))
-                        .append(shaderSource("MaskConstant.slang"))));
+                    std::string(mask::shaderSource("MaskFit.slang"))
+                        .append(mask::shaderSource("MaskConstant.slang"))));
   return recipe;
 }
 
@@ -47,11 +47,11 @@ const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.sampled")
               .child(std::string(kMaskSourceSlot))
-              .body(Target::SkSL, std::string(shaderSource("MaskFit.sksl"))
-                                      .append(shaderSource("MaskSampled.sksl")))
+              .body(Target::SkSL, std::string(mask::shaderSource("MaskFit.sksl"))
+                                      .append(mask::shaderSource("MaskSampled.sksl")))
               .body(Target::Slang,
-                    std::string(shaderSource("MaskFit.slang"))
-                        .append(shaderSource("MaskSampled.slang"))));
+                    std::string(mask::shaderSource("MaskFit.slang"))
+                        .append(mask::shaderSource("MaskSampled.slang"))));
   return recipe;
 }
 
@@ -104,7 +104,7 @@ bool isMask(const Material& material, const char* verb) {
   const Schema& params = material.recipe().params();
   if (params.find("low") && params.find("high") && params.find("inverted"))
     return true;
-  reportOnce("kit::mask:" + std::string(verb) + ":" + material.recipe().name(),
+  reportOnce("mask:" + std::string(verb) + ":" + material.recipe().name(),
              std::string(verb) + " reshapes a MASK, and recipe \"" +
                  material.recipe().name() +
                  "\" is not one; nothing was changed. A mask comes from "
@@ -116,17 +116,17 @@ bool isMask(const Material& material, const char* verb) {
 
 }  // namespace
 
-Material fit(Material mask, float low, float high) {
-  if (!isMask(mask, "fit")) return mask;
+Material fitMask(Material mask, float low, float high) {
+  if (!isMask(mask, "fitMask")) return mask;
   mask.set("low", low);
   mask.set("high", high);
   return mask;
 }
 
-Material invert(Material mask) {
-  if (!isMask(mask, "invert")) return mask;
+Material invertMask(Material mask) {
+  if (!isMask(mask, "invertMask")) return mask;
   mask.set("inverted", mask.get<float>("inverted") > 0.5f ? 0.0f : 1.0f);
   return mask;
 }
 
-}  // namespace sigil::material::kit
+}  // namespace sigil::material

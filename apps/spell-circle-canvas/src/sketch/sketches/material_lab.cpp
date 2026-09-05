@@ -49,7 +49,7 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/kit/Mask.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
@@ -231,7 +231,7 @@ material::Material stacked() {
               material::Texture::produce("material_lab.crust.normal",
                                          [] { return domes(6, 0.9f); }));
   const material::Material mask =
-      material::kit::maskMap(material::Texture::produce(
+      material::maskMap(material::Texture::produce(
           "material_lab.patches", [] { return patches(); }));
   return material::over(base, std::move(crust), mask);
 }

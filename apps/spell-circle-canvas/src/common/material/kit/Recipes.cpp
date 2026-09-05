@@ -12,7 +12,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Grained.h>
-#include <sigilmaterial/kit/Mask.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/kit/TextPaint.h>

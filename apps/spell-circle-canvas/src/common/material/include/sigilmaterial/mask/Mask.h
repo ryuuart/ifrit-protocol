@@ -28,7 +28,7 @@
 #include <memory>
 #include <string_view>
 
-namespace sigil::material::kit {
+namespace sigil::material {
 
 /** The child slot a sampled mask reads. */
 inline constexpr std::string_view kMaskSourceSlot = "source";
@@ -76,9 +76,9 @@ Material maskHeight(Texture positions, float low, float high,
                     glm::vec3 axis = {0, 1, 0});
 
 /** @p mask with the raw range that maps onto 0..1 replaced. */
-Material fit(Material mask, float low, float high);
+Material fitMask(Material mask, float low, float high);
 /** @p mask with its answer flipped. */
-Material invert(Material mask);
+Material invertMask(Material mask);
 /** Both reshape A MASK and nothing else, and hand back a material they
  *  did not reshape with a report saying so rather than quietly. A
  *  material that is not a mask declares no range to replace and no
@@ -86,4 +86,4 @@ Material invert(Material mask);
  *  change it — and a stack whose coverage silently stayed as it was
  *  looks exactly like a stack whose fit was wrong. */
 
-}  // namespace sigil::material::kit
+}  // namespace sigil::material

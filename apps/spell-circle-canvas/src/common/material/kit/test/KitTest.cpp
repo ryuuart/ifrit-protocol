@@ -17,7 +17,7 @@
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/LayerStyles.h>
-#include <sigilmaterial/kit/Mask.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/kit/Surface.h>
@@ -445,37 +445,6 @@ TEST(Surface, DressesADecodedSet) {
   EXPECT_NE(m.leaf(kit::kNormalSlot), nullptr);
 }
 
-TEST(Mask, ShapesWhatItReads) {
-  skia::install();
-  const Material half = kit::maskConstant(0.5f);
-  EXPECT_TRUE(skia::shader(half, {}));
-  EXPECT_FLOAT_EQ(kit::invert(half).get<float>("inverted"), 1.0f);
-  EXPECT_FLOAT_EQ(kit::invert(kit::invert(half)).get<float>("inverted"), 0.0f);
-  const Material fitted = kit::fit(half, 0.25f, 0.75f);
-  EXPECT_FLOAT_EQ(fitted.get<float>("low"), 0.25f);
-  EXPECT_FLOAT_EQ(fitted.get<float>("high"), 0.75f);
-
-  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
-  s->getCanvas()->clear(SK_ColorWHITE);
-  const Texture map = Texture::of(s->makeImageSnapshot());
-  for (const Material& m :
-       {kit::maskMap(map), kit::maskVertexColor(map, 1),
-        kit::maskSlope(map, {0, 1, 0}), kit::maskHeight(map, 0, 1)})
-    EXPECT_TRUE(skia::shader(m, {}));
-}
-
-TEST(Mask, ReshapingSomethingThatIsNotAMaskChangesNothing) {
-  // A material with no range to move and no answer to flip cannot be
-  // reshaped, and a stack whose coverage silently stayed as it was looks
-  // exactly like a stack whose fit was wrong — so both hand the material
-  // straight back, with a report on stderr naming the rule.
-  kit::SurfaceParams red;
-  red.baseColor = {1, 0, 0, 1};
-  const Material paint = kit::unlit(red);
-  EXPECT_EQ(kit::fit(paint, 0.25f, 0.75f), paint);
-  EXPECT_EQ(kit::invert(paint), paint);
-}
-
 TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   skia::install();
   kit::SurfaceParams red;
@@ -484,7 +453,7 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   blue.baseColor = {0, 0, 1, 1};
   const auto shade = [&](float coverage) {
     const Material m =
-        over(kit::unlit(red), kit::unlit(blue), kit::maskConstant(coverage));
+        over(kit::unlit(red), kit::unlit(blue), maskConstant(coverage));
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1, 1));
     skia::fill(*s->getCanvas(), SkPath::Rect(SkRect::MakeWH(1, 1)), m);
     SkBitmap bm;
@@ -496,9 +465,9 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   EXPECT_EQ(SkColorGetB(shade(1.0f)), 255u);
   // The stack is one material: the operands are its children.
   const Material stack = over(kit::unlit(red), kit::unlit(blue),
-                              kit::maskConstant(1.0f), Blend::Multiply);
+                              maskConstant(1.0f), Blend::Multiply);
   EXPECT_EQ(stackDepth(stack), 1);
-  EXPECT_EQ(stackDepth(over(stack, kit::unlit(red), kit::maskConstant(1.0f))),
+  EXPECT_EQ(stackDepth(over(stack, kit::unlit(red), maskConstant(1.0f))),
             2);
   EXPECT_EQ(*under(stack), kit::unlit(red));
   EXPECT_TRUE(skia::shader(stack, {}));
