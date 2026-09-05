@@ -1,6 +1,7 @@
 /** @file
  * The sweep: that a plate lands where it is named, that the same
- * declaration renders the same bytes twice, that a plate is the size the
+ * declaration renders the same bytes twice — including after another
+ * sketch has run in the same process — that a plate is the size the
  * sketch asked for, and that a sketch this machine cannot draw is passed
  * over rather than failed.
  */
@@ -190,6 +191,26 @@ TEST(Sweep, TheSameDeclarationRendersTheSameBytes) {
   ASSERT_EQ(0, sweep(ledgerRun(second.path), fonts(), assets()));
   EXPECT_EQ(bytesOf(first.path / "plate_sweep_probe.png"),
             bytesOf(second.path / "plate_sweep_probe.png"));
+}
+
+TEST(Sweep, ASketchIsTheSamePlateAfterAnotherOneHasRunInThisProcess) {
+  // A SWEEP OPENS EVERY SKETCH IN ONE PROCESS, so whatever one leaves
+  // behind reaches the next: a warmed shaping cache, a shared context's
+  // counters, a static that only fills. A plate that came out different
+  // for any of those reasons would be reported as moved by a change that
+  // moved nothing, which is the entire value of a byte-identity sweep.
+  const ScratchDir alone("sigil_sweep_carry_alone");
+  const ScratchDir after("sigil_sweep_carry_after");
+  ASSERT_EQ(0, sweep(ledgerRun(alone.path), fonts(), assets()));
+
+  SweepOptions between = ledgerRun(after.path);
+  between.only = find("story_moment_probe");
+  ASSERT_GE(between.only, 0);
+  ASSERT_EQ(0, sweep(between, fonts(), assets()));
+
+  ASSERT_EQ(0, sweep(ledgerRun(after.path), fonts(), assets()));
+  EXPECT_EQ(bytesOf(alone.path / "plate_sweep_probe.png"),
+            bytesOf(after.path / "plate_sweep_probe.png"));
 }
 
 TEST(Sweep, RefusesToReportTimingItDidNotMeasure) {

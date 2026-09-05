@@ -460,10 +460,18 @@ void Composer::draw(SkCanvas& canvas) {
   if (hasView) canvas.restore();
   impl.stats.paintMs = laps.mark("paint");
   impl.contentDirty = false;
+  // Costliest first, AND THE LABEL BREAKS EVERY TIE. Two nodes that cost
+  // the same — which most of a tree does, at or near zero — would
+  // otherwise be left in whatever order an unstable sort happened to
+  // produce, so a reader that prints this table draws a different table
+  // on two runs of one binary and a byte-identity sweep reports it as
+  // moved by a change that moved nothing. A label is the node's key, so
+  // the tie-break is a fact of the description.
   if (impl.profileEnabled)
     std::sort(impl.profileRows.begin(), impl.profileRows.end(),
               [](const NodeCost& a, const NodeCost& b) {
-                return a.selfMs > b.selfMs;
+                if (a.selfMs != b.selfMs) return a.selfMs > b.selfMs;
+                return a.label < b.label;
               });
 }
 

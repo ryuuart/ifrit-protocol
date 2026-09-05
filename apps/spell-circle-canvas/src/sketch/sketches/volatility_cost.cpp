@@ -368,7 +368,10 @@ struct VolatilityCost final : sketch::Sketch {
    *  number lands on the node that actually costs. */
   Element costTable(const sketch::SketchContext& ctx) const {
     Element column = box().column().gap(3);
-    column.child(text(toU8("Composer::profile() \xc2\xb7 self ms, worst first"),
+    column.child(text(toU8(ctx.deterministic
+                               ? "Composer::profile() \xc2\xb7 self ms, by key"
+                               : "Composer::profile() \xc2\xb7 self ms, "
+                                 "worst first"),
                       label(12.5f, kInk, 0.8f))
                      .margin(0, 0, 0, 4));
     for (const Composer::NodeCost& row : worst) {
@@ -462,7 +465,20 @@ struct VolatilityCost final : sketch::Sketch {
     // just drawn; nothing here computes a second copy of it.
     Composer& composer = ctx.composer;
     frame = composer.stats();
-    const std::vector<Composer::NodeCost>& rows = composer.profile();
+    // A PROFILE IS A RANKING BY THE STOPWATCH, and a capture that will be
+    // diffed cannot carry one: on a machine that ran differently the same
+    // tree ranks differently, so the sheet would draw a different table
+    // from itself. WHICH nodes there are, what tier each took and what
+    // refused each a bake are facts of the description; only their order
+    // is a fact of the machine. So under a capture the rows are read in
+    // the description's own order, and the times beside them are pinned
+    // as every other measured number here is.
+    std::vector<Composer::NodeCost> rows = composer.profile();
+    if (ctx.deterministic)
+      std::sort(rows.begin(), rows.end(),
+                [](const Composer::NodeCost& a, const Composer::NodeCost& b) {
+                  return a.label < b.label;
+                });
     volatileNodes = 0;
     bakedNodes = 0;
     for (const Composer::NodeCost& row : rows) {
