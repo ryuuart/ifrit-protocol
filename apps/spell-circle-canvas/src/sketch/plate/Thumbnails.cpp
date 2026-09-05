@@ -2,7 +2,7 @@
  * The thumbnail store and the CPU still that fills it.
  */
 
-#include "Thumbnails.h"
+#include <sigilsketch/plate/Thumbnails.h>
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -29,7 +29,7 @@ namespace fs = std::filesystem;
 namespace image = sigil::image;
 namespace io = sigil::io;
 
-namespace sigil::sketch::book {
+namespace sigil::sketch {
 
 namespace {
 
@@ -187,4 +187,4 @@ bool renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   return true;
 }
 
-}  // namespace sigil::sketch::book
+}  // namespace sigil::sketch

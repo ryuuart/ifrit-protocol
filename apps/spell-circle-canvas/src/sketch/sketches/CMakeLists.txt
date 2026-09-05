@@ -65,12 +65,12 @@ file(GLOB SIGIL_SKETCH_SHARED_FILES CONFIGURE_DEPENDS
 # a device feature the build may lack. A row may name a stem that is not
 # in the directory yet; it costs nothing until the file arrives.
 set(SIGIL_SKETCH_REQUIREMENTS
-  import_native      SigilSketchScry
+  import_native      SigilScry
   substance_swatches SigilSubstance
   web_panel          SigilComposeWeb
-  web_panel          SigilSketchScry
+  web_panel          SigilScry
   web_script         SigilComposeWeb
-  web_script         SigilSketchScry
+  web_script         SigilScry
   usd_roundtrip      SigilUsd)
 
 list(LENGTH SIGIL_SKETCH_REQUIREMENTS _requirement_entries)
@@ -140,11 +140,12 @@ add_library(SigilSketches OBJECT
 # the library has one and by feature target where the umbrella leaves a
 # feature out (compose's texture, testing and draw leaves; weave's
 # kit and ports) or would bring a device with it (world's diligent
-# feature, which only the app installs). The three runtimes stand
-# first, and the pen's runtime brings SigilDraw with it. A sketch
-# reaches no library through a neighbour's link line.
+# feature, which only the app installs). The sketch library stands
+# first, its three runtimes bringing compose, world and the pen with
+# them, and its kit beside it. A sketch reaches no library through a
+# neighbour's link line.
 target_link_libraries(SigilSketches PUBLIC
-  SigilSketchCanvas SigilSketchSet SigilSketchDraw SigilSketchKit
+  SigilSketch SigilSketchKit
   SigilDrawBrush
   SigilCompose SigilComposeTexture SigilComposeTesting SigilComposeDraw
   SigilComposeVideo
@@ -173,4 +174,3 @@ if(TARGET SigilSubstance)
   target_compile_definitions(SigilSketches PUBLIC
     SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 endif()
-set_target_properties(SigilSketches PROPERTIES POSITION_INDEPENDENT_CODE ON)

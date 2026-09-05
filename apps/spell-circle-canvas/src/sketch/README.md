@@ -239,8 +239,8 @@ const std::shared_ptr<sigil::scry::WebEngine> engine =
     sketch::scry::sharedEngine();
 ```
 
-This is the optional `SigilSketchScry` integration, not SigilScry's ordinary
-ownership model. A standalone SigilScry consumer still calls
+This is SigilSketch's `scry/` feature, compiled in where the SDK is
+installed, not SigilScry's ordinary ownership model. A standalone SigilScry consumer still calls
 `WebEngine::create(config)` and owns that explicitly configured value. A
 sketch host opts into sharing by calling `configureSharedEngine(config)`
 before it opens any sketches; the first borrower boots exactly that
@@ -1036,25 +1036,31 @@ src/sketch/
   kit/        the sheet a sketch stands on: the theme, the page and the furniture over it
   live/       the reload engine and the resident set
   scry/       the opt-in shared Ultralight engine a web sketch borrows
-  plate/      the headless sweep, the montage, the plate comparison
-  book/       Sketchbook: the app, and the headless entry point — with the browser's
-              rows and its thumbnail store in SigilSketchBook, which needs no window
+  plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
+  book/       Sketchbook: the app, and the headless entry point, with the browser's rows
   cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
   sketches/   every sketch, one file or one directory each; shared/ beside them
 ```
 
-Each feature is its own archive with its own tests and benchmarks, and
-links only what is beneath it. Directories, targets and headers are the
-same outline: a feature at `canvas/` is target `SigilSketchCanvas` with
-its headers under `include/sigilsketch/canvas/`, and `SigilSketch` is
-the umbrella over the seven a sketch may draw through — the browser's
-own `SigilSketchBook` and the optional `SigilSketchScry` stand outside
-it, since neither is anything a sketch declares.
+Directories and headers are the same outline — a feature at `canvas/`
+keeps its headers under `include/sigilsketch/canvas/` and its own
+`test/` and `bench/` — and the targets are four:
+
+| Target | Kind | What it is |
+|---|---|---|
+| `SigilSketch` | static archive | `core/`, `canvas/`, `set/`, `draw/`, `live/`, `plate/`, and `scry/` where the SDK is installed: the registry, the three runtimes, the reload engine and the headless renderer. Links no device backend and no Qt. |
+| `SigilSketchKit` | static archive | the sheet a sketch stands on, over the canvas runtime alone |
+| `SigilSketches` | object library | every sketch, and the one place the sketch API surface is stated |
+| `Sketchbook` | application bundle | the host: the window, the browser's rows, and every headless entry |
+
+Beside them stand `sketch_test`, `sketch_bench`, and the build step that
+writes the response file a hot-reloaded sketch compiles with.
 
 ## Boundaries
 
-* **`core` draws nothing.** A consumer that only wants to know what
-  sketches exist links it alone; it could not paint a pixel.
+* **`core` draws nothing.** What a sketch is, what it declares and the
+  registry it joins are stated without a runtime in reach; nothing under
+  `core/` could paint a pixel.
 * **Every host has a guest, so the crash reporter is core's.** The live
   host calls into a dylib it just loaded; the sweep opens a hundred
   sketches in one process and calls into each. A fault inside one is a
@@ -1131,8 +1137,9 @@ and where a sketch stands on disk; `canvas/test/`,
 `kit/test/` the sheet a specimen stands on; `live/test/` the
 host and the resident set; `plate/test/` the sweep, the comparison
 of two directories of plates and the montage MP4 exporter;
-`book/test/` the catalog and the thumbnail store with no window;
-and `scry/test/` the shared web engine beside the case that
+`book/test/` the reload path and the catalog's rows, each through the
+`Sketchbook` binary as a script; and `scry/test/` the shared web engine
+beside the case that
 takes a page's still — two cases that must not meet in one process because
 the engine allows one renderer per process and the shared-engine case
 ends by shutting its one down for good. Both are labelled `ultralight`

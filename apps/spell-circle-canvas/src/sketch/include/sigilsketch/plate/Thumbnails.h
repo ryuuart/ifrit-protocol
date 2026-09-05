@@ -4,7 +4,7 @@
  * The app's own thumbnail store: where a sketch's still is kept, when it
  * is stale, and the CPU render that fills it.
  *
- * Sketchbook owns its thumbnails. They are not the plate ledger's to
+ * The browser owns its thumbnails. They are not the plate ledger's to
  * write: a still a browser shows is a convenience, not a verdict, so it
  * is rendered on demand into a cache beside the binary rather than copied
  * out of a sweep. One PNG per sketch stem, its filename carrying a KEY —
@@ -25,10 +25,8 @@ class FontContext;
 }
 
 namespace sigil::sketch {
-class Assets;
-}
 
-namespace sigil::sketch::book {
+class Assets;
 
 /** How wide a stored thumbnail is rendered — one file per stem serves
  *  the list row, the gallery card and the inspector alike, so it is taken
@@ -74,4 +72,4 @@ inline constexpr int kThumbnailWidth = 640;
                                    const std::filesystem::path& out,
                                    int maxDimension);
 
-}  // namespace sigil::sketch::book
+}  // namespace sigil::sketch

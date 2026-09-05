@@ -1,29 +1,17 @@
-# The browser's model and the app's own thumbnail store, lifted out of
-# the executable so they can be built and tested without a window: the
-# rows a reader goes through, and the CPU still renderer that fills each
-# row's thumbnail on demand. SketchCatalog carries Qt types, so the
-# library scans for moc; nothing here needs a device or a GPU context.
+# Sketchbook — the one live application, and the one headless renderer.
+#
+# The app lists every sketch, live-edits any of them, and draws a set
+# sketch through an orbitable viewport. `--headless` is the renderer
+# every plate-ledger tier drives. The browser's rows (SketchCatalog, a
+# QObject model over the registry and the files a run was pointed at)
+# are the executable's own; the thumbnail store they fill is the
+# library's, under plate/.
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickDialogs2
                                      GuiPrivate)
 qt_standard_project_setup(REQUIRES 6.11)
 find_package(unofficial-skia CONFIG REQUIRED)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
-add_library(SigilSketchBook STATIC
-  Thumbnails.cpp Thumbnails.h
-  SketchCatalog.cpp SketchCatalog.h)
-set_target_properties(SigilSketchBook PROPERTIES POSITION_INDEPENDENT_CODE ON)
-sigil_qt_target(SigilSketchBook)
-target_include_directories(SigilSketchBook PUBLIC ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(SigilSketchBook
-  PUBLIC SigilSketchCore SigilSketchLive Qt6::Core
-  PRIVATE SigilImageEncode SigilIOSource SigilWeaveFonts)
-
-# Sketchbook — the one live application, and the one headless renderer.
-#
-# The app lists every sketch, live-edits any of them, and draws a set
-# sketch through an orbitable viewport. `--headless` is the renderer
-# every plate-ledger tier drives.
 qt_add_executable(Sketchbook
   main.cpp
 )
@@ -71,6 +59,7 @@ qt_add_qml_module(Sketchbook
     qml/Theme.qml
   SOURCES
     SketchbookView.cpp SketchbookView.h
+    SketchCatalog.cpp SketchCatalog.h
 )
 # The browser's thumbnails are THIS APP'S OWN, kept under the platform
 # cache location and filled on demand — nothing else writes them, so
@@ -78,16 +67,13 @@ qt_add_qml_module(Sketchbook
 # and the SIGIL_SKETCHBOOK_THUMBNAILS environment variable name another.
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
-  SigilSketchBook
-  SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts
-  SigilMaterial
+  SigilSketch SigilSketches SigilMeasure SigilWeavePorts SigilMaterial
   IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
   Qt6::QuickDialogs2)
 
 # Sharing the sole Ultralight renderer is an opt-in property of this host,
 # separate from SigilScry's ordinary explicitly owned WebEngine path.
-if(TARGET SigilSketchScry)
-  target_link_libraries(Sketchbook PRIVATE SigilSketchScry)
+if(TARGET SigilScry)
   target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_SCRY)
 endif()
 
@@ -234,7 +220,7 @@ add_test(NAME sketch_reload_surface_device
 # archive missing from the force-load list shows up here alone. A machine
 # whose SDK is installed but whose runtime data is not still passes: the
 # sketch draws what it is missing rather than failing to load.
-if(TARGET SigilComposeWeb AND TARGET SigilSketchScry)
+if(TARGET SigilComposeWeb AND TARGET SigilScry)
   add_test(NAME sketch_reload_surface_web
     COMMAND Sketchbook
       ${SIGIL_SKETCH_DIR}/web_panel.cpp
@@ -268,16 +254,14 @@ add_test(NAME sketch_reload_directory
     ${SIGIL_SKETCH_DIR}/dunhuang_star_chart/dunhuang_star_chart.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_directory.png)
 
-# THE CATALOG SEAM, tested without a window. SketchCatalog is in the
-# SigilSketchBook library, so a plain gtest binary that registers a
-# fixture sketch the way a sketch file does can construct it and read its
-# rows — asserting that a compiled-in canvas sketch's row names its
-# runtime, and that an unbuilt file opened by path learns its runtime
-# through learn(). It links no GPU and opens no window.
-# SketchCatalog's header is beside its source rather than under
-# include/, because it names Qt types the library keeps to itself, so the
-# support directory is this one.
-sigil_test(sketch_test
-  SOURCES test/CatalogTest.cpp
-  LIBRARIES SigilSketchBook SigilSketchCanvas Qt6::Core
-  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR})
+# THE CATALOG SEAM, without a window. `--catalog` prints the browser's
+# rows as the model would hand them to QML, and the script asserts what
+# a row says before anything is opened: a compiled-in sketch names the
+# runtime it draws through, and a file opened by path — which has no
+# runtime until it is built — says so rather than guessing one.
+add_test(NAME sketch_catalog_rows
+  COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_LIST_DIR}/test/catalog_rows.py
+    --sketchbook $<TARGET_FILE:Sketchbook>
+    --canvas crossing_rule
+    --work ${CMAKE_BINARY_DIR}/sketch_catalog_rows)

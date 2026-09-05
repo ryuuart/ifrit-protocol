@@ -10,14 +10,13 @@
 # theme bound behaves correctly.
 #
 # It stands above the canvas runtime because `stage()` writes a
-# CanvasSpec, and links no device, no runtime and no sketch. PIC, because
-# a hot-reloaded sketch's dylib force-loads it out of the host.
-sigil_library(SigilSketchKit PIC
+# CanvasSpec, and links no device, no runtime and no sketch.
+sigil_library(SigilSketchKit
   SOURCES Cells.cpp Console.cpp Heading.cpp Legend.cpp Meter.cpp Page.cpp
           Panel.cpp Passage.cpp Rows.cpp Theme.cpp Ticker.cpp
   HEADERS Cells.h Console.h Heading.h Kit.h Legend.h Meter.h Page.h Panel.h
           Passage.h Rows.h Theme.h Ticker.h
-  PUBLIC SigilSketchCanvas SigilComposeCore SigilComposeKit SigilCoreReconcile
+  PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
          SigilGeometryKit SigilWeave
   PRIVATE SigilWeavePorts SigilIO)
 

@@ -8,6 +8,7 @@
 
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
+#include <sigilsketch/plate/Thumbnails.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -21,13 +22,10 @@
 #include <utility>
 #include <vector>
 
-#include "Thumbnails.h"
-
 namespace fs = std::filesystem;
 namespace sketch = sigil::sketch;
-namespace book = sigil::sketch::book;
 
-// Set by main() before QML loads, and by a test before it constructs one.
+// Set by main() before QML loads, and before the rows are printed.
 fs::path SketchCatalog::sketchDir;
 std::vector<fs::path> SketchCatalog::externals;
 fs::path SketchCatalog::thumbnailDir;
@@ -275,9 +273,9 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     // A fresh thumbnail already in the store shows at once, without a
     // render — a warm command or an earlier look left it behind.
     if (!SketchCatalog::thumbnailDir.empty()) {
-      const std::string k = book::thumbnailKey(file);
+      const std::string k = sketch::thumbnailKey(file);
       const fs::path fresh =
-          book::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, k);
+          sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, k);
       if (!fresh.empty())
         row.insert(QStringLiteral("plate"),
                    QUrl::fromLocalFile(QString::fromStdString(fresh.string()))
@@ -343,9 +341,9 @@ bool SketchCatalog::fillFromDisk(int index) {
   if (SketchCatalog::thumbnailDir.empty()) return false;
   const sketch::Entry& entry = sketch::registry()[index];
   const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
-  const std::string key = book::thumbnailKey(file);
+  const std::string key = sketch::thumbnailKey(file);
   const fs::path fresh =
-      book::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, key);
+      sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, key);
   if (fresh.empty()) return false;
   const QString url =
       QUrl::fromLocalFile(QString::fromStdString(fresh.string())).toString();
@@ -397,12 +395,12 @@ void SketchCatalog::renderLoop() {
 
     const sketch::Entry& entry = sketch::registry()[index];
     const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
-    const std::string key = book::thumbnailKey(file);
+    const std::string key = sketch::thumbnailKey(file);
     const fs::path out =
-        book::thumbnailFile(SketchCatalog::thumbnailDir, entry.name, key);
-    const bool ok = book::renderThumbnail(entry, *SketchCatalog::thumbnailFonts,
+        sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name, key);
+    const bool ok = sketch::renderThumbnail(entry, *SketchCatalog::thumbnailFonts,
                                           *SketchCatalog::thumbnailAssets, out,
-                                          book::kThumbnailWidth);
+                                          sketch::kThumbnailWidth);
     {
       const std::lock_guard lock(m_mutex);
       m_inFlight = -1;

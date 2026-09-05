@@ -4,6 +4,8 @@
  *   Sketchbook [--no-gpu]                      the app, on the last sketch
  *   Sketchbook --sketch <name>                 the app, on that one
  *   Sketchbook --list [--kind canvas|set]      the registry, one per line
+ *   Sketchbook --catalog [<file.cpp>]          the browser's rows, one JSON
+ *                                              object per line
  *   Sketchbook --compare <dir-a> <dir-b>       two sweeps' plates, differenced
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
  *              [--ledger] [--no-promotion] [--capture-at <s>]
@@ -49,6 +51,7 @@
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Compare.h>
+#include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/set/Set.h>
@@ -59,6 +62,8 @@
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
 #include <QtCore/QMutex>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QTimer>
@@ -100,7 +105,6 @@ void qml_register_types_Sigil_Sketchbook();
 
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
-#include "Thumbnails.h"
 
 namespace sketch = sigil::sketch;
 
@@ -717,7 +721,6 @@ std::filesystem::path thumbnailStoreDir(const std::string& override) {
 int runThumbnails(int only, const std::string& kind,
                   const std::filesystem::path& dir, sigil::weave::FontContext& fonts,
                   sketch::Assets& store) {
-  namespace book = sigil::sketch::book;
   std::filesystem::create_directories(dir);
   const auto& entries = sketch::registry();
   int rendered = 0;
@@ -733,11 +736,11 @@ int runThumbnails(int only, const std::string& kind,
     }
     const std::filesystem::path source =
         sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
-    const std::string key = book::thumbnailKey(source);
-    if (!book::freshThumbnail(dir, entry.name, key).empty()) continue;  // fresh
-    const std::filesystem::path out = book::thumbnailFile(dir, entry.name, key);
+    const std::string key = sketch::thumbnailKey(source);
+    if (!sketch::freshThumbnail(dir, entry.name, key).empty()) continue;  // fresh
+    const std::filesystem::path out = sketch::thumbnailFile(dir, entry.name, key);
     sketch::noteSketch(entry.name);
-    if (book::renderThumbnail(entry, fonts, store, out, book::kThumbnailWidth)) {
+    if (sketch::renderThumbnail(entry, fonts, store, out, sketch::kThumbnailWidth)) {
       std::printf("thumbnail %-24s wrote %s\n", entry.name, out.string().c_str());
       ++rendered;
     } else {
@@ -780,7 +783,8 @@ int main(int argc, char* argv[]) {
   sketch::StoryOptions storyOptions;
   CaptureOptions capture;
   WindowBench windowBench;
-  bool headless = false, list = false, gpu = false, noGpu = false;
+  bool headless = false, list = false, catalog = false, gpu = false;
+  bool noGpu = false;
   bool warmThumbnails = false;
   std::string thumbnailDirArg;
   std::optional<bool> deterministic;
@@ -793,6 +797,8 @@ int main(int argc, char* argv[]) {
         sweepOptions.outDir = argv[++i];
     } else if (arg == "--list") {
       list = true;
+    } else if (arg == "--catalog") {
+      catalog = true;
     } else if (arg == "--compare" && i + 2 < argc) {
       compareOptions.first = argv[++i];
       compareOptions.second = argv[++i];
@@ -936,6 +942,26 @@ int main(int argc, char* argv[]) {
       std::printf("%s%s\tunavailable: %s%s\n", toTerminal ? "\x1b[2m" : "",
                   entry.name, why.c_str(), toTerminal ? "\x1b[0m" : "");
     }
+    return 0;
+  }
+
+  if (catalog) {
+    // THE BROWSER'S ROWS WITHOUT A WINDOW: what the catalog knows about
+    // every sketch before one is opened, the registry first and a file
+    // this run was pointed at after it, one JSON object per line. What a
+    // script reads off them is what the browser reads: a compiled-in
+    // sketch's row names the runtime it draws through, and a file opened
+    // by path has none until it has been built.
+    int coreArgc = 1;
+    const QCoreApplication core(coreArgc, argv);
+    SketchCatalog::sketchDir = SIGIL_SKETCH_DIR;
+    SketchCatalog::thumbnailDir.clear();  // no still is rendered here
+    if (!sketchFile.empty()) SketchCatalog::externals = {sketchFile};
+    const SketchCatalog rows;
+    for (const QVariant& row : rows.sketches())
+      std::printf("%s\n", QJsonDocument(QJsonObject::fromVariantMap(row.toMap()))
+                             .toJson(QJsonDocument::Compact)
+                             .constData());
     return 0;
   }
 
@@ -1127,9 +1153,9 @@ int main(int argc, char* argv[]) {
   // generated registration runs first, explicitly, and the hand
   // registration joins it.
   qml_register_types_Sigil_Sketchbook();
-  // SketchCatalog lives in the SigilSketchBook library rather than in the
-  // QML module's own sources, so it is registered into the module's URI
-  // here rather than by a QML_ELEMENT the module compiled.
+  // SketchCatalog is set up by main() before QML loads, so it is
+  // registered into the module's URI here, beside that setup, rather
+  // than by a QML_ELEMENT the module compiled.
   qmlRegisterType<SketchCatalog>("Sigil.Sketchbook", 1, 0, "SketchCatalog");
   QObject::connect(
       &engine, &QQmlApplicationEngine::objectCreationFailed, &application,

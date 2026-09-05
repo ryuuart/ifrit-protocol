@@ -7,11 +7,15 @@
 # this library links all three. Nothing underneath links back — a drawn
 # tree, a lit set and a pen's canvas meet here and nowhere else.
 #
-# Each feature is its own archive with its own tests and benchmarks, and
-# links only the features beneath it. The fixtures every sketch test
-# binary shares are test/support/, reached as "support/<name>.h": the one
-# asset store a process holds, the readings a test takes off a picture,
-# and the contract every session answers whatever it draws through.
+# One archive, in directories that are the outline: core/ (what a sketch
+# is and the registry it joins), the three runtimes canvas/, set/ and
+# draw/, live/ (the reload engine), plate/ (the headless renderer) and,
+# where the SDK is installed, scry/ (the one web engine sketches borrow).
+# Each directory keeps its own tests and benchmarks beside its code. The
+# fixtures every sketch test shares are test/support/, reached as
+# "support/<name>.h": the one asset store a process holds, the readings a
+# test takes off a picture, and the contract every session answers
+# whatever it draws through.
 sigil_library_root(SigilSketch
   BRIEF "Sketches: one file per scene, one registry, one host"
   DOCS ${CMAKE_CURRENT_LIST_DIR}/kit/README.md)
@@ -22,40 +26,92 @@ sigil_library_root(SigilSketch
 set(SIGIL_SKETCH_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches)
 set(SIGIL_SKETCH_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/sketches/assets)
 
-# The surface a sketch is written against, and the registry it joins:
-# what a sketch is, what it declares about its canvas, what it reaches
-# for, and the seam that says which runtime draws it. No runtime here —
-# this feature could not draw a pixel.
-add_subdirectory(core)
+find_package(boost_container CONFIG REQUIRED)
+find_package(EnTT CONFIG REQUIRED)
 
-# The three runtimes a sketch may be written for. Each owns its sketch
-# body, its declaration surface and the session that drives it, and they
-# know nothing of each other.
+# THE ARCHIVE LINKS NO DEVICE BACKEND AND NO QT. The runtime a session
+# draws through is a value the process installs — a machine with no
+# device runs every set on the CPU mesh executor — and the plate's
+# `--gpu` lane draws through the Graphite context the process's device
+# already carries, which is why SigilGeometryDevice is here and no
+# renderer is: a device of the plate's own would be a second set of
+# textures neither could read out of the other. The reload engine watches,
+# rebuilds and swaps without a window; book/ is the only place one
+# appears.
+#
+# PUBLIC is what the headers spell: the resource hub, the comparable
+# erasure the kind seam is built on, the instruments every runtime times
+# itself with, the camera the viewpoint seam is spelled in, and the three
+# runtimes' own vocabularies — compose for a canvas, world for a set, the
+# pen for a draw. The two doors between runtimes (a compose tree painted
+# into a texture, a world frame baked to an image) name the other side by
+# forward declaration alone. What a session reads in its own source —
+# the byte writer a plate is saved through, the Graphite handle, the
+# decoders and encoders — is PRIVATE.
+set(SIGIL_SKETCH_SOURCES
+  core/Assets.cpp core/Crash.cpp core/Device.cpp core/Registry.cpp
+  core/Sources.cpp
+  canvas/Context.cpp canvas/Session.cpp
+  set/Context.cpp set/Session.cpp
+  draw/Session.cpp
+  live/Host.cpp live/Residency.cpp
+  plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
+  plate/Thumbnails.cpp)
+set(SIGIL_SKETCH_HEADERS
+  core/Assets.h core/CanvasSpec.h core/Crash.h core/Device.h core/Kind.h
+  core/Registry.h core/Session.h core/Sources.h
+  canvas/Sketch.h
+  set/Set.h
+  draw/Draw.h
+  live/Host.h live/Residency.h
+  plate/Compare.h plate/FrameStats.h plate/Graphite.h plate/Story.h
+  plate/Sweep.h plate/Thumbnails.h)
+set(SIGIL_SKETCH_PUBLIC
+  SigilCoreComparable SigilGeometryMeshCamera SigilImageAsset SigilIO
+  SigilVideoDecode SigilVideoCore SigilImageEncode SigilMeasure
+  SigilMotionClock
+  SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
+  SigilComposeTexture SigilComposeTesting SigilGeometry SigilMaterial
+  SigilMaterialKit SigilWeaveKit SigilWeavePorts
+  SigilWorldScene SigilWorldKit SigilWorldFrame SigilWorldElement
+  SigilWorldLight
+  SigilDraw EnTT::EnTT Boost::container)
+set(SIGIL_SKETCH_PRIVATE
+  SigilIOSource SigilCoreSchedule SigilImage SigilImageDecode
+  SigilGeometryDevice SigilSkiaGraphite SigilVideoEncode SigilWeaveFonts)
+# The one WebEngine Ultralight permits in a process, lent to every sketch
+# that asks for it. SigilScry itself keeps explicit caller ownership as
+# its ordinary path; a host that configures the shared engine opts in.
+# Where the SDK is not installed there is no engine to share and no
+# header to spell.
+if(TARGET SigilScry)
+  list(APPEND SIGIL_SKETCH_SOURCES scry/SharedEngine.cpp)
+  list(APPEND SIGIL_SKETCH_HEADERS scry/SettledPage.h scry/SharedEngine.h)
+  list(APPEND SIGIL_SKETCH_PUBLIC SigilScry)
+endif()
+sigil_library(SigilSketch
+  SOURCES ${SIGIL_SKETCH_SOURCES}
+  HEADERS ${SIGIL_SKETCH_HEADERS}
+  PUBLIC ${SIGIL_SKETCH_PUBLIC}
+  PRIVATE ${SIGIL_SKETCH_PRIVATE})
+
+# Each directory's cases and benchmarks, declared beside the code they
+# cover, in the library's one test binary and one bench binary.
+add_subdirectory(core)
 add_subdirectory(canvas)
 add_subdirectory(set)
 add_subdirectory(draw)
+add_subdirectory(live)
+add_subdirectory(plate)
+if(TARGET SigilScry)
+  add_subdirectory(scry)
+endif()
 
 # The sheet a sketch stands on: one theme value bound for a scope, and
 # the furniture — the stage, the page, the well, the caption — every
 # specimen sheet would otherwise retype. It decides no look: the theme is
 # a seam and the house one is a stock value over it.
 add_subdirectory(kit)
-
-# The opt-in bridge for a host that lets several sketches borrow the one
-# WebEngine Ultralight permits in a process. SigilScry itself keeps explicit
-# caller ownership as its ordinary path; only a host that configures this
-# feature gets a shared engine.
-if(TARGET SigilScry)
-  add_subdirectory(scry)
-endif()
-
-# The live-reload engine: a file watched, rebuilt into a dylib on save,
-# and hot-swapped into the running session.
-add_subdirectory(live)
-
-# The headless renderer: every sketch stepped to its declared moment and
-# photographed, with the timing table beside it.
-add_subdirectory(plate)
 
 # The sketches themselves, compiled into whichever host links them.
 add_subdirectory(sketches)
@@ -92,9 +148,3 @@ add_test(NAME sketch_readme_stems
 add_test(NAME sketch_readme_stems_self_test
   COMMAND ${Python3_EXECUTABLE}
           ${CMAKE_CURRENT_LIST_DIR}/test/readme_sketch_stems.py --self-test)
-
-# The umbrella, for a consumer that takes the library rather than a
-# feature of it.
-sigil_library(SigilSketch
-  INTERFACE SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchDraw
-            SigilSketchKit SigilSketchLive SigilSketchPlate)

@@ -163,8 +163,8 @@ benchmarked in separate binaries.
 SigilScry does not silently cache it or make later configurations aliases of
 the first. A host above this library may deliberately offer one configured
 engine to several of its own consumers; SigilSketch does that through its
-separate, opt-in `SigilSketchScry` integration because live sketch dylibs must
-all reach the same process-owned renderer.
+opt-in shared engine because live sketch dylibs must all reach the same
+process-owned renderer.
 
 ## Conventions that will bite you
 
