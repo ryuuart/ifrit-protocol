@@ -62,6 +62,18 @@ class Recipe {
   /** Declares that the body reads @p input; its uniform is generated and
    *  its value uploaded each resolve. */
   Recipe& frame(FrameInput input);
+  /** DECLARES THE BODY CHANNELWISE over the child slot @p slot: each
+   *  output channel depends on the same input channel of the sampled
+   *  content and on nothing else, and @p slot holds ONE ROW of samples
+   *  that is the response of red, green and blue in the row's own
+   *  channels. A renderer that knows its surface carries eight bits per
+   *  channel may then run this recipe as a 256-entry per-channel table —
+   *  the same picture, without a program over every pixel — and a
+   *  renderer that does not know, or whose surface carries more, runs the
+   *  body as written. The claim is the author's and is not checked: a
+   *  body that mixes channels and declares this paints two different
+   *  pictures. */
+  Recipe& channelwise(std::string slot);
 
   const std::string& name() const { return m_name; }
   /** The params struct's layout — the author-set uniforms alone. */
@@ -92,6 +104,9 @@ class Recipe {
   /** The targets that have a body, in Target order. */
   std::vector<Target> targets() const;
   std::span<const std::string> children() const { return m_children; }
+  /** The child slot holding the per-channel response, or EMPTY when the
+   *  recipe made no channelwise claim. */
+  const std::string& channelwiseSlot() const { return m_channelwise; }
   bool reads(FrameInput input) const { return (m_frame & (uint8_t)input) != 0; }
   /** The declared frame inputs as one bit set. */
   uint8_t frameInputs() const { return m_frame; }
@@ -111,7 +126,8 @@ class Recipe {
   };
   Id id() const { return {m_name, this}; }
 
-  /** Definition equality: name, layout, bodies, children, frame inputs. */
+  /** Definition equality: name, layout, bodies, children, frame inputs,
+   *  the channelwise declaration. */
   bool operator==(const Recipe&) const = default;
 
  private:
@@ -125,6 +141,8 @@ class Recipe {
   Schema m_layout;
   boost::container::map<Target, std::string> m_bodies;
   std::vector<std::string> m_children;
+  /** channelwise()'s slot; empty means the body is not channelwise. */
+  std::string m_channelwise;
   /** Per params field, whether a body spells it — settled once when a
    *  body is set, because a material writes every field of every
    *  instance it builds and each write asks. */

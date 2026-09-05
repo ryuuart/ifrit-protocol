@@ -34,7 +34,7 @@ tiles over it), and **field** (the halftone ramp, Perlin noise, luminance
 grain, the ripple, the CRT overlay). Under the core sits **colour**, the
 leaf: the colour value a params struct holds and the OKLab round trip,
 linking nothing; above the texture feature sits **ocio**, OpenColorIO's
-view transforms baked to LUT materials. The **kit** holds PRESETS — functions that fix
+view transforms baked to materials. The **kit** holds PRESETS — functions that fix
 colours, proportions or a named style over the primitives: the
 metallic-roughness surface and the masks that stack it; gold, chrome
 and glass over a normal map and an environment; the girih panel and its
@@ -62,7 +62,7 @@ each a static archive that links only what sits beneath it:
 | `SigilMaterialColor` | `Color`, `rgb()`, `hsv()` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
-| `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
+| `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, over the 3D-LUT `lutRecipe()` and the per-channel `responseRecipe()` | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
@@ -663,18 +663,43 @@ wants to say so (`<sigilmaterial/skia/Color.h>`). The mapping is written
 once because a copy of it spelled at a call site is a place where a
 channel order or an alpha convention drifts silently.
 
-**A view transform is a LUT material with one open slot.** OpenColorIO's
-GPU codegen never emits SkSL, so `ocio::viewTransform(config, display,
-view)`, `ocio::convert(config, src, dst)` and `ocio::exponent(gamma)`
-each build a CPU processor, bake it into a 3D LUT once (F16, because F32
-textures are not linearly filterable on Apple GPUs), hold the LUT as a
-texture in the `lut` slot, and apply it through the trilinear
-`lutRecipe()`. The `content` slot is the layer being transformed and is
-left to the renderer. A bad config fails soft to a material with an empty
-LUT slot and the error reported. In a build that found no OpenColorIO
-the feature still links: `ocio::available()` is false and every factory
-answers that empty material, and `SIGILMATERIAL_ENABLE_OCIO` says which
-build this is.
+**A view transform is a baked material with one open slot.**
+OpenColorIO's GPU codegen never emits SkSL, so `ocio::viewTransform(
+config, display, view)`, `ocio::convert(config, src, dst)` and
+`ocio::exponent(gamma)` each build a CPU processor, bake it once (F16,
+because F32 textures are not linearly filterable on Apple GPUs), hold
+the bake as a texture in the `lut` slot, and apply it through a recipe
+whose `content` slot is the layer being transformed and is left to the
+renderer. A bad config fails soft to a material with an empty `lut` slot
+and the error reported. In a build that found no OpenColorIO the feature
+still links: `ocio::available()` is false and every factory answers that
+empty material, and `SIGILMATERIAL_ENABLE_OCIO` says which build this is.
+
+**Which recipe depends on whether the transform mixes channels.** A
+transform whose channels are INDEPENDENT — an exponent, a gamma, a
+contrast, a per-channel display curve — carries no more information than
+one response curve per channel, so it bakes to one row of 256 samples
+and applies through `responseRecipe()`; a transform that mixes channels
+needs the volume and applies through the trilinear `lutRecipe()`, its
+slices laid side by side in one image. Independence is ESTABLISHED, not
+assumed from the transform's type: the bake reads the three responses off
+the grey ramp, then requires a lattice of mixed colours to equal those
+three responses composed, to within half an eight-bit code. So `lutSize`
+means nothing to a transform that bakes to a row.
+
+**A channelwise recipe does not have to run as a program.**
+`Recipe::channelwise(slot)` is the declaration that every output channel
+depends on the same input channel and nothing else, with `slot` holding
+the response row — and `responseRecipe()` makes it. `skia::Effect::recipe(
+material, surface)` is where it is spent: on a surface carrying eight
+bits per channel it answers the row as `SkColorFilters::TableARGB`, which
+a consumer hangs on a paint and pays a blit for, and on anything else —
+a float surface, or `kUnknown_SkColorType`, which is what a canvas backed
+by neither raster nor GPU answers — it falls to `recipe(material)` and
+the program. The picture is the same either way; only the cost differs,
+which is why the surface is a parameter rather than something the effect
+guesses. `skia::Effect::filter` takes an `sk_sp<SkColorFilter>` as well
+as an `sk_sp<SkImageFilter>`, and `colorFilter()` reads that lane back.
 
 ## The primitives
 
@@ -875,7 +900,11 @@ compiles a two-uniform recipe through the cache and checks the raster it
 shades is byte-identical to the same SkSL compiled and filled by hand.
 `material_sdf_test`, `material_pattern_test`, `material_field_test` and
 `material_color_test` cover the primitives, and `material_ocio_test`
-bakes an exponent through OpenColorIO where it is available; `material_kit_test` compiles
+bakes an exponent through OpenColorIO where it is available and holds
+the two lowerings of it to each other — the table an eight-bit surface
+admits must paint what the program paints, to within one code across a
+ramp, while a float surface and a channel-mixing transform keep the
+program; `material_kit_test` compiles
 every preset and checks a fill stays inside its path, dresses a surface
 from a decoded set and pins the packed channels it wires, and shades a
 stack at both ends of its mask. `material_core_test` pins what `over()`
@@ -889,7 +918,7 @@ that and fail once a GPU backend has inlined it into a pipeline. It
 stands Graphite up, installs a shader-error handler through
 `GraphiteContext::reportShaderErrorsTo`, and draws every material
 `kit::everyRecipe()`, `sdf::everyRecipe()` and `field::everyRecipe()`
-answer — plus a stack per blend, the whole terms text, and the ocio LUT
+answer — plus a stack per blend, the whole terms text, and the ocio bake
 where OpenColorIO is available — through the same `skia::Paint` a
 consumer draws it through, demanding that not one reports an error. It
 is labelled `gpu` and needs Metal, and it carries its own control: the

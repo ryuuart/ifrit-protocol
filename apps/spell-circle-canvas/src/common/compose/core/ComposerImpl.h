@@ -7,12 +7,14 @@
  */
 
 #include <include/core/SkBlendMode.h>
+#include <include/core/SkImageInfo.h>
 #include <sigilcore/cache/Bake.h>
 #include <sigilcore/cache/Volatility.h>
 #include <sigilcore/reconcile/Phases.h>
 #include <sigilcore/reconcile/Reconciler.h>
 
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <optional>
 
 #include "Instance.h"
 #include "Lanes.h"
@@ -138,7 +140,16 @@ struct Composer::Impl {
   bool hasCenterPins = false;  // any centerAt() in the tree
   bool liveOnly = false;       // snapshot(): skip per-node caches
   material::skia::Effect
-      view;  // output view transform (null filter = pass-through)
+      view;  // output view transform (no filter = pass-through)
+  // The view as its author described it, when they described a Material.
+  // Kept because how a Material LOWERS depends on the surface it lands
+  // on, which is known only at draw: a view whose channels are
+  // independent runs as a table on an eight-bit surface and as its
+  // program anywhere else. `viewColorType` is the surface `view` was
+  // lowered for, so a stable surface lowers once and every later frame
+  // compares one enum.
+  std::optional<material::Material> viewMaterial;
+  SkColorType viewColorType = kUnknown_SkColorType;
   // What the AUTHOR declared their colour values to be. Read by
   // declaredInputSpace() and by nothing else: compositing happens in
   // encoded sRGB regardless, with no linear stage and no conversion, so
@@ -671,10 +682,15 @@ struct Composer::Impl {
     OwnOnly,       ///< the prefix: no children, no foregrounds
     ChildrenOnly,  ///< the children and the foregrounds over them
   };
+  /** @p deferLayerEffect leaves the node's own layer effect OUT of what is
+   *  emitted, for a bake that is going to be filtered at its blit instead.
+   *  Everything else is unchanged, so the bake holds exactly the pixels the
+   *  effect's saveLayer would have been handed. */
   void paintContent(detail::Instance& inst, SkCanvas& canvas,
                     float contentScale,
                     SkBlendMode leafBlend = SkBlendMode::kSrcOver,
-                    float leafOpacity = 1.0f, Phase phase = Phase::All);
+                    float leafOpacity = 1.0f, Phase phase = Phase::All,
+                    bool deferLayerEffect = false);
   const SkPath& resolveOutline(detail::Instance& inst, SkSize size) const;
   /** THE COVERAGE BOUNDARY (Coverage.cpp): the silhouette of what this
    *  node's layer drew, in the node's own space.

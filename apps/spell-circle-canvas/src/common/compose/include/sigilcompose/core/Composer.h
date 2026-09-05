@@ -105,12 +105,18 @@ class Composer {
   /** Output view transform (color management): applied to the composer's
    *  whole output as the final stage — one saveLayer while set, zero cost
    *  when cleared (a default Effect{}). The intended source is an OCIO
-   *  display/view baked to a 3D LUT (SigilMaterial's colour transforms),
-   *  but any Effect works. Per-node caches are unaffected (this is
-   *  post-cache, at composite). */
+   *  display/view baked from a colour config (SigilMaterial's colour
+   *  transforms), but any Effect works. Per-node caches are unaffected
+   *  (this is post-cache, at composite). */
   void setView(material::skia::Effect view);
   /** The view as a SigilMaterial recipe whose `content` slot is the
-   *  output — `Effect::recipe(view)`. */
+   *  output. The Material is KEPT rather than built once, because a
+   *  recipe that maps each channel independently — an exponent, a gamma,
+   *  a per-channel display curve — is a per-channel table on an eight-bit
+   *  surface and a full-canvas program on any other, and which surface
+   *  this is only the canvas of a draw can say. Every draw onto the same
+   *  colour type therefore reuses one lowering; a view handed in already
+   *  built, as an Effect, is taken as it stands. */
   void setView(const sigil::material::Material& view);
 
   /** THE DECLARED INPUT SPACE — a declaration, NOT a conversion.

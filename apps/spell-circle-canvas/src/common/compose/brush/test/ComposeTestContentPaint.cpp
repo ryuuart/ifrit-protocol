@@ -15,9 +15,10 @@
 #include <sigilmaterial/ocio/Ocio.h>
 
 TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
-  // The OCIO output stage end-to-end: an exponent transform baked to a LUT
-  // darkens mid-gray (0.5^2.2 ≈ 0.218); clearing the view restores
-  // pass-through. Exercises bake → SkImage LUT → SkSL trilinear → saveLayer.
+  // The OCIO output stage end-to-end: an exponent transform darkens
+  // mid-gray (0.5^2.2 ≈ 0.218); clearing the view restores pass-through.
+  // Exercises bake → response row → the lowering the host's eight-bit
+  // surface asks for → saveLayer.
   ASSERT_TRUE(sigil::material::ocio::available());
   Host host;
   host.composer.setView(sigil::material::ocio::exponent(2.2f));
@@ -25,7 +26,7 @@ TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
       box().width(60).height(60).fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))));
   host.frame();
   const uint32_t dark = SkColorGetR(host.pixel(30, 30));
-  EXPECT_GT(dark, 30u);  // ≈ 56 (LUT-quantized)
+  EXPECT_GT(dark, 30u);  // ≈ 56
   EXPECT_LT(dark, 80u);
   host.composer.setView({});  // pass-through again
   host.frame();

@@ -1,6 +1,8 @@
 /** @file
- * The trilinear 3D-LUT recipe, which needs nothing of OpenColorIO and so
- * is compiled whether or not the build found it.
+ * The two recipes a baked transform is applied through — the trilinear
+ * 3D LUT and the per-channel response row — neither of which needs
+ * anything of OpenColorIO, so both are compiled whether or not the build
+ * found it.
  */
 
 #include <sigilio/hub/TextCatalog.h>
@@ -27,6 +29,17 @@ const std::shared_ptr<const Recipe>& lutRecipe() {
           .child("lut")
           .body(Target::SkSL,
                 shaders().text("Lut3d.sksl").value_or("")));
+  return recipe;
+}
+
+const std::shared_ptr<const Recipe>& responseRecipe() {
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<LutParams>("color.response1d")
+          .child("content")
+          .child("lut")
+          .channelwise("lut")
+          .body(Target::SkSL,
+                shaders().text("Response1d.sksl").value_or("")));
   return recipe;
 }
 

@@ -65,6 +65,11 @@ Recipe& Recipe::child(std::string slot) {
   return *this;
 }
 
+Recipe& Recipe::channelwise(std::string slot) {
+  m_channelwise = std::move(slot);
+  return *this;
+}
+
 Recipe& Recipe::frame(FrameInput input) {
   m_frame |= (uint8_t)input;
   relayout();

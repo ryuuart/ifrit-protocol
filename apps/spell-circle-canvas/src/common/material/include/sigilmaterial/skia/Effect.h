@@ -12,7 +12,9 @@
  */
 
 #include <include/core/SkColor.h>
+#include <include/core/SkColorFilter.h>
 #include <include/core/SkImageFilter.h>
+#include <include/core/SkImageInfo.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
@@ -46,6 +48,15 @@ class Effect {
   struct BlurLevels;
 
   static Effect filter(sk_sp<SkImageFilter> f);
+  /** A COLOUR FILTER as the effect — a per-pixel colour map with no
+   *  neighbourhood, so a consumer applies it to the layer's paint rather
+   *  than through the filter graph and pays a blit instead of a pass.
+   *  `colorFilter()` is how that consumer reads it back; an effect built
+   *  this way carries no image filter of its own, and where one is asked
+   *  for — a `then()` chain, `resolvedImageFilter()` — the colour filter
+   *  is lifted into the filter graph so the picture is right either
+   *  way. */
+  static Effect filter(sk_sp<SkColorFilter> f);
   /** A SigilMaterial recipe as the effect: its program runs over the
    *  layer, which arrives in the child slot named `content`; every other
    *  slot and every uniform is bound from the material as it stands now.
@@ -53,6 +64,24 @@ class Effect {
    *  construction and the effect compares by its built filter's identity,
    *  so animate by re-describing. */
   static Effect recipe(const Material& material);
+  /** THE SAME RECIPE, LOWERED FOR THE SURFACE IT WILL LAND ON.
+   *
+   *  A recipe that declares itself `channelwise` maps each channel
+   *  through one row of samples and touches nothing else, which on a
+   *  surface carrying eight bits per channel is a 256-entry table per
+   *  channel and no program at all: this answers that table as a colour
+   *  filter, which the consumer hangs on the layer's paint. Every other
+   *  case — a recipe that is not channelwise, a row that is not 256
+   *  samples wide or cannot be read, a surface with more precision than
+   *  a table can carry, and `kUnknown_SkColorType`, which is what a
+   *  canvas backed by neither raster nor GPU answers — falls to
+   *  `recipe(material)` and the program, so the picture is the same
+   *  either way and only the cost differs.
+   *
+   *  @p surface is the colour type of the surface the effect will be
+   *  composited on, which a consumer reads from its canvas at the moment
+   *  it paints. */
+  static Effect recipe(const Material& material, SkColorType surface);
   /** The layer re-emitted blurred beneath itself in @p color — a drop
    *  shadow at zero offset, which keeps the content on top. Chain with
    *  `then()` for a tighter core over a wider halo. */
@@ -223,6 +252,11 @@ class Effect {
   Effect then(const Effect& next) const;
 
   const sk_sp<SkImageFilter>& imageFilter() const { return m_filter; }
+  /** The colour filter, when the effect is one — set only by
+   *  `filter(sk_sp<SkColorFilter>)` and by the lowered `recipe()`. A
+   *  consumer that composites a layer sets it on the layer's paint
+   *  beside `imageFilter()`; the two are never both present. */
+  const sk_sp<SkColorFilter>& colorFilter() const { return m_colorFilter; }
   /** The filter with any bound uniforms resolved NOW — what the paint
    *  phase applies. Identical to imageFilter() for a static effect.
    *  @p ctx is the painting node's PaintFrame, which child() materials
@@ -271,6 +305,10 @@ class Effect {
   };
 
   sk_sp<SkImageFilter> m_filter;
+  // The colour-filter lane: a map with no neighbourhood, which a
+  // consumer hangs on a paint rather than running through the filter
+  // graph. Exclusive with m_filter.
+  sk_sp<SkColorFilter> m_colorFilter;
   // The shader recipe (kept so bound uniforms can rebuild per paint and
   // so equality can compare structurally).
   sk_sp<SkRuntimeEffect> m_effect;
@@ -309,20 +347,30 @@ class Effect {
   /** The recipe's filter, built unconditionally — the store-time snapshot
    *  (null ctx) and the per-paint resolve are one construction. */
   sk_sp<SkImageFilter> buildFilter(const PaintFrame* ctx) const;
+  /** THE EFFECT AS ONE IMAGE FILTER: the colour lane lifted into the
+   *  filter graph. A chain composes image filters, and a consumer that
+   *  knows only image filters must still get the right picture; the
+   *  paint-side shortcut is for the consumer that asks `colorFilter()`
+   *  for it by name. */
+  sk_sp<SkImageFilter> liftedFilter() const;
 
   /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). operator== is
    *  hand-written in Effects.cpp and reads these members directly; the state
    *  is private, so the decomposition lives inside the class. */
   static void fieldPin(Effect& v) {
-    auto& [filter, effect, uniforms, uniforms2, uniforms4, uniformArrays, bound,
-           blocks, dirBlur, paramBlur, blurLevels, children, chainA, chainB] = v;
+    auto& [filter, colorFilter, effect, uniforms, uniforms2, uniforms4,
+           uniformArrays, bound, blocks, dirBlur, paramBlur, blurLevels,
+           children, chainA, chainB] = v;
     static_assert(std::tuple_size_v<decltype(std::tie(
-                          filter, effect, uniforms, uniforms2, uniforms4,
-                          uniformArrays, bound, blocks, dirBlur, paramBlur,
-                          blurLevels, children, chainA, chainB))> == 14,
+                          filter, colorFilter, effect, uniforms, uniforms2,
+                          uniforms4, uniformArrays, bound, blocks, dirBlur,
+                          paramBlur, blurLevels, children, chainA, chainB))> ==
+                      15,
                   "Effect gained or lost a member — rule on it in "
-                  "Effect::operator== (Effects.cpp), then bump this count. "
-                  "(m_filter is EXCLUDED on the shader, directionalBlur and "
+                  "Effect::operator== (Effect.cpp), then bump this count. "
+                  "(m_colorFilter compares by pointer, like m_filter, an "
+                  "already-built SkColorFilter carrying no recipe either; "
+                  "m_filter is EXCLUDED on the shader, directionalBlur and "
                   "blur paths because it is derived from m_effect + the "
                   "constant lanes / m_dirBlur / m_paramBlur + m_children, "
                   "and m_blurLevels is derived from m_paramBlur alone; "

@@ -236,12 +236,17 @@ void Composer::setClock(const motion::FrameClock* clock) {
 }
 
 void Composer::setView(material::skia::Effect view) {
+  m_impl->viewMaterial.reset();  // an Effect is already lowered
   m_impl->view = std::move(view);
   m_impl->contentDirty = true;  // the composite changes even if no node did
 }
 
 void Composer::setView(const sigil::material::Material& view) {
+  // The program is the answer for a surface nothing is known about, and
+  // is what stands until draw meets a canvas that says otherwise.
   setView(material::skia::Effect::recipe(view));
+  m_impl->viewMaterial = view;
+  m_impl->viewColorType = kUnknown_SkColorType;
 }
 
 void Composer::declareInputSpace(InputSpace space) {
@@ -427,11 +432,28 @@ void Composer::draw(SkCanvas& canvas) {
 
   // Output view transform: the composer's whole output renders into one
   // layer and composites through the view filter (an OCIO display/view baked
-  // to a LUT, typically). Post-cache: per-node pictures replay unchanged.
-  const bool hasView = (bool)impl.view.imageFilter();
+  // from a colour config, typically). Post-cache: per-node pictures replay
+  // unchanged.
+  //
+  // A view described as a Material is lowered HERE, because how cheaply it
+  // can run is a fact about the surface: a transform whose channels are
+  // independent is a per-channel table on an eight-bit surface and a
+  // full-canvas program on any other, and only the canvas knows which this
+  // is. Lowered once per colour type — a host whose surface never changes
+  // pays one enum comparison a frame.
+  if (impl.viewMaterial) {
+    const SkColorType surface = canvas.imageInfo().colorType();
+    if (surface != impl.viewColorType) {
+      impl.viewColorType = surface;
+      impl.view = material::skia::Effect::recipe(*impl.viewMaterial, surface);
+    }
+  }
+  const bool hasView =
+      impl.view.imageFilter() || impl.view.colorFilter();
   if (hasView) {
     SkPaint viewPaint;
     viewPaint.setImageFilter(impl.view.imageFilter());
+    viewPaint.setColorFilter(impl.view.colorFilter());
     canvas.saveLayer(nullptr, &viewPaint);
   }
   impl.paint(*impl.root, canvas);

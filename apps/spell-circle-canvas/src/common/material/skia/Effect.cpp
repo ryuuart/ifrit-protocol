@@ -1,19 +1,25 @@
 /** @file
  * The post-processing value with bodies: filters, SkSL programs with
- * children and uniforms, the two blurs, chaining, and what an effect
- * declares about its own motion and its need for the root frame.
+ * children and uniforms, the lowering of a channelwise recipe to a
+ * table, the two blurs, chaining, and what an effect declares about its
+ * own motion and its need for the root frame.
  */
 
 #include "sigilmaterial/skia/Effect.h"
 
+#include <include/core/SkBitmap.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the slot diagnostics
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -28,6 +34,12 @@ Effect Effect::filter(sk_sp<SkImageFilter> f) {
   return e;
 }
 
+Effect Effect::filter(sk_sp<SkColorFilter> f) {
+  Effect e;
+  e.m_colorFilter = std::move(f);
+  return e;
+}
+
 Effect Effect::recipe(const Material& material) {
   install();
   static constexpr std::string_view kContent[] = {"content"};
@@ -35,6 +47,68 @@ Effect Effect::recipe(const Material& material) {
       skia::builder(material, {}, {}, kContent);
   if (!built) return {};
   return filter(SkImageFilters::RuntimeShader(*built, "content", nullptr));
+}
+
+namespace {
+
+/** Can a 256-entry table per channel carry everything @p type does? Only
+ *  where the surface itself is eight unsigned bits per colour channel:
+ *  above that a table would quantize what the surface can hold, and
+ *  kUnknown_SkColorType — what a canvas backed by neither raster nor GPU
+ *  answers — says the surface is not known at all. */
+bool tableCarriesEveryCode(SkColorType type) {
+  switch (type) {
+    case kRGBA_8888_SkColorType:
+    case kBGRA_8888_SkColorType:
+    case kRGB_888x_SkColorType:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** The channelwise recipe's response row read back as three 256-entry
+ *  tables, or nothing when the material is not one, or its row is not
+ *  256 samples of a readable image.
+ *
+ *  The row is read UNPREMULTIPLIED into eight-bit codes, which is the
+ *  space Skia's table filter maps in and the space the recipe's own body
+ *  unpremultiplies into, so the two agree code for code. */
+struct ResponseTables {
+  uint8_t r[256], g[256], b[256];
+};
+std::optional<ResponseTables> responseTables(const Material& material) {
+  const std::string& slot = material.recipe().channelwiseSlot();
+  if (slot.empty()) return std::nullopt;
+  const auto* texture = dynamic_cast<const Texture*>(material.leaf(slot));
+  if (!texture) return std::nullopt;
+  const sk_sp<SkImage> row = texture->image();
+  if (!row || row->width() != 256 || row->height() != 1) return std::nullopt;
+  SkBitmap codes;
+  if (!codes.tryAllocPixels(SkImageInfo::Make(256, 1, kRGBA_8888_SkColorType,
+                                              kUnpremul_SkAlphaType)))
+    return std::nullopt;
+  if (!row->readPixels(nullptr, codes.pixmap(), 0, 0)) return std::nullopt;
+  ResponseTables tables;
+  const uint8_t* px = (const uint8_t*)codes.getPixels();
+  for (int i = 0; i < 256; ++i) {
+    tables.r[i] = px[i * 4];
+    tables.g[i] = px[i * 4 + 1];
+    tables.b[i] = px[i * 4 + 2];
+  }
+  return tables;
+}
+
+}  // namespace
+
+Effect Effect::recipe(const Material& material, SkColorType surface) {
+  if (tableCarriesEveryCode(surface))
+    if (std::optional<ResponseTables> tables = responseTables(material))
+      // Alpha null is the identity: a view transform maps colour and
+      // leaves coverage alone, exactly as the body's repremultiply does.
+      return filter(
+          SkColorFilters::TableARGB(nullptr, tables->r, tables->g, tables->b));
+  return recipe(material);
 }
 
 Effect Effect::glow(SkColor4f color, float sigma) {
@@ -424,10 +498,17 @@ Effect& Effect::uniform(std::string name,
   return *this;  // now LIVE: read at every paint, like a bound Output
 }
 
+sk_sp<SkImageFilter> Effect::liftedFilter() const {
+  if (m_filter || !m_colorFilter) return m_filter;
+  return SkImageFilters::ColorFilter(m_colorFilter, nullptr);
+}
+
 Effect Effect::then(const Effect& next) const {
   Effect e;
-  const bool thisReal = m_filter || isAnimated();
-  const bool nextReal = next.m_filter || next.isAnimated();
+  const sk_sp<SkImageFilter> mine = liftedFilter();
+  const sk_sp<SkImageFilter> theirs = next.liftedFilter();
+  const bool thisReal = mine || isAnimated();
+  const bool nextReal = theirs || next.isAnimated();
   if (!thisReal) return next;
   if (!nextReal) return *this;
   if (isAnimated() || next.isAnimated()) {
@@ -436,7 +517,7 @@ Effect Effect::then(const Effect& next) const {
     e.m_chainB = std::make_shared<const Effect>(next);
     return e;
   }
-  e.m_filter = SkImageFilters::Compose(next.m_filter, m_filter);
+  e.m_filter = SkImageFilters::Compose(theirs, mine);
   return e;
 }
 
@@ -448,7 +529,7 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter(const PaintFrame* ctx) const {
   // per paint; a static one is already in the snapshot. Same question
   // Material::build's memo asks of its children, same answer.
   if (m_bound.empty() && m_blocks.empty() && !(ctx && anyChildNeedsContext()))
-    return m_filter;
+    return liftedFilter();
   return buildFilter(ctx);
 }
 
@@ -558,7 +639,9 @@ bool Effect::operator==(const Effect& o) const {
            m_uniforms2 == o.m_uniforms2 && m_uniforms4 == o.m_uniforms4 &&
            m_uniformArrays == o.m_uniformArrays &&
            childrenEqual(m_children, o.m_children);
-  return m_filter == o.m_filter;  // filter(): pointer identity, as ever
+  // filter(): pointer identity, as ever, on both lanes — an already-built
+  // filter of either kind carries no recipe to compare.
+  return m_filter == o.m_filter && m_colorFilter == o.m_colorFilter;
 }
 
 }  // namespace sigil::material::skia

@@ -642,7 +642,14 @@ becomes a paint through `material::skia::Paint::recipe`, an effect
 through `material::skia::Effect::recipe`, and an output-stage view
 transform for
 `Composer::setView` is SigilMaterial's colour transform, compiled only
-when the build finds OpenColorIO.
+when the build finds OpenColorIO. A view handed over as a Material is
+KEPT rather than built once: how cheaply a colour transform can run is a
+fact about the surface — one whose channels are independent is a
+per-channel table on an eight-bit surface and a full-canvas program on
+any other — so `draw` lowers it against `canvas.imageInfo().colorType()`,
+once per colour type, and a host whose surface never changes pays one
+comparison a frame. A view handed over as an `Effect` is already built
+and is taken as it stands.
 
 **Type — `typography/`.** The text vocabulary is this feature's, one
 header per value family: `typography/Units.h` — `Unit` and `unit::`, the

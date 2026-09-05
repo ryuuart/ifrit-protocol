@@ -1,5 +1,5 @@
-# The ocio feature: OpenColorIO view transforms baked to LUT materials
-# over the texture feature. OpenColorIO is already in the dependency
+# The ocio feature: OpenColorIO view transforms baked to materials over
+# the texture feature. OpenColorIO is already in the dependency
 # closure (transitively via OpenImageIO), so this adds no new vcpkg
 # dependency; where the package is absent the feature still builds, with
 # `available()` false and every factory answering the empty LUT material,
@@ -8,7 +8,7 @@
 find_package(OpenColorIO CONFIG QUIET)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 sigil_library(SigilMaterialOcio
-  SOURCES LutRecipe.cpp ${_shaders}/Lut3d.sksl
+  SOURCES LutRecipe.cpp ${_shaders}/Lut3d.sksl ${_shaders}/Response1d.sksl
   HEADERS Ocio.h
   PUBLIC SigilMaterialTexture
   PRIVATE SigilIOHub)
@@ -32,4 +32,4 @@ sigil_test(material_ocio_test
 
 sigil_bench(material_ocio_bench
   SOURCES bench/OcioBench.cpp
-  LIBRARIES SigilMaterialOcio)
+  LIBRARIES SigilMaterialOcio SigilMaterialSkia)
