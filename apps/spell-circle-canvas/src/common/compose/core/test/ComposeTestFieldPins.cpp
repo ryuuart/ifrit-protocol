@@ -19,6 +19,14 @@
 // describes, and keyed siblings never prune into one another — so a harness
 // that renders two trees and counts patched nodes can report exactly what a
 // correct comparator would while the comparator is in fact broken.
+//
+// THIS FILE REACHES THE LIBRARY'S OWN SOURCE DIRECTORY, and it is the only
+// test translation unit that does. That is a stated exception rather than
+// an oversight: a field left out of a comparator is unfalsifiable from
+// outside, because from outside the two descriptions simply compare equal
+// and the tree simply prunes. Every case here needs the comparator or the
+// slot table itself; a case that needs neither belongs in the binary whose
+// tier owns its subject, not here.
 
 #include <boost/pfr/core.hpp>
 
@@ -204,33 +212,6 @@ TEST(ComposeReconcile, EveryDepthDataFieldParticipatesInEquality) {
       kNames, kParticipates);
 }
 
-TEST(ComposeReconcile, EveryCascadeFieldOfATrackParticipatesInEquality) {
-  // A cascade over text is two values: the SCHEDULE, which is
-  // SigilMotion's and pinned there, and the three fields that say what a
-  // unit IS, which are this library's. Miss one and a re-described track
-  // keeps the OLD schedule with no diagnostic — a granularity that never
-  // takes, or a `beatsOver` flipped to Text on a paragraph that goes on
-  // beating over each half's own selection. Both are silent, and both look
-  // exactly like the engine ignoring the author.
-  //
-  // The pin beside `Track::sameShape()` makes a NEW field a build failure;
-  // this makes the decision about it mechanical.
-  const Track base{.stagger = {.eachMs = 30}};
-  Track over = base;
-  over.over = Unit::Line;
-  EXPECT_FALSE(base.sameShape(over)) << "over";
-  Track innerOver = base;
-  innerOver.innerOver = Unit::Line;
-  EXPECT_FALSE(base.sameShape(innerOver)) << "innerOver";
-  Track beatsOver = base;
-  beatsOver.beatsOver = Beats::Text;
-  EXPECT_FALSE(base.sameShape(beatsOver)) << "beatsOver";
-  Track schedule = base;
-  schedule.stagger.eachMs = 31;
-  EXPECT_FALSE(base.sameShape(schedule)) << "the schedule itself";
-  EXPECT_TRUE(base.sameShape(base));
-}
-
 TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
   // Against boundMapEqual() directly. Every stage of a bound float's shaping
   // map is read live at paint, so every one of them participates — including
@@ -265,39 +246,6 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
       true, true, true, true, true, true, true, true, true, true, true, true};
   walkFields<sigil::motion::BoundFloat>(cd::boundMapEqual, kNames,
                                         kParticipates);
-}
-
-TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
-  // `recordBounds()` decides whether a child's transform widens the parent's
-  // bounds, and it must recognise exactly the transforms `NodeTransform`
-  // applies for paint() and hitInstance() — per-axis scale included. Miss one
-  // and a child whose ONLY transform is a per-axis scale hands its parent
-  // unscaled bounds, and every consumer sized off them (the effect layer
-  // here, the opacity layer, the texture bake) silently truncates the
-  // overflow.
-  //
-  // The parent takes an identity offset() filter purely to force a bounded
-  // saveLayer: that layer clips to recordBounds(), so wrong bounds delete the
-  // scaled-out half of the bar instead of merely mis-sizing something.
-  Host host(200, 200);
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .rect(SkRect::MakeXYWH(20, 20, 40, 40))
-                      .effect(material::skia::Effect::filter(
-                          SkImageFilters::Offset(0, 0, nullptr)))
-                      .child(box()
-                                 .absolute()
-                                 .rect(SkRect::MakeXYWH(0, 0, 40, 40))
-                                 .transformOrigin(0, 0)
-                                 .fill(red())
-                                 .scaleX(3.0f))));
-  host.frame();
-  EXPECT_EQ(host.pixel(30, 40), SK_ColorRED) << "the unscaled part is missing";
-  EXPECT_EQ(host.pixel(120, 40), SK_ColorRED)
-      << "the scaled-out part of the bar was clipped away — recordBounds() "
-         "did not see scaleX on the child";
-  EXPECT_EQ(host.pixel(150, 40), SK_ColorBLACK) << "…and it over-reached";
 }
 
 TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {

@@ -1149,3 +1149,30 @@ TEST(ComposeText, RunPensAreThePenPositionsWithOnePastTheEnd) {
   ASSERT_EQ(nothing.size(), 1u);
   EXPECT_FLOAT_EQ(nothing[0], 0.0f);
 }
+
+TEST(ComposeText, EveryCascadeFieldOfATrackParticipatesInEquality) {
+  // A cascade over text is two values: the SCHEDULE, which is
+  // SigilMotion's and pinned there, and the three fields that say what a
+  // unit IS, which are this library's. Miss one and a re-described track
+  // keeps the OLD schedule with no diagnostic — a granularity that never
+  // takes, or a `beatsOver` flipped to Text on a paragraph that goes on
+  // beating over each half's own selection. Both are silent, and both look
+  // exactly like the engine ignoring the author.
+  //
+  // The pin beside `Track::sameShape()` makes a NEW field a build failure;
+  // this makes the decision about it mechanical.
+  const Track base{.stagger = {.eachMs = 30}};
+  Track over = base;
+  over.over = Unit::Line;
+  EXPECT_FALSE(base.sameShape(over)) << "over";
+  Track innerOver = base;
+  innerOver.innerOver = Unit::Line;
+  EXPECT_FALSE(base.sameShape(innerOver)) << "innerOver";
+  Track beatsOver = base;
+  beatsOver.beatsOver = Beats::Text;
+  EXPECT_FALSE(base.sameShape(beatsOver)) << "beatsOver";
+  Track schedule = base;
+  schedule.stagger.eachMs = 31;
+  EXPECT_FALSE(base.sameShape(schedule)) << "the schedule itself";
+  EXPECT_TRUE(base.sameShape(base));
+}

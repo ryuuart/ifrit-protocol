@@ -3379,3 +3379,36 @@ TEST(ComposeMaterial, StableLiveResolveBlitsTheTexture) {
   host.frame();  // real change → one re-bake
   EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
 }
+
+TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
+  // `recordBounds()` decides whether a child's transform widens the parent's
+  // bounds, and it must recognise exactly the transforms `NodeTransform`
+  // applies for paint() and hitInstance() — per-axis scale included. Miss one
+  // and a child whose ONLY transform is a per-axis scale hands its parent
+  // unscaled bounds, and every consumer sized off them (the effect layer
+  // here, the opacity layer, the texture bake) silently truncates the
+  // overflow.
+  //
+  // The parent takes an identity offset() filter purely to force a bounded
+  // saveLayer: that layer clips to recordBounds(), so wrong bounds delete the
+  // scaled-out half of the bar instead of merely mis-sizing something.
+  Host host(200, 200);
+  host.composer.render(
+      box().child(box()
+                      .absolute()
+                      .rect(SkRect::MakeXYWH(20, 20, 40, 40))
+                      .effect(material::skia::Effect::filter(
+                          SkImageFilters::Offset(0, 0, nullptr)))
+                      .child(box()
+                                 .absolute()
+                                 .rect(SkRect::MakeXYWH(0, 0, 40, 40))
+                                 .transformOrigin(0, 0)
+                                 .fill(red())
+                                 .scaleX(3.0f))));
+  host.frame();
+  EXPECT_EQ(host.pixel(30, 40), SK_ColorRED) << "the unscaled part is missing";
+  EXPECT_EQ(host.pixel(120, 40), SK_ColorRED)
+      << "the scaled-out part of the bar was clipped away — recordBounds() "
+         "did not see scaleX on the child";
+  EXPECT_EQ(host.pixel(150, 40), SK_ColorBLACK) << "…and it over-reached";
+}

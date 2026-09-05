@@ -1109,33 +1109,56 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Registered tests, one binary per feature target so that each links only
-the target it exercises and a test reaching past its tier fails to link:
+Registered tests. A binary exists where it links a **strictly smaller**
+set of targets than its neighbours and that boundary is a promise
+somebody could read; two binaries over one closure are one binary. Each
+links only what it exercises, so a test reaching past its tier fails to
+link rather than passing on a dependency it was not meant to have:
 `compose_core_test` (the kernel — elements, the reconciler, layout, paint,
 transitions, text, the feed, the instanced leaf, masks and the field
-walks; links `SigilComposeCore` alone), `compose_shape_test`
-(silhouettes, layouts, routers, placers, rails, travel),
-`compose_text_test` (text data, the text pass,
-vertical writing, motion along paths, the text-fx presets, rich spans),
-`compose_brush_test` (decorations, lines, brushes, the stroke grammar,
-the kit's stroke presets), `compose_paint_test` (patterns, SDF materials,
-layer styles, colour management), `compose_kit_test` and
-`compose_studio_test` (the kit, and the queries, the studio and the
-instruments over it), `compose_texture_test` (textures as element
-content), `compose_draw_test` (a pen program hosted in a node),
-`compose_video_test` (video frames as element content),
-`compose_spike_test` (the Yoga+SigilWeave
-measurement contract, with `core/`), and the library's own:
-`compose_docs_test` (the engine walkthroughs and the generated probes
-over this page and `TYPOGRAPHY.md`) and `compose_api_doc_probes_self_test`,
-plus `compose_gpu_test` (Apple only, needs the Graphite plumbing) and
-`compose_web_test` (needs the Ultralight SDK). Each binary's translation
-units share `test/support/Host.h` — the composer-in-a-raster-surface
-harness — through a support header of their own that includes only what
-they use. The benchmarks are executables, not tests.
+walks; links `SigilComposeCore` alone, which is what proves the kernel
+stands without its catalogs), `compose_text_test` (text data, the text
+pass, vertical writing, motion along paths, the text-fx presets, rich
+spans, the variation drive), `compose_brush_test` (decorations, lines,
+brushes, the stroke grammar, the mask gates, the paint values this tier
+spells over SigilMaterial, the pixel styles and the kit's stroke
+presets), `compose_kit_test` (the kit tier: silhouettes, layout schemes,
+routers, placers, travel, and the queries, studio and instruments over
+them), `compose_texture_test` (textures as element content),
+`compose_draw_test` (a pen program hosted in a node),
+`compose_video_test` (video frames as element content), and the
+library's own: `compose_docs_test` (the generated probes over this page
+and `TYPOGRAPHY.md`, with the one claim the generator cannot make) and
+`compose_api_doc_probes_self_test`, plus `compose_gpu_test` (Apple only,
+needs the Graphite plumbing) and `compose_web_test` (needs the Ultralight
+SDK).
+
+One file per subject, named for what it asserts — a case is found by
+opening the file its subject names, not by searching for its case name.
+Each binary's translation units share `test/support/Host.h` — the
+composer-in-a-raster-surface harness — through a support header of their
+own that includes only what they use, and the font context that harness
+holds is the tree-wide `src/test/Fonts.h`. A binary that skips or
+vanishes without something says so with a ctest label: `gpu` on
+`compose_gpu_test` and `compose_texture_test`, `fonts` on
+`compose_text_test`, `compose_kit_test` and `compose_draw_test`,
+`ultralight` on `compose_web_test`.
+
+A case here asserts one thing a header promises and is named that
+promise as a sentence. It pins only what editing this library could
+falsify — a caching count, a closed form, a field walk, one description
+drawn two ways — never an anti-aliased byte, a fitted tolerance, a count
+the machine's fonts could move, or elapsed time: pixel identity is the
+plate ledger's to judge and timing is the bench ledger's. A claim made N
+times with one thing varying is one `TEST_P` whose parameter is that
+thing. Committed test assets sit in `test/assets/`, so a claim about a
+face is a claim about a face this repository ships. The benchmarks are
+executables, not tests.
 There is one benchmark binary per tier — `compose_core_bench`,
 `compose_shape_bench`, `compose_brush_bench`, `compose_paint_bench`,
 `compose_text_bench`, `compose_texture_bench`, `compose_draw_bench` —
+and a claim about how a cost GROWS lives in one of them rather than in a
+ctest wall-clock ceiling, because a single size cannot show a rate —
 each in its feature's `bench/` over the shared
 `bench/BenchSupport.h`, linking only the library it measures, all built
 by the `benches` target and run by `scripts/bench_ledger.py`; anything
