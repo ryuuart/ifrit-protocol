@@ -127,6 +127,7 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -150,7 +151,6 @@ using namespace sigil::compose;
 using namespace sigil::motion;
 using sigil::material::skia::Effect;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 // The whole composition is pinned: an engraved plate has no layout.
 using sigil::compose::kit::at;
 using sigil::geometry::path::centred;
@@ -361,7 +361,7 @@ inline SkColor4f predicted(SkColor4f self, int neighbourSector,
 
 inline sk_sp<SkTypeface> face(const char* family, SkFontStyle style,
                               const char* fallback) {
-  return pickTypeface({family, fallback}, style);
+  return weave::ports::face({family, fallback}, style);
 }
 inline const sk_sp<SkTypeface>& serif() {
   static sk_sp<SkTypeface> f =
@@ -1738,13 +1738,13 @@ struct ChevreulCircle : sketch::Sketch {
 
   // ==================================================================
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPaper);
     // The still has to name its moment: this is a 14 s loop (13 s reveal +
     // 1 s hold), and 12.6 s is fully settled with 1.4 s of margin before the
     // reset. An undeclared capture catches the plate roughly half-built,
     // with most verification rows and later panels unrevealed.
-    ctx.captureAt(12.6);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 12.6,
+                             .background = kPaper});
 
     computeColours();
 

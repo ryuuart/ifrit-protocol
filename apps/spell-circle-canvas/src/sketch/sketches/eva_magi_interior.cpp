@@ -229,6 +229,7 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <algorithm>
 #include <array>
@@ -1610,13 +1611,13 @@ struct EvaMagiInterior : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(magi::kW, magi::kH);
-    ctx.background(magi::kGround);
     // The reference moment the arrival field is SOLVED to land on — MELCHIOR
     // taken, BALTHASAR at the measured 30.2% with a ragged front; exact by
     // construction. By 6.0 s both MAGI are flat red and the verdict card is
     // still unfiled — nothing of the arrival field is left to see.
-    ctx.captureAt(2.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(magi::kW, magi::kH),
+                             .captureAt = 2.5,
+                             .background = magi::kGround});
     fonts = ctx.fonts;
     audit();
 

@@ -199,9 +199,10 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-#include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
 #include <array>
@@ -224,7 +225,6 @@ using namespace sigil::compose;
 using namespace sigil::motion;
 using namespace dunhuang;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
@@ -2788,28 +2788,28 @@ struct DunhuangStarChart : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas((int)kW, (int)kH);
-    ctx.background(kVoid);
     // This study brings its own canvas size and background (above) rather
     // than inheriting a default, and names its own still frame here. The
     // settled plate holds [28.2, 31.0) of the 31 s loop, so 29.0 s sits
     // inside that hold with 2 s of margin before the wrap. Anything much
     // earlier catches the score mid-precession: unprojected sky, no scroll,
     // no asterisms, no checking panel.
-    ctx.captureAt(29.0);
+    sketch::kit::stage(ctx, {.size = SkSize::Make((int)kW, (int)kH),
+                             .captureAt = 29.0,
+                             .background = kVoid});
 
     // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceSerif = pickTypeface({"Hoefler Text", "Baskerville"});
-    faceItalic =
-        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceMono = pickTypeface({"Menlo", "Courier New"});
-    faceDisplay =
-        pickTypeface({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
-    faceHan =
-        pickTypeface({"Songti SC", "PingFang SC", "Hiragino Sans", "Baskerville"});
+    faceSerif = weave::ports::face({"Hoefler Text", "Baskerville"});
+    faceItalic = weave::ports::face({"Hoefler Text", "Baskerville"},
+                                    SkFontStyle::Italic());
+    faceMono = weave::ports::face({"Menlo", "Courier New"});
+    faceDisplay = weave::ports::face({"Optima", "Baskerville"},
+                                     SkFontStyle::kBold_Weight);
+    faceHan = weave::ports::face(
+        {"Songti SC", "PingFang SC", "Hiragino Sans", "Baskerville"});
 
     // the fibre runs ALONG the roll: anisotropic luminance grain, not noise
     paperGrain = Paint::recipe(field::grain(1.15f, 4, 3326.0f, 0.42f, 5.5f));

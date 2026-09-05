@@ -41,6 +41,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/kit/Features.h>
 
 #include <utility>
@@ -120,9 +121,9 @@ struct Bousen final : sketch::Sketch {
   /// After the columns have assembled: the plate is the finished page.
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({1, 1, 1, 1});
-    ctx.captureAt(2.6);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 2.6,
+                             .background = SkColor4f{1, 1, 1, 1}});
     ctx.composer.render(describe());
   }
 

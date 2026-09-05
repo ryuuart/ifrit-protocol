@@ -173,7 +173,6 @@ using namespace std::chrono_literals;
 using sigil::draw::Pen;
 using sigil::material::skia::Paint;
 using sigil::material::skia::toColor;
-using sigil::weave::ports::pickTypeface;
 namespace draw = sigil::draw;
 namespace ch = choreograph;
 
@@ -289,7 +288,7 @@ constexpr double kFrontCrossSeconds = (kStageW - kX0) / kSpread;  // 5.762 s
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return pickTypeface({family}, style);
+  return weave::ports::face({family}, style);
 }
 sk_sp<SkTypeface> monoFace() {
   static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal());

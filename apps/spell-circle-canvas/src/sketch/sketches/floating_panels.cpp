@@ -45,14 +45,15 @@
  *                                   panel are the same picture.
  */
 
-#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <memory>
@@ -190,9 +191,10 @@ struct FloatingPanels final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background({0.027f, 0.027f, 0.047f, 1});
-    ctx.captureAt(1.0);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 1.0,
+                        .background = SkColor4f{0.027f, 0.027f, 0.047f, 1}});
 
     cardA = bake(ctx, card(360, 240, {0.2f, 0.85f, 1.0f, 1}), 360, 240);
     cardB = bake(ctx, card(360, 240, {1.0f, 0.6f, 0.25f, 1}), 360, 240);

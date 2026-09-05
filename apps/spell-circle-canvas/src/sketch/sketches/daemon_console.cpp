@@ -55,20 +55,19 @@
 //   the palette block    — the whole surface is dressed out of it, and
 //                          severity is encoded in ink as well as in form.
 
+#include <include/core/SkPaint.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilmaterial/skia/Paint.h>
-#include <sigilmaterial/sdf/Sdf.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/kit/Features.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/kit/Features.h>
 #include <sigilweave/style/Type.h>
-#include <sigilweave/kit/Features.h>
-
-#include <include/core/SkPaint.h>
 
 #include <cmath>
 #include <format>
@@ -331,9 +330,9 @@ struct DaemonConsole final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(9.0);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 9.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace dc = daemon_console;
@@ -352,10 +351,10 @@ struct DaemonConsole final : sketch::Sketch {
     refreshSweep = 0.0f;
     scanlines = dc::scanlineTile();
 
-    faceMono = weave::ports::pickTypeface({"SF Mono", "Menlo", "Monaco"}, 400);
-    faceMonoMed = weave::ports::pickTypeface({"SF Mono", "Menlo", "Monaco"}, 700);
-    faceChrome = weave::ports::pickTypeface({"Helvetica Neue", "Arial"}, 400);
-    faceChromeMed = weave::ports::pickTypeface({"Helvetica Neue", "Arial"}, 600);
+    faceMono = weave::ports::face({"SF Mono", "Menlo", "Monaco"}, 400);
+    faceMonoMed = weave::ports::face({"SF Mono", "Menlo", "Monaco"}, 700);
+    faceChrome = weave::ports::face({"Helvetica Neue", "Arial"}, 400);
+    faceChromeMed = weave::ports::face({"Helvetica Neue", "Arial"}, 600);
 
     for (int i = 0; i < 9; ++i)  // history at boot, timestamped in the past
       gen.emitRow(ring, mission(-4.5 + 0.5 * i));

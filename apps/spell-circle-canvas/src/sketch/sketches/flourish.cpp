@@ -24,15 +24,16 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilcompose/kit/Flourish.h>
-#include <sigilcompose/kit/Ornament.h>
-#include <sigilcompose/kit/Layouts.h>
-#include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/kit/Flourish.h>
+#include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Ornament.h>
+#include <sigilcompose/kit/Routers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -561,9 +562,9 @@ struct Flourish final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     sceneTicker = &ticker;

@@ -274,6 +274,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -293,7 +294,6 @@ using namespace sigil::compose;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace at {
@@ -926,14 +926,13 @@ struct AstralTome : sketch::Sketch {
   // --------------------------------------------------------------- setup
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
-    ctx.canvas(at::kCanvasW, at::kCanvasH);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = SkSize::Make(at::kCanvasW, at::kCanvasH),
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
 
-    serif =
-        pickTypeface({"Baskerville", "Charter", "Palatino",
-                                  "Times New Roman", "Georgia", "Helvetica"});
-    mono = pickTypeface(
+    serif = weave::ports::face({"Baskerville", "Charter", "Palatino",
+                                "Times New Roman", "Georgia", "Helvetica"});
+    mono = weave::ports::face(
         {"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
     divisors = at::divisorSequence(64);
 

@@ -188,6 +188,7 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <algorithm>
 #include <cmath>
@@ -1290,15 +1291,15 @@ struct EvaMagiDefense : sketch::Sketch {
   // --- host ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
     using namespace eva;
-    ctx.canvas(kW, kH);
     // The plate at exactly 2x. The canvas is the reference frame's own
     // 1920x1080, so halving the capture puts it on the frame directly.
-    ctx.oversample(2);
-    ctx.background(kGround);
     // The REFERENCE MOMENT this sketch is built to be diffed at: all five
     // outer MAGI fallen (last at 2.28), the hue front not yet moving (3.0).
     // 2.5 s sits inside that hold [2.28, 3.0).
-    ctx.captureAt(2.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 2.5,
+                             .background = kGround,
+                             .oversample = 2});
 
     funnel = funnelPath();
     fieldStrip = eva::fieldStrip(0.0f);

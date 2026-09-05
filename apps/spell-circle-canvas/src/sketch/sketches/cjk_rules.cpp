@@ -72,7 +72,7 @@ constexpr SkColor4f kBody{0.88f, 0.88f, 0.90f, 1};
 /** The passage's own register: a mincho face tagged `ja`, so the face's
  *  Japanese behaviour is what shapes it. */
 weave::TextStyle body() {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Hiragino Mincho ProN", "Yu Mincho", "Songti SC", "Noto Serif CJK JP"});
   weave::TextStyle style = weave::textStyle({.size = kSize, .color = kBody});
   style.shaping.typeface = face;

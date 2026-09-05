@@ -75,6 +75,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -97,7 +98,6 @@ using namespace std::chrono_literals;
 using sigil::material::skia::Effect;
 using sigil::material::skia::toColor;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 
 namespace {
 
@@ -142,7 +142,7 @@ inline sk_sp<SkTypeface> uiFace(bool bold) {
                                               SkFontStyle::kUpright_Slant);
   // Eurostile Extended lineage; DIN Alternate is the closest squared-off
   // technical grotesque macOS ships, stretched the last of the way.
-  return pickTypeface(
+  return weave::ports::face(
       {"Eurostile", "Bank Gothic", "DIN Alternate", "Helvetica Neue", "Arial"},
       want);
 }
@@ -1315,9 +1315,9 @@ struct Ds2Bench : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(2.5);
-    ctx.canvas((int)kW, (int)kH);
-    ctx.background(hex(0x02060A));
+    sketch::kit::stage(ctx, {.size = SkSize::Make((int)kW, (int)kH),
+                             .captureAt = 2.5,
+                             .background = hex(0x02060A)});
     bakePips();
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {

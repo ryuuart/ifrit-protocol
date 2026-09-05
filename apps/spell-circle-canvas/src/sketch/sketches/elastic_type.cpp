@@ -85,6 +85,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -414,17 +415,15 @@ struct ElasticType : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPaper);
     // Early in the pass: the head of each word is past its overshoot and
     // settling while the tail is still at rest, so one frame shows the whole
     // table laid out along the line.
-    ctx.captureAt(1.15);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 1.15,
+                             .background = kPaper});
 
-    face = weave::ports::pickTypeface(
-        {"Avenir Next", "Futura", "Helvetica Neue"}, 700);
-    faceLabel =
-        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    face = weave::ports::face({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
+    faceLabel = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
 
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;

@@ -35,6 +35,7 @@
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -70,14 +71,11 @@ const SkColor4f kMark{0.192f, 0.404f, 0.545f, 1};
 const SkColor4f kHot{0.780f, 0.286f, 0.176f, 1};
 
 sk_sp<SkTypeface> serif() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  return weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
-  return face;
 }
 sk_sp<SkTypeface> grotesque() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"Helvetica Neue", "Inter", "Helvetica", "Arial"});
-  return face;
+  return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 
 weave::TextStyle body(float size = 19.0f) {
@@ -105,12 +103,12 @@ constexpr const char8_t* kPassage =
 
 struct AnnotatedMargin final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background(margin::kPaper);
     // MID-CASCADE. The playhead is the point of the lower strip, and a
     // meter photographed after its schedule has closed is nine full bars
     // saying nothing; this falls a little past half way through the roll.
-    ctx.captureAt(1.0);
+    sketch::kit::stage(
+        ctx,
+        {.size = kSceneSize, .captureAt = 1.0, .background = margin::kPaper});
     ctx.composer.render(describe(ctx));
     // THE ANNOTATIONS ARE A READ-BACK: they resolve from the layout the
     // last draw left standing, so the page is described once for the text

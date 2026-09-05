@@ -180,18 +180,19 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilmotion/bind/Bind.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilcore/reconcile/Env.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilmaterial/kit/Patterns.h>
-#include <sigilcompose/brush/Adaptors.h>
-#include <sigilgeometry/kit/Generators.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/reconcile/Env.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/kit/Patterns.h>
+#include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
@@ -689,8 +690,7 @@ inline pattern::Program pinStripeTile(SkColor4f light, SkColor4f dark) {
 // ===========================================================================
 
 inline sk_sp<SkTypeface> uiFace() {
-  static sk_sp<SkTypeface> f = weave::ports::pickTypeface({"Helvetica", "Arial"});
-  return f;
+  return weave::ports::face({"Helvetica", "Arial"});
 }
 
 constexpr float kType = 13.0f;  // [MEAS] ink boxes: cap height 9-10 px
@@ -1894,14 +1894,14 @@ struct CdeMotifSketch : sketch::Sketch {
   // -------------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1152, 900);
-    ctx.background(cde::C(0x000000));
     // The still has to name its moment: palettes snap every 3 s over
     // {Default, Crimson, Black, Summer}, and an undeclared capture can land
     // on a snap or on Black, the all-black degenerate palette. Default —
     // the shipped canonical, loaded at setup — holds [12, 15); 13.5 s is
     // dead centre, with the derivation strip visibly mid-sweep.
-    ctx.captureAt(13.5);
+    sketch::kit::stage(ctx, {.size = {1152, 900},
+                             .captureAt = 13.5,
+                             .background = cde::C(0x000000)});
 
     theme.load(*cde::kPalettes[0]);
 

@@ -175,8 +175,8 @@
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
-#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/core/Bank.h>
+#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -184,6 +184,7 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -210,7 +211,6 @@ namespace skia = sigil::material::skia;
 using namespace sigil::compose;
 using namespace sigil::motion;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -3023,14 +3023,11 @@ struct ChaucerAstrolabe : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kVellum);
     // A 2400×1600 sheet over nine cached material passes under one live
     // rotation of the whole rete: its subject is the size of the sheet,
     // so --bench judges it on the still it is photographed as, not on
     // holding 60 FPS at that size. Never a timeout override; the plate
     // sweep is untouched.
-    ctx.plate();
     // The still has to name its moment: this is a 26 s loop of named states,
     // and tStill is CHAUCER'S MOMENT — the 12 March 1391 trace at full
     // opacity [21.9, 24.8]. Any other state asserts a different date, and an
@@ -3038,7 +3035,10 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // The EARLIEST frame of that state at which nothing is still moving,
     // because a still is stepped to frame by frame and every later one is
     // paid for in full canvases.
-    ctx.captureAt(tStill);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = tStill,
+                             .background = kVellum,
+                             .plateOnly = true});
 
     // Three lettering systems, genuinely different: a chiselled Latin
     // majuscule for what is engraved on the RETE, an engraver's copperplate
@@ -3048,14 +3048,14 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceEngrave = pickTypeface({"Herculanum", "Optima", "Baskerville"});
-    faceLimb = pickTypeface({"Copperplate", "Optima", "Baskerville"});
-    faceSerif = pickTypeface({"Hoefler Text", "Baskerville"});
-    faceItalic =
-        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceBold =
-        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Bold());
-    faceMono = pickTypeface({"Menlo", "Courier New"});
+    faceEngrave = weave::ports::face({"Herculanum", "Optima", "Baskerville"});
+    faceLimb = weave::ports::face({"Copperplate", "Optima", "Baskerville"});
+    faceSerif = weave::ports::face({"Hoefler Text", "Baskerville"});
+    faceItalic = weave::ports::face({"Hoefler Text", "Baskerville"},
+                                    SkFontStyle::Italic());
+    faceBold = weave::ports::face({"Hoefler Text", "Baskerville"},
+                                  SkFontStyle::Bold());
+    faceMono = weave::ports::face({"Menlo", "Courier New"});
 
     brassGrain = Paint::recipe(field::grain(0.9f, 3, 11.0f, 0.30f));
     verdigris = patterns::speckle(420, 16, 1.6f, 5.0f,

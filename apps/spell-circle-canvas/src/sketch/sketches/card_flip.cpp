@@ -41,6 +41,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -104,12 +105,13 @@ struct CardFlip final : sketch::Sketch {
   choreograph::Output<float> flip{0}, spinX{0}, spinY{0}, sway{0};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
     // MID-TURN. At 2.2 s the card is past its quarter turn and the back
     // has just taken over, the cube shows three faces at an oblique, and
     // the plate is near the end of its sway.
-    ctx.captureAt(2.2);
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
+                        .captureAt = 2.2,
+                        .background = kGround});
     flip = 0;
     spinX = 0;
     spinY = 0;

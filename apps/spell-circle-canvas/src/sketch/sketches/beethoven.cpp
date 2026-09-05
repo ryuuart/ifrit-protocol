@@ -41,6 +41,7 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -118,12 +119,12 @@ inline const std::vector<int>& rings() {
 
 struct Beethoven final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
     // The whole table is revealed: the outermost ring runs 120 ms doubled
     // five times, so the last sweep lands before four seconds and the plate
     // is the poster rather than a frame of its assembly.
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     ctx.composer.render(describe());
   }
 

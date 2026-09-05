@@ -93,11 +93,12 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -1425,8 +1426,6 @@ struct BlackWatch : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     build();
-    ctx.canvas(kCanvasW, kCanvasH);
-    ctx.background(kCard);
     // The still belongs to the MODERN hold, and has to be declared, because
     // an undeclared capture lands mid-cycle. The loop weaves, proves, then
     // turns the five shade families over one another (see `turns`), so most
@@ -1434,7 +1433,9 @@ struct BlackWatch : sketch::Sketch {
     // registered palette — brown and olive under a title reading GOVERNMENT,
     // which reads as a broken blend layer and is not one. 7.2 s is loom 0.90,
     // inside the final Modern hold (0.85 -> 1.0).
-    ctx.captureAt(7.2);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
+                             .captureAt = 7.2,
+                             .background = kCard});
     ctx.ticker.add([this](double dt) {
       clock += dt;
       loom = (float)(std::fmod(clock, (double)kCycle) / (double)kCycle);

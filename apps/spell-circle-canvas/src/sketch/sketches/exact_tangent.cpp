@@ -67,7 +67,7 @@ constexpr SkColor4f kSnapped{0.95f, 0.44f, 0.32f, 0.75f};
 constexpr SkColor4f kExact{0.40f, 0.76f, 0.98f, 0.75f};
 
 weave::TextStyle inscription(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle({.face = face, .size = size, .color = color});
 }

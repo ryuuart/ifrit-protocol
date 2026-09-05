@@ -76,7 +76,7 @@ const char* kPassage =
     "between a nested style and a restyle by hand.";
 
 weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle(
       {.face = face, .size = size, .color = color, .track = track});

@@ -79,6 +79,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -382,20 +383,18 @@ struct AxisRipple : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPaper);
     // A quarter-pass in: the wave's crest is inside the word rather than at
     // either end, so both the ramp up and the ramp down are on the page.
-    ctx.captureAt(kPeriod * 0.79);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = kPeriod * 0.79,
+                             .background = kPaper});
     if (!ctx.fonts) return;
 
     // The system grotesque is the face here because it is the one installed
     // face that carries BOTH axes this sheet needs — a grade to drive and a
     // weight to measure against it.
-    face =
-        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
-    faceLabel =
-        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    face = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
+    faceLabel = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
     const float measure = kW - 2.0f * kPadX;
     const auto runAt = [&](float size) {
       return runPens(toU8(kProof),

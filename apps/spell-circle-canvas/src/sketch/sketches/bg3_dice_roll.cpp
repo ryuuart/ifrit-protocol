@@ -215,6 +215,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -232,7 +233,6 @@ namespace weave = sigil::weave;
 using namespace sigil::compose;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
-using sigil::weave::ports::pickTypeface;
 
 namespace bg3 {
 
@@ -1358,16 +1358,15 @@ struct Bg3DiceRoll : sketch::Sketch {
 
   // ------------------------------------------------------------------- setup
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
-    ctx.canvas(bg3::kW, bg3::kCanvasH);
-    ctx.background(bg3::kVellum);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(bg3::kW, bg3::kCanvasH),
+                             .captureAt = 6.0,
+                             .background = bg3::kVellum});
 
     // BG3 sets a humanist old-style with tall caps; these are the closest
     // faces present on the host.
-    serif =
-        pickTypeface({"Baskerville", "Palatino", "Hoefler Text",
-                                  "Georgia", "Times New Roman", "Helvetica"});
-    mono = pickTypeface(
+    serif = weave::ports::face({"Baskerville", "Palatino", "Hoefler Text",
+                                "Georgia", "Times New Roman", "Helvetica"});
+    mono = weave::ports::face(
         {"Menlo", "SF Mono", "Monaco", "Courier New", "Helvetica"});
 
     solid = bg3::buildSolid();

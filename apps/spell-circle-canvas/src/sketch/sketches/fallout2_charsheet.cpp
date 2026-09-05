@@ -170,10 +170,11 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
+#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
@@ -1692,14 +1693,15 @@ struct Fallout2CharSheet : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
     using namespace fo;
-    ctx.canvas(kScreenW, kScreenH + kCaptionH);
     // The plate at exactly 2x. One 1998 pixel is two canvas px and four
     // device px, so quartering the capture recovers the 640x480 screen and
     // it overlays the reference.
-    ctx.oversample(2);
-    ctx.background(hex(0x050604));
+    sketch::kit::stage(ctx,
+                       {.size = SkSize::Make(kScreenW, kScreenH + kCaptionH),
+                        .captureAt = 6.0,
+                        .background = hex(0x050604),
+                        .oversample = 2});
 
     nargTraits.gifted = true;
     nargTraits.heavyHanded = true;

@@ -120,6 +120,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -142,7 +143,6 @@ namespace skia = sigil::material::skia;
 using namespace sigil::compose;
 using namespace sigil::motion;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -782,13 +782,13 @@ struct ChladniTab1 : sketch::Sketch {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPaper);
     // The still has to name its moment: the settled plate, with all twelve
     // figures inked (6.47 s), the credit in (8.3 s) and the idle bow at
     // maximum on figure 8's rim. An undeclared capture catches figure 12's
     // sand still migrating and the Capieux credit absent.
-    ctx.captureAt(10.6);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 10.6,
+                             .background = kPaper});
 
     // The plate's numerals are a modern face with hairline serifs; the
     // reference letters are its italic; "Tab. I." and the credit are a
@@ -797,9 +797,11 @@ struct ChladniTab1 : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceNumeral = pickTypeface({"Didot", "Bodoni 72"});
-    faceLabel = pickTypeface({"Didot", "Baskerville"}, SkFontStyle::Italic());
-    faceSwash = pickTypeface({"Apple Chancery", "Snell Roundhand", "Baskerville"});
+    faceNumeral = weave::ports::face({"Didot", "Bodoni 72"});
+    faceLabel =
+        weave::ports::face({"Didot", "Baskerville"}, SkFontStyle::Italic());
+    faceSwash = weave::ports::face(
+        {"Apple Chancery", "Snell Roundhand", "Baskerville"});
 
     paperMat = Paint::recipe(field::grain(0.013f, 4, 9.0f));
     // Sparse, and NOT on a grid you can see: the tile has to be big

@@ -67,7 +67,7 @@ constexpr SkColor4f kHot{0.95f, 0.36f, 0.28f,
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
 weave::TextStyle specimen() {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
   return weave::textStyle(
       {.face = face, .size = 27, .color = kFigure, .track = 1.5f});

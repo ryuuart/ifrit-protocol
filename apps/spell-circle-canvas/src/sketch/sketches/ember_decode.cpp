@@ -62,15 +62,16 @@
 //       src/sketch/sketches/ember_decode.cpp \
 //       --frame /tmp/ember_decode.png
 
-#include <sigilmaterial/skia/Effect.h>
-#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/choreograph/Choreograph.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
 #include <array>
@@ -213,7 +214,7 @@ struct EmberDecode : sketch::Sketch {
     const sigil::weave::TextStyle faint =
         weave::textStyle({.size = 10.5f, .color = kFaint, .track = 0.8f});
     const sk_sp<SkTypeface> face =
-        weave::ports::pickTypeface({"Helvetica Neue", "Arial", "Inter"}, 700);
+        weave::ports::face({"Helvetica Neue", "Arial", "Inter"}, 700);
     // The letters are set WHITE: the pass reads the layer's coverage and
     // supplies every colour itself, so the type's own colour never lands.
     const sigil::weave::TextStyle big =
@@ -289,9 +290,11 @@ struct EmberDecode : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kPlate);
-    ctx.captureAt(2.4);  // mid-decode: resolved, burning and unlit at once
+    sketch::kit::stage(
+        ctx, {.size = SkSize::Make(kW, kH),
+              .captureAt = 2.4,
+              .background =
+                  kPlate});  // mid-decode: resolved, burning and unlit at once
     ctx.composer.render(describe(ctx));
   }
 
