@@ -132,13 +132,17 @@ sketch::kit::titleCard({.eyebrow = toU8("SIGIL · COMPOSE"),
 
 | | |
 | --- | --- |
-| `labelRow(Reading, measure)` | the name at the left in the quiet register, the figure at the right in the figure colour and the face a call is set in |
-| `readout(Readout)` | a table of those, at the theme's row gap, optionally ruled between |
+| `labelRow(Reading, Readout)` | the name at the left in the quiet register, the figure at the right in the figure colour and the face a call is set in, with a swatch before the name where the row is also a key |
+| `readout(rows, Readout)` | a table of those, at the theme's row gap, optionally ruled between |
 
 ```cpp
-sketch::kit::readout({.rows = {{u8"nodes", nodes}, {u8"instances", live}},
-                      .measure = 220});
+sketch::kit::readout({{u8"nodes", nodes}, {u8"instances", live}},
+                     {.measure = 220, .nameMeasure = 168});
 ```
+
+`Readout` is HOW a row is set and the rows are the data, so one value
+sets a whole table. `nameMeasure` is what makes a table a table: without
+one the figures range only when the names happen to be one length.
 
 A figure a sketch measured about its own execution goes through
 `ctx.measured` **before** it reaches here. These components arrange a
@@ -161,7 +165,7 @@ sketch::kit::legend({.entries = {{Fill::color(kWarm), u8"lit"},
 
 | | |
 | --- | --- |
-| `meter(Meter)` | a fraction along a bar, with a label over it at the left and its reading at the right |
+| `meter(Meter)` | a fraction along a bar, with a label over it at the left and its reading at the right; `level` is the bound spelling, scaled rather than sized, for a bar that moves every frame |
 | `gauge(Gauge)` | the same reading around a dial, over `geometry::shapes::sector` |
 
 ```cpp

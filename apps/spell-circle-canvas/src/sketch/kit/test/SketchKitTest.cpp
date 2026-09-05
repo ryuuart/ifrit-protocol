@@ -18,6 +18,7 @@
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -396,7 +397,8 @@ TEST(SketchKitRows, ALabelRowRangesItsFigureToTheMeasure) {
   Element byHand =
       compose::box()
           .row()
-          .alignItems(compose::Align::Baseline)
+          .alignItems(compose::Align::Center)
+          .gap(house.spacing.labelGap)
           .width(compose::Dim(220))
           .child(compose::text(u8"nodes", house.style(house.type.captionNote,
                                                       house.palette.ash)))
@@ -406,7 +408,8 @@ TEST(SketchKitRows, ALabelRowRangesItsFigureToTheMeasure) {
                                            house.palette.figure)));
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
-      kit::labelRow({.name = u8"nodes", .value = u8"1 248"}, 220)));
+      kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
+                    {.measure = 220})));
 }
 
 /** The table is the rows stacked at the theme's row gap — which is what
@@ -418,12 +421,73 @@ TEST(SketchKitRows, AReadoutStacksItsRowsAtTheThemesGap) {
           .column()
           .gap(house.spacing.rowGap)
           .width(compose::Dim(220))
-          .child(kit::labelRow({.name = u8"nodes", .value = u8"1 248"}, 220))
-          .child(kit::labelRow({.name = u8"instances", .value = u8"96"}, 220));
-  EXPECT_TRUE(sameDrawing(std::move(byHand),
-                          kit::readout({.rows = {{u8"nodes", u8"1 248"},
-                                                 {u8"instances", u8"96"}},
-                                        .measure = 220})));
+          .child(kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
+                               {.measure = 220}))
+          .child(kit::labelRow({.name = u8"instances", .value = u8"96"},
+                               {.measure = 220}));
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::readout({{u8"nodes", u8"1 248"}, {u8"instances", u8"96"}},
+                   {.measure = 220})));
+}
+
+/** A reading's swatch stands before its name, so a table that is also a
+ *  key needs no second column of marks beside it. */
+TEST(SketchKitRows, ASwatchStandsBeforeTheName) {
+  const Fill tier = Fill::color({0.4f, 0.9f, 0.55f, 1});
+  EXPECT_FALSE(sameDrawing(
+      kit::labelRow({.name = u8"Promoted", .value = u8"18"},
+                    {.measure = 200}),
+      kit::labelRow({.name = u8"Promoted", .value = u8"18", .swatch = tier},
+                    {.measure = 200})));
+}
+
+/** A name measure is what makes a table a table: with one, two rows whose
+ *  names differ in length still start their figures on one line. */
+TEST(SketchKitRows, ANameMeasureRangesTheFiguresOfUnequalNames) {
+  const kit::Readout table{.measure = 240, .nameMeasure = 120};
+  Element wide = kit::labelRow({.name = u8"describedNodes", .value = u8"7"},
+                               table);
+  Element narrow = kit::labelRow({.name = u8"memoHits", .value = u8"7"}, table);
+  SkBitmap a = Host(std::move(wide)).pixels();
+  SkBitmap b = Host(std::move(narrow)).pixels();
+  // The figure is at the far edge of the measure in both, so the last
+  // painted column is the same one.
+  const auto lastInk = [](const SkBitmap& bm) {
+    for (int x = 239; x > 0; --x)
+      for (int y = 0; y < 24; ++y)
+        if (*bm.getAddr32(x, y) != 0xFF000000) return x;
+    return 0;
+  };
+  EXPECT_EQ(lastInk(a), lastInk(b));
+}
+
+/** A bound level SCALES the filled part rather than sizing it, which is
+ *  what keeps the bed's recording valid while the bar moves. Full, the
+ *  scale is the identity and the two spellings are one drawing; part
+ *  way, the scaled edge is resolved by the transform rather than by
+ *  layout, so the two are close and not equal. */
+TEST(SketchKitMeter, ABoundLevelFillsTheRailAsAFractionDoes) {
+  const SkColor4f figure = kit::houseTheme().palette.figure;
+  const auto barAt = [&](float level, int x) {
+    SkBitmap drawn =
+        Host(kit::meter({.level = level, .width = compose::Dim(200)})).pixels();
+    const SkColor4f pixel = drawn.getColor4f(x, 2);
+    return std::abs(pixel.fR - figure.fR) < 0.02f &&
+           std::abs(pixel.fG - figure.fG) < 0.02f;
+  };
+  EXPECT_TRUE(barAt(1.0f, 190));
+  EXPECT_FALSE(barAt(0.25f, 190));
+  EXPECT_TRUE(barAt(0.25f, 20));
+}
+
+/** An outlined key: a map whose own marks are outlines cannot be keyed
+ *  with filled patches. */
+TEST(SketchKitLegend, AnOutlinedSwatchIsNotAFilledOne) {
+  const Fill mark = Fill::color({0.4f, 0.9f, 0.55f, 1});
+  EXPECT_FALSE(sameDrawing(kit::legend({.entries = {{mark, u8"live"}}}),
+                           kit::legend({.entries = {{mark, u8"live"}},
+                                        .strokeWidth = 1.4f})));
 }
 
 // ---------------------------------------------------------------------------

@@ -39,6 +39,13 @@ struct Legend {
   std::optional<float> gap;
   /** Rounds every swatch. 0 is the square a drafting key uses. */
   float corners = 0;
+  /** Draws each swatch as an OUTLINE of this width rather than as a
+   *  filled patch. 0 (default) fills. A key to a map whose own marks are
+   *  outlines has to be outlined too, or the key and the map disagree. */
+  float strokeWidth = 0;
+  /** Lets a run along a line wrap to a second line rather than
+   *  overflowing the width it is given. */
+  bool wrap = false;
 };
 
 /** THE KEY, in the theme's caption registers.

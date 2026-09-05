@@ -1,3 +1,4 @@
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilsketch/kit/Legend.h>
 
@@ -25,9 +26,13 @@ compose::Element legend(const Legend& key) {
     run.column();
   else
     run.row();
+  if (key.wrap) run.wrapLines();
   for (const LegendEntry& entry : key.entries) {
-    Element mark =
-        box().width(Dim(side)).height(Dim(side)).fill(entry.swatch).shrink(0);
+    Element mark = box().width(Dim(side)).height(Dim(side)).shrink(0);
+    if (key.strokeWidth > 0)
+      mark.stroke(compose::stroke(key.strokeWidth, entry.swatch));
+    else
+      mark.fill(entry.swatch);
     if (key.corners > 0) mark.corners(Corners{key.corners});
     Element line = box()
                        .row()

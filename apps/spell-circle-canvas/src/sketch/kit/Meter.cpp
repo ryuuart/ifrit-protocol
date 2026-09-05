@@ -26,7 +26,18 @@ compose::Element meter(const Meter& bar) {
   if (bar.width.unit != Dim::Unit::Auto) rail.width(bar.width);
   rail.height(bar.height.value_or(Dim(look.spacing.barHeight)));
   if (bar.corners > 0) rail.corners(Corners{bar.corners});
-  if (filled > 0) {
+  if (bar.level) {
+    // Scaled from the left edge rather than sized: the bed keeps its
+    // recording and only the transform moves.
+    Element run = box()
+                      .absolute()
+                      .inset(0)
+                      .fill(barFill)
+                      .transformOrigin(0, 0.5f)
+                      .scaleX(*bar.level);
+    if (bar.corners > 0) run.corners(Corners{bar.corners});
+    rail.child(std::move(run));
+  } else if (filled > 0) {
     Element run = box().width(compose::pct(filled * 100)).fill(barFill).
                   alignSelf(Align::Stretch);
     if (bar.corners > 0) run.corners(Corners{bar.corners});

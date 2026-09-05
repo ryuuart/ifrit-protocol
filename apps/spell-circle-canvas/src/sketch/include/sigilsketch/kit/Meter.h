@@ -7,6 +7,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmotion/values/Animated.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -19,6 +20,13 @@ struct Meter {
   /** 0 to 1; anything outside is clamped, because a bar past its own end
    *  is a drawing error rather than a reading. */
   float fraction = 0;
+  /** A LIVE level, for a bar that moves every frame. Set this INSTEAD of
+   *  `fraction` and the filled part is SCALED from its left edge rather
+   *  than sized — paint-only volatility over a bed that stays cached,
+   *  where a width would be layout every frame. The cost is that rounded
+   *  corners scale with it, so a live bar is usually square or barely
+   *  rounded. */
+  std::optional<motion::Animatable<float>> level;
   /** Over the bar at the left; empty draws the bar alone. */
   std::u8string label;
   /** Over the bar at the right, in the theme's figure colour — what the
@@ -39,9 +47,8 @@ struct Meter {
  *      sketch::kit::meter({.fraction = load, .label = toU8("cache"),
  *                          .reading = toU8("74%"), .width = Dim(220)})
  *
- *  A LIVE fraction is a re-describe, not a binding: the filled part is a
- *  width, and a width is layout. Bind a paint-only reading — an opacity,
- *  a translate — where a meter must move every frame without one. */
+ *  A plain fraction is a WIDTH, so a bar that changes is a re-describe;
+ *  `level` is the binding for one that moves every frame. */
 [[nodiscard]] compose::Element meter(const Meter& bar);
 
 /** A FRACTION AROUND A DIAL — the same reading where the picture wants a
