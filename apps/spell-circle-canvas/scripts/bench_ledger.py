@@ -39,11 +39,7 @@ sync client running beside them corrupts every number. A SLOWER row on a
 busy machine is the machine, not the code — rerun the bench alone before
 reading it as a finding.
 
-THE BASELINE IS COMMITTED, one file per build configuration, under
-bench/baseline_<config>.json next to the scripts that read it, so a
-change that moves a number moves it in review. Numbers are per machine:
-a baseline taken on one host says nothing about another, and the file
-records the host it was taken on so a mismatch is visible. --rebase
+THE BASELINE IS COMMITTED under bench/baseline_<config>.json. --rebase
 writes the file from this sweep, and A NARROWED SWEEP MERGES: with
 --benches it keeps the binaries it did not run, with --filter it keeps
 the arms of a binary it did not select, and with both it keeps both.
@@ -56,15 +52,15 @@ benchmark that no longer exists.
 """
 
 import argparse
-import datetime
 import json
 import os
-import platform
 import re
 import statistics
 import subprocess
 import sys
 import tempfile
+
+import ledger
 
 # Per-benchmark tolerance bands, keyed by a regular expression matched
 # against the full benchmark name ("binary:BM_Name/args"). Only for
@@ -76,8 +72,6 @@ TOLERANCES = {
     # Sub-microsecond bodies: a hash, a lookup, a resolve. The timer's own
     # resolution and the loop overhead are a visible fraction of each.
     r":BM_Noise": 0.15,
-    r"^io_bench:BM_Resolve": 0.15,
-    r"^io_bench:BM_NetworkCacheKey": 0.15,
     # The cold arms purge and refill a cache inside each repetition and
     # pay HarfBuzz for every word; allocator state moves them more than
     # the warm arms.
@@ -100,13 +94,6 @@ TOLERANCES = {
 }
 
 TIME_UNITS = {"ns": 1.0, "us": 1e3, "ms": 1e6, "s": 1e9}
-
-
-def tolerance_for(name):
-    for pattern, band in TOLERANCES.items():
-        if re.search(pattern, name):
-            return band
-    return DEFAULT_TOLERANCE
 
 
 def to_ns(value, unit):
@@ -192,44 +179,23 @@ def fmt_time(ns):
     return f"{ns:8.1f} ns"
 
 
-def load_baseline(path):
-    if not os.path.exists(path):
-        return None
-    with open(path) as f:
-        return json.load(f)
-
-
-def write_baseline(path, config, results, merge_into):
-    """The baseline, from this sweep and — when it was a subset — what
-    the baseline already held.
+def merged_benches(results, baseline):
+    """This sweep's arms over what the baseline already held.
 
     A SUBSET IS A SUBSET AT EVERY LEVEL. --benches names some binaries
     and --filter names some arms inside them, and either way what was
     not measured has to survive: adopting one deliberately changed arm
     must not drop the arms this run never ran, which would leave them
     unjudged until someone noticed them reported as new. So the merge
-    is per arm, not per binary. Pass merge_into=None for a whole sweep,
+    is per arm, not per binary. Pass baseline=None for a whole sweep,
     which is the one run entitled to write the file wholesale and thereby
     to drop what no longer exists."""
     benches = {
-        name: dict(rows) for name, rows in (merge_into or {}).get("benches", {}).items()
+        name: dict(rows) for name, rows in (baseline or {}).get("benches", {}).items()
     }
     for name, rows in results.items():
         benches.setdefault(name, {}).update(rows)
-    doc = {
-        "config": config,
-        "host": platform.node(),
-        "machine": platform.machine(),
-        "taken": datetime.datetime.now(datetime.timezone.utc).isoformat(
-            timespec="seconds"
-        ),
-        "benches": {name: benches[name] for name in sorted(benches)},
-    }
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(doc, f, indent=1, sort_keys=False)
-        f.write("\n")
-    return doc
+    return benches
 
 
 def main():
@@ -361,7 +327,7 @@ def main():
         print("\nnothing ran; the baseline is untouched")
         return 1
 
-    baseline = load_baseline(baseline_path)
+    baseline = ledger.load_baseline(baseline_path)
     if args.rebase or baseline is None:
         if not args.rebase:
             print(
@@ -371,11 +337,11 @@ def main():
         # A sweep narrowed by binary OR by arm merges into what is already
         # there; only an unnarrowed sweep writes the file wholesale.
         subset = bool(args.benches or args.filter)
-        doc = write_baseline(
+        doc = ledger.write_baseline(
             baseline_path,
             args.config,
-            results,
-            baseline if subset else None,
+            "benches",
+            merged_benches(results, baseline if subset else None),
         )
         print(
             f"\nbaseline written: {baseline_path} "
@@ -398,11 +364,7 @@ def main():
                 )
         return 1 if errors else 0
 
-    if baseline.get("host") and baseline["host"] != platform.node():
-        print(
-            f"\nWARNING: baseline was taken on {baseline['host']}, this is "
-            f"{platform.node()} — numbers are per machine"
-        )
+    ledger.warn_host(baseline)
 
     identical, faster, slower, new, missing = [], [], [], [], []
     print()
@@ -415,16 +377,13 @@ def main():
                 new.append(full)
                 print(f"  NEW        {full:<70} {fmt_time(row['real_ns'])}")
                 continue
-            ratio = row["real_ns"] / base["real_ns"] if base["real_ns"] else 1.0
-            band = tolerance_for(full)
-            delta = ratio - 1.0
-            if delta > band:
-                status, bucket = "SLOWER", slower
-            elif delta < -band:
-                status, bucket = "FASTER", faster
-            else:
-                status, bucket = "IDENTICAL", identical
-            bucket.append(full)
+            band = ledger.tolerance_for(full, TOLERANCES, DEFAULT_TOLERANCE)
+            status, delta = ledger.judge(
+                row["real_ns"], base["real_ns"], band, higher_is_better=False
+            )
+            {"SLOWER": slower, "FASTER": faster, "IDENTICAL": identical}[status].append(
+                full
+            )
             print(
                 f"  {status:<10} {full:<70} {fmt_time(base['real_ns'])} -> "
                 f"{fmt_time(row['real_ns'])}  {delta:+6.1%} (band ±{band:.0%})"
@@ -435,17 +394,9 @@ def main():
     for full in missing:
         print(f"  MISSING    {full} (in baseline, not produced — rebase to drop)")
 
-    print(
-        f"\n{len(identical)} identical, {len(faster)} faster, {len(slower)} slower, "
-        f"{len(new)} new, {len(missing)} missing, {len(errors)} failed"
+    return ledger.verdict(
+        identical, faster, slower, new, missing, len(errors), "failed"
     )
-    if slower:
-        print("SLOWER beyond band:")
-        for full in slower:
-            print(f"  {full}   <-- FINDING")
-    if not slower and not errors:
-        print("VERDICT: within band")
-    return 1 if slower or errors else 0
 
 
 if __name__ == "__main__":

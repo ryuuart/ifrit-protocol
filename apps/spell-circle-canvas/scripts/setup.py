@@ -5,7 +5,13 @@ Setup and build script for spell-circle-canvas.
 Locates Qt and vcpkg, writes CMakeUserPresets.json, then configures and builds.
 
 Usage:
-    python scripts/setup.py [--config Debug|Release] [--build-only] [--configure-only]
+    python scripts/setup.py [--config Release|Debug] [--build-only] [--configure-only]
+
+Besides the primary `main` preset (build/), the file carries one
+configure, build and test preset for each secondary tree — `coverage`,
+`asan`, `tsan` — so coverage.py and sanitize.py configure with
+`cmake --preset <name>` and CMake composes the toolchain, the Qt prefix
+and the instrumentation switch itself.
 """
 
 import argparse
@@ -145,6 +151,95 @@ def find_substance() -> Path | None:
     return best[1]
 
 
+# The secondary trees: each is the `main` composition plus one cache
+# switch, in its own build-<name>/ directory, reading the primary tree's
+# vcpkg_installed/ as-is with the manifest install disabled so it never
+# writes there and never duplicates the dependency archives. Their test
+# presets carry the runtime options the tools need.
+#
+# ASan runtime options:
+#   detect_leaks=0 — LeakSanitizer does not support macOS on Apple
+#     Silicon; with it left on the runtime aborts at startup before any
+#     test runs.
+#   detect_container_overflow=0 — the container-overflow check compares
+#     a container's size against annotations the contained memory only
+#     gets when the code that grew it was instrumented. vcpkg archives
+#     are not, so a std::string or vector that crossed the dependency
+#     boundary reports false overflows. Every other ASan check is
+#     unaffected by mixed instrumentation and stays on.
+# workaround: detect_container_overflow=0, for the uninstrumented vcpkg
+# archives. detect_leaks=0 beside it is a platform limitation, not a
+# dependency one.
+#
+# UBSan: stacks on every line, not just the first frame; without this a
+# report names a file:line and nothing about how execution got there.
+#
+# TSan runtime options:
+#   halt_on_error=1 — first race fails the test instead of accumulating a
+#     scroll of reports from the same root cause.
+#   second_deadlock_stack=1 — lock-inversion reports show both
+#     acquisition stacks, without which one side is a guess.
+#   suppressions — the dependencies whose ordering this lane cannot see,
+#     each with its reason written in the file. Nothing of this
+#     repository's own is in it.
+#
+# Coverage: %p (process id) keeps concurrently running tests from
+# clobbering one profile; %m (module signature) keeps profiles from
+# differently instrumented binaries apart so the merge stays well-formed.
+SECONDARY_TREES = {
+    "coverage": {
+        "cacheVariables": {"SPELLCIRCLE_COVERAGE": "ON"},
+        "environment": {
+            "LLVM_PROFILE_FILE": (
+                "${sourceDir}/build-coverage/coverage/raw/%p-%m.profraw"
+            ),
+        },
+    },
+    "asan": {
+        "cacheVariables": {"SPELLCIRCLE_SANITIZE": "address;undefined"},
+        "environment": {
+            "ASAN_OPTIONS": "detect_leaks=0:detect_container_overflow=0",
+            "UBSAN_OPTIONS": "print_stacktrace=1",
+        },
+    },
+    "tsan": {
+        "cacheVariables": {"SPELLCIRCLE_SANITIZE": "thread"},
+        "environment": {
+            "TSAN_OPTIONS": (
+                "halt_on_error=1:second_deadlock_stack=1:"
+                "suppressions=${sourceDir}/ThreadSanitizerSuppressions.txt"
+            ),
+        },
+    },
+}
+
+
+def secondary_presets(presets: dict) -> None:
+    """Adds the configure, build and test preset of every secondary tree."""
+    for name, tree in SECONDARY_TREES.items():
+        presets["configurePresets"].append(
+            {
+                "name": name,
+                "inherits": ["main"],
+                "binaryDir": f"${{sourceDir}}/build-{name}",
+                "cacheVariables": {
+                    **tree["cacheVariables"],
+                    "VCPKG_INSTALLED_DIR": "${sourceDir}/build/vcpkg_installed",
+                    "VCPKG_MANIFEST_INSTALL": "OFF",
+                },
+            }
+        )
+        presets["buildPresets"].append({"name": name, "configurePreset": name})
+        presets["testPresets"].append(
+            {
+                "name": name,
+                "configurePreset": name,
+                "output": {"outputOnFailure": True},
+                "environment": tree["environment"],
+            }
+        )
+
+
 def write_user_presets(
     qt_installation: Path, vcpkg_root: Path, substance_sdk: Path | None
 ) -> None:
@@ -188,7 +283,9 @@ def write_user_presets(
                 "configurePreset": "main-xcode",
             },
         ],
+        "testPresets": [],
     }
+    secondary_presets(presets)
     if substance_sdk is not None:
         presets["configurePresets"].insert(
             2,
@@ -237,9 +334,9 @@ def main() -> int:
     )
     argument_parser.add_argument(
         "--config",
-        default="Debug",
+        default="Release",
         choices=["Debug", "Release", "RelWithDebInfo"],
-        help="Build configuration (default: Debug)",
+        help="Build configuration (default: Release)",
     )
     argument_parser.add_argument(
         "--build-only",

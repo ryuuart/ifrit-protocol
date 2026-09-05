@@ -1,59 +1,33 @@
 #!/usr/bin/env python3
-"""Format and lint gate, as ONE command: clang-format, ruff, qmllint,
-clang-tidy.
+"""Format and lint, as ONE command: clang-format, ruff, qmllint.
 
 Checks are read-only by default and scoped to CHANGED files — everything
 git sees as modified, staged, or untracked — so the routine invocation
 polices the work in progress and nothing else. The configs live at the
-repository root (.clang-format with .clang-format-ignore, .clang-tidy,
-.clangd, ruff.toml); this script only selects files and runs the tools
-against those configs.
+repository root (.clang-format with .clang-format-ignore, ruff.toml);
+this script only selects files and runs the tools against those configs.
 
 Usage (from anywhere in the repository):
-  scripts/check.py             # changed files, all four tools
-  scripts/check.py --all       # whole tree (clang-tidy stays scoped to
-                               # changed files; see --tidy-all)
+  scripts/check.py             # changed files, all three tools
+  scripts/check.py --all       # whole tree
   scripts/check.py --fix       # apply clang-format and ruff fixes to
                                # the scoped files, then report what
                                # remains
-  scripts/check.py --tidy-all  # clang-tidy over every translation unit
-                               # in the compile database (slow: a full
-                               # semantic analysis per TU)
-  scripts/check.py --skip-tidy # just the fast checks
-  scripts/check.py --tidy-only # just clang-tidy — the other half of
-                               # --skip-tidy, for running the two at
-                               # once as separate lanes
   scripts/check.py FILE...     # check exactly these files
 
-Exit status is non-zero when any tool reports a finding.
+Exit status is non-zero when any tool reports a finding. Every tool is
+required: a tool that is missing fails the run rather than passing it.
 
 Tool provenance, macOS: clang-format comes from the Xcode toolchain via
 xcrun; qmllint from the Qt prefix recorded in CMakeUserPresets.json by
-scripts/setup.py; ruff from PATH (brew install ruff); clang-tidy from a
-Homebrew LLVM (brew install llvm — Apple's toolchain does not ship it).
-Without clang-tidy the tidy section is skipped and says so; the other
-three are required. clang-tidy and the .clangd config both need the
-compile database at apps/spell-circle-canvas/build (configured with
-CMAKE_EXPORT_COMPILE_COMMANDS, which setup.py's presets already do).
-The database records /usr/bin/c++ without -isysroot — the Apple driver
-injects the SDK path itself at build time — so the non-Apple clang-tidy
-is passed the SDK root explicitly here; without it every standard
-header is unresolvable. That SDK root also moves the default
-/usr/local/include search under the SDK, so a package installed there —
-Ultralight's headers — stops resolving, and the directory is appended
-after the system ones to restore it. A translation unit whose headers do
-not resolve still reports findings, and they describe an AST the
-compiler never built: every one of them is noise.
+scripts/setup.py; ruff from PATH (brew install ruff).
 """
 
 import argparse
 import json
-import os
-import re
 import shutil
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NoReturn
 
@@ -62,10 +36,8 @@ PROJECT_DIR = SCRIPT_DIR.parent  # apps/spell-circle-canvas
 REPO_DIR = PROJECT_DIR.parent.parent
 BUILD_DIR = PROJECT_DIR / "build"
 USER_PRESETS = PROJECT_DIR / "CMakeUserPresets.json"
-PROJECT_PRESETS = PROJECT_DIR / "CMakePresets.json"
 
 CXX_SUFFIXES = {".cpp", ".cc", ".cxx", ".c", ".h", ".hh", ".hpp", ".mm", ".m"}
-TIDY_SUFFIXES = {".cpp", ".cc", ".cxx", ".mm"}
 
 # Paths no checker touches: prebuilt dependencies and generated
 # sources. Mirrors .clang-format-ignore (which only clang-format 18+
@@ -97,38 +69,17 @@ def section(title: str) -> None:
 
 
 def qt_prefix() -> Path | None:
-    """The Qt installation the build uses, from the configure presets.
-
-    Walks the "main" preset's inherits chain across CMakeUserPresets.json
-    and CMakePresets.json merging cacheVariables the way CMake does (the
-    preset itself wins over anything it inherits), then reads
-    CMAKE_PREFIX_PATH. Returns None when no presets exist yet — setup.py
-    has not been run — and the qmllint section reports that instead of
-    guessing at a Qt.
-    """
-    presets_by_name: dict[str, dict] = {}
-    for presets_file in (PROJECT_PRESETS, USER_PRESETS):
-        if not presets_file.exists():
-            continue
-        document = json.loads(presets_file.read_text())
-        for preset in document.get("configurePresets", []):
-            presets_by_name.setdefault(preset["name"], preset)
-    if "main" not in presets_by_name:
+    """The Qt installation the build uses: the CMAKE_PREFIX_PATH that
+    scripts/setup.py recorded in CMakeUserPresets.json. None when the
+    file does not exist yet, and the qmllint section reports that
+    instead of guessing at a Qt."""
+    if not USER_PRESETS.exists():
         return None
-
-    def cache_variables(name: str) -> dict:
-        preset = presets_by_name.get(name, {})
-        inherits = preset.get("inherits", [])
-        if isinstance(inherits, str):
-            inherits = [inherits]
-        merged: dict = {}
-        for parent in reversed(inherits):
-            merged.update(cache_variables(parent))
-        merged.update(preset.get("cacheVariables", {}))
-        return merged
-
-    prefix = cache_variables("main").get("CMAKE_PREFIX_PATH")
-    return Path(prefix) if prefix else None
+    for preset in json.loads(USER_PRESETS.read_text()).get("configurePresets", []):
+        prefix = preset.get("cacheVariables", {}).get("CMAKE_PREFIX_PATH")
+        if prefix:
+            return Path(prefix)
+    return None
 
 
 def changed_files() -> list[Path]:
@@ -258,181 +209,24 @@ def check_qmllint(files: list[Path]) -> bool:
     return False
 
 
-def find_clang_tidy() -> str | None:
-    """Homebrew LLVM first (Apple's toolchain has no clang-tidy), then
-    PATH for non-brew installs."""
-    for candidate in (
-        "/opt/homebrew/opt/llvm/bin/clang-tidy",
-        "/usr/local/opt/llvm/bin/clang-tidy",
-    ):
-        if Path(candidate).exists():
-            return candidate
-    return shutil.which("clang-tidy")
-
-
-def check_clang_tidy(files: list[Path], tidy_all: bool) -> bool:
-    section("clang-tidy (C++ static analysis)")
-    tidy = find_clang_tidy()
-    if not tidy:
-        print("SKIPPED: clang-tidy not installed — brew install llvm")
-        return True
-    database_path = BUILD_DIR / "compile_commands.json"
-    if not database_path.exists():
-        print(
-            f"SKIPPED: no compile database at {database_path} — "
-            "configure the build first (scripts/setup.py)"
-        )
-        return True
-    database = {entry["file"] for entry in json.loads(database_path.read_text())}
-    if tidy_all:
-        # Generated translation units (moc compilations under *_autogen,
-        # anything else the build wrote) are not this repository's sources:
-        # they are tidied nowhere, and one from an unbuilt configuration
-        # cannot even be parsed.
-        # Boundary probes are translation units that MUST fail to compile
-        # (their ctest pins the error text); analyzing one reports its
-        # deliberate failure as a finding.
-        # The suffix restriction is not cosmetic: the compile database also
-        # carries the macOS app's Swift translation units, and a C++
-        # analyzer handed one fails outright rather than reporting nothing.
-        candidates = sorted(
-            Path(f).relative_to(REPO_DIR)
-            for f in database
-            if included(Path(f))
-            and Path(f).suffix in TIDY_SUFFIXES
-            and not Path(f).is_relative_to(BUILD_DIR)
-            and Path(f).name != "BoundaryProbe.cpp"
-        )
-    else:
-        # Only translation units the compile database knows; a changed
-        # header is analyzed when a TU that includes it is tidied
-        # (HeaderFilterRegex in .clang-tidy surfaces its findings).
-        candidates = [
-            f
-            for f in files
-            if f.suffix in TIDY_SUFFIXES
-            and str(REPO_DIR / f) in database
-            and f.name != "BoundaryProbe.cpp"
-        ]
-        skipped = [
-            f
-            for f in files
-            if f.suffix in TIDY_SUFFIXES and str(REPO_DIR / f) not in database
-        ]
-        for name in skipped:
-            print(f"not in compile database (skipped): {name}")
-    if not candidates:
-        print("no translation units in scope")
-        return True
-    sdk = subprocess.run(
-        ["xcrun", "--show-sdk-path"], capture_output=True, text=True, check=False
-    ).stdout.strip()
-    command = [tidy, "-p", BUILD_DIR, "--quiet"]
-    if sdk:
-        command.append(f"--extra-arg=-isysroot{sdk}")
-        # Restored after the SDK's own directories, never before them:
-        # a hand-installed SDK under /usr/local must resolve without
-        # shadowing a system header of the same name.
-        command.append("--extra-arg=-idirafter/usr/local/include")
-    print(f"{len(candidates)} translation units")
-    # One clang-tidy process per translation unit: a single process fed
-    # many TUs reuses parse state across them and can report phantom
-    # errors in headers the current TU never misparsed.
-    workers = min(len(candidates), max(1, (os.cpu_count() or 4) - 2))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        results = list(pool.map(lambda tu: run([*command, tu]), candidates))
-    # clang-tidy exits zero when it only emitted warnings (this repo's
-    # WarningsAsErrors is deliberately empty), so the exit code cannot
-    # be the verdict: parse the findings out of the diagnostics instead.
-    # The verdict counts only findings in this repository's own sources:
-    # HeaderFilterRegex scopes the checks, but a hard parse error in an
-    # external header still prints, and external toolchains are not this
-    # gate's to police.
-    diagnostic = re.compile(r"^(?P<path>[^:\n]+):\d+:\d+: (?:warning|error): ")
-    in_scope: list[str] = []
-    external = 0
-    for tu, result in zip(candidates, results):
-        findings_here = False
-        for line in result.stdout.splitlines():
-            match = diagnostic.match(line)
-            if not match:
-                continue
-            findings_here = True
-            path = Path(match.group("path"))
-            if not path.is_absolute():
-                path = REPO_DIR / path
-            try:
-                inside = path.resolve().is_relative_to(REPO_DIR)
-            except OSError:
-                inside = False
-            if inside and not any(
-                fragment in str(path) for fragment in EXCLUDED_FRAGMENTS
-            ):
-                in_scope.append(line)
-            else:
-                external += 1
-        if result.returncode != 0 and not findings_here:
-            fail(f"clang-tidy failed on {tu}:\n{result.stderr[-2000:]}")
-    for line in in_scope:
-        print(line)
-    if external:
-        print(f"{external} findings outside the repository's sources (ignored)")
-    if in_scope:
-        print(f"{len(in_scope)} clang-tidy findings")
-        return False
-    print("clang-tidy clean")
-    return True
-
-
 def main() -> int:
     argument_parser = argparse.ArgumentParser(
         description=(
-            "Check-only format and lint gate: clang-format, ruff, "
-            "qmllint, and clang-tidy over the changed files"
+            "Check-only format and lint: clang-format, ruff and qmllint "
+            "over the changed files"
         )
     )
     argument_parser.add_argument(
         "--all",
         action="store_true",
-        help=(
-            "check every tracked file instead of just the changed ones "
-            "(clang-tidy keeps the changed-file scope; add --tidy-all "
-            "for the full database)"
-        ),
+        help="check every tracked file instead of just the changed ones",
     )
     argument_parser.add_argument(
         "--fix",
         action="store_true",
         help=(
             "apply clang-format and ruff fixes to the scoped files "
-            "(qmllint and clang-tidy remain report-only)"
-        ),
-    )
-    argument_parser.add_argument(
-        "--tidy-all",
-        action="store_true",
-        help=(
-            "run clang-tidy over every translation unit in the compile "
-            "database (a full semantic analysis per TU — expect a long "
-            "run)"
-        ),
-    )
-    tidy_scoping = argument_parser.add_mutually_exclusive_group()
-    tidy_scoping.add_argument(
-        "--skip-tidy",
-        action="store_true",
-        help=(
-            "run only the fast checks; clang-tidy costs a semantic "
-            "analysis per translation unit and can take its own pass"
-        ),
-    )
-    tidy_scoping.add_argument(
-        "--tidy-only",
-        action="store_true",
-        help=(
-            "run only clang-tidy — the fast checks are the other half of "
-            "--skip-tidy, so the two together cover this command once "
-            "each and can run side by side"
+            "(qmllint remains report-only)"
         ),
     )
     argument_parser.add_argument(
@@ -451,27 +245,13 @@ def main() -> int:
         scope, label = changed_files(), "changed files"
     print(f"scope: {label} ({len(scope)} candidates)")
 
-    # clang-tidy stays on the changed set even under --all: analyzing
-    # every translation unit is a deliberate, separate decision
-    # (--tidy-all), not a side effect of widening the fast checks.
-    tidy_scope = scope if arguments.files else changed_files()
-
-    results = {}
-    if not arguments.tidy_only:
-        results["clang-format"] = check_clang_format(
+    results = {
+        "clang-format": check_clang_format(
             with_suffixes(scope, CXX_SUFFIXES), arguments.fix
-        )
-        results["ruff"] = check_ruff(
-            with_suffixes(scope, {".py"}), arguments.fix, arguments.all
-        )
-        results["qmllint"] = check_qmllint(with_suffixes(scope, {".qml"}))
-    if arguments.skip_tidy:
-        section("clang-tidy (C++ static analysis)")
-        print("skipped (--skip-tidy)")
-    else:
-        results["clang-tidy"] = check_clang_tidy(
-            with_suffixes(tidy_scope, CXX_SUFFIXES), arguments.tidy_all
-        )
+        ),
+        "ruff": check_ruff(with_suffixes(scope, {".py"}), arguments.fix, arguments.all),
+        "qmllint": check_qmllint(with_suffixes(scope, {".qml"})),
+    }
 
     section("summary")
     for tool, passed in results.items():

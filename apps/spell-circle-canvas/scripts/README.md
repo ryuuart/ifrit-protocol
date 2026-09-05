@@ -28,70 +28,54 @@ committed.
 ## Formatting and linting — `check.py`
 
 One command covering clang-format (Google C++ style, stock), ruff (lint
-and format), qmllint and clang-tidy, scoped by default to the files git
-sees as changed. `--all` checks the whole tree, `--fix` applies the
-format fixes, `--tidy-all` analyses every translation unit, and
-`--skip-tidy` / `--tidy-only` split the command in half. The configs are
-at the repository root: `.clang-format` with `.clang-format-ignore`,
-`.clang-tidy`, `.clangd`, `ruff.toml`. The discipline is check-forward:
+and format) and qmllint, scoped by default to the files git sees as
+changed. `--all` checks the whole tree, `--fix` applies the format
+fixes, and explicit file arguments check exactly those files. The
+configs are at the repository root: `.clang-format` with
+`.clang-format-ignore`, `ruff.toml`. The discipline is check-forward:
 the tools police changes and never mass-reformat; the one whole-tree
 reformat that adopted the style is listed in `.git-blame-ignore-revs`,
 which `git config blame.ignoreRevsFile .git-blame-ignore-revs` makes
-local blame skip. clang-tidy comes from `brew install llvm`, ruff from
-`brew install ruff`; the rest ride the Xcode and Qt installs.
-
-## The gate — `gate.py`
-
-The quick checks together, one verdict. Each lane is its own
-subprocess with its output held back: `check.py` over the changed
-files, the ctest tests those files belong to, the plate ledger's quick
-tier, its world tier when the change can move a set, and clang-tidy
-with `--tidy`. They run side by side, so the wait is the slowest lane;
-each prints one PASS/FAIL line with its wall time as it lands, then
-`GATE: pass` or `GATE: fail — <lane>` with only the failing lanes'
-output under it. The test scope comes from the build graph — the tests
-a changed source or header is linked into, read through `ninja -t
-inputs` and the deps log — and a file the graph cannot place runs the
-whole suite and says so. `--all` widens lint and tests to everything,
-`--config` picks the configuration (Release, which the plate baselines
-are), `--timeout-seconds` fails a wedged lane by name. It builds
-nothing itself; `mise run gate` builds first. The full plate tier, the
-sanitizers and `--tidy-all` are outside it by design.
+local blame skip. Every tool is required — a missing one fails the run
+rather than passing it. clang-format rides the Xcode toolchain through
+`xcrun`, qmllint the Qt prefix `setup.py` recorded, ruff comes from
+`brew install ruff`.
 
 ## Plates — `plate_ledger.py`
 
-Four tiers, each with its own baseline, all through the Sketchbook
-binary. The two that rasterise on the CPU are judged on byte identity,
-the two that rasterise on a device within stated per-channel ceilings —
-a device plate is not a function of the drawing code alone. `--tier
-quick` is the iteration loop: GPU renders at a uniform early capture,
-seconds for the registry; its baseline keeps the plates beside the hash
-manifest, and every successful sweep also refreshes Sketchbook's
-separate canvas-thumbnail cache without adopting the baseline. A hash
-miss is compared per colour channel rather than reported, because two
-builds of the host render the same sketch a scatter of channels apart.
-The default full tier steps every canvas
-sketch to its declared moment on the CPU and is the byte-identity
-verdict; a scene over the per-scene budget fails by name. `--tier
-world` does the same for the sketches that light a set and retains every
-successful sweep in a separate cache as Sketchbook's set thumbnails;
-the cache does not adopt or change the hash baseline. `--tier
-world-gpu` renders those on the device and compares against the CPU
-tier's plates within a per-sketch tolerance. `--rebase` adopts a
-baseline for the active tier, merging atomically when given `--scenes`;
-`--stability N` separates sketch flap from code changes; `--fps-gate`
-is a separate serial lane. Progress prints one line per scene as it
-finishes.
+Two tiers, one binary. `--tier cpu` (the default) steps every sketch —
+canvas and set alike — to its declared moment and rasterises it on the
+CPU, so a plate is a function of the declaration alone and the tier is
+judged on byte identity against one manifest,
+`build/plate_baseline_<config>.sha256`, keyed by registry name and
+covering both kinds. A clean sweep is the byte-neutrality verdict; a
+scene over the per-scene ceiling fails by name, and there is no
+per-scene override. `--rebase` adopts; a sweep narrowed by `--kind`,
+`--sketch` or `--scenes` merges into the manifest rather than
+truncating it, and only an unnarrowed rebase rewrites it wholesale.
+`--stability N` re-renders a mover and attributes a self-disagreeing
+scene to the scene. Every successful cpu sweep also copies its plates
+into the per-kind directories Sketchbook shows its stills from; those
+are a display cache, never a verdict.
 
-**A sketch that FAULTS names itself.** The sweep opens every sketch in
-one process, so a bad draw takes the whole run down — and it used to die
-with a bare signal, leaving the last `=== sketch <name>` marker on
-unbuffered stderr as the only clue. The crash reporter is now installed
-on this lane too: the report names the entry it was on, how many plates
-finished before it, the phase (setup, draw, capture), and the stack. The
-ledger's verdict is unchanged — a faulting run is still a failed run —
-but the next run can be narrowed to the sketch the report names with
-`--sketch`.
+`--tier device` renders the same sketches through the device and
+compares each against the CPU plate of the same run per colour channel
+— mean and p99 judged within per-sketch ceilings, max reported — because
+a device plate is not a function of the drawing code alone. It has no
+baseline and refuses `--rebase`; without a device runtime it says so and
+exits 0.
+
+The manifest is machine-local by design (plates are deterministic per
+machine, not across machines), so a fresh checkout runs
+`plate_ledger.py --rebase` once before a sweep can judge anything. The
+manifest is keyed by the registry NAME, which can carry spaces (`--scenes
+"aero desktop"`); the frame-rate ledger below is keyed by the sketch's
+STEM (`--sketch aero_desktop`).
+
+A sketch that faults is named: the render for it fails, the report on
+stderr says which entry it was on, the phase (setup, draw, capture) and
+how many plates finished before it, and the run's verdict is a failure.
+The next run can be narrowed to that sketch with `--sketch`.
 
 ## Frame rates — `app_fps_ledger.py` and `bench_ledger.py`
 
@@ -103,27 +87,35 @@ own overhead is in the number, which a raster `--bench` cannot see.
 Two window sweeps cannot share one display, so it runs alone.
 `bench_ledger.py` (`mise run bench`) runs every `*_bench` binary (the
 `benches` target builds them) on a quiet machine and compares medians
-against `bench/baseline_<config>.json`; `--rebase` adopts. Use a Release
-build for either.
+against `bench/baseline_<config>.json`. Both read, merge and write
+their baseline and judge their rows through `ledger.py`: a narrowed
+sweep merges on `--rebase`, a SLOWER row beyond its band fails the run,
+NEW and MISSING rows do not. Use a Release build for either.
 
-## Coverage — `coverage.py`
+## Secondary trees — `coverage.py` and `sanitize.py`
 
-Configures a dedicated instrumented tree (`build-coverage/`, reusing the
-primary build's preset composition and its `vcpkg_installed/`
-read-only; `build/` is never touched), builds the test targets, runs
-ctest under LLVM source-based profiling, and writes the `llvm-cov`
-summary to the console plus an HTML report under `build/coverage/html/`,
-with `RUN.txt` beside it recording the invocation. `--filter <regex>`
-runs a subset and builds only what it needs; `--export-lcov <file>`
-emits lcov.
+`setup.py` writes three secondary presets into `CMakeUserPresets.json`
+beside `main`: `coverage`, `asan` and `tsan`, each the `main`
+composition plus its instrumentation switch in its own `build-<name>/`,
+reading the primary tree's `vcpkg_installed/` as-is with the manifest
+install disabled. Their test presets carry the runtime environment —
+the raw-profile path for coverage, `ASAN_OPTIONS`/`UBSAN_OPTIONS`/
+`TSAN_OPTIONS` for the sanitizers — so each script is configure, build
+and ctest through its preset plus what CMake cannot do. `testtree.py`
+is what the two share: the tests a configured tree registers, read from
+`ctest --show-only`, to derive the targets a `--filter` needs built and
+the binaries the selected tests ran.
 
-## Sanitizers — `sanitize.py`
+`coverage.py` builds the test targets, runs ctest under LLVM
+source-based profiling, and writes the `llvm-cov` summary to the console
+plus an HTML report under `build/coverage/html/`, with `RUN.txt` beside
+it recording the invocation. `--filter <regex>` runs a subset and builds
+only what it needs; `--export-lcov <file>` emits lcov.
 
-ASan+UBSan by default (`build-asan/`), the TSan lane with `--thread`
-(`build-tsan/`); `--filter` / `--targets` / `--config` as in
-`coverage.py`; both share `buildtree.py` for preset resolution and the
-shared-vcpkg configure. A lane deletes its own tree once ctest has had
-its verdict and refuses to start while the other lane's tree stands;
+`sanitize.py` is ASan+UBSan by default (`build-asan/`), the TSan lane
+with `--thread` (`build-tsan/`); `--filter` / `--targets` / `--config`
+as in `coverage.py`. A lane deletes its own tree once ctest has had its
+verdict and refuses to start while the other lane's tree stands;
 `--keep` holds a tree for a debugger. A configure or build failure
 leaves the tree standing. UBSan findings abort, so a finding fails its
 test. vcpkg archives are uninstrumented, which is why container-overflow
@@ -148,5 +140,6 @@ from its hash-pinned manifest and needs no configured tree.
 compilation database into the flags file the live host uses.
 `regen_flatbuffers.sh` (`mise run flatbuffers`) regenerates the
 committed Python schema modules. `setup.py` configures: it discovers Qt
-6.11+, vcpkg and the optional SDKs and writes the uncommitted
-`CMakeUserPresets.json`.
+6.11+, vcpkg and the optional SDKs, writes the uncommitted
+`CMakeUserPresets.json`, and builds Release unless `--config` says
+otherwise.

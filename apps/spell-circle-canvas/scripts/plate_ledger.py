@@ -4,119 +4,48 @@
 Renders every sketch through `Sketchbook --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time, hashes the plates,
 and compares against a stored baseline manifest. One binary renders
-every tier; what separates them is which runtime a sketch draws through
-and what capture the flags ask for.
-
-BYTE IDENTITY IS THE BAR ON THE TIERS THAT RASTERISE ON THE CPU — full
-and world, the ones a verdict is trusted from. The two device tiers are
-judged per colour channel within stated ceilings instead, for the same
-reason in both: a device plate is not a function of the drawing code
-alone.
+both tiers; what separates them is which rasteriser a sketch draws
+through.
 
 Usage (from apps/spell-circle-canvas):
-  scripts/plate_ledger.py --rebase          # bake the baseline manifest
-  scripts/plate_ledger.py                   # sweep + compare + verdict
-  scripts/plate_ledger.py --tier quick      # the iteration loop (see below)
-  scripts/plate_ledger.py --tier world      # the 3D studies, on the CPU
-  scripts/plate_ledger.py --tier world-gpu  # the same studies, on a device
-  scripts/plate_ledger.py --stability 3     # re-render movers 3x to
-                                            # separate flappers from code
+  scripts/plate_ledger.py --rebase           # bake the baseline manifest
+  scripts/plate_ledger.py                    # sweep + compare + verdict
+  scripts/plate_ledger.py --kind set         # only the sketches that light a set
+  scripts/plate_ledger.py --sketch astral_tome
+  scripts/plate_ledger.py --scenes "aero desktop" black_watch
+  scripts/plate_ledger.py --stability 3      # re-render movers 3x to
+                                             # separate flappers from code
+  scripts/plate_ledger.py --tier device      # the same sketches on the GPU
   scripts/plate_ledger.py --jobs 6 --config Release
 
-FOUR VERIFICATION TIERS (--tier):
+TWO TIERS (--tier):
 
-  full (default) — CPU renders, every scene stepped from t=0 to its
-  DECLARED capture moment. What it hashes is exactly what the registry
-  declares, so a clean full sweep is the byte-neutrality verdict. This is
-  the final confirmation gate before trusting or committing a change.
+  cpu (default) — every sketch stepped from t=0 to its DECLARED capture
+  moment and rasterised on the CPU: a canvas sketch through Skia's CPU
+  backend, a set through SigilGeometry's CPU mesh executor. A plate is
+  then a function of the declaration alone, so BYTE IDENTITY IS THE BAR:
+  a clean sweep is the byte-neutrality verdict, against ONE manifest,
+  build/plate_baseline_<config>.sha256, keyed by registry name and
+  covering both kinds. `--rebase` adopts. A sweep narrowed by --kind,
+  --sketch or --scenes merges into the manifest rather than truncating
+  it: adopting one deliberately changed plate must not discard the
+  baseline for every scene the sweep did not render. Only an unnarrowed
+  sweep writes the file wholesale, which is what drops a scene that no
+  longer exists.
 
-  quick — GPU renders (--gpu, still --no-promotion) with a uniform
-  capture time (--capture-cap, default 2.0 s) passed to the renderer as
-  --capture-at. Most of a full sweep's cost is stepping animations to
-  late declared moments frame by frame on the CPU; the cap removes
-  exactly that cost, which is what makes this the iteration loop. The
-  cap is an OVERRIDE, not a minimum — a scene that declared an earlier
-  moment renders at the cap time too — so quick plates are not
-  comparable to full ones and live in their own baseline,
-  build/plate_baseline_quick_<config>.sha256, maintained by
-  `--tier quick --rebase` (same subset-merge semantics as the full
-  manifest). Stated blind spots, printed on every quick report: content
-  that only appears after the cap is never hashed, and the backend is
-  the GPU raster path rather than the full tier's CPU path.
+  device — the same sketches rendered through the device (--gpu) and
+  judged against the CPU plate of the same run, per colour channel
+  within stated ceilings. It has no baseline: both plates are made in
+  this run, so nothing is kept between runs and --rebase is refused.
 
-  QUICK IS JUDGED WITHIN A TOLERANCE, not on byte identity, because the
-  device path is a function of the scene AND of the binary: two
-  executables built from the same drawing code render plates that
-  disagree in a few hundred colour channels out of ten million, in a
-  scatter across the frame, none of them off by more than a tenth of the
-  range. That is stable — a plate is reproducible across processes, across
-  the order scenes render in, and across repeated runs — so a hash is
-  still the right first question, and it is the fast one: an equal
-  sha256 is an equal plate and the scene is done. A MISS is where the
-  tolerance lives. Both PNGs are decoded and compared per colour
-  channel, and the same three numbers the world-gpu tier reports are
-  taken: mean and p99 are judged, max is reported.
-
-  THE CEILINGS, per colour channel in 0..255 over every pixel:
-  QUICK_TOLERANCE below, mean 0.005 and p99 0. They are set from what
-  separates the two things a miss can be. The device's own scatter
-  spends some thousands of channel-levels over a whole frame; the smallest
-  change to a picture that anyone would call a change — one glyph, one
-  hairline moved by a pixel — spends tens of thousands, so a mean
-  ceiling in between separates them with room on both sides. p99 0 says
-  the disagreement must be a SCATTER: ninety-nine channels in a hundred
-  identical, not a mild drift everywhere. Erring tight is the safe
-  direction — a ceiling too tight reports a mover the full tier then
-  clears, which is exactly what a hash alone did; a ceiling too loose
-  hides one.
-
-  THE QUICK BASELINE THEREFORE KEEPS ITS PLATES, in
-  build/plate_baseline_quick_<config>.plates/ beside the manifest, one
-  PNG per scene, written by `--tier quick --rebase`. The reference a
-  miss is judged against was rendered by a DIFFERENT executable, and
-  that executable is gone the moment the tree is rebuilt — re-rendering
-  the reference on demand would render it with the binary under test and
-  answer every question with "identical". A manifest with no plate store
-  beside it still runs: a miss is reported as a mover that could not be
-  judged, and `--rebase` fills the store.
-
-  Every completed quick sweep also keeps its successful plates in
-  build/plate_thumbnails_quick_<config>/ for Sketchbook. This display cache
-  is independent of the adopted plate store: a new or deliberately changed
-  sketch can have a thumbnail without changing a verdict.
-
-  So quick answers "did I move any bytes I didn't mean to?" during
-  iteration, and the full tier answers it authoritatively at the end.
-
-  world — the 3D studies: the sketches that light a set rather than draw
-  onto a canvas. Each is stepped from zero to its declared moment
-  and drawn through SigilGeometry's CPU mesh executor, so a plate is a
-  function of the declaration alone and the tier is judged on byte
-  identity exactly as the full tier is. It is a separate HALF OF THE
-  REGISTRY, not a separate question: the same sweep, the same hashes,
-  the same verdict table, against its own baseline
-  (build/plate_baseline_world_<config>.sha256). It needs no device — a
-  machine with no GPU runs it green.
-
-  Every completed world sweep keeps its successful plates in
-  build/plate_thumbnails_world_<config>/ for Sketchbook. The thumbnail
-  cache is not the baseline: retaining the current pictures changes no
-  verdict, which is still the manifest's byte identity.
-
-  world-gpu — the same studies, rendered through the Diligent runtime
-  instead of the CPU one. It is the ONE TIER THAT IS NOT JUDGED ON BYTE
-  IDENTITY, and it has no baseline of its own: each plate is compared
-  against the world tier's plate of the same study, which must therefore
-  have been rendered first (the sweep renders it, so nothing has to be
-  kept between runs).
-
-  WHY A DISTANCE AND NOT A HASH. The two tiers are two rasterisers. The
-  host paints shaded vertices through a per-triangle sort with Skia's
-  antialiasing; the device rasterises the same shading through a depth
-  buffer with none. They agree about what the scene is and they differ
-  along every edge, and a post pass's blur is a box approximation on one
-  side and a separable Gaussian on the other. Asking for equal bytes
-  would fail on the first pixel and tell no one anything.
+  WHY A DISTANCE AND NOT A HASH. A device plate is not a function of
+  the drawing code alone. For a set the two tiers are two rasterisers:
+  the host paints shaded vertices through a per-triangle sort with
+  Skia's antialiasing; the device rasterises the same shading through a
+  depth buffer with none. They agree about what the scene is and they
+  differ along every edge, and a post pass's blur is a box approximation
+  on one side and a separable Gaussian on the other. Asking for equal
+  bytes would fail on the first pixel and tell no one anything.
 
   WHAT IS MEASURED, per colour channel in 0..255 over every pixel:
 
@@ -130,28 +59,28 @@ FOUR VERIFICATION TIERS (--tier):
            ranked rightly on the device, and it is reported rather than
            judged.
 
-  Each study names its own mean and p99 ceilings in GPU_TOLERANCE below,
+  A sketch names its own mean and p99 ceilings in GPU_TOLERANCE below,
   set from what the two tiers actually do rather than from a wish. A
-  study with no entry there is judged by DEFAULT_GPU_TOLERANCE.
+  sketch with no entry there is judged by DEFAULT_GPU_TOLERANCE.
 
   It SKIPS cleanly with no device: `--gpu` reports that it found none,
-  the tier says so and exits 0, because a machine with no Vulkan runtime
+  the tier says so and exits 0, because a machine with no device runtime
   has nothing to disagree about.
 
-  A rejected quick-tier design, and why: stepping every pre-capture
-  frame without painting and painting only the capture frame. Several
-  scenes advance their simulation inside the painted frame (cellular
-  automata, particle and cloth sims), so skipping paints changes the
-  final bytes for exactly the expensive scenes the tier exists to speed
-  up. Any revisit of that idea needs a both-ways byte diff across the
-  whole registry first.
+The manifest lives in build/ (machine-local on purpose: plates are
+AA-deterministic per machine, not across machines), so a fresh checkout
+runs `--rebase` once before a sweep can judge anything. Both tiers
+render with --no-promotion: automatic texture promotion re-bakes by a
+measured per-frame cost, which load can tip either way, so it is the
+one renderer feature a byte-identity gate must hold off — with it off,
+hashes are load-immune.
 
-The manifests live in build/ (machine-local on purpose: plates are
-AA-deterministic per machine, not across machines). Both tiers render
-with --no-promotion: automatic texture promotion re-bakes by a measured
-per-frame cost, which load can tip either way, so it is the one renderer
-feature a byte-identity gate must hold off — with it off, hashes are
-load-immune.
+EVERY SUCCESSFUL CPU SWEEP REFRESHES SKETCHBOOK'S THUMBNAILS: the plates
+it rendered are copied into the directories Sketchbook shows its stills
+from, one per kind. The thumbnails are not the baseline — retaining the
+current pictures changes no verdict, which is still the manifest's byte
+identity — so a new or deliberately changed sketch has a thumbnail
+before it has been adopted.
 
 EVERY SCENE PRINTS ONE LINE AS IT FINISHES — its running count, how it
 stands against the baseline, its name and what it took — in COMPLETION
@@ -162,20 +91,20 @@ per-scene lines are the sweep saying what it is doing while it does it.
 Every scene render runs under a per-scene ceiling (--timeout-seconds,
 default 300 s). A scene still running at the ceiling is killed and
 reported FAILED-TIMEOUT by name while the rest of the sweep continues:
-one runaway scene must not hang the gate that protects everything else.
-SCENE_TIMEOUT_OVERRIDES raises that ceiling per scene and is EMPTY — a
-scene over the budget fails by name, and an entry there asserts that one
-scene's cost cannot be reduced, which a declared cache and an earlier
-settled capture moment almost always disprove.
+one runaway scene must not hang the verdict that protects everything
+else. There is no per-scene override: a scene over the budget fails by
+name, because an exception would assert that one scene's cost cannot be
+reduced, which a declared cache and an earlier settled capture moment
+almost always disprove.
 
 A SKETCH THIS MACHINE CANNOT RENDER IS SKIPPED BY NAME. A sketch written
 over an optional SDK is only compiled in where that SDK was found, and
 the data the SDK needs at run time — a resource folder, the SDK's own
 sample archives — can still be absent on the machine running the binary.
 The registry answers for that rather than the sweep guessing: `--list`
-marks such a sketch with what it is missing, every lane here prints
-SKIPPED and the reason, and no plate is rendered, hashed or judged. A
-skip is not a failure and not a mover.
+marks such a sketch with what it is missing, both tiers print SKIPPED
+and the reason, and no plate is rendered, hashed or judged. A skip is
+not a failure and not a mover.
 
 SO THE PLATES FOR THOSE SCENES EXIST ONLY WHERE THE SDK DOES. A baseline
 holding one was rebased on a machine that had the SDK; a machine without
@@ -196,81 +125,41 @@ by construction, so the renderer pins those: a headless session is opened
 with `ctx.deterministic` set, and `ctx.measured(value, pinned)` returns
 the pinned number. A sketch that reads a clock and does not go through
 `measured()` is the one thing `--stability` still has to catch.
-
-THE GPU 60 FPS GATE (`--fps-gate`) is a SEPARATE LANE, deliberately never
-mixed into the byte-identity sweep, because timing and hashing want
-opposite conditions: hashing wants parallel, benchmark-free (--ledger),
---no-promotion CPU renders — load-immune because a hash cannot flap under
-contention; timing wants SERIAL single-scene renders on the Graphite/Metal
-backend (--gpu) with the full benchmark phases, because parallel renders
-contend for the machine and corrupt every number — the same load
-sensitivity that makes hashing want the opposite. The gate runs
-`Sketchbook --headless --sketch <s> --gpu` one sketch at a time and reads
-the steady-state sample through --timing-json. It works over either
-runtime: both write the same timing line.
-
-IT JUDGES TWO NUMBERS, and a scene fails on either: the END-TO-END frame
-time (CPU + drained GPU via submit(SyncToCpu) inside the timed window)
-against --budget-ms, and the MODELED HEADROOM (1000 / mean work ms, that
-drain taken back out) against --headroom-fps. The first is the
-pessimistic bound — a real host pipelines the CPU and the GPU while this
-lane serializes them — and the second is the optimistic one, the rate the
-frame's own work would allow with the GPU assumed free.
-
-Work ms is part of frame ms, so at the DEFAULT --headroom-fps
-(1000/--budget-ms) the second check cannot fail on its own: it asserts
-the relationship between the lanes rather than adding a test. Raise it to
-make the optimistic bound bite — a scene whose CPU frame alone eats most
-of the budget has nothing left for the GPU work a pipelined host runs
-beside it, and passes here until the content grows.
-
-Presented FPS is the interactive lane's number and stays there — a
-headless sweep presents nothing. Exit 1 when any scene fails either. Run
-it on a quiet machine; there is no known-flapper list here — a load spike
-is YOUR machine, rerun the scene.
 """
 
-import argparse, atexit, concurrent.futures, fcntl, hashlib, json, os, shutil, struct, subprocess, sys, tempfile, time, zlib
+import argparse
+import atexit
+import concurrent.futures
+import fcntl
+import hashlib
+import os
+import shutil
+import struct
+import subprocess
+import sys
+import tempfile
+import time
+import zlib
 
-# WHAT EACH TIER RENDERS WITH. A tier names its own binary, the flags that
-# define its capture, how it lists its registry, how it selects one entry
-# and which runtime's sketches it walks. They ask one question — did any
-# byte move that I did not mean to move — of different halves of one
-# registry, which is why they share this sweep instead of forking a
-# second script.
-TIERS = {
-    "full": {
-        "base_args": ("--no-promotion", "--ledger"),
-        "kind": "canvas",
-        "honor_overrides": True,
-    },
-    "quick": {
-        "base_args": ("--no-promotion", "--ledger"),
-        "kind": "canvas",
-        # The capture cap removes exactly the cost the per-scene overrides
-        # budget for, so a quick render still running at the default
-        # ceiling is a defect rather than an expensive scene.
-        "honor_overrides": False,
-    },
-    "world": {
-        "base_args": (),
-        "kind": "set",
-        "honor_overrides": False,
-    },
-    "world-gpu": {
-        "base_args": ("--gpu",),
-        "kind": "set",
-        "honor_overrides": False,
-    },
-}
-
-# One binary renders every tier, and one prefix names every plate: what
-# separates the tiers is which runtime a sketch draws through and what
-# capture the flags ask for, not which program was run.
+# One binary renders both tiers, and one prefix names every plate.
 BINARY = "Sketchbook.app/Contents/MacOS/Sketchbook"
 PLATE_PREFIX = "plate_"
+KINDS = ("canvas", "set")
 
-# HOW FAR A STUDY'S DEVICE PLATE MAY STAND FROM ITS CPU PLATE: (mean,
+# The flags every render carries: the benchmark-free exact-stepped
+# capture, with cost-based texture promotion held off.
+RENDER_ARGS = ("--no-promotion", "--ledger")
+
+# WHERE SKETCHBOOK SHOWS ITS STILLS FROM, per kind. The directory names
+# are compiled into Sketchbook, and every configuration of it reads the
+# Release stores, so the ledger writes them for whichever configuration
+# it rendered under those names.
+THUMBNAIL_STORES = {
+    "canvas": "plate_thumbnails_quick_{config}",
+    "set": "plate_thumbnails_world_{config}",
+}
+
+# HOW FAR A SKETCH'S DEVICE PLATE MAY STAND FROM ITS CPU PLATE: (mean,
 # p99) per colour channel in 0..255. Set from what the two tiers actually
 # do, and tightened when one of them gets closer to the other rather than
 # loosened when a change moves them apart.
@@ -307,10 +196,8 @@ GPU_TOLERANCE = {
     # five times across itself and seen nearly edge on, which the two
     # tiers minify differently everywhere at once.
     "material_lab": (10.0, 192),
-    # A card sampled onto a swept band and a still set under a ramping
-    # key are both nearly all interior: the two tiers agree to a channel
-    # or two everywhere but the silhouettes.
-    "woven_card": (3.0, 32),
+    # A still set under a ramping key is nearly all interior: the two
+    # tiers agree to a channel or two everywhere but the silhouettes.
     "key_light": (3.0, 32),
     # A swept rail, a few gates and a dart on it are almost entirely
     # smooth interior over an empty background, which is where the two
@@ -326,36 +213,12 @@ GPU_TOLERANCE = {
     # antialiases those and the other does not, and the p99 says so
     # while the mean says the two are the same picture.
     "scattered_model": (4.0, 128),
-    # Screens that are their own light are identical on both tiers; what
-    # is left is the lit shelf and the plinth's edges.
-    "panel_console": (3.0, 32),
     # Four coloured lamps read as directions on the host and as
     # attenuated emitters on the device, so the bodies between them are
     # shaded from slightly different strengths — a low mean over a
     # picture that is mostly dark, and a p99 at the lit edges.
     "lantern_room": (4.0, 64),
 }
-
-# HOW FAR A QUICK PLATE MAY STAND FROM THE BASELINE PLATE OF THE SAME
-# SCENE: (mean, p99) per colour channel in 0..255, one pair for every
-# scene. The device disagrees with itself between two builds of the host
-# in a scatter of a few hundred channels, each off by a fraction of a
-# level; a change to what a scene draws costs an order more than that in
-# the mean and stops being a scatter. One pair rather than a table per
-# scene, because what is being bounded is the device's behaviour and not
-# any scene's picture.
-QUICK_TOLERANCE = (0.005, 0)
-
-# Scenes whose honest render exceeds the default ceiling, and nothing is
-# entitled to be here. A scene over the per-scene budget FAILS by name; the
-# sweep waits for nothing. An entry is a statement that one scene's cost is
-# irreducible, which a declared cache and an earlier settled moment almost
-# always disprove — fix the scene rather than widen its ceiling.
-SCENE_TIMEOUT_OVERRIDES = {}
-
-
-def timeout_for(scene, default):
-    return SCENE_TIMEOUT_OVERRIDES.get(scene, default)
 
 
 def read_manifest(path):
@@ -416,42 +279,40 @@ def sha256(path):
     return h.hexdigest()
 
 
-def registry(binary, kind):
-    """What the binary carries for one runtime, split by what this machine
-    can actually render.
+def registry(binary, kinds):
+    """What the binary carries for the given kinds: scene -> kind for the
+    ones this machine can render, and scene -> reason for the ones it
+    cannot.
 
     ONE LISTING LINE PER SKETCH, and the ones this machine cannot run
     carry a tab and the reason. They stay in the listing on purpose: a
     sketch dropped from it and a sketch deleted from the tree read
     exactly alike, and the difference is the whole point."""
-    listed = subprocess.run(
-        [binary, "--list", "--kind", kind],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    scenes, unavailable = [], {}
-    for line in listed.splitlines():
-        if not line.strip():
-            continue
-        name, tab, note = line.partition("\t")
-        if tab:
-            unavailable[name] = note.removeprefix("unavailable: ")
-        else:
-            scenes.append(name)
+    scenes, unavailable = {}, {}
+    for kind in kinds:
+        listed = subprocess.run(
+            [binary, "--list", "--kind", kind],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        for line in listed.splitlines():
+            if not line.strip():
+                continue
+            name, tab, note = line.partition("\t")
+            if tab:
+                unavailable[name] = note.removeprefix("unavailable: ")
+            else:
+                scenes[name] = kind
     return scenes, unavailable
 
 
-def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
+def render_scene(binary, scene, outdir, timeout, extra_args=()):
     """Render one scene; returns (scene, digest, error, elapsed seconds).
 
     The elapsed time is reported for every outcome, so a sweep can name
     what it is still waiting on rather than going quiet behind its
     slowest scene."""
-    # The per-scene timeout overrides budget the FULL tier's declared-moment
-    # renders; the tiers that do not pay that cost say so in their profile.
-    if profile["honor_overrides"]:
-        timeout = timeout_for(scene, timeout)
     started = time.monotonic()
     try:
         r = subprocess.run(
@@ -459,7 +320,7 @@ def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
                 binary,
                 "--headless",
                 outdir,
-                *profile["base_args"],
+                *RENDER_ARGS,
                 *extra_args,
                 "--sketch",
                 scene,
@@ -476,10 +337,8 @@ def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
             scene,
             None,
             (
-                f"FAILED-TIMEOUT: still rendering after "
-                f"{timeout:g}s (killed; raise "
-                f"--timeout-seconds if the scene is merely "
-                f"slow)"
+                f"FAILED-TIMEOUT: still rendering after {timeout:g}s (killed; "
+                f"raise --timeout-seconds if the scene is merely slow)"
             ),
             time.monotonic() - started,
         )
@@ -493,10 +352,10 @@ def render_scene(profile, binary, scene, outdir, timeout, extra_args=()):
 def read_png(path):
     """An RGBA8 image out of a PNG, with nothing but the standard library.
 
-    The ledger's other tiers hash bytes and need no decoder; this one
-    compares two pictures pixel by pixel, and adding an imaging package
-    to the gate that protects the build is a worse trade than sixty lines
-    here. Handles the 8-bit truecolour forms the plate writer emits."""
+    The cpu tier hashes bytes and needs no decoder; the device tier
+    compares two pictures pixel by pixel, and the repository's Python
+    declares no imaging package, so the 8-bit truecolour forms the plate
+    writer emits are decoded here."""
     with open(path, "rb") as f:
         data = f.read()
     if data[:8] != b"\x89PNG\r\n\x1a\n":
@@ -573,42 +432,26 @@ def channel_distance(reference, candidate):
     return total / count, p99 or 0, worst
 
 
-def judge_quick(store, rendered_dir, scene):
-    """Is one quick-tier hash miss the device's scatter or a moved picture?
+def store_thumbnails(root, config, rendered_dir, scenes, kinds, whole_registry):
+    """Copies the rendered plates into Sketchbook's per-kind stores.
 
-    Returns (within, report): True with the three per-channel numbers when
-    the plate stands inside QUICK_TOLERANCE, False with them when it does
-    not, and None when the baseline plate this needs was never stored —
-    an unjudgeable miss, which is a finding until a rebase fills the
-    store."""
-    reference = os.path.join(store, f"{PLATE_PREFIX}{scene}.png")
-    candidate = os.path.join(rendered_dir, f"{PLATE_PREFIX}{scene}.png")
-    if not os.path.exists(reference):
-        return None, "no baseline plate stored for it (--tier quick --rebase)"
-    measured = channel_distance(reference, candidate)
-    if measured is None:
-        return False, "it is not the size the baseline plate is"
-    mean, p99, worst = measured
-    mean_cap, p99_cap = QUICK_TOLERANCE
-    return mean <= mean_cap and p99 <= p99_cap, (
-        f"mean {mean:.4f} (<= {mean_cap:g})  p99 {p99:d} (<= {p99_cap})  max {worst:d}"
-    )
-
-
-def store_plates(store, rendered_dir, scenes, whole_registry):
-    """Copies rendered plates into a persistent store.
-
-    Quick uses adopted plates to judge a hash miss. World uses the latest
-    successful sweep as set-sketch thumbnails. A complete sweep re-makes
-    its store so a scene that left the registry cannot linger; a subset or
-    partially failed sweep replaces only the scenes it rendered."""
-    if whole_registry and os.path.isdir(store):
-        shutil.rmtree(store)
-    os.makedirs(store, exist_ok=True)
-    for scene in scenes:
-        plate = f"{PLATE_PREFIX}{scene}.png"
-        shutil.copyfile(os.path.join(rendered_dir, plate), os.path.join(store, plate))
-    print(f"plate store written: {store} ({len(scenes)} plates)")
+    A complete sweep re-makes a store so a scene that left the registry
+    cannot linger; a subset or partially failed sweep replaces only the
+    scenes it rendered."""
+    for kind in kinds:
+        store = os.path.join(
+            root, "build", THUMBNAIL_STORES[kind].format(config=config)
+        )
+        chosen = [scene for scene in scenes if scenes[scene] == kind]
+        if whole_registry and os.path.isdir(store):
+            shutil.rmtree(store)
+        os.makedirs(store, exist_ok=True)
+        for scene in chosen:
+            plate = f"{PLATE_PREFIX}{scene}.png"
+            shutil.copyfile(
+                os.path.join(rendered_dir, plate), os.path.join(store, plate)
+            )
+        print(f"thumbnails written: {store} ({len(chosen)} plates)")
 
 
 def discard_later(directory):
@@ -624,44 +467,62 @@ def discard_later(directory):
     return directory
 
 
-def gpu_sweep(profile, binary, scenes, timeout, jobs):
-    """The device tier: every study rendered BOTH ways and the two plates
-    compared. It has no baseline — the CPU tier's plate of the same study
-    IS the reference, and both are made in this run."""
-    host_dir = discard_later(tempfile.mkdtemp(prefix="plate_world_cpu_"))
-    device_dir = discard_later(tempfile.mkdtemp(prefix="plate_world_gpu_"))
-    host_profile = dict(profile, base_args=())
+def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
+    """Renders every scene, N at a time, printing one line per scene as
+    it finishes. Returns (scene -> digest, scene -> error). @p standing
+    names how a rendered scene stands, given its digest."""
+    results, errors = {}, {}
+    # Submitted rather than mapped, because map yields in submission
+    # order and would hold every finished scene's line behind an
+    # unfinished earlier one.
+    with concurrent.futures.ThreadPoolExecutor(jobs) as pool:
+        pending = [
+            pool.submit(render_scene, binary, scene, outdir, timeout, extra_args)
+            for scene in scenes
+        ]
+        for done, future in enumerate(concurrent.futures.as_completed(pending), 1):
+            scene, digest, err, elapsed = future.result()
+            if digest is None:
+                errors[scene] = err
+            else:
+                results[scene] = digest
+            state = "FAILED" if digest is None else standing(scene, digest)
+            print(
+                f"  [{done:>3}/{len(scenes)}] {state:<9} {scene:<24} {elapsed:6.1f}s",
+                flush=True,
+            )
+    for scene, err in sorted(errors.items()):
+        print(f"RENDER FAILED  {scene}: {err}")
+    return results, errors
 
-    # One study first, to tell "no device on this machine" from a defect.
+
+def device_sweep(binary, scenes, timeout, jobs):
+    """The device tier: every sketch rendered BOTH ways and the two plates
+    compared. It has no baseline — the CPU plate of the same sketch IS
+    the reference, and both are made in this run."""
+    host_dir = discard_later(tempfile.mkdtemp(prefix="plate_cpu_"))
+    device_dir = discard_later(tempfile.mkdtemp(prefix="plate_gpu_"))
+
+    # One sketch first, to tell "no device on this machine" from a defect.
     probe = subprocess.run(
-        [binary, "--headless", device_dir, "--gpu", "--study", scenes[0]],
+        [binary, "--headless", device_dir, "--gpu", "--sketch", scenes[0]],
         capture_output=True,
         text=True,
         timeout=timeout,
     )
     if probe.returncode != 0 and "no device runtime" in (probe.stderr + probe.stdout):
-        print("SKIPPED: this machine has no device to render the studies on")
+        print("SKIPPED: this machine has no device to render on")
         return 0
 
-    errors = {}
-    with concurrent.futures.ThreadPoolExecutor(jobs) as pool:
-        for which, outdir, prof in (
-            ("cpu", host_dir, host_profile),
-            ("gpu", device_dir, profile),
-        ):
-            for scene, digest, err, elapsed in pool.map(
-                lambda s, o=outdir, p=prof: render_scene(p, binary, s, o, timeout),
-                scenes,
-            ):
-                print(
-                    f"  [{which}] {'FAILED' if digest is None else 'rendered':<8} "
-                    f"{scene:<24} {elapsed:6.1f}s",
-                    flush=True,
-                )
-                if digest is None:
-                    errors[f"{scene} ({which})"] = err
-    for scene, err in sorted(errors.items()):
-        print(f"RENDER FAILED  {scene}: {err}")
+    print("[cpu]")
+    _, cpu_errors = sweep(
+        binary, scenes, host_dir, timeout, jobs, (), lambda s, d: "rendered"
+    )
+    print("[gpu]")
+    _, gpu_errors = sweep(
+        binary, scenes, device_dir, timeout, jobs, ("--gpu",), lambda s, d: "rendered"
+    )
+    errors = len(cpu_errors) + len(gpu_errors)
 
     verdict = 0
     print()
@@ -680,7 +541,7 @@ def gpu_sweep(profile, binary, scenes, timeout, jobs):
         mean_cap, p99_cap = GPU_TOLERANCE.get(scene, DEFAULT_GPU_TOLERANCE)
         over = mean > mean_cap or p99 > p99_cap
         print(
-            f"  {'OVER ' if over else 'WITHIN'} {scene:<20} "
+            f"  {'OVER ' if over else 'WITHIN'} {scene:<24} "
             f"mean {mean:6.2f} (<= {mean_cap:g})  "
             f"p99 {p99:4d} (<= {p99_cap})  max {worst:3d}"
         )
@@ -691,148 +552,35 @@ def gpu_sweep(profile, binary, scenes, timeout, jobs):
     return verdict or (1 if errors else 0)
 
 
-def gate_verdict(row, budget_ms, floor_fps):
-    """Which of the two numbers a scene failed, as a list of reasons.
-
-    The gate judges BOTH, because a headless lane presents nothing and so
-    has no single honest frame rate to judge instead:
-
-      frame_ms      end to end, the backend flush included — on --gpu a
-                    submit(SyncToCpu) per frame, so this is the SERIALIZED
-                    CPU+GPU cost of one frame. A real host pipelines the
-                    two, so this is the pessimistic bound: a scene passing
-                    it cannot miss for want of either.
-      headroom_fps  1000 / mean(work ms), the flush taken back out — the
-                    rate the frame's own work would allow, with the GPU
-                    assumed free. The optimistic bound, and the one that
-                    answers "is the CPU side alone already too slow".
-
-    THE TWO FLOORS ARE INDEPENDENT KNOBS, and they need to be. Work ms is
-    part of frame ms, so at a shared floor (--headroom-fps defaulting to
-    1000/--budget-ms) the headroom check can never fail on its own: any
-    scene inside the end-to-end budget is inside the modeled one too. That
-    default asserts the relationship rather than adding a test. Raise
-    --headroom-fps to make the optimistic bound bite — a scene whose CPU
-    frame alone eats most of the budget has nothing left for the GPU work
-    a pipelined host would be running beside it, and reads as passing
-    until the content grows."""
-    reasons = []
-    if row["frame_ms"] > budget_ms:
-        reasons.append(f"frame {row['frame_ms']:.2f} ms > {budget_ms:g} ms")
-    if row["headroom_fps"] < floor_fps:
-        reasons.append(f"headroom {row['headroom_fps']:.0f} fps < {floor_fps:.0f} fps")
-    return reasons
-
-
-def fps_gate(binary, scenes, budget_ms, floor_fps, timeout):
-    """SERIAL GPU timing sweep; see the module docstring for why serial and
-    why this never shares a run with the hash sweep. Each scene gets the
-    timing instrument: single-scene mode (the full unbudgeted 240-warm/120-sample
-    window), --gpu (frame ms = CPU + drained GPU, submit(SyncToCpu) per
-    frame; work ms is the same frame with that drain taken out).
-    --capture-at 0.02 collapses the post-sample capture pass to one
-    frame — the timing sample closes before the capture pass begins (the
-    JSON line snapshots at sample-window close), so this only trims wall
-    clock, never the measurement; the throwaway plates land in a temp dir
-    and are NOT ledger material (wrong backend, wrong conditions)."""
-    outdir = discard_later(tempfile.mkdtemp(prefix="fps_gate_"))
-    print(
-        f"GPU 60 FPS gate: {len(scenes)} scenes, serial, budget "
-        f"{budget_ms} ms end-to-end AND {floor_fps:.0f} fps modeled "
-        f"headroom\n"
-    )
-    rows, failures, errors = [], [], []
-    for scene in scenes:
-        tj = os.path.join(outdir, f"timing_{scene}.json")
-        try:
-            r = subprocess.run(
-                [
-                    binary,
-                    "--headless",
-                    outdir,
-                    "--gpu",
-                    "--sketch",
-                    scene,
-                    "--timing-json",
-                    tj,
-                    "--capture-at",
-                    "0.02",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-            )
-        except subprocess.TimeoutExpired:
-            errors.append(scene)
-            print(
-                f"  FAILED-TIMEOUT {scene}: still rendering after {timeout:g}s, killed"
-            )
-            continue
-        if r.returncode != 0 or not os.path.exists(tj):
-            errors.append(scene)
-            print(f"  RENDER FAILED  {scene}: {(r.stderr or r.stdout).strip()[-200:]}")
-            continue
-        with open(tj) as f:
-            row = json.loads(f.readline())
-        rows.append(row)
-        reasons = gate_verdict(row, budget_ms, floor_fps)
-        if reasons:
-            row["reasons"] = reasons
-            failures.append(row)
-        print(
-            f"  {'FAIL' if reasons else 'PASS'}  {scene:<24} "
-            f"frame {row['frame_ms']:8.2f} ms  (p99 {row['p99_ms']:7.2f}, "
-            f"work {row['work_ms']:7.2f}, "
-            f"{row['headroom_fps']:5.0f} fps headroom)"
-        )
-    rows.sort(key=lambda r: -r["frame_ms"])
-    print(
-        f"\n{len(rows) - len(failures)} under budget, {len(failures)} "
-        f"over, {len(errors)} failed to render"
-    )
-    if failures:
-        print("OVER BUDGET (steady frame, GPU):")
-        for row in sorted(failures, key=lambda r: -r["frame_ms"]):
-            print(f"  {row['scene']:<24} {'; '.join(row['reasons'])}")
-    return 1 if failures or errors else 0
-
-
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        description="plate sweep over the sketch registry, judged against a "
+        "machine-local baseline manifest"
+    )
     ap.add_argument("--config", default="Release")
     ap.add_argument("--jobs", type=int, default=max(2, (os.cpu_count() or 8) // 2))
     ap.add_argument(
         "--tier",
-        choices=tuple(TIERS),
-        default="full",
-        help="verification tier. full (default): CPU renders to "
-        "each scene's declared capture moment — the final "
-        "confirmation gate. quick: GPU renders with a "
-        "uniform capture-time cap, hashed against the separate "
-        "quick baseline and, on a miss, judged per colour "
-        "channel against its stored plate — the iteration "
-        "loop. world: "
-        "the 3D studies, stepped to their declared moments on "
-        "the CPU mesh executor, against their own baseline. "
-        "Each tier has its own baseline and they are never "
-        "comparable. See the module docstring",
+        choices=("cpu", "device"),
+        default="cpu",
+        help="cpu (default): CPU renders to each scene's declared capture "
+        "moment, judged on byte identity against the baseline manifest. "
+        "device: the same scenes on the GPU, judged per colour channel "
+        "against the CPU plate of the same run; no baseline",
     )
     ap.add_argument(
-        "--capture-cap",
-        type=float,
-        default=2.0,
-        metavar="S",
-        help="quick tier only: the uniform capture time in "
-        "seconds, passed to the renderer as --capture-at "
-        "(default 2.0). Content after this time is invisible "
-        "to the quick tier",
+        "--kind",
+        choices=KINDS,
+        help="only the sketches drawn through this runtime (default: both)",
     )
+    ap.add_argument("--scenes", nargs="*", help="subset (registry names)")
+    ap.add_argument("--sketch", metavar="NAME", help="one scene (registry name)")
     ap.add_argument(
         "--rebase",
         action="store_true",
-        help="write the manifest from this sweep (tier-specific: "
-        "--tier quick --rebase writes the quick baseline, and the "
-        "plates beside it that a hash miss is judged against)",
+        help="write the manifest from this sweep. A sweep narrowed by --kind, "
+        "--sketch or --scenes merges, so only an unnarrowed rebase rewrites "
+        "the file wholesale",
     )
     ap.add_argument(
         "--stability",
@@ -843,38 +591,6 @@ def main():
         "disagrees with ITSELF is attributed to the scene. This is "
         "the ONLY way a mover is excused — there is no list",
     )
-    ap.add_argument("--scenes", nargs="*", help="subset (registry names)")
-    ap.add_argument(
-        "--fps-gate",
-        action="store_true",
-        help="the GPU 60 FPS gate — a separate SERIAL lane, not "
-        "part of the byte-identity sweep (timing and "
-        "hashing want opposite conditions; see the module "
-        "docstring). Renders each scene alone with --gpu "
-        "through the full benchmark phases and fails any "
-        "whose steady end-to-end frame exceeds --budget-ms "
-        "OR whose modeled headroom falls under --headroom-fps",
-    )
-    ap.add_argument(
-        "--budget-ms",
-        type=float,
-        default=16.7,
-        help="fps-gate END-TO-END frame budget in ms (default 16.7 = "
-        "60 FPS): CPU plus the synchronously drained GPU",
-    )
-    ap.add_argument(
-        "--headroom-fps",
-        type=float,
-        default=None,
-        metavar="FPS",
-        help="fps-gate floor on the MODELED headroom (1000 / mean work "
-        "ms, the GPU drain taken back out). Defaults to the rate "
-        "--budget-ms implies, which asserts the relationship between "
-        "the two lanes rather than testing anything: work ms is part "
-        "of frame ms, so at that default a scene inside the end-to-end "
-        "budget is always inside this one. Raise it to make the "
-        "modeled bound bite on its own",
-    )
     ap.add_argument(
         "--timeout-seconds",
         type=float,
@@ -884,143 +600,68 @@ def main():
         "A scene still running at the ceiling is killed and "
         "reported FAILED-TIMEOUT by name while the rest of "
         "the sweep continues — one runaway scene must not "
-        "hang the gate that protects everything else",
+        "hang the verdict that protects everything else",
     )
     args = ap.parse_args()
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    profile = TIERS[args.tier]
     binary = os.path.join(root, "build/bin", args.config, BINARY)
-    # Each tier compares against its own baseline: quick plates are rendered
-    # on a different backend at a different scene time, so their hashes can
-    # never match the full manifest and must never be written into it.
-    tier_tag = "" if args.tier == "full" else f"_{args.tier}"
-    manifest = os.path.join(
-        root, "build", f"plate_baseline{tier_tag}_{args.config}.sha256"
-    )
-    # The quick tier judges a hash miss by decoding the two plates, so its
-    # baseline keeps the pictures the manifest names beside it. Separate
-    # display caches keep the latest successful quick and world sweeps; neither
-    # is evidence used by a hash verdict.
-    plate_store = os.path.join(
-        root, "build", f"plate_baseline{tier_tag}_{args.config}.plates"
-    )
-    quick_thumbnail_store = os.path.join(
-        root, "build", f"plate_thumbnails_quick_{args.config}"
-    )
-    world_thumbnail_store = os.path.join(
-        root, "build", f"plate_thumbnails_world_{args.config}"
-    )
+    manifest = os.path.join(root, "build", f"plate_baseline_{args.config}.sha256")
     if not os.path.exists(binary):
-        sys.exit(f"no binary at {binary} — build the {args.tier} tier's renderer first")
+        sys.exit(f"no binary at {binary} — build the Sketchbook target first")
 
-    # The render arguments that define the tier. GPU stability was validated
-    # empirically on this machine: representative scenes hash identically
-    # across processes under this exact invocation.
-    quick = args.tier == "quick"
-    tier_args = ("--gpu", "--capture-at", f"{args.capture_cap:g}") if quick else ()
-
-    # The registry filtered to the runtime this tier renders: the 2D tiers
-    # ask for the sketches drawn onto a canvas, the world tiers for the ones
-    # that light a set. One registry, two questions.
-    listed, unavailable = registry(binary, profile["kind"])
-    scenes = args.scenes or listed
-    # A scene this machine cannot render is reported and stood down from
-    # every lane below — including one named explicitly on the command
-    # line, because asking for it by name does not install anything.
+    kinds = (args.kind,) if args.kind else KINDS
+    listed, unavailable = registry(binary, kinds)
+    chosen = list(args.scenes or [])
+    if args.sketch:
+        chosen.append(args.sketch)
+    unknown = [
+        scene for scene in chosen if scene not in listed and scene not in unavailable
+    ]
+    if unknown:
+        sys.exit(f"not in the registry: {', '.join(unknown)}")
+    # A scene this machine cannot render is reported and stood down —
+    # including one named explicitly on the command line, because asking
+    # for it by name does not install anything.
     skipped = {
         scene: why
         for scene, why in unavailable.items()
-        if not args.scenes or scene in args.scenes
+        if not chosen or scene in chosen
     }
-    scenes = [scene for scene in scenes if scene not in unavailable]
+    scenes = {s: k for s, k in listed.items() if not chosen or s in chosen}
     for scene, why in sorted(skipped.items()):
         print(f"SKIPPED {scene}: {why}")
+    narrowed = bool(chosen or args.kind)
 
-    if args.tier == "world-gpu":
+    if args.tier == "device":
         if args.rebase:
             sys.exit(
-                "--tier world-gpu has no baseline to rebase: it is judged "
-                "against the world tier's plates, which the same sweep "
-                "renders. Change GPU_TOLERANCE to move what it accepts."
+                "--tier device has no baseline to rebase: it is judged against "
+                "the CPU plates the same sweep renders. Change GPU_TOLERANCE to "
+                "move what it accepts."
             )
         print(
-            f"{len(scenes)} studies, config {args.config}, tier world-gpu: "
-            f"each rendered on the CPU and on the device and compared per "
-            f"colour channel"
+            f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
+            f"tier device: each rendered on the CPU and on the device and "
+            f"compared per colour channel"
         )
-        return gpu_sweep(profile, binary, scenes, args.timeout_seconds, args.jobs)
-    if args.fps_gate:
-        floor_fps = (
-            args.headroom_fps
-            if args.headroom_fps is not None
-            else 1000.0 / args.budget_ms
-        )
-        return fps_gate(binary, scenes, args.budget_ms, floor_fps, args.timeout_seconds)
+        return device_sweep(binary, list(scenes), args.timeout_seconds, args.jobs)
 
-    print(
-        f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
-        f"tier {args.tier}"
-    )
-    if quick:
-        print(
-            f"QUICK TIER: GPU renders (--gpu --no-promotion), capture "
-            f"capped at {args.capture_cap:g}s. An equal hash is an equal "
-            f"plate; a miss is decoded and judged against the stored "
-            f"baseline plate within mean {QUICK_TOLERANCE[0]:g} / p99 "
-            f"{QUICK_TOLERANCE[1]} per colour channel, because two builds "
-            f"of the host render the same scene a scatter of channels "
-            f"apart. Blind spots: content that only appears after the cap "
-            f"is never rendered, and the backend is the GPU raster path, "
-            f"not the full tier's CPU path. Run the full tier as the final "
-            f"gate before trusting a byte-neutral verdict."
-        )
+    print(f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, tier cpu")
 
     # Read BEFORE the sweep so a scene can be judged the moment it lands.
     baseline = read_manifest(manifest)
 
+    def standing(scene, digest):
+        if args.rebase or scene not in baseline:
+            return "rendered"
+        return "identical" if baseline[scene] == digest else "hash miss"
+
     outdir = discard_later(tempfile.mkdtemp(prefix="plate_ledger_"))
-    results, errors = {}, {}
-    # ONE LINE PER SCENE, AS IT FINISHES, and in completion order — which is
-    # what makes the tail legible: the scene everything is waiting on is the
-    # one that has not printed. Submitted rather than mapped, because map
-    # yields in submission order and would hold every finished scene's line
-    # behind an unfinished earlier one. The counted, judged, timed line here
-    # says everything the summary below says about that scene; the summary
-    # and the verdict remain the report.
-    with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
-        pending = [
-            pool.submit(
-                render_scene,
-                profile,
-                binary,
-                scene,
-                outdir,
-                args.timeout_seconds,
-                tier_args,
-            )
-            for scene in scenes
-        ]
-        for done, future in enumerate(concurrent.futures.as_completed(pending), 1):
-            scene, digest, err, elapsed = future.result()
-            if digest is None:
-                errors[scene] = err
-                standing = "FAILED"
-            else:
-                results[scene] = digest
-                if args.rebase or scene not in baseline:
-                    standing = "rendered"
-                elif baseline[scene] == digest:
-                    standing = "identical"
-                else:
-                    standing = "hash miss"
-            print(
-                f"  [{done:>3}/{len(scenes)}] {standing:<9} "
-                f"{scene:<24} {elapsed:6.1f}s",
-                flush=True,
-            )
-    for scene, err in sorted(errors.items()):
-        print(f"RENDER FAILED  {scene}: {err}")
+    results, errors = sweep(
+        binary, list(scenes), outdir, args.timeout_seconds, args.jobs, (), standing
+    )
+    rendered = {scene: scenes[scene] for scene in results}
 
     if args.rebase or not os.path.exists(manifest):
         if not args.rebase:
@@ -1028,108 +669,64 @@ def main():
                 f"no manifest at {manifest} — writing one (this sweep "
                 f"becomes the baseline)"
             )
-        # A subset rebase (--scenes ... --rebase) merges into the existing
-        # manifest rather than truncating it to the subset: adopting one
-        # deliberately changed plate must not silently discard the baseline
-        # for every scene the sweep did not render. A rebase that skipped
-        # scenes merges for the same reason narrowed to those: this
-        # machine could not ask them anything, so it has nothing to say
-        # about their baselines either.
-        keep = True if args.scenes else (set(skipped) if skipped else None)
+        # A narrowed rebase merges into the existing manifest rather than
+        # truncating it to the subset. A rebase that skipped scenes merges
+        # for the same reason narrowed to those: this machine could not
+        # ask them anything, so it has nothing to say about their
+        # baselines either.
+        keep = True if narrowed else (set(skipped) if skipped else None)
         merged = write_manifest(manifest, keep, results)
         print(
             f"baseline written: {manifest} ({len(merged)} scenes, "
             f"{len(results)} from this sweep)"
         )
-        if quick and results:
-            store_plates(plate_store, outdir, results, not args.scenes)
-            store_plates(
-                quick_thumbnail_store,
-                outdir,
-                results,
-                whole_registry=not args.scenes and not errors,
-            )
-        if args.tier == "world" and results:
-            store_plates(
-                world_thumbnail_store,
-                outdir,
-                results,
-                whole_registry=not args.scenes and not errors,
-            )
-        return 0 if not errors else 1
-
-    movers, missing = [], []
-    for scene, digest in sorted(results.items()):
-        if scene not in baseline:
-            missing.append(scene)
-        elif baseline[scene] != digest:
-            movers.append(scene)
-    identical = len(results) - len(movers) - len(missing)
-    print(
-        f"\n{identical} byte-identical, {len(movers)} with a moved hash, "
-        f"{len(missing)} not in baseline, {len(errors)} failed"
-    )
-
-    verdict = 0
-    for scene in movers:
-        note = ""
-        if quick:
-            # The hash has already said these two plates are not the same
-            # bytes; what is left is whether they are the same picture.
-            within, report = judge_quick(plate_store, outdir, scene)
-            if within:
-                print(
-                    f"  WITHIN {scene:<24} {report} — the device's own "
-                    f"scatter between two builds"
-                )
-                continue
-            note = f"  ({report})"
-        if args.stability > 0:
-            rerenders = {results[scene]}
-            for _ in range(args.stability):
-                _, digest, err, _ = render_scene(
-                    profile,
-                    binary,
-                    scene,
-                    discard_later(tempfile.mkdtemp(prefix="plate_stab_")),
-                    args.timeout_seconds,
-                    tier_args,
-                )
-                if digest:
-                    rerenders.add(digest)
-            if len(rerenders) > 1:
-                print(
-                    f"  MOVED (self-unstable) {scene} — disagrees with "
-                    f"itself across {args.stability + 1} renders; "
-                    f"attribute to the scene, not to the change"
-                )
-                continue
+        verdict = 0
+    else:
+        movers, missing = [], []
+        for scene, digest in sorted(results.items()):
+            if scene not in baseline:
+                missing.append(scene)
+            elif baseline[scene] != digest:
+                movers.append(scene)
+        identical = len(results) - len(movers) - len(missing)
         print(
-            f"  MOVED  {scene}  {baseline[scene][:12]} -> "
-            f"{results[scene][:12]}{note}   <-- FINDING"
+            f"\n{identical} byte-identical, {len(movers)} with a moved hash, "
+            f"{len(missing)} not in baseline, {len(errors)} failed"
         )
-        verdict = 1
-    for scene in missing:
-        print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
-    if quick and results:
-        store_plates(
-            quick_thumbnail_store,
-            outdir,
-            results,
-            whole_registry=not args.scenes and not errors,
-        )
-    if args.tier == "world" and results:
-        store_plates(
-            world_thumbnail_store,
-            outdir,
-            results,
-            whole_registry=not args.scenes and not errors,
-        )
-    if verdict == 0 and not errors:
-        print(
-            "VERDICT: no plate moved beyond the device's own scatter"
-            if quick
-            else "VERDICT: byte-neutral"
+
+        verdict = 0
+        for scene in movers:
+            if args.stability > 0:
+                rerenders = {results[scene]}
+                for _ in range(args.stability):
+                    _, digest, _, _ = render_scene(
+                        binary,
+                        scene,
+                        discard_later(tempfile.mkdtemp(prefix="plate_stab_")),
+                        args.timeout_seconds,
+                    )
+                    if digest:
+                        rerenders.add(digest)
+                if len(rerenders) > 1:
+                    print(
+                        f"  MOVED (self-unstable) {scene} — disagrees with "
+                        f"itself across {args.stability + 1} renders; "
+                        f"attribute to the scene, not to the change"
+                    )
+                    continue
+            print(
+                f"  MOVED  {scene}  {baseline[scene][:12]} -> "
+                f"{results[scene][:12]}   <-- FINDING"
+            )
+            verdict = 1
+        for scene in missing:
+            print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
+        if verdict == 0 and not errors:
+            print("VERDICT: byte-neutral")
+
+    if rendered:
+        store_thumbnails(
+            root, args.config, outdir, rendered, kinds, not narrowed and not errors
         )
     return verdict or (1 if errors else 0)
 

@@ -39,39 +39,31 @@ THE MACHINE MUST BE QUIET, and the window must be able to present: this
 lane opens a real window and a compositor that is busy compositing
 something else is measured along with the sketch.
 
-THE BASELINE IS COMMITTED, one file per build configuration, under
-bench/app_fps_<config>.json. --rebase writes it from this sweep, and A
-NARROWED SWEEP MERGES: with --sketch or --kind it keeps the sketches it
-did not present, so adopting one deliberately changed number never
-discards a number this run did not take. Only an unnarrowed sweep writes
-the file wholesale, which is what drops a sketch that no longer exists.
+THE BASELINE IS COMMITTED under bench/app_fps_<config>.json. --rebase
+writes it from this sweep, and A NARROWED SWEEP MERGES: with --sketch or
+--kind it keeps the sketches it did not present, so adopting one
+deliberately changed number never discards a number this run did not
+take. Only an unnarrowed sweep writes the file wholesale, which is what
+drops a sketch that no longer exists.
 """
 
 import argparse
-import datetime
-import json
 import os
-import platform
 import re
 import subprocess
 import sys
 
+import ledger
+
 # Per-sketch tolerance bands on the presented rate, keyed by a regular
-# expression matched against the sketch name. Only for sketches whose
-# run-to-run spread on a quiet machine honestly exceeds the default; a
-# widened band is a statement about the sketch, not a way past a finding.
+# expression matched against the sketch stem. Empty: no sketch has yet
+# shown a run-to-run spread on a quiet machine that the default does not
+# cover.
 DEFAULT_TOLERANCE = 0.10
 TOLERANCES = {}
 
 # One WINDOW line, and the shape the lane prints it in.
 LINE = re.compile(r"^WINDOW (\S+) (.*)$")
-
-
-def tolerance_for(name):
-    for pattern, band in TOLERANCES.items():
-        if re.search(pattern, name):
-            return band
-    return DEFAULT_TOLERANCE
 
 
 def parse_lines(text):
@@ -130,37 +122,6 @@ def run_lane(binary, args):
     if r.returncode != 0:
         return r.stdout, (r.stderr or r.stdout).strip()[-400:]
     return r.stdout, None
-
-
-def load_baseline(path):
-    if not os.path.exists(path):
-        return None
-    with open(path) as f:
-        return json.load(f)
-
-
-def write_baseline(path, config, window, rows, merge_into):
-    """The baseline, from this sweep and — when it was a subset — what
-    the baseline already held. Pass merge_into=None for a whole sweep,
-    which is the one run entitled to write the file wholesale and thereby
-    to drop what no longer exists."""
-    sketches = dict((merge_into or {}).get("sketches", {}))
-    sketches.update(rows)
-    doc = {
-        "config": config,
-        "host": platform.node(),
-        "machine": platform.machine(),
-        "window": window,
-        "taken": datetime.datetime.now(datetime.timezone.utc).isoformat(
-            timespec="seconds"
-        ),
-        "sketches": {name: sketches[name] for name in sorted(sketches)},
-    }
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(doc, f, indent=1, sort_keys=False)
-        f.write("\n")
-    return doc
 
 
 def main():
@@ -242,20 +203,20 @@ def main():
     # another, and the baseline has to record the one that was measured.
     window = rows[next(iter(rows))].get("window", args.size)
 
-    baseline = load_baseline(baseline_path)
+    baseline = ledger.load_baseline(baseline_path)
     if args.rebase or baseline is None:
         if not args.rebase:
             print(
                 f"no baseline at {baseline_path} — writing one (this sweep "
                 f"becomes the baseline)"
             )
+        # A sweep narrowed by --sketch or --kind merges into what the file
+        # already holds; only an unnarrowed sweep writes it wholesale.
         subset = bool(args.sketch or args.kind)
-        doc = write_baseline(
-            baseline_path,
-            args.config,
-            window,
-            rows,
-            baseline if subset else None,
+        sketches = dict(baseline.get("sketches", {})) if subset and baseline else {}
+        sketches.update(rows)
+        doc = ledger.write_baseline(
+            baseline_path, args.config, "sketches", sketches, {"window": window}
         )
         print(
             f"baseline written: {baseline_path} "
@@ -271,11 +232,7 @@ def main():
             )
         return 1 if error else 0
 
-    if baseline.get("host") and baseline["host"] != platform.node():
-        print(
-            f"WARNING: baseline was taken on {baseline['host']}, this is "
-            f"{platform.node()} — numbers are per machine\n"
-        )
+    ledger.warn_host(baseline)
     if baseline.get("window") and baseline["window"] != window:
         print(
             f"WARNING: baseline was taken at {baseline['window']}, this run "
@@ -290,16 +247,13 @@ def main():
             new.append(name)
             print(f"  NEW        {name:<28} {row['fps']:6.1f} fps")
             continue
-        ratio = row["fps"] / base["fps"] if base.get("fps") else 1.0
-        band = tolerance_for(name)
-        delta = ratio - 1.0
-        if delta < -band:
-            status, bucket = "SLOWER", slower
-        elif delta > band:
-            status, bucket = "FASTER", faster
-        else:
-            status, bucket = "IDENTICAL", identical
-        bucket.append(name)
+        band = ledger.tolerance_for(name, TOLERANCES, DEFAULT_TOLERANCE)
+        status, delta = ledger.judge(
+            row["fps"], base.get("fps"), band, higher_is_better=True
+        )
+        {"SLOWER": slower, "FASTER": faster, "IDENTICAL": identical}[status].append(
+            name
+        )
         print(
             f"  {status:<10} {name:<28} {base['fps']:6.1f} -> {row['fps']:6.1f} fps"
             f"  {delta:+6.1%} (band ±{band:.0%})   work "
@@ -311,17 +265,9 @@ def main():
     for name in missing:
         print(f"  MISSING    {name} (in baseline, not presented — rebase to drop)")
 
-    print(
-        f"\n{len(identical)} identical, {len(faster)} faster, {len(slower)} slower, "
-        f"{len(new)} new, {len(missing)} missing, {len(skipped)} skipped"
+    return ledger.verdict(
+        identical, faster, slower, new, missing, 1 if error else 0, "failed"
     )
-    if slower:
-        print("SLOWER beyond band:")
-        for name in slower:
-            print(f"  {name}   <-- FINDING")
-    if not slower and not error:
-        print("VERDICT: within band")
-    return 1 if slower or error else 0
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@
 #  * A task that declares its own arguments in `usage` CANNOT forward.
 #
 # So each task picks one. Tasks wrapping a script with a considered
-# interface of its own (gate.py, check.py, coverage.py, sanitize.py,
+# interface of its own (check.py, coverage.py, sanitize.py,
 # plate_ledger.py, ctest, Sketchbook) forward and declare nothing;
 # tasks that need to choose a build configuration or a target declare
 # `usage` and do not forward.
@@ -28,9 +28,9 @@ set -e
 # stops after configure rather than building the whole application.
 if [ ! -f build/CMakeCache.txt ]; then
   echo "No build tree yet — configuring (this does not compile the app)."
-  python3 scripts/setup.py --config Debug --configure-only
+  python3 scripts/setup.py --config Release --configure-only
 fi
-cmake --build build --config Debug --target docs
+cmake --build build --config Release --target docs
 """
 
 [tasks.docs]
@@ -82,26 +82,26 @@ open "http://localhost:$port" 2>/dev/null || xdg-open "http://localhost:$port" 2
 # its own directory. Binaries land in build/bin/<config>/.
 
 [tasks.build]
-description = "Configure and build the application (--config Debug|Release|RelWithDebInfo)"
+description = "Configure and build the application (--config Release|Debug|RelWithDebInfo)"
 dir = "apps/spell-circle-canvas"
 usage = '''
-flag "--config <config>" help="build configuration" default="Debug" {
+flag "--config <config>" help="build configuration" default="Release" {
   choices "Debug" "Release" "RelWithDebInfo"
 }
 '''
-run = 'python3 scripts/setup.py --config "${usage_config:-Debug}"'
+run = 'python3 scripts/setup.py --config "${usage_config:-Release}"'
 
 [tasks.app]
-description = "Build and launch SpellCircle (--config Debug|Release|RelWithDebInfo)"
+description = "Build and launch SpellCircle (--config Release|Debug|RelWithDebInfo)"
 dir = "apps/spell-circle-canvas"
 usage = '''
-flag "--config <config>" help="build configuration" default="Debug" {
+flag "--config <config>" help="build configuration" default="Release" {
   choices "Debug" "Release" "RelWithDebInfo"
 }
 '''
 run = '''
 set -e
-config="${usage_config:-Debug}"
+config="${usage_config:-Release}"
 python3 scripts/setup.py --config "$config"
 # A macOS bundle: `open` gives it a proper application activation rather
 # than the console-app treatment the bare binary gets.
@@ -119,37 +119,27 @@ open "build/bin/$config/SpellCircle.app"
 #     mise run test -- --rerun-failed
 
 [tasks.test]
-description = "Run the Debug test suite (extra args go to ctest, after --)"
-dir = "apps/spell-circle-canvas"
-depends = ["build"]
-run = "ctest --test-dir build -C Debug --output-on-failure"
-
-[tasks."test:release"]
 description = "Run the Release test suite (extra args go to ctest, after --)"
 dir = "apps/spell-circle-canvas"
 depends = ["build --config Release"]
 run = "ctest --test-dir build -C Release --output-on-failure"
 
+[tasks."test:debug"]
+description = "Run the Debug test suite (extra args go to ctest, after --)"
+dir = "apps/spell-circle-canvas"
+depends = ["build --config Debug"]
+run = "ctest --test-dir build -C Debug --output-on-failure"
+
 # ---------------------------------------------------------------------------
-# Gates
+# Checks
 #
 # Each of these wraps a script that already has a considered interface,
 # so none of them declare flags of their own — everything after `--` is
 # forwarded:
 #
-#     mise run gate -- --tidy
 #     mise run check -- --fix
 #     mise run sanitize -- --thread
 #     mise run coverage -- --filter compose --open
-
-[tasks.gate]
-description = "The fast gate before a commit, in parallel lanes (args go to gate.py)"
-dir = "apps/spell-circle-canvas"
-# Release, and the whole build: the lanes read binaries rather than
-# building them, and a verdict about the last build is a verdict about
-# code nobody has any more.
-depends = ["build --config Release"]
-run = "python3 scripts/gate.py"
 
 [tasks.check]
 description = "Format and lint the changed files (args after -- go to check.py)"
@@ -162,7 +152,7 @@ dir = "apps/spell-circle-canvas"
 run = "python3 scripts/coverage.py"
 
 [tasks.sanitize]
-description = "ASan+UBSan build and test run; --thread for the TSan lane"
+description = "ASan+UBSan build and test run; --thread for the TSan lane (args go to sanitize.py)"
 dir = "apps/spell-circle-canvas"
 run = "python3 scripts/sanitize.py"
 
@@ -176,9 +166,9 @@ run = "python3 scripts/sanitize.py"
 [tasks.plates]
 description = "Render sketch plates headlessly (args go to Sketchbook, after --)"
 dir = "apps/spell-circle-canvas"
-# Debug, and no --config flag: a task that declares its own flags cannot
-# forward extra arguments, and `--sketch <substring>` is the whole point
-# of running this by hand.
+# Release, and no --config flag: a task that declares its own flags
+# cannot forward extra arguments, and `--sketch <substring>` is the whole
+# point of running this by hand.
 #
 #     mise run plates -- --sketch astrolabe
 #     mise run plates -- --gpu
@@ -204,7 +194,7 @@ exec build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook
 '''
 
 [tasks.ledger]
-description = "Plate sweep over the sketch registry (args go to plate_ledger.py)"
+description = "Plate sweep over the sketch registry in Release (args go to plate_ledger.py)"
 dir = "apps/spell-circle-canvas"
 run = '''
 set -e

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Source-based code coverage, as ONE command: build, test, merge, report.
 
-Configures a dedicated instrumented tree (build-coverage/) with
-SPELLCIRCLE_COVERAGE=ON, reusing the primary build's preset composition
-(vcpkg toolchain, Qt prefix) from CMakeUserPresets.json, builds the test
-targets, runs ctest with per-process profile emission, merges the raw
+Configures a dedicated instrumented tree (build-coverage/) through the
+`coverage` preset that scripts/setup.py writes into CMakeUserPresets.json
+(SPELLCIRCLE_COVERAGE=ON over the `main` composition), builds the test
+targets, runs ctest through the matching test preset — whose environment
+points every test process at its own raw profile — merges the raw
 profiles with llvm-profdata, and prints the llvm-cov summary plus an HTML
-report under build/coverage/html/ — in the PRIMARY build directory, beside
-the other build artifacts. Each run replaces the report wholesale, and
-RUN.txt beside it records the invocation and scope that produced it.
+report under build/coverage/html/ — in the PRIMARY build directory,
+beside the other build artifacts. Each run replaces the report wholesale,
+and RUN.txt beside it records the invocation and scope that produced it.
 
 Usage (from apps/spell-circle-canvas):
   scripts/coverage.py                                # full suite
@@ -17,11 +18,11 @@ Usage (from apps/spell-circle-canvas):
   scripts/coverage.py --open                         # open the HTML index
 
 The primary build/ tree is never touched. Instrumented objects live only
-in build-coverage/, and vcpkg's manifest install is disabled there: the
-dependency archives are read from the primary tree's vcpkg_installed/
-as-is, so the coverage tree never duplicates them. Prebuilt dependencies
-carry no coverage mapping, which is deliberate — the report covers this
-repository's sources.
+in build-coverage/, and the preset reads the primary tree's
+vcpkg_installed/ as-is with the manifest install disabled, so the
+coverage tree never duplicates the dependency archives. Prebuilt
+dependencies carry no coverage mapping, which is deliberate — the report
+covers this repository's sources.
 
 With --filter, only the targets those tests need are built (derived from
 the filtered test list; override with --targets). A full run builds
@@ -43,25 +44,20 @@ Windows binaries exist to run it on.
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 import webbrowser
 from datetime import datetime
 from pathlib import Path
+from typing import NoReturn
 
-from buildtree import (
-    PRIMARY_BUILD_DIR,
-    PROJECT_DIR,
-    build,
-    configure_shared_tree,
-    derived_targets,
-    fail,
-    preset_environment,
-    resolve_preset,
-    run,
-    test_executables,
-)
+from testtree import PROJECT_DIR, build_targets, executables
 
+PRESET = "coverage"
 COVERAGE_BUILD_DIR = PROJECT_DIR / "build-coverage"
+PRIMARY_BUILD_DIR = PROJECT_DIR / "build"
+# Where the test preset's LLVM_PROFILE_FILE puts the raw profiles.
+RAW_DIR = COVERAGE_BUILD_DIR / "coverage" / "raw"
 
 # Source paths the report never counts: prebuilt dependencies,
 # Qt/moc-generated sources, the build tree's own generated files, and
@@ -79,6 +75,29 @@ IGNORE_ALWAYS = [
 # otherwise start counting toward coverage silently, and a regression
 # that shows up as a BETTER number is one nobody goes looking for.
 IGNORE_TEST_SOURCES = [r"/tests?/"]
+
+
+def fail(message: str) -> NoReturn:
+    print(f"\nERROR: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def run(command: list, capture: bool = False) -> subprocess.CompletedProcess:
+    """Runs a subprocess visibly (or captured) and fails loudly on error."""
+    printable = " ".join(str(argument) for argument in command)
+    print(f"\n$ {printable}")
+    result = subprocess.run(
+        [str(argument) for argument in command],
+        cwd=PROJECT_DIR,
+        check=False,
+        capture_output=capture,
+        text=capture,
+    )
+    if result.returncode != 0:
+        if capture and result.stderr:
+            print(result.stderr, file=sys.stderr)
+        fail(f"command failed (exit {result.returncode}): {printable}")
+    return result
 
 
 def llvm_tool(tool: str) -> list:
@@ -106,51 +125,6 @@ def llvm_tool(tool: str) -> list:
         f"cannot find {tool} — install an LLVM toolchain and put its bin/ "
         "on PATH, or point LLVM_ROOT at its root"
     )
-
-
-def run_tests(configuration: str, test_filter: str | None, raw_dir: Path,
-              environment: dict) -> None:
-    """Runs ctest with each test process writing its own raw profile.
-
-    %p (process id) keeps concurrently running tests from clobbering one
-    file; %m (module signature) keeps profiles from differently
-    instrumented binaries apart so the merge stays well-formed.
-    """
-    if raw_dir.exists():
-        shutil.rmtree(raw_dir)
-    raw_dir.mkdir(parents=True)
-    test_environment = environment.copy()
-    test_environment["LLVM_PROFILE_FILE"] = str(raw_dir / "%p-%m.profraw")
-    command = [
-        "ctest", "--test-dir", COVERAGE_BUILD_DIR, "-C", configuration,
-        "--output-on-failure",
-    ]
-    if test_filter:
-        command += ["-R", test_filter]
-    run(command, PROJECT_DIR, env=test_environment)
-
-
-def merge_profiles(raw_dir: Path, profdata: Path) -> None:
-    raw_profiles = sorted(raw_dir.glob("*.profraw"))
-    if not raw_profiles:
-        fail(
-            f"no raw profiles in {raw_dir} — did every test skip, or was "
-            "the tree configured without SPELLCIRCLE_COVERAGE?"
-        )
-    print(f"\n{len(raw_profiles)} raw profiles")
-    run(
-        [*llvm_tool("llvm-profdata"), "merge", "-sparse",
-         *raw_profiles, "-o", profdata],
-        PROJECT_DIR,
-    )
-
-
-def coverage_object_arguments(executables: list[Path]) -> list:
-    """llvm-cov takes the first binary positionally, the rest via -object."""
-    arguments: list = [executables[0]]
-    for executable in executables[1:]:
-        arguments += ["-object", executable]
-    return arguments
 
 
 def main() -> int:
@@ -204,8 +178,14 @@ def main() -> int:
     )
     arguments = argument_parser.parse_args()
 
-    resolved = resolve_preset("main")
-    environment = preset_environment(resolved)
+    if not (PRIMARY_BUILD_DIR / "vcpkg_installed").is_dir():
+        fail(
+            f"no vcpkg_installed under {PRIMARY_BUILD_DIR} — configure the "
+            "primary build first (scripts/setup.py) so build-coverage can "
+            "reuse its dependencies"
+        )
+    if not (PROJECT_DIR / "CMakeUserPresets.json").exists():
+        fail("no CMakeUserPresets.json — run scripts/setup.py first")
 
     # Instrumentation intermediates stay with the instrumented tree; the
     # human-facing report lands in the PRIMARY build directory, where the
@@ -213,68 +193,78 @@ def main() -> int:
     # Each run REPLACES the report wholesale — what sits there is always
     # the last run, never an accumulation — and RUN.txt says which run
     # that was, so a filtered subset can never pass for the full suite.
-    coverage_dir = COVERAGE_BUILD_DIR / "coverage"
-    raw_dir = coverage_dir / "raw"
-    profdata = coverage_dir / "coverage.profdata"
+    profdata = COVERAGE_BUILD_DIR / "coverage" / "coverage.profdata"
     report_dir = PRIMARY_BUILD_DIR / "coverage"
     html_dir = report_dir / "html"
 
-    configure_shared_tree(
-        COVERAGE_BUILD_DIR, {"SPELLCIRCLE_COVERAGE": "ON"},
-        resolved, environment,
-    )
+    run(["cmake", "--preset", PRESET])
 
     targets = arguments.targets
     if targets is None and arguments.filter:
-        targets = derived_targets(COVERAGE_BUILD_DIR, arguments.config,
-                                  arguments.filter)
+        targets = build_targets(PRESET, arguments.config, arguments.filter)
         if not targets:
             fail(f"--filter {arguments.filter!r} matches no buildable tests")
         print(f"targets derived from --filter: {' '.join(targets)}")
-    build(COVERAGE_BUILD_DIR, targets or [], arguments.config, environment)
+    build = ["cmake", "--build", "--preset", PRESET, "--config", arguments.config]
+    build += ["--parallel"]
+    if targets:
+        build += ["--target", *targets]
+    run(build)
 
-    run_tests(arguments.config, arguments.filter, raw_dir, environment)
-    merge_profiles(raw_dir, profdata)
+    if RAW_DIR.exists():
+        shutil.rmtree(RAW_DIR)
+    RAW_DIR.mkdir(parents=True)
+    test = ["ctest", "--preset", PRESET, "-C", arguments.config]
+    if arguments.filter:
+        test += ["-R", arguments.filter]
+    run(test)
 
-    executables = [
-        executable
-        for executable in test_executables(COVERAGE_BUILD_DIR,
-                                           arguments.config,
-                                           arguments.filter)
-        if executable.exists()
-    ]
-    if not executables:
+    raw_profiles = sorted(RAW_DIR.glob("*.profraw"))
+    if not raw_profiles:
+        fail(
+            f"no raw profiles in {RAW_DIR} — did every test skip, or was "
+            "the tree configured without SPELLCIRCLE_COVERAGE?"
+        )
+    print(f"\n{len(raw_profiles)} raw profiles")
+    run(
+        [*llvm_tool("llvm-profdata"), "merge", "-sparse", *raw_profiles, "-o", profdata]
+    )
+
+    objects = executables(PRESET, arguments.config, arguments.filter)
+    if not objects:
         fail("no test executables found in the coverage tree")
 
     ignore_patterns = list(IGNORE_ALWAYS)
     if not arguments.include_tests:
         ignore_patterns += IGNORE_TEST_SOURCES
-    ignore_regex = "|".join(ignore_patterns)
-
-    object_arguments = coverage_object_arguments(executables)
-    common_arguments = [
-        *object_arguments,
+    # llvm-cov takes the first binary positionally, the rest via -object.
+    common_arguments: list = [objects[0]]
+    for executable in objects[1:]:
+        common_arguments += ["-object", executable]
+    common_arguments += [
         f"-instr-profile={profdata}",
-        f"-ignore-filename-regex={ignore_regex}",
+        f"-ignore-filename-regex={'|'.join(ignore_patterns)}",
     ]
 
-    run([*llvm_tool("llvm-cov"), "report", *common_arguments], PROJECT_DIR)
+    run([*llvm_tool("llvm-cov"), "report", *common_arguments])
 
     if report_dir.exists():
         shutil.rmtree(report_dir)
     report_dir.mkdir(parents=True)
     run(
-        [*llvm_tool("llvm-cov"), "show", "--format=html",
-         f"-output-dir={html_dir}", *common_arguments],
-        PROJECT_DIR,
+        [
+            *llvm_tool("llvm-cov"),
+            "show",
+            "--format=html",
+            f"-output-dir={html_dir}",
+            *common_arguments,
+        ]
     )
 
     if arguments.export_lcov:
         lcov_path = Path(arguments.export_lcov)
         result = run(
-            [*llvm_tool("llvm-cov"), "export", "-format=lcov",
-             *common_arguments],
-            PROJECT_DIR,
+            [*llvm_tool("llvm-cov"), "export", "-format=lcov", *common_arguments],
             capture=True,
         )
         lcov_path.write_text(result.stdout)
@@ -283,14 +273,16 @@ def main() -> int:
     # The report's provenance, beside the report. A reader who finds
     # build/coverage/ a week from now learns what produced it without
     # trusting anyone's memory: the exact invocation, the scope, and when.
-    scope = (f"test filter: {arguments.filter}" if arguments.filter
-             else "full test suite")
+    scope = (
+        f"test filter: {arguments.filter}" if arguments.filter else "full test suite"
+    )
     (report_dir / "RUN.txt").write_text(
         f"generated: {datetime.now().isoformat(timespec='seconds')}\n"
         f"command:   {' '.join(sys.argv)}\n"
         f"config:    {arguments.config}\n"
         f"scope:     {scope}\n"
-        f"objects:   {', '.join(e.name for e in executables)}\n")
+        f"objects:   {', '.join(e.name for e in objects)}\n"
+    )
 
     index = html_dir / "index.html"
     if arguments.open:

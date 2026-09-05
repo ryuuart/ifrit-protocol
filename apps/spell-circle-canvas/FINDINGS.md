@@ -148,10 +148,9 @@ second is a spike rather than a level, so one frame in twenty costs four
 times the median.
 
 Intended: a sketch holds 60 FPS at the canvas it declares. Both are
-large sheets over expensive material stacks, and the plate ledger already
-carries a per-sketch timeout override for `chaucer_astrolabe`, so the
-cost is known — but a declared canvas the sketch cannot present at is a
-different statement from a sweep that takes a while.
+large sheets over expensive material stacks — but a declared canvas the
+sketch cannot present at is a different statement from a sweep that
+takes a while.
 
 Assert once fixed: `--bench` verdicts PASS for both, `nightingale_coxcomb`
 with p99 inside the budget rather than the median alone.
