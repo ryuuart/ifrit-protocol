@@ -57,6 +57,46 @@ struct RevolveOptions {
 Mesh revolve(const std::vector<glm::vec2>& profile,
              const RevolveOptions& options = {});
 
+/** Which of a box's six faces to emit, and the colour the emitted ones
+ *  carry.
+ *
+ *  Faces are named by the axis they look along: `front` is +z — the
+ *  facing `mesh::quad()` uses — `top` is +y, `right` is +x. Dropping one
+ *  is what a solid standing on a ground plane or seen from one side is
+ *  for: the underside of a column a camera never gets beneath is a sixth
+ *  of the triangles for nothing, and a face nothing sees is a face
+ *  nothing misses.
+ *
+ *  `tint` and `sideShade` write the colors lane, and only a stated one
+ *  does: a plain box carries no colour and takes whatever the fill
+ *  gives it. `sideShade` multiplies the rgb of the four SIDE faces —
+ *  front, back, left and right — leaving top and bottom at full tint,
+ *  which is the flat-shaded reading that makes a field of boxes read as
+ *  blocks rather than as one surface. It decides nothing at its
+ *  default: 1 shades nothing. */
+struct BoxOptions {
+  bool front = true;   ///< +z
+  bool back = true;    ///< -z
+  bool right = true;   ///< +x
+  bool left = true;    ///< -x
+  bool top = true;     ///< +y
+  bool bottom = true;  ///< -y
+  glm::vec4 tint = {1, 1, 1, 1};
+  float sideShade = 1;
+};
+
+/** The axis-aligned box spanning @p lo to @p hi — the one primitive
+ *  solid that is not a parametric sheet, because its normals are flat
+ *  and its corners are hard: every face carries its own four vertices,
+ *  its own outward normal and its own (0,0)–(1,1) UV square, so a
+ *  texture lands square on each face and no edge is smoothed across.
+ *
+ *  The corners are sorted, so a caller that hands the two points the
+ *  other way about still gets a box wound outward rather than one
+ *  turned inside out. A degenerate span (equal on an axis) emits its
+ *  faces flat rather than nothing. */
+Mesh box(glm::vec3 lo, glm::vec3 hi, const BoxOptions& options = {});
+
 /** Torus around +y: major radius R in xz, tube radius r. */
 Mesh torus(float R, float r, int nu = 64, int nv = 32);
 

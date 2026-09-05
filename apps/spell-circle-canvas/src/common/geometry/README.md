@@ -972,10 +972,18 @@ beneath, in `sigil::geometry::shapes`.
   what it makes is a `Mesh`. Two of them LIFT another currency:
   `extrude()` raises a filled path into a solid (caps earcut-triangulated
   with holes intact, walls swept from the flattened contours) and
-  `revolve()` lathes a profile polyline around +y. The rest are the named
-  surfaces — `torus()`, `superellipsoid()`, `cylinderPanel()` — each one
-  `mesh::grid()` evaluated through a formula anyone could have written,
-  which is why they are a shelf and not the currency.
+  `revolve()` lathes a profile polyline around +y. Most of the rest are
+  the named surfaces — `torus()`, `superellipsoid()`, `cylinderPanel()` —
+  each one `mesh::grid()` evaluated through a formula anyone could have
+  written, which is why they are a shelf and not the currency. `box()` is
+  the one that is not a sheet: flat normals and hard corners, so every
+  face carries its own four vertices, its own outward normal and its own
+  UV square, and any of the six can be dropped — the underside a camera
+  never gets beneath is a sixth of the triangles for nothing. Its
+  `sideShade` darkens the four side faces against the top and bottom,
+  which is what makes a field of boxes read as blocks rather than as one
+  surface; at its default of 1 it shades nothing and the mesh carries no
+  colour at all.
 
 Every value here has `path(SkSize)`, `operator==` and `operator()`, and
 that is the whole contract: a consumer that caches drawings prunes on the

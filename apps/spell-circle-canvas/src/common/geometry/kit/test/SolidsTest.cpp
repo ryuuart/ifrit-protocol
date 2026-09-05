@@ -127,3 +127,51 @@ TEST(Solids, TorusNormalsPointOutward) {
   m.bounds(&lo, &hi);
   EXPECT_NEAR(hi.x, 130.0f, 1e-1f);
 }
+
+TEST(Solids, TheBoxKeepsEachFaceFlatAndDroppingOneCostsItsTriangles) {
+  const Mesh whole = box({-1, -2, -3}, {1, 2, 3});
+  EXPECT_EQ(whole.triangleCount(), 12u);
+  // Four vertices per face, unshared, so every corner is hard: a shared
+  // corner would average three normals and round the box off.
+  EXPECT_EQ(whole.vertexCount(), 24u);
+  EXPECT_TRUE(normalsAreUnit(whole));
+  glm::vec3 lo, hi;
+  whole.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.x - lo.x, 2.0f, 1e-4f);
+  EXPECT_NEAR(hi.y - lo.y, 4.0f, 1e-4f);
+  EXPECT_NEAR(hi.z - lo.z, 6.0f, 1e-4f);
+  // Every face carries its own UV square rather than a slice of one.
+  EXPECT_EQ(whole.uvs.size(), whole.positions.size());
+  EXPECT_EQ(whole.uvs[0], (glm::vec2{0, 0}));
+  EXPECT_EQ(whole.uvs[2], (glm::vec2{1, 1}));
+
+  // The face nothing sees is the face nothing pays for.
+  const Mesh open = box({-1, -2, -3}, {1, 2, 3}, {.bottom = false});
+  EXPECT_EQ(open.triangleCount(), 10u);
+  for (const glm::vec3& n : open.normals) EXPECT_GT(n.y, -0.5f);
+
+  // Handed the corners the other way about, it is the same box wound the
+  // same way out, not one turned inside out.
+  const Mesh reversed = box({1, 2, 3}, {-1, -2, -3});
+  EXPECT_EQ(reversed.positions, whole.positions);
+  EXPECT_EQ(reversed.normals, whole.normals);
+}
+
+TEST(Solids, ABoxTakesColourOnlyWhenItIsAskedFor) {
+  // No tint, no colors lane: the fill decides, as it does for every other
+  // solid on the shelf.
+  EXPECT_TRUE(box({0, 0, 0}, {1, 1, 1}).colors.empty());
+
+  const Mesh shaded = box({0, 0, 0}, {1, 1, 1},
+                          {.tint = {1.0f, 0.5f, 0.25f, 1.0f},
+                           .sideShade = 0.5f});
+  ASSERT_EQ(shaded.colors.size(), shaded.positions.size());
+  // The four side faces darken and the two horizontal ones do not, so the
+  // top of a block reads as its own colour and the walls fall away.
+  for (size_t i = 0; i < shaded.positions.size(); ++i) {
+    const float expected = std::abs(shaded.normals[i].y) > 0.5f ? 1.0f : 0.5f;
+    EXPECT_NEAR(shaded.colors[i].r, 1.0f * expected, 1e-5f);
+    EXPECT_NEAR(shaded.colors[i].g, 0.5f * expected, 1e-5f);
+    EXPECT_NEAR(shaded.colors[i].a, 1.0f, 1e-5f);  // alpha is not shaded
+  }
+}

@@ -198,6 +198,52 @@ Mesh revolve(const std::vector<glm::vec2>& profile,
   });
 }
 
+Mesh box(glm::vec3 lo, glm::vec3 hi, const BoxOptions& options) {
+  const glm::vec3 a{std::min(lo.x, hi.x), std::min(lo.y, hi.y),
+                    std::min(lo.z, hi.z)};
+  const glm::vec3 b{std::max(lo.x, hi.x), std::max(lo.y, hi.y),
+                    std::max(lo.z, hi.z)};
+  // The eight corners, then each face as four of them wound outward.
+  const std::array<glm::vec3, 8> corner = {
+      glm::vec3{a.x, a.y, b.z}, glm::vec3{b.x, a.y, b.z},
+      glm::vec3{b.x, b.y, b.z}, glm::vec3{a.x, b.y, b.z},
+      glm::vec3{a.x, a.y, a.z}, glm::vec3{b.x, a.y, a.z},
+      glm::vec3{b.x, b.y, a.z}, glm::vec3{a.x, b.y, a.z}};
+  struct Face {
+    bool BoxOptions::*wanted;
+    glm::vec3 normal;
+    std::array<int, 4> ring;
+    bool side;  ///< sideShade applies to the four that look sideways
+  };
+  static const std::array<Face, 6> kFaces = {
+      Face{&BoxOptions::front, {0, 0, 1}, {0, 1, 2, 3}, true},
+      Face{&BoxOptions::back, {0, 0, -1}, {5, 4, 7, 6}, true},
+      Face{&BoxOptions::right, {1, 0, 0}, {1, 5, 6, 2}, true},
+      Face{&BoxOptions::left, {-1, 0, 0}, {4, 0, 3, 7}, true},
+      Face{&BoxOptions::top, {0, 1, 0}, {3, 2, 6, 7}, false},
+      Face{&BoxOptions::bottom, {0, -1, 0}, {4, 5, 1, 0}, false}};
+
+  const bool colored =
+      options.tint != glm::vec4{1, 1, 1, 1} || options.sideShade != 1.0f;
+  Mesh out;
+  for (const Face& face : kFaces) {
+    if (!(options.*face.wanted)) continue;
+    const auto base = (uint32_t)out.positions.size();
+    const float shade = face.side ? options.sideShade : 1.0f;
+    for (int k = 0; k < 4; ++k) {
+      out.positions.push_back(corner[(size_t)face.ring[(size_t)k]]);
+      out.normals.push_back(face.normal);
+      out.uvs.emplace_back((float)(k == 1 || k == 2), (float)(k >= 2));
+      if (colored)
+        out.colors.emplace_back(options.tint.r * shade, options.tint.g * shade,
+                                options.tint.b * shade, options.tint.a);
+    }
+    out.indices.insert(out.indices.end(),
+                       {base, base + 1, base + 2, base, base + 2, base + 3});
+  }
+  return out;
+}
+
 Mesh torus(float R, float r, int nu, int nv) {
   return grid(nu, nv, [=](float u, float v) -> glm::vec3 {
     const float theta = u * 2.0f * (float)M_PI;
