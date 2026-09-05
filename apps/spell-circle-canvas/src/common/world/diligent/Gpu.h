@@ -2,9 +2,11 @@
 
 /** @file
  * What the GPU executor holds between one pass and the next: the frame's
- * resources as device textures, the meshes uploaded from the extracted
- * view, the pipelines built from compiled programs, and the one buffer
- * every draw's uniforms are written into.
+ * resources as device textures, the pipelines built from compiled
+ * programs, and the device's own shared resources and residencies — the
+ * uniform buffer every draw is written into, and the meshes and maps a
+ * view names, which the device feature puts there and this one only asks
+ * for.
  *
  * Diligent's types appear here and in this feature's sources alone; the
  * public header names none of them.
@@ -21,7 +23,9 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgeometry/device/Meshes.h>
 #include <sigilgeometry/device/Resources.h>
+#include <sigilgeometry/device/Textures.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
@@ -31,7 +35,6 @@
 #include <sigilworld/frame/View.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
-#include <Graphics/GraphicsTools/interface/DynamicBuffer.hpp>
 #include <boost/container/map.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -76,28 +79,10 @@ struct DeviceImage {
   bool written = false;
 };
 
-/** A MAP ON THE DEVICE: either an image uploaded from host memory, or a
- *  texture someone else painted on THIS device, wrapped without a copy.
- *  `used` is the frame it was last drawn with, so a map no view names
- *  any more is let go. */
-struct SampledImage {
-  dg::RefCntAutoPtr<dg::ITexture> texture;
-  uint64_t used = 0;
-};
-
-/** A MESH UPLOADED, held under the number the frame gave the artefact it
- *  came from. NOT under its address: an artefact that is dropped frees
- *  its memory and the next one cooked can land on it, so an address
- *  cannot say whether two frames are looking at the same triangles. */
-struct MeshBuffers {
-  dg::RefCntAutoPtr<dg::IBuffer> vertices;
-  dg::RefCntAutoPtr<dg::IBuffer> indices;
-  size_t vertexCount = 0;
-  uint32_t indexCount = 0;
-  /** The frame this was last drawn in, so a mesh no view names any more
-   *  is let go. */
-  uint64_t used = 0;
-};
+/** What a mesh is once it stands on the device. The residency that puts
+ *  it there is the device feature's, and this is the name a draw here
+ *  reads it by. */
+using ::sigil::geometry::device::MeshBuffers;
 
 /** HOW A PIPELINE DIFFERS from another built out of the same program:
  *  how it blends, and whether it writes depth. Two draws that agree on
@@ -131,7 +116,7 @@ struct Pipeline {
 /** THE EXECUTOR'S STATE, shared by every copy of the runtime value one
  *  call made. */
 struct Gpu {
-  explicit Gpu(Device& d) : device(&d), shared(d) {}
+  explicit Gpu(Device& d) : device(&d), shared(d), meshes(d), maps(d) {}
   ~Gpu();
 
   Device* device = nullptr;
@@ -139,8 +124,12 @@ struct Gpu {
    *  the samplers, the white texel and the readback — which this one
    *  holds rather than owns a second copy of. */
   ::sigil::geometry::device::Resources shared;
+  /** …and, on the same terms, the meshes and the maps standing on that
+   *  device. A frame names what it wants drawn; putting it there is the
+   *  device's own business and is not spelled again here. */
+  ::sigil::geometry::device::MeshResidency meshes;
+  ::sigil::geometry::device::TextureResidency maps;
   SkISize extent{0, 0};
-  uint64_t frame = 0;
 
   boost::container::map<std::string, DeviceImage, std::less<>> images;
   dg::RefCntAutoPtr<dg::ITexture> depth;
@@ -151,35 +140,7 @@ struct Gpu {
    *  these, and they are addressed by index so that two such stages in
    *  one pass cannot be handed the same one. */
   std::vector<dg::RefCntAutoPtr<dg::ITexture>> scratch;
-  boost::container::map<uint64_t, MeshBuffers> meshes;
-  /** THE ONE PAIR OF BUFFERS a mesh nobody can name is written into,
-   *  grown to fit and overwritten by the next draw. A draw whose seam
-   *  carries no artefact number is told nothing that says two of them
-   *  are the same triangles, so there is nothing to key a cache on and
-   *  nothing kept between them.
-   *
-   *  The two below own the storage and the growth; `streamed` carries
-   *  the counts of THIS draw, which are not the buffers'. Each is made
-   *  on the first stream, because a `DynamicBuffer` cannot be moved and
-   *  an executor that never streams should hold no buffer at all. */
-  std::unique_ptr<dg::DynamicBuffer> streamVertices;
-  std::unique_ptr<dg::DynamicBuffer> streamIndices;
-  MeshBuffers streamed;
   boost::container::map<PipelineKey, Pipeline> pipelines;
-  /** Maps whose pixels already stand on this device, under the name the
-   *  API gave them. Nothing is copied for one of these. */
-  boost::container::map<uint64_t, SampledImage> wrapped;
-  /** …and maps that had to be brought over, under the id of the image
-   *  they were brought from. */
-  boost::container::map<uint32_t, SampledImage> uploaded;
-  /** PREFILTERED PANORAMAS, under the id of the panorama they were
-   *  built from. One texture with the whole chain in it, in a float
-   *  format, because a sky holds values above one and an eight-bit
-   *  upload would put the sun and the sky beside it at the same
-   *  brightness. */
-  boost::container::map<uint32_t, SampledImage> environments;
-  /** …and the cosine convolutions, under the same key. */
-  boost::container::map<uint32_t, SampledImage> irradiances;
 
   // ---- what the whole of it is made of (Gpu.cpp) ----
   /** Sizes the frame's targets to @p size, dropping everything made at
@@ -194,23 +155,6 @@ struct Gpu {
    *  before; null when nothing has written it. */
   dg::ITexture* current(std::string_view name);
   dg::ITexture* previous(std::string_view name);
-  /** @p mesh's buffers, uploaded the first time @p artefact is asked
-   *  for. A frame cooking a mesh of its own — the stamps of a point set
-   *  — has no artefact to name, and passes an id of its own that no
-   *  frame after it repeats. */
-  const MeshBuffers* upload(uint64_t artefact, const geometry::mesh::Mesh& mesh,
-                            std::string_view primColorLane = {});
-  /** THE PANORAMA on the device: one texture whose levels are the map's
-   *  prefiltered chain, uploaded once per map and kept. Null when the
-   *  map carries nothing or the device refused it. */
-  dg::ITexture* environment(const material::EnvironmentMap& map);
-  /** …and the cosine convolution beside it, one small texture a normal
-   *  reads directly. */
-  dg::ITexture* irradiance(const material::EnvironmentMap& map);
-  /** @p mesh in the streaming buffers, overwriting whatever draw wrote
-   *  them last. For a caller whose seam carries no artefact number. */
-  const MeshBuffers* stream(const geometry::mesh::Mesh& mesh,
-                            std::string_view primColorLane = {});
   /** The pipeline for @p key, built on the first ask. Null when the
    *  program is empty or the device refused it. */
   const Pipeline* pipeline(const PipelineKey& key);
@@ -219,21 +163,12 @@ struct Gpu {
    *  is what this one writes into — so a resource costs two textures for
    *  its whole life, no copy, and no allocation per frame. */
   void beginFrame();
-  /** Closes it: lets go of the meshes no view has named lately. */
+  /** Closes it: the device's frame is finished and the residencies let
+   *  go of what no view has named lately. */
   void endFrame();
   /** @p name's pixels, read back through a staging texture. Null when
    *  nothing has written it. */
   sk_sp<SkImage> read(std::string_view name);
-
-  /** THE MAP @p map IS, on this device.
-   *
-   *  A texture whose source says its pixels already stand on THIS device
-   *  is wrapped where it is — nothing is copied, and a scene painted by
-   *  another library into a texture on the shared device is sampled as
-   *  it was painted. Anything else is brought over from host memory once
-   *  and held under the image it came from. Null when the texture yields
-   *  no image. */
-  dg::ITexture* sample(const material::Texture& map);
 
   /** A texture of this frame's size and format. */
   dg::RefCntAutoPtr<dg::ITexture> makeColor(const char* label);

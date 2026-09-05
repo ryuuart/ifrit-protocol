@@ -52,7 +52,7 @@ sigil_library(SigilWorldDiligent
           Programs.cpp Programs.h Runtime.cpp
           ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_PAINTER_PROOF}
           ${SIGIL_WORLD_POST_PROOF}
-  HEADERS Import.h Maps.h Painter.h Runtime.h
+  HEADERS Import.h Painter.h Runtime.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender

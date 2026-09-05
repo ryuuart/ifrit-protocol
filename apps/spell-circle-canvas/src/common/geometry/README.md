@@ -1002,6 +1002,31 @@ fence signal or wait on `gpu()`, is made under a `QueueLock`. Diligent
 takes the same lock from inside its own submissions, which is why the
 lock does not nest: no Diligent call may be made while one is held.
 
+**Residency is the device's too.** A mesh is host memory and a map is an
+image; a draw needs buffers and a texture. `device::MeshResidency`
+(`device/Meshes.h`) makes that crossing and remembers it: `upload()`
+holds a mesh under the number the caller gave the artefact it came from,
+so two frames looking at the same triangles cross once, and `stream()`
+writes a mesh nobody can name into one pair of buffers grown to fit and
+overwritten by the next draw. `device::MeshVertex` is the one vertex
+layout every pipeline over those buffers declares — filled in on upload
+for a mesh that carries no normals, uvs or tint — and `meshLayout()` is
+that layout as a pipeline states it, with the primitive lane declared or
+not over the same stride. `device::TextureResidency` (`device/Textures.h`)
+is the same story for maps: pixels that already stand on this very
+device are wrapped where they are and nothing is copied, everything else
+is brought over once and held under the image it came from, and the
+prefiltered panorama and its cosine convolution are uploaded once per
+sky as half floats, because a sky holds values above one. `endFrame()`
+on either lets go of what no draw has named lately, so a window sliding
+along a curve does not hold what it cooked for the life of the scene.
+
+Two executors sharing a device share both, exactly as they share
+`device::Resources`. A renderer above says WHAT it wants drawn; putting
+it on the device is not a thing each renderer answers for itself.
+`mapMipLevels()` is the one arithmetic behind the chain an uploaded map
+carries.
+
 **The device executors of this library's own seams stand beside their CPU
 ones**, in `mesh/pop/device/`: `pop::deviceRuntime(device)` cooks a chain
 by dispatching the kernel this build compiled,
@@ -1214,9 +1239,13 @@ another feature, and none of them reaches a public header.
 
 `device` is the exception to all of that, and the one feature that
 brings a renderer's dependencies with it: Diligent Engine, SigilCore's
-hardware device and SigilSkia's Graphite. Nothing above it links it
-unless it wants a device, and no other feature here reaches down into
-it.
+hardware device, SigilSkia's Graphite, and — because residency is what
+gets made resident — the mesh currency and SigilMaterial's texture.
+Nothing above it links it unless it wants a device, and no other feature
+here reaches down into it. It is the one place a geometry target names a
+material one other than `path/blend`'s private colour link, and it reads
+a texture and an environment map for one thing only: putting their
+pixels on the device.
 
 It deliberately does not own a window, a Qt dependency, a
 component or scene kernel, an animation timeline, an image decoder, a

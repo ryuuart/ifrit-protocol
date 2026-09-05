@@ -1,5 +1,14 @@
 # The device feature: the one GPU device 2D and 3D share, and what every
-# executor standing on it holds.
+# executor standing on it holds — the shared resources, the meshes
+# resident on it, and the maps.
+#
+# RESIDENCY IS THE DEVICE'S, not a renderer's. A mesh is host memory and
+# a map is an image; a draw needs buffers and textures. The crossing has
+# one vertex layout, one lifetime rule and one cache, and two executors
+# sharing a device share the crossing rather than each copying every
+# mesh and every map a second time. That is why the mesh currency and
+# the material texture are linked here: they are what gets made
+# resident, and nothing here reads either for anything else.
 #
 # THE CREATION POINT SITS BELOW EVERY CONSUMER, and it has to. Diligent
 # creates the Vulkan device — this build of it cannot attach to a device
@@ -40,11 +49,12 @@ enable_language(C)
 
 
 sigil_library(SigilGeometryDevice
-  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Resources.cpp VolkShim.c
-  HEADERS Device.h Resources.h
+  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Meshes.cpp Resources.cpp
+          Textures.cpp VolkShim.c
+  HEADERS Device.h Meshes.h Resources.h Textures.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC unofficial::diligent-engine::DiligentCore SigilCoreHardware
-         SigilSkiaGraphite
+         SigilSkiaGraphite SigilGeometryMesh SigilMaterialTexture
   PRIVATE unofficial::diligent-engine::volk Vulkan::Headers)
 
 # The device fixture every binary with device cases reads: one device per
@@ -57,7 +67,7 @@ set(SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/suppor
 # the reason when the machine has none, so a machine without one runs
 # `ctest -LE gpu` and checks nothing it cannot judge.
 sigil_test(geometry_device_test
-  SOURCES test/DeviceTest.cpp
+  SOURCES test/DeviceTest.cpp test/ResidencyTest.cpp
   LIBRARIES SigilGeometryDevice
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support
                ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}

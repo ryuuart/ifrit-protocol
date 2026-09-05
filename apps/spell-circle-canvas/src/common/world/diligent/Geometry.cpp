@@ -200,7 +200,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               std::span<const light::Light> lights, const Environment& sky,
               const glm::mat3& orientation, bool lit, bool depthWrite,
               bool cull) {
-  const MeshBuffers* buffers = gpu.upload(artefact, mesh);
+  const MeshBuffers* buffers = gpu.meshes.upload(artefact, mesh);
   if (!buffers) return;
   const Surface surface = surfaceOf(material, lit);
   if (!surface.program || surface.program->empty()) return;
@@ -218,10 +218,10 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   // THE PANORAMA, uploaded once per map and kept. Its level count is
   // what says there is a sky at all, so it is asked for before the
   // uniforms are written.
-  dg::ITexture* panorama = lit ? gpu.environment(sky.map) : nullptr;
-  dg::ITexture* panoramaNext = lit ? gpu.environment(sky.next) : nullptr;
-  dg::ITexture* lobe = lit ? gpu.irradiance(sky.map) : nullptr;
-  dg::ITexture* lobeNext = lit ? gpu.irradiance(sky.next) : nullptr;
+  dg::ITexture* panorama = lit ? gpu.maps.environment(sky.map) : nullptr;
+  dg::ITexture* panoramaNext = lit ? gpu.maps.environment(sky.next) : nullptr;
+  dg::ITexture* lobe = lit ? gpu.maps.irradiance(sky.map) : nullptr;
+  dg::ITexture* lobeNext = lit ? gpu.maps.irradiance(sky.next) : nullptr;
   if (!panoramaNext) panoramaNext = panorama;
   if (!lobeNext) lobeNext = lobe;
   const int levels = panorama ? (int)panorama->GetDesc().MipLevels : 0;
@@ -260,7 +260,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     if (slot == kMapSlot) {
       // Asked of the device and not of the host image: a source whose
       // pixels stand on this device has no host image to check for.
-      if (map) textures[i] = gpu.sample(*map);
+      if (map) textures[i] = gpu.maps.sample(*map);
       continue;
     }
     // …and the four panorama slots are the FRAME'S, not any material's:
@@ -288,7 +288,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     // built with, which is what keeps an undressed body reading the one
     // white texel rather than a map that says nothing.
     const material::Texture* worn = material::kit::map(*material, slot);
-    if (worn && worn != map) textures[i] = gpu.sample(*worn);
+    if (worn && worn != map) textures[i] = gpu.maps.sample(*worn);
   }
 
   dg::IDeviceContext* context = gpu.device->context();
@@ -322,12 +322,12 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   if (!sky.valid() || sky.backdrop.intensity <= 0) return;
   const material::slang::Compiled& program = backdropProgram();
   if (program.empty()) return;
-  dg::ITexture* panorama = gpu.environment(sky.map);
+  dg::ITexture* panorama = gpu.maps.environment(sky.map);
   if (!panorama) return;
-  dg::ITexture* panoramaNext = gpu.environment(sky.next);
+  dg::ITexture* panoramaNext = gpu.maps.environment(sky.next);
   if (!panoramaNext) panoramaNext = panorama;
-  dg::ITexture* lobe = gpu.irradiance(sky.map);
-  dg::ITexture* lobeNext = gpu.irradiance(sky.next);
+  dg::ITexture* lobe = gpu.maps.irradiance(sky.map);
+  dg::ITexture* lobeNext = gpu.maps.irradiance(sky.next);
   if (!lobeNext) lobeNext = lobe;
 
   // The sky is opaque and stands behind everything, so it writes no

@@ -71,7 +71,7 @@ class PainterExecutor : public geometry::mesh::render::Executor {
         !style.primColorLane.empty() &&
         style.mode == geometry::mesh::render::MeshStyle::Mode::Lit;
     const MeshBuffers* buffers =
-        gpu.stream(mesh, tinted ? style.primColorLane : std::string_view{});
+        gpu.meshes.stream(mesh, tinted ? style.primColorLane : std::string_view{});
     if (!buffers) {
       gpu.endFrame();
       return;
@@ -99,7 +99,7 @@ class PainterExecutor : public geometry::mesh::render::Executor {
     std::vector<dg::ITexture*> textures(program.textures.size(), nullptr);
     if (style.texture) {
       const material::Texture map = material::Texture::of(style.texture);
-      if (dg::ITexture* sampled = gpu.sample(map))
+      if (dg::ITexture* sampled = gpu.maps.sample(map))
         for (size_t i = 0; i < textures.size(); ++i)
           if (program.textures[i] == "uTexture") textures[i] = sampled;
     }

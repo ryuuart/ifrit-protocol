@@ -6,157 +6,20 @@
 
 #include "Gpu.h"
 
-#include <sigilworld/diligent/Maps.h>
-
-#include <sigilskia/graphite/Pixels.h>
-
-// clang-format off
-// ORDER IS LOAD-BEARING HERE, which is why the sorter is held off: the
-// engine's Vulkan interface names Vulkan's handle types and does not
-// include the header that declares them, so an alphabetical sort of the
-// two leaves every one of those names unknown.
-#include <vulkan/vulkan.h>
-#include <Graphics/GraphicsEngineVulkan/interface/RenderDeviceVk.h>
-// clang-format on
-
 #include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
-#include <include/core/SkBitmap.h>
-#include <include/core/SkImageInfo.h>
-#include <sigilcore/hardware/GpuDevice.h>
 
-#include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
 #include <Graphics/GraphicsEngine/interface/GraphicsTypesX.hpp>
 #include <Graphics/GraphicsTools/interface/MapHelper.hpp>
-#include <algorithm>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace sigil::world::diligent {
 
-int mapMipLevels(int width, int height) {
-  if (width <= 0 || height <= 0) return 1;
-  return (int)Diligent::ComputeMipLevelsCount((Diligent::Uint32)width,
-                                              (Diligent::Uint32)height);
-}
-
 namespace {
-
-/** ONE VERTEX, as every pipeline here reads it. A mesh that carries no
- *  normals, uvs or tint is filled in on upload rather than compiled
- *  against a second layout — which is what makes the vertex layout a
- *  constant of this backend instead of an axis a program varies on. */
-struct Vertex {
-  float position[3];
-  float normal[3];
-  float uv[2];
-  float color[4];
-  /** The PRIMITIVE lane the triangle this vertex belongs to carries, or
-   *  ones where no lane was named. A triangle has nowhere of its own to
-   *  hold a value, so its three vertices each carry it. */
-  float prim[4];
-};
-
-/** @p mesh as the one vertex layout this backend reads, with the lanes
- *  it does not carry filled in.
- *
- *  A PRIMITIVE lane makes the vertices unshared: its value belongs to a
- *  triangle, and a vertex two triangles meet at cannot hold two of them.
- *  Without one the mesh's own indices stand. */
-void fillVertices(const geometry::mesh::Mesh& mesh,
-                  std::string_view primColorLane, std::vector<Vertex>* vertices,
-                  std::vector<uint32_t>* indices) {
-  const size_t n = mesh.vertexCount();
-  const bool hasNormals = mesh.normals.size() == n;
-  const bool hasUvs = mesh.uvs.size() == n;
-  const bool hasColors = mesh.colors.size() == n;
-  const std::vector<glm::vec4>* prim =
-      primColorLane.empty() ? nullptr : mesh.primIf(primColorLane);
-  if (prim && prim->size() != mesh.triangleCount()) prim = nullptr;
-
-  const auto write = [&](size_t i, glm::vec4 tint) {
-    Vertex v;
-    v.position[0] = mesh.positions[i].x;
-    v.position[1] = mesh.positions[i].y;
-    v.position[2] = mesh.positions[i].z;
-    const glm::vec3 n3 = hasNormals ? mesh.normals[i] : glm::vec3{0, 0, 1};
-    v.normal[0] = n3.x;
-    v.normal[1] = n3.y;
-    v.normal[2] = n3.z;
-    const glm::vec2 uv = hasUvs ? mesh.uvs[i] : glm::vec2{0, 0};
-    v.uv[0] = uv.x;
-    v.uv[1] = uv.y;
-    const glm::vec4 c = hasColors ? mesh.colors[i] : glm::vec4{1, 1, 1, 1};
-    v.color[0] = c.r;
-    v.color[1] = c.g;
-    v.color[2] = c.b;
-    v.color[3] = c.a;
-    v.prim[0] = tint.r;
-    v.prim[1] = tint.g;
-    v.prim[2] = tint.b;
-    v.prim[3] = tint.a;
-    vertices->push_back(v);
-  };
-
-  if (!prim) {
-    vertices->reserve(n);
-    for (size_t i = 0; i < n; ++i) write(i, {1, 1, 1, 1});
-    *indices = mesh.indices;
-    return;
-  }
-  vertices->reserve(mesh.indices.size());
-  indices->reserve(mesh.indices.size());
-  for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3)
-    for (size_t k = 0; k < 3; ++k) {
-      indices->push_back((uint32_t)vertices->size());
-      write(mesh.indices[t + k], (*prim)[t / 3]);
-    }
-}
-
-/** How long a mesh stays uploaded after the last view that named it. A
- *  window sliding along a curve resolves a fresh artefact every frame,
- *  so what it cooked last frame must not be held for the life of the
- *  scene. */
-constexpr uint64_t kMeshLifetime = 2;
-
-/** …and how long a map stays, on the same terms. */
-constexpr uint64_t kMapLifetime = 2;
-
-/** The description a WRAPPED map is given: a plain two-dimensional
- *  colour texture a shader reads, at the one level the image someone
- *  else painted actually has. A wrap describes what is there and cannot
- *  ask for anything more. */
-dg::TextureDesc wrappedMapDesc(const char* label, int width, int height) {
-  dg::TextureDesc desc;
-  desc.Name = label;
-  desc.Type = dg::RESOURCE_DIM_TEX_2D;
-  desc.Width = (dg::Uint32)width;
-  desc.Height = (dg::Uint32)height;
-  desc.MipLevels = 1;
-  desc.Format = kColorFormat;
-  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
-  desc.Usage = dg::USAGE_DEFAULT;
-  return desc;
-}
-
-/** …and the description an UPLOADED one is given: the same texture with
- *  whatever chain `mapMipLevels` says it has. The render-target bind and
- *  the generate flag are what let the device fill the levels below zero,
- *  which nothing else here asks it for, and they are asked for only
- *  where there is a level to fill: the count is stated rather than left
- *  to the device to work out, so one piece of arithmetic decides both
- *  what is asked for and whether there is anything to derive. */
-dg::TextureDesc uploadedMapDesc(const char* label, int width, int height) {
-  dg::TextureDesc desc = wrappedMapDesc(label, width, height);
-  desc.MipLevels = (dg::Uint32)mapMipLevels(width, height);
-  if (desc.MipLevels > 1) {
-    desc.BindFlags = dg::BIND_SHADER_RESOURCE | dg::BIND_RENDER_TARGET;
-    desc.MiscFlags = dg::MISC_TEXTURE_FLAG_GENERATE_MIPS;
-  }
-  return desc;
-}
 
 /** HOW A MODE BLENDS, as the engine's own named states.
  *
@@ -260,143 +123,6 @@ void Gpu::beginFrame() {
   }
 }
 
-dg::ITexture* Gpu::sample(const material::Texture& map) {
-  if (!device->renderDevice()) return nullptr;
-
-  // ZERO COPY: the pixels already stand on this very device, so what a
-  // draw needs is a name for them and not a second copy of them.
-  const material::DeviceImage where = map.deviceImage();
-  if (where && where.device == device->gpu() && where.handle != 0) {
-    SampledImage& held = wrapped[where.handle];
-    held.used = frame;
-    if (!held.texture) {
-      auto* vk = static_cast<dg::IRenderDeviceVk*>(device->renderDevice());
-      // The image was drawn into and then submitted, so what a sampler
-      // reads is what it was left as: a shader resource.
-      // The image arrives as a NUMBER, because the value that carried it
-      // here belongs to a library that cannot spell a Vulkan type.
-      vk->CreateTextureFromVulkanImage(
-          reinterpret_cast<VkImage>(  // NOLINT(performance-no-int-to-ptr)
-              where.handle),
-          wrappedMapDesc("world sampled map", where.width, where.height),
-          dg::RESOURCE_STATE_SHADER_RESOURCE, &held.texture);
-    }
-    if (held.texture) return held.texture;
-    // The wrap was refused; the pixels are still readable the long way.
-  }
-
-  const sk_sp<SkImage> image = map.image();
-  if (!image) return nullptr;
-  SampledImage& held = uploaded[image->uniqueID()];
-  held.used = frame;
-  if (held.texture) return held.texture;
-
-  SkBitmap bytes;
-  if (!bytes.tryAllocPixels(SkImageInfo::Make(image->width(), image->height(),
-                                              kRGBA_8888_SkColorType,
-                                              kPremul_SkAlphaType)))
-    return nullptr;
-  if (!image->readPixels(nullptr, bytes.pixmap(), 0, 0)) return nullptr;
-
-  // NO INITIAL DATA: a texture is created with as many subresources as
-  // it has levels or the device refuses it, and only level zero is
-  // known here. It is written after the fact and whatever levels stand
-  // under it derived from it, once, on the frame the map first appears.
-  device->renderDevice()->CreateTexture(
-      uploadedMapDesc("world sampled map", image->width(), image->height()),
-      nullptr, &held.texture);
-  if (!held.texture) return nullptr;
-
-  dg::TextureSubResData level;
-  level.pData = bytes.getPixels();
-  level.Stride = (dg::Uint64)bytes.rowBytes();
-  dg::Box whole;
-  whole.MaxX = (dg::Uint32)image->width();
-  whole.MaxY = (dg::Uint32)image->height();
-  dg::IDeviceContext* context = device->context();
-  context->UpdateTexture(held.texture, 0, 0, whole, level,
-                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
-                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-  if (held.texture->GetDesc().MipLevels > 1)
-    context->GenerateMips(
-        held.texture->GetDefaultView(dg::TEXTURE_VIEW_SHADER_RESOURCE));
-  return held.texture;
-}
-
-dg::ITexture* Gpu::environment(const material::EnvironmentMap& map) {
-  if (!device->renderDevice() || !map.valid()) return nullptr;
-  const sk_sp<SkImage> base = map.image(0);
-  if (!base) return nullptr;
-  SampledImage& held = environments[base->uniqueID()];
-  held.used = frame;
-  if (held.texture) return held.texture;
-
-  const std::vector<sk_sp<SkImage>> levels = map.chain();
-  if (levels.empty() || !levels.front()) return nullptr;
-
-  // A SKY IS NOT EIGHT BITS. The values above one are what make a sun a
-  // sun rather than a white disc the same brightness as the sky beside
-  // it, and they are what a reflection is mostly made of. Half floats
-  // keep them and are filterable everywhere; the thirty-two-bit form the
-  // panorama was blurred in is not, on an Apple GPU.
-  std::vector<std::vector<uint16_t>> pixels;
-  std::vector<dg::TextureSubResData> subresources;
-  pixels.reserve(levels.size());
-  subresources.reserve(levels.size());
-  for (const sk_sp<SkImage>& level : levels) {
-    pixels.push_back(skia::halfFloatPixels(level));
-    if (pixels.back().empty()) return nullptr;
-    dg::TextureSubResData data;
-    data.pData = pixels.back().data();
-    data.Stride = (dg::Uint64)level->width() * 4 * sizeof(uint16_t);
-    subresources.push_back(data);
-  }
-
-  dg::TextureDesc desc;
-  desc.Name = "world environment";
-  desc.Type = dg::RESOURCE_DIM_TEX_2D;
-  desc.Width = (dg::Uint32)levels.front()->width();
-  desc.Height = (dg::Uint32)levels.front()->height();
-  desc.MipLevels = (dg::Uint32)levels.size();
-  desc.Format = dg::TEX_FORMAT_RGBA16_FLOAT;
-  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
-  desc.Usage = dg::USAGE_IMMUTABLE;
-  dg::TextureData data;
-  data.pSubResources = subresources.data();
-  data.NumSubresources = (dg::Uint32)subresources.size();
-  device->renderDevice()->CreateTexture(desc, &data, &held.texture);
-  return held.texture;
-}
-
-dg::ITexture* Gpu::irradiance(const material::EnvironmentMap& map) {
-  if (!device->renderDevice() || !map.valid()) return nullptr;
-  const sk_sp<SkImage> base = map.image(0);
-  if (!base) return nullptr;
-  SampledImage& held = irradiances[base->uniqueID()];
-  held.used = frame;
-  if (held.texture) return held.texture;
-
-  const sk_sp<SkImage> lobe = map.irradiance();
-  if (!lobe) return nullptr;
-  const std::vector<uint16_t> pixels = skia::halfFloatPixels(lobe);
-  if (pixels.empty()) return nullptr;
-  dg::TextureSubResData level;
-  level.pData = pixels.data();
-  level.Stride = (dg::Uint64)lobe->width() * 4 * sizeof(uint16_t);
-  dg::TextureDesc desc;
-  desc.Name = "world irradiance";
-  desc.Type = dg::RESOURCE_DIM_TEX_2D;
-  desc.Width = (dg::Uint32)lobe->width();
-  desc.Height = (dg::Uint32)lobe->height();
-  desc.MipLevels = 1;
-  desc.Format = dg::TEX_FORMAT_RGBA16_FLOAT;
-  desc.BindFlags = dg::BIND_SHADER_RESOURCE;
-  desc.Usage = dg::USAGE_IMMUTABLE;
-  dg::TextureData data{&level, 1};
-  device->renderDevice()->CreateTexture(desc, &data, &held.texture);
-  return held.texture;
-}
-
 void Gpu::endFrame() {
   // THE FRAME IS CLOSED ON THE DEVICE TOO. Every draw's uniforms come
   // from a heap the device refills once a frame, and a texture let go of
@@ -408,108 +134,8 @@ void Gpu::endFrame() {
     context->Flush();
     context->FinishFrame();
   }
-  ++frame;
-  for (auto it = meshes.begin(); it != meshes.end();) {
-    if (frame - it->second.used > kMeshLifetime)
-      it = meshes.erase(it);
-    else
-      ++it;
-  }
-  for (auto it = wrapped.begin(); it != wrapped.end();) {
-    if (frame - it->second.used > kMapLifetime)
-      it = wrapped.erase(it);
-    else
-      ++it;
-  }
-  for (auto it = uploaded.begin(); it != uploaded.end();) {
-    if (frame - it->second.used > kMapLifetime)
-      it = uploaded.erase(it);
-    else
-      ++it;
-  }
-}
-
-const MeshBuffers* Gpu::upload(uint64_t artefact,
-                               const geometry::mesh::Mesh& mesh,
-                               std::string_view primColorLane) {
-  if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
-  MeshBuffers& buffers = meshes[artefact];
-  buffers.used = frame;
-  if (buffers.vertices) return &buffers;
-
-  std::vector<Vertex> vertices;
-  std::vector<uint32_t> indices;
-  fillVertices(mesh, primColorLane, &vertices, &indices);
-
-  buffers.vertices.Release();
-  buffers.indices.Release();
-  dg::BufferDesc vd;
-  vd.Name = "world mesh vertices";
-  vd.Size = vertices.size() * sizeof(Vertex);
-  vd.BindFlags = dg::BIND_VERTEX_BUFFER;
-  vd.Usage = dg::USAGE_IMMUTABLE;
-  dg::BufferData vdata{vertices.data(), vd.Size};
-  device->renderDevice()->CreateBuffer(vd, &vdata, &buffers.vertices);
-
-  dg::BufferDesc id;
-  id.Name = "world mesh indices";
-  id.Size = indices.size() * sizeof(uint32_t);
-  id.BindFlags = dg::BIND_INDEX_BUFFER;
-  id.Usage = dg::USAGE_IMMUTABLE;
-  dg::BufferData idata{indices.data(), id.Size};
-  device->renderDevice()->CreateBuffer(id, &idata, &buffers.indices);
-
-  buffers.vertexCount = vertices.size();
-  buffers.indexCount = (uint32_t)indices.size();
-  return buffers.vertices && buffers.indices ? &buffers : nullptr;
-}
-
-const MeshBuffers* Gpu::stream(const geometry::mesh::Mesh& mesh,
-                               std::string_view primColorLane) {
-  if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
-  std::vector<Vertex> vertices;
-  std::vector<uint32_t> indices;
-  fillVertices(mesh, primColorLane, &vertices, &indices);
-
-  dg::IRenderDevice* renderDevice = device->renderDevice();
-  dg::IDeviceContext* context = device->context();
-  const size_t vertexBytes = vertices.size() * sizeof(Vertex);
-  const size_t indexBytes = indices.size() * sizeof(uint32_t);
-
-  // GROWN, NEVER SHRUNK: a smaller mesh after a larger one writes into
-  // the buffer that is already big enough rather than making one its own
-  // size, so a stream that has settled allocates nothing. The resize
-  // discards, because every draw overwrites the whole of what it reads
-  // and copying the last draw's triangles into the new buffer would be
-  // work nobody looks at.
-  const auto grow = [&](std::unique_ptr<dg::DynamicBuffer>& held,
-                        const char* name, dg::BIND_FLAGS bind,
-                        size_t bytes) -> dg::IBuffer* {
-    if (!held) {
-      dg::DynamicBufferCreateInfo info;
-      info.Desc.Name = name;
-      info.Desc.Size = bytes;
-      info.Desc.BindFlags = bind;
-      info.Desc.Usage = dg::USAGE_DEFAULT;
-      held = std::make_unique<dg::DynamicBuffer>(renderDevice, info);
-    } else if (held->GetDesc().Size < bytes) {
-      held->Resize(renderDevice, context, bytes, /*DiscardContent=*/true);
-    }
-    return held->Update(renderDevice, context);
-  };
-  streamed.vertices = grow(streamVertices, "world streamed vertices",
-                           dg::BIND_VERTEX_BUFFER, vertexBytes);
-  streamed.indices = grow(streamIndices, "world streamed indices",
-                          dg::BIND_INDEX_BUFFER, indexBytes);
-  if (!streamed.vertices || !streamed.indices) return nullptr;
-  context->UpdateBuffer(streamed.vertices, 0, vertexBytes, vertices.data(),
-                        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-  context->UpdateBuffer(streamed.indices, 0, indexBytes, indices.data(),
-                        dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-  streamed.used = frame;
-  streamed.vertexCount = vertices.size();
-  streamed.indexCount = (uint32_t)indices.size();
-  return &streamed;
+  meshes.endFrame();
+  maps.endFrame();
 }
 
 const Pipeline* Gpu::pipeline(const PipelineKey& key) {
@@ -577,21 +203,15 @@ const Pipeline* Gpu::pipeline(const PipelineKey& key) {
   depth.DepthFunc = dg::COMPARISON_FUNC_LESS_EQUAL;
   info.SetDepthStencilDesc(depth);
 
-  // THE STRIDE IS STATED rather than derived from the elements, because
-  // a vertex carries the primitive lane whether or not the program that
-  // reads the others declares it: a layout of four elements over these
-  // vertices still steps a whole one.
-  dg::LayoutElement elements[] = {
-      dg::LayoutElement{0, 0, 3, dg::VT_FLOAT32, dg::False},
-      dg::LayoutElement{1, 0, 3, dg::VT_FLOAT32, dg::False},
-      dg::LayoutElement{2, 0, 2, dg::VT_FLOAT32, dg::False},
-      dg::LayoutElement{3, 0, 4, dg::VT_FLOAT32, dg::False},
-      dg::LayoutElement{4, 0, 4, dg::VT_FLOAT32, dg::False},
-  };
-  for (dg::LayoutElement& element : elements) element.Stride = sizeof(Vertex);
-  // A fullscreen draw declares no layout: it reads no vertex buffer.
-  if (!key.fullscreen)
-    info.SetInputLayout(dg::InputLayoutDesc{elements, key.prim ? 5u : 4u});
+  // THE LAYOUT IS THE RESIDENCY'S, because the buffers are: whoever
+  // packs the vertices decides what a pipeline over them declares, and a
+  // fullscreen draw declares none at all — it reads no vertex buffer.
+  if (!key.fullscreen) {
+    const std::span<const dg::LayoutElement> elements =
+        ::sigil::geometry::device::meshLayout(key.prim);
+    info.SetInputLayout(
+        dg::InputLayoutDesc{elements.data(), (dg::Uint32)elements.size()});
+  }
 
   renderDevice->CreateGraphicsPipelineState(info, &built.state);
   if (built.state)

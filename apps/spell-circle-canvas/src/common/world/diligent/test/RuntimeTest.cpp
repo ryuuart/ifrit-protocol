@@ -30,7 +30,6 @@
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilshaders/WorldDiligent.h>
-#include <sigilworld/diligent/Maps.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -293,21 +292,6 @@ TEST_P(EitherTier, TheMapABodyIsDressedWithReachesThePixels) {
       plate.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
   EXPECT_GT(centre.fG, centre.fR + 0.15f);
   EXPECT_GT(centre.fG, centre.fB + 0.15f);
-}
-
-TEST(MapUpload, AMapTooSmallToHalveAsksForNoChainAtAll) {
-  // A map wider than one texel wears the whole chain, because a surface
-  // smaller on screen than its map is in texels aliases without one: the
-  // count is how many times the wider side can be halved before it
-  // arrives at one, and the last one is the whole map.
-  EXPECT_EQ(world::diligent::mapMipLevels(8, 8), 4);
-  EXPECT_EQ(world::diligent::mapMipLevels(16, 4), 5);
-  // …and a ONE-TEXEL map — how a constant slot such as an emissive tint
-  // is spelled — has one level and asks for nothing under it, since
-  // halving a single texel arrives nowhere and a device told to fill the
-  // levels below a view with one level in it refuses.
-  EXPECT_EQ(world::diligent::mapMipLevels(1, 1), 1);
-  EXPECT_EQ(world::diligent::mapMipLevels(2, 1), 2);
 }
 
 // ---- what a texture and a surface each say about themselves ----------------

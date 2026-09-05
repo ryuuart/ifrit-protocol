@@ -8,8 +8,9 @@ passes from their declared inputs and outputs, and the execution of that
 graph. It holds no window, no swapchain, no clock, and no second
 copy of anything a library beneath it already defines: meshes, point
 operators, splines, cameras — including the clip-space view a device
-draws with, which is `camera::Camera::clipProjection()` — and the CPU
-mesh executor are SigilGeometry's;
+draws with, which is `camera::Camera::clipProjection()` — the CPU
+mesh executor, and the residency that puts a mesh's buffers and a map's
+texture on a device are SigilGeometry's;
 materials, recipes and programs are SigilMaterial's; the reconciler, its
 phases and the caching proof are SigilCore's, as are the erased value a
 `Generator` and a `PassBody` take, the field pin every hand-written
@@ -43,7 +44,7 @@ library that is not here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane; and the rails a body rides — the turntable's ring, a loop that rises and falls, a winding round a shell. Nothing here decides a look. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the two seam values that stand on that device: the `Runtime` that performs a frame's passes and the `geometry::mesh::render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. The chain cook and the swept rings are SigilGeometry's own device executors, beside the CPU ones of the same seams. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the two seam values that stand on that device: the `Runtime` that performs a frame's passes and the `geometry::mesh::render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. Putting a mesh or a map ON that device is not here: `geometry::device::MeshResidency` and `geometry::device::TextureResidency` do it, and this feature asks them. The chain cook and the swept rings are SigilGeometry's own device executors, beside the CPU ones of the same seams. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
@@ -1177,10 +1178,10 @@ reads and the pass ahead of it writes is its own case beside them.
 
 `world_diligent_test` covers the device side. Every case reads this
 feature through its public headers alone — the source directory is not on
-the binary's include path — so a claim about a compiled program or an
-uploaded map is a claim somebody outside can make: how deep a chain a map
-of a given size is uploaded with is `mapMipLevels`, asserted as a closed
-form with no device in reach. `diligent/test/DeviceSeams.h` holds the two
+the binary's include path — so a claim about a compiled program or a
+sampled map is a claim somebody outside can make. What it takes to put a
+mesh or a map on the device at all is judged where that code lives, in
+`geometry_device_test`. `diligent/test/DeviceSeams.h` holds the two
 seam values that stand on a device, the two cameras every case looks
 through, the card it photographs, the texture the 2D path paints on the
 device, and the worst channel two plates differ by; **the device itself
