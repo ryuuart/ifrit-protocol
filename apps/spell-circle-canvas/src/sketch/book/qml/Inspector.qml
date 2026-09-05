@@ -16,6 +16,8 @@ Rectangle {
 
     /** The selected row, or an empty one when nothing is selected. */
     property var sketch
+    /** The catalog the inspector's own thumbnail is requested from. */
+    property var catalog: null
     /** Whether the canvas is presenting this one — which is what decides
      *  whether the live frame numbers below belong to it. */
     property bool presented: false
@@ -100,6 +102,8 @@ Rectangle {
                 radius: 7
                 plate: rail.sketch.plate
                 kind: rail.sketch.kind
+                catalog: rail.catalog
+                sketchIndex: rail.sketch.sketchIndex
                 decodeWidth: 720
             }
 

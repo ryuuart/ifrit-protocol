@@ -125,17 +125,6 @@ std::string linkLine(const Host::Options& options,
 // header edit, by refusing to compile while any repository header on the
 // include path postdates the running binary.
 
-std::filesystem::file_time_type hostBinaryTime() {
-  Dl_info info{};
-  if (dladdr(reinterpret_cast<void*>(&hostBinaryTime), &info) &&
-      info.dli_fname) {
-    std::error_code ec;
-    auto t = std::filesystem::last_write_time(info.dli_fname, ec);
-    if (!ec) return t;
-  }
-  return {};
-}
-
 /** True when @p p is an ABI-BOUNDARY header: one whose types cross the
  *  host/dylib line.
  *
@@ -278,6 +267,17 @@ void releaseBuildDir() {
 constexpr CanvasSpec kUnloaded{};
 
 }  // namespace
+
+std::filesystem::file_time_type hostBinaryTime() {
+  Dl_info info{};
+  if (dladdr(reinterpret_cast<void*>(&hostBinaryTime), &info) &&
+      info.dli_fname) {
+    std::error_code ec;
+    auto t = std::filesystem::last_write_time(info.dli_fname, ec);
+    if (!ec) return t;
+  }
+  return {};
+}
 
 void Host::sweepAbandonedBuildDirs() {
   std::error_code ec;

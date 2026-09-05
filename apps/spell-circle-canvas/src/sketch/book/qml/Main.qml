@@ -456,18 +456,39 @@ ApplicationWindow {
                 return;
             const learned = catalog.learn(
                 stats.sketchIndex, stats.canvas ?? "",
-                stats.moment ?? -1, stats.background ?? "");
+                stats.moment ?? -1, stats.background ?? "",
+                stats.runtime ?? "");
             if (learned.sketchIndex === undefined)
                 return;
-            let next = ({});
-            for (const index in window.learnedSketches)
-                next[index] = window.learnedSketches[index];
-            next[learned.sketchIndex] = learned;
-            window.learnedSketches = next;
+            window.overlayRow(learned);
         }
         function onSketchIndexChanged() {
             window.selectedIndex = view.sketchIndex;
         }
+    }
+
+    // A thumbnail landed, or could not be drawn. The row is overlaid by
+    // index so exactly one card changes — the reason learn() and the
+    // thumbnail worker both route through here rather than resetting the
+    // whole model, which would remount every other thumbnail.
+    Connections {
+        target: catalog
+        function onThumbnailReady(index, row) { window.overlayRow(row); }
+        function onThumbnailFailed(name) {
+            window.captureLine = "thumbnail failed — " + name;
+            captureHide.restart();
+        }
+    }
+
+    /** Overlays one row by its sketch index without disturbing the rest. */
+    function overlayRow(row) {
+        if (row.sketchIndex === undefined)
+            return;
+        let next = ({});
+        for (const index in window.learnedSketches)
+            next[index] = window.learnedSketches[index];
+        next[row.sketchIndex] = row;
+        window.learnedSketches = next;
     }
 
     Component.onCompleted: {
@@ -551,6 +572,7 @@ ApplicationWindow {
 
                     anchors.fill: parent
                     visible: window.viewMode === "list"
+                    catalog: catalog
                     rows: window.rows
                     learnedSketches: window.learnedSketches
                     selectedIndex: window.selectedIndex
@@ -569,6 +591,7 @@ ApplicationWindow {
 
                     anchors.fill: parent
                     visible: window.viewMode === "gallery"
+                    catalog: catalog
                     cards: window.cards
                     learnedSketches: window.learnedSketches
                     folders: window.folders
@@ -761,6 +784,7 @@ ApplicationWindow {
                 SplitView.minimumWidth: 280
                 SplitView.maximumWidth: 520
                 visible: window.inspectorOpen
+                catalog: catalog
                 sketch: window.selectedSketch
                 presented: window.selectedIndex === view.sketchIndex
                 metrics: view.metrics

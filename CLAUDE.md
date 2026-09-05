@@ -183,7 +183,12 @@ Pointed at a file with no `--headless`, Sketchbook opens on it, from
 anywhere on disk, and hot-swaps the recompiled sketch on every save;
 `--frame out.png` renders one still, `--bench` measures it against the
 60 FPS gate on a raster surface, `--window-bench` presents it in the
-real window, `--shot <png>` captures the app.
+real window, `--shot <png>` captures the app. `--thumbnails [--sketch
+<name>] [--kind canvas|set|draw]` renders the browser's missing or stale
+thumbnails headless and exits non-zero naming any that failed — the app
+owns its thumbnails, rendering them on demand into a cache under the
+platform cache location (`--thumbnails-dir` overrides it); the plate
+ledger does not write them.
 
 ## Layout
 

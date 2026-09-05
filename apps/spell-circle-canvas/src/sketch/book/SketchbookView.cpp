@@ -4,6 +4,8 @@
 
 #include "SketchbookView.h"
 
+#include "SketchCatalog.h"
+
 #ifdef SIGILSKETCH_BOOK_GPU
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
@@ -47,11 +49,9 @@
 namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 
-std::filesystem::path SketchbookView::sketchDir;
 std::filesystem::path SketchbookView::assetsDir;
 std::filesystem::path SketchbookView::flagsFile;
 std::filesystem::path SketchbookView::sharedDir;
-std::vector<std::filesystem::path> SketchbookView::externals;
 sketch::Host* SketchbookView::host = nullptr;
 sketch::Residency SketchbookView::sessions;
 // QMutex's constructor does not throw
@@ -88,8 +88,8 @@ std::string nameOf(int index) {
   const auto& entries = sketch::registry();
   if (index >= 0 && index < (int)entries.size()) return entries[index].name;
   const int external = externalAt(index);
-  if (external >= 0 && external < (int)SketchbookView::externals.size())
-    return SketchbookView::externals[external].stem().string();
+  if (external >= 0 && external < (int)SketchCatalog::externals.size())
+    return SketchCatalog::externals[external].stem().string();
   return {};
 }
 
@@ -277,13 +277,13 @@ void SketchbookRenderer::openSketch(int index) {
     // the compiled-in entry and builds only once the file changes.
     options.compiledIn = &entries[index];
     options.sketchPath =
-        sketch::sourceOf(SketchbookView::sketchDir, entries[index].key);
+        sketch::sourceOf(SketchCatalog::sketchDir, entries[index].key);
   } else if (const int external = externalAt(index);
              external >= 0 &&
-             external < (int)SketchbookView::externals.size()) {
+             external < (int)SketchCatalog::externals.size()) {
     // A file this binary does not carry has to be built to be seen, so
     // it opens on the compiler rather than on an entry.
-    options.sketchPath = SketchbookView::externals[external];
+    options.sketchPath = SketchCatalog::externals[external];
   } else {
     return;
   }
@@ -348,6 +348,13 @@ void SketchbookRenderer::publishMetrics() {
   metrics.insert(QStringLiteral("backend"), QLatin1String(backend));
   if (const std::string name = nameOf(m_index); !name.empty())
     metrics.insert(QStringLiteral("sketch"), QString::fromStdString(name));
+  // WHICH RUNTIME THIS SKETCH DREW THROUGH, known only once it has been
+  // built: a file opened by path learns its kind here, so the row in the
+  // browser stops reading "not yet compiled" under a sketch that is live.
+  if (const std::string_view runtime = SketchbookView::host->kind();
+      !runtime.empty())
+    metrics.insert(QStringLiteral("runtime"),
+                   QString::fromUtf8(runtime.data(), (qsizetype)runtime.size()));
   // WHAT THE BODY DECLARED, which is only knowable once it has run: a
   // sketch states its size, its ground and the moment it is worth
   // photographing from inside its own setup. The browser keeps what it
@@ -494,10 +501,15 @@ bool SketchbookRenderer::readbackGraphite(SkSurface& surface,
 
 void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiTexture* texture = colorTexture();
-  if (!texture || m_logicalSize.width() < 1 || m_logicalSize.height() < 1)
+  if (!texture || m_logicalSize.width() < 1 || m_logicalSize.height() < 1) {
+    update();  // keep asking for frames until there is something to draw into
     return;
+  }
   const QSize pixelSize = texture->pixelSize();
-  if (pixelSize.width() < 1 || pixelSize.height() < 1) return;
+  if (pixelSize.width() < 1 || pixelSize.height() < 1) {
+    update();
+    return;
+  }
 
 #ifdef SIGILSKETCH_BOOK_GPU
   if (m_graphiteContext) {
@@ -530,19 +542,26 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
       update();
       return;
     }
-    // Latch the CPU fallback until Qt supplies a new QRhi: images minted
-    // by this context cannot replay onto a raster canvas, so every
-    // resident session goes rather than being replayed — and goes before
-    // the context that made its images does.
+    // A FAILED FRAME IS ONE SESSION'S FAILURE, not the context's. The
+    // texture could not be wrapped for the sketch on screen — which a bad
+    // pipeline in that one sketch can cause — so drop THAT session and
+    // keep the shared Graphite context and every other resident warm,
+    // rather than tearing the context down and making one sketch's bad
+    // frame cost every other its state. m_index falls behind the request
+    // so the next selection reopens, and update() is re-requested so the
+    // window keeps asking for frames instead of going dark. A genuine QRhi
+    // replacement is a different event, handled in initialize().
     std::fprintf(stderr,
-                 "[sketchbook] Graphite texture wrap failed; switching to "
-                 "CPU raster\n");
-    QMutexLocker lock(&SketchbookView::hostMutex);
-    SketchbookView::sessions.clear();
-    SketchbookView::host = nullptr;
-    m_graphiteContext.reset();
-    g_backend.store(2);
-    m_index = -1;
+                 "[sketchbook] Graphite frame failed for the current sketch; "
+                 "dropping its session and keeping the context\n");
+    {
+      QMutexLocker lock(&SketchbookView::hostMutex);
+      SketchbookView::sessions.dropPresented();
+      SketchbookView::host = SketchbookView::sessions.presented();
+      m_index = -1;
+    }
+    update();
+    return;
   }
 #endif
 
@@ -553,7 +572,10 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
       SkImageInfo::Make(pixelSize.width(), pixelSize.height(),
                         kRGBA_8888_SkColorType, kPremul_SkAlphaType),
       m_rasterPixels.data(), (size_t)pixelSize.width() * sizeof(uint32_t));
-  if (!surface) return;
+  if (!surface) {
+    update();
+    return;
+  }
   {
     QMutexLocker lock(&SketchbookView::hostMutex);
     if (m_index != m_requestedIndex) {
@@ -592,20 +614,27 @@ SketchbookView::SketchbookView(QQuickItem* parent) : QQuickRhiItem(parent) {
   setAlphaBlending(false);
   m_timer.setInterval(16);
   QObject::connect(&m_timer, &QTimer::timeout, this, [this] {
-    QMutexLocker lock(&hostMutex);
-    if (!host) return;
-    host->poll();
-    const QString status = QString::fromStdString(host->status());
-    const QString error = QString::fromStdString(host->errorLog());
-    static const char* kStateNames[] = {"waiting", "compiling", "live",
-                                        "failed"};
-    const QString state = kStateNames[(int)host->state()];
-    if (status != m_status || error != m_errorLog || state != m_state) {
-      m_status = status;
-      m_errorLog = error;
-      m_state = state;
-      emit stateChanged();
+    {
+      QMutexLocker lock(&hostMutex);
+      if (host) {
+        host->poll();
+        const QString status = QString::fromStdString(host->status());
+        const QString error = QString::fromStdString(host->errorLog());
+        static const char* kStateNames[] = {"waiting", "compiling", "live",
+                                            "failed"};
+        const QString state = kStateNames[(int)host->state()];
+        if (status != m_status || error != m_errorLog || state != m_state) {
+          m_status = status;
+          m_errorLog = error;
+          m_state = state;
+          emit stateChanged();
+        }
+      }
     }
+    // Ask for a frame WHETHER OR NOT a host is loaded. A sketch that
+    // failed to load leaves no host; if the tick returned here without
+    // this, render() would never be called again and selecting another
+    // sketch could not reopen — the window would be stuck on the failure.
     update();
   });
   m_timer.start();
@@ -619,7 +648,7 @@ QQuickRhiItemRenderer* SketchbookView::createRenderer() {
 
 void SketchbookView::setSketchIndex(int index) {
   if (index == m_sketchIndex || index < 0 ||
-      index >= (int)(sketch::registry().size() + externals.size()))
+      index >= (int)(sketch::registry().size() + SketchCatalog::externals.size()))
     return;
   m_sketchIndex = index;
   emit sketchIndexChanged();

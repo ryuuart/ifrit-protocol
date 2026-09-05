@@ -10,16 +10,42 @@ import Sigil.Sketchbook
 Rectangle {
     id: thumb
 
-    /** The plate file, or empty where no sweep has run on this machine. */
+    /** The plate file, or empty where the store has none for this sketch
+     *  yet — in which case one is asked for as the thumbnail comes on
+     *  screen. */
     property url plate
-    /** "canvas" or "set" — which glyph stands in for a missing plate. */
+    /** "canvas", "set" or "draw" — which glyph stands in for a missing
+     *  plate. */
     property string kind
+    /** The catalog to ask for a render, and the sketch this thumbnail is
+     *  of. A missing or stale thumbnail is requested as the row appears
+     *  and abandoned as it scrolls away, so the one background render is
+     *  spent on what is on screen. */
+    property var catalog: null
+    property int sketchIndex: -1
     /** How many pixels wide the decoder is asked for. One number for a
      *  row and a card is deliberate: the same scaled image then serves
      *  both out of Qt's cache instead of being decoded twice. */
     property int decodeWidth: 320
 
     onKindChanged: glyph.requestPaint()
+
+    // Ask for a still as this thumbnail comes on screen, and give up the
+    // request as it leaves — the worker renders one at a time, in the
+    // order rows asked, so keeping the queue to what is visible is what
+    // makes it feel immediate.
+    function askForThumbnail() {
+        if (thumb.catalog && thumb.sketchIndex >= 0
+            && String(thumb.plate).length === 0)
+            thumb.catalog.requestThumbnail(thumb.sketchIndex);
+    }
+    Component.onCompleted: thumb.askForThumbnail()
+    Component.onDestruction: {
+        if (thumb.catalog && thumb.sketchIndex >= 0)
+            thumb.catalog.cancelThumbnail(thumb.sketchIndex);
+    }
+    onSketchIndexChanged: thumb.askForThumbnail()
+    onPlateChanged: thumb.askForThumbnail()
 
     color: Theme.ground
     radius: 4

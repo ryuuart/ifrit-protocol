@@ -496,8 +496,9 @@ Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
            [--kind <k>]
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
+Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
 … [--assets <dir>]                          # what mounts at res://
-… [--plates <dir>]                          # the stills the browser shows
+… [--thumbnails-dir <dir>]                  # the app's own thumbnail store
 ```
 
 `--sketch` takes a case-insensitive substring and answers to a sketch's
@@ -591,6 +592,16 @@ The gate is **p99 under 16.6 ms** — a sustained 60 FPS at the sketch's
 own declared canvas size. It always exits 0; the verdict is the output,
 not the exit status, so it can sit in a pipeline.
 
+**A sketch that declares `ctx.plate()` is judged on its capture cost, not
+on 60 FPS.** Some sketches are plates rather than live scenes: a large
+sheet over an expensive material stack whose subject is the sheet's own
+size. A canvas the sketch cannot present at is a different statement from
+a live sketch that drops frames, so a marked sketch reports the cost of
+the still it is photographed as and the verdict reads `PLATE` rather than
+`PASS`/`FAIL`. It is never a timeout override, and it changes nothing
+about the plate sweep — only what the interactive gate asserts.
+`chaucer_astrolabe` is one.
+
 What it does, and why it is not `--frame`'s numbers: the capture path
 steps the clock on a tiny scratch surface where every draw is clipped
 away, so a sketch whose whole cost is one full-canvas shader reads as
@@ -682,15 +693,24 @@ file stem at once, while `folder:` and `kind:` narrow on that field
 alone — so `folder:study kind:canvas rain` is one question, not three.
 `/` puts the cursor in it and Escape empties it.
 
-**The thumbnails are plate-ledger output.** Canvas sketches read the quick
-tier's adopted plate store. Set sketches fall back to the latest successful
-world sweep, kept in `plate_thumbnails_world_Release`; this display cache
-does not change the world's hash baseline when a scene has moved. A checkout
-that has never run the relevant tier has no thumbnails for it. Every
-Sketchbook configuration reads the Release stores, which are the stores the
-ledgers produce; a Debug build does not invent empty Debug-only stores.
-`--plates <dir>` names one other directory for both runtimes. A sketch with
-no plate gets a drawn glyph for the runtime it draws through.
+**The thumbnails are the app's own, rendered on demand.** Sketchbook keeps
+one store — one PNG per sketch, under the platform cache location
+(`--thumbnails-dir` and the `SIGIL_SKETCHBOOK_THUMBNAILS` environment
+variable name another). Each file's name carries a KEY: a hash of the
+sketch's source — the file, or every file of a directory sketch — folded
+with the running host's build identity, so a thumbnail whose key no longer
+matches is stale and is drawn again. When the browser shows a row whose
+thumbnail is missing or stale, a background worker renders that sketch at
+its declared moment — the same capture the CPU plate tier takes — scaled to
+the thumbnail size, one at a time in the order rows asked, on the CPU and
+never touching the device: the render shares no graphics context with the
+live canvas. A row updates when its file lands, without remounting the
+others. A sketch that fails to render gets its runtime glyph and one line in
+the status strip, and is not tried again. Set sketches render through the
+same path the CPU tier uses for them. `Sketchbook --thumbnails` renders
+every missing or stale thumbnail headless and exits non-zero naming the
+sketches that failed — the same code path, run ahead of time. A sketch with
+no thumbnail yet gets a drawn glyph for the runtime it draws through.
 
 **What is not in a row is the canvas.** A sketch declares its size, its
 ground and the moment it names from inside its own setup, so those are

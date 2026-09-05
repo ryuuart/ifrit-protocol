@@ -1,3 +1,18 @@
+# The browser's model and the app's own thumbnail store, lifted out of
+# the executable so they can be built and tested without a window: the
+# rows a reader goes through, and the CPU still renderer that fills each
+# row's thumbnail on demand. SketchCatalog carries Qt types, so the
+# library scans for moc; nothing here needs a device or a GPU context.
+add_library(SigilSketchBook STATIC
+  Thumbnails.cpp Thumbnails.h
+  SketchCatalog.cpp SketchCatalog.h)
+set_target_properties(SigilSketchBook PROPERTIES POSITION_INDEPENDENT_CODE ON)
+sigil_qt_target(SigilSketchBook)
+target_include_directories(SigilSketchBook PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+target_link_libraries(SigilSketchBook
+  PUBLIC SigilSketchCore SigilSketchLive Qt6::Core
+  PRIVATE SigilImageEncode SigilIOSource SigilWeaveFonts)
+
 # Sketchbook — the one live application, and the one headless renderer.
 #
 # The app lists every sketch, live-edits any of them, and draws a set
@@ -50,21 +65,14 @@ qt_add_qml_module(Sketchbook
     qml/Theme.qml
   SOURCES
     SketchbookView.cpp SketchbookView.h
-    SketchCatalog.cpp SketchCatalog.h
 )
-# WHERE THE BROWSER LOOKS FOR THE STILLS IT SHOWS: every configuration reads
-# the Release plate stores, because the plate ledgers produce Release output
-# and a Debug browser is still browsing those same pictures. Canvas stills
-# prefer the latest successful quick sweep and fall back to its adopted plates;
-# set stills are the latest successful world sweep. A machine that has never
-# run a tier has no thumbnails for it, and `--plates <dir>` names one directory
-# for every runtime.
-target_compile_definitions(Sketchbook PRIVATE
-  SIGILSKETCH_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_thumbnails_quick_Release"
-  SIGILSKETCH_BASELINE_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_baseline_quick_Release.plates"
-  SIGILSKETCH_WORLD_PLATES_DIR="${CMAKE_BINARY_DIR}/plate_thumbnails_world_Release")
+# The browser's thumbnails are THIS APP'S OWN, kept under the platform
+# cache location and filled on demand — the plate ledger no longer writes
+# them, so there are no compiled-in store directories. `--thumbnails-dir`
+# and the SIGIL_SKETCHBOOK_THUMBNAILS environment variable name another.
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE
+  SigilSketchBook
   SigilSketchLive SigilSketchPlate SigilSketches SigilMeasure SigilWeavePorts
   SigilMaterial
   IfritUiplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
@@ -250,3 +258,17 @@ add_test(NAME sketch_reload_directory
   COMMAND Sketchbook
     ${SIGIL_SKETCH_DIR}/dunhuang_star_chart/dunhuang_star_chart.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_directory.png)
+
+# THE CATALOG SEAM, tested without a window. SketchCatalog is in the
+# SigilSketchBook library, so a plain gtest binary that registers a
+# fixture sketch the way a sketch file does can construct it and read its
+# rows — asserting that a compiled-in canvas sketch's row names its
+# runtime, and that an unbuilt file opened by path learns its runtime
+# through learn(). It links no GPU and opens no window.
+add_executable(sketch_book_test test/CatalogTest.cpp)
+target_link_libraries(sketch_book_test PRIVATE
+  SigilSketchBook SigilSketchCanvas GTest::gtest_main Qt6::Core)
+target_include_directories(sketch_book_test PRIVATE
+  ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../test
+  ${CMAKE_SOURCE_DIR}/src/test)
+add_test(NAME sketch_book_test COMMAND sketch_book_test)

@@ -33,6 +33,17 @@ class FontContext;
 
 namespace sigil::sketch {
 
+/** THE HOST BINARY'S BUILD IDENTITY: the last-write time of the running
+ *  executable image.
+ *
+ *  It is what the reload skew guard compares framework headers against —
+ *  a dylib compiled against headers newer than this stamp would load into
+ *  a host whose structs have the old layout — and it is the same value a
+ *  thumbnail key folds in, so that a rebuilt host (new drawing code)
+ *  regenerates the stills it shows. A zero stamp means the image could
+ *  not be located. */
+[[nodiscard]] std::filesystem::file_time_type hostBinaryTime();
+
 /** THE LIVE HOST, and it is Qt-free on purpose: it watches the sketch's
  *  sources, rebuilds them into a versioned dylib with the compiler flags
  *  the build captured, dlopens the result and swaps the running session
@@ -138,6 +149,23 @@ class Host {
    *  it — its counters, its viewpoint, its per-node costs. Null until
    *  something has loaded. */
   [[nodiscard]] Session* session() { return m_session.get(); }
+
+  /** WHICH RUNTIME THE LOADED SKETCH DRAWS THROUGH — "canvas", "set" or
+   *  "draw" — read off the kind the host is holding, or empty before one
+   *  has loaded. A file opened by path is not known to draw through any
+   *  runtime until it has been built, so this is what fills in the row a
+   *  browser could not read off the file. */
+  [[nodiscard]] std::string_view kind() const {
+    return m_kind ? m_kind->runtime() : std::string_view{};
+  }
+
+  /** WHETHER THE LOADED SKETCH DECLARED ITSELF A PLATE rather than a live
+   *  scene — a sheet whose subject is its own size, judged on the cost of
+   *  the still it is photographed as and not on holding 60 FPS. Read off
+   *  the running session's declared canvas; false before one has loaded. */
+  [[nodiscard]] bool plateOnly() const {
+    return m_session && m_session->canvas().plateOnly;
+  }
 
   /** The lifecycle a status display reads: Compiling wins even while a
    *  previous build keeps rendering underneath. */

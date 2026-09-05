@@ -18,6 +18,8 @@ Item {
     /** The sketches the filter left, already sorted. No headers: a grid
      *  reads by picture, and the folders are the chips over it. */
     property var cards: []
+    /** The catalog cards request their thumbnails from. */
+    property var catalog: null
     /** Learned session facts overlaid by sketchIndex without resetting cards. */
     property var learnedSketches: ({})
     /** Every folder with a count, plus the one that is on. */
@@ -213,6 +215,8 @@ Item {
                             Layout.preferredHeight: still.width * 0.625
                             plate: cell.sketch.plate
                             kind: cell.sketch.kind
+                            catalog: gallery.catalog
+                            sketchIndex: cell.sketch.sketchIndex
                             radius: 5
                             decodeWidth: 320
                         }
