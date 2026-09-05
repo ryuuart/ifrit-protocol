@@ -450,9 +450,10 @@ TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
   };
 
   // Both origins sit inside the pixel cell that starts at 100, whichever
-  // way a rounding rule breaks it.
-  EXPECT_EQ(renderHash(false, 100.0f), renderHash(false, 100.4f))
+  // way a rounding rule breaks it, and lie on either side of the cell's
+  // middle so that a grid of any coarseness tells them apart.
+  EXPECT_EQ(renderHash(false, 100.05f), renderHash(false, 100.45f))
       << "whole-pixel origins moved on a fraction of a pixel";
-  EXPECT_NE(renderHash(true, 100.0f), renderHash(true, 100.4f))
+  EXPECT_NE(renderHash(true, 100.05f), renderHash(true, 100.45f))
       << "the subpixel grid ignored a fraction of a pixel";
 }

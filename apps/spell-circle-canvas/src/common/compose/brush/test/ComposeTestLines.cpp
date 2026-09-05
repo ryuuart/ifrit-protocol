@@ -1905,27 +1905,36 @@ TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
   // The marquee. A bound phase is PAINT-ONLY motion: the run is shaped and
   // broken across the baseline once, and stepping the output re-places the
   // glyphs it already placed. Nothing is re-described between these frames.
+  // The ring sits 30 px inside the host on every side: glyphs on a closed
+  // baseline stand outward of it, so a ring that touched the host's edge
+  // would have its ink cut off there and the count would read the cut.
+  // Seven letters of the instrument face at 20 px are seven bars of 8 by
+  // 14 px, so the ink is at least their area less what turning them
+  // spreads into partial pixels.
+  constexpr int kHost = 300;
+  constexpr int kRing = 240;
+  constexpr int kInkArea = 7 * 8 * 14;
   choreograph::Output<float> phase{0.0f};
-  Host host(240, 240);
+  Host host(kHost, kHost);
   host.composer.render(
       box().child(text(u8"MARQUEE", whiteStyle(20))
                       .key("ring")
-                      .width(240)
-                      .height(240)
+                      .width(kRing)
+                      .height(kRing)
                       .absolute()
-                      .left(0)
-                      .top(0)
+                      .left((kHost - kRing) / 2)
+                      .top((kHost - kRing) / 2)
                       .onPath({.path = geometry::shapes::circle(),
                                .at = &phase,
                                .align = TextPath::Align::Center})));
   host.frame();
-  const SkPoint centre{120, 120};
-  const RingInk atZero = ringInk(host, 240, centre);
-  ASSERT_GT(atZero.count, 200);
+  const SkPoint centre{kHost / 2.0f, kHost / 2.0f};
+  const RingInk atZero = ringInk(host, kHost, centre);
+  ASSERT_GT(atZero.count, kInkArea / 2);
 
   phase = 0.25f;
   host.frame();  // no render(): the phase is read at PAINT
-  const RingInk atQuarter = ringInk(host, 240, centre);
+  const RingInk atQuarter = ringInk(host, kHost, centre);
 
   // The run travelled: a quarter turn is most of a right angle, and no
   // sampling of the same glyphs could produce that by accident.

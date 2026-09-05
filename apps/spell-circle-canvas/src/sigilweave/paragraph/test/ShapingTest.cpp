@@ -104,7 +104,7 @@ TEST(Shaper, TheSameWordInTwoParagraphsDrawsFromOneBlob) {
 
 TEST(Itemization, MixedLatinCjkSplitsIntoWords) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"Skia は速い and 빠르다 也很快");
+  Paragraph paragraph = machineParagraph(u8"Skia は速い and 빠르다 也很快");
   paragraph.ensureShaped(fontContext);
   ASSERT_GT(paragraph.words().size(), 4u);
 
@@ -121,7 +121,7 @@ TEST(Itemization, MixedLatinCjkSplitsIntoWords) {
 
 TEST(Itemization, CjkGetsPerCharacterBreakOpportunities) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"日本語のテキスト");
+  Paragraph paragraph = machineParagraph(u8"日本語のテキスト");
   paragraph.ensureShaped(fontContext);
   // ICU line breaking splits ideographic text nearly per character; the
   // exact count depends on kinsoku rules, but it must be far more than one.
@@ -131,7 +131,7 @@ TEST(Itemization, CjkGetsPerCharacterBreakOpportunities) {
 
 TEST(Itemization, FallbackResolvesCjkGlyphs) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"abc漢字xyz");
+  Paragraph paragraph = machineParagraph(u8"abc漢字xyz");
   paragraph.ensureShaped(fontContext);
   for (const Word& word : paragraph.words())
     for (const WordSegment& seg : word.segments()) {
@@ -215,7 +215,7 @@ TEST(Itemization, FullWidthLatinIsSetLikeTheKanjiAroundIt) {
 
 TEST(Itemization, ARightToLeftWordIsShapedRightToLeft) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"שלום");
+  Paragraph paragraph = machineParagraph(u8"שלום");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   const auto& clusters = paragraph.words()[0].segments()[0].shaped->clusters;
@@ -299,7 +299,7 @@ TEST_F(ShapedScript, CuneiformSupplementaryPlane) {
 TEST(EmojiClusters, AZwjFamilyIsOneCluster) {
   FontContext& fontContext = sigil::test::fonts();
   // Family emoji: 4 people joined by ZWJ = 11 UTF-16 units, ONE grapheme.
-  Paragraph paragraph = makeParagraph(u8"👨‍👩‍👧‍👦");
+  Paragraph paragraph = machineParagraph(u8"👨‍👩‍👧‍👦");
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 1u);
   ASSERT_EQ(paragraph.words()[0].segments().size(), 1u);
@@ -312,7 +312,7 @@ TEST(EmojiClusters, AZwjFamilyIsOneCluster) {
 
 TEST(EmojiClusters, AModifierAndAFlagEachStayWithTheirBase) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"👍🏽 🇺🇸");  // skin tone; regional pair
+  Paragraph paragraph = machineParagraph(u8"👍🏽 🇺🇸");  // skin tone; regional pair
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 2u);
   for (const Word& word : paragraph.words()) {
@@ -325,7 +325,7 @@ TEST(EmojiClusters, AModifierAndAFlagEachStayWithTheirBase) {
 
 TEST(EmojiClusters, AnEmojiInsideLatinFallsBackOnItsOwnSegment) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"great👍work");
+  Paragraph paragraph = machineParagraph(u8"great👍work");
   paragraph.ensureShaped(fontContext);
   boost::unordered_flat_set<const SkTypeface*> faces;
   for (const Word& word : paragraph.words())
@@ -344,7 +344,7 @@ TEST(Shaper, PurgeAllCachesRefillsIdentically) {
 
   auto shapeFresh = [&] {
     Paragraph paragraph;
-    paragraph.appendText(text, basicStyle());
+    paragraph.appendText(text, machineStyle());
     paragraph.ensureShaped(fontContext);
     std::vector<float> widths;
     for (const Word& word : paragraph.words()) widths.push_back(word.width);

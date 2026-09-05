@@ -24,7 +24,11 @@ sigil_library(SigilWeaveLayout
 # locality, text set on a geometry of its own, and each paragraph control.
 # A claim that holds for either breaker is one TEST_P over both of them.
 # The kit is linked for the stock hyphenation and line-edge tables the
-# files that ask a table question read.
+# files that ask a table question read. Every case sets the instrument
+# face from src/test/assets/ except the ones named below, which set CJK,
+# Hebrew or a mathematical letter in whatever the machine resolves for it,
+# because no instrument carries a script's worth of them: those alone
+# carry the label.
 sigil_test(weave_test
   SOURCES test/LayoutTest.cpp test/KnuthPlassTest.cpp
           test/LiveComposerTest.cpp test/OverflowTest.cpp
@@ -35,7 +39,12 @@ sigil_test(weave_test
           test/BesideTest.cpp test/MojikumiTest.cpp test/BalanceTest.cpp
           test/StoryTest.cpp
   LIBRARIES SigilWeaveLayout SigilWeaveKit SigilWeavePorts
-            Boost::unordered)
+            Boost::unordered
+  LABELS fonts
+  SUITES Vertical KnuthPlass.AJustifiedCjkBlockKeepsEveryColumnInsideTheMeasure
+         BidiOrder.AReorderedPairRendersInVisualOrderBetweenItsNeighbours
+         EditSafety.ACutThroughASurrogatePairLeavesEveryWordInsideTheText
+         LineEdges.KinsokuNeverOpensALineWithAProhibitedCharacter)
 
 # layoutParagraph per word over a warm shape cache.
 sigil_bench(weave_bench

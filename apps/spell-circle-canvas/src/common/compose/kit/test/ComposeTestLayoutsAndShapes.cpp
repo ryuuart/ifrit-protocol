@@ -33,16 +33,17 @@ int inkInBand(Host& host, SkIRect band) {
 
 const std::u8string& flowBody() {
   // Long enough to run past the obstacle on every geometry, so a height
-  // comparison reads room-per-line and not "the text stopped early".
+  // comparison reads room-per-line and not "the text stopped early"; and
+  // set in words of one letter, so the rag is never further than one
+  // word pitch from whatever edge the flow subtracted. At 15 px in the
+  // instrument face that pitch is 13.5 px (a 9 px letter and a 4.5 px
+  // space): three hundred words are about seventeen lines in the 360 px
+  // box, which reaches well past the obstacle and stays well inside the
+  // 460 px host with any silhouette on it, and a corner the flow gives
+  // back takes a word wherever it is wider than the pitch.
   static const std::u8string body = [] {
-    std::u8string one =
-        u8"the quick brown fox jumps over the lazy dog and keeps running "
-        u8"through the tall summer grass until the river bend appears and "
-        u8"the evening light settles over the water in long amber bands "
-        u8"while the swallows turn above the reeds and the mill wheel "
-        u8"grinds on into the blue hour without hurry or complaint ";
     std::u8string all;
-    for (int i = 0; i < 4; ++i) all += one;
+    for (int i = 0; i < 300; ++i) all += u8"o ";
     return all;
   }();
   return body;

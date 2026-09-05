@@ -12,11 +12,13 @@ sigil_library(SigilWeavePorts
 
 # The one binary in the tree whose subject IS the machine's font list, so
 # it is the one place a claim about what the system answers belongs, and
-# the label says what a runner must supply. It links this target alone:
-# nothing here shapes, measures or lays anything out. The committed
-# instrument faces are read through the same manager, which is what makes
-# the file-loading claim answerable on a machine with no fonts at all.
+# the label on the cases that walk the machine's families says what a
+# runner must supply. It links this target alone: nothing here shapes,
+# measures or lays anything out. The committed instrument faces are read
+# through the same manager, which is what makes the file-loading claim
+# answerable on a machine with no fonts at all, so it carries no label.
 sigil_test(weave_test
   SOURCES test/SystemFontManagerTest.cpp
   LIBRARIES SigilWeavePorts
-  LABELS fonts)
+  LABELS fonts
+  SUITES InstalledFonts Asks/HeldFace)

@@ -85,7 +85,7 @@ TEST(Correctness, ClusterCoverageIsComplete) {
   const char8_t* samples[] = {u8"office", u8"العربية", u8"नमस्ते",
                               u8"👨‍👩‍👧"};
   for (const char8_t* sample : samples) {
-    Paragraph paragraph = makeParagraph(sample);
+    Paragraph paragraph = machineParagraph(sample);
     paragraph.ensureShaped(fontContext);
     for (const Word& word : paragraph.words())
       for (const WordSegment& seg : word.segments()) {
@@ -106,7 +106,7 @@ TEST(Correctness, ClusterCoverageIsComplete) {
 TEST(Correctness, ZwnjBlocksArabicJoining) {
   FontContext& fontContext = sigil::test::fonts();
   auto glyphsOf = [&](const char8_t* text) {
-    Paragraph paragraph = makeParagraph(text);
+    Paragraph paragraph = machineParagraph(text);
     paragraph.ensureShaped(fontContext);
     boost::container::flat_multiset<uint16_t> ids;
     for (const Word& word : paragraph.words())
@@ -121,8 +121,8 @@ TEST(Correctness, ZwnjBlocksArabicJoining) {
 
 TEST(Correctness, CombiningMarkAttachesToBase) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph nfc = makeParagraph(u8"café");  // é precomposed
-  Paragraph nfd = makeParagraph(u8"café");  // e + combining acute
+  Paragraph nfc = machineParagraph(u8"café");  // é precomposed
+  Paragraph nfd = machineParagraph(u8"café");  // e + combining acute
   nfc.ensureShaped(fontContext);
   nfd.ensureShaped(fontContext);
   ASSERT_EQ(nfc.words().size(), 1u);
@@ -172,7 +172,7 @@ TEST(Correctness, StrutMatchesFontMetrics) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"metrics", 32.0f);
   const Paragraph::Strut strut = paragraph.strut(fontContext);
-  const SkFont font = makeFont(fontContext.defaultTypeface(), 32.0f);
+  const SkFont font = makeFont(sigil::test::instrument::sans(), 32.0f);
   SkFontMetrics metrics;
   font.getMetrics(&metrics);
   EXPECT_FLOAT_EQ(strut.ascent, -metrics.fAscent);

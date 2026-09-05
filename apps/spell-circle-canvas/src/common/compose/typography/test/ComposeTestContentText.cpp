@@ -196,8 +196,9 @@ TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
 TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   // The stagger law: at mid-progress the early glyphs are fully revealed
   // while the late ones haven't started — the canonical staggered reveal,
-  // rendered through batched RSXform draws.
-  Host host;
+  // rendered through batched RSXform draws. Twelve glyphs of 19.2 px
+  // in the instrument face at 32 px, plus the padding, need the width.
+  Host host(300, 200);
   auto tree = [](sigil::motion::Animatable<float> progress) {
     return box().padding(10).child(
         text(u8"IIIIIIIIIIII", whiteStyle(32))
@@ -341,8 +342,9 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   // and hides the question entirely, and a case that only checks for ink
   // after settling is satisfied by a frozen half-revealed recording. Hence
   // both halves here: the tail must be dark before, and lit after, with no
-  // describe in between.
-  Host host;
+  // describe in between. Twelve glyphs of 19.2 px in the instrument face at
+  // 32 px, plus the padding, need the width.
+  Host host(300, 200);
   choreograph::Output<float> progress{0.0f};
   host.composer.render(box().padding(10).child(
       text(u8"IIIIIIIIIIII", whiteStyle(32))
@@ -787,11 +789,19 @@ TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
     t.reach = reach;
     return t;
   };
+  // Set in the machine's default face, which is what the label on this
+  // case says: a face read out of a file draws nothing at all through a
+  // texture-cached fx track, while it draws through the cache alone and
+  // through the track alone, so the instrument face cannot yet carry this
+  // claim.
+  sigil::weave::TextStyle machineWhite = machineStyleAt(40);
+  machineWhite.paint.foreground.setColor(SK_ColorWHITE);
   const auto inkBelow = [&](float reach) {
-    host.composer.render(box().padding(10).child(text(u8"I", whiteStyle(40))
-                                                     .key("k")
-                                                     .cache(Cache::Texture)
-                                                     .fx(drop(reach))));
+    host.composer.render(
+        box().padding(10).child(text(u8"I", machineWhite)
+                                    .key("k")
+                                    .cache(Cache::Texture)
+                                    .fx(drop(reach))));
     host.frame();
     auto b = host.composer.bounds("k");
     EXPECT_TRUE(b.has_value());
@@ -3169,14 +3179,16 @@ TEST(TextOptionSetters, HyphenationRendersTheHyphenAtASoftBreak) {
   Host host(260, 220);
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
   // A short word, then a long one carrying a discretionary break, in a
-  // measure that cannot hold both whole. The line breaks at the soft hyphen
-  // either way; what the option controls is whether the hyphen is DRAWN,
-  // which shows up as one extra run on the broken line.
+  // measure that holds the short word and the long one's first half with
+  // its hyphen (at 20 px in the instrument face: 60 + 6 + 108 + 8 = 182 px)
+  // and not the two words whole (246 px). Without hyphenation the long word
+  // goes down whole and the first line is one run; with it the first line
+  // takes the half and the drawn hyphen as well.
   const std::u8string body = u8"short extraordi\u00adnarily";
   const auto runsOnFirstLineWith = [&](bool enabled) {
     host.composer.render(
         box().padding(4).child(text(body, base)
-                                   .width(150)
+                                   .width(200)
                                    .hyphenation({.enabled = enabled})
                                    .key("t")));
     host.frame();
@@ -3202,8 +3214,10 @@ TEST(TextOptionSetters, SettersOverrideAPassedOptionsValueFieldByField) {
   sigil::weave::ParagraphLayoutOptions passed;
   passed.alignment = sigil::weave::TextAlignment::kCenter;
   passed.overflow.maxLines = 5;
+  // At 20 px in the instrument face the first line is "one two three four"
+  // at 198 px, so a centred line starts 11 px in.
   host.composer.render(
-      box().child(text(para, passed).width(200).maxLines(2).key("t")));
+      box().child(text(para, passed).width(220).maxLines(2).key("t")));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);

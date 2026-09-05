@@ -9,6 +9,7 @@
  * resolved.
  */
 
+#include <Fonts.h>
 #include <sigilweave/paragraph/Paragraph.h>
 
 #include <cstddef>
@@ -37,8 +38,22 @@ inline std::u8string makePooledText(const Pool& pool, int wordCount,
   return text;
 }
 
-/// A default TextStyle at the given size.
+/// A TextStyle at the given size in the instrument that puts every letter
+/// on one known advance, so a width or a line count read off it is the
+/// same on every machine. A case whose claim is the machine's own face
+/// asks for `machineStyle` instead.
 inline TextStyle basicStyle(float fontSize = 16.0f) {
+  TextStyle style;
+  style.shaping.typeface = sigil::test::instrument::sans();
+  style.shaping.fontSize = fontSize;
+  return style;
+}
+
+/// A TextStyle at the given size that names no face, so the font context
+/// resolves the machine's default and falls back through the machine's
+/// families: the style for a case whose claim IS that resolution, which
+/// carries the `fonts` label because a runner without faces fails it.
+inline TextStyle machineStyle(float fontSize = 16.0f) {
   TextStyle style;
   style.shaping.fontSize = fontSize;
   return style;
@@ -52,10 +67,17 @@ inline Paragraph paragraphIn(std::u8string_view utf8, const TextStyle& style) {
   return paragraph;
 }
 
-/// A single-span paragraph over `utf8` at the given size.
+/// A single-span paragraph over `utf8` at the given size, in the instrument.
 inline Paragraph makeParagraph(std::u8string_view utf8,
                                float fontSize = 16.0f) {
   return paragraphIn(utf8, basicStyle(fontSize));
+}
+
+/// A single-span paragraph over `utf8` at the given size in the machine's
+/// default face, for a case about what the machine resolves.
+inline Paragraph machineParagraph(std::u8string_view utf8,
+                                  float fontSize = 16.0f) {
+  return paragraphIn(utf8, machineStyle(fontSize));
 }
 
 /// Glyphs the paragraph shaped, over every word and every segment.

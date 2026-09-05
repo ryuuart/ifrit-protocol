@@ -82,7 +82,7 @@ TEST(KnuthPlass, NoWorseRaggednessThanGreedy) {
 
 TEST(KnuthPlass, AJustifiedCjkBlockKeepsEveryColumnInsideTheMeasure) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(
+  Paragraph paragraph = machineParagraph(
       u8"吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。"
       "何でも薄暗いじめじめした所でニャーニャー泣いていた事だけは記憶している"
       "。");

@@ -203,7 +203,7 @@ TEST(ParagraphLayout, AContinuousSpanOfEmphasisFollowsItsWordsOntoEveryLine) {
 
 TEST(BidiOrder, AReorderedPairRendersInVisualOrderBetweenItsNeighbours) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"aaa בבב גגג zzz", 16.0f);
+  Paragraph paragraph = machineParagraph(u8"aaa בבב גגג zzz", 16.0f);
   BlockFlow flow(SkRect::MakeWH(600, 60));  // one wide line
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
@@ -220,7 +220,7 @@ TEST(BidiOrder, AReorderedPairRendersInVisualOrderBetweenItsNeighbours) {
 
 TEST(EditSafety, ACutThroughASurrogatePairLeavesEveryWordInsideTheText) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"ab 𝕏𝕐 cd");  // 𝕏/𝕐 are surrogate pairs
+  Paragraph paragraph = machineParagraph(u8"ab 𝕏𝕐 cd");  // 𝕏/𝕐 are surrogate pairs
   paragraph.ensureShaped(fontContext);
   // Cut straight through the middle of the first surrogate pair.
   const size_t textOffset = paragraph.text().find(u"ab");

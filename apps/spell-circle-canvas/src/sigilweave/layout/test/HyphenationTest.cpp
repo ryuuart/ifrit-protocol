@@ -32,8 +32,12 @@ const kit::PatternHyphenator& englishPatterns() {
 
 /// A word carrying one soft hyphen, and a measure too narrow for the whole
 /// of it: the only thing that can decide the line count is whether the
-/// hyphen is a break opportunity.
+/// hyphen is a break opportunity. At 16 px in the instrument face a letter
+/// is 9.6 px and the hyphen 6.4, so the whole word is 144 px, its first
+/// half with the hyphen 54.4 and its second half 96: the measure holds
+/// either half and not the word.
 constexpr std::u8string_view kOneSoftHyphen = u8"extra­ordinarily";
+constexpr float kHalfWordMeasure = 110.0f;
 
 /// Both breakers weigh a discretionary break, so every claim about one is
 /// a claim about both.
@@ -46,7 +50,7 @@ class SoftHyphenBreaker : public BrokenBothWays {};
 TEST(SoftHyphen, ABrokenWordDrawsItsHyphenGlyph) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"an extra­ordinarily narrow measure");
-  BlockFlow flow(SkRect::MakeWH(90, 300));
+  BlockFlow flow(SkRect::MakeWH(kHalfWordMeasure, 300));
   ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
 
   const Word* hyphenWord = nullptr;
@@ -100,7 +104,7 @@ TEST_P(SoftHyphenBreaker, ADiscretionaryBreakIsTakenToFitTheMeasure) {
 TEST_P(SoftHyphenBreaker, TurningHyphenationOffFusesTheHalvesAndRemovesTheBreak) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(kOneSoftHyphen);
-  BlockFlow flow(SkRect::MakeWH(90, 300));
+  BlockFlow flow(SkRect::MakeWH(kHalfWordMeasure, 300));
   ParagraphLayoutOptions hyphenating;
   hyphenating.lineBreakStrategy = breaker();
   hyphenating.hyphenation.enabled = true;
@@ -130,7 +134,7 @@ TEST_P(SoftHyphenBreaker, TurningHyphenationOffFusesTheHalvesAndRemovesTheBreak)
   float extent = 0;
   for (const PositionedRun& run : unbroken.runs)
     extent = std::max(extent, runEnd(paragraph, run));
-  EXPECT_GT(extent, 90.0f);
+  EXPECT_GT(extent, kHalfWordMeasure);
 
   // Turning it back on restores the break, so the decision is not sticky.
   const ParagraphLayout again =
@@ -187,7 +191,11 @@ TEST_P(HyphenationZone, AZoneAsWideAsTheMeasureLeavesTheRagAlone) {
         u8"The typography of hyphenation and justification is a discipline "
         u8"of considerable subtlety and consequence.",
         style);
-    BlockFlow flow(SkRect::MakeWH(110, 600));
+    // Wide enough for the passage's longest word, "justification" at 13
+    // letters of 9.6 px, so no break is forced on a word the measure
+    // cannot hold and every hyphen is one the zone could refuse.
+    constexpr float kMeasure = 150.0f;
+    BlockFlow flow(SkRect::MakeWH(kMeasure, 600));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = breaker();
     options.hyphenation.patterns = &englishPatterns();
@@ -202,7 +210,7 @@ TEST_P(HyphenationZone, AZoneAsWideAsTheMeasureLeavesTheRagAlone) {
   // have avoided: no ragged line ends further than the whole measure from
   // it. What survives is the word that is the line — there is nothing else
   // on it for the zone to measure.
-  EXPECT_LT(fillWith(110.0f), fillWith(0.0f));
+  EXPECT_LT(fillWith(150.0f), fillWith(0.0f));
 }
 
 INSTANTIATE_TEST_SUITE_P(Breakers, HyphenationZone, bothBreakers(),

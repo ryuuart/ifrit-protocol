@@ -22,9 +22,11 @@ namespace {
 constexpr const char8_t* kProse =
     u8"縦組みの文章は上から下へ流れ右から左へと列が進む";
 
+/// Japanese in whatever the machine resolves for it: the prose here needs a
+/// whole CJK face, which no instrument carries, so the suite says so with
+/// the `fonts` label.
 sigil::weave::TextStyle jp(float size, SkColor color) {
-  sigil::weave::TextStyle s;
-  s.shaping.fontSize = size;
+  sigil::weave::TextStyle s = machineStyleAt(size);
   s.shaping.languageTag = "ja";
   s.paint.foreground.setColor(color);
   s.paint.foreground.setAntiAlias(true);

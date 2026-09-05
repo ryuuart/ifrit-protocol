@@ -20,9 +20,13 @@ TEST(Balance, ABalancedBlockIsSetInTheNarrowestMeasureThatKeepsItsLineCount) {
   FontContext& fonts = sigil::test::fonts();
   const std::u8string text =
       u8"A heading of several words that wants an even rag beneath it";
+  // At 16 px in the instrument face (a letter 9.6 px, a space 4.8) the
+  // loose setting in 260 px is "A heading of several words" (230.4),
+  // "that wants an even rag" (192) and "beneath it" (91.2): three lines
+  // with a rag the same count can be set far more evenly under.
   const auto fillWith = [&](bool balance) {
     Paragraph paragraph = makeParagraph(text, 16.0f);
-    BlockFlow flow(SkRect::MakeWH(200, 400));
+    BlockFlow flow(SkRect::MakeWH(260, 400));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
     ParagraphStyle style;
@@ -52,11 +56,20 @@ TEST(Balance, ABlockCutIntoUnequalLinesGivesUpAProportionOfEachOfThem) {
   const std::u8string text =
       u8"A caption of several words set beside a figure it has to flow "
       u8"around, wanting an even rag under the cut";
+  // The cut: the right 100 px of the first 60 px of the block. At 15 px in
+  // the instrument face a line is 15 px tall, so the four lines whose top
+  // is above 60 have 200 px and every line below has the whole 300.
+  constexpr float kCutBottom = 60.0f;
+  constexpr float kCutWidth = 200.0f;
+  constexpr float kWholeWidth = 300.0f;
   const auto fillWith = [&](bool balance) {
     Paragraph paragraph = makeParagraph(text, 15.0f);
-    ExclusionFlow flow(SkRect::MakeWH(300, 400));
-    flow.shapes().push_back(
-        {ExclusionFlow::Shape::kRect, SkRect::MakeXYWH(200, 0, 100, 60), 0});
+    ExclusionFlow flow(SkRect::MakeWH(kWholeWidth, 400));
+    flow.shapes().push_back({ExclusionFlow::Shape::kRect,
+                             SkRect::MakeXYWH(kCutWidth, 0,
+                                              kWholeWidth - kCutWidth,
+                                              kCutBottom),
+                             0});
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
     ParagraphStyle style;
@@ -65,6 +78,13 @@ TEST(Balance, ABlockCutIntoUnequalLinesGivesUpAProportionOfEachOfThem) {
     const ParagraphLayout layout =
         layoutParagraph(fonts, paragraph, flow, options);
     EXPECT_FALSE(layout.overflowed());
+    // Every line against the room its own top had: the cut width while the
+    // line starts inside the cut, the whole measure below it.
+    for (const LineMetrics& line : layout.lineMetrics(paragraph))
+      EXPECT_LE(line.right - line.left,
+                line.baseline - line.ascent < kCutBottom ? kCutWidth
+                                                         : kWholeWidth)
+          << "line " << line.lineIndex;
     return std::make_pair(layout.lineCount, lineWidths(layout, paragraph));
   };
   const auto [looseLines, loose] = fillWith(false);
@@ -72,9 +92,6 @@ TEST(Balance, ABlockCutIntoUnequalLinesGivesUpAProportionOfEachOfThem) {
   ASSERT_GE(loose.size(), 3u);
   EXPECT_EQ(looseLines, balancedLines);
   ASSERT_EQ(loose.size(), balanced.size());
-  for (const float width : balanced) EXPECT_LE(width, 300.0f);
-  EXPECT_LE(*std::max_element(balanced.begin(), balanced.end()),
-            *std::max_element(loose.begin(), loose.end()) + 0.5f);
 }
 
 TEST(Balance, ABalancedBlockIsStillSetInItsWholeMeasure) {

@@ -160,7 +160,7 @@ TEST(DecorationBand, HighlightDefaultColorIsTranslucentForeground) {
 
 TEST(DecorationBand, AColumnBandRunsUncutDownItsRun) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"縦書きの傍線", 32.0f);
+  Paragraph paragraph = machineParagraph(u8"縦書きの傍線", 32.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   VerticalBlockFlow flow(SkRect::MakeWH(120, 400));
   ParagraphLayoutOptions options;

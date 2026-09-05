@@ -17,18 +17,26 @@ sigil_library(SigilWeaveParagraph
 
 # Shaping as the paragraph drives it, the document model, the typographic
 # correctness a shaping engine must hold, and the options that reach
-# shaping. Nothing here lays a line out. A case whose claim is about a
-# script, an axis or a feature shapes an instrument from src/test/assets/
-# and needs nothing of the machine; what the label is still for is the
-# cases whose claim is the MACHINE'S OWN fallback — that an unstyled
-# paragraph of mixed scripts and emoji resolves to real glyphs at all —
-# which cannot be asked without the machine having faces for them.
+# shaping. Nothing here lays a line out. Every case shapes the instrument
+# faces from src/test/assets/ and needs nothing of the machine, except the
+# ones named below, whose claim is the MACHINE'S OWN fallback — that a
+# paragraph of mixed scripts, Hebrew, an accent or emoji set in no named
+# face resolves to real glyphs at all — which cannot be asked without the
+# machine having faces for them, so they alone carry the label.
 sigil_test(weave_test
   SOURCES test/ShapingTest.cpp test/ParagraphTest.cpp test/CorrectnessTest.cpp
           test/TypographyTest.cpp test/RichTextTest.cpp
   LIBRARIES SigilWeaveParagraph SigilWeavePorts Boost::container
             Boost::unordered
-  LABELS fonts)
+  LABELS fonts
+  SUITES Itemization.MixedLatinCjkSplitsIntoWords
+         Itemization.CjkGetsPerCharacterBreakOpportunities
+         Itemization.FallbackResolvesCjkGlyphs
+         Itemization.ARightToLeftWordIsShapedRightToLeft
+         EmojiClusters Correctness.ClusterCoverageIsComplete
+         Correctness.ZwnjBlocksArabicJoining
+         Correctness.CombiningMarkAttachesToBase
+         Shaper.PurgeAllCachesRefillsIdentically)
 
 # A whole paragraph analysed and shaped, cold and warm.
 sigil_bench(weave_bench

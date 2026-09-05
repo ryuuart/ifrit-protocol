@@ -43,7 +43,9 @@ sigil_library(SigilComposeKit
 # consumer could read. SigilMeasure is here for the checks a feed plate
 # reports, which is the one target the kit's own link line does not carry.
 #
-# Shapes text through the machine's own faces, so the label says so.
+# Every case sets the instrument face from src/test/assets/ except the one
+# that asks the machine's italic families whether their ink overhangs, so
+# that case alone carries the label.
 sigil_test(compose_test
   SOURCES test/ComposeTestKitValues.cpp test/ComposeTestLayoutsAndShapes.cpp
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
@@ -51,7 +53,8 @@ sigil_test(compose_test
           test/ComposeTestStudio.cpp
   LIBRARIES SigilComposeKit SigilComposeBrush SigilMeasure
             SigilComposeTesting SigilWeavePorts
-  LABELS fonts)
+  LABELS fonts
+  SUITES KitPixelType.InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing)
 
 # Comparable silhouettes, hit testing and blended shaped leaves.
 sigil_bench(compose_bench

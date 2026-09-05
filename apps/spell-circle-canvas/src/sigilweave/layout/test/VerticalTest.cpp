@@ -16,7 +16,7 @@ TEST(Vertical, UprightCjkStacksDownColumns) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"縦書きのテキストは上から下へ流れる",
-                       basicStyle(20.0f));
+                       machineStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
   VerticalBlockFlow flow(SkRect::MakeWH(200, 220));
@@ -46,7 +46,7 @@ TEST(Vertical, UprightCjkStacksDownColumns) {
 TEST(Vertical, AutoRotatesLatinMixedIntoCjk) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
-  paragraph.appendText(u8"縦書きにHTTPが混ざる", basicStyle(20.0f));
+  paragraph.appendText(u8"縦書きにHTTPが混ざる", machineStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   VerticalBlockFlow flow(SkRect::MakeWH(200, 400));
   ParagraphLayoutOptions options;
@@ -71,8 +71,8 @@ TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
   // the column length the pair costs is read against the column length the
   // same pair costs stacked one above the other.
   const auto set = [&](VerticalForm form) {
-    TextStyle japaneseStyle = basicStyle(20.0f);
-    TextStyle digits = basicStyle(20.0f);
+    TextStyle japaneseStyle = machineStyle(20.0f);
+    TextStyle digits = machineStyle(20.0f);
     digits.shaping.verticalForm = form;
     Paragraph paragraph;
     paragraph.appendText(u8"平成", japaneseStyle);
@@ -112,7 +112,7 @@ TEST(Vertical, ColumnMetricsReportTheBandAndTheExtent) {
   FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"縦組みの文章は上から下へ流れ右から左へと列が進む",
-                       basicStyle(20.0f));
+                       machineStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
   VerticalBlockFlow flow(SkRect::MakeWH(200, 200));
@@ -148,7 +148,7 @@ TEST(Vertical, TateChuYokoCountsItsFontHeightDownTheColumn) {
   // depend on how many digits it holds.
   FontContext& fontContext = sigil::test::fonts();
   const auto columnExtent = [&](const char8_t* digits) {
-    TextStyle body = basicStyle(20.0f);
+    TextStyle body = machineStyle(20.0f);
     TextStyle tcy = body;
     tcy.shaping.verticalForm = VerticalForm::kTateChuYoko;
     Paragraph paragraph;
@@ -181,7 +181,7 @@ TEST(Vertical, ColumnsFlowAroundASilhouette) {
       u8"左へと進みながら、障害物の上と下に分かれて組まれてゆく。文字は列の心"
       u8"に沿って落ちてゆき、円に出会えば頭と足に分かれ、円を過ぎればまた一本"
       u8"の列に戻る。",
-      basicStyle(20.0f));
+      machineStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
   constexpr float kPitch = 30;
@@ -235,7 +235,7 @@ class ClampedColumn : public ::testing::Test {
   void SetUp() override {
     m_paragraph.appendText(
         u8"縦組みの文章は上から下へ流れ右から左へと列が進み続けてゆく",
-        basicStyle(20.0f));
+        machineStyle(20.0f));
     m_paragraph.setWritingMode(WritingMode::kVerticalRL);
   }
 
@@ -306,7 +306,7 @@ TEST(Vertical, ARotatedRunTakesARotatedMarker) {
   paragraph.appendText(
       u8"a Latin passage set down a column rotates a quarter turn and keeps "
       u8"going far past the room this clamp allows it",
-      basicStyle(18.0f));
+      machineStyle(18.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
 
   VerticalBlockFlow flow(SkRect::MakeWH(160, 200));

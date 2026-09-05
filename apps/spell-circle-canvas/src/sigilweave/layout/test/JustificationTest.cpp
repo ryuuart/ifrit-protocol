@@ -26,6 +26,14 @@ constexpr std::u8string_view kTightPassage =
     u8"Justification spends interword gaps before letterspacing, and "
     u8"reaches for horizontal glyph-scaling last of all.";
 
+/// The measure the passage is set in, at 12 px in the instrument face —
+/// a letter is 7.2 px, a space 3.6, a mark 4.8. Greedy breaking fills it
+/// as "Justification spends" (140.4), "interword gaps before" (144),
+/// "letterspacing, and reaches" (177.6), "for horizontal" (97.2) and
+/// "glyph-scaling last of all." (171.6): five lines, every one holding a
+/// gap for justification to spend, and the last short of the measure.
+constexpr float kMeasure = 180.0f;
+
 /// The passage set justified under `spec`, in `measure`.
 LaidOut justified(const JustificationOptions& spec, std::u8string_view body,
                   float measure,
@@ -70,8 +78,8 @@ std::vector<float> runStartsUnder(const JustificationOptions& spec,
 
 /// True when `spec` places the runs anywhere the stock settings did not.
 bool movesTheRuns(const JustificationOptions& spec) {
-  const std::vector<float> stock = runStartsUnder({}, kTightPassage, 130.0f);
-  const std::vector<float> under = runStartsUnder(spec, kTightPassage, 130.0f);
+  const std::vector<float> stock = runStartsUnder({}, kTightPassage, kMeasure);
+  const std::vector<float> under = runStartsUnder(spec, kTightPassage, kMeasure);
   if (under.size() != stock.size()) return true;
   for (size_t index = 0; index < under.size(); ++index)
     if (std::abs(under[index] - stock[index]) > 0.5f) return true;
@@ -110,11 +118,12 @@ TEST(Justification, ShrinkNeverCollapsesASpacePastItsLimit) {
 }
 
 TEST(Justification, TheGapsAloneFillEveryLineButTheLast) {
-  const std::vector<float> stock = edgesUnder({}, kTightPassage, 130.0f);
+  const std::vector<float> stock = edgesUnder({}, kTightPassage, kMeasure);
   ASSERT_GE(stock.size(), 4u);
   for (size_t index = 0; index + 1 < stock.size(); ++index)
-    EXPECT_NEAR(stock[index], 130.0f, 0.75f) << "line " << index;
-  EXPECT_LT(stock.back(), 128.0f) << "the last line was justified unasked";
+    EXPECT_NEAR(stock[index], kMeasure, 0.75f) << "line " << index;
+  EXPECT_LT(stock.back(), kMeasure - 2.0f)
+      << "the last line was justified unasked";
 }
 
 TEST(Justification, OpeningTheLetterPassSetsThePassageDifferently) {
@@ -145,9 +154,9 @@ TEST(Justification, TheWidthAGapIsAimedAtIsWhatABreakIsWeighedAgainst) {
   JustificationOptions wider;
   wider.wordSpacing = 2.0f;
   const std::vector<float> stock =
-      edgesUnder({}, kTightPassage, 130.0f, LineBreakStrategy::kKnuthPlass);
+      edgesUnder({}, kTightPassage, kMeasure, LineBreakStrategy::kKnuthPlass);
   const std::vector<float> aimed =
-      edgesUnder(wider, kTightPassage, 130.0f, LineBreakStrategy::kKnuthPlass);
+      edgesUnder(wider, kTightPassage, kMeasure, LineBreakStrategy::kKnuthPlass);
   bool differs = aimed.size() != stock.size();
   for (size_t index = 0; !differs && index < aimed.size(); ++index)
     differs = std::abs(aimed[index] - stock[index]) > 0.5f;
@@ -163,12 +172,12 @@ TEST(Justification, TheLetterPassTakesWhatTheGapsMayNotStretchTo) {
   JustificationOptions tightGaps;
   tightGaps.spaceStretch = 0.02f;
   tightGaps.letterSpacingMaximum = 0.3f;
-  const std::vector<float> edges = edgesUnder(tightGaps, kTightPassage, 130.0f);
+  const std::vector<float> edges = edgesUnder(tightGaps, kTightPassage, kMeasure);
   ASSERT_GE(edges.size(), 2u);
-  EXPECT_NEAR(edges.front(), 130.0f, 1.0f) << "the line did not fill";
+  EXPECT_NEAR(edges.front(), kMeasure, 1.0f) << "the line did not fill";
   const std::vector<float> tight =
-      runStartsUnder(tightGaps, kTightPassage, 130.0f);
-  const std::vector<float> stock = runStartsUnder({}, kTightPassage, 130.0f);
+      runStartsUnder(tightGaps, kTightPassage, kMeasure);
+  const std::vector<float> stock = runStartsUnder({}, kTightPassage, kMeasure);
   ASSERT_GE(tight.size(), 2u);
   ASSERT_GE(stock.size(), 2u);
   EXPECT_LT(tight[1], stock[1] - 1.0f)
@@ -180,14 +189,14 @@ TEST(Justification, GapsStayUnboundedWhenNoLaterPassCanSpendWhatTheyDrop) {
   // the right margin that nothing in the line is allowed to close. So a
   // stretch limit alone, and a rule about lone-word lines alone, leave
   // every ordinary line set exactly as the gaps alone set it.
-  const std::vector<float> stock = edgesUnder({}, kTightPassage, 130.0f);
+  const std::vector<float> stock = edgesUnder({}, kTightPassage, kMeasure);
   ASSERT_GE(stock.size(), 2u);
   JustificationOptions tightGaps;
   tightGaps.spaceStretch = 0.02f;
   JustificationOptions lone;
   lone.singleWord = JustificationOptions::SingleWord::kJustify;
   for (const JustificationOptions& spec : {tightGaps, lone}) {
-    const std::vector<float> edges = edgesUnder(spec, kTightPassage, 130.0f);
+    const std::vector<float> edges = edgesUnder(spec, kTightPassage, kMeasure);
     ASSERT_EQ(edges.size(), stock.size());
     for (size_t index = 0; index < edges.size(); ++index)
       EXPECT_NEAR(edges[index], stock[index], 0.5f);
@@ -219,13 +228,13 @@ TEST(Justification, ALineOfOneWordStretchesOnlyWhenAskedTo) {
 }
 
 TEST(Justification, TheLastLineJustifiesOnlyWhenAskedTo) {
-  const std::vector<float> ragged = edgesUnder({}, kTightPassage, 130.0f);
+  const std::vector<float> ragged = edgesUnder({}, kTightPassage, kMeasure);
   JustificationOptions all;
   all.justifyLastLine = true;
-  const std::vector<float> full = edgesUnder(all, kTightPassage, 130.0f);
+  const std::vector<float> full = edgesUnder(all, kTightPassage, kMeasure);
   ASSERT_EQ(ragged.size(), full.size());
-  EXPECT_LT(ragged.back(), 128.0f);
-  EXPECT_NEAR(full.back(), 130.0f, 1.0f);
+  EXPECT_LT(ragged.back(), kMeasure - 2.0f);
+  EXPECT_NEAR(full.back(), kMeasure, 1.0f);
 }
 
 TEST(Justification, TheLastLineTakesItsOwnAlignmentAndNotTheParagraphs) {

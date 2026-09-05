@@ -170,7 +170,7 @@ TEST(ColumnDecorationInk, AColumnDrawsItsBandBesideTheType) {
   // right, the length of the run — the same band the horizontal setting
   // draws under a line, turned with the type.
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = makeParagraph(u8"縦書きの傍線", 32.0f);
+  Paragraph paragraph = machineParagraph(u8"縦書きの傍線", 32.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   VerticalBlockFlow flow(SkRect::MakeWH(120, 300));
   ParagraphLayoutOptions options;

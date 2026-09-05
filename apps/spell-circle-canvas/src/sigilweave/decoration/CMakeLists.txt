@@ -15,7 +15,10 @@ sigil_library(SigilWeaveDecoration
 # Bands checked as geometry, without drawing them: where each kind and side
 # anchors is one TEST_P over the anchor table. Whether the ink arrives is
 # the paint feature's, which is the only other place these bands are asked
-# about.
+# about. The column band is asked of a Japanese run in whatever face the
+# machine resolves for it, so that case alone carries the label.
 sigil_test(weave_test
   SOURCES test/DecorationTest.cpp
-  LIBRARIES SigilWeaveDecoration SigilWeavePorts)
+  LIBRARIES SigilWeaveDecoration SigilWeavePorts
+  LABELS fonts
+  SUITES DecorationBand.AColumnBandRunsUncutDownItsRun)

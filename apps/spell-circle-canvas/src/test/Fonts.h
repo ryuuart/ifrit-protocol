@@ -56,11 +56,15 @@ inline sk_sp<SkTypeface> face(const char* fileName) {
   return weave::ports::systemFontManager()->makeFromFile(path.c_str());
 }
 
-/// Letters on one known advance, an x-height of 500 and a cap height of
-/// 700 against 1000 units per em, `ffi` ligated under `liga`, and figures
-/// that are proportional until `tnum` equalises them. Covers Latin only:
-/// asked for a Han character or a kana it answers nothing, which is what
-/// a case about fallback needs its primary face to do.
+/// Letters on one known advance of 600, punctuation on 400 and the space
+/// on 300 against 1000 units per em, an x-height of 500 and a cap height
+/// of 700, an ascent of 800 over a descent of 200 that only `g j p q y`
+/// reach, `ffi` ligated under `liga`, and figures that are proportional
+/// until `tnum` equalises them. Covers ASCII, the sharp s, and the few
+/// marks prose reaches beyond it (the no-break space, the soft hyphen,
+/// dashes, curly quotes, the ellipsis) and nothing else: asked for an
+/// accented letter, a Han character or a kana it answers nothing, which is
+/// what a case about fallback needs its primary face to do.
 inline sk_sp<SkTypeface> sans() {
   static const sk_sp<SkTypeface> held = face("Sans.ttf");
   return held;

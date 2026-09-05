@@ -12,9 +12,9 @@ face from this directory instead.
 The geometry is rectangles and triangles authored here, so no license
 question arises (public domain, CC0). Each face is a few kilobytes.
 
-    Sans.ttf         known advances, x-height 500, cap height 700, an `ffi`
-                     ligature under `liga`, proportional digits that `tnum`
-                     equalises
+    Sans.ttf         known advances for letters, punctuation and the space,
+                     x-height 500, cap height 700, an `ffi` ligature under
+                     `liga`, proportional digits that `tnum` equalises
     Variable.ttf     wght and wdth that MOVE advances, GRAD that does not
                      and moves ink instead
     Optical.ttf      an A and a V whose diagonals lean past their advances,
@@ -157,7 +157,26 @@ def save(font, name):
 LIGATURE_ADVANCE = 1500  # f + f + i set as one glyph
 LETTER_ADVANCE = 600
 SPACE_ADVANCE = 300
+PUNCTUATION_ADVANCE = 400
+
+# The lowercase letters whose ink reaches the descent, so an underline
+# that skips ink has something to skip and a line's descent is a letter's.
+DESCENDING = "gjpqy"
 TABULAR_ADVANCE = 600
+
+# Every ASCII mark that is not a letter, a digit or the space, and the few
+# beyond ASCII that prose set through this face reaches: the no-break space
+# (blank, on the space's advance), the soft hyphen, the hyphen, the dashes,
+# the curly quotes and the ellipsis. Each sits on PUNCTUATION_ADVANCE, so a
+# sentence's width is a sum a case can write down, and none is a letter, so
+# a word boundary is still where the breaker puts it.
+PUNCTUATION = (
+    list(range(0x21, 0x30))
+    + list(range(0x3A, 0x41))
+    + list(range(0x5B, 0x61))
+    + list(range(0x7B, 0x7F))
+    + [0x00AD, 0x2010, 0x2011, 0x2013, 0x2014, 0x2018, 0x2019, 0x201C, 0x201D, 0x2026]
+)
 
 
 def digit_advance(digit):
@@ -171,10 +190,11 @@ def sans():
     metrics = {"space": (SPACE_ADVANCE, 0)}
     character_map = {0x20: "space"}
 
-    for code_point in list(range(0x41, 0x5B)) + list(range(0x61, 0x7B)):
+    for code_point in list(range(0x41, 0x5B)) + list(range(0x61, 0x7B)) + [0x00DF]:
         name = glyph_name(code_point)
         top = CAP_HEIGHT if code_point < 0x5B else X_HEIGHT
-        glyphs[name] = bar(100, 500, 0, top)
+        bottom = DESCENT if chr(code_point) in DESCENDING else 0
+        glyphs[name] = bar(100, 500, bottom, top)
         metrics[name] = (LETTER_ADVANCE, 100)
         character_map[code_point] = name
 
@@ -187,6 +207,15 @@ def sans():
         # The tabular figure: the same ink on one shared advance.
         glyphs[name + ".tnum"] = bar(80, TABULAR_ADVANCE - 80, 0, CAP_HEIGHT)
         metrics[name + ".tnum"] = (TABULAR_ADVANCE, 80)
+
+    glyphs["uni00A0"] = blank()
+    metrics["uni00A0"] = (SPACE_ADVANCE, 0)
+    character_map[0x00A0] = "uni00A0"
+    for code_point in PUNCTUATION:
+        name = glyph_name(code_point)
+        glyphs[name] = bar(100, PUNCTUATION_ADVANCE - 100, 0, X_HEIGHT // 2)
+        metrics[name] = (PUNCTUATION_ADVANCE, 100)
+        character_map[code_point] = name
 
     glyphs["f_f_i"] = bar(100, LIGATURE_ADVANCE - 100, 0, CAP_HEIGHT)
     metrics["f_f_i"] = (LIGATURE_ADVANCE, 100)
@@ -459,8 +488,25 @@ def failures():
         "Sans no longer declares the x-height and cap height a case reads",
     )
     check(
-        advances[cmap[0x41]][0] == LETTER_ADVANCE,
+        advances[cmap[0x41]][0] == LETTER_ADVANCE
+        and advances[cmap[0x00DF]][0] == LETTER_ADVANCE,
         "Sans letters no longer share one known advance",
+    )
+    sans_glyf = sans_face["glyf"]
+    check(
+        all(sans_glyf[glyph_name(ord(ch))].yMin == DESCENT for ch in DESCENDING)
+        and sans_glyf["n"].yMin == 0,
+        "Sans no longer descends on exactly the letters that descend",
+    )
+    check(
+        all(code_point in cmap for code_point in PUNCTUATION)
+        and {advances[cmap[code_point]][0] for code_point in PUNCTUATION}
+        == {PUNCTUATION_ADVANCE},
+        "Sans punctuation no longer shares one known advance",
+    )
+    check(
+        advances[cmap[0x00A0]][0] == SPACE_ADVANCE,
+        "Sans's no-break space no longer matches its space",
     )
     figures = {advances[cmap[0x30 + d]][0] for d in range(10)}
     check(len(figures) == 10, "Sans figures are no longer proportional")

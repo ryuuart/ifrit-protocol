@@ -143,8 +143,14 @@ TEST(ComposeText, AliasedTextHasHardEdges) {
   // decoration on a hand-measured box — which forfeits shaping, bidi,
   // fallback and flowAround. One field buys it back; this is not a
   // bitmap-font path, just an edging switch.
+  // 33 px in the instrument face puts every letter's stems at 3.3 and 16.5
+  // px into its cell and its top at 23.1 px, so no edge lies on the pixel
+  // grid and each stem leaves a partial pixel on every row it spans but
+  // the two its own top and bottom edges cut.
+  constexpr int kGlyphs = 4;
+  constexpr int kPartialPerGlyph = 2 * 21;
   auto greys = [](bool aliased) {
-    auto style = whiteStyle(40);
+    auto style = whiteStyle(33);
     style.shaping.aliased = aliased;
     Host host(240, 100);
     host.composer.render(box().padding(12).child(text(u8"AVWM", style)));
@@ -165,7 +171,7 @@ TEST(ComposeText, AliasedTextHasHardEdges) {
   ASSERT_GT(hard.first, 200);
   // Antialiased type is fringed with partial coverage; aliased type is
   // not — every pixel is on or off.
-  EXPECT_GT(soft.second, 300);
+  EXPECT_GE(soft.second, kGlyphs * kPartialPerGlyph);
   EXPECT_LT(hard.second, soft.second / 8);
 }
 

@@ -115,13 +115,15 @@ Element ringWith(float at, float pixelSize, Track track) {
 }
 
 /// The most distinct frames a WHOLE-PIXEL origin can produce over that
-/// slide, which is arithmetic rather than a measurement: 1.5 px of travel
-/// crosses at most two pixel boundaries, and a run re-uses one
-/// rasterization between crossings, so at most three frames differ. A
-/// subpixel grid is not bounded by it -- every step lands somewhere new --
-/// so the two answers are separated by the count itself and by no fitted
-/// number.
-constexpr int kWholePixelCeiling = 3;
+/// slide, which is arithmetic rather than a measurement: the slide runs
+/// along the ring's tangent at a twentieth of a turn, so its 1.5 px are
+/// 1.43 px of travel on one axis and 0.46 on the other, crossing at most
+/// two pixel boundaries on the first and one on the second, and a run
+/// re-uses one rasterization between crossings, so at most four frames
+/// differ. A subpixel grid is not bounded by it -- every step lands
+/// somewhere new -- so the two answers are separated by the count itself
+/// and by no fitted number.
+constexpr int kWholePixelCeiling = 4;
 
 /// How many DISTINCT frames a run produces as it slides through a pixel
 /// and a half of arc.

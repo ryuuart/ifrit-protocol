@@ -52,8 +52,8 @@ TEST(LineEdges, KinsokuNeverOpensALineWithAProhibitedCharacter) {
   const std::u8string passage =
       u8"これは本文です、そして"
       u8"続きます。";
-  Paragraph bare = makeParagraph(passage, 20.0f);
-  Paragraph ruled = makeParagraph(passage, 20.0f);
+  Paragraph bare = machineParagraph(passage, 20.0f);
+  Paragraph ruled = machineParagraph(passage, 20.0f);
   ParagraphLayoutOptions options;
   options.kinsoku = kit::kinsoku::japanese();
   BlockFlow flowA(SkRect::MakeWH(126, 300));
@@ -76,8 +76,8 @@ TEST(LineEdges, KinsokuDropsTheBoundaryBeforeAProhibitedCharacter) {
   // become one unbreakable word.
   const std::u8string passage =
       u8"\xe6\x9c\xac\xe6\x96\x87\xe6\x9c\xac\xe6\x96\x87";
-  Paragraph bare = makeParagraph(passage, 20.0f);
-  Paragraph ruled = makeParagraph(passage, 20.0f);
+  Paragraph bare = machineParagraph(passage, 20.0f);
+  Paragraph ruled = machineParagraph(passage, 20.0f);
   ParagraphLayoutOptions options;
   options.kinsoku.notLineStart = u"\u6587";
   BlockFlow flowA(SkRect::MakeWH(126, 300));

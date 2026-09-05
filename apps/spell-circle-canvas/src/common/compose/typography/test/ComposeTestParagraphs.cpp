@@ -86,9 +86,12 @@ TEST(ComposeParagraphs, OneEntryStylesTheFirstBlockAndLeavesTheRestPlain) {
   Host host(400, 400);
   sigil::weave::ParagraphStyle heading;
   heading.alignment = sigil::weave::TextAlignment::kCenter;
+  // At 13 px in the instrument face the first block's first line is "First
+  // block runs on for several words so" at 288.6 px, so centred in 300 it
+  // starts 5.7 px in.
   host.composer.render(box().child(text(twoBlocks(), whiteStyle(13))
                                        .key("t")
-                                       .width(Dim(320.0f))
+                                       .width(Dim(300.0f))
                                        .paragraphs({heading})));
   host.frame();
   const std::vector<TextUnit> lines = host.composer.units(
@@ -897,23 +900,28 @@ std::vector<float> justifiedEdges(sigil::weave::JustificationOptions spec,
   return edges;
 }
 
-/** A passage that wraps to several justified lines at the measure below. */
+/** A passage that wraps to several justified lines at the measure below:
+ *  at 12 px in the instrument face its greedy lines are 140.4, 144, 177.6,
+ *  97.2 and 171.6 px wide, so the last holds gaps and is short of it. */
 const char* kJustified =
     "Justification spends interword gaps before letterspacing, and "
     "reaches for horizontal glyph-scaling last of all.";
+constexpr float kJustifiedMeasure = 180.0f;
 
 TEST(ComposeJustification, WhatALeafIsToldAboutJustificationReachesTheLayout) {
   // How a justified line is fitted is SigilWeave's, and it is asked there.
   // What this tier promises is that the options a leaf is handed arrive:
   // the same passage set with the last line justified reaches the measure
   // where the stock setting leaves it ragged.
-  const std::vector<float> ragged = justifiedEdges({}, kJustified, 130.0f);
+  const std::vector<float> ragged =
+      justifiedEdges({}, kJustified, kJustifiedMeasure);
   sigil::weave::JustificationOptions all;
   all.justifyLastLine = true;
-  const std::vector<float> full = justifiedEdges(all, kJustified, 130.0f);
+  const std::vector<float> full =
+      justifiedEdges(all, kJustified, kJustifiedMeasure);
   ASSERT_EQ(ragged.size(), full.size());
-  EXPECT_LT(ragged.back(), 128.0f);
-  EXPECT_NEAR(full.back(), 130.0f, 1.0f);
+  EXPECT_LT(ragged.back(), kJustifiedMeasure - 2.0f);
+  EXPECT_NEAR(full.back(), kJustifiedMeasure, 1.0f);
 }
 
 // ── What a live passage's last layout cost ──────────────────────────────
@@ -924,11 +932,17 @@ TEST(ComposeJustification, WhatALeafIsToldAboutJustificationReachesTheLayout) {
 TextSettling sweptSettling(bool live, float budgetMicroseconds, float endAt) {
   Host host(280, 320);
   const auto step = [&](float measure) {
+    // Said twice: the budget is read once every eighth of the block's
+    // words, so a block has to carry enough of them for the search to be
+    // still running at its second reading.
     Element leaf =
         text(toU8("A measure that animates is one input of a run of layouts "
                   "rather than a question somebody asked once, and the block "
                   "that knows so keeps the break decisions it has already "
-                  "made."),
+                  "made. A measure that animates is one input of a run of "
+                  "layouts rather than a question somebody asked once, and "
+                  "the block that knows so keeps the break decisions it has "
+                  "already made."),
              whiteStyle(11.5f))
             .key("para")
             .width(Dim(measure))

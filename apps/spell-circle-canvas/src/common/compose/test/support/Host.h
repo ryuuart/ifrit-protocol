@@ -52,7 +52,22 @@ const T& require(const std::optional<T>& maybe) {
   return maybe.value();
 }
 
+/** A style at `size` in the instrument that puts every letter on one known
+ *  advance, so a width or a line count read off it is the same on every
+ *  machine. A case whose claim is the machine's own face asks for
+ *  `machineStyleAt` instead. */
 sigil::weave::TextStyle styleAt(float size) {
+  sigil::weave::TextStyle s;
+  s.shaping.typeface = sigil::test::instrument::sans();
+  s.shaping.fontSize = size;
+  return s;
+}
+
+/** A style at `size` that names no face, so the font context resolves the
+ *  machine's default and falls back through the machine's families: the
+ *  style for a case whose claim IS that resolution, which carries the
+ *  `fonts` label because a runner without faces fails it. */
+sigil::weave::TextStyle machineStyleAt(float size) {
   sigil::weave::TextStyle s;
   s.shaping.fontSize = size;
   return s;
