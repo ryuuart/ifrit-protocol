@@ -10,8 +10,10 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -70,12 +72,12 @@ namespace sigil::core {
 
 namespace env {
 
-/** One ambient binding, type-erased. `type` is a per-T address so no RTTI
- *  is needed and the type test is a pointer compare. Two entries are
+/** One ambient binding, type-erased. `type` is a per-T number so no RTTI
+ *  is needed and the type test is an integer compare. Two entries are
  *  equal when they bind the same type to values equal by that type's
  *  own `operator==`; the same holder short-circuits. */
 struct Entry {
-  const void* type = nullptr;
+  std::uint64_t type = 0;
   std::shared_ptr<const void> value;
   bool (*equal)(const void*, const void*) = nullptr;
 
@@ -101,10 +103,25 @@ namespace detail {
  *  thread the host calls on. */
 env::Snapshot& envStack();
 
+/** THE IDENTITY OF AN INHERITED TYPE, as a number the compiler derives
+ *  from the type's own spelling.
+ *
+ *  IT CANNOT BE AN ADDRESS. A dynamically loaded image compiled with
+ *  hidden visibility gets its own copy of every inline the loader of it
+ *  also has, including the static inside one — so a value bound in the
+ *  loaded image and read in the loader would carry two different
+ *  addresses for one type and never match. The compiler's own spelling
+ *  of the type is the same string in both images, so it is hashed at
+ *  compile time and the number is the key. */
 template <class T>
-const void* envTypeTag() {
-  static const char tag = 0;
-  return &tag;
+constexpr std::uint64_t envTypeTag() {
+  const std::string_view spelling = __PRETTY_FUNCTION__;
+  std::uint64_t hash = 14695981039346656037ULL;  // FNV-1a, 64 bit
+  for (const char c : spelling) {
+    hash ^= (std::uint64_t)(unsigned char)c;
+    hash *= 1099511628211ULL;
+  }
+  return hash;
 }
 
 }  // namespace detail
@@ -190,7 +207,7 @@ class Provide {
 template <class T>
 const T* inherited() {
   const Snapshot& stack = detail::envStack();
-  const void* tag = detail::envTypeTag<T>();
+  const std::uint64_t tag = detail::envTypeTag<T>();
   for (size_t i = stack.size(); i-- > 0;)
     if (stack[i].type == tag)
       return static_cast<const T*>(stack[i].value.get());

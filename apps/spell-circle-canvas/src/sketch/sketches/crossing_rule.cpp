@@ -47,6 +47,11 @@ constexpr float kCell = 250;        // the drawn square of one cell
 constexpr float kReach = 15;        // a strand's full mark width, px
 constexpr float kPatchRadius = 30;  // the cap on one patch's reach, px
 
+/** What the whole sheet stands on. It is the house ground stated as a
+ *  constant because a hot-reload fixture grounds a copy of this file in
+ *  a colour of its own and reads the corner pixel back: the file has to
+ *  name that colour once and use it for both the canvas and the page. */
+constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.11f, 0.11f, 0.13f, 1};
 constexpr SkColor4f kCasing{0.05f, 0.05f, 0.06f, 1};
 constexpr SkColor4f kCore{0.86f, 0.80f, 0.66f, 1};
@@ -55,14 +60,12 @@ constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = kGround;
   look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
   look.type.captionNote = {.size = 11, .track = 0.3f};
   return look;
 }
 
-/** The one voice every cell on this sheet is captioned in: the call over
- *  the picture, what it did under it, both ranged left at the cell's
- *  width. */
 /** Seven chords of a regular heptagon, each joining a vertex to the one
  *  two round — the {7/2} star as seven separate strands, because a
  *  crossing is between two strands and a self-crossing path has one. */
