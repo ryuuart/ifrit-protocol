@@ -40,30 +40,27 @@ sigil_library(SigilComposeBrush
          SigilMaterial SigilSkiaDraw SigilWeave
   PRIVATE SigilCoreCompute yoga::yogacore)
 
-# Decorations, lines, rails, hatches, brushes, the stroke grammar (which is
-# what the authoring-grammar file exercises), the kit's stroke presets, the
-# brushed masks and the stamped and stroked slices of the other catalogs.
+# The one brush binary. Decorations, lines, rails, hatches, brushes, the
+# stroke grammar (which is what the authoring-grammar file exercises), the
+# kit's stroke presets, the brushed masks, the paint vocabulary this tier
+# spells over SigilMaterial -- patterns, SDF materials, layer styles,
+# colour management -- and the stamped and stroked slices of the other
+# catalogs. One binary rather than two, because a second one over the same
+# two targets states no boundary: it only decides which half of a shared
+# fixture a case can reach.
 sigil_test(compose_brush_test
   SOURCES test/ComposeTestLines.cpp test/ComposeTestBrushes.cpp
           test/ComposeTestGrammar.cpp test/ComposeTestContentBrush.cpp
           test/ComposeTestEngineDocsBrush.cpp test/ComposeTestKernelBrush.cpp
           test/ComposeTestMaskBrush.cpp test/ComposeTestTextDataBrush.cpp
           test/ComposeTestKitBrush.cpp
-  LIBRARIES SigilComposeBrush SigilComposeKit SigilComposeTesting
-            SigilWeavePorts)
-
-# Patterns, SDF materials, layer styles, the pattern pan and colour
-# management — the paint vocabulary, which is the core's materials and
-# this tier's styles over SigilMaterial. Its own binary, so the paint
-# suites keep their name.
-sigil_test(compose_paint_test
-  SOURCES test/ComposeTestBrushesPaint.cpp test/ComposeTestContentPaint.cpp
+          test/ComposeTestBrushesPaint.cpp test/ComposeTestContentPaint.cpp
           test/ComposeTestEngineDocsPaint.cpp test/ComposeTestGrammarPaint.cpp
           test/ComposeTestKernelPaint.cpp test/ComposeTestLinesPaint.cpp
           test/ComposeTestMaskPaint.cpp test/ComposeTestPixelStylesPaint.cpp
           test/ComposeTestTextDataPaint.cpp
   LIBRARIES SigilComposeBrush SigilComposeKit SigilComposeTesting
-            SigilWeavePorts Boost::container)
+            SigilWeavePorts)
 
 # Masks, brushes, profiled and span strokes, stamps, warps, hatches and
 # the binding cost under stroked cells.
