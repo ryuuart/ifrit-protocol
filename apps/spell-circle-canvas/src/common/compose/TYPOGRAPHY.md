@@ -161,6 +161,22 @@ rather than a glyph, so it rides the advance of the glyph before it — which
 is what makes those sums reproduce the pen positions the layout used across
 a whole sentence.
 
+**Solving a style backwards from a size the drawing states.** A reference
+quotes how tall a capital stands, never a font size: `atCapHeight(style,
+capPx, fonts)` asks the FACE for its cap height and scales to it, which
+is the honest form of the `capPx / 0.72` written wherever this is done by
+hand — that ratio is one face's, and on another it puts the lettering out
+by whatever the two disagree by. `fitRun(utf8, style, widthPx, fonts,
+fit)` solves the other axis. A run's width is AFFINE in its size, because
+the ink scales and the tracking does not (tracking is px), so it takes
+two measurements to identify the line and reads the size off it; a fit
+written as one division assumes the line passes through the origin and
+overshoots by exactly the tracking. `RunFit` is the ladder it walks down
+— the size first, and the horizontal condense only over what the size
+floor left. Neither floor is a promise to fit: a run that cannot reach
+the width comes back at them, over-wide, rather than at a size nothing
+could read.
+
 **The whole span.** A beat says when it *opens*; `Composer::cascadeSpanMs`
 says when the whole schedule is *over* — the ms of virtual time the track's
 master progress [0,1] maps onto: `durationMs + eachMs·(N−1)` for the flat

@@ -3,8 +3,10 @@
 /** @file
  * SigilCompose one-shot verbs — a tree taken without a live composer:
  * `snapshot` bakes it to a picture, `measure` answers its intrinsic size,
- * `metrics` reads a face's vertical metrics, and `measureRun` / `runPens`
- * shape one run into per-glyph advances and pen positions.
+ * `metrics` reads a face's vertical metrics, `measureRun` / `runPens`
+ * shape one run into per-glyph advances and pen positions, and
+ * `atCapHeight` / `fitRun` solve a style backwards from a size the
+ * drawing states.
  */
 
 #include <include/core/SkPicture.h>
@@ -119,6 +121,64 @@ std::vector<float> measureRun(std::u8string_view utf8,
 std::vector<float> runPens(std::u8string_view utf8,
                            const sigil::weave::TextStyle& style,
                            sigil::weave::FontContext& fonts);
+
+/** @p style solved so its face's CAP HEIGHT is exactly @p capPx.
+ *
+ *  The number a reference states about lettering is almost never the font
+ *  size — it is how tall a capital stands, which is what a ruler on a
+ *  scan measures and what makes two faces line up with each other. Cap
+ *  height is proportional to size, so this is exact in one measurement
+ *  and needs no run: it is a property of the face.
+ *
+ *  It is the honest form of the `capPx / 0.72` that appears wherever this
+ *  is done by hand. That ratio is one face's, and using it on another
+ *  puts the lettering out by whatever the two faces disagree by —
+ *  `metrics()` asks the face rather than assuming it. A style with no
+ *  size, or a cap of nothing, comes back untouched. */
+[[nodiscard]] sigil::weave::TextStyle atCapHeight(
+    sigil::weave::TextStyle style, float capPx,
+    sigil::weave::FontContext& fonts);
+
+/** HOW A RUN IS ALLOWED TO SHRINK to reach a width — the ladder `fitRun`
+ *  walks down, in the order a typographer would: the size first, and the
+ *  horizontal scale only when the size has nowhere left to go. */
+struct RunFit {
+  /** The largest size to try. 0 — the default — takes the style's own,
+   *  so a style already set at its display size only ever shrinks. */
+  float maxSize = 0.0f;
+  /** The smallest size to try. A run that still does not fit at this size
+   *  and this condense comes back AT them, over-wide: a fit that silently
+   *  went on shrinking would answer a size nothing can read, and a caller
+   *  that must not overflow measures the result and decides. */
+  float minSize = 1.0f;
+  /** The narrowest horizontal scale allowed once the size is at its
+   *  floor. 1 — the default — refuses to condense at all, which is the
+   *  right refusal for a face with a `wdth` axis to ask instead. */
+  float minCondense = 1.0f;
+};
+
+/** @p style solved so @p utf8 lays out no wider than @p widthPx.
+ *
+ *  A run's width is AFFINE in its size, not proportional, and that is
+ *  why this is a solve rather than a division: the ink scales and the
+ *  TRACKING DOES NOT, because tracking is stated in px. Two measurements
+ *  identify the line and the size is read off it, where a single ratio
+ *  assumes the line passes through the origin and overshoots by exactly
+ *  the tracking the run carries — which is what makes a fit written as
+ *  one division wrong on every tracked run.
+ *
+ *  The condense is applied last and only to what the size floor left
+ *  over, so a run that fits by shrinking is never also squeezed. The
+ *  style's own `condense` is the WIDEST this will leave it, so a caller
+ *  that authored one keeps it.
+ *
+ *  Single style, one unbounded line — `measureRun`'s terms. An empty run
+ *  or a width of nothing comes back untouched. */
+[[nodiscard]] sigil::weave::TextStyle fitRun(std::u8string_view utf8,
+                                             sigil::weave::TextStyle style,
+                                             float widthPx,
+                                             sigil::weave::FontContext& fonts,
+                                             const RunFit& fit = {});
 
 /** One-shot intrinsic measurement: what size would this element take?
  *  Runs the same reconcile+layout as snapshot() and returns the root's

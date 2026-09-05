@@ -873,3 +873,81 @@ TEST(ComposeText, EveryCascadeFieldOfATrackParticipatesInEquality) {
   EXPECT_FALSE(base.sameShape(schedule)) << "the schedule itself";
   EXPECT_TRUE(base.sameShape(base));
 }
+
+TEST(ComposeText, ACapHeightIsSolvedFromTheFaceAndNotFromARatio) {
+  // A reference states how tall a capital stands, never the font size, and
+  // the ratio between them is one face's rather than every face's.
+  const sigil::weave::TextStyle fitted =
+      atCapHeight(whiteStyle(12), 40.0f, fonts());
+  EXPECT_NEAR(metrics(fitted, fonts()).capHeight, 40.0f, 0.5f);
+  // It is a property of the face, so it lands on the same size whatever
+  // size it started at.
+  const sigil::weave::TextStyle other =
+      atCapHeight(whiteStyle(96), 40.0f, fonts());
+  EXPECT_NEAR(other.shaping.fontSize, fitted.shaping.fontSize, 0.1f);
+  // Nothing to solve for leaves the style as it was.
+  EXPECT_EQ(atCapHeight(whiteStyle(20), 0.0f, fonts()).shaping.fontSize, 20.0f);
+}
+
+TEST(ComposeText, FittingARunToAWidthSolvesPastTheTrackingThatDoesNotScale) {
+  const auto widthOf = [](const sigil::weave::TextStyle& style) {
+    return runPens(u8"CONDENSED TO FIT", style, fonts()).back();
+  };
+  const sigil::weave::TextStyle big = whiteStyle(64);
+  ASSERT_GT(widthOf(big), 300.0f);
+
+  const sigil::weave::TextStyle fitted =
+      fitRun(u8"CONDENSED TO FIT", big, 300.0f, fonts());
+  EXPECT_LE(widthOf(fitted), 300.5f);
+  EXPECT_GT(widthOf(fitted), 285.0f);  // it fits, it does not merely shrink
+  EXPECT_LT(fitted.shaping.fontSize, big.shaping.fontSize);
+  EXPECT_FLOAT_EQ(fitted.shaping.scaleX, 1.0f);  // no squeeze was needed
+
+  // A run that already fits is left exactly as it was: the fit is a
+  // ceiling, not a resize onto the width.
+  const sigil::weave::TextStyle small = whiteStyle(10);
+  EXPECT_EQ(fitRun(u8"CONDENSED TO FIT", small, 4000.0f, fonts())
+                .shaping.fontSize,
+            10.0f);
+
+  // TRACKING IS PX, so it does not shrink with the size and one division
+  // overshoots by exactly it. A heavily tracked run is where a fit
+  // written as a single ratio is visibly wrong; this one still lands.
+  sigil::weave::TextStyle tracked = big;
+  tracked.shaping.letterSpacing = 8.0f;
+  const sigil::weave::TextStyle fittedTracked =
+      fitRun(u8"CONDENSED TO FIT", tracked, 300.0f, fonts());
+  EXPECT_LE(widthOf(fittedTracked), 300.5f);
+  EXPECT_GT(widthOf(fittedTracked), 270.0f);
+}
+
+TEST(ComposeText, TheCondenseClosesOnlyWhatTheSizeFloorLeftOver) {
+  const auto widthOf = [](const sigil::weave::TextStyle& style) {
+    return runPens(u8"CONDENSED TO FIT", style, fonts()).back();
+  };
+  // Held at a size floor, the fit has nowhere left to shrink and squeezes
+  // instead — and only by what the floor left over.
+  const sigil::weave::TextStyle squeezed =
+      fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 300.0f, fonts(),
+             {.minSize = 48.0f, .minCondense = 0.5f});
+  EXPECT_FLOAT_EQ(squeezed.shaping.fontSize, 48.0f);
+  EXPECT_LT(squeezed.shaping.scaleX, 1.0f);
+  EXPECT_GE(squeezed.shaping.scaleX, 0.5f);
+  EXPECT_LE(widthOf(squeezed), 301.0f);
+
+  // A run that fits by shrinking alone is never also squeezed, even when
+  // it was allowed to be.
+  const sigil::weave::TextStyle shrunk =
+      fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 300.0f, fonts(),
+             {.minCondense = 0.5f});
+  EXPECT_FLOAT_EQ(shrunk.shaping.scaleX, 1.0f);
+
+  // Neither floor is a promise to fit: a run that cannot reach the width
+  // comes back at the floors, over-wide, rather than at a size nothing
+  // could read.
+  const sigil::weave::TextStyle refused =
+      fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 10.0f, fonts(),
+             {.minSize = 48.0f});
+  EXPECT_FLOAT_EQ(refused.shaping.fontSize, 48.0f);
+  EXPECT_GT(widthOf(refused), 10.0f);
+}

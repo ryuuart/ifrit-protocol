@@ -449,7 +449,10 @@ sound model; nothing below them changes kernel semantics.
   re-based into its own bounds), `custom`, `slot`, `layout`, `memo`,
   with `toU8` for a call site holding a `std::string`.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
-  composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`, `runPens`.
+  composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`,
+  `runPens`, and the two that solve a style BACKWARDS from a size the
+  drawing states — `atCapHeight` (the number a reference actually quotes
+  about lettering) and `fitRun` (a run solved onto a width).
 - `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
   of tile-sized rasters.
 - `core/Instances.h` — the instanced sprite leaf: `instancing::Pool`,

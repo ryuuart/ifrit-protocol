@@ -138,6 +138,16 @@ TextMetrics metrics(const sigil::weave::TextStyle& style,
   return out;
 }
 
+sigil::weave::TextStyle atCapHeight(sigil::weave::TextStyle style,
+                                    float capPx,
+                                    sigil::weave::FontContext& fonts) {
+  if (!(capPx > 0.0f) || !(style.shaping.fontSize > 0.0f)) return style;
+  const TextMetrics m = metrics(style, fonts);
+  if (!(m.capHeight > 0.0f)) return style;
+  style.shaping.fontSize *= capPx / m.capHeight;
+  return style;
+}
+
 std::vector<float> measureRun(std::u8string_view utf8,
                               const sigil::weave::TextStyle& style,
                               sigil::weave::FontContext& fonts) {
@@ -203,6 +213,56 @@ std::vector<float> runPens(std::u8string_view utf8,
   // which is its width.
   pens.push_back(pen);
   return pens;
+}
+
+sigil::weave::TextStyle fitRun(std::u8string_view utf8,
+                               sigil::weave::TextStyle style, float widthPx,
+                               sigil::weave::FontContext& fonts,
+                               const RunFit& fit) {
+  if (utf8.empty() || !(widthPx > 0.0f)) return style;
+  const float ceiling =
+      fit.maxSize > 0.0f ? fit.maxSize : style.shaping.fontSize;
+  if (!(ceiling > 0.0f)) return style;
+  const float floorSize = std::clamp(fit.minSize, 0.01f, ceiling);
+  const float widest =
+      style.shaping.scaleX > 0.0f ? style.shaping.scaleX : 1.0f;
+  style.shaping.scaleX = widest;
+
+  auto widthAt = [&](float size) {
+    style.shaping.fontSize = size;
+    const std::vector<float> pens = runPens(utf8, style, fonts);
+    return pens.empty() ? 0.0f : pens.back();
+  };
+
+  const float wide = widthAt(ceiling);
+  if (!(wide > 0.0f)) return style;
+  if (wide <= widthPx) return style;  // it already fits; nothing is resized
+
+  // The width is AFFINE in the size, not proportional: the ink scales and
+  // the tracking does not, because tracking is stated in px. So two
+  // measurements identify the line and the size is read straight off it,
+  // where a single ratio assumes the line passes through the origin and
+  // overshoots by exactly the tracking the run carries.
+  const float half = ceiling * 0.5f;
+  const float narrow = widthAt(half);
+  const float perSize = (wide - narrow) / (ceiling - half);
+  const float fixed = wide - perSize * ceiling;
+  float size = perSize > 0.0f ? (widthPx - fixed) / perSize : floorSize;
+  float width = widthAt(std::clamp(size, floorSize, ceiling));
+  if (width > widthPx) {
+    // The line is the model, and a face whose advances do not scale
+    // perfectly leaves a remainder. One correction closes it.
+    size = std::clamp(style.shaping.fontSize * widthPx / width, floorSize,
+                      ceiling);
+    width = widthAt(size);
+  }
+
+  // The condense closes what the size floor left over, and only that: a
+  // run that fitted by shrinking is never also squeezed.
+  if (width > widthPx && fit.minCondense < widest)
+    style.shaping.scaleX =
+        std::clamp(widest * widthPx / width, fit.minCondense, widest);
+  return style;
 }
 
 SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
