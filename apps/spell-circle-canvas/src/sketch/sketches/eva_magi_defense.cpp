@@ -84,9 +84,20 @@
 // -----------------------------------------------------------------------------
 // THE TUBE
 //
-// Geometry stays hard-edged. The completed display is thresholded once, then
-// its bright-pass colour channels are spread to different radii. This keeps
-// overlaps and masks exact while the feather changes hue away from each mark.
+// Geometry stays hard-edged. Every mark — a site, a pill — stands on a bake
+// of its own that carries the phosphor bloom: thresholded once, its bright
+// pass spread to three radii with the hue turning down the decay tail, the
+// way a phosphor's halo runs from yellow through orange to red and from blue
+// through cyan to green. The bake is the size of the mark plus the halo's
+// reach, so a plate that is mostly empty pays for its marks and not for its
+// canvas; the halo is paid once per change, not once per frame.
+//
+// The ribbons glow too, and their glow is the one thing the bloom cannot be
+// asked for cheaply: the hue field climbs the plate for fourteen seconds, so
+// anything bloomed over the ribbons would be re-bloomed every frame. Their
+// halo is a MASK — the funnel's silhouette feathered once in setup, the
+// silhouette itself cut back out — coloured by the same field, and the field
+// pans under both: one image sample per pixel, no kernel.
 //
 // -----------------------------------------------------------------------------
 // THE SHARED COLOUR FIELD, AND WHY IT NEEDS NO WORLD-SPACE MATERIAL
@@ -111,14 +122,17 @@
 //   skpathutils::FillPathWithPaint     44 px mitred ribbons from polylines,
 //                                      vertices pre-placed on measured coords
 //                                      (no router search to notch the bends)
-//   Paint::linear (20 stops)        the hue field, one gradient blitter
-//   Composer::renderSlot               the front advances by re-describing
-//                                      ONLY the funnel, 6 Hz, so the art's
-//                                      texture bake survives it
-//   Effect::phosphorBloom              one spectral bright-pass over the
-//                                      completed display
-//   Cache::Texture, PER MARK           one bake per mark, sized to the mark,
-//                                      not one bake of a mostly-empty canvas
+//   Paint::image + offset(&front)      the hue field: twenty stops baked once
+//                                      into a strip, panned by a bound
+//                                      Output — the front advances with no
+//                                      re-describe at all
+//   Composer::renderSlot               the funnel in a slot of its own, so
+//                                      a fall's re-describe never reaches it
+//   Effect::phosphorBloom              the spectral bright-pass, hue turning
+//                                      down its tail, baked with each mark
+//   Cache::Texture, PER MARK           one bake per mark, sized to the mark
+//                                      plus its halo, not one bake of a
+//                                      mostly-empty canvas
 //   ctx.measure()                      every label's point size is SOLVED from
 //                                      the width measured off the reference
 //   feed::TextRing                     the rotation audit, printed as it runs
@@ -149,9 +163,13 @@
 //              climbing and how long it takes.
 // =============================================================================
 
+#include <include/core/SkColor.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
+#include <include/core/SkSurface.h>
 #include <include/core/SkTypeface.h>
 #include <shared/EvangelionUi.h>
 #include <sigilcompose/brush/Brushes.h>
@@ -176,6 +194,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -724,31 +743,104 @@ const Label kCollapsing[] = {
 };
 
 // ---------------------------------------------------------------------------
-// THE FRONT. Skia's own gradient blitter, not SkSL.
-//
-// The ramp could be an 11-stage SkSL mix chain with the front as a bound
-// uniform. That is correct and live, and it is the most expensive way in the
-// library to say "linear ramp": a bound uniform makes the material live, so it
-// re-resolves and repaints every frame, and the mix chain is interpreted per
-// covered pixel on the CPU raster the sketch host uses. Paint::linear
-// lowers to SkShaders::LinearGradient, a SIMD blitter, for the same picture.
-// The front then advances the DATA way: the stop positions shift and update()
-// re-renders at 6 Hz — declared choppiness, the same idea as
-// Paint::quantizeTime. A 14-second sweep stepped six times a second is
-// invisible as steps and cheap as pixels.
+// THE FRONT. The hue field is a function of y alone, and the front advancing
+// is that function sliding up the plate. So the field is baked ONCE into a
+// strip — the twenty stops down the canvas's height, then the last stop held
+// for as far as the front travels — and the front is a bound pan on the
+// strip's material: a whole-pixel translate of an image, which re-describes
+// nothing and re-rasterizes nothing. A ramp with the front as a bound uniform
+// would be live per pixel; a ramp re-described per step would dirty every
+// recording above it. The pan is neither.
 
-inline mskia::Paint rampMaterial(float front) {
+constexpr float kFrontTravel = 0.42f;  // of kH: how far the field climbs
+// The pan moves in steps of this many px: each step remakes the funnel's
+// bake and the halo's, and between steps both blit. Six px of a smooth
+// ramp is below what the eye reads as a step.
+constexpr float kFrontStep = 6.0f;
+
+/** A stop's colour with its hue turned by @p degrees, saturation and value
+ *  kept. Negative is the phosphor direction: yellow toward red, blue toward
+ *  green. */
+inline uint32_t turnHue(uint32_t rgb, float degrees) {
+  float hsv[3];
+  SkRGBToHSV((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, hsv);
+  hsv[0] = std::fmod(hsv[0] + degrees + 720.0f, 360.0f);
+  const SkColor c = SkHSVToColor(hsv);
+  return (uint32_t)(c & 0x00FFFFFF);
+}
+
+/** The field as a strip: row y is the ramp at y / kH, clamped to the last
+ *  stop past the canvas, so a pan of up to kFrontTravel * kH never runs off
+ *  the image. Four pixels wide and repeated across the plate. */
+inline sk_sp<SkImage> fieldStrip(float hueTurn) {
+  const int rows = (int)std::ceil(kH * (1.0f + kFrontTravel));
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, rows));
+  if (!surface) return nullptr;
+  // The same gradient the ribbons were once filled with directly, so a
+  // row of the strip is the row that gradient painted.
   std::vector<mskia::Stop> stops;
   stops.reserve((size_t)kRampN);
-  float last = -1.0f;
-  for (const auto& stop : kRamp) {
-    float pos = stop.t - front * 0.42f;
-    pos = pos < 0.0f ? 0.0f : (pos > 1.0f ? 1.0f : pos);
-    pos = pos <= last ? last + 1e-4f : pos;  // gradients want monotone stops
-    last = pos;
-    stops.push_back({pos, hex(stop.rgb)});
-  }
-  return mskia::Paint::linear({0, 0}, {0, kH}, std::move(stops));
+  for (const auto& stop : kRamp)
+    stops.push_back({stop.t, hex(turnHue(stop.rgb, hueTurn))});
+  SkPaint paint;
+  paint.setShader(
+      mskia::Paint::linear({0, 0}, {0, kH}, std::move(stops)).asShader());
+  surface->getCanvas()->drawPaint(paint);
+  return surface->makeImageSnapshot();
+}
+
+// ---------------------------------------------------------------------------
+// THE BLOOM. Baked with each mark, so its cost is paid when a mark changes
+// and never per frame. The halo's reach is the node's box, so a mark's bake
+// is inset by kHaloReach on every side.
+
+constexpr float kBloomRadius = 14.0f;
+constexpr float kBloomHueDrift = -38.0f;  // degrees at the outer radius
+constexpr float kHaloReach = kBloomRadius * 2.0f + 8.0f;
+
+inline mskia::Effect tubeBloom() {
+  return mskia::Effect::phosphorBloom(kBloomRadius, 0.52f, 0.78f, 0.86f,
+                                      kBloomHueDrift, 0.35f);
+}
+
+/** The ribbons' halo mask: the funnel's silhouette feathered twice — a
+ *  tight pass and a wide one, the tail — with the silhouette itself cut
+ *  back out, so the glow stands beside the ribbons and never over them. */
+constexpr float kRibbonHaloNear = 6.0f;
+constexpr float kRibbonHaloFar = 18.0f;
+constexpr float kRibbonHueTurn = -22.0f;  // the tail's hue, one turn for all
+
+inline sk_sp<SkImage> ribbonHaloMask(const SkPath& funnel) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul((int)kW, (int)kH));
+  if (!surface) return nullptr;
+  SkCanvas* canvas = surface->getCanvas();
+  canvas->clear(SK_ColorTRANSPARENT);
+  const auto feather = [&](float sigma, float alpha) {
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor4f({1, 1, 1, alpha});
+    paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma));
+    canvas->drawPath(funnel, paint);
+  };
+  feather(kRibbonHaloNear, 0.55f);
+  feather(kRibbonHaloFar, 0.50f);
+  SkPaint cut;
+  cut.setAntiAlias(true);
+  cut.setBlendMode(SkBlendMode::kDstOut);
+  canvas->drawPath(funnel, cut);
+  return surface->makeImageSnapshot();
+}
+
+/** The axis-aligned box a w x h mark turned by @p degrees about its centre
+ *  stands in — what its bake must cover. */
+inline SkRect turnedBounds(SkPoint centre, float w, float h, float degrees) {
+  const float a = degrees * 0.01745329252f;
+  const float c = std::fabs(std::cos(a)), sn = std::fabs(std::sin(a));
+  const float hw = (w * c + h * sn) * 0.5f, hh = (w * sn + h * c) * 0.5f;
+  return SkRect::MakeLTRB(centre.fX - hw, centre.fY - hh, centre.fX + hw,
+                          centre.fY + hh);
 }
 
 // ---------------------------------------------------------------------------
@@ -756,16 +848,26 @@ inline mskia::Paint rampMaterial(float front) {
 // 4% black, a 70%/70% vignette ellipse reaching 40%. Baked once into a texture
 // and crept by a bound translateY — no per-frame shader anywhere.
 
-// ---------------------------------------------------------------------------
-
-/** WHICH MARKS MAY BE BAKED. A node standing at a quarter-turn comes back
- *  from a texture bake non-uniformly resampled — on a 196x33 pill the type
- *  is destroyed — while 0, 45 and 180 are clean, so the guard is exactly
- *  the quarter-turn and everything else is promoted. */
-inline bool bakeable(float rotationDeg) {
-  const float q = std::fmod(std::fabs(rotationDeg), 180.0f);
-  return std::fabs(q - 90.0f) > 1.0f;
-}
+/** THE SILHOUETTES AS COMPARABLE VALUES. A raw outline callable compares
+ *  equal to nothing, so a node carrying one is patched on every describe
+ *  and its bake — here a bloom — is remade with it. A scheme with an
+ *  equality prunes. */
+struct SiteSilhouette {
+  bool operator==(const SiteSilhouette&) const = default;
+  SkPath path(SkSize s) const { return tre::kModule.outline()(s); }
+};
+struct PillSilhouette {
+  float radius = 10.0f;
+  SkVector cut{26.0f, 26.0f};
+  uint8_t cutMask = evangelion::CutNone;
+  bool operator==(const PillSilhouette& o) const {
+    return radius == o.radius && cut == o.cut && cutMask == o.cutMask;
+  }
+  SkPath path(SkSize s) const {
+    return evangelion::panel(
+        {.radius = radius, .cut = cut, .cutMask = cutMask})(s);
+  }
+};
 
 inline float wrap180(float d) {
   while (d > 180.0f) d -= 360.0f;
@@ -787,9 +889,19 @@ struct EvaMagiDefense : sketch::Sketch {
   ch::Output<float> flicker{0.0f};  // phosphor dip (alpha of a black plane)
   ch::Output<float> blink{1.0f};    // COLLAPSING, hard on/off
 
-  bool fallen[eva::kSiteN] = {false, false, false, false, false, false};
-  int fallCount = 0;
-  int frontStep = 0;             // the advancing front, 84 steps at 6 Hz
+  // A FALL IS A BOUND OPACITY. Every site carries both its states as two
+  // bakes from the first frame, the hostile one over the friendly at this
+  // rest alpha — drawn, so it is baked at load rather than on the frame
+  // the site falls — and the fall is the ticker easing that alpha to one.
+  // Nothing re-describes for a fall, and no bloom is ever painted live.
+  static constexpr float kFallRest = 1.0f / 255.0f;
+  ch::Output<float> fallAlpha[eva::kSiteN] = {{kFallRest}, {kFallRest},
+                                              {kFallRest}, {kFallRest},
+                                              {kFallRest}, {kFallRest}};
+  // The front: the field's pan in whole px, negative as it climbs. Bound on
+  // the funnel's material and on the ribbons' halo, so nothing re-describes.
+  ch::Output<float> front{0.0f};
+  sk_sp<SkImage> fieldStrip, haloStrip, ribbonHalo;  // baked once in setup
   std::vector<float> labelSize;  // role size, reduced only when it must fit
   std::vector<float> siteNameSize;
   float numeralSize = 96.0f;
@@ -867,28 +979,30 @@ struct EvaMagiDefense : sketch::Sketch {
   }
 
   // --- one installation ------------------------------------------------------
-  Element installation(int index) const {
+  /** The site in one STATE, placed in canvas coordinates less @p origin —
+   *  the top-left of the bake it stands on. A fall is not a change to this
+   *  node: the hostile state is a second bake crossfaded over the friendly
+   *  one, so neither is ever painted live with its bloom. */
+  Element installation(int index, SkPoint origin, bool friendly) const {
     using namespace eva;
     const Site& s = kSites[index];
-    const bool friendly = s.fallAt < 0 || !fallen[index];
     const SkColor4f plateFill = friendly ? kFriendly : kHostile;
     const SkColor4f rim = friendly ? kRimFriendly : kRim;
     const SkColor4f ink = friendly ? kInkFriendly : kInkHostile;
-    const auto snap =
-        motion::Transition{.duration = 180ms, .ease = ch::easeOutQuad};
     const auto& module = tre::kModule;
 
-    const SkPoint at = unroll(s.centre);
+    const SkPoint at = unroll(s.centre) - origin;
     auto plate = box()
                      .left(at.fX - module.barWidth * 0.5f)
                      .top(at.fY - module.totalHeight() * 0.5f)
                      .width(module.barWidth)
                      .height(module.totalHeight())
-                     .shape(module.outline())
+                     .shape(SiteSilhouette{})
                      .rotate(s.rotation)
-                     .fill(animate(motion::to(Fill::color(plateFill)), snap))
+                     .fill(Fill::color(plateFill))
                      .foreground(rimStroke(2.4f, rim))
-                     .key(std::string("site#") + s.name);
+                     .key(std::string("site#") + s.name +
+                          (friendly ? "" : "#fallen"));
 
     // three cells: black, hard orange keyline, and the keyline blooms
     for (int n : {1, 2, 3}) {
@@ -939,11 +1053,11 @@ struct EvaMagiDefense : sketch::Sketch {
 
   // --- a pill ----------------------------------------------------------------
   Element pillOf(const eva::Label& L, float size, int keyIndex,
-                 const char* keyTag) const {
+                 const char* keyTag, SkPoint origin) const {
     using namespace eva;
     const LabelRegister labelStyle = labelRegister(L.role);
     const SkColor4f ink = L.alarm ? kAlarm : kRim;
-    const SkPoint at = unroll(L.centre);
+    const SkPoint at = unroll(L.centre) - origin;
     auto node = box()
                     .left(at.fX - L.w * 0.5f)
                     .top(at.fY - L.h * 0.5f)
@@ -957,8 +1071,7 @@ struct EvaMagiDefense : sketch::Sketch {
                     .gap(labelStyle.lineGap)
                     .key(std::string(keyTag) + std::to_string(keyIndex));
     if (L.pill) {
-      node.shape(evangelion::panel(
-          {.radius = 10.0f, .cut = {26.0f, 26.0f}, .cutMask = L.cuts}));
+      node.shape(PillSilhouette{.cutMask = L.cuts});
       node.fill(Fill::color(kCell));
       node.foreground(rimStroke(3.0f, ink));
     }
@@ -968,48 +1081,123 @@ struct EvaMagiDefense : sketch::Sketch {
   }
 
   // --- the layers ------------------------------------------------------------
+  /** The field's strip as a material, panned by the front. Nearest sampling
+   *  and a whole-pixel pan: a row of the strip IS a row of the plate. */
+  mskia::Paint field(const sk_sp<SkImage>& strip) const {
+    mskia::Paint m = mskia::Paint::image(
+        strip, SkTileMode::kRepeat, SkTileMode::kClamp, SkMatrix::I(),
+        SkSamplingOptions(SkFilterMode::kNearest));
+    m.offset(std::nullopt, &front);
+    return m;
+  }
+
   Element funnelLayer() const {
     using namespace eva;
     // Explicit size, not inset(0): the slot's own node has no dimensions to
     // stretch against, so an absolute child of it lays out 1920x0 — harmless
     // for an outline in absolute coordinates, and a lie in every query.
+    // A bake, remade on each step of the pan and blitted between steps: a
+    // recording would re-fill the funnel every frame.
     return box()
         .width(kW)
         .height(kH)
         .shape([this](SkSize) { return funnel; })
-        .fill(rampMaterial((float)frontStep / 84.0f))
+        .fill(field(fieldStrip))
+        .cache(Cache::Texture)
         .key("funnel");
+  }
+
+  /** The ribbons' halo: the feathered silhouette, coloured by the field's
+   *  tail hue and panned with it. Laid over the ground with the plain
+   *  blend — the mask cuts the ribbons out of it and the marks are drawn
+   *  above it, so nothing it lands on is brighter than the halo itself —
+   *  and baked at half resolution: a feathered field loses nothing to the
+   *  upscale, and the bake is remade on every step of the pan. */
+  Element ribbonGlow() const {
+    using namespace eva;
+    return box()
+        .width(kW)
+        .height(kH)
+        .fill(mskia::Paint::blend(
+            {{mskia::Paint::image(ribbonHalo), SkBlendMode::kSrc},
+             {field(haloStrip), SkBlendMode::kSrcIn}}))
+        .cache(Cache::Texture)
+        .bakeScale(0.5f)
+        .key("ribbonglow");
+  }
+
+  /** A MARK ON ITS OWN BAKE, with the bloom baked into it. The bake is the
+   *  mark's turned box grown by the halo's reach — a layer effect reaches
+   *  no further than the node's own box — so the halo is complete and the
+   *  bake is the size of the mark, not of the canvas. The blit is exact at
+   *  any angle: a still mark bakes on the device grid, the plate's roll
+   *  included, and the recordings above it are pinned to that grid. */
+  Element glowing(SkPoint centre, float w, float h, float degrees,
+                  const std::string& key,
+                  const std::function<Element(SkPoint origin)>& mark) const {
+    using namespace eva;
+    const SkRect bounds = turnedBounds(centre, w, h, degrees);
+    const SkPoint origin{bounds.left() - kHaloReach, bounds.top() - kHaloReach};
+    return box()
+        .left(origin.fX)
+        .top(origin.fY)
+        .width(bounds.width() + 2.0f * kHaloReach)
+        .height(bounds.height() + 2.0f * kHaloReach)
+        .child(mark(origin))
+        .effect(tubeBloom())
+        .cache(Cache::Texture)
+        .key(key);
   }
 
   Element art() const {
     using namespace eva;
     auto g = box().inset(0);
-    // Cache::Texture PER MARK, not on the group. A group bake covers the whole
-    // canvas and blits all of it every frame; this plate is mostly empty, so
-    // bakes the size of the marks themselves cover a fraction of that area for
-    // the same picture. Texture is wasteful wherever the covered region is
-    // sparse relative to its bounds.
-    //
-    // EXCEPT AT +/-90 DEGREES: a node carrying rotate(+/-90) bakes at the
-    // wrong resolution and its content comes back non-uniformly resampled,
-    // which destroys the type on the LEFT SIDE BARRIER pill (196x33). 0, 45
-    // and 180 are all clean, so the guard is exactly the quarter-turn.
-    for (int i = 0; i < kSiteN; ++i)
-      g.child(installation(i).cache(
-          bakeable(kSites[i].rotation) ? Cache::Texture : Cache::Auto));
+    // One bake PER MARK, not one over the group: this plate is mostly empty,
+    // so bakes the size of the marks cover a fraction of the canvas for the
+    // same picture — and a site that falls re-bakes its own halo alone.
+    // A fall is a CROSSFADE between two bakes — the friendly state under
+    // the hostile, whose opacity the ticker snaps from its rest to one.
+    // Opacity rides the blit, so each state's bloom is baked once, at
+    // load, and never painted live for a transition.
+    const auto& module = tre::kModule;
+    for (int i = 0; i < kSiteN; ++i) {
+      const Site& s = kSites[i];
+      g.child(glowing(unroll(s.centre), module.barWidth, module.totalHeight(),
+                      s.rotation, std::string("glow#") + s.name,
+                      [&, i](SkPoint origin) {
+                        return installation(i, origin, true);
+                      }));
+      if (s.fallAt >= 0)
+        g.child(glowing(unroll(s.centre), module.barWidth,
+                        module.totalHeight(), s.rotation,
+                        std::string("glow#") + s.name + "#fallen",
+                        [&, i](SkPoint origin) {
+                          return installation(i, origin, false);
+                        })
+                    .opacity(&fallAlpha[i]));
+    }
     for (int i = 0; i < kLabelN; ++i)
-      g.child(pillOf(kLabels[i], labelSize[(size_t)i], i, "lab")
-                  .cache(bakeable(kLabels[i].rotate) ? Cache::Texture
-                                                     : Cache::Auto));
+      g.child(glowing(unroll(kLabels[i].centre), kLabels[i].w, kLabels[i].h,
+                      kLabels[i].rotate, "glowlab" + std::to_string(i),
+                      [&, i](SkPoint origin) {
+                        return pillOf(kLabels[i], labelSize[(size_t)i], i,
+                                      "lab", origin);
+                      }));
     return g;
   }
 
   /** COLLAPSING blinks, so it is its own (volatile) node — and a TIGHT one:
    *  a full-canvas volatile layer would repaint the whole frame for two
-   *  214 px pills. */
+   *  214 px pills. The blink rides the bake's blit; the bloom is inside. */
   Element collapsingLayer(int i) const {
     using namespace eva;
-    return pillOf(kCollapsing[i], siteNameSize[(size_t)i], i, "col")
+    const Label& L = kCollapsing[i];
+    return glowing(unroll(L.centre), L.w, L.h, L.rotate,
+                   "glowcol" + std::to_string(i),
+                   [&, i](SkPoint origin) {
+                     return pillOf(L, siteNameSize[(size_t)i], i, "col",
+                                   origin);
+                   })
         .opacity(&blink);
   }
 
@@ -1037,20 +1225,17 @@ struct EvaMagiDefense : sketch::Sketch {
     // (no ground node: the host clears to ctx.background, and a full-canvas
     //  opaque fill on top of that is pure waste)
 
-    // The ribbons: flat fills of one continuous field, and NO bloom anywhere.
-    // In a SLOT, because the advancing front re-describes it six times a
-    // second and a full render() would dirty the art's texture bake with it.
+    // The ribbons: flat fills of one continuous field, panned by the front.
+    // In a SLOT, so a fall's re-describe never reaches the funnel and the
+    // funnel's pan never reaches the marks.
     picture.child(camera(slot("funnel")));
-
-    // The assembled screen is one optical input, so paths hidden by panels do
-    // not leak through the bloom and shared edges do not accumulate halos.
+    // …their halo, screened over them, and the marks on their own bakes
+    // above both — a panel hides the ribbon under it, halo and all.
+    picture.child(camera(ribbonGlow()));
     picture.child(camera(art()));
     picture.child(camera(collapsingLayer(0)));
     picture.child(camera(collapsingLayer(1)));
-    root.child(
-        std::move(picture)
-            .effect(mskia::Effect::phosphorBloom(11.0f, 0.58f, 0.46f, 0.86f))
-            .key("phosphor"));
+    root.child(std::move(picture).key("phosphor"));
 
     // the photographed CRT: scanlines + vignette baked once, crept
     mskia::Paint crt =
@@ -1117,6 +1302,10 @@ struct EvaMagiDefense : sketch::Sketch {
     ctx.captureAt(2.5);
 
     funnel = funnelPath();
+    fieldStrip = eva::fieldStrip(0.0f);
+    haloStrip = eva::fieldStrip(eva::kRibbonHueTurn);
+    ribbonHalo = eva::ribbonHaloMask(funnel);
+    front = 0.0f;
     runAudit();
 
     // Every semantic role starts on one type register. Measurement only
@@ -1169,6 +1358,14 @@ struct EvaMagiDefense : sketch::Sketch {
       // COLLAPSING: hard on/off, 350 on / 250 off (ESTIMATED — a single frame
       // cannot measure a blink, so this rate is not read off the reference)
       blink = std::fmod(t, 0.6) < 0.35 ? 1.0f : 0.0f;
+      // The falls: each hostile state snaps in over 180 ms from its second.
+      for (int i = 0; i < kSiteN; ++i) {
+        const Site& s = kSites[i];
+        if (s.fallAt < 0) continue;
+        const float u =
+            std::clamp((float)((t - s.fallAt) / 0.18), 0.0f, 1.0f);
+        fallAlpha[i] = kFallRest + (1.0f - kFallRest) * ch::easeOutQuad(u);
+      }
       return true;
     });
 
@@ -1177,27 +1374,15 @@ struct EvaMagiDefense : sketch::Sketch {
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
-    // DATA path only, and it is the ONLY re-describe in the sketch: a site
-    // falls (5 times), or the front takes a 6 Hz step (84 times). Everything
-    // else is a bound Output and never re-describes at all.
-    int now = 0;
-    for (const auto& site : eva::kSites)
-      if (site.fallAt >= 0 && elapsed >= site.fallAt) ++now;
+    // The front is a bound pan and never re-describes: derived from
+    // `elapsed`, in whole pixels, negative as the field climbs the plate.
     const double sweep = (elapsed - 3.0) / 14.0;
     const double k = sweep <= 0 ? 0.0 : (sweep >= 1 ? 1.0 : sweep);
     const double eased = choreograph::easeInOutQuad((float)k);
-    const int step = (int)std::lround(eased * 84.0);
-    if (now == fallCount && step == frontStep) return;
-    const bool fell = now != fallCount;
-    fallCount = now;
-    frontStep = step;
-    if (fell) {
-      for (int i = 0; i < eva::kSiteN; ++i)
-        fallen[i] =
-            eva::kSites[i].fallAt >= 0 && elapsed >= eva::kSites[i].fallAt;
-      ctx.composer.render(describe());
-    }
-    ctx.composer.renderSlot("funnel", funnelLayer());
+    front = -(float)(std::round(eased * eva::kFrontTravel * eva::kH /
+                                eva::kFrontStep) *
+                     eva::kFrontStep);
+    (void)ctx;  // nothing re-describes: the falls are bound alphas too
   }
 };
 
