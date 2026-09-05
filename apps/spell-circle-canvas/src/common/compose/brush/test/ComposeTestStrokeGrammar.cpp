@@ -1538,26 +1538,6 @@ TEST(ComposeDeriveWords, TheFreeFlowAroundVerbIsTheMethod) {
 // also bounds the ink away from "nothing" and "everything" so that two
 // agreeing blank frames cannot pass.
 
-TEST(ComposeSpanWrap, StaticSeamCrossingWindowMatchesWrapTrim) {
-  auto draw = [](bool useLegacyTrim) {
-    Host host(200, 200);
-    Element e = revealBox();
-    if (useLegacyTrim)
-      e.mask(by::spans(spans::wrap(0.9f, 1.15f))).stroke(stroke(6, red()));
-    else
-      e.stroke(spans::wrap(0.9f, 1.15f), stroke(6, red()));
-    host.composer.render(stack().child(std::move(e)));
-    host.frame();
-    return boundaryRing(host);
-  };
-  const std::vector<SkColor> spanned = draw(false);
-  EXPECT_EQ(spanned, draw(true));
-  // A genuine seam-crossing window: some ink, but far from all of it.
-  const size_t inked = inkedCount(spanned);
-  EXPECT_GT(inked, 5u);
-  EXPECT_LT(inked, spanned.size() / 2);
-}
-
 TEST(ComposeSpanWrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   // The full marching-ants idiom: a fixed-length window driven all the way
   // round, compared at eight phases — two of which straddle the seam, and
@@ -1688,60 +1668,78 @@ TEST(ComposeSpanWrap, WrapWindowsParticipateInReconcilerEquality) {
 // bounds its own ink, because two identically blank frames would otherwise
 // satisfy the comparison.
 
-TEST(ComposeSpanTrim, ClampWindowWithBothEndsNamed) {
-  // A window with a NON-ZERO start. upTo() only ever covers the start == 0
-  // case, so this row is where a start offset would go wrong unnoticed.
-  auto draw = [](bool useLegacyTrim) {
+namespace {
+
+/** One static window, and how much of the boundary ring it may ink.
+ *
+ *  Every row is drawn twice -- through the pass door
+ *  (`stroke(spans, …)`) and through the node gate (`mask(by::spans(…))`)
+ *  -- because those are two spellings of one geometry. The ink bounds are
+ *  what stops two identically blank frames from satisfying the
+ *  comparison. */
+struct StaticWindow {
+  const char* what;
+  Spans window;
+  size_t leastInked;
+  float mostInkedFraction;
+};
+
+class SpanDoor : public testing::TestWithParam<StaticWindow> {};
+
+}  // namespace
+
+TEST_P(SpanDoor, ThePassDoorAndTheNodeGateClaimTheSameRun) {
+  const StaticWindow& row = GetParam();
+  auto draw = [&row](bool throughTheGate) {
     Host host(200, 200);
     Element e = revealBox();
-    if (useLegacyTrim)
-      e.mask(by::spans(spans::range(0.15f, 0.55f))).stroke(stroke(6, red()));
+    if (throughTheGate)
+      e.mask(by::spans(row.window)).stroke(stroke(6, red()));
     else
-      e.stroke(spans::range(0.15f, 0.55f), stroke(6, red()));
+      e.stroke(row.window, stroke(6, red()));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     return boundaryRing(host);
   };
   const std::vector<SkColor> spanned = draw(false);
   EXPECT_EQ(spanned, draw(true));
-  EXPECT_GT(inkedCount(spanned), 5u);
-  EXPECT_LT(inkedCount(spanned), spanned.size());
+  const size_t inked = inkedCount(spanned);
+  EXPECT_GT(inked, row.leastInked) << "the window painted nothing at all";
+  EXPECT_LT((float)inked, (float)spanned.size() * row.mostInkedFraction)
+      << "the window painted more of the boundary than it claimed";
 }
 
-TEST(ComposeSpanTrim, ClampWindowOutsideZeroToOnePins) {
-  // Clamped behaviour: fractions outside [0,1] PIN rather than wrap, and
-  // normalizeSpans clamps the same way on both doors.
-  auto draw = [](bool useLegacyTrim) {
-    Host host(200, 200);
-    Element e = revealBox();
-    if (useLegacyTrim)
-      e.mask(by::spans(spans::range(-0.4f, 0.6f))).stroke(stroke(6, red()));
-    else
-      e.stroke(spans::range(-0.4f, 0.6f), stroke(6, red()));
-    host.composer.render(stack().child(std::move(e)));
-    host.frame();
-    return boundaryRing(host);
-  };
-  const std::vector<SkColor> pinned = draw(false);
-  EXPECT_EQ(pinned, draw(true));
-  // Agreement between the two arms cannot by itself tell a pin from a wrap,
-  // and two BLANK arms agree perfectly — so the assertions below name
-  // specific pixels rather than only comparing the arms.
-  EXPECT_GT(inkedCount(pinned), 5u) << "the window painted at all";
-  // The discriminator, at named pixels: fraction 0 is the rect's start
-  // corner, so the CLAMPED window [0, 0.6] runs out partway round and the
-  // far side stays dark. The extra piece a WRAPPED [-0.4, 0.6] would show
-  // is exactly that far side. (An inked-fraction bound cannot say this:
-  // boundaryRing samples points outside the stroke too, so "not all of the
-  // ring" is true of every window.)
+INSTANTIATE_TEST_SUITE_P(
+    ComposeSpans, SpanDoor,
+    testing::Values(
+        // A window that crosses the contour seam: some ink, far from all.
+        StaticWindow{"AWindowAcrossTheSeam", spans::wrap(0.9f, 1.15f), 5u,
+                     0.5f},
+        // A NON-ZERO start. upTo() only ever covers start == 0, so this is
+        // where a start offset would go wrong unnoticed.
+        StaticWindow{"AWindowWithBothEndsNamed", spans::range(0.15f, 0.55f), 5u,
+                     1.0f},
+        // Fractions outside [0,1] pin rather than wrap, and both doors
+        // clamp the same way.
+        StaticWindow{"AWindowReachingBelowZero", spans::range(-0.4f, 0.6f), 5u,
+                     1.0f}),
+    [](const testing::TestParamInfo<StaticWindow>& info) {
+      return info.param.what;
+    });
+
+TEST(ComposeSpanTrim, AWindowReachingOutsideZeroToOnePinsRatherThanWraps) {
+  // Parity between the two doors cannot by itself tell a pin from a wrap:
+  // both doors would wrap together. So this names pixels instead. Fraction
+  // 0 is the bottom-left corner running UP the left edge, so the clamped
+  // [0, 0.6] is the left edge, the top edge and the top 40% of the right --
+  // and the BOTTOM edge ([0.75, 1]) is the piece a wrapped reading would
+  // add. An inked-fraction bound cannot say this: boundaryRing samples
+  // points outside the stroke too, so "not all of the ring" is true of
+  // every window.
   Host probe(200, 200);
   probe.composer.render(stack().child(
       revealBox().stroke(spans::range(-0.4f, 0.6f), stroke(6, red()))));
   probe.frame();
-  // Fraction 0 is the bottom-left corner running UP the left edge, so the
-  // clamped [0, 0.6] is the left edge, the top edge and the top 40% of the
-  // right — and the BOTTOM edge ([0.75, 1]) is the piece a wrapped reading
-  // would add.
   EXPECT_NE(probe.pixel(70, 20), SK_ColorBLACK) << "the top edge is inside";
   EXPECT_EQ(probe.pixel(70, 120), SK_ColorBLACK)
       << "…and the bottom edge is not: [-0.4, 0.6] PINNED, it did not wrap";

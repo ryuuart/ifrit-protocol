@@ -226,36 +226,66 @@ SkColor tilePixel(SkSurface& surface, int x, int y) {
 
 }  // namespace
 
-TEST(ComposeStripTiles, ForwardWindowSlicesInOrderAndDoesNotMirror) {
-  const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
+namespace {
+
+/** A window onto the strip, and where the tile's own mark must land in
+ *  it. The mark's colour names its tile, so an off-by-one or a reversed
+ *  step reads as the wrong colour rather than as a missing one; the bare
+ *  points are the places a mirror the caller did not ask for would put
+ *  it. Facing::Mirrored reflects ACROSS the flow and never along it,
+ *  which is why the axis of the reflection changes with the flow. */
+struct TileWindow {
+  const char* what;
+  tiles::Flow flow;
+  tiles::Facing facing;
+  SkIPoint mark;
+  std::vector<SkIPoint> bare;
+};
+
+class StripTile : public testing::TestWithParam<TileWindow> {};
+
+}  // namespace
+
+TEST_P(StripTile, EachTilesMarkLandsWhereItsFlowAndFacingPutIt) {
+  const TileWindow& window = GetParam();
+  const sk_sp<SkPicture> strip = markedStrip(window.flow);
   ASSERT_NE(strip, nullptr);
   for (int k = 0; k < kTileCount; ++k) {
-    sk_sp<SkSurface> tile =
-        renderTile(strip, k, tiles::Flow::Down, tiles::Facing::Forward);
-    // The mark keeps its own side and its own offset within the tile: the
-    // colour names the tile, so an off-by-one or a reversed step shows up
-    // as the WRONG colour here.
-    EXPECT_EQ(tilePixel(*tile, kProbe, kProbe), stripMark(k)) << "tile " << k;
-    EXPECT_EQ(tilePixel(*tile, kFarX, kProbe), SK_ColorBLACK)
-        << "tile " << k << " picked up a mirror it was not asked for";
+    sk_sp<SkSurface> tile = renderTile(strip, k, window.flow, window.facing);
+    EXPECT_EQ(tilePixel(*tile, window.mark.x(), window.mark.y()), stripMark(k))
+        << "tile " << k;
+    for (const SkIPoint& p : window.bare)
+      EXPECT_EQ(tilePixel(*tile, p.x(), p.y()), SK_ColorBLACK)
+          << "tile " << k << " is marked at " << p.x() << "," << p.y();
   }
 }
 
-TEST(ComposeStripTiles, MirroredWindowFlipsAcrossTheStripNotAlongIt) {
-  const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
-  ASSERT_NE(strip, nullptr);
-  for (int k = 0; k < kTileCount; ++k) {
-    sk_sp<SkSurface> tile =
-        renderTile(strip, k, tiles::Flow::Down, tiles::Facing::Mirrored);
-    // ACROSS: x is reflected (4..12 becomes 28..36) …
-    EXPECT_EQ(tilePixel(*tile, kFarX, kProbe), stripMark(k)) << "tile " << k;
-    EXPECT_EQ(tilePixel(*tile, kProbe, kProbe), SK_ColorBLACK) << "tile " << k;
-    // … and NOT along: y is untouched, so the mark stays near the top. A
-    // flip on the flow axis would put it at kTileH - 8 and reverse the run.
-    EXPECT_EQ(tilePixel(*tile, kFarX, kFarY), SK_ColorBLACK)
-        << "tile " << k << " was mirrored along the flow, not across it";
-  }
-}
+INSTANTIATE_TEST_SUITE_P(
+    ComposeStripTiles, StripTile,
+    testing::Values(
+        TileWindow{"DownForward",
+                   tiles::Flow::Down,
+                   tiles::Facing::Forward,
+                   {kProbe, kProbe},
+                   {{kFarX, kProbe}}},
+        TileWindow{"DownMirrored",
+                   tiles::Flow::Down,
+                   tiles::Facing::Mirrored,
+                   {kFarX, kProbe},
+                   {{kProbe, kProbe}, {kFarX, kFarY}}},
+        TileWindow{"AcrossForward",
+                   tiles::Flow::Across,
+                   tiles::Facing::Forward,
+                   {kProbe, kProbe},
+                   {{kProbe, kFarY}}},
+        TileWindow{"AcrossMirrored",
+                   tiles::Flow::Across,
+                   tiles::Facing::Mirrored,
+                   {kProbe, kFarY},
+                   {{kProbe, kProbe}}}),
+    [](const testing::TestParamInfo<TileWindow>& info) {
+      return info.param.what;
+    });
 
 TEST(ComposeStripTiles, MirroredTileReadsForwardUnderMirroredSampling) {
   // What Facing::Mirrored actually promises: bake mirrored, sample mirrored,
@@ -274,25 +304,6 @@ TEST(ComposeStripTiles, MirroredTileReadsForwardUnderMirroredSampling) {
         ASSERT_EQ(tilePixel(*forward, x, y),
                   tilePixel(*mirrored, kTileW - 1 - x, y))
             << "tile " << k << " at " << x << "," << y;
-  }
-}
-
-TEST(ComposeStripTiles, AcrossFlowStepsRightwardAndMirrorsInY) {
-  const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Across);
-  ASSERT_NE(strip, nullptr);
-  for (int k = 0; k < kTileCount; ++k) {
-    sk_sp<SkSurface> forward =
-        renderTile(strip, k, tiles::Flow::Across, tiles::Facing::Forward);
-    EXPECT_EQ(tilePixel(*forward, kProbe, kProbe), stripMark(k))
-        << "tile " << k;
-    sk_sp<SkSurface> mirrored =
-        renderTile(strip, k, tiles::Flow::Across, tiles::Facing::Mirrored);
-    // The across-flow mirror is in Y — perpendicular to the flow again, so
-    // x keeps its place and the mark drops to the bottom.
-    EXPECT_EQ(tilePixel(*mirrored, kProbe, kFarY), stripMark(k))
-        << "tile " << k;
-    EXPECT_EQ(tilePixel(*mirrored, kProbe, kProbe), SK_ColorBLACK)
-        << "tile " << k;
   }
 }
 

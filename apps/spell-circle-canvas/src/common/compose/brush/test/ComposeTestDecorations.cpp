@@ -2,6 +2,8 @@
 // shadows under a fill, strokes over one, the mask a decoration is gated
 // by, and rail(), the component that IS a line.
 
+#include <functional>
+
 #include "support/BrushTestSupport.h"
 
 TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
@@ -238,25 +240,6 @@ TEST(ComposeRail, ThreadsThroughAnchors) {
   EXPECT_EQ(host.pixel(60, 80), SK_ColorBLACK);   // off the rail
 }
 
-TEST(ComposeRail, ReRoutesWhenAnchorMoves) {
-  // Anchors are keys + normalized points, never absolute coordinates — move
-  // a station and the rail re-derives through its new bounds.
-  Host host;
-  auto scene = [](float top2) {
-    return stack()
-        .child(station("a", 10, 40))
-        .child(station("b", 90, top2))
-        .child(rail({{"a"}, {"b"}}).absolute().inset(0).foreground(railLine()));
-  };
-  host.composer.render(scene(40));
-  host.frame();
-  EXPECT_EQ(host.pixel(60, 50), SK_ColorGREEN);  // horizontal run
-  host.composer.render(scene(140));              // station b drops 100px
-  host.frame();
-  EXPECT_EQ(host.pixel(60, 100), SK_ColorGREEN);  // the new slanted run
-  EXPECT_EQ(host.pixel(60, 50), SK_ColorBLACK);   // old route gone
-}
-
 TEST(ComposeRail, DrawsOnWithTrim) {
   // Composition, not new machinery: a span gate on a rail = the self-drawing
   // subway line. A bound reveal advances with no render() calls.
@@ -295,49 +278,90 @@ TEST(ComposeRail, OctilinearRoutesDiagonalThenStraight) {
   EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK);    // NOT the direct line
 }
 
-TEST(ComposeRail, ReRoutesOnRouterOnlyChange) {
-  // A rail whose DESCRIPTION changes — here a router swap — must re-derive
-  // even though no station moved. The derive guard keys on resolved
-  // geometry, so the description change has to reach it separately.
+namespace {
+
+/** One thing that decides a rail's route, and what happens when it
+ *  changes: a scene built either way, a point the first route inks, a
+ *  point the second one inks, and a point the second one must leave
+ *  bare. Anchors are keys and normalized points rather than absolute
+ *  coordinates, so all three of these reach the derive guard by different
+ *  routes and each has to reach it. */
+struct RailDecision {
+  const char* what;
+  std::function<Element(bool second)> scene;
+  SkIPoint first;
+  SkIPoint second;
+  SkIPoint vacated;
+};
+
+class RailRoute : public testing::TestWithParam<RailDecision> {};
+
+}  // namespace
+
+TEST_P(RailRoute, ARailReRoutesWhenWhatDecidesItsRouteChanges) {
+  const RailDecision& decision = GetParam();
   Host host;
-  auto scene = [](RailRouter router) {
-    return stack()
-        .child(station("a", 10, 40))    // center (20, 50)
-        .child(station("b", 130, 100))  // center (140, 110)
-        .child(rail({{"a"}, {"b"}}, std::move(router))
-                   .absolute()
-                   .inset(0)
-                   .foreground(railLine()));
-  };
-  host.composer.render(scene({}));  // default straight polyline
+  host.composer.render(decision.scene(false));
   host.frame();
-  EXPECT_EQ(host.pixel(80, 80), SK_ColorGREEN);            // on the direct line
-  host.composer.render(scene(routers::octilinear(0.0f)));  // router swap only
+  EXPECT_EQ(host.pixel(decision.first.x(), decision.first.y()), SK_ColorGREEN)
+      << "the first route did not draw, so nothing below tests a re-route";
+  host.composer.render(decision.scene(true));
   host.frame();
-  EXPECT_EQ(host.pixel(50, 80), SK_ColorGREEN);  // the 45° leg
-  EXPECT_EQ(host.pixel(80, 80), SK_ColorBLACK);  // direct line gone
+  EXPECT_EQ(host.pixel(decision.second.x(), decision.second.y()), SK_ColorGREEN)
+      << "the second route did not draw";
+  EXPECT_EQ(host.pixel(decision.vacated.x(), decision.vacated.y()),
+            SK_ColorBLACK)
+      << "the first route is still on the canvas";
 }
 
-TEST(ComposeRail, ReRoutesOnAnchorNormChange) {
-  // Same fix, anchor half: changing only a norm re-derives.
-  Host host;
-  auto scene = [](float ny) {
-    return stack()
-        .child(station("a", 10, 40))
-        .child(station("b", 170, 40))
-        .child(rail({{"a", {0.5f, ny}}, {"b", {0.5f, ny}}})
-                   .absolute()
-                   .inset(0)
-                   .foreground(railLine()));
-  };
-  host.composer.render(scene(0.5f));  // through centers: y = 50
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorGREEN);
-  host.composer.render(scene(0.0f));  // through box tops: y = 40
-  host.frame();
-  EXPECT_EQ(host.pixel(100, 40), SK_ColorGREEN);
-  EXPECT_EQ(host.pixel(100, 52), SK_ColorBLACK);  // old run gone (stroke ±2)
-}
+INSTANTIATE_TEST_SUITE_P(
+    ComposeRail, RailRoute,
+    testing::Values(
+        RailDecision{"AnAnchorMoves",
+                     [](bool second) {
+                       return stack()
+                           .child(station("a", 10, 40))
+                           .child(station("b", 90, second ? 140 : 40))
+                           .child(rail({{"a"}, {"b"}})
+                                      .absolute()
+                                      .inset(0)
+                                      .foreground(railLine()));
+                     },
+                     {60, 50},
+                     {60, 100},
+                     {60, 50}},
+        RailDecision{"TheRouterIsSwapped",
+                     [](bool second) {
+                       return stack()
+                           .child(station("a", 10, 40))
+                           .child(station("b", 130, 100))
+                           .child(rail({{"a"}, {"b"}},
+                                       second ? routers::octilinear(0.0f)
+                                              : RailRouter{})
+                                      .absolute()
+                                      .inset(0)
+                                      .foreground(railLine()));
+                     },
+                     {80, 80},
+                     {50, 80},
+                     {80, 80}},
+        RailDecision{"AnAnchorsNormMoves",
+                     [](bool second) {
+                       const float ny = second ? 0.0f : 0.5f;
+                       return stack()
+                           .child(station("a", 10, 40))
+                           .child(station("b", 170, 40))
+                           .child(rail({{"a", {0.5f, ny}}, {"b", {0.5f, ny}}})
+                                      .absolute()
+                                      .inset(0)
+                                      .foreground(railLine()));
+                     },
+                     {100, 50},
+                     {100, 40},
+                     {100, 52}}),
+    [](const testing::TestParamInfo<RailDecision>& info) {
+      return info.param.what;
+    });
 
 TEST(ComposeRail, ClearsWhenAnchorUnmounts) {
   // An unmounted station takes its rail with it. A route whose anchor is

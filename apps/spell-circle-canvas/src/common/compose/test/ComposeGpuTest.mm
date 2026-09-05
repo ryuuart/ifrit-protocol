@@ -34,6 +34,9 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
+#include <vector>
+
 #include "Fonts.h"
 
 using namespace sigil::compose;
@@ -146,48 +149,67 @@ std::shared_ptr<const sigil::image::ImageAsset> whiteTile(int size) {
     GTEST_SKIP() << "no GPU device"; \
   }
 
-TEST(ComposeGpu, ImageRectDrawsOnGraphite) {
+namespace {
+
+/** A draw the Recorder's ImageProvider does not see -- a direct image
+ *  draw or a stamped atlas -- and where its white must land. These are
+ *  the draws that vanish silently on Graphite while the raster suite
+ *  stays green, so each names a lit point and, where the draw has a
+ *  shape, a point it must leave dark. */
+struct DirectDraw {
+  const char *what;
+  std::function<Element()> describe;
+  std::vector<SkIPoint> lit;
+  std::vector<SkIPoint> dark;
+};
+
+class DirectImageDraw : public testing::TestWithParam<DirectDraw> {};
+
+}  // namespace
+
+TEST_P(DirectImageDraw, ItsPixelsArriveOnGraphite) {
   REQUIRE_GPU();
+  const DirectDraw &draw = GetParam();
   sigil::motion::Ticker ticker;
   Composer composer(ticker, fonts());
   composer.setSize({200, 200});
-  composer.render(box().child(image(whiteTile(32)).absolute().inset(50, 50, 50, 50)));
+  composer.render(draw.describe());
   SkBitmap bm = drawOnGpu(composer, 200, 200);
   ASSERT_FALSE(bm.empty());
-  EXPECT_EQ(bm.getColor(100, 100), SK_ColorWHITE);
+  for (const SkIPoint &p : draw.lit)
+    EXPECT_EQ(bm.getColor(p.x(), p.y()), SK_ColorWHITE) << p.x() << "," << p.y();
+  for (const SkIPoint &p : draw.dark)
+    EXPECT_EQ(bm.getColor(p.x(), p.y()), SK_ColorBLACK) << p.x() << "," << p.y();
 }
 
-TEST(ComposeGpu, NineSliceLatticeDrawsOnGraphite) {
-  REQUIRE_GPU();
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
-  composer.setSize({200, 200});
-  Decoration slice = Slice{whiteTile(48), {16, 32}, {16, 32}};
-  composer.render(box().child(box().absolute().inset(50, 50, 50, 50).background(std::move(slice))));
-  SkBitmap bm = drawOnGpu(composer, 200, 200);
-  ASSERT_FALSE(bm.empty());
-  EXPECT_EQ(bm.getColor(100, 100), SK_ColorWHITE);  // center cell stretched
-  EXPECT_EQ(bm.getColor(55, 55), SK_ColorWHITE);    // corner cell
-}
-
-TEST(ComposeGpu, InstanceStampsDrawOnGraphite) {
-  REQUIRE_GPU();
-  using namespace sigil::compose::instancing;
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
-  composer.setSize({200, 200});
-  auto atlas = std::make_shared<Atlas>();
-  atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {24, 24});
-  auto pool = std::make_shared<Pool>();
-  pool->add({60, 60});
-  pool->add({140, 140});
-  composer.render(box().child(instances(atlas, pool, Mode::Live)));
-  SkBitmap bm = drawOnGpu(composer, 200, 200);
-  ASSERT_FALSE(bm.empty());
-  EXPECT_EQ(bm.getColor(60, 60), SK_ColorWHITE);
-  EXPECT_EQ(bm.getColor(140, 140), SK_ColorWHITE);
-  EXPECT_EQ(bm.getColor(100, 100), SK_ColorBLACK);
-}
+INSTANTIATE_TEST_SUITE_P(
+    ComposeGpu, DirectImageDraw,
+    testing::Values(
+        DirectDraw{"AnImageRect",
+                   [] { return box().child(image(whiteTile(32)).absolute().inset(50, 50, 50, 50)); },
+                   {{100, 100}},
+                   {}},
+        DirectDraw{"ANineSliceLattice",
+                   [] {
+                     Decoration slice = Slice{whiteTile(48), {16, 32}, {16, 32}};
+                     return box().child(
+                         box().absolute().inset(50, 50, 50, 50).background(std::move(slice)));
+                   },
+                   {{100, 100}, {55, 55}},  // the stretched centre cell, then a corner cell
+                   {}},
+        DirectDraw{"AStampedAtlas",
+                   [] {
+                     using namespace sigil::compose::instancing;
+                     auto atlas = std::make_shared<Atlas>();
+                     atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {24, 24});
+                     auto pool = std::make_shared<Pool>();
+                     pool->add({60, 60});
+                     pool->add({140, 140});
+                     return box().child(instances(atlas, pool, Mode::Live));
+                   },
+                   {{60, 60}, {140, 140}},
+                   {{100, 100}}}),
+    [](const testing::TestParamInfo<DirectDraw> &info) { return info.param.what; });
 
 namespace {
 
