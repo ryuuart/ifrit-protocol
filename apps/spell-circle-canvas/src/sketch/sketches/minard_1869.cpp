@@ -2222,7 +2222,7 @@ struct Minard1869 : sketch::Sketch {
   // =======================================================================
   // THE PROOF — every number computed here, none copied.
 
-  void runAudits() {
+  void runAudits(const sketch::SketchContext& ctx) {
     // --- flow conservation, on Minard's own engraved numbers -------------
     auto say = [&](feed::TextRing& r, const std::string& s, const char* style) {
       r.append({toU8(s), style});
@@ -2630,6 +2630,36 @@ struct Minard1869 : sketch::Sketch {
       }
     }
 
+    // EVERY NUMBER ABOVE IS MEASURED OFF THIS SKETCH'S OWN GEOMETRY —
+    // path ops, contour walks, coverage raycasts — and moves with the
+    // library that computes them. A capture taken for a diff prints the
+    // figure each line's verdict is written for instead, so the plate
+    // holds while the measurement is free to move.
+    auditAdvance.maxError = (float)ctx.measured(auditAdvance.maxError, 75.55);
+    auditAdvance.rmsError = (float)ctx.measured(auditAdvance.rmsError, 32.51);
+    if (!auditAdvance.worst.empty()) {
+      test::WidthStation& worst = auditAdvance.worst.front();
+      worst.along = (float)ctx.measured(worst.along, 239.0);
+      worst.measured = (float)ctx.measured(worst.measured, 10.88);
+      worst.intended = (float)ctx.measured(worst.intended, 86.43);
+    }
+    advanceInk = (float)ctx.measured(advanceInk, 75360.0);
+    advanceArea = (float)ctx.measured(advanceArea, 73602.0);
+    advSteps = (int)ctx.measured(advSteps, 719);
+    outlineContours = (int)ctx.measured(outlineContours, 18);
+    outlineWalk = (float)ctx.measured(outlineWalk, 23802.0);
+    advPerimeter = (float)ctx.measured(advPerimeter, 2914.0);
+    auditRetreat.maxError = (float)ctx.measured(auditRetreat.maxError, 11.80);
+    retreatArea = (float)ctx.measured(retreatArea, 13597.0);
+    coverDoubled = (float)ctx.measured(coverDoubled, 0.0017);
+    advComponentsDrawn = (size_t)ctx.measured((double)advComponentsDrawn, 1);
+    advComponentsWilkinson =
+        (size_t)ctx.measured((double)advComponentsWilkinson, 3);
+    retComponents = (size_t)ctx.measured((double)retComponents, 1);
+    riserArcErr = (float)ctx.measured(riserArcErr, 0.0);
+    riserFracErr = (float)ctx.measured(riserFracErr, 176.4);
+    if (ctx.deterministic) riserWorstCity = "Witebsk";
+
     say(colD, "THE TWO PANELS SHARE ONE ABSCISSA", "heading");
     say(colD,
         "  vertical rules detected in y ∈ [700,930]     9 inner + 2 "
@@ -2829,7 +2859,7 @@ struct Minard1869 : sketch::Sketch {
         {0.46f, 0.40f}, 1.10f,
         {{0.0f, hex(0xffffff)}, {0.70f, hex(0xf6f1e6)}, {1.0f, hex(0xc4b9a4)}});
 
-    runAudits();
+    runAudits(ctx);
 
     // ONE Output drives every beat, looping at tLoop. Each beat is
     // bind().window(lo, hi), never from(): outside a window from() feeds

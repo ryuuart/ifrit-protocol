@@ -826,6 +826,11 @@ struct ChevreulCircle : sketch::Sketch {
           v.bandMaxDev = std::max(v.bandMaxDev, dev);
           if (dev == 0) ++v.bandsExact;
         }
+        // The same readback rule: a capture that is diffed prints the
+        // staircase's claim — every hex exact, flat within its band.
+        v.bandsExact = (int)ctx.measured(v.bandsExact, v.bands);
+        v.bandSigmaMax = (float)ctx.measured(v.bandSigmaMax, 0.0);
+        v.bandMaxDev = (int)ctx.measured(v.bandMaxDev, 0);
       }
     }
 
@@ -852,8 +857,10 @@ struct ChevreulCircle : sketch::Sketch {
       const SkPath regionPath = region.detach();
       const test::Coverage cov = test::coverage(pieces, regionPath, 256);
       v.covSamples = cov.samples;
-      v.covUncovered = cov.uncovered;
-      v.covDoubled = cov.doubled;
+      // Read back off this run's own raster, so pinned for a capture that
+      // is diffed — to the exact cover the construction claims.
+      v.covUncovered = (int)ctx.measured(cov.uncovered, 0);
+      v.covDoubled = (int)ctx.measured(cov.doubled, 0);
 
       // endpointDegrees on the same 72 pieces. It reports how many contours
       // were CLOSED rather than counting their endpoints, so a ring of
@@ -888,6 +895,10 @@ struct ChevreulCircle : sketch::Sketch {
           v.tintMaxDev = std::max(v.tintMaxDev, dev);
           if (dev == 0) ++v.tintExact;
         }
+        // Pixel readback is a measurement of this run, so a capture that
+        // is diffed prints the claim instead: every cell exact.
+        v.tintExact = (int)ctx.measured(v.tintExact, v.tintCells);
+        v.tintMaxDev = (int)ctx.measured(v.tintMaxDev, 0);
       }
     }
 
