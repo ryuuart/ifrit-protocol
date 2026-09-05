@@ -34,16 +34,15 @@
 
 #include <gtest/gtest.h>
 
+#include "Fonts.h"
+
 using namespace sigil::compose;
 
 namespace geometry = sigil::geometry;
 
 namespace {
 
-sigil::weave::FontContext &fonts() {
-  static auto *context = new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+using sigil::test::fonts;
 
 sigil::skia::GraphiteContext *graphite() {
   static std::unique_ptr<sigil::core::hardware::GpuDevice> device =

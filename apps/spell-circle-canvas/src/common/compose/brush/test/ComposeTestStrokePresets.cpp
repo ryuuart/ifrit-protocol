@@ -1,40 +1,19 @@
-// The brush binary's share of ComposeKitTest.cpp: the suites whose subjects are
-// brush-tier values, cut from that file so each test binary links only
-// the target it exercises.
+// The kit's stroke shelf: the shaper and profile seams spelled with kit
+// values, the stroke presets, and the plate the feed is bordered with.
 
-#include <gtest/gtest.h>
-#include <include/core/SkBitmap.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkSurface.h>
 #include <sigilcompose/kit/Kit.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>
 #include <utility>
 #include <vector>
-using namespace sigil::compose;
 
-namespace geometry = sigil::geometry;
-#include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/typography/Typography.h>
-#include <sigilgeometry/kit/Silhouettes.h>
+#include "support/BrushTestSupport.h"
 
 namespace kit = sigil::compose::kit;
-
-namespace {
-
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
-
-}  // namespace
 
 TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {
   static_assert(geometry::path::ShaperScheme<geometry::shapers::Wave>);
@@ -135,38 +114,6 @@ TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
   EXPECT_FALSE(undulating == geometry::path::profile::offset(9));
 }
 
-namespace {
-
-/** A composer over a raster surface — the kit suite's own harness. Kept
- *  here rather than shared with compose_test because the two binaries are
- *  deliberately separate (a kit failure must not read as a kernel one). */
-struct StrokeHost {
-  sigil::motion::Ticker ticker;
-  Composer composer{ticker, fonts()};
-  sk_sp<SkSurface> surface;
-
-  explicit StrokeHost(int w = 200, int h = 200) {
-    composer.setSize({(float)w, (float)h});
-    surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  }
-  SkColor pixel(int x, int y) {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-    surface->readPixels(bm.pixmap(), x, y);
-    return bm.getColor(0, 0);
-  }
-  void frame() {
-    surface->getCanvas()->clear(SK_ColorBLACK);
-    composer.draw(*surface->getCanvas());
-  }
-};
-
-Fill strokeRed() { return Fill::color({1, 0, 0, 1}); }
-
-Fill strokeGreen() { return Fill::color({0, 1, 0, 1}); }
-
-}  // namespace
-
 // ---------------------------------------------------------------------------
 // The shaper seam, exercised with KIT shaper values.
 //
@@ -186,15 +133,15 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
   // differently, so byte equality is not the property on offer; a shaper
   // that silently drew nothing, or drew something else, still fails.
   auto draw = [](bool legacySpelling) {
-    StrokeHost host(200, 200);
+    Host host(200, 200);
     Element e = box().rect(SkRect::MakeXYWH(30, 30, 140, 140));
     if (legacySpelling)
       e.stroke(brush::restyle(geometry::shapers::Wave{5, 24},
-                              brush::solid(3, strokeRed()), 8));
+                              brush::solid(3, red()), 8));
     else
       e.stroke(Brush{}
                    .shaped(geometry::shapers::wave(5, 24))
-                   .layer(brush::solid(3, strokeRed())));
+                   .layer(brush::solid(3, red())));
     host.composer.render(stack().child(std::move(e)));
     host.frame();
     int inked = 0;
@@ -240,7 +187,7 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
   // asserted equal below) but two different inks — that is what makes the
   // alternation readable from pixels at all.
   auto wrongKnots = [](float amp, float wavelength, float inkWidth) {
-    StrokeHost host(1000, 240);
+    Host host(1000, 240);
     SkPathBuilder sp;
     sp.moveTo(0, 120);
     sp.lineTo(1000, 120);
@@ -248,12 +195,12 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
 
     const std::vector<brush::Strand> strands = {
         brush::Strand{geometry::path::profile::wave(amp, wavelength, 0.0f),
-                      brush::solid(inkWidth, strokeRed())},
+                      brush::solid(inkWidth, red())},
         brush::Strand{geometry::path::profile::wave(amp, wavelength, 0.5f),
-                      brush::solid(inkWidth, strokeGreen())}};
+                      brush::solid(inkWidth, green())}};
     // Same phases braid() would hand out for n = 2.
     const std::vector<brush::Strand> viaBraid =
-        kit::braid(2, amp, wavelength, brush::solid(inkWidth, strokeRed()));
+        kit::braid(2, amp, wavelength, brush::solid(inkWidth, red()));
     EXPECT_EQ(viaBraid[0].path, strands[0].path);
     EXPECT_EQ(viaBraid[1].path, strands[1].path);
 

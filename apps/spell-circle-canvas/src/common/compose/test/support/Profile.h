@@ -7,6 +7,7 @@
 
 #include <sigilmaterial/skia/Paint.h>
 
+#include <string>
 #include <vector>
 
 #include "Effects.h"
@@ -43,6 +44,17 @@ const Composer::NodeCost* requireRow(const Composer& composer,
   ADD_FAILURE() << "no profile row for '" << key
                 << "' — the node was never painted, so nothing below this "
                    "line tested anything. Wrap it in profiledUnder().";
+  return nullptr;
+}
+
+/** The profile row for the node keyed `key`, or nullptr — the labels a
+ *  profile carries are "<key> (<kind> WxH)". Unlike `requireRow`, an
+ *  absent row is an answer here: a case that asserts a node was NOT
+ *  profiled asks for exactly this. */
+const Composer::NodeCost* rowOf(Host& host, const char* key) {
+  const std::string prefix = std::string(key) + " (";
+  for (const Composer::NodeCost& row : host.composer.profile())
+    if (row.label.rfind(prefix, 0) == 0) return &row;
   return nullptr;
 }
 

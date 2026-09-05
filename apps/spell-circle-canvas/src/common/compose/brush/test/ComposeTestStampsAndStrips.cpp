@@ -1,6 +1,6 @@
-// The brush binary's share of ComposeTestContent.cpp: the suites whose subjects
-// are brush-tier values, cut from that file so each test binary links only the
-// target it exercises.
+// Art repeated along a boundary: the stamp a decoration walks a contour
+// with, the nine-slice strip a tile flow lays out, the derived routes
+// between two nodes, and the shape values they are cut against.
 
 #include <include/core/SkBBHFactory.h>
 #include <include/core/SkFont.h>

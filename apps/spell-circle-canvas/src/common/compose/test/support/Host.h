@@ -14,13 +14,13 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <chrono>
 #include <cstring>
 #include <optional>
 #include <stdexcept>
+
+#include "Fonts.h"
 
 // Everything here draws into a raster surface at a fixed size and reads
 // pixels back, so the tests are deterministic and need no GPU.
@@ -43,11 +43,7 @@ namespace weave = sigil::weave;
 
 namespace {
 
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+using sigil::test::fonts;
 
 /** The optional's value; an empty optional is a test failure, not a crash. */
 template <class T>

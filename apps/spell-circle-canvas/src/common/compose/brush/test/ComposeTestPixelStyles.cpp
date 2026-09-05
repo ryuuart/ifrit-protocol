@@ -6,7 +6,7 @@
 
 #include <sigilcompose/brush/PixelStyles.h>
 
-#include "support/PaintTestSupport.h"
+#include "support/BrushTestSupport.h"
 
 namespace {
 

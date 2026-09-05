@@ -6,21 +6,17 @@
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/video/Video.h>
 #include <sigilvideo/encode/Encode.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <cstddef>
 #include <memory>
+
+#include "Fonts.h"
 
 using namespace sigil::compose;
 
 namespace {
 
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+using sigil::test::fonts;
 
 std::shared_ptr<sigil::video::Video> redClip() {
   constexpr int kSize = 64;

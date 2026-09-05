@@ -20,9 +20,10 @@
 #   spellcircle/ the SpellCircle receiver product: shared/ core embedded by
 #                both the qt/ and mac/ executables
 # Test support belonging to no library: a scratch directory on disk is
-# the standard library and nothing else, and every library's tests want
-# the same one. Every test binary sees this directory and spells
-# "ScratchDir.h".
+# the standard library and nothing else, and a font context over the
+# machine's own faces is one line every test binary that draws text would
+# otherwise write for itself. Every test binary sees this directory and
+# spells "ScratchDir.h" or "Fonts.h".
 set(SIGIL_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 
 # Core first: its hardware feature is the device every drawing library

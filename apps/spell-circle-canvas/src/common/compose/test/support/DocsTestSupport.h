@@ -20,4 +20,4 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
-#include "PaintTestSupport.h"
+#include "BrushTestSupport.h"

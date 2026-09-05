@@ -1,6 +1,6 @@
-// The brush binary's share of ComposeTestKernel.cpp: the suites whose subjects
-// are brush-tier values, cut from that file so each test binary links only the
-// target it exercises.
+// Decorations on an ordinary node: borders and dashes along an outline,
+// shadows under a fill, strokes over one, the mask a decoration is gated
+// by, and rail(), the component that IS a line.
 
 #include "support/BrushTestSupport.h"
 

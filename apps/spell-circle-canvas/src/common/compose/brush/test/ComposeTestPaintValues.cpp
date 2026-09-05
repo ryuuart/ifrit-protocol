@@ -1,8 +1,8 @@
-// The paint binary's share of ComposeTestKernel.cpp: the suites whose subjects
-// are paint-tier values, cut from that file so each test binary links only the
-// target it exercises.
+// SigilMaterial values as a node's paint: fields, tiles, SDF surfaces and
+// the layer styles this tier spells over them, plus the view transform a
+// composer carries.
 
-#include "support/PaintTestSupport.h"
+#include "support/BrushTestSupport.h"
 
 TEST(ComposePatterns, GrainIsMonochromeAndVaries) {
   // Material::recipe(material::field::noise()) is fractal RGB noise — its
@@ -414,4 +414,29 @@ TEST(ComposePatterns, SequencePaintsColouredRunsAndPhaseSlides) {
   EXPECT_EQ(sample(0.0f, 35), SK_ColorRED);    // wraps
   EXPECT_EQ(sample(10.0f, 5), SK_ColorGREEN);  // slid one run: green leads
   EXPECT_EQ(sample(10.0f, 15), SK_ColorBLUE);
+}
+
+TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
+  // An exponent transform darkens mid-grey (0.5^2.2 ~ 0.218); clearing the
+  // view restores pass-through. Exercises bake, response row, the
+  // lowering the host's eight-bit surface asks for, and saveLayer.
+#ifndef SIGILMATERIAL_ENABLE_OCIO
+  GTEST_SKIP() << "built without OpenColorIO, so a view transform is a "
+                  "no-op and this proves nothing";
+#else
+  ASSERT_TRUE(sigil::material::ocio::available());
+  Host host;
+  host.composer.setView(sigil::material::ocio::exponent(2.2f));
+  host.composer.render(box().child(
+      box().width(60).height(60).fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))));
+  host.frame();
+  const uint32_t dark = SkColorGetR(host.pixel(30, 30));
+  EXPECT_GT(dark, 30u);
+  EXPECT_LT(dark, 80u);
+  host.composer.setView({});  // pass-through again
+  host.frame();
+  const uint32_t plain = SkColorGetR(host.pixel(30, 30));
+  EXPECT_GT(plain, 118u);
+  EXPECT_LT(plain, 138u);
+#endif
 }

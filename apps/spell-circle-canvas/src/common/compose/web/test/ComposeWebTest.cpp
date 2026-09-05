@@ -11,21 +11,17 @@
 #include <sigilcompose/web/Web.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <chrono>
 #include <thread>
+
+#include "Fonts.h"
 
 using namespace sigil::compose;
 
 namespace {
 
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+using sigil::test::fonts;
 
 sigil::scry::WebEngine& sharedEngine() {
   static std::shared_ptr<sigil::scry::WebEngine> engine =

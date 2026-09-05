@@ -1,18 +1,32 @@
 #pragma once
 // Support for compose_brush_test: decorations, lines, rails, hatches and
-// brushes, the kit's stroke grammar and the bordered feed plate, over the
-// shape support. The Brush tier carries the typography headers with it, so
+// brushes, the kit's stroke grammar and the bordered feed plate, and the
+// paint vocabulary this tier spells over SigilMaterial -- tiles, fields,
+// SDF surfaces and layer styles as a node's fill -- over the shape
+// support. The Brush tier carries the typography headers with it, so
 // text-fx presets are in reach here too.
 
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Chrome.h>
+#include <sigilcompose/kit/Gel.h>
+#include <sigilcompose/kit/Gloss.h>
+#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Patterns.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/sdf/Sdf.h>
+#ifdef SIGILMATERIAL_ENABLE_OCIO
+#include <sigilmaterial/ocio/Ocio.h>
+#endif
 
 #include "ShapeTestSupport.h"
 
