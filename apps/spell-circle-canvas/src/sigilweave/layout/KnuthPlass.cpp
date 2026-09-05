@@ -227,9 +227,19 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
     return std::span<const uint32_t>(first, last);
   };
 
+  // WHAT THE DP READS OUT OF THE SETTING, read once. The pass below calls
+  // paragraph.ensureShapedTo() as its frontier advances, so nothing the
+  // compiler can see keeps the setting still: every field left inside the
+  // loop is loaded again on every candidate line.
+  const bool hyphenating = options.hyphenation.enabled;
+  const float hyphenPenalty = options.hyphenation.penalty;
+  const float tolerance = options.knuthPlass.tolerance;
+
   // Extra width when the line ends on a discretionary (soft-hyphen) break.
   auto hyphenWidthAt = [&](uint32_t breakIndex) -> float {
-    return hyphenTakenAt(words, breakIndex, breakIndex == wordCount, options)
+    return hyphenating &&
+                   hyphenTakenAt(words, breakIndex, breakIndex == wordCount,
+                                 options)
                ? words[breakIndex - 1].hyphenGlyph->advance
                : 0.0f;
   };
@@ -349,6 +359,9 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
       // Shape only as the dynamic-programming frontier advances.
       paragraph.ensureShapedTo(fontContext, breakIndex);
       ensurePrefixSums(breakIndex);
+      // The hyphen a break here would render is a fact about the BREAK, so
+      // it is settled once and not once per candidate line ending on it.
+      const float breakHyphenWidth = hyphenWidthAt(breakIndex);
       // Within a block the only forced break is its end: a mandatory break
       // is what ends a block, so there is never one inside.
       const bool forcedBreak = breakIndex == wordCount;
@@ -418,8 +431,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
             std::min(std::abs(ratio), 500.0f);  // pre-clamp: ratio³
         const float badness = std::min(
             100.0f * clampedRatio * clampedRatio * clampedRatio, kMaxBadness);
-        const bool feasible =
-            !overfull && badness <= options.knuthPlass.tolerance;
+        const bool feasible = !overfull && badness <= tolerance;
         // THE HYPHENATION ZONE, asked of the line WITHOUT the break: a
         // ragged line whose last whole word already ends inside the band at
         // the measure is square enough for the eye, so a word broken to
@@ -430,7 +442,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
         // answer. A justified line shows its slack in the gaps rather than
         // at the edge, so the zone is a ragged-setting rule only.
         bool zoneRefusesBreak = false;
-        if (zone > 0 && !justify && hyphenWidthAt(breakIndex) > 0) {
+        if (zone > 0 && !justify && breakHyphenWidth > 0) {
           uint32_t whole = breakIndex - 1;
           while (whole > lineStart && words[whole - 1].hyphenBreak) --whole;
           zoneRefusesBreak = whole > lineStart &&
@@ -439,8 +451,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
 
         float demerits =
             node.demerits + (kLinePenalty + badness) * (kLinePenalty + badness);
-        if (hyphenWidthAt(breakIndex) > 0)
-          demerits += options.hyphenation.penalty * options.hyphenation.penalty;
+        if (breakHyphenWidth > 0) demerits += hyphenPenalty * hyphenPenalty;
 
         if (zoneRefusesBreak) {
           // Neither a node nor a lifeline.

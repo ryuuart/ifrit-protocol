@@ -493,7 +493,7 @@ void Paragraph::reshapeShapedPrefix(FontContext& fontContext) {
   }
 }
 
-void Paragraph::ensureShapedTo(FontContext& fontContext, uint32_t wordCount) {
+void Paragraph::shapeWordsTo(FontContext& fontContext, uint32_t wordCount) {
   ensureAnalyzed(fontContext);
   const uint32_t upTo =
       std::min(wordCount, static_cast<uint32_t>(m_words.size()));

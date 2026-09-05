@@ -18,6 +18,7 @@
 #include <cmath>
 #include <cstdint>
 #include <deque>
+#include <numeric>
 #include <vector>
 
 #include "ParagraphLayoutInternal.h"
@@ -159,14 +160,15 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
                  const LineFit& fit = {}, float baselineShift = 0) {
   const ShapedWord& shapedWord = *segment.shaped;
   if (shapedWord.glyphs.empty()) return;
-  PositionedRun run;
-  run.shaped = segment.shaped;
-  run.advance = shapedWord.advance;
-  run.styleIndex = segment.styleIndex;
-  run.wordIndex = wordIndex;
-  run.lineIndex = flatInterval.sourceLineIndex;
-  run.intervalIndex = flatInterval.index;
-  run.penOffset = penOffset;
+  // THE RUN IS SETTLED BEFORE IT IS APPENDED, and then written straight
+  // into the vector's own slot: a run holds two reference-counted handles,
+  // so building one beside the vector and handing it over is a second set
+  // of stores and a second pass over the same bytes.
+  sk_sp<SkTextBlob> blob;
+  SkPoint origin = {0, 0};
+  bool transformed = false;
+  float advance = shapedWord.advance;
+  LineFit runFit;
   const bool straight = !flatInterval.interval.contour.valid();
   const bool horizontal = straight &&
                           flatInterval.interval.direction.x() == 1 &&
@@ -179,37 +181,45 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
     // Respacing and scaling are a STRAIGHT HORIZONTAL answer: a column and
     // a curve place per glyph already, and a second per-glyph rule on top
     // of those would be two placements arguing over one run.
-    run.blob = fit.plain() ? wordBlob(shapedWord)
-                           : buildFittedBlob(shapedWord, fit);
+    blob = fit.plain() ? wordBlob(shapedWord) : buildFittedBlob(shapedWord, fit);
     if (!fit.plain()) {
-      run.fit = fit;
-      run.advance = advanceUnder(fit, shapedWord);
+      runFit = fit;
+      advance = advanceUnder(fit, shapedWord);
     }
     // A BASELINE SHIFT lifts the span off its line's baseline and changes
     // nothing else: the advances are the face's own, so the pen is where
     // it was and the shaped run is the shared one.
-    run.origin =
-        flatInterval.interval.origin + SkVector{penOffset, -baselineShift};
+    origin = flatInterval.interval.origin + SkVector{penOffset, -baselineShift};
   } else if (verticalColumn && segment.form == SegmentForm::kUpright) {
     // Vertical-shaped word: positions already stack down the column.
-    run.blob = wordBlob(shapedWord);
-    run.origin = flatInterval.interval.origin + SkVector{0, penOffset};
+    blob = wordBlob(shapedWord);
+    origin = flatInterval.interval.origin + SkVector{0, penOffset};
   } else if (verticalColumn && segment.form == SegmentForm::kTateChuYoko) {
     // Horizontal run set upright across the column, centred on its axis;
     // penX already points at the run's baseline (see Paragraph::analyze).
-    run.blob = wordBlob(shapedWord);
-    run.origin = flatInterval.interval.origin +
-                 SkVector{-shapedWord.advance * 0.5f, penOffset};
+    blob = wordBlob(shapedWord);
+    origin = flatInterval.interval.origin +
+             SkVector{-shapedWord.advance * 0.5f, penOffset};
   } else {
     // Rotated/curved: bake per-glyph transforms (kRotated Latin in a
     // vertical column rotates 90° clockwise here via the interval tangent).
-    run.blob =
-        buildTransformedBlob(shapedWord, flatInterval.interval, penOffset,
-                             options.pathText.tangentRotationSteps);
-    run.origin = {0, 0};
-    run.transformed = true;
+    blob = buildTransformedBlob(shapedWord, flatInterval.interval, penOffset,
+                                options.pathText.tangentRotationSteps);
+    transformed = true;
   }
-  if (run.blob) result.runs.push_back(std::move(run));
+  if (!blob) return;
+  PositionedRun& run = result.runs.emplace_back();
+  run.blob = std::move(blob);
+  run.shaped = segment.shaped;
+  run.origin = origin;
+  run.styleIndex = segment.styleIndex;
+  run.wordIndex = wordIndex;
+  run.lineIndex = flatInterval.sourceLineIndex;
+  run.transformed = transformed;
+  run.intervalIndex = flatInterval.index;
+  run.penOffset = penOffset;
+  run.advance = advance;
+  run.fit = runFit;
 }
 
 // UAX #9 rule L2 over per-word levels, which is a reordering ICU performs
@@ -234,10 +244,10 @@ void visualOrder(const std::vector<Word>& words, uint32_t firstWordIndex,
   if (!anyRightToLeft) {
     // Rule L2 reverses runs at odd levels and there are none: the visual
     // order IS the logical order, which is the whole of the answer for
-    // every line of a left-to-right text.
-    for (uint32_t wordIndex = firstWordIndex; wordIndex < endWordIndex;
-         ++wordIndex)
-      visualWordOrder.push_back(wordIndex);
+    // every line of a left-to-right text. Sized once and then filled, so
+    // the fill is a straight write over a block this vector already owns.
+    visualWordOrder.resize(static_cast<size_t>(count));
+    std::iota(visualWordOrder.begin(), visualWordOrder.end(), firstWordIndex);
     return;
   }
   indexMap.resize(static_cast<size_t>(count));
@@ -462,13 +472,26 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
   }
   const bool hasTab = lastTabVisualIndex >= 0;
 
+  // HOW THE LINE IS SEATED IN ITS INTERVAL, settled before anything is
+  // measured for the seating: what a line has to be walked for — the width
+  // it came to, the gaps that could take up slack — is what an aligned or
+  // justified line reads, and a line set from its start reads none of it.
+  TextAlignment resolvedAlignment = alignment;
+  if (resolvedAlignment == TextAlignment::kJustify && lastLine &&
+      !options.justification.justifyLastLine)
+    resolvedAlignment = options.justification.lastLineAlignment;
+  const bool justifying = resolvedAlignment == TextAlignment::kJustify;
+  const bool seatedByWidth = justifying ||
+                             resolvedAlignment == TextAlignment::kCenter ||
+                             resolvedAlignment == TextAlignment::kEnd;
+
   // WIDTH OF THE CELL EACH TAB OPENS: the text from the tab to the next tab,
   // or to the end of the line. Only a stop that aligns its cell somewhere
   // other than its start reads it, but it costs one backward walk and the
   // walk is over words already measured.
   static thread_local std::vector<float> cellAfter;
-  cellAfter.assign(visualWordOrder.size(), 0.0f);
   if (hasTab) {
+    cellAfter.assign(visualWordOrder.size(), 0.0f);
     float accumulated = 0;
     for (size_t visualIndex = visualWordOrder.size(); visualIndex-- > 0;) {
       const Word& cellWord = words[visualWordOrder[visualIndex]];
@@ -485,10 +508,13 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
 
   // Gap census for justification (tabbed lines: only gaps past the last
   // tab), plus the measured glue behind the census for the shrink limit.
+  // Only a justified line spends a gap, and this walks every word it holds.
   int spaceGapCount = 0;
   int ideographicGapCount = 0;
   float stretchableGlue = 0;
-  if (hasTab) {
+  if (!justifying) {
+    // No gap moves: the census would answer a question nobody asks.
+  } else if (hasTab) {
     for (size_t visualIndex = static_cast<size_t>(lastTabVisualIndex) + 1;
          visualIndex + 1 < visualWordOrder.size(); ++visualIndex) {
       const uint32_t gapWordIndex = std::min(visualWordOrder[visualIndex],
@@ -522,9 +548,13 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
     }
   }
 
+  // WHAT THE LINE CAME TO, which only a line seated by its width reads —
+  // and which is another walk over every word the line holds.
   const float naturalLineWidth =
-      hasTab ? resolvedNaturalWidth
-             : naturalWidth(words, firstWordIndex, endWordIndex) + hyphenWidth;
+      !seatedByWidth ? 0.0f
+      : hasTab
+          ? resolvedNaturalWidth
+          : naturalWidth(words, firstWordIndex, endWordIndex) + hyphenWidth;
   // OPTICAL MARGIN ALIGNMENT: a line that opens on a quote or closes on a
   // comma reads as indented and as short, because the eye squares a margin
   // on the mass of the type rather than on its advances. A hanging table
@@ -551,11 +581,6 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
                                   naturalLineWidth + hangAtStart + hangAtEnd;
   const float extraWidth = extraWidthNatural;
 
-  TextAlignment resolvedAlignment = alignment;
-  if (resolvedAlignment == TextAlignment::kJustify && lastLine &&
-      !options.justification.justifyLastLine)
-    resolvedAlignment = options.justification.lastLineAlignment;
-
   // The three passes past the word gaps are asked for or they are not, and
   // a line that does not ask for them takes the shared-blob path it always
   // took. Every field here is at the value that means "leave it alone".
@@ -568,8 +593,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       justification.glyphScaleMinimum != 1.0f ||
       justification.glyphScaleMaximum != 1.0f ||
       justification.singleWord == JustificationOptions::SingleWord::kJustify;
-  const bool extendedJustify =
-      resolvedAlignment == TextAlignment::kJustify && spendsPastGaps;
+  const bool extendedJustify = justifying && spendsPastGaps;
   const float wordSpacingDelta =
       extendedJustify ? justification.wordSpacing - 1.0f : 0.0f;
 
@@ -758,21 +782,28 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
     }
   }
 
+  // WHETHER THE GAPS MOVE AT ALL. Nothing was added to any of them on a
+  // line the fit left alone, so the pen walk below need not ask what kind
+  // of gap each one is — which is a question about two words per gap.
+  const bool gapsMove = wordSpacingDelta != 0 || spaceAdjustment != 0 ||
+                        ideographicAdjustment != 0;
+
   // The hang itself: the line starts one hang back, so the character that
   // may hang sits outside the measure and the letters after it square on
   // it. A justified line spent the extra room the hang opened, so its
   // interior is already correct.
   float penPosition = startOffset - hangAtStart;
+  const std::vector<StyleSpan>& spans = paragraph.spans();
+  const auto shiftOf = [&](const WordSegment& segment) {
+    return segment.styleIndex < spans.size()
+               ? spans[segment.styleIndex].style.paint.baselineShift
+               : 0.0f;
+  };
   for (size_t visualIndex = 0; visualIndex < visualWordOrder.size();
        ++visualIndex) {
     const uint32_t wordIndex = visualWordOrder[visualIndex];
     const Word& word = words[wordIndex];
     float wordAdvance = word.width;
-    const auto shiftOf = [&](const WordSegment& segment) {
-      return segment.styleIndex < paragraph.spans().size()
-                 ? paragraph.spans()[segment.styleIndex].style.paint.baselineShift
-                 : 0.0f;
-    };
     if (fit.plain()) {
       for (const WordSegment& segment : word.segments())
         emitSegment(result, flatInterval, segment, wordIndex,
@@ -859,7 +890,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
       }
       penPosition += glueAfter(word, penPosition - startOffset, options) +
                      roomAfter(wordIndex);
-      if (static_cast<int>(visualIndex) > lastTabVisualIndex) {
+      if (gapsMove && static_cast<int>(visualIndex) > lastTabVisualIndex) {
         switch (gapKind(words,
                         std::min(wordIndex, visualWordOrder[visualIndex + 1]),
                         options)) {
@@ -1587,6 +1618,15 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   ParagraphLayout result;
   const std::vector<Word>& words = paragraph.words();
   if (words.empty()) return result;
+  // THE RUNS ARE THE ONE THING THIS FUNCTION GROWS WITHOUT BOUND, and a
+  // run carries two reference-counted handles, so every doubling moves
+  // every run already placed one by one and asks the allocator for a
+  // block twice the size of the one it releases. A text sets at least one
+  // run per word it places, so the words from the cursor on are the count
+  // to ask for. A text longer than its geometry asks for more than it
+  // will place, which costs it nothing: the pages a reservation never
+  // writes to are never faulted in.
+  result.runs.reserve(words.size() - std::min<size_t>(firstWord, words.size()));
 
   // The room a mojikumi table and tsume put after each word, resolved once
   // for the whole text and read by both breakers and by placement. Empty,

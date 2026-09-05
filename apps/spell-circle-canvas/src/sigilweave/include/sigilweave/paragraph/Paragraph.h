@@ -260,8 +260,16 @@ class Paragraph {
   void ensureAnalyzed(FontContext& fontContext);
   /** Lazily shapes words in `[0, wordCount)`, ascending and idempotent — the
    * breakers call this just ahead of their frontier.
+   *
+   * A frontier that has already passed `wordCount` answers here, without a
+   * call: both breakers ask this once per word they consider, and on all
+   * but the few words that actually advance the frontier the answer is
+   * that there is nothing to do.
    */
-  void ensureShapedTo(FontContext& fontContext, uint32_t wordCount);
+  void ensureShapedTo(FontContext& fontContext, uint32_t wordCount) {
+    if (!m_dirty && !m_paintDirty && wordCount <= m_shapedWordCount) return;
+    shapeWordsTo(fontContext, wordCount);
+  }
   /** Returns the number of words whose glyph data is currently available. */
   uint32_t shapedWordCount() const { return m_shapedWordCount; }
   /** Returns whether analysis or paint reconciliation is pending. */
@@ -308,6 +316,10 @@ class Paragraph {
   [[nodiscard]] float naturalWidth(FontContext& fontContext);
 
  private:
+  // Analyses if it must and shapes forward to `wordCount`; the frontier
+  // test that spares the call lives in ensureShapedTo().
+  void shapeWordsTo(FontContext& fontContext, uint32_t wordCount);
+
   void markDirty() {
     m_dirty = true;
     ++m_wordRevision;
