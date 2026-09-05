@@ -32,22 +32,6 @@ namespace {
 constexpr SkColor kGround = SK_ColorBLACK;
 constexpr SkColor kInk = SK_ColorWHITE;
 
-std::vector<int> selection(const StoryOptions& options) {
-  std::vector<int> chosen;
-  const std::vector<Entry>& entries = registry();
-  const int first = options.only >= 0 ? options.only : 0;
-  const int last = options.only >= 0 ? options.only + 1 : (int)entries.size();
-  for (int index = first; index < last && index < (int)entries.size();
-       ++index) {
-    if (!options.kind.empty()) {
-      const Kind kind = entries[index].kind();
-      if (!kind || kind->runtime() != options.kind) continue;
-    }
-    chosen.push_back(index);
-  }
-  return chosen;
-}
-
 void drawLabel(SkCanvas& canvas, const sk_sp<SkTypeface>& face,
                const std::string& text, float x, float y, float size,
                SkColor color) {
@@ -157,7 +141,7 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
     return 1;
   }
 
-  const std::vector<int> chosen = selection(options);
+  const std::vector<int> chosen = selection(options.only, options.kind);
   const std::vector<Entry>& entries = registry();
   std::vector<int> available;
   int skipped = 0;
@@ -223,7 +207,7 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
       const double captureMoment = declaredMoment > 0.0 ? declaredMoment : 1.5;
       const double frameStep = 1.0 / options.framesPerSecond;
       const double preRollStep = 1.0 / std::max(60, options.framesPerSecond);
-      const bool keepsPixels = kind->runtime() == "draw";
+      const bool keepsPixels = kind->retainsPixels();
       const sk_sp<SkSurface> scratch =
           keepsPixels ? nullptr
                       : SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 8));

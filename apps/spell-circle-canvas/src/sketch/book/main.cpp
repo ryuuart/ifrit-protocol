@@ -4,11 +4,14 @@
  *   Sketchbook [--no-gpu]                      the app, on the last sketch
  *   Sketchbook --sketch <name>                 the app, on that one
  *   Sketchbook --list [--kind canvas|set]      the registry, one per line
+ *   Sketchbook --compare <dir-a> <dir-b>       two sweeps' plates, differenced
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
  *              [--ledger] [--no-promotion] [--capture-at <s>]
  *              [--timing-json <path>]          plates, and the timing table
  *   Sketchbook --video <out.mp4> [--video-frames <n>] [--fps <n>]
- *              [--sketch <name>] [--kind <k>]  the vertical video montage
+ *              [--video-size <WxH>] [--video-bitrate <bits>]
+ *              [--sketch <name>] [--kind <k>] [--gpu]
+ *                                              the vertical video montage
  *   Sketchbook <file.cpp> [--frame <png>] [--bench] [--gpu]
  *                                              a file, live or measured
  *   Sketchbook <file.cpp>                      the app, on that file
@@ -36,11 +39,8 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilmaterial/core/Program.h>
-#include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Recipes.h>
-#include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/stock/Stock.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -48,6 +48,7 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/set/Set.h>
@@ -147,24 +148,14 @@ constexpr double kDefaultJitter = 0.35;
 constexpr double kWindowBenchSeconds = 2.5;
 constexpr double kWindowBenchWarmupSeconds = 1.2;
 
-/** Loads the authored stock shader files and compiles their SkSL programs.
- *  Each catalogue discovers its shader directory through SigilIO before the
- *  shared program cache compiles the distinct recipe identities. */
+/** THE STOCK MATERIALS, COMPILED BEFORE THE FIRST SKETCH DRAWS: the
+ *  backend this host draws through, and then the material library's own
+ *  warm-up over every recipe it ships. How many catalogues that is, where
+ *  each reads its shader files from and how they are read side by side
+ *  are the library's business, not this host's. */
 sigil::material::WarmupResult warmStockMaterials() {
-  namespace material = sigil::material;
-  material::skia::install();
-  auto fields = std::async(std::launch::async, material::field::everyRecipe);
-  auto shapes = std::async(std::launch::async, material::sdf::everyRecipe);
-  auto kit = std::async(std::launch::async, material::kit::everyRecipe);
-
-  std::vector<material::Material> recipes;
-  const auto append = [&recipes](std::vector<material::Material> found) {
-    for (material::Material& item : found) recipes.push_back(std::move(item));
-  };
-  append(fields.get());
-  append(shapes.get());
-  append(kit.get());
-  return material::warmup(recipes, material::Target::SkSL);
+  sigil::material::skia::install();
+  return sigil::material::stock::warmup(sigil::material::Target::SkSL);
 }
 
 void finishMaterialWarmup(std::future<sigil::material::WarmupResult>& loading) {
@@ -260,16 +251,14 @@ bool useDevice() {
 void releaseDevice() {}
 #endif
 
-/** True when the selection holds anything drawn through the set
- *  runtime — the only reason to bring a device up. */
+/** True when the selection holds a sketch that draws through a device —
+ *  the only reason to bring one up. The kind answers for itself, so a
+ *  runtime added later is not a name this has to learn. */
 bool selectionNeedsDevice(int only, const std::string& kind) {
   const auto& entries = sketch::registry();
-  const int first = only >= 0 ? only : 0;
-  const int last = only >= 0 ? only + 1 : (int)entries.size();
-  for (int i = first; i < last && i < (int)entries.size(); ++i) {
-    if (!kind.empty() && kind != "set") continue;
-    const sketch::Kind entry = entries[i].kind();
-    if (entry && entry->runtime() == "set") return true;
+  for (int index : sketch::selection(only, kind)) {
+    const sketch::Kind entry = entries[index].kind();
+    if (entry && entry->needsDevice()) return true;
   }
   return false;
 }
@@ -679,24 +668,18 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
  *  cannot run is named as stood down and left out, exactly as the sweep
  *  passes over it — a skip is not a failure and not a measurement. */
 std::vector<int> windowBenchSelection(int only, const std::string& kind) {
-  std::vector<int> selection;
+  std::vector<int> presented;
   const auto& entries = sketch::registry();
-  const int first = only >= 0 ? only : 0;
-  const int last = only >= 0 ? only + 1 : (int)entries.size();
-  for (int i = first; i < last && i < (int)entries.size(); ++i) {
-    if (!kind.empty()) {
-      const sketch::Kind entryKind = entries[i].kind();
-      if (!entryKind || entryKind->runtime() != kind) continue;
-    }
+  for (int index : sketch::selection(only, kind)) {
     std::string why;
-    if (!entries[i].available(&why)) {
-      std::printf("WINDOW %s SKIPPED %s\n", entries[i].key, why.c_str());
+    if (!entries[index].available(&why)) {
+      std::printf("WINDOW %s SKIPPED %s\n", entries[index].key, why.c_str());
       continue;
     }
-    selection.push_back(i);
+    presented.push_back(index);
   }
   std::fflush(stdout);
-  return selection;
+  return presented;
 }
 
 // ---------------------------------------------------------------------------
@@ -730,17 +713,11 @@ int runThumbnails(int only, const std::string& kind,
   namespace book = sigil::sketch::book;
   std::filesystem::create_directories(dir);
   const auto& entries = sketch::registry();
-  const int first = only >= 0 ? only : 0;
-  const int last = only >= 0 ? only + 1 : (int)entries.size();
   int rendered = 0;
   size_t skipped = 0;
   std::vector<std::string> failed;
-  for (int i = first; i < last && i < (int)entries.size(); ++i) {
-    const sketch::Entry& entry = entries[i];
-    if (!kind.empty()) {
-      const sketch::Kind entryKind = entry.kind();
-      if (!entryKind || entryKind->runtime() != kind) continue;
-    }
+  for (int index : sketch::selection(only, kind)) {
+    const sketch::Entry& entry = entries[index];
     std::string why;
     if (!entry.available(&why)) {
       std::printf("thumbnail %-24s [skipped: %s]\n", entry.name, why.c_str());
@@ -784,6 +761,7 @@ int main(int argc, char* argv[]) {
   std::filesystem::path sketchFile;
   std::filesystem::path assetsOverride;
   std::string selected, kind, shotPath;
+  sketch::CompareOptions compareOptions;
   sketch::SweepOptions sweepOptions;
   sketch::StoryOptions storyOptions;
   CaptureOptions capture;
@@ -801,13 +779,14 @@ int main(int argc, char* argv[]) {
         sweepOptions.outDir = argv[++i];
     } else if (arg == "--list") {
       list = true;
-    } else if ((arg == "--video" || arg == "--story") && i + 1 < argc) {
+    } else if (arg == "--compare" && i + 2 < argc) {
+      compareOptions.first = argv[++i];
+      compareOptions.second = argv[++i];
+    } else if (arg == "--video" && i + 1 < argc) {
       storyOptions.out = argv[++i];
-    } else if ((arg == "--video-frames" || arg == "--story-frames") &&
-               i + 1 < argc) {
+    } else if (arg == "--video-frames" && i + 1 < argc) {
       storyOptions.framesPerSketch = std::max(1, std::stoi(argv[++i]));
-    } else if ((arg == "--video-size" || arg == "--story-size") &&
-               i + 1 < argc) {
+    } else if (arg == "--video-size" && i + 1 < argc) {
       const std::string size = argv[++i];
       const size_t by = size.find('x');
       if (by == std::string::npos) {
@@ -816,8 +795,7 @@ int main(int argc, char* argv[]) {
       }
       storyOptions.width = std::max(2, std::stoi(size.substr(0, by)));
       storyOptions.height = std::max(2, std::stoi(size.substr(by + 1)));
-    } else if ((arg == "--video-bitrate" || arg == "--story-bitrate") &&
-               i + 1 < argc) {
+    } else if (arg == "--video-bitrate" && i + 1 < argc) {
       storyOptions.bitRate = std::max<int64_t>(1, std::stoll(argv[++i]));
     } else if (arg == "--gpu") {
       gpu = true;
@@ -906,6 +884,11 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  // NOTHING IS OPENED FOR A COMPARISON: it reads two directories of
+  // finished plates, so it wants no fonts, no assets, no device and no
+  // registry — and it answers before any of them is built.
+  if (!compareOptions.first.empty()) return sketch::compare(compareOptions);
+
   const int chosen = selected.empty() ? -1 : sketch::find(selected);
   if (!selected.empty() && chosen < 0) {
     std::fprintf(stderr, "no sketch matches \"%s\"; known sketches:\n",
@@ -928,11 +911,9 @@ int main(int argc, char* argv[]) {
     // exist. Dropping it from the listing would say the same thing by
     // saying nothing, which reads as a sketch that was deleted.
     const bool toTerminal = isatty(fileno(stdout)) != 0;
-    for (const sketch::Entry& entry : sketch::registry()) {
-      if (!kind.empty()) {
-        const sketch::Kind entryKind = entry.kind();
-        if (!entryKind || entryKind->runtime() != kind) continue;
-      }
+    const auto& entries = sketch::registry();
+    for (int index : sketch::selection(-1, kind)) {
+      const sketch::Entry& entry = entries[index];
       std::string why;
       if (entry.available(&why)) {
         std::printf("%s\n", entry.name);
@@ -960,7 +941,10 @@ int main(int argc, char* argv[]) {
   if (!storyOptions.out.empty() && storyOptions.framesPerSketch > 0) {
     storyOptions.only = chosen;
     storyOptions.kind = kind;
-    if (selectionNeedsDevice(chosen, kind) && !useDevice() && gpu) return 1;
+    // `--gpu` FIRST, exactly as the sweep tests it: a montage of a set
+    // needs the device its materials run in, and a run that did not ask
+    // for one must not bring it up as a side effect of the test.
+    if (gpu && selectionNeedsDevice(chosen, kind) && !useDevice()) return 1;
     SharedWebEngineScope sharedWebEngine;
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);

@@ -117,6 +117,10 @@ class SetKind final : public KindOps {
 
   [[nodiscard]] std::string_view runtime() const override { return "set"; }
 
+  /** A set is lit by the device renderer: its materials run their own
+   *  bodies there, and there is no CPU tier that draws the same picture. */
+  [[nodiscard]] bool needsDevice() const override { return true; }
+
   /** A set's every frame is a pure function of the scene time, so there
    *  is nothing a set could have measured about its own execution and
    *  the determinism answer has nothing to pin. */

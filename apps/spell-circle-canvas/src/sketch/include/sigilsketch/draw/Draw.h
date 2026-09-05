@@ -202,6 +202,10 @@ class DrawKind final : public KindOps {
 
   [[nodiscard]] std::string_view runtime() const override { return "draw"; }
 
+  /** The pen paints onto the session's own surface and the surface is
+   *  never cleared between frames, so every frame stands on the last. */
+  [[nodiscard]] bool retainsPixels() const override { return true; }
+
   [[nodiscard]] std::unique_ptr<Session> open(
       weave::FontContext& fonts, Assets& assets,
       bool deterministic) const override;

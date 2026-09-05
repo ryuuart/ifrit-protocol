@@ -435,14 +435,6 @@ ApplicationWindow {
     // ---- Everything a sketch says about itself ----------------------------
     SketchCatalog { id: catalog }
 
-    // A future structural catalog replacement still rebuilds the browser.
-    // learn() takes the row-local overlay path below instead, because a
-    // model reset would remount every asynchronous thumbnail.
-    Connections {
-        target: catalog
-        function onSketchesChanged() { window.rebuild(); }
-    }
-
     // A running session is the only thing that knows the canvas a sketch
     // declared, the ground behind it and the moment it names — those are
     // stated from inside its own setup. Every frame publishes them, and

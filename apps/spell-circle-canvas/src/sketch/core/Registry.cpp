@@ -70,6 +70,22 @@ const std::vector<Entry>& registry() {
   return entries;
 }
 
+std::vector<int> selection(int only, std::string_view runtime) {
+  const std::vector<Entry>& entries = registry();
+  const int count = (int)entries.size();
+  std::vector<int> chosen;
+  const int first = only >= 0 ? only : 0;
+  const int last = only >= 0 ? only + 1 : count;
+  for (int index = first; index < last && index < count; ++index) {
+    if (!runtime.empty()) {
+      const Kind kind = entries[index].kind();
+      if (!kind || kind->runtime() != runtime) continue;
+    }
+    chosen.push_back(index);
+  }
+  return chosen;
+}
+
 int find(std::string_view query) {
   if (query.empty()) return -1;
   const std::vector<Entry>& entries = registry();

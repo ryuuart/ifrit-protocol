@@ -98,6 +98,23 @@ bool add(const char* key, const char* name, const char* category,
          const char* blurb, Kind (*kind)(),
          bool (*probe)(std::string* why) = nullptr) noexcept;
 
+/** THE ENTRIES ONE RUN WALKS, as registry indices in the registry's own
+ *  order.
+ *
+ *  @p only is one entry's index, or -1 for every entry. @p runtime keeps
+ *  only the sketches drawn through that runtime — the spelling a Kind
+ *  answers with — and empty keeps every one of them. Out-of-range
+ *  indices select nothing rather than failing, so a host may pass what
+ *  find() returned without checking it twice.
+ *
+ *  Whether the machine can DRAW a selected sketch is not asked here: a
+ *  host that renders stands one down by name, a host that lists greys it
+ *  with its reason, and the two want different words for the same fact.
+ *  Every host that walks part of the registry selects through this, so
+ *  the sweep, the montage, the window lane and the thumbnail warm all
+ *  answer the same command line the same way. */
+[[nodiscard]] std::vector<int> selection(int only, std::string_view runtime);
+
 /** The registry index for a decimal index or a name; -1 when nothing
  *  matches. Names match case-insensitively on any unique substring, so
  *  `y2k` and `y2k chrome` land on the same entry, and a sketch answers

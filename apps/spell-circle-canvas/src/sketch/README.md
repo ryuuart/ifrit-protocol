@@ -534,7 +534,8 @@ Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
            [--timing-json <path>]
 Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
-           [--kind <k>]
+           [--kind <k>] [--gpu]
+Sketchbook --compare <dir-a> <dir-b>        # two sweeps' plates, differenced
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
 Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
 … [--assets <dir>]                          # what mounts at res://
@@ -584,10 +585,35 @@ second, and `--fps` changes both the encoder rate and the fixed scene clock.
 runtime. Hardware H.264 is preferred and OpenH264 is the fallback. Unavailable
 sketches are named and skipped rather than encoded as failure cards.
 
+`--gpu` is REQUIRED for a selection that holds a set, exactly as it is for
+the sweep, and for the same reason: a set is lit by the device renderer,
+so a montage that included one without a device would put a picture no
+recipe ran in under that sketch's name. A run that asks for the device
+and cannot have it fails; a run that does not ask brings none up.
+
 The app's **Export video** action writes the full registry through this path.
 The selected sketch's **Video** action writes a one-sketch cut; both use a
 native save dialog and run the encoder in a child Sketchbook process so the
 browser and its live canvas remain responsive.
+
+### `--compare`: two directories of plates
+
+Prints how far every plate in one directory stands from the plate of the
+same name in the other, decoded and differenced channel by channel:
+
+```
+compared <name> mean <mean> p99 <p99> max <max>
+size <name> <W>x<H> <W>x<H>
+missing <name> first|second
+unreadable <name> first|second
+```
+
+The three distances are absolute differences of one 8-bit channel, in
+0..255, over every channel of every pixel. It opens no sketch, needs no
+fonts, no assets and no device, and it JUDGES NOTHING — how close is
+close enough is a tolerance about a machine, which is the plate ledger's
+to hold. The ledger's device tier is the caller: it renders both tiers
+and asks this which pictures moved.
 
 ### `--frame`: the asset workflow
 
@@ -1006,7 +1032,7 @@ src/sketch/
   draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
   live/       the reload engine and the resident set
   scry/       the opt-in shared Ultralight engine a web sketch borrows
-  plate/      the headless sweep and vertical Story video encoder
+  plate/      the headless sweep, the montage, the plate comparison
   book/       Sketchbook: the app, and the headless entry point
   sketches/   every sketch, one file or one directory each; shared/ beside them
 ```

@@ -53,7 +53,14 @@ class Assets;
  *  pointed at. */
 class SketchCatalog : public QObject {
   Q_OBJECT
-  Q_PROPERTY(QVariantList sketches READ sketches NOTIFY sketchesChanged)
+  /** CONSTANT because the LIST is: every row is built once, when the
+   *  catalog is constructed, and the registry a binary was built with
+   *  cannot gain or lose an entry while it runs. A row's own fields do
+   *  change — a session tells the catalog what canvas a sketch declared,
+   *  a thumbnail lands — and each of those is handed back as one row for
+   *  the browser to overlay, which is what keeps a thumbnail that has
+   *  already mounted from being remounted. */
+  Q_PROPERTY(QVariantList sketches READ sketches CONSTANT)
   /** The one line the last Frame, Video or Bench run left behind, and whether
    *  one is still going. These are the whole of what the inspector shows
    *  for a subprocess: these runs answer in one line by design. */
@@ -124,7 +131,6 @@ class SketchCatalog : public QObject {
   static sigil::sketch::Assets* thumbnailAssets;
 
  signals:
-  void sketchesChanged();
   void taskChanged();
   /** A thumbnail landed for @p index: the row, with its plate filled in,
    *  for QML to overlay without remounting every other thumbnail. */

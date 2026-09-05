@@ -183,7 +183,12 @@ Pointed at a file with no `--headless`, Sketchbook opens on it, from
 anywhere on disk, and hot-swaps the recompiled sketch on every save;
 `--frame out.png` renders one still, `--bench` measures it against the
 60 FPS gate on a raster surface, `--window-bench` presents it in the
-real window, `--shot <png>` captures the app. `--thumbnails [--sketch
+real window, `--shot <png>` captures the app. `--video <out.mp4>
+[--video-frames <n>] [--video-size <WxH>] [--video-bitrate <bits>]`
+encodes the selection into one vertical montage, and needs `--gpu` for a
+selection holding a set exactly as the sweep does. `--compare <dir-a>
+<dir-b>` differences two directories of plates channel by channel, which
+is how the plate ledger's device tier judges. `--thumbnails [--sketch
 <name>] [--kind canvas|set|draw]` renders the browser's missing or stale
 thumbnails headless and exits non-zero naming any that failed — the app
 owns its thumbnails, rendering them on demand into a cache under the

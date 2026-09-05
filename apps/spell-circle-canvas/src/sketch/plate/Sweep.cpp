@@ -73,22 +73,6 @@ bool writePlate(const SkPixmap& pixels, const std::filesystem::path& path) {
   return png && io::writeBytes(path, png->data(), png->size());
 }
 
-/** The entries this run walks. */
-std::vector<int> selection(const SweepOptions& options) {
-  std::vector<int> chosen;
-  const auto& entries = registry();
-  const int first = options.only >= 0 ? options.only : 0;
-  const int last = options.only >= 0 ? options.only + 1 : (int)entries.size();
-  for (int i = first; i < last && i < (int)entries.size(); ++i) {
-    if (!options.kind.empty()) {
-      const Kind kind = entries[i].kind();
-      if (!kind || kind->runtime() != options.kind) continue;
-    }
-    chosen.push_back(i);
-  }
-  return chosen;
-}
-
 }  // namespace
 
 int sweep(const SweepOptions& options, weave::FontContext& fonts,
@@ -162,7 +146,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   std::printf("%-22s %10s %8s %8s %9s  %s\n", "sketch", "canvas", "frame ms",
               "p99 ms", "headroom", "lanes");
 
-  const std::vector<int> chosen = selection(options);
+  const std::vector<int> chosen = selection(options.only, options.kind);
   const std::vector<Entry>& entries = registry();
   bool anyShortened = false;
   size_t skipped = 0;
@@ -382,7 +366,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                                       kPlateWidthCeiling / size.width()));
     const SkImageInfo plateInfo = SkImageInfo::MakeN32Premul(
         (int)(size.width() * scale), (int)(size.height() * scale));
-    const std::string path = options.outDir + "/plate_" + entry.name + ".png";
+    const std::string path =
+        options.outDir + "/" + std::string(kPlatePrefix) + entry.name + ".png";
     SkBitmap bitmap;
     bitmap.allocPixels(plateInfo);
 
