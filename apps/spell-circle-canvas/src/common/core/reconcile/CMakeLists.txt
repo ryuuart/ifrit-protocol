@@ -8,6 +8,8 @@
 # that animates either: the lanes a patch retargets and the comparators
 # over the values they carry are SigilMotion's, and a host reaches them
 # there.
+find_package(boost_container_hash CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilCoreReconcile
   SOURCES Env.cpp Reads.cpp
   HEADERS Env.h Erased.h Host.h Memo.h Node.h Phases.h Reads.h Reconcile.h

@@ -7,6 +7,7 @@
 # description; minizip-ng opens the two archive formats. Both are private
 # plumbing that reaches no public header.
 find_package(minizip-ng CONFIG REQUIRED)
+find_package(simdjson CONFIG REQUIRED)
 sigil_library(SigilDrawBrushFormat PIC
   SOURCES Images.cpp Images.h Native.cpp Photoshop.cpp Procreate.cpp
           Zip.cpp Zip.h

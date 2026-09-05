@@ -17,6 +17,7 @@
 set(SIGIL_DOCS_MODULE_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 find_package(Doxygen OPTIONAL_COMPONENTS dot)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 if(NOT DOXYGEN_FOUND)
   message(STATUS "Doxygen not found -- the `docs` target is unavailable")

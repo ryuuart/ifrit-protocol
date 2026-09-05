@@ -4,6 +4,7 @@
 # down as a comparable value rather than asked of a paragraph now. ICU is
 # private and linked directly for the regex search; a UTF-8 needle is
 # transcoded by the Unicode leaf, which owns that answer.
+find_package(ICU REQUIRED COMPONENTS i18n uc data)
 sigil_library(SigilWeaveQuery
   SOURCES Query.cpp
   HEADERS Query.h Selector.h

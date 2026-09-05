@@ -2,6 +2,7 @@
 # the Skia-codec decode of PNG, JPEG, WebP, GIF and AVIF (stills and
 # animations) into premultiplied SkImage frames ready for any SkCanvas.
 # Skia only.
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilImageAsset
   SOURCES ImageAsset.cpp
   HEADERS ImageAsset.h

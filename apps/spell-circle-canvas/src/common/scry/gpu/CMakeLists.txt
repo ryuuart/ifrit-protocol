@@ -27,6 +27,10 @@ else()
   set(SIGIL_SCRY_GPU_NATIVE_SOURCES)
 endif()
 
+if(APPLE)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
+endif()
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilScryGpu
   SOURCES GpuDriver.h ${SIGIL_SCRY_GPU_NATIVE_SOURCES}
   PUBLIC SigilSkiaGraphite SigilCoreHardware Boost::unordered

@@ -38,7 +38,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 # first search, every unconditional package before the optional SDKs that
 # stand on some of them, and every one of those before a target exists.
 include(Toolchain)
-include(Dependencies)
 include(OptionalSdks)
 
 # SPELLCIRCLE_COVERAGE and SPELLCIRCLE_SANITIZE, each for a build tree of
@@ -52,6 +51,7 @@ include(Instrumentation)
 # target is the same fetch reached through the build.
 set(SIGIL_ASSET_DIR "${CMAKE_BINARY_DIR}/assets" CACHE PATH
     "Where fetch_assets writes downloaded demo assets")
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_custom_target(fetch_assets
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/fetch_assets.py
           --out ${SIGIL_ASSET_DIR}
@@ -81,8 +81,6 @@ enable_testing()
 set(CMAKE_AUTOMOC OFF)
 set(CMAKE_AUTOUIC OFF)
 include(QtTarget)
-
-qt_standard_project_setup(REQUIRES 6.11)
 
 # Every benchmark binary hangs off this target, so one build command
 # produces the set scripts/bench_ledger.py runs. Benchmarks are not

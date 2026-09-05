@@ -5,6 +5,7 @@
 # names a style's numbers in, with Style.h the umbrella over them.
 # Header-only over Skia's paint and typeface types; a paint layer names a
 # SigilMaterial instance by pointer and links nothing for it.
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeaveStyle
   HEADERS Decoration.h PaintLayer.h PaintStyle.h ShapingStyle.h
           Style.h StyleSet.h Type.h TextStyle.h

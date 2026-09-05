@@ -33,6 +33,7 @@
 # holding one of those objects reaches them the same way the device
 # feature's are reached — by putting the directory below on its own
 # PRIVATE include path.
+find_package(VulkanHeaders CONFIG REQUIRED)
 sigil_library(SigilGeometryDeviceResidency
   SOURCES Meshes.cpp Meshes.h Pipelines.cpp Pipelines.h Textures.cpp
           Textures.h

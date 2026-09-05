@@ -31,6 +31,9 @@
 # stamp image assets, and shape, choreograph, decorate, lay out and query
 # text through SigilWeave; none of that reaches a public header, so those
 # are PRIVATE.
+find_package(boost_container CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeTypography
   SOURCES
     # the vocabulary's out-of-line members

@@ -23,6 +23,7 @@ sigil_slang_module(NAME Portable
   SOURCE ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang
   PROOF_VAR SIGIL_MATERIAL_PORTABLE_PROOF)
 
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMaterialSlang
   SOURCES SlangCompiler.cpp ${SIGIL_MATERIAL_PORTABLE_PROOF}
   HEADERS SlangCompiler.h

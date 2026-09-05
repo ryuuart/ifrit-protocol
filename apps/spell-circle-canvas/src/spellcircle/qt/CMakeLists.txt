@@ -6,6 +6,15 @@
 #   SpellCircleModels   QML-facing models (SpellCircle.Models)
 #   SpellCircleCanvas   the canvas item + Skia backend (SpellCircle.Canvas)
 #   SpellCircle         the executable + application QML (SpellCircle.App)
+#
+# QuickDialogs2 is named for the QML import in GraphicsSettingsForm.qml
+# rather than a C++ link.
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts
+                                     QuickDialogs2 CanvasPainter Network
+                                     GuiPrivate)
+qt_standard_project_setup(REQUIRES 6.11)
+find_package(EnTT CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 # ── Network: the Qt face of the shared transport ─────────────────────────
 # Wire transport only — marshals SpellCircleNet datagrams onto the Qt main
@@ -116,6 +125,9 @@ target_link_libraries(SpellCircleCanvas
 )
 
 if(APPLE)
+  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+  find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
+  find_package(unofficial-syphon CONFIG REQUIRED)
   target_link_libraries(SpellCircleCanvas
       PRIVATE
         ${FOUNDATION_FRAMEWORK}
@@ -148,6 +160,7 @@ sigil_qt_target(SpellCircle)
 # App Nap suppression is a main.cpp concern, not a library: fold the one
 # ObjC++ TU straight into the executable on macOS.
 if(APPLE)
+  find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
   target_sources(SpellCircle PRIVATE src/AppNap.mm include/AppNap.h)
   target_link_libraries(SpellCircle PRIVATE
     ${FOUNDATION_FRAMEWORK}

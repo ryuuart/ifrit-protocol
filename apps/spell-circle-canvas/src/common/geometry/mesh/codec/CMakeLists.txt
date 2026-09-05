@@ -11,6 +11,9 @@
 find_path(CGLTF_INCLUDE_DIR cgltf.h REQUIRED)
 find_package(tinyobjloader CONFIG REQUIRED)
 find_package(Alembic CONFIG REQUIRED)
+find_package(boost_container CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(simdjson CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshCodec
   SOURCES Alembic.cpp Geo.cpp GeoEncode.cpp Gltf.cpp Internal.h Model.cpp
           Obj.cpp PlyDecode.cpp PlyEncode.cpp Stl.cpp

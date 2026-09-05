@@ -3,6 +3,12 @@
 # rows a reader goes through, and the CPU still renderer that fills each
 # row's thumbnail on demand. SketchCatalog carries Qt types, so the
 # library scans for moc; nothing here needs a device or a GPU context.
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickDialogs2
+                                     GuiPrivate)
+qt_standard_project_setup(REQUIRES 6.11)
+find_package(unofficial-skia CONFIG REQUIRED)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 add_library(SigilSketchBook STATIC
   Thumbnails.cpp Thumbnails.h
   SketchCatalog.cpp SketchCatalog.h)

@@ -23,6 +23,13 @@ else()
   set(SIGIL_SKIA_GRAPHITE_METAL_SOURCES)
 endif()
 
+if(APPLE)
+  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
+endif()
+find_package(VulkanHeaders CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilSkiaGraphite
   SOURCES GraphiteContext.cpp GraphiteContextVulkan.cpp GraphiteOnDevice.cpp
           OffscreenSurface.cpp OffscreenSurfaceOnDevice.cpp

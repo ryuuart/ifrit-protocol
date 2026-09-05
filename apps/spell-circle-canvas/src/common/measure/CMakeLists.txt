@@ -9,6 +9,7 @@
 sigil_library_root(SigilMeasure
   BRIEF "Timing, statistics and check reporting, with compact ordered counter storage")
 
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMeasure
   SOURCES check/Check.cpp
   HEADERS Measure.h check/Check.h stats/Counters.h stats/FrameSample.h

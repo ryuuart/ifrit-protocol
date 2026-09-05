@@ -14,6 +14,8 @@
 # SigilCoreCompute supplies the mixer the scattered ordering ranks with, so a
 # seeded permutation is the same permutation everywhere in the tree, and
 # SigilCoreComparable supplies the field pin the spec's comparator sits under.
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(choreograph CONFIG REQUIRED)
 sigil_library(SigilMotionSchedule
   SOURCES Cascade.cpp Order.cpp Spread.cpp
   HEADERS Cascade.h Order.h Schedule.h Spread.h

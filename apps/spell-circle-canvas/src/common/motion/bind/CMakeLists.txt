@@ -7,6 +7,7 @@
 # Choreograph, cmath and integers, plus SigilCoreComparable for the field
 # pin the shaped-binding comparator sits under: an edge OUT of this
 # library, to a header-only leaf over the standard library and Boost.PFR.
+find_package(choreograph CONFIG REQUIRED)
 sigil_library(SigilMotionBind
   SOURCES Bound.cpp BoundFloat.cpp WiggleNoise.cpp
   HEADERS Bind.h Bound.h BoundFloat.h Curve.h WiggleNoise.h

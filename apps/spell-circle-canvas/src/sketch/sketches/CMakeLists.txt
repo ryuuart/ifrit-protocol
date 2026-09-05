@@ -121,6 +121,8 @@ foreach(sketch_file IN LISTS SIGIL_SKETCH_FILES)
     COMPILE_DEFINITIONS "SIGIL_SKETCH_STATIC=\"${sketch_stem}\"")
 endforeach()
 
+find_package(boost_container CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
 add_library(SigilSketches OBJECT
   Anchor.cpp
   ${SIGIL_SKETCH_FILES}

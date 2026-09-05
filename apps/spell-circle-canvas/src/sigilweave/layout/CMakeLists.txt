@@ -7,6 +7,9 @@
 # geometry::path::Contour. The Unicode leaf is
 # private: a reading set beside its base is split at grapheme boundaries
 # in one source file and nowhere in a header.
+find_package(ICU REQUIRED COMPONENTS i18n uc data)
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 sigil_library(SigilWeaveLayout
   SOURCES Beside.cpp Flow.cpp LineBreak.cpp KnuthPlass.cpp LayoutMetrics.cpp
           ParagraphLayoutInternal.h

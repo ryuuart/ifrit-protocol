@@ -22,6 +22,11 @@ else()
   set(SIGIL_CORE_HARDWARE_NATIVE_SOURCES)
 endif()
 
+if(APPLE)
+  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
+endif()
+find_package(VulkanHeaders CONFIG REQUIRED)
 sigil_library(SigilCoreHardware
   SOURCES DeviceBackend.h GpuDevice.cpp GpuDeviceVulkan.cpp
           ${SIGIL_CORE_HARDWARE_NATIVE_SOURCES}

@@ -4,6 +4,9 @@
 # resolution, and the Skia/SigilWeave scene drawing implementation
 # (including ring-label geometry). Anything Qt-specific — transport
 # adapters, QML models — stays out of this target.
+find_package(EnTT CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
 add_library(SpellCircleScene STATIC
   SceneModel.cpp include/SceneModel.h
   SceneGeometry.cpp include/SceneGeometry.h

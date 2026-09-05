@@ -108,6 +108,7 @@ sigil_library(SigilCompose
 # is a build break rather than a confident wrong answer. The generator
 # FAILS on a documented name no header declares — the guard cannot go
 # quiet.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 set(COMPOSE_API_DOC_PROBES
     ${CMAKE_CURRENT_BINARY_DIR}/ComposeApiDocProbes.cpp)
 file(GLOB_RECURSE COMPOSE_PUBLIC_HEADERS

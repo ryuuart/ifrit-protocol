@@ -20,6 +20,8 @@ set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 # random stream and the noise field are seeded through. All public: the
 # pen's header spells each of their types. PIC, because the sketch host
 # force-loads the pen into a hot-reloaded dylib.
+find_package(boost_container_hash CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDraw PIC
   SOURCES Color.cpp Graphics.cpp Noise.cpp Pen.cpp Text.cpp
   HEADERS Color.h Constants.h Draw.h Graphics.h Math.h Noise.h Pen.h

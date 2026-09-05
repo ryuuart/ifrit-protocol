@@ -15,6 +15,7 @@
 # a set is baked to an image in: the context's door names a world Frame
 # by forward declaration only, and a sketch walking through it includes
 # SigilWorld's own headers.
+find_package(EnTT CONFIG REQUIRED)
 sigil_library(SigilSketchCanvas PIC
   SOURCES Context.cpp Session.cpp
   HEADERS Sketch.h

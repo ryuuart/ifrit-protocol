@@ -2,6 +2,10 @@
 # fallback resolution, varied-typeface clones, the content-addressed word
 # shape cache, and one word shaped into a ShapedWord. HarfBuzz and Boost
 # stay private — no public header names a type of either.
+find_package(boost_container_hash CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeaveFonts
   SOURCES FontContext.cpp Shaper.cpp OpticalKerning.cpp FontContextImpl.h
           OpticalKerning.h

@@ -11,6 +11,9 @@
 # geometry or its importers. Noise.h names the seeded mixers, which live
 # one library down so that a shader's CPU twin and a resource key reach
 # the same bodies.
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilGeometryPath
   SOURCES Band.cpp Contour.cpp Crossings.cpp Edges.cpp Lattice.cpp Noise.cpp
           Ops.cpp Polyline.cpp Pose.cpp

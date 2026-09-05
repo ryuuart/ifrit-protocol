@@ -4,6 +4,11 @@
 # public headers here are the library's API; the platform and gpu
 # features' internal headers are reached by directory because they name
 # Ultralight types and Ultralight is private to the library.
+if(APPLE)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
+endif()
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilScryEngine
   SOURCES Bringup.cpp Engine.cpp EngineImpl.h Image.cpp ImageImpl.h View.cpp
           ViewImpl.cpp ViewImpl.h WebThread.cpp

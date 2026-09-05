@@ -5,6 +5,7 @@
 # header publishes the samples and stopwatch a build is timed with, so
 # SigilMeasure is PUBLIC; the IO byte writer a rebuilt source is saved
 # through is read in the source alone.
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilSketchLive PIC
   SOURCES Host.cpp Residency.cpp
   HEADERS Host.h Residency.h

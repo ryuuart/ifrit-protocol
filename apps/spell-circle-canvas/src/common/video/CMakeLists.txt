@@ -5,6 +5,7 @@ sigil_library_root(SigilVideo
   BRIEF "Streaming video decoding, device composition, and video encoding")
 
 find_package(concurrentqueue CONFIG REQUIRED)
+find_package(FFMPEG REQUIRED)
 
 # The ffmpeg port publishes a find module and the include and library
 # variables it fills — no package, no target — so the one target the

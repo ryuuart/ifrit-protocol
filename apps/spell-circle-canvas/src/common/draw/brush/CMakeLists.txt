@@ -8,6 +8,7 @@
 # centreline, the even-odd containment tests and the scanline lattice —
 # and to SigilSkia's direct drawing for the sprite batch a round tip goes
 # down as; a caller with its own tools links SigilDraw alone.
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDrawBrush PIC
   SOURCES Catalogue.cpp Choice.cpp Deposit.cpp Dynamics.cpp Engine.cpp
           EngineStrokes.cpp EngineSurfaces.cpp Fibres.cpp Fields.cpp

@@ -50,6 +50,7 @@ sigil_slang_kernel_flags(${SIGIL_STAMP_KERNEL_CPP})
 # target's archive must come first on the link line. The built-in
 # executor divides its passes through SigilCoreSchedule, which is where
 # every divided range in this repository is decided.
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshPop
   SOURCES device/Cook.cpp device/Stamp.cpp device/Sweep.cpp
           Billboards.cpp Cloud.cpp Cook.cpp Fields.cpp Generators.cpp

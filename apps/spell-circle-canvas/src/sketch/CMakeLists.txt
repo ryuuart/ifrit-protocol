@@ -69,6 +69,7 @@ add_subdirectory(book)
 # prose pointing at a file that is not there with nothing to notice. This
 # is the registry's check — it is the registry the stems are resolved
 # against — so it lives here and reads every document in the tree.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 file(GLOB_RECURSE SIGIL_SKETCH_STEM_DOCS CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_LIST_DIR}/../README.md
      ${CMAKE_CURRENT_LIST_DIR}/../FEATURES.md

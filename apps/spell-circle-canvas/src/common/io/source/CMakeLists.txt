@@ -6,6 +6,7 @@
 # throwaway files. Standard library plus the one platform call that
 # answers an executable's own path, so a decoder or an encoder can depend
 # on it without inheriting the hub, libcurl, or any codec.
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilIOSource
   SOURCES Places.cpp
   HEADERS Places.h Sink.h Source.h)

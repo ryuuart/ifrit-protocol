@@ -8,6 +8,7 @@
 # SigilCoreReconcile because a pass body and a generator are its erased
 # value. The CPU executor cooks a body's chain itself, so the point
 # operators are named privately.
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWorldFrame
   SOURCES Cpu.cpp CpuGeometry.cpp CpuPost.cpp Frame.cpp Pass.cpp Targets.cpp
           View.cpp Cpu.h

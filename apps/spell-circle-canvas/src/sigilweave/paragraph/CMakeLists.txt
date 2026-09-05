@@ -7,6 +7,8 @@
 # bytes in WordSegmentList. Beside the document: RichText, the same content
 # said as runs and styles in one comparable value, and Unit, the
 # granularity a passage is addressed by.
+find_package(boost_container CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilWeaveParagraph
   SOURCES Paragraph.cpp WordSegmentList.cpp RichText.cpp
   HEADERS Paragraph.h Word.h RichText.h Unit.h

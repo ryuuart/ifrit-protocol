@@ -1,4 +1,5 @@
 # Encode: frames into a container through FFmpeg.
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilVideoEncode
   SOURCES Encode.cpp
   HEADERS Encode.h

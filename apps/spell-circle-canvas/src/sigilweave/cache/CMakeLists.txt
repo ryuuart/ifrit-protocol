@@ -2,6 +2,8 @@
 # for labels and captions rebuilt at high frequency. The node-based map
 # that keeps returned references stable hides behind a pimpl, so Boost
 # stays private.
+find_package(ICU REQUIRED COMPONENTS i18n uc data)
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilWeaveCache
   SOURCES SingleLineParagraphCache.cpp
   HEADERS SingleLineParagraphCache.h

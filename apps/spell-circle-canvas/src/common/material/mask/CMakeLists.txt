@@ -8,6 +8,7 @@
 set(SIGIL_MATERIAL_MASK_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the mask feature's shader modules")
 
+find_package(glm CONFIG REQUIRED)
 sigil_library(SigilMaterialMask
   SOURCES Mask.cpp
   HEADERS Mask.h

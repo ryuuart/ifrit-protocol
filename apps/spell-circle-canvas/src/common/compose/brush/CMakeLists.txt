@@ -26,6 +26,7 @@
 # decoration stamps, the material paint and layer-style tables a look is
 # built from, the direct draws, and the type style a plate is set in. The
 # seeded mixer a brush jitters with is read in the sources alone.
+find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeBrush
   SOURCES Adaptors.cpp Decorations.cpp LayerStyles.cpp Lines.cpp
           PixelStyles.cpp Brushes.cpp

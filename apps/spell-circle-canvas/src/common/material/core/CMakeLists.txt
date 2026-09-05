@@ -26,6 +26,10 @@ set(SIGIL_MATERIAL_TERMS_DIR "${_shaders}"
 sigil_slang_module(NAME Shading SOURCE ${_shaders}/Shading.slang
   PROOF_VAR SIGIL_MATERIAL_SHADING_PROOF)
 
+find_package(boost_container CONFIG REQUIRED)
+find_package(boost_pfr CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
 sigil_library(SigilMaterialCore
   SOURCES Combine.cpp Material.cpp Params.cpp Program.cpp Recipe.cpp Terms.cpp
           ${SIGIL_MATERIAL_SHADING_PROOF}

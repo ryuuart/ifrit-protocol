@@ -6,6 +6,7 @@
 # disk or a server belongs; libcurl backs the http(s):// URIs (fetch +
 # on-disk cache). Both are implementation and stay private.
 find_package(CURL CONFIG REQUIRED)
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilIOHub
   SOURCES Cache.cpp Decoders.cpp Mounts.cpp Network.cpp Retention.cpp
           Selection.cpp Fetch.h Residency.h

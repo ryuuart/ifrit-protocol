@@ -2,6 +2,7 @@
 # encoders — Skia's own for PNG/JPEG/WebP, OpenImageIO's for EXR — and
 # the CPU readback an SkImage needs before any of them can see it. The
 # backends are PRIVATE to it; a consumer sees pixels in and bytes out.
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilImageEncode
   SOURCES Encode.cpp Oiio.cpp SkiaEncoder.cpp Backends.h
   HEADERS Encode.h

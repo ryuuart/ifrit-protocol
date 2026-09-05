@@ -24,6 +24,8 @@ else()
   set(SIGIL_HARFBUZZ_ICU "${SIGIL_HARFBUZZ_ICU_RELEASE}")
 endif()
 
+find_package(ICU REQUIRED COMPONENTS i18n uc data)
+find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 sigil_library(SigilWeaveUnicode
   SOURCES Unicode.cpp
   HEADERS Unicode.h

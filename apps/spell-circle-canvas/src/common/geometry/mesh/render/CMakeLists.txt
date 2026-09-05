@@ -3,6 +3,7 @@
 # onto a Skia canvas — and a feature that owns a GPU device supplies its
 # own as a value, so this target never learns about a device. The Runtime
 # seam is a comparable erased value, which is SigilCoreComparable's shape.
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshRender
   SOURCES Painter.cpp Runtime.cpp Shading.cpp
   HEADERS Painter.h Runtime.h Shading.h

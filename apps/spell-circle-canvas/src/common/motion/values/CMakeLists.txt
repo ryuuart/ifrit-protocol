@@ -13,6 +13,7 @@
 # and Boost.PFR: no kernel, no device, nothing that draws.
 # <sigilmotion/Animation.h> rides here as the umbrella over this feature
 # and bind.
+find_package(choreograph CONFIG REQUIRED)
 sigil_library(SigilMotionValues
   SOURCES Animated.cpp Transition.cpp
   HEADERS ../Animation.h Animatable.h Animated.h Keyframes.h Lanes.h

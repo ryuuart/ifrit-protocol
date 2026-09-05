@@ -5,6 +5,7 @@
 # intercept cache's key is folded with Boost's stir: the table lives
 # inside one run and nothing outside the process ever sees a bucket of
 # it, so the fold does not have to be one whose answer is pinned.
+find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilWeaveDecoration
   SOURCES Decoration.cpp
   HEADERS Decoration.h DecorationRects.h

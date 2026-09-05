@@ -3,6 +3,7 @@
 # reader, OpenImageIO and the Skia SVG module — and the raw channel
 # planes. The backends are PRIVATE to it; a consumer sees bytes in and
 # images out.
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilImageDecode
   SOURCES ChannelData.cpp Decode.cpp Ktx.cpp Oiio.cpp SkiaCodec.cpp Svg.cpp
           Backends.h

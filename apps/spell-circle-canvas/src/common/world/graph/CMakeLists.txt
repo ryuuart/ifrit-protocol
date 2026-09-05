@@ -3,6 +3,7 @@
 # share when their lives do not overlap; the barriers between them; and
 # how each pass's selection is realised. It reads declarations and draws
 # nothing, so it links the frame feature and nothing else.
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWorldGraph
   SOURCES Barriers.cpp Claims.cpp Order.cpp Plan.cpp Realise.cpp
           Resources.cpp Build.h

@@ -5,6 +5,8 @@
 # the emitters and SigilWorldElement for the environment map a dome light
 # carries; OpenUSD, the image encoder that turns a texture into bytes and
 # the sink that lands them beside the stage are private to it.
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilUsdWrite
   SOURCES Camera.cpp Environment.cpp GfMatrix.h Lights.cpp Material.cpp
           Mesh.cpp Stamps.cpp Writer.cpp WriterImpl.h

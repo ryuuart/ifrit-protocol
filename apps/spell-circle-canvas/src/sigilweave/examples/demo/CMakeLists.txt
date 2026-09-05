@@ -1,5 +1,6 @@
 # weave_demo — headless PNG panels for library-only surfaces; the
 # interactive and animated showcases are the gallery example's.
+find_package(boost_container CONFIG REQUIRED)
 add_executable(weave_demo
   weave_demo.cpp
   DemoSupport.cpp DemoSupport.h

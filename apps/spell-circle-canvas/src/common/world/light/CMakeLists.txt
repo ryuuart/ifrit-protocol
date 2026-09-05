@@ -2,6 +2,7 @@
 # point light, a spot, their falloffs and the per-frame budget. No
 # device, no registry, no renderer: glm and nothing else, so a consumer
 # that only needs to say where the lights are links this alone.
+find_package(glm CONFIG REQUIRED)
 sigil_library(SigilWorldLight
   SOURCES Light.cpp
   HEADERS Light.h

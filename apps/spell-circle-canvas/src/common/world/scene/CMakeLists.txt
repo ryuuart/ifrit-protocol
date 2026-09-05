@@ -14,6 +14,7 @@
 # takes along a curve and the animated value a phase samples are read in
 # the sources alone.
 find_package(EnTT CONFIG REQUIRED)
+find_package(EnTT CONFIG REQUIRED)
 sigil_library(SigilWorldScene
   SOURCES Draw.cpp Execute.cpp Host.cpp Phases.cpp Resources.cpp Scene.cpp
           Resources.h SceneImpl.h

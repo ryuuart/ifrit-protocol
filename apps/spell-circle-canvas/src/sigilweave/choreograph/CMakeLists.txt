@@ -2,6 +2,7 @@
 # placed glyph to an effect with its rest pose, paint and identity, the
 # dressing a glyph draws with, and the batches that collapse thousands of
 # animated letters into a few drawGlyphsRSXform calls.
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWeaveChoreograph
   SOURCES Choreograph.cpp
   HEADERS PlacedGlyph.h GlyphDress.h GlyphBatches.h Choreograph.h

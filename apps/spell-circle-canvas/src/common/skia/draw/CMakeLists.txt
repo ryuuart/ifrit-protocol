@@ -4,6 +4,7 @@
 # never brings a Graphite context up still draws a nine-slice frame and a
 # sprite sheet that survive being recorded on one canvas and replayed on
 # another.
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilSkiaDraw
   HEADERS Direct.h
   INTERFACE unofficial::skia::skia)

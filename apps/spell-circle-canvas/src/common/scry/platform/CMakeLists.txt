@@ -7,6 +7,7 @@
 # and the probe that answers whether that resolved directory actually
 # holds what an engine needs to boot; everything else names Ultralight
 # types and stays beside the sources.
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilScryPlatform
   SOURCES FileSystem.cpp FileSystem.h Logger.cpp Logger.h ResourceDir.cpp
           ResourceDir.h Runtime.cpp SkiaSurface.cpp SkiaSurface.h Utf8.h

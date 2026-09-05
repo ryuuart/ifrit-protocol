@@ -11,6 +11,7 @@
 # have a guest: the live host calls into a dylib it just loaded, and the
 # sweep calls into a hundred sketches in one process, and a fault inside
 # one is a fault inside the host either way.
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilSketchCore PIC
   SOURCES Assets.cpp Crash.cpp Device.cpp Registry.cpp Sources.cpp
   HEADERS Assets.h CanvasSpec.h Crash.h Device.h Kind.h Registry.h Session.h

@@ -2,6 +2,8 @@
 # (CoreText on Apple; DirectWrite and Fontconfig slot into SystemFontManager.cpp).
 # Every engine feature accepts any SkFontMgr and never links this; only
 # tools and apps that want the OS fonts do.
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeavePorts
   SOURCES SystemFontManager.cpp
   HEADERS SystemFontManager.h

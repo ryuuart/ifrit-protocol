@@ -10,6 +10,10 @@ else()
   set(_device_source DeviceStub.cpp)
 endif()
 
+if(APPLE)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
+endif()
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilVideoDecode
   SOURCES Decode.cpp Playback.cpp ${_device_source} Device.h
   HEADERS Decode.h Playback.h

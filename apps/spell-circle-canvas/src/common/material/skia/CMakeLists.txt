@@ -11,6 +11,7 @@
 # Links the texture feature (and through it the core and Skia) and
 # SigilMotion, for the animatable a live uniform and a bound pan hold.
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilMaterialSkia
   SOURCES Draw.cpp Effect.cpp Paint.cpp Ramp.cpp SkiaCompiler.cpp
   HEADERS Color.h Draw.h Effect.h Paint.h Ramp.h SkiaCompiler.h

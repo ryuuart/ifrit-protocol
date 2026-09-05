@@ -2,6 +2,10 @@
 # SigilWeave engine interactively: scene switcher, live text editing, font and
 # style controls. Its QQuickRhiItem renderer draws through the shared
 # Metal/Graphite plumbing, with a Skia CPU raster path beside it.
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 GuiPrivate)
+qt_standard_project_setup(REQUIRES 6.11)
+find_package(boost_container CONFIG REQUIRED)
+
 qt_add_executable(WeaveGallery
   src/gallery_main.cpp
 )

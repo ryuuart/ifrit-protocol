@@ -19,8 +19,12 @@ if(NOT CMAKE_Swift_COMPILER)
 endif()
 enable_language(Swift)
 
+find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+find_library(METAL_FRAMEWORK Metal REQUIRED)
 find_library(QUARTZCORE_FRAMEWORK QuartzCore REQUIRED)
 
+find_package(unofficial-syphon CONFIG)
 if(NOT TARGET unofficial::syphon::syphon)
   message(STATUS "SpellCircleMac skipped: Syphon.framework not found")
   return()

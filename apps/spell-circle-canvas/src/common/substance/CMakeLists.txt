@@ -20,6 +20,8 @@ sigil_library_root(SigilSubstance
 # The framework is a static archive over one engine dylib; the dylib's
 # install name is @rpath-relative, so every executable linking this
 # library carries the SDK's bin/release in its runtime search path.
+find_package(boost_container CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilSubstance
   SOURCES graph/Describe.cpp graph/Graph.cpp graph/GraphImpl.h
           graph/Inputs.cpp graph/Numeric.h graph/Render.cpp

@@ -5,6 +5,9 @@
 # null. Links the graphite feature (and through it SigilCoreHardware,
 # whose Vulkan handle set the adapter fills) and Qt6::Core publicly,
 # Qt6::GuiPrivate for the QRhi API.
+find_package(Qt6 REQUIRED COMPONENTS Core GuiPrivate)
+qt_standard_project_setup(REQUIRES 6.11)
+
 if(APPLE)
   set(SIGIL_SKIA_QT_SOURCES QtInteropMetal.mm)
 else()

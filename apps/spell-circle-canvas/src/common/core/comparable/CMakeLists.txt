@@ -8,6 +8,7 @@
 # compile until a consumer instantiates it. Fields.h includes
 # <boost/pfr/tuple_size.hpp>, so the include path must reach every
 # consumer.
+find_package(boost_pfr CONFIG REQUIRED)
 sigil_library(SigilCoreComparable
   INTERFACE Boost::pfr)
 

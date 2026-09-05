@@ -30,6 +30,7 @@ add_custom_command(
 # header as missing with no rule to make it.
 add_custom_target(SpellCircleSchemaGen DEPENDS ${SCHEMA_HEADER})
 
+find_package(flatbuffers CONFIG REQUIRED)
 add_library(SpellCircleSchema INTERFACE)
 add_dependencies(SpellCircleSchema SpellCircleSchemaGen)
 

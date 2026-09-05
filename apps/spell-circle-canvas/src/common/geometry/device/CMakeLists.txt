@@ -58,6 +58,8 @@
 enable_language(C)
 
 
+find_package(VulkanHeaders CONFIG REQUIRED)
+find_package(unofficial-diligent-engine CONFIG REQUIRED)
 sigil_library(SigilGeometryDevice
   SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Resources.cpp Resources.h
           VolkShim.c

@@ -55,6 +55,7 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # their bare names. SigilGeometryDeviceResidency is PRIVATE for the same
 # reason: a mesh, a map and a pipeline become device objects inside this
 # feature and in none of its headers.
+find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWorldDiligent
   SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp Post.cpp
           Programs.cpp Programs.h Runtime.cpp

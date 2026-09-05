@@ -26,6 +26,11 @@
 # against the public headers alone.
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 
+find_package(EnTT CONFIG REQUIRED)
+find_package(boost_container CONFIG REQUIRED)
+find_package(boost_unordered CONFIG REQUIRED)
+find_package(unofficial-skia CONFIG REQUIRED)
+find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeCore
   SOURCES
     # the element value and its builders, one subject each
