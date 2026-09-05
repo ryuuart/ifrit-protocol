@@ -295,8 +295,8 @@ or a scene.
 ## Building
 
 `SigilSkiaDraw`, `SigilSkiaGraphite`, `SigilSkiaQt` and the `SigilSkia`
-umbrella are always built, with `sigilskia_draw_test` everywhere and on
-Apple `sigilskia_graphite_test` (ctest) plus `sigilskia_graphite_bench`
+umbrella are always built, with `skia_draw_test` everywhere and on
+Apple `skia_graphite_test` (ctest) plus `skia_graphite_bench`
 (Google Benchmark, through the `benches` target and
 `scripts/bench_ledger.py`). The test takes the Metal path end to end on
 the system device: a context, a wrapped texture, a clear, and the pixels
@@ -306,8 +306,15 @@ from its handle, a stale handle that wraps nothing, a fence the submit
 signals, and the factory that reads a device the host adopted — on
 Metal. The same wrap on a Vulkan device is `geometry_device_test`'s,
 since that is where a Vulkan device is made. The half-float read is
-checked here, since its whole reason is a sampler that refuses F32. The benchmark weighs the handle wrap against the native one
-on the same texture. The Qt adapters and the products are exercised
+checked here, since its whole reason is a sampler that refuses F32.
+Every case in it that needs a device says so — `skia_graphite_test`
+carries the ctest label `gpu` and each such case skips, naming what it
+wanted, rather than failing on a machine with no Metal device. A case
+here asserts one thing a header promises and is named that promise as a
+sentence; it pins only what editing this library could falsify — a band
+split's arithmetic, a clear read back, a stale handle refused — never a
+size a rasteriser chose. The benchmark weighs the handle wrap against
+the native one on the same texture. The Qt adapters and the products are exercised
 through `compose_gpu_test`, `scry_gpu_test` and the applications.
 
 At run time the Metal path needs a Metal device — on macOS, everything.

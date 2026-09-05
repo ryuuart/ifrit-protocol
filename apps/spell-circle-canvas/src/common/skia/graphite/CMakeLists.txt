@@ -56,6 +56,7 @@ if(APPLE)
   sigil_test(skia_graphite_test
     SOURCES test/GraphiteTest.mm
     LIBRARIES SigilSkiaGraphite ${METAL_FRAMEWORK}
+    SUPPORT_DIRS ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
     LABELS gpu
     ARC)
 

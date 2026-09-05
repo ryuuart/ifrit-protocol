@@ -3592,7 +3592,7 @@
     "repetitions": 4
    }
   },
-  "sigilskia_graphite_bench": {
+  "skia_graphite_bench": {
    "BM_Wrap_Native": {
     "real_ns": 10262.296460765006,
     "cpu_ns": 10261.822328695194,

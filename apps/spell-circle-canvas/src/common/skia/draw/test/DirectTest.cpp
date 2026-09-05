@@ -78,11 +78,13 @@ TEST(LatticeEdges, ADivOutsideTheSourceIsClampedIntoIt) {
   EXPECT_FLOAT_EQ(s.dst.back(), 90.0f);
 }
 
-TEST(LatticeEdges, NoDivsIsOneFixedBandThatScalesToTheDestination) {
+TEST(LatticeEdges, NoDivsIsOneFixedBandThatKeepsItsAuthoredSize) {
   const Split s = edgesOf({}, 40.0f, 100.0f);
   ASSERT_EQ(s.src.size(), 2u);
   ASSERT_EQ(s.dst.size(), 2u);
-  // One fixed band and nothing to stretch: it takes the whole
-  // destination rather than leaving it empty.
+  // Every band a lattice with no divs has is fixed, and a fixed band is
+  // never stretched: a destination larger than the source leaves the
+  // band at the size it was authored at and the rest of the destination
+  // unclaimed.
   EXPECT_FLOAT_EQ(s.dst.back(), 40.0f);
 }

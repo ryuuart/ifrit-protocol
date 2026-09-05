@@ -22,13 +22,14 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
-#include <sigilskia/graphite/Pixels.h>
 
 #include <cstring>
 #include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include "GraphiteReadback.h"
 
 using sigil::core::hardware::Backend;
 using sigil::core::hardware::FenceHandle;
@@ -39,6 +40,7 @@ using sigil::skia::GraphiteContext;
 using sigil::core::hardware::kFenceInitialValue;
 using sigil::core::hardware::NativeDevice;
 using sigil::skia::OffscreenSurface;
+using sigil::skia::test::readGraphiteSurface;
 using sigil::core::hardware::TextureDesc;
 using sigil::core::hardware::TextureFormat;
 using sigil::core::hardware::TextureHandle;
@@ -112,42 +114,6 @@ std::vector<uint8_t> readMetalBytes(GpuDevice &dev, TextureHandle handle, int si
   return bytes;
 }
 
-/** Reads a Graphite surface back to CPU pixels: snap, insert, async read,
- *  then a synchronous submit and a spin until the callback lands. */
-SkBitmap readback(GraphiteContext &ctx, SkSurface *surface) {
-  SkBitmap bm;
-  const SkImageInfo info = surface->imageInfo();
-  if (auto recording = ctx.recorder()->snap()) {
-    skgpu::graphite::InsertRecordingInfo insert;
-    insert.fRecording = recording.get();
-    ctx.context()->insertRecording(insert);
-  }
-  struct Read {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } read;
-  ctx.context()->asyncRescaleAndReadPixels(
-      surface, info, SkIRect::MakeWH(info.width(), info.height()), SkImage::RescaleGamma::kSrc,
-      SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext c, std::unique_ptr<const SkImage::AsyncReadResult> r) {
-        auto *out = static_cast<Read *>(c);
-        out->result = std::move(r);
-        out->called = true;
-      },
-      &read);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  ctx.context()->submit(submitInfo);
-  for (int spin = 0; spin < 5000 && !read.called; ++spin) ctx.context()->checkAsyncWorkCompletion();
-  if (!read.result) return bm;
-  bm.allocPixels(info);
-  const auto *src = static_cast<const uint8_t *>(read.result->data(0));
-  const size_t srcRowBytes = read.result->rowBytes(0);
-  for (int y = 0; y < info.height(); ++y)
-    std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * srcRowBytes,
-                std::min(srcRowBytes, bm.rowBytes()));
-  return bm;
-}
 
 }  // namespace
 
@@ -170,7 +136,7 @@ TEST(SigilSkiaGraphite, RenderTargetClearsAndReadsBack) {
   sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
   ASSERT_NE(surface, nullptr);
   surface->getCanvas()->clear(SkColorSetARGB(255, 0, 255, 0));
-  const SkBitmap pixels = readback(*ctx, surface.get());
+  const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
   EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));

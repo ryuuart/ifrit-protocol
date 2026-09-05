@@ -10,6 +10,6 @@ sigil_library(SigilSkiaDraw
 
 # The band split is arithmetic, so its test needs no GPU and no context —
 # which is the point of the feature standing apart from the bring-up.
-sigil_test(sigilskia_draw_test
+sigil_test(skia_draw_test
   SOURCES test/DirectTest.cpp
   LIBRARIES SigilSkiaDraw)
