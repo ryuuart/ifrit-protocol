@@ -1,36 +1,9 @@
-cmake_minimum_required(VERSION 3.16)
-
-# workaround: vcpkg configs each flatten the same libraries into their own
-# link interface.
-#
-# Our third-party interfaces overlap heavily: freetype (via harfbuzz),
-# OpenImageIO and OpenColorIO each flatten libpng/libz/Imath into their own
-# link interface, so every executable named several archives twice and ld64
-# answered with `ignoring duplicate libraries` on each. Under
-# cmake_minimum_required(3.16) both de-duplication policies default to OLD,
-# which is what kept the repeats. ld64 records symbols as it scans and
-# re-visits earlier archives, so one occurrence is enough.
-#
-# These must be set BEFORE project(): CMP0156's NEW behavior is carried by
-# CMAKE_<LANG>_LINK_LIBRARIES_PROCESSING, which the platform modules
-# initialize while enabling the language.
-if(POLICY CMP0156)
-  cmake_policy(SET CMP0156 NEW) # de-duplicate by linker capability
-endif()
-if(POLICY CMP0179)
-  cmake_policy(SET CMP0179 NEW) # ...keeping the first occurrence, everywhere
-endif()
-
-# The wire schema's C++ header is generated in one directory and compiled
-# in others. Under the OLD behavior the GENERATED source property is
-# visible only in the directory that sets it, so a consumer elsewhere
-# treats the not-yet-written header as a missing source file and the
-# generate step fails. NEW makes the property global, which is what lets
-# the schema target carry its own build ordering instead of every
-# consumer having to name the generator.
-if(POLICY CMP0118)
-  cmake_policy(SET CMP0118 NEW) # GENERATED is visible in every directory
-endif()
+# The floor is set by the policies this build depends on being NEW: link
+# de-duplication by linker capability and its first-occurrence rule, and
+# a GENERATED source property visible in every directory — which is what
+# lets the wire schema's generated header be compiled in directories
+# other than the one that generates it.
+cmake_minimum_required(VERSION 3.31)
 
 project(SpellCircleCanvas VERSION 0.1 LANGUAGES CXX)
 
@@ -77,6 +50,12 @@ set(SUBSTANCE_SDK_DIR "" CACHE PATH "Adobe Substance 3D SDK directory (holds sub
 # moves its build rules with it.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
+# workaround: Qt ships a FindFFmpeg module that collides with the ffmpeg
+# port's FindFFMPEG on a case-insensitive filesystem. The port's module —
+# which is what resolves the release and debug archives as a pair — is
+# reached by asking for the package before Qt appends its own module
+# directory to the search path.
+find_package(FFMPEG REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts QuickDialogs2 CanvasPainter Network GuiPrivate)
 find_package(gtest CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
@@ -165,17 +144,9 @@ include(Sigil)
 enable_testing()
 
 # workaround: vcpkg configs name some dependencies as imported targets and
-# others as archive paths.
-#
-# What the policies above cannot reach: CMake collapses two link items only
-# when they are the same item — two targets, or two identical paths — never a
-# target against a path. freetype names ZLIB/BZip2/PNG as targets and brotli
-# as archive paths, minizip-ng names bz2 and lzma as paths where others name
-# the targets, and OpenImageIO names libpng16 and libz both ways inside a
-# single interface. Those archives therefore still reach ld64 twice. The
-# second copy is ignored by the linker, which is correct but noisy — this
-# silences the note without pretending the link line is minimal.
-if(APPLE AND NOT CMAKE_VERSION VERSION_LESS 3.18) # CheckLinkerFlag
+# others as archive paths, and one archive named both ways is two link
+# items CMake cannot merge, so it reaches ld64 twice and is noted there.
+if(APPLE)
   include(CheckLinkerFlag)
   check_linker_flag(CXX "-Wl,-no_warn_duplicate_libraries"
     HAVE_NO_WARN_DUPLICATE_LIBRARIES) # ld64 from Xcode 15 on
