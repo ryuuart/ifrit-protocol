@@ -3,16 +3,19 @@
 /** @file
  * A compiled kernel's SPIR-V, made to mean what its source says.
  *
- * workaround: THE GAP THIS CLOSES. Slang through 2026.7.1 puts no
- * `NoContraction` decoration in the module it emits — `-fp-mode precise`
- * included, which is a no-op for the SPIR-V target — so nothing in the
- * words tells a driver that a multiply and the add after it are two
- * operations. A driver is then
+ * workaround: THE GAP THIS CLOSES. At the Slang this tree pins,
+ * 2026.7.1, the SPIR-V emitter writes no `NoContraction` decoration at
+ * all: `-fp-mode precise` yields a module byte-identical to the one
+ * `default` and `fast` yield, and a `precise` qualifier on a local
+ * changes nothing either. Nothing in the words then tells a driver that
+ * a multiply and the add after it are two operations, and a driver is
  * free to fuse them into one, which rounds once where the source rounds
  * twice — and a host build whose contraction is pinned off rounds twice.
  * One decoration per arithmetic result is what makes the two agree, and
  * without it every expression of the shape `a + b * c` disagrees in its
- * last place.
+ * last place. This pass is what the emitter would do under
+ * `-fp-mode precise`, so a Slang that decorates its own arithmetic
+ * retires both the pass and the call to it.
  *
  * It is done here, once, rather than beside each kernel's own words: a
  * module that means one thing in one feature and another in the next is

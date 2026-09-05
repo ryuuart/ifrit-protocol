@@ -22,10 +22,12 @@
 # `-fmetal-math-mode=safe -ffp-contract=off` on Metal, and
 # MVK_CONFIG_FAST_MATH_ENABLED=0 for MoltenVK at run time.
 #
-# workaround: slangc emits no NoContraction decoration in SPIR-V,
-# `-fp-mode precise` included, so a driver is free to fuse a multiply-add
-# inside a module compiled here; a kernel that needs the unfused answer
-# has to reach the same result without depending on it.
+# workaround: at the slangc this tree pins, 2026.7.1, `-fp-mode precise`
+# emits a SPIR-V module byte-identical to the one `default` and `fast`
+# emit, with no NoContraction decoration on any arithmetic, so a driver
+# is free to fuse a multiply-add inside a module compiled here; a kernel
+# that needs the unfused answer has to reach the same result without
+# depending on the flag.
 
 find_package(slang CONFIG REQUIRED)
 
