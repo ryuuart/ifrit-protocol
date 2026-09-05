@@ -7,18 +7,13 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigildraw/Draw.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
+
+#include "Fonts.h"
 
 namespace {
 
 using namespace sigil::draw;
-
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+using sigil::test::fonts;
 
 /** A pen over a raster canvas the size of a modest sketch. */
 struct Bench {

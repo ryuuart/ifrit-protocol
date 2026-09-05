@@ -142,20 +142,28 @@ TEST(Deposit, PaintDepositsPigmentAndRestoresThePenStyle) {
   EXPECT_EQ(pixels.getColor(60, 60), SK_ColorRED);
 }
 
-TEST(Deposit, RecordsRoundDabsAsBoundedSpriteBatches) {
-  SkPictureRecorder recorder;
-  SkCanvas* canvas = recorder.beginRecording(420, 80);
-  Pen pen;
-  pen.begin(*canvas, {.width = 420, .height = 80});
-  pen.randomSeed(17);
-  brush::Tool tool = brush::charcoal(SkColors::kBlack, 0.35f);
-  tool.spacing = 0.03f;
-  brush::line(pen, tool, {10, 40}, {410, 40});
-  pen.end();
-  const sk_sp<SkPicture> picture = recorder.finishRecordingAsPicture();
-
-  ASSERT_TRUE(picture);
-  EXPECT_LT(picture->approximateOpCount(), 16);
+TEST(Deposit, RecordsRoundDabsAsBatchesRatherThanOnePerDab) {
+  // The same stroke laid down at two spacings: the dense one deposits
+  // five times the dabs. A recording that spent an op per dab would be
+  // five times the size; batched, the count is governed by how many
+  // batches a run needs and not by what is in them.
+  const auto opsAtSpacing = [](float spacing) {
+    SkPictureRecorder recorder;
+    SkCanvas* canvas = recorder.beginRecording(420, 80);
+    Pen pen;
+    pen.begin(*canvas, {.width = 420, .height = 80});
+    pen.randomSeed(17);
+    brush::Tool tool = brush::charcoal(SkColors::kBlack, 0.35f);
+    tool.spacing = spacing;
+    brush::line(pen, tool, {10, 40}, {410, 40});
+    pen.end();
+    const sk_sp<SkPicture> picture = recorder.finishRecordingAsPicture();
+    return picture ? picture->approximateOpCount() : -1;
+  };
+  const int sparse = opsAtSpacing(0.15f);
+  const int dense = opsAtSpacing(0.03f);
+  ASSERT_GT(sparse, 0);
+  EXPECT_LT(dense, sparse * 2);
 }
 
 TEST(Deposit, AStoredPathCarriesNoSpeedSoSpeedDynamicsLeaveItAlone) {

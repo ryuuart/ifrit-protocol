@@ -648,15 +648,16 @@ From `apps/spell-circle-canvas`:
 ```sh
 cmake --build build --config Release --target draw_test draw_text_test \
   draw_brush_test draw_brush_format_test draw_bench draw_brush_bench
-ctest --test-dir build -C Release -R 'draw_' --output-on-failure
+ctest --test-dir build -C Release -R '^draw_' --output-on-failure
 ./build/bin/Release/draw_bench
 ./build/bin/Release/draw_brush_bench
 ```
 
 `draw_test` holds p5's semantics to the pen — a rect at `rectMode(CENTER)`
 lands where p5 says, `push`/`pop` restores fill and transform, an arc
-fills the pie unless `CHORD`, seeded `random` repeats, `noise` at a
-lattice corner is core's word, `noSmooth` sampling an image
+fills the pie unless `CHORD`, one seed gives one sequence on every pen
+and a draw lands inside the range it was asked for, `noise` at a
+lattice corner is the corner the field names, `noSmooth` sampling an image
 nearest-neighbour, a `fill` between two vertices colouring the corners
 either side of it — and this library's own: a material as a fill, a
 silhouette as a shape, a guest retained per call site, the canvas
@@ -677,7 +678,9 @@ and runs through `scripts/bench_ledger.py`.
 uneven events and the first dab's heading; segment and spline pressure;
 the envelope, the per-stroke roll and the weighted choice; the stock
 catalogue and lookup by view; every tip, the stylus dynamics, the sprite
-batch, a stored path's zero speed and the custom tip's contract; hatches
+batch, a stored path's zero speed and the custom tip's contract — with
+batching stated as a growth claim, five times the dabs recorded in
+fewer than twice the ops, rather than as an op-count ceiling; hatches
 inside their polygon, even-odd across a collection, and the default
 angle under a pen in degrees; the wash's interior and its closed layer;
 the mass inside its surface, with holes, under the engine's clip; the
@@ -694,6 +697,14 @@ directory through a table and through a hub, the packed archive, the
 `.brush` giving up its two pictures, the `.abr` giving up both its
 sampled tips at either subversion, and bytes that are no brush answering
 nothing.
+
+Every binary here draws on one fixture, `test/support/Paper.h` — a pen
+over a raster surface with the pixels readable back — whose font context
+is the tree-wide `src/test/Fonts.h`, so one process shapes against one
+memoised context. A case asserts one thing the pen promises and is
+named that promise as a sentence; it pins only what editing this library
+could falsify, and the one binary whose claims depend on the machine's
+faces carries the `fonts` label.
 
 `draw_brush_bench` measures sampling, a field-traced watercolor mark,
 hatching, a curved dry mass, a pigment wash, and one stroke of an

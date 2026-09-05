@@ -13,16 +13,12 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
 #include <sigildraw/Pen.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
+
+#include "Fonts.h"
 
 namespace sigil::draw::testing {
 
-inline sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
+using sigil::test::fonts;
 
 /** A pen over a raster surface, with the pixels readable back. */
 struct Paper {

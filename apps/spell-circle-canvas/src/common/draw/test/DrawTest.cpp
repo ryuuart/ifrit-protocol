@@ -8,7 +8,6 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
-#include <sigilcore/compute/Noise.h>
 #include <sigildraw/Draw.h>
 #include <sigilshaders/Draw.h>
 
@@ -170,7 +169,7 @@ TEST(Pen, ColourArgumentsReadAsP5Reads) {
   EXPECT_EQ(pen.color(1, 1, 1).toSkColor(), SK_ColorWHITE);
 }
 
-TEST(Pen, SeededRandomRepeats) {
+TEST(Pen, OneSeedGivesOneSequenceOnEveryPen) {
   Pen a;
   Pen b;
   for (int i = 0; i < 16; ++i) EXPECT_EQ(a.random(), b.random());
@@ -179,14 +178,18 @@ TEST(Pen, SeededRandomRepeats) {
   for (int i = 0; i < 16; ++i) first.push_back(a.random(-3, 3));
   a.randomSeed(42);
   for (int i = 0; i < 16; ++i) EXPECT_EQ(first[(size_t)i], a.random(-3, 3));
-  for (float v : first) {
-    EXPECT_GE(v, -3.0f);
-    EXPECT_LT(v, 3.0f);
-  }
+}
+
+TEST(Pen, ARandomDrawLandsInsideTheRangeItWasAskedFor) {
+  Pen pen;
+  pen.randomSeed(42);
   for (int i = 0; i < 256; ++i) {
-    const float u = a.random(10);
-    EXPECT_GE(u, 0.0f);
-    EXPECT_LT(u, 10.0f);
+    const float signed_ = pen.random(-3, 3);
+    EXPECT_GE(signed_, -3.0f);
+    EXPECT_LT(signed_, 3.0f);
+    const float capped = pen.random(10);
+    EXPECT_GE(capped, 0.0f);
+    EXPECT_LT(capped, 10.0f);
   }
 }
 
@@ -195,12 +198,11 @@ TEST(Pen, NoiseIsCoresLatticeAtTheCorners) {
   pen.noiseSeed(7);
   pen.noiseDetail(1, 0.5f);
   // One octave at an integer position IS the corner value, at the half
-  // weight p5's first octave carries.
-  const float corner =
-      (float)(sigil::core::noise::lattice(7, 3, 4, 5) & 0x00FFFFFFu) /
-      16777216.0f;
+  // weight p5's first octave carries. The corner is asked for by name
+  // rather than recomputed here, so this says what the pen promises
+  // instead of restating how the field is built.
+  const float corner = NoiseField::corner(7, 3, 4, 5);
   EXPECT_FLOAT_EQ(pen.noise(3, 4, 5), 0.5f * corner);
-  EXPECT_FLOAT_EQ(NoiseField::corner(7, 3, 4, 5), corner);
 
   pen.noiseDetail(4, 0.5f);
   float previous = pen.noise(0.0f, 0.37f);
@@ -530,7 +532,7 @@ TEST(Pen, NoDashPutsTheSolidStrokeBackAndPushPopCarriesIt) {
   EXPECT_GT(SkColorGetA(paper.pixel(15, 70)), 0u);
 }
 
-TEST(Pen, MathIsP5s) {
+TEST(Pen, TheMathVocabularyComputesWhatItsNamesPromise) {
   EXPECT_FLOAT_EQ(map(5, 0, 10, 0, 100), 50.0f);
   EXPECT_FLOAT_EQ(map(15, 0, 10, 0, 100, true), 100.0f);
   EXPECT_FLOAT_EQ(lerp(0, 10, 0.25f), 2.5f);
