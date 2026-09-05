@@ -439,9 +439,10 @@ float4 fsBackdrop(BackdropOut input) : SV_Target {
   // The direction the eye looks through this pixel, in the space the
   // shading is written in — which is the space `environmentAt` takes.
   // THE RAY THROUGH THIS PIXEL, in the space the shading is written in.
-  // The depth this renderer clips in is REVERSED — the near plane is at
-  // one — so the point named here stands on it, which is the same ray a
-  // far point stands on and is what this pass wants.
+  // The depth this renderer clips in runs from zero at the near plane to
+  // one at the far one, so the point named here stands on the FAR plane
+  // — which is the same ray every point along it stands on, and is what
+  // this pass wants.
   let onRay = mul(uInvProj, float4(input.ndc, 1.0, 1.0));
   var ray = normalizeP(onRay.xyz / onRay.w);
   // A view-space point in front of the eye has a negative z; a
