@@ -14,7 +14,7 @@ using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 TEST(Placeholders, ReservesWidthInTheLine) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"before ", basicStyle());
   paragraph.appendPlaceholder({90, 20, 0}, basicStyle());
@@ -41,7 +41,7 @@ TEST(Placeholders, ReservesWidthInTheLine) {
 }
 
 TEST(Placeholders, SitOnTheBaselineWithDrop) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"x ", basicStyle());
   paragraph.appendPlaceholder({40, 30, 8},
@@ -59,7 +59,7 @@ TEST(Placeholders, SitOnTheBaselineWithDrop) {
 }
 
 TEST(Placeholders, WrapAndJustifyLikeWords) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   for (int placeholderIndex = 0; placeholderIndex < 6; ++placeholderIndex) {
     paragraph.appendText(u8"word word word ", basicStyle());
@@ -85,7 +85,7 @@ TEST(Placeholders, WrapAndJustifyLikeWords) {
 }
 
 TEST(Placeholders, ResizeRelayoutsLive) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"pill: ", basicStyle());
   paragraph.appendPlaceholder({50, 16, 0}, basicStyle());

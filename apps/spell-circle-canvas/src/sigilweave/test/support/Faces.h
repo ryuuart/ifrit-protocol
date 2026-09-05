@@ -1,35 +1,28 @@
 #pragma once
 
 /** @file
- * The one font context every weave test binary shapes with, and the two
- * lookups a case makes before it can ask a question about a particular
- * face. Building a system font manager enumerates the installed font set,
- * so each process constructs it exactly once and every test shares the
- * result.
+ * The faces a case asks for before it can ask its own question: the two
+ * lookups into whatever this machine has installed, and the constructed
+ * instrument committed beside the tests. The font context itself is the
+ * whole test process's, not this library's.
  */
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkFontStyle.h>
 #include <include/core/SkTypeface.h>
-#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
-namespace sigil::weave::test {
+#include <Fonts.h>
 
-/// The process-wide FontContext over the system font manager.
-inline FontContext& sharedContext() {
-  // systemFontManager() shares one enumerated font set process-wide.
-  static auto* fontContext = new FontContext(ports::systemFontManager());
-  return *fontContext;
-}
+namespace sigil::weave::test {
 
 /// The installed face for `family`, or null when this machine has none.
 /// A null answer is the caller's cue to skip and say which family it
 /// wanted: GTEST_SKIP returns from the function it is written in, so only
 /// the case itself can skip the case.
 inline sk_sp<SkTypeface> installedFace(const char* family) {
-  return sharedContext().fontManager()->matchFamilyStyle(family,
-                                                         SkFontStyle::Normal());
+  return sigil::test::fonts().fontManager()->matchFamilyStyle(
+      family, SkFontStyle::Normal());
 }
 
 /// The installed face for `family` when it carries variation axes, else
@@ -38,6 +31,16 @@ inline sk_sp<SkTypeface> installedFace(const char* family) {
 inline sk_sp<SkTypeface> installedVariableFace(const char* family) {
   sk_sp<SkTypeface> face = installedFace(family);
   if (!face || face->getVariationDesignPosition({}) < 1) return nullptr;
+  return face;
+}
+
+/// The constructed face committed under test/assets/. It is Latin-only,
+/// carries a vertical feature per visible consequence, and is the same
+/// face on every machine, so a question asked of it is asked identically
+/// everywhere. Null only when the asset failed to load.
+inline sk_sp<SkTypeface> instrumentFace() {
+  static sk_sp<SkTypeface> face = ports::systemFontManager()->makeFromFile(
+      SIGIL_TEST_ASSET_DIR "/VerticalFeatures.ttf");
   return face;
 }
 

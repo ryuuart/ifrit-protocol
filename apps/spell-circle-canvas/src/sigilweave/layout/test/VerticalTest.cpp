@@ -13,7 +13,7 @@ using namespace sigil::weave::test;
 // ── Vertical writing mode ────────────────────────────────────────────────
 
 TEST(Vertical, UprightCjkStacksDownColumns) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"縦書きのテキストは上から下へ流れる",
                        basicStyle(20.0f));
@@ -44,7 +44,7 @@ TEST(Vertical, UprightCjkStacksDownColumns) {
 }
 
 TEST(Vertical, AutoRotatesLatinMixedIntoCjk) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"縦書きにHTTPが混ざる", basicStyle(20.0f));
   paragraph.setWritingMode(WritingMode::kVerticalRL);
@@ -66,23 +66,33 @@ TEST(Vertical, AutoRotatesLatinMixedIntoCjk) {
 }
 
 TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
-  FontContext& fontContext = sharedContext();
-  TextStyle japaneseStyle = basicStyle(20.0f);
-  TextStyle tcy = basicStyle(20.0f);
-  tcy.shaping.verticalForm = VerticalForm::kTateChuYoko;
+  FontContext& fontContext = sigil::test::fonts();
+  // The same passage twice, differing only in the form the digits take, so
+  // the column length the pair costs is read against the column length the
+  // same pair costs stacked one above the other.
+  const auto set = [&](VerticalForm form) {
+    TextStyle japaneseStyle = basicStyle(20.0f);
+    TextStyle digits = basicStyle(20.0f);
+    digits.shaping.verticalForm = form;
+    Paragraph paragraph;
+    paragraph.appendText(u8"平成", japaneseStyle);
+    paragraph.appendText(u8"31", digits);
+    paragraph.appendText(u8"年の縦組み", japaneseStyle);
+    paragraph.setWritingMode(WritingMode::kVerticalRL);
+    VerticalBlockFlow flow(SkRect::MakeWH(200, 400));
+    ParagraphLayoutOptions options;
+    options.lineMetrics.height = 30;
+    ParagraphLayout layout =
+        layoutParagraph(fontContext, paragraph, flow, options);
+    float columnLength = 0;
+    for (const PositionedRun& run : layout.runs)
+      if (run.shaped)
+        columnLength = std::max(columnLength,
+                                run.origin.y() + run.shaped->advance);
+    return std::make_pair(std::move(layout), columnLength);
+  };
 
-  Paragraph paragraph;
-  paragraph.appendText(u8"平成", japaneseStyle);
-  paragraph.appendText(u8"31", tcy);
-  paragraph.appendText(u8"年の縦組み", japaneseStyle);
-  paragraph.setWritingMode(WritingMode::kVerticalRL);
-
-  VerticalBlockFlow flow(SkRect::MakeWH(200, 400));
-  ParagraphLayoutOptions options;
-  options.lineMetrics.height = 30;
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-
+  const auto [layout, tcyLength] = set(VerticalForm::kTateChuYoko);
   const float axis = 200 - 30 * 0.5f;  // first column's central axis
   const PositionedRun* tcyRun = nullptr;
   for (const PositionedRun& run : layout.runs)
@@ -90,19 +100,16 @@ TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
   ASSERT_NE(tcyRun, nullptr) << "the digit run must be placed upright";
   // Centred across the column: origin shifted left by half its advance.
   EXPECT_NEAR(tcyRun->origin.x(), axis - tcyRun->shaped->advance * 0.5f, 0.5f);
-  // And it must not consume more column length than its font height (~23px
-  // at 20px), far less than the two digits' horizontal advance would be if
-  // they were stacked.
-  const Word& word = paragraph.words()[std::min<size_t>(
-      tcyRun->wordIndex, paragraph.words().size() - 1)];
-  EXPECT_LT(word.width, 30.0f);
+  // And the pair costs less column length set across it than it does
+  // stacked, which is the whole point of the form.
+  EXPECT_LT(tcyLength, set(VerticalForm::kUpright).second);
 }
 
 TEST(Vertical, ColumnMetricsReportTheBandAndTheExtent) {
   // lineMetrics() has nothing to say about columns; columnMetrics() is the
   // answer for the other writing mode, and it is the one a caller measures
   // a vertical passage by.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"縦組みの文章は上から下へ流れ右から左へと列が進む",
                        basicStyle(20.0f));
@@ -139,7 +146,7 @@ TEST(Vertical, TateChuYokoCountsItsFontHeightDownTheColumn) {
   // A run set horizontally inside the column consumes column pitch by its
   // FONT HEIGHT, not by its horizontal advance — so the extent must not
   // depend on how many digits it holds.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   const auto columnExtent = [&](const char8_t* digits) {
     TextStyle body = basicStyle(20.0f);
     TextStyle tcy = body;
@@ -167,7 +174,7 @@ TEST(Vertical, ColumnsFlowAroundASilhouette) {
   // The whole breaker runs over a column flow the way it runs over a line
   // flow: a column an exclusion crosses hands out two intervals, and no
   // run may sit anywhere but inside one of them.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(
       u8"縦組みの文章が円をよけて流れる様子を見るための本文であり、列は右から"
@@ -238,7 +245,7 @@ class ClampedColumn : public ::testing::Test {
     options.lineMetrics.height = 30;
     options.overflow.maxLines = 1;
     if (withMarker) options.overflow.ellipsis = u"…";
-    return layoutParagraph(sharedContext(), m_paragraph, flow, options);
+    return layoutParagraph(sigil::test::fonts(), m_paragraph, flow, options);
   }
 
   Paragraph m_paragraph;
@@ -294,7 +301,7 @@ TEST_F(ClampedColumn, TheCutMovesUpTheColumnToMakeRoomForTheMarker) {
 TEST(Vertical, ARotatedRunTakesARotatedMarker) {
   // Latin rotates into a column, and the marker that cuts it is turned
   // with it rather than standing upright beside it.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(
       u8"a Latin passage set down a column rotates a quarter turn and keeps "

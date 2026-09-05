@@ -4,11 +4,14 @@
  * Paragraph construction helpers shared by every test binary that builds a
  * Paragraph: a default style at a size, a single-span paragraph over it, a
  * deterministic text drawn from a word pool, a three-sentence two-span
- * fixture, and an offset lookup into the text.
+ * fixture, an offset lookup into the text, and the two readings taken off
+ * a shaped paragraph — how many glyphs it put down and whether they all
+ * resolved.
  */
 
 #include <sigilweave/paragraph/Paragraph.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <random>
@@ -47,6 +50,15 @@ inline Paragraph makeParagraph(std::u8string_view utf8,
   Paragraph paragraph;
   paragraph.appendText(utf8, basicStyle(fontSize));
   return paragraph;
+}
+
+/// Glyphs the paragraph shaped, over every word and every segment.
+inline size_t shapedGlyphCount(const Paragraph& paragraph) {
+  size_t count = 0;
+  for (const Word& word : paragraph.words())
+    for (const WordSegment& segment : word.segments())
+      count += segment.shaped->glyphs.size();
+  return count;
 }
 
 /// True when every glyph in the paragraph resolved to a real glyph (no

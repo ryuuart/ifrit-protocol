@@ -7,26 +7,18 @@
  */
 
 #include <gtest/gtest.h>
-#include <include/core/SkFontMgr.h>
 #include <include/core/SkTypeface.h>
 #include <sigilweave/cache/SingleLineParagraphCache.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <string>
 #include <vector>
 
+#include "support/Faces.h"
+
 using namespace sigil::weave;
+using namespace sigil::weave::test;
 
 namespace {
-
-/// The face the key's typeface component is varied with. It is the
-/// committed instrument face rather than an installed one, so the question
-/// is the same on every machine.
-sk_sp<SkTypeface> instrument() {
-  static sk_sp<SkTypeface> face = ports::systemFontManager()->makeFromFile(
-      SIGIL_TEST_ASSET_DIR "/VerticalFeatures.ttf");
-  return face;
-}
 
 /// The colour a paragraph's first span carries, which is how a case tells
 /// an entry it has already touched from one built fresh.
@@ -108,10 +100,10 @@ TEST(SingleLineParagraphCache, TheKeyDiscriminatesTextAndTypeface) {
   EXPECT_NE(&cache.paragraphFor(u8"CAPTION", nullptr, 16.0f), &plain)
       << "different text is a different entry";
 
-  ASSERT_TRUE(instrument()) << "the committed instrument face did not load";
-  Paragraph& faced = cache.paragraphFor(u8"caption", instrument(), 16.0f);
+  ASSERT_TRUE(instrumentFace()) << "the committed instrument face did not load";
+  Paragraph& faced = cache.paragraphFor(u8"caption", instrumentFace(), 16.0f);
   EXPECT_NE(&faced, &plain) << "the typeface is part of the key";
-  EXPECT_EQ(&cache.paragraphFor(u8"caption", instrument(), 16.0f), &faced);
+  EXPECT_EQ(&cache.paragraphFor(u8"caption", instrumentFace(), 16.0f), &faced);
 }
 
 TEST(SingleLineParagraphCache, AFullCacheRetiresWhatItHeldBeforeInsertingMore) {

@@ -12,20 +12,22 @@ sigil_library(SigilWeaveLayout
   PUBLIC SigilWeaveParagraph SigilGeometryPath
   PRIVATE SigilWeaveUnicode harfbuzz::harfbuzz ICU::uc Boost::unordered)
 
-# Everything that places runs and reads where they landed: both breakers,
-# the flows, overflow and clamp, vertical writing, placeholders, relayout
-# locality, the typographic options the breakers read, text on a path, the
-# paragraph controls one subject to a file, and the large-paragraph stress
-# cases. The stress case that restyles through the query layer links it,
-# and the files that read a stock table link the kit.
+# Everything that places runs and reads where they landed, one subject to a
+# file named for it: both breakers and the live composer over them, the
+# flows, overflow and clamp, vertical writing, placeholders, relayout
+# locality, text set on a geometry of its own, and each paragraph control.
+# A claim that holds for either breaker is one TEST_P over both of them.
+# The kit is linked for the stock hyphenation and line-edge tables the
+# files that ask a table question read.
 sigil_test(weave_layout_test
-  SOURCES test/LayoutTest.cpp test/KnuthPlassTest.cpp test/OverflowTest.cpp
+  SOURCES test/LayoutTest.cpp test/KnuthPlassTest.cpp
+          test/LiveComposerTest.cpp test/OverflowTest.cpp
           test/VerticalTest.cpp test/FlowTest.cpp test/PathTextTest.cpp
           test/PlaceholderTest.cpp test/IncrementalTest.cpp
-          test/TypographyTest.cpp test/LeadingTest.cpp test/TabStopTest.cpp
+          test/JustificationTest.cpp test/LeadingTest.cpp test/TabStopTest.cpp
           test/FrameTest.cpp test/HyphenationTest.cpp test/LineEdgesTest.cpp
-          test/BesideTest.cpp test/MojikumiTest.cpp test/StressTest.cpp
-  LIBRARIES SigilWeaveLayout SigilWeaveKit SigilWeaveQuery SigilWeavePorts
+          test/BesideTest.cpp test/MojikumiTest.cpp test/BalanceTest.cpp
+  LIBRARIES SigilWeaveLayout SigilWeaveKit SigilWeavePorts
             Boost::unordered)
 
 # layoutParagraph per word over a warm shape cache.

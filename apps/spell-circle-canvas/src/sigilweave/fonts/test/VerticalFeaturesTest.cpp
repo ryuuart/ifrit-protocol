@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include "support/Fonts.h"
+#include "support/Faces.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -32,20 +32,14 @@ namespace {
 /// code points, so the column here is the one a rotated Latin run rides.
 constexpr ScriptTag kLatin = 0x4C61746Eu;
 
-sk_sp<SkTypeface> instrument() {
-  static sk_sp<SkTypeface> face = ports::systemFontManager()->makeFromFile(
-      SIGIL_TEST_ASSET_DIR "/VerticalFeatures.ttf");
-  return face;
-}
-
 /// One run of @p text shaped down a column with @p features asked for.
 ShapedWordRef column(const std::vector<FontFeature>& features,
                      std::u16string_view text) {
   ShapingStyle style;
-  style.typeface = instrument();
+  style.typeface = instrumentFace();
   style.fontSize = 100.0f;  // 1000 upem: one font unit is a tenth of a px
   style.fontFeatures = features;
-  return shapeWord(sharedContext(), style, style.typeface, text, kLatin,
+  return shapeWord(sigil::test::fonts(), style, style.typeface, text, kLatin,
                    /*rightToLeft=*/false, /*vertical=*/true);
 }
 
@@ -53,10 +47,10 @@ ShapedWordRef column(const std::vector<FontFeature>& features,
 ShapedWordRef line(const std::vector<FontFeature>& features,
                    std::u16string_view text) {
   ShapingStyle style;
-  style.typeface = instrument();
+  style.typeface = instrumentFace();
   style.fontSize = 100.0f;
   style.fontFeatures = features;
-  return shapeWord(sharedContext(), style, style.typeface, text, kLatin,
+  return shapeWord(sigil::test::fonts(), style, style.typeface, text, kLatin,
                    /*rightToLeft=*/false, /*vertical=*/false);
 }
 
@@ -65,8 +59,8 @@ ShapedWordRef line(const std::vector<FontFeature>& features,
 class VerticalFeatures : public ::testing::Test {
  protected:
   void SetUp() override {
-    if (!instrument())
-      GTEST_SKIP() << "test asset VerticalFeatures.ttf failed to load";
+    ASSERT_TRUE(instrumentFace())
+        << "test asset VerticalFeatures.ttf failed to load";
   }
 };
 

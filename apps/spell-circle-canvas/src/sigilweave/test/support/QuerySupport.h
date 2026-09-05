@@ -8,5 +8,5 @@
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/query/Query.h>
 
-#include "Fonts.h"
+#include "Faces.h"
 #include "Paragraphs.h"

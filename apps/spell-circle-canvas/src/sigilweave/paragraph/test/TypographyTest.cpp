@@ -5,24 +5,21 @@
  */
 
 #include <gtest/gtest.h>
-#include <include/core/SkPixmap.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkSurface.h>
-#include <include/core/SkTileMode.h>
-#include <include/effects/SkGradient.h>
-#include <sigilweave/query/Query.h>
 #include <sigilweave/style/Features.h>
 
-#include <algorithm>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "support/ParagraphSupport.h"
+#include "support/Readings.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 // ── OpenType features ─────────────────────────────────────────────────────
 
 TEST(Features, LigatureToggleChangesGlyphCount) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   sk_sp<SkTypeface> hoefler = fontContext.fontManager()->matchFamilyStyle(
       "Hoefler Text", SkFontStyle());
   if (!hoefler) GTEST_SKIP() << "Hoefler Text not installed";
@@ -65,26 +62,26 @@ Paragraph transformedParagraph(std::u8string_view text, TextTransform transform,
 }
 
 float paragraphWidth(Paragraph& paragraph) {
-  return paragraph.naturalWidth(sharedContext());
+  return paragraph.naturalWidth(sigil::test::fonts());
 }
 
 }  // namespace
 
-TEST(TextTransformTest, UppercaseShapesUppercaseGlyphs) {
+TEST(TextTransform, UppercaseShapesUppercaseGlyphs) {
   Paragraph transformed =
       transformedParagraph(u8"hello", TextTransform::kUppercase);
   Paragraph reference = makeParagraph(u8"HELLO");
   // Identical shaped output — and, per the documented contract, the same
   // shape-cache entry, since the transformed text is itself the key text.
-  transformed.ensureShaped(sharedContext());
-  reference.ensureShaped(sharedContext());
+  transformed.ensureShaped(sigil::test::fonts());
+  reference.ensureShaped(sigil::test::fonts());
   EXPECT_EQ(transformed.words()[0].segments()[0].shaped.get(),
             reference.words()[0].segments()[0].shaped.get());
   // The stored document text stays untransformed.
   EXPECT_EQ(transformed.text(), u"hello");
 }
 
-TEST(TextTransformTest, GermanSharpSExpandsUnderUppercase) {
+TEST(TextTransform, GermanSharpSExpandsUnderUppercase) {
   Paragraph transformed =
       transformedParagraph(u8"straße", TextTransform::kUppercase);
   Paragraph reference = makeParagraph(u8"STRASSE");
@@ -92,25 +89,25 @@ TEST(TextTransformTest, GermanSharpSExpandsUnderUppercase) {
       << "ß must full-map to SS, not simple-map";
 }
 
-TEST(TextTransformTest, TurkishDotlessIRespectsLocale) {
+TEST(TextTransform, TurkishDotlessIRespectsLocale) {
   Paragraph turkish =
       transformedParagraph(u8"istanbul", TextTransform::kUppercase, "tr");
   Paragraph plain =
       transformedParagraph(u8"istanbul", TextTransform::kUppercase);
-  turkish.ensureShaped(sharedContext());
-  plain.ensureShaped(sharedContext());
+  turkish.ensureShaped(sigil::test::fonts());
+  plain.ensureShaped(sigil::test::fonts());
   // tr maps i → İ (dotted capital); the root locale maps i → I. Different
   // glyph streams must come back.
   EXPECT_NE(turkish.words()[0].segments()[0].shaped->glyphs,
             plain.words()[0].segments()[0].shaped->glyphs);
 }
 
-TEST(TextTransformTest, CapitalizeTitlecasesFirstLetterOnly) {
+TEST(TextTransform, CapitalizeTitlecasesFirstLetterOnly) {
   Paragraph transformed = transformedParagraph(u8"mixedCase words here",
                                                TextTransform::kCapitalize);
   Paragraph reference = makeParagraph(u8"MixedCase Words Here");
-  transformed.ensureShaped(sharedContext());
-  reference.ensureShaped(sharedContext());
+  transformed.ensureShaped(sigil::test::fonts());
+  reference.ensureShaped(sigil::test::fonts());
   ASSERT_EQ(transformed.words().size(), reference.words().size());
   for (size_t wordIndex = 0; wordIndex < reference.words().size(); ++wordIndex)
     EXPECT_EQ(transformed.words()[wordIndex].segments()[0].shaped.get(),
@@ -121,8 +118,8 @@ TEST(TextTransformTest, CapitalizeTitlecasesFirstLetterOnly) {
 
 // ── Word spacing (ShapingStyle::wordSpacing) ─────────────────────────────
 
-TEST(WordSpacingTest, WidensGlueWithoutReshaping) {
-  FontContext& fontContext = sharedContext();
+TEST(WordSpacing, WidensGlueWithoutReshaping) {
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"alpha beta gamma");
   paragraph.ensureShaped(fontContext);
   const float baseGlue = paragraph.words()[0].spaceWidth;
@@ -150,7 +147,7 @@ TEST(WordSpacingTest, WidensGlueWithoutReshaping) {
 // ──────────────────────────────────────
 
 TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   // SF Pro (macOS system font) ships proportional figures by default and a
   // tnum feature; fall back to skipping when neither is measurable.
   auto digitWidths = [&](std::vector<FontFeature> features) {
@@ -169,11 +166,6 @@ TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
   const std::vector<float> proportional = digitWidths({});
   const std::vector<float> tabular = digitWidths({features::tabularNumbers});
 
-  const auto spread = [](const std::vector<float>& widths) {
-    const auto [minimum, maximum] =
-        std::minmax_element(widths.begin(), widths.end());
-    return *maximum - *minimum;
-  };
   if (spread(proportional) < 0.01f)
     GTEST_SKIP() << "default face already has uniform digits; tnum unprovable";
   EXPECT_LT(spread(tabular), 0.01f) << "tabular figures must share one advance";

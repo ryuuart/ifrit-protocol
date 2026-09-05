@@ -32,16 +32,16 @@ float runOriginFor(const Paragraph& paragraph, const ParagraphLayout& layout,
 
 /// Both breakers resolve tab stops through the same placement path, so
 /// every claim about a stop is a claim about both of them.
-class TabbedLine : public ::testing::TestWithParam<LineBreakStrategy> {};
+class TabbedLine : public BrokenBothWays {};
 
 }  // namespace
 
 TEST_P(TabbedLine, EveryPostTabRunStartsAtItsStop) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"ab\tlongerhead\tx\ncdef\tk\tyz");
   BlockFlow flow(SkRect::MakeWH(600, 90));
   ParagraphLayoutOptions options;
-  options.lineBreakStrategy = GetParam();
+  options.lineBreakStrategy = breaker();
   options.tabStops.stops = {{120.0f}, {300.0f}};
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
@@ -57,11 +57,11 @@ TEST_P(TabbedLine, AWordThatCannotFitAfterItsStopWrapsInsteadOfLeaking) {
   // measure, but the tab pushes "tail" to the 180px stop where it cannot;
   // a breaker scoring lines at natural glue width would leak it past the
   // measure instead of wrapping.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"head\ttail");
   BlockFlow flow(SkRect::MakeWH(200, 200));
   ParagraphLayoutOptions options;
-  options.lineBreakStrategy = GetParam();
+  options.lineBreakStrategy = breaker();
   options.tabStops.stops = {{180.0f}};  // "tail" cannot fit after the stop
   ParagraphLayout layout =
       layoutParagraph(fontContext, paragraph, flow, options);
@@ -72,16 +72,8 @@ TEST_P(TabbedLine, AWordThatCannotFitAfterItsStopWrapsInsteadOfLeaking) {
         << "tabbed line leaks past the measure";
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    Breakers, TabbedLine,
-    ::testing::Values(LineBreakStrategy::kGreedy,
-                      LineBreakStrategy::kKnuthPlass),
-    [](const ::testing::TestParamInfo<LineBreakStrategy>& info) {
-      return info.param == LineBreakStrategy::kGreedy ? "Greedy" : "KnuthPlass";
-    });
-
 TEST(TabStops, RepeatingIntervalAfterExplicitStops) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"a\tb\tc\td");
   BlockFlow flow(SkRect::MakeWH(800, 60));
   ParagraphLayoutOptions options;
@@ -96,7 +88,7 @@ TEST(TabStops, RepeatingIntervalAfterExplicitStops) {
 }
 
 TEST(TabStops, ContentPastStopAdvancesToNext) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   // "wideenough" extends past the 40px stop, so the tab after it must jump
   // to the following stop instead of backing up.
   Paragraph paragraph = makeParagraph(u8"wideenoughcontent\tafter");
@@ -109,7 +101,7 @@ TEST(TabStops, ContentPastStopAdvancesToNext) {
 }
 
 TEST(TabStops, EndAlignedStopPinsTheCellsEnd) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"Chapter\t12");
   BlockFlow flow(SkRect::MakeWH(400, 200));
   ParagraphLayoutOptions options;
@@ -122,7 +114,7 @@ TEST(TabStops, EndAlignedStopPinsTheCellsEnd) {
 }
 
 TEST(TabStops, CharacterAlignedStopPinsTheDecimalPoint) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"Total\t1284.50");
   BlockFlow flow(SkRect::MakeWH(400, 200));
   ParagraphLayoutOptions options;
@@ -138,7 +130,7 @@ TEST(TabStops, CharacterAlignedStopPinsTheDecimalPoint) {
 }
 
 TEST(TabStops, LeaderFillsTheGapItOpened) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"Chapter\t12");
   Paragraph led = makeParagraph(u8"Chapter\t12");
   BlockFlow flowA(SkRect::MakeWH(400, 200));
@@ -154,30 +146,29 @@ TEST(TabStops, LeaderFillsTheGapItOpened) {
   EXPECT_GT(dottedRuns, bareRuns + 5);
 }
 
-TEST(TabStops, JustificationKeepsColumnsOnStops) {
-  FontContext& fontContext = sharedContext();
-  for (const LineBreakStrategy strategy :
-       {LineBreakStrategy::kGreedy, LineBreakStrategy::kKnuthPlass}) {
-    Paragraph paragraph = makeParagraph(u8"a\tbb cc dd");
-    BlockFlow flow(SkRect::MakeWH(400, 60));
-    ParagraphLayoutOptions options;
-    options.lineBreakStrategy = strategy;
-    options.alignment = TextAlignment::kJustify;
-    options.justification.justifyLastLine = true;
-    options.tabStops.stops = {{100.0f}};
-    ParagraphLayout layout =
-        layoutParagraph(fontContext, paragraph, flow, options);
-    ASSERT_EQ(layout.lineCount, 1);
-    // The column stays pinned to its stop; only the gaps past the tab
-    // stretch, and they absorb the entire slack to the measure.
-    EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"bb"), 100.0f);
-    EXPECT_NEAR(lineEnds(layout, paragraph).front(), 400.0f, 0.75f)
-        << "tabbed line not justified";
-  }
+TEST_P(TabbedLine, JustificationStretchesOnlyTheGapsPastTheStop) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(u8"a\tbb cc dd");
+  BlockFlow flow(SkRect::MakeWH(400, 60));
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = breaker();
+  options.alignment = TextAlignment::kJustify;
+  options.justification.justifyLastLine = true;
+  options.tabStops.stops = {{100.0f}};
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_EQ(layout.lineCount, 1);
+  // The column stays pinned to its stop; only the gaps past the tab
+  // stretch, and they absorb the entire slack to the measure.
+  EXPECT_FLOAT_EQ(runOriginFor(paragraph, layout, u"bb"), 100.0f);
+  EXPECT_NEAR(lineEnds(layout, paragraph).front(), 400.0f, 0.75f)
+      << "tabbed line not justified";
 }
 
+INSTANTIATE_TEST_SUITE_P(Breakers, TabbedLine, bothBreakers(), breakerName);
+
 TEST(TabStops, CenterAlignmentShiftsTheResolvedLine) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"a\tb");
   BlockFlow flow(SkRect::MakeWH(300, 60));
   ParagraphLayoutOptions options;
@@ -197,7 +188,7 @@ TEST(TabStops, CenterAlignmentShiftsTheResolvedLine) {
 }
 
 TEST(TabStops, UnconfiguredTabsStillMeasureAsSpaces) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph tab = makeParagraph(u8"a\tb");
   Paragraph space = makeParagraph(u8"a b");
   BlockFlow tabFlow(SkRect::MakeWH(400, 60));

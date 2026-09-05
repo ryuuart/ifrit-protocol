@@ -10,7 +10,8 @@ sigil_library(SigilWeaveStyle
           Style.h StyleSet.h Type.h TextStyle.h
   INTERFACE unofficial::skia::skia)
 
-# Styles are plain values, so their test shapes nothing and links no fonts.
+# Styles are plain values, so their test shapes nothing, links no fonts and
+# needs nothing of the machine it runs on.
 sigil_test(weave_style_test
   SOURCES test/StyleTest.cpp
   LIBRARIES SigilWeaveStyle)

@@ -171,12 +171,21 @@ TEST(Flow, PathExclusionOffsetMovesWithoutReflatten) {
   }
 }
 
-TEST(Flow, NoRunEverSitsInsideAnExclusionShape) {
+namespace {
+
+/// A run landing inside a shape means the breaker put an overfull line
+/// into the gap beside it, so the claim is one about breaking and both
+/// breakers answer for it.
+class ExcludedFlow : public BrokenBothWays {};
+
+}  // namespace
+
+TEST_P(ExcludedFlow, NoRunEverSitsInsideAnExclusionShape) {
   // Mixed Latin/CJK justified text flowing around a drifting donut and
   // circle. Every placed run must stay inside one of its line's intervals —
   // text ending up *inside* a shape means the breaker placed an overfull
   // line into the gap beside it.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"Typography is the craft of arranging type, and glyphs flow around "
       "obstacles the way water flows around stones. 日本語のテキストも同じ"
@@ -206,34 +215,30 @@ TEST(Flow, NoRunEverSitsInsideAnExclusionShape) {
                          180),
         8));
 
-    for (LineBreakStrategy breaker :
-         {LineBreakStrategy::kGreedy, LineBreakStrategy::kKnuthPlass}) {
-      const char* breakerName =
-          breaker == LineBreakStrategy::kGreedy ? "greedy" : "knuth-plass";
-      ParagraphLayoutOptions options;
-      options.lineBreakStrategy = breaker;
-      options.alignment = TextAlignment::kJustify;
-      options.lineMetrics.height = lineHeight;
-      options.lineMetrics.ascent = lineAscent;
-      ParagraphLayout layout =
-          layoutParagraph(fontContext, paragraph, flow, options);
-      EXPECT_FALSE(layout.overflowed());
+    ParagraphLayoutOptions options;
+    options.lineBreakStrategy = breaker();
+    options.alignment = TextAlignment::kJustify;
+    options.lineMetrics.height = lineHeight;
+    options.lineMetrics.ascent = lineAscent;
+    ParagraphLayout layout =
+        layoutParagraph(fontContext, paragraph, flow, options);
+    EXPECT_FALSE(layout.overflowed());
 
-      const IntervalContainment held = runsStayInsideIntervals(
-          flow, layout, lineHeight, lineAscent, PenAxis::kAlongLines);
-      EXPECT_GT(held.runs, 0);
-      EXPECT_EQ(held.exhausted, 0)
-          << "the flow refused a band it had already placed a run on";
-      EXPECT_GT(held.splitBands, 0)
-          << "the shapes split no band at all (phase " << phase << ")";
-      EXPECT_EQ(held.outside, 0)
-          << "a run on line " << held.outsideBand << " spans ["
-          << held.outsideStart << ", " << held.outsideEnd
-          << "] outside every interval (breaker " << breakerName << ", phase "
-          << phase << ")";
-    }
+    const IntervalContainment held = runsStayInsideIntervals(
+        flow, layout, lineHeight, lineAscent, PenAxis::kAlongLines);
+    EXPECT_GT(held.runs, 0);
+    EXPECT_EQ(held.exhausted, 0)
+        << "the flow refused a band it had already placed a run on";
+    EXPECT_GT(held.splitBands, 0)
+        << "the shapes split no band at all (phase " << phase << ")";
+    EXPECT_EQ(held.outside, 0)
+        << "a run on line " << held.outsideBand << " spans ["
+        << held.outsideStart << ", " << held.outsideEnd
+        << "] outside every interval (phase " << phase << ")";
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(Breakers, ExcludedFlow, bothBreakers(), breakerName);
 
 // ── The same exclusions met by a column ──────────────────────────────────
 

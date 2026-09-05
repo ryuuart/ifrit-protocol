@@ -1,9 +1,11 @@
 /** @file
- * Drawing a finished layout: paint layers and shaders take effect without a
- * relayout, a pass carrying a material shades through the installed
- * resolver and draws with its paint alone without one, the free draws are
- * the members, and placeholder rects and selection bands draw where the
- * layout says they landed.
+ * Drawing a finished layout: paint layers and shaders take effect without
+ * a relayout, a selection band drawn behind a line covers what the layout
+ * said the line covers, a pass carrying a material shades through the
+ * installed resolver and draws with its paint alone without one, and every
+ * preset text paint resolves to a shader over the bounds it is given. What
+ * one of them looks like on a page of type is a picture, and a picture is
+ * the plate ledger's to judge rather than an assertion's.
  */
 
 #include <gtest/gtest.h>
@@ -21,28 +23,42 @@
 #include <utility>
 #include <vector>
 
-#include "support/Fonts.h"
+#include "support/Faces.h"
+
+#include "support/Faces.h"
 #include "support/Layouts.h"
+#include "support/Paints.h"
 #include "support/Paragraphs.h"
 #include "support/Pixels.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
+namespace {
+
+/// The resolver is process-wide, so a case that installs one puts it back
+/// however it leaves.
+class InstalledResolver {
+ public:
+  explicit InstalledResolver(paint::MaterialResolver resolver) {
+    paint::setMaterialResolver(std::move(resolver));
+  }
+  InstalledResolver(const InstalledResolver&) = delete;
+  InstalledResolver& operator=(const InstalledResolver&) = delete;
+  ~InstalledResolver() { paint::setMaterialResolver({}); }
+};
+
+}  // namespace
+
 TEST(PaintPasses, ShadowAndShaderDrawWithoutRelayout) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"effects are paint-only");
   BlockFlow flow(SkRect::MakeWH(400, 100));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   PaintStyle fancy(SK_ColorWHITE);
   fancy.addUnderlay(PaintLayer::dropShadow(0x80000000, {3, 3}, 2.5f));
-  const SkPoint gradientPoints[2] = {{0, 0}, {180, 0}};
-  const SkColor4f gradientColors[2] = {SkColor4f::FromColor(SK_ColorRED),
-                                       SkColor4f::FromColor(SK_ColorBLUE)};
-  fancy.foreground.setShader(SkShaders::LinearGradient(
-      gradientPoints,
-      SkGradient(SkGradient::Colors({gradientColors, 2}, SkTileMode::kClamp),
-                 SkGradient::Interpolation())));
+  fancy.foreground.setShader(
+      horizontalGradient(0, 180, SK_ColorRED, SK_ColorBLUE));
   paragraph.setPaint(0, 7, fancy);
 
   sk_sp<SkSurface> surface =
@@ -63,7 +79,7 @@ TEST(PaintPasses, ShadowAndShaderDrawWithoutRelayout) {
 TEST(PaintPasses, ASelectionBandBehindALineCoversItsInterior) {
   // The headline use case: a band behind a whole line is the line's own
   // rect() painted before draw().
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   paragraph.appendText(u8"pill ", basicStyle(14.0f));
   paragraph.appendPlaceholder({60, 50, /*baselineDrop=*/10}, basicStyle(14.0f));
@@ -90,7 +106,7 @@ TEST(PaintPasses, ASelectionBandBehindALineCoversItsInterior) {
 }
 
 TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"material pass");
   BlockFlow flow(SkRect::MakeWH(300, 80));
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
@@ -124,7 +140,6 @@ TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
     return std::pair<int, int>{inked, coloured};
   };
 
-  paint::setMaterialResolver({});
   EXPECT_FALSE(paint::hasMaterialResolver());
   for (bool batched : {false, true}) {
     const auto [inked, coloured] = render(batched);
@@ -135,7 +150,7 @@ TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
   // The resolver a host installs: SigilMaterial's Skia backend, with the
   // pass's bounds as the material's resolution.
   sigil::material::skia::install();
-  paint::setMaterialResolver(
+  const InstalledResolver installed(
       [](const sigil::material::Material& m, const SkRect& bounds) {
         return sigil::material::skia::shader(
             m, {.resolution = {bounds.width(), bounds.height()}});
@@ -146,5 +161,36 @@ TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
     EXPECT_GT(inked, 0);
     EXPECT_GT(coloured, 0) << "with a resolver the pass shades its material";
   }
-  paint::setMaterialResolver({});
 }
+
+// ── The preset text paints a paint style can carry ───────────────────────
+
+namespace {
+
+/// One preset, named by the word a caller spells it with.
+struct TextPaintPreset {
+  const char* name;
+  sigil::material::Material (*build)(const SkRect&, float);
+};
+
+class TextPaintPresets : public ::testing::TestWithParam<TextPaintPreset> {};
+
+}  // namespace
+
+TEST_P(TextPaintPresets, EachResolvesToAShaderOverTheBoundsItIsGiven) {
+  const SkRect bounds = SkRect::MakeXYWH(10, 10, 1180, 880);
+  sigil::material::skia::install();
+  EXPECT_NE(sigil::material::skia::shader(GetParam().build(bounds, 1.25f), {}),
+            nullptr);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Presets, TextPaintPresets,
+    ::testing::Values(TextPaintPreset{"Water", sigil::material::kit::water},
+                      TextPaintPreset{"MeshGradient",
+                                      sigil::material::kit::meshGradient},
+                      TextPaintPreset{"Sparkle",
+                                      sigil::material::kit::sparkle}),
+    [](const ::testing::TestParamInfo<TextPaintPreset>& info) {
+      return std::string(info.param.name);
+    });

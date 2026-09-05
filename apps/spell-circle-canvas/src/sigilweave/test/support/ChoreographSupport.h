@@ -8,6 +8,6 @@
 
 #include <sigilweave/choreograph/Choreograph.h>
 
-#include "Fonts.h"
+#include "Faces.h"
 #include "Layouts.h"
 #include "Paragraphs.h"

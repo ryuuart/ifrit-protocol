@@ -11,12 +11,14 @@ sigil_library(SigilWeavePaint
   HEADERS Paint.h
   PUBLIC SigilWeaveDecoration)
 
-# Every test here puts pixels on a surface, except the one that asks the
-# preset runtime shaders to resolve. The material pass installs their
-# resolver and shades with a kit paint, which is why both link here.
+# What reaches the canvas, one file per subject: the passes a layout draws
+# with, and the decoration bands beneath and above the glyphs. Where a band
+# lands is geometry and belongs to the decoration feature; only whether the
+# ink arrives is asked here. A pass carrying a material shades through a
+# resolver the host installs, so the kit paints and the Skia backend that
+# shades them are both linked.
 sigil_test(weave_paint_test
   SOURCES test/PaintTest.cpp test/DecorationPaintTest.cpp
-          test/ShaderPresetTest.cpp
   LIBRARIES SigilWeavePaint SigilWeavePorts SigilMaterialKit SigilMaterialSkia)
 
 # draw and drawBatched per glyph on a raster surface.

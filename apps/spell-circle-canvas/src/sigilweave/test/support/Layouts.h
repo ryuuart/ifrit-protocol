@@ -2,9 +2,11 @@
 
 /** @file
  * The layout entry point, a run's exact end position, a circle as one
- * contour, and the readings every test binary takes off a finished layout:
- * where each line ended, how wide each one is, how many glyphs were placed,
- * and whether every run stayed inside an interval its own band offered.
+ * contour, the two-word setting a decoration band is read in, and the
+ * readings every test binary takes off a finished layout: which runs
+ * placed glyphs, where each line ended, how wide each one is, how many
+ * glyphs were placed, and whether every run stayed inside an interval its
+ * own band offered.
  *
  * Nothing here calls a GoogleTest assertion, so a benchmark can include it
  * for the same readings without linking a test framework.
@@ -19,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "Fonts.h"
+#include "Faces.h"
 #include "Paragraphs.h"
 
 namespace sigil::weave::test {
@@ -53,6 +55,16 @@ inline int64_t glyphCount(const ParagraphLayout& layout) {
   return glyphs;
 }
 
+/// The runs that placed glyphs, in the order the layout emitted them.
+/// A placeholder reserves room without shaping anything, so it is not one.
+inline std::vector<const PositionedRun*> wordRuns(
+    const ParagraphLayout& layout) {
+  std::vector<const PositionedRun*> placed;
+  for (const PositionedRun& run : layout.runs)
+    if (run.shaped) placed.push_back(&run);
+  return placed;
+}
+
 /// A single-span paragraph laid out in `flow`, with the paragraph beside
 /// it: every index a layout reports is an index into that paragraph, so
 /// the two are one answer.
@@ -64,8 +76,17 @@ struct LaidOut {
 inline LaidOut laidOut(std::u8string_view utf8, float fontSize,
                        FlowGeometry& flow) {
   Paragraph paragraph = makeParagraph(utf8, fontSize);
-  ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+  ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
   return {std::move(paragraph), std::move(layout)};
+}
+
+/// Two words at 32px on one line of a 400x80 block. A band's whole
+/// question is what it does at the glue between two words, so this is the
+/// setting every claim about one is read in — as geometry in the
+/// decoration feature, and as pixels in the paint feature.
+inline LaidOut twoWordsOnOneLine() {
+  BlockFlow flow(SkRect::MakeWH(400, 80));
+  return laidOut(u8"mono nano", 32.0f, flow);
 }
 
 /// How far along the pen each line reached, ascending by line index and

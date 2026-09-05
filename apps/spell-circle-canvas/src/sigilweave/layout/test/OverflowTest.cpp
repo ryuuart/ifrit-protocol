@@ -15,7 +15,7 @@ using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 TEST(Overflow, ReportsFirstUnplacedWord) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"far more text than could ever fit inside such a tiny little box");
   BlockFlow flow(SkRect::MakeWH(120, 40));
@@ -26,35 +26,42 @@ TEST(Overflow, ReportsFirstUnplacedWord) {
 
 // ── Overflowing paragraphs fill what fits, not what exists ───────────────
 
-TEST(Overflow, AnOverflowedFrameStopsAtItsGeometryAndNotAtTheLastWord) {
+namespace {
+
+/// Filling a frame is a breaking decision, so both breakers answer for it.
+class OverflowedFrame : public BrokenBothWays {};
+
+}  // namespace
+
+TEST_P(OverflowedFrame, AFrameStopsAtItsGeometryAndNotAtTheLastWord) {
   // Thirty thousand words in a box with room for about one percent of
-  // them: both breakers must fill the box, report the overflow, and name a
+  // them: the breaker must fill the box, report the overflow, and name a
   // first unplaced word near the geometry's own end rather than walking to
   // the end of the text.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   static constexpr const char8_t* kWordPool[] = {
       u8"letters", u8"flow",    u8"around",  u8"boxes", u8"while",
       u8"the",     u8"breaker", u8"stops",   u8"at",    u8"geometry",
       u8"instead", u8"of",      u8"walking", u8"every", u8"word"};
   Paragraph paragraph;
   paragraph.appendText(makePooledText(kWordPool, 30000, 11), basicStyle());
-  BlockFlow flow(SkRect::MakeWH(420, 320));  // room for ~1% of the text
+  BlockFlow flow(SkRect::MakeWH(420, 320));  // room for a small part of it
 
-  for (LineBreakStrategy breakStrategy :
-       {LineBreakStrategy::kGreedy, LineBreakStrategy::kKnuthPlass}) {
-    ParagraphLayoutOptions options;
-    options.lineBreakStrategy = breakStrategy;
-    options.alignment = TextAlignment::kJustify;
-    ParagraphLayout layout =
-        layoutParagraph(fontContext, paragraph, flow, options);
-    EXPECT_TRUE(layout.overflowed());
-    EXPECT_GT(layout.runs.size(), 50u);
-    EXPECT_LT(layout.firstUnplacedWord, 600u);
-  }
+  ParagraphLayoutOptions options;
+  options.lineBreakStrategy = breaker();
+  options.alignment = TextAlignment::kJustify;
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  EXPECT_TRUE(layout.overflowed());
+  EXPECT_GT(layout.runs.size(), 50u);
+  EXPECT_LT(layout.firstUnplacedWord, 600u);
 }
 
+INSTANTIATE_TEST_SUITE_P(Breakers, OverflowedFrame, bothBreakers(),
+                         breakerName);
+
 TEST(Overflow, EllipsisMarksOverflow) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"far more text than a two line box can ever hope to hold so the "
       "marker has to step in and admit that the rest is missing");
@@ -79,7 +86,7 @@ TEST(Overflow, EllipsisMarksOverflow) {
 }
 
 TEST(Overflow, NoEllipsisWhenTextFits) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"short and sweet");
   BlockFlow flow(SkRect::MakeWH(400, 200));
   ParagraphLayoutOptions options;
@@ -95,7 +102,7 @@ TEST(Overflow, ShapesOnlyWhatFits) {
   // Lazy shaping: layout pulls HarfBuzz along its frontier, so the ~29k
   // words that never fit the box are itemized but never shaped. Every word
   // is unique so the content-addressed cache can't hide eager shaping.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   std::u8string text;
   for (int wordIndex = 0; wordIndex < 30000; ++wordIndex) {
     text += u8"word";
@@ -123,7 +130,8 @@ TEST(Overflow, ShapesOnlyWhatFits) {
   EXPECT_TRUE(layout.overflowed());
   EXPECT_GT(layout.runs.size(), 50u);
   EXPECT_GT(paragraph.shapedWordCount(), layout.runs.size() / 2);
-  // ~600 placed words (+ glue + slack); eager shaping would be ~30,000.
+  // Only the frontier is shaped: eager shaping would be one call per word
+  // of the whole thirty thousand.
   EXPECT_LT(newShapeCallCount, 3000u) << "overflow text was shaped eagerly";
   EXPECT_LT(paragraph.shapedWordCount(), 3000u);
 
@@ -137,7 +145,7 @@ TEST(Overflow, ShapesOnlyWhatFits) {
 // ── Line clamp (OverflowOptions::maxLines) ───────────────────────────────
 
 TEST(LineClamp, ClampsWithEllipsisOnLastLine) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"a paragraph long enough to fill five or six lines in this narrow "
       "measure keeps flowing and flowing until the clamp cuts it short");
@@ -165,7 +173,7 @@ TEST(LineClamp, ClampsWithEllipsisOnLastLine) {
 }
 
 TEST(LineClamp, TruncatesSilentlyWithoutEllipsis) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"plenty of words that will not fit inside a single clamped line at "
       "all in this measure");
@@ -180,7 +188,7 @@ TEST(LineClamp, TruncatesSilentlyWithoutEllipsis) {
 }
 
 TEST(LineClamp, WorksUnderKnuthPlassAndExclusions) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"text flows around the circle while the clamp limits how far down "
       "the exclusion geometry the paragraph is allowed to travel at all");
@@ -198,7 +206,7 @@ TEST(LineClamp, WorksUnderKnuthPlassAndExclusions) {
 }
 
 TEST(LineClamp, RespectsMandatoryBreaks) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one\ntwo\nthree\nfour");
   BlockFlow flow(SkRect::MakeWH(400, 1000));
   ParagraphLayoutOptions options;

@@ -19,7 +19,7 @@ using namespace sigil::weave::test;
 // ── Leading ───────────────────────────────────────────────────────────────
 
 TEST(ParagraphStyle, FaceLeadingIsWhatAnUnstyledTextGets) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"one two three four five six seven eight");
   Paragraph styled = makeParagraph(u8"one two three four five six seven eight");
   BlockFlow flowA(SkRect::MakeWH(120, 400));
@@ -36,7 +36,7 @@ TEST(ParagraphStyle, FaceLeadingIsWhatAnUnstyledTextGets) {
 }
 
 TEST(ParagraphStyle, MultipleLeadingOpensThePitch) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
   BlockFlow flow(SkRect::MakeWH(120, 900));
   ParagraphLayoutOptions options;
@@ -57,7 +57,7 @@ TEST(ParagraphStyle, MultipleLeadingOpensThePitch) {
 }
 
 TEST(ParagraphStyle, AbsoluteLeadingStatesThePitchOutright) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
   BlockFlow flow(SkRect::MakeWH(120, 900));
   ParagraphLayoutOptions options;
@@ -71,7 +71,7 @@ TEST(ParagraphStyle, AbsoluteLeadingStatesThePitchOutright) {
 }
 
 TEST(ParagraphStyle, GridLeadingLandsTwoBlocksOnOneRhythm) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
   BlockFlow flow(SkRect::MakeWH(160, 900));
   ParagraphLayoutOptions options;
@@ -91,7 +91,7 @@ TEST(ParagraphStyle, GridLeadingLandsTwoBlocksOnOneRhythm) {
 // ── Spacing ───────────────────────────────────────────────────────────────
 
 TEST(ParagraphStyle, TheGapIsTheLargerOfAfterAndBefore) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   ParagraphLayoutOptions options;
   ParagraphStyle first;
   first.spaceAfter = 30.0f;
@@ -126,7 +126,7 @@ TEST(ParagraphStyle, TheGapIsTheLargerOfAfterAndBefore) {
 }
 
 TEST(ParagraphStyle, SpaceBeforeIsNotSuppressedAtTheHeadOfTheFlow) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three");
   BlockFlow flow(SkRect::MakeWH(300, 400));
   ParagraphLayoutOptions options;
@@ -143,7 +143,7 @@ TEST(ParagraphStyle, SpaceBeforeIsNotSuppressedAtTheHeadOfTheFlow) {
 // ── Indents ───────────────────────────────────────────────────────────────
 
 TEST(ParagraphStyle, FirstLineIndentShortensOnlyTheFirstLine) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
   BlockFlow flow(SkRect::MakeWH(140, 400));
   ParagraphLayoutOptions options;
@@ -158,7 +158,7 @@ TEST(ParagraphStyle, FirstLineIndentShortensOnlyTheFirstLine) {
 }
 
 TEST(ParagraphStyle, StartIndentMovesEveryLine) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
   BlockFlow flow(SkRect::MakeWH(140, 400));
   ParagraphLayoutOptions options;
@@ -172,7 +172,7 @@ TEST(ParagraphStyle, StartIndentMovesEveryLine) {
 }
 
 TEST(ParagraphStyle, HangingIndentPullsTheFirstLineOut) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
   BlockFlow flow(SkRect::MakeWH(160, 400));
   ParagraphLayoutOptions options;
@@ -188,7 +188,7 @@ TEST(ParagraphStyle, HangingIndentPullsTheFirstLineOut) {
 }
 
 TEST(ParagraphStyle, EndIndentShortensTheMeasure) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph wide = makeParagraph(u8"one two three four five six seven eight");
   Paragraph narrow = makeParagraph(u8"one two three four five six seven eight");
   BlockFlow wideFlow(SkRect::MakeWH(200, 600));
@@ -205,7 +205,7 @@ TEST(ParagraphStyle, EndIndentShortensTheMeasure) {
 // ── Per-block overrides ───────────────────────────────────────────────────
 
 TEST(ParagraphStyle, AlignmentIsPerBlock) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
   BlockFlow flow(SkRect::MakeWH(400, 600));
   ParagraphLayoutOptions options;
@@ -221,7 +221,7 @@ TEST(ParagraphStyle, AlignmentIsPerBlock) {
 }
 
 TEST(ParagraphStyle, HalfLeadingPutsHalfTheOpenedRoomUnderTheLine) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph above = makeParagraph(u8"one two three four five six seven");
   Paragraph split = makeParagraph(u8"one two three four five six seven");
   BlockFlow flowA(SkRect::MakeWH(120, 900));
@@ -248,7 +248,7 @@ TEST(ParagraphStyle, HalfLeadingPutsHalfTheOpenedRoomUnderTheLine) {
 }
 
 TEST(ParagraphStyle, ABaselineShiftLiftsASpanAndCostsNoReshape) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   TextStyle base = basicStyle(16.0f);
   TextStyle lifted = base;
   lifted.paint.baselineShift = 6.0f;

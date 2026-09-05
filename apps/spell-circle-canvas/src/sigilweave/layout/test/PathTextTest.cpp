@@ -1,14 +1,18 @@
 /** @file
- * Placement on a contour interval, read by the layout and by a caller that
- * re-places its glyphs: a phase walks a run round a closed contour without
- * a relayout, a geometrically closed contour wraps only when flagged, and a
- * negative advance scale walks the contour backwards.
+ * Text set on a geometry of its own rather than on a block: an arbitrary
+ * set of line segments, a turned line, a closed contour, and the interval
+ * arithmetic underneath all of them — a phase walks a run round a closed
+ * contour without a relayout, a geometrically closed contour wraps only
+ * when flagged, an advance scale compresses the arc the text subtends, and
+ * a negative one walks the contour backwards.
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
+#include <numbers>
 #include <vector>
 
 #include "support/Layouts.h"
@@ -97,4 +101,98 @@ TEST(PathText, ANegativeAdvanceScaleWalksTheContourBackwards) {
   forward.placeAt(70.0f, 0.0f, 0, &earlierForward, &ignored);
   EXPECT_NEAR(later.x(), earlierForward.x(), 0.01f);
   EXPECT_NEAR(later.y(), earlierForward.y(), 0.01f);
+}
+
+TEST(PathText, ALineSetPlacesEachLineOnTheSegmentItNamed) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(u8"words on custom lines flow freely");
+
+  LineSetFlow flow;
+  flow.lines().push_back({LineInterval{{50, 40}, {1, 0}, 150}});
+  flow.lines().push_back({LineInterval{{200, 90}, {1, 0}, 150}});
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  ASSERT_FALSE(layout.runs.empty());
+  for (const PositionedRun& run : layout.runs) {
+    if (run.lineIndex == 0) {
+      EXPECT_FLOAT_EQ(run.origin.y(), 40);
+      EXPECT_GE(run.origin.x(), 50);
+    } else {
+      EXPECT_FLOAT_EQ(run.origin.y(), 90);
+      EXPECT_GE(run.origin.x(), 200);
+    }
+  }
+}
+
+TEST(PathText, ARunOnATurnedLineBakesItsPositionsIntoTheBlob) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(u8"diagonal");
+  const float inv = 1.0f / std::sqrt(2.0f);
+  LineSetFlow flow;
+  flow.lines().push_back({LineInterval{{0, 0}, {inv, inv}, 400}});
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  ASSERT_EQ(layout.runs.size(), 1u);
+  ASSERT_TRUE(layout.runs[0].transformed);
+  // A transformed run carries no origin of its own: the glyphs are already
+  // where they belong, marching down and to the right along the line the
+  // interval named. On a line at forty-five degrees the run reaches about
+  // its own advance over the root of two on each axis, so half its advance
+  // is a floor no horizontal setting could clear on y.
+  EXPECT_EQ(layout.runs[0].origin, (SkPoint{0, 0}));
+  const float half = layout.runs[0].shaped->advance * 0.5f;
+  const SkRect bounds = layout.runs[0].blob->bounds();
+  EXPECT_GT(bounds.right(), half);
+  EXPECT_GT(bounds.bottom(), half);
+}
+
+TEST(PathText, APathFlowLaysEveryRunAlongTheContour) {
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(u8"around and around and around it goes");
+  SkPath circle = SkPath::Circle(200, 200, 120);
+  PathFlow flow(circle);
+  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+
+  ASSERT_FALSE(layout.runs.empty());
+  for (const PositionedRun& run : layout.runs) {
+    const SkRect bounds = run.blob->bounds();
+    const float horizontalOffset = bounds.centerX() - 200.0f;
+    const float verticalOffset = bounds.centerY() - 200.0f;
+    const float distanceFromCenter = std::sqrt(
+        horizontalOffset * horizontalOffset + verticalOffset * verticalOffset);
+    EXPECT_NEAR(distanceFromCenter, 120.0f, 40.0f)
+        << "glyphs strayed off the circle";
+  }
+}
+
+TEST(PathText, AnAdvanceScaleCompressesTheArcTheTextSubtends) {
+  FontContext& fontContext = sigil::test::fonts();
+  const std::vector<sigil::geometry::path::Contour> rings =
+      sigil::geometry::path::Contour::of(SkPath::Circle(0, 0, 200));
+  ASSERT_EQ(rings.size(), 1u);
+  const sigil::geometry::path::Contour& ring = rings.front();
+
+  // Same text on the same ring, once at natural arc consumption and once at
+  // half — the half-scale layout's final word must sit at roughly half the
+  // angle around the ring (pen starts at (200, 0) and marches clockwise).
+  auto lastRunAngle = [&](float scale) {
+    Paragraph paragraph = makeParagraph(u8"curvature compensation", 40.0f);
+    LineInterval interval;
+    interval.contour = ring;
+    interval.length = ring.length() / scale;
+    interval.advanceScale = scale;
+    LineSetFlow flow;
+    flow.lines().push_back({interval});
+    ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+    EXPECT_FALSE(layout.runs.empty());
+    const SkRect bounds = layout.runs.back().blob->bounds();
+    float angle = std::atan2(bounds.centerY(), bounds.centerX());
+    if (angle < 0) angle += 2.0f * std::numbers::pi_v<float>;
+    return angle;
+  };
+
+  const float full = lastRunAngle(1.0f);
+  const float half = lastRunAngle(0.5f);
+  EXPECT_GT(full, half * 1.5f)
+      << "advanceScale should compress the arc the text subtends";
+  EXPECT_NEAR(full, half * 2.0f, full * 0.25f);
 }

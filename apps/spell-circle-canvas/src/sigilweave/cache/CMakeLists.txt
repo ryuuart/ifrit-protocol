@@ -10,8 +10,8 @@ sigil_library(SigilWeaveCache
 
 # The key, the quantisation step, and the two promises the node-based
 # storage makes about a reference it handed out. Nothing here shapes, so
-# the port is linked only for the committed face the typeface half of the
-# key is varied with.
+# the port is linked only to load the committed face the typeface half of
+# the key is varied with.
 sigil_test(weave_cache_test
   SOURCES test/CacheTest.cpp
   LIBRARIES SigilWeaveCache SigilWeavePorts)

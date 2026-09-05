@@ -18,7 +18,7 @@ using namespace sigil::weave::test;
 // ── The line's edges ──────────────────────────────────────────────────────
 
 TEST(LineEdges, HangingPunctuationPullsALineBackPastItsStart) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"“quoted opening words here”");
   Paragraph hung = makeParagraph(u8"“quoted opening words here”");
   BlockFlow flowA(SkRect::MakeWH(400, 200));
@@ -36,7 +36,7 @@ TEST(LineEdges, HangingPunctuationPullsALineBackPastItsStart) {
 }
 
 TEST(LineEdges, ATextWithNoTableIsSquaredOnItsAdvances) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"“quoted opening words here”");
   BlockFlow flow(SkRect::MakeWH(400, 200));
   const std::vector<float> starts =
@@ -46,7 +46,7 @@ TEST(LineEdges, ATextWithNoTableIsSquaredOnItsAdvances) {
 }
 
 TEST(LineEdges, KinsokuNeverOpensALineWithAProhibitedCharacter) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   // A comma that would otherwise begin a column: the prohibition drops the
   // boundary before it, so the character before comes down with it.
   const std::u8string passage =
@@ -70,7 +70,7 @@ TEST(LineEdges, KinsokuNeverOpensALineWithAProhibitedCharacter) {
 }
 
 TEST(LineEdges, KinsokuDropsTheBoundaryBeforeAProhibitedCharacter) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   // Two ideographs with a UAX #14 boundary between them, and a table that
   // forbids the second from opening a line: the boundary goes, and the two
   // become one unbreakable word.

@@ -10,7 +10,10 @@ sigil_library(SigilWeaveDecoration
   PUBLIC SigilWeaveLayout
   PRIVATE SigilCoreCompute Boost::unordered)
 
-# Bands checked as geometry, without drawing them.
+# Bands checked as geometry, without drawing them: where each kind and side
+# anchors is one TEST_P over the anchor table. Whether the ink arrives is
+# the paint feature's, which is the only other place these bands are asked
+# about.
 sigil_test(weave_decoration_test
   SOURCES test/DecorationTest.cpp
   LIBRARIES SigilWeaveDecoration SigilWeavePorts)

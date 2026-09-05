@@ -2,23 +2,22 @@
 /** @file
  * The corpus every shaping, layout and paint benchmark measures over: two
  * fixed word lists and the texts drawn from them, so a run is comparable
- * with the last. The font context and the style the corpus is set in are
- * the ones the tests use, so a benchmark and a test measure the same
- * engine over the same inputs.
+ * with the last. The style the corpus is set in and the process-wide font
+ * context it shapes through are the ones the tests use, so a benchmark and
+ * a test measure the same engine over the same inputs.
  */
 
 #include <random>
 #include <string>
 #include <vector>
 
-#include "../../test/support/Fonts.h"
+#include "../../test/support/Faces.h"
 #include "../../test/support/Paragraphs.h"
 
 namespace sigil::weave::bench {
 
 using test::basicStyle;
 using test::makePooledText;
-using test::sharedContext;
 
 inline const std::vector<std::u8string>& latinWords() {
   static const std::vector<std::u8string> words = {

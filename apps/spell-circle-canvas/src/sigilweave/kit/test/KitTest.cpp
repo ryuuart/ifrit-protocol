@@ -55,7 +55,7 @@ TEST(RebuildGuard, ThrowingBuildStaysInvalidAndRetries) {
   EXPECT_EQ(builds, 1);
 }
 
-TEST(CachedValue, ReturnsCachedValueUntilKeyChanges) {
+TEST(CachedValue, TheBuilderRunsAgainOnlyWhenTheKeyChanges) {
   kit::CachedValue<int, int> cached;
   EXPECT_EQ(cached.ensure({10}, [] { return 100; }), 100);
   // Same key: the stale-looking callable must not run.
@@ -84,7 +84,7 @@ TEST(LayoutGuard, RelayoutsOnEditAndDeclaredKeysOnly) {
   auto relayout = [&] {
     ++relayouts;
     BlockFlow flow(SkRect::MakeXYWH(0, 0, 200, 200));
-    layout = layoutParagraph(sharedContext(), paragraph, flow);
+    layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
   };
 
   const SkISize size{400, 300};
@@ -120,7 +120,7 @@ TEST(LayoutGuard, PaintOnlyRestyleDoesNotRelayout) {
   auto relayout = [&] {
     ++relayouts;
     BlockFlow flow(SkRect::MakeXYWH(0, 0, 300, 100));
-    layout = layoutParagraph(sharedContext(), paragraph, flow);
+    layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
   };
 
   const SkISize size{300, 100};
@@ -135,14 +135,14 @@ TEST(LayoutGuard, PaintOnlyRestyleDoesNotRelayout) {
   EXPECT_EQ(relayouts, 1);
 }
 
-TEST(Quantize, SnapsToStepMultiples) {
+TEST(Quantize, AValueSnapsToTheNearestMultipleOfItsStep) {
   EXPECT_FLOAT_EQ(kit::quantize(10.3f), 10.0f);
   EXPECT_FLOAT_EQ(kit::quantize(10.6f), 11.0f);
   EXPECT_FLOAT_EQ(kit::quantize(103.0f, 8.0f), 104.0f);
   EXPECT_FLOAT_EQ(kit::quantize(-2.6f), -3.0f);
 }
 
-TEST(GlyphBuckets, GroupsByKeyAndSkipsEmptyOnDraw) {
+TEST(GlyphBuckets, GlyphsGroupByKeyAndAnEmptyBucketIssuesNoDraw) {
   struct Shade {
     int level = 0;
     int fade = 0;
@@ -194,7 +194,7 @@ TEST(LineTables, TheStockProhibitionsAreTheFullWidthPunctuationOfTheGrid) {
   EXPECT_EQ(kit::kinsoku::japanese(), table) << "one derivation, reused";
 }
 
-TEST(Hyphenation, ATableAnswersForTheLanguageItDeclaresAndNoOther) {
+TEST(PatternHyphenator, ATableAnswersForTheLanguageItDeclaresAndNoOther) {
   const kit::PatternHyphenator german("de", "ü1be");
   EXPECT_EQ(breakPoints(german, u"über", "de-DE"), (std::vector<uint32_t>{1u}))
       << "ü-ber";
@@ -204,7 +204,7 @@ TEST(Hyphenation, ATableAnswersForTheLanguageItDeclaresAndNoOther) {
       << "a text that never said its language";
 }
 
-TEST(Hyphenation, LettersOutsideAsciiAreLettersLikeAnyOther) {
+TEST(PatternHyphenator, LettersOutsideAsciiAreLettersLikeAnyOther) {
   // The same pattern reaches the word however the word is capitalised, and
   // a table written over one alphabet says nothing about another.
   const kit::PatternHyphenator german("de", "ü1be");
@@ -213,7 +213,7 @@ TEST(Hyphenation, LettersOutsideAsciiAreLettersLikeAnyOther) {
   EXPECT_EQ(breakPoints(greek, u"ελλην", "el"), (std::vector<uint32_t>{2u}));
 }
 
-TEST(Hyphenation, AWordThatIsNotAllLettersIsLeftWhole) {
+TEST(PatternHyphenator, AWordThatIsNotAllLettersIsLeftWhole) {
   const kit::PatternHyphenator german("de", "ü1be 1be");
   EXPECT_TRUE(breakPoints(german, u"über2", "de").empty())
       << "a digit is not a letter";
@@ -221,7 +221,7 @@ TEST(Hyphenation, AWordThatIsNotAllLettersIsLeftWhole) {
       << "a word already carrying a hyphen";
 }
 
-TEST(Hyphenation, ExceptionSpellingsAndCommentsSurviveTheParse) {
+TEST(PatternHyphenator, ExceptionSpellingsAndCommentsSurviveTheParse) {
   const kit::PatternHyphenator german("de",
                                       "% Über alles, a licence header\n"
                                       "ü1be\n"
@@ -232,7 +232,7 @@ TEST(Hyphenation, ExceptionSpellingsAndCommentsSurviveTheParse) {
   EXPECT_EQ(german.patternCount(), 1u) << "the comment held no pattern";
 }
 
-TEST(Hyphenation, PatternsOpenBreaksInsideWords) {
+TEST(PatternHyphenator, PatternsOpenBreaksInsideWords) {
   static const kit::PatternHyphenator hyphenator(
       "en", kit::englishHyphenationPatterns());
   EXPECT_GT(hyphenator.patternCount(), 100u);

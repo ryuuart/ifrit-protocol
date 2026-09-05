@@ -12,7 +12,7 @@ using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 TEST(Paragraph, ReplaceTextPreservesSurroundingStyles) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph;
   TextStyle red = basicStyle();
   red.paint.foreground.setColor(SK_ColorRED);

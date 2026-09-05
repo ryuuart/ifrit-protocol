@@ -19,7 +19,7 @@ using namespace sigil::weave;
 // The umbrella still spells every subject.
 static_assert(std::is_same_v<StyleSet::Entry::second_type, TextStyle>);
 
-TEST(TextStyleVariations, TextStyleFluentSugarStaysOrderStable) {
+TEST(TextStyle, TheFluentSugarAppendsInTheOrderItWasCalled) {
   // weight()/opticalSize()/variation() replace in place when the axis is
   // already present — repeated fluent chains keep one order (one memoized
   // varied-typeface identity), never accumulate duplicates.
@@ -135,12 +135,17 @@ TEST(StyleSet, SetReplacesInPlaceAndEqualityIsExactAndOrdered) {
 // one pass, and a pass with a material is not the pass without it, so a
 // restyle that attaches a material is seen by the draw-time comparison.
 TEST(PaintStyle, PaintLayerMaterialComparesByIdentity) {
-  const auto shared = std::shared_ptr<const sigil::material::Material>();
+  // A pass never dereferences the material it names, and this feature does
+  // not link the library that defines one, so an address that owns nothing
+  // is all the comparison needs to be shown.
+  static char address = 0;
+  const auto named = std::shared_ptr<const sigil::material::Material>(
+      std::shared_ptr<void>{}, static_cast<const sigil::material::Material*>(
+                                   static_cast<const void*>(&address)));
   PaintLayer plain(SK_ColorRED);
   PaintLayer withMaterial(SK_ColorRED);
   EXPECT_EQ(plain, withMaterial);
-  withMaterial.material = std::shared_ptr<const sigil::material::Material>(
-      shared, reinterpret_cast<const sigil::material::Material*>(&plain));
+  withMaterial.material = named;
   EXPECT_NE(plain, withMaterial);
   PaintLayer same = withMaterial;
   EXPECT_EQ(same, withMaterial);

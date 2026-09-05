@@ -50,7 +50,7 @@ Scene scene(int words, const TextStyle& style) {
   Scene s;
   s.paragraph.appendText(makeText(words, /*mixed=*/true), style);
   BlockFlow flow(SkRect::MakeWH(700, 40000));
-  s.layout = layoutParagraph(sharedContext(), s.paragraph, flow);
+  s.layout = layoutParagraph(sigil::test::fonts(), s.paragraph, flow);
   const int height =
       (int)std::ceil((float)s.layout.lineCount * s.layout.linePitch) + 40;
   s.surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(720, height));
@@ -66,7 +66,7 @@ Scene columnScene(int words, const TextStyle& style) {
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 26;  // column pitch
   VerticalBlockFlow flow(SkRect::MakeWH(1400, 680));
-  s.layout = layoutParagraph(sharedContext(), s.paragraph, flow, options);
+  s.layout = layoutParagraph(sigil::test::fonts(), s.paragraph, flow, options);
   s.surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1400, 700));
   return s;
 }
@@ -202,7 +202,7 @@ Scene wall(bool effects) {
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   options.lineMetrics.height = 10.0f;
-  s.layout = layoutParagraph(sharedContext(), s.paragraph, flow, options);
+  s.layout = layoutParagraph(sigil::test::fonts(), s.paragraph, flow, options);
   s.surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1200, 900));
   return s;
 }

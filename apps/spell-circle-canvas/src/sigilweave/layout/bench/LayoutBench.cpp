@@ -45,9 +45,9 @@ void BM_Layout_Greedy(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(words, /*mixed=*/true), basicStyle());
   BlockFlow flow(SkRect::MakeWH(600, 20000));
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
   for ([[maybe_unused]] auto iteration : state) {
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, words);
@@ -67,10 +67,10 @@ void BM_Layout_KnuthPlass(benchmark::State& state) {
   paragraph.appendText(makeText(words, /*mixed=*/false), basicStyle());
   BlockFlow flow(SkRect::MakeWH(420, 40000));
   const ParagraphLayoutOptions options = knuthPlass();
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, words);
@@ -98,10 +98,10 @@ void BM_Layout_Overflowed_30000w(benchmark::State& state) {
                                   ? LineBreakStrategy::kGreedy
                                   : LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 30000);
@@ -123,10 +123,10 @@ void BM_Layout_Vertical_Columns(benchmark::State& state) {
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 26;  // column pitch
   VerticalBlockFlow flow(SkRect::MakeWH(20000, 600));
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, words);
@@ -162,10 +162,10 @@ void BM_Layout_KnuthPlass_Hyphenated_300w(benchmark::State& state) {
   paragraph.appendText(text, basicStyle());
   BlockFlow flow(SkRect::MakeWH(180, 40000));
   const ParagraphLayoutOptions options = knuthPlass();
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 300);
@@ -175,7 +175,7 @@ BENCHMARK(BM_Layout_KnuthPlass_Hyphenated_300w)->Unit(benchmark::kMicrosecond);
 // Three typefaces (serif/sans/mono) alternating span by span, plus CJK
 // fallback — whether font mixing taxes the warm path.
 void BM_Layout_Greedy_MultiFont_500w(benchmark::State& state) {
-  SkFontMgr* fontManager = sharedContext().fontManager();
+  SkFontMgr* fontManager = sigil::test::fonts().fontManager();
   TextStyle styles[3] = {basicStyle(), basicStyle(), basicStyle()};
   styles[0].shaping.typeface =
       fontManager->matchFamilyStyle("Georgia", SkFontStyle());
@@ -199,9 +199,9 @@ void BM_Layout_Greedy_MultiFont_500w(benchmark::State& state) {
     paragraph.appendText(word + u8" ", styles[wordIndex % 3]);
   }
   BlockFlow flow(SkRect::MakeWH(600, 20000));
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
   for ([[maybe_unused]] auto iteration : state) {
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -216,7 +216,7 @@ void BM_Update_EditOneWord_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
   BlockFlow flow(SkRect::MakeWH(600, 20000));
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
   // Same-length alternatives so the text stays put across iterations.
   const char8_t* alternatives[] = {u8"changed", u8"updated", u8"swapped",
                                    u8"resized"};
@@ -224,7 +224,7 @@ void BM_Update_EditOneWord_500w(benchmark::State& state) {
   int alternativeIndex = 0;
   for ([[maybe_unused]] auto iteration : state) {
     paragraph.replaceText(0, 7, alternatives[(alternativeIndex++) % 4]);
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -237,7 +237,7 @@ void BM_Update_EditOneWord_KnuthPlass_500w(benchmark::State& state) {
   paragraph.appendText(makeText(500, /*mixed=*/false), basicStyle());
   BlockFlow flow(SkRect::MakeWH(420, 40000));
   const ParagraphLayoutOptions options = knuthPlass();
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   const char8_t* alternatives[] = {u8"changed", u8"updated", u8"swapped",
                                    u8"resized"};
   paragraph.replaceText(0, 3, alternatives[0]);
@@ -245,7 +245,7 @@ void BM_Update_EditOneWord_KnuthPlass_500w(benchmark::State& state) {
   for ([[maybe_unused]] auto iteration : state) {
     paragraph.replaceText(0, 7, alternatives[(alternativeIndex++) % 4]);
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -257,12 +257,12 @@ void BM_Update_PaintRestyle_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
   BlockFlow flow(SkRect::MakeWH(600, 20000));
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
   SkColor colors[] = {SK_ColorRED, SK_ColorBLUE, SK_ColorGREEN};
   int colorIndex = 0;
   for ([[maybe_unused]] auto iteration : state) {
     paragraph.setPaint(40, 60, PaintStyle{colors[colorIndex++ % 3]});
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -277,14 +277,14 @@ void BM_Update_PaintRestyle_Overflowed_30000w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(30000, /*mixed=*/false), basicStyle());
   BlockFlow flow(SkRect::MakeWH(420, 320));
-  ParagraphLayout warm = layoutParagraph(sharedContext(), paragraph, flow);
+  ParagraphLayout warm = layoutParagraph(sigil::test::fonts(), paragraph, flow);
   const uint32_t placedEnd =
       paragraph.words()[warm.firstUnplacedWord].textBegin;
   uint32_t frame = 0;
   for ([[maybe_unused]] auto iteration : state) {
     PaintStyle hue(0xFF000000u | (frame++ * 1234567u));
     paragraph.setPaint(0, placedEnd, hue);
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 30000);
@@ -297,14 +297,14 @@ void BM_Update_SizeRestyle_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
   BlockFlow flow(SkRect::MakeWH(600, 20000));
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
   float sizes[] = {18.0f, 20.0f, 22.0f, 24.0f};
   int sizeIndex = 0;
   for ([[maybe_unused]] auto iteration : state) {
     TextStyle style = basicStyle();
     style.shaping.fontSize = sizes[(sizeIndex++) % 4];
     paragraph.setStyle(40, 60, style);
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -317,14 +317,14 @@ void BM_Update_SpanRestyleAcrossLines_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
   BlockFlow flow(SkRect::MakeWH(600, 20000));
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
   const uint32_t textLength = (uint32_t)paragraph.text().size();
   uint32_t rangeStart = 0;
   for ([[maybe_unused]] auto iteration : state) {
     rangeStart = (rangeStart + 97) % (textLength / 2);
     paragraph.setPaint(rangeStart, rangeStart + textLength / 3,
                        PaintStyle{SK_ColorRED});
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -341,7 +341,7 @@ void BM_Update_MovingExclusions_300w(benchmark::State& state) {
       {ExclusionFlow::Shape::kCircle, SkRect::MakeXYWH(100, 100, 160, 160), 8});
   flow.shapes().push_back(
       {ExclusionFlow::Shape::kRect, SkRect::MakeXYWH(400, 600, 180, 120), 8});
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
 
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
@@ -355,7 +355,7 @@ void BM_Update_MovingExclusions_300w(benchmark::State& state) {
         SkRect::MakeXYWH(400 - 150 * std::cos(animationTime),
                          600 + 300 * std::sin(animationTime * 1.3f), 180, 120);
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 300);
@@ -390,7 +390,7 @@ void BM_Update_MovingPathExclusions_300w(benchmark::State& state) {
   ExclusionFlow flow(SkRect::MakeWH(700, 3000));
   flow.shapes().push_back(ExclusionFlow::Shape::fromPath(star.detach(), 8));
   flow.shapes().push_back(ExclusionFlow::Shape::fromPath(donut.detach(), 8));
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
 
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
@@ -403,7 +403,7 @@ void BM_Update_MovingPathExclusions_300w(benchmark::State& state) {
     flow.shapes()[1].pathOffset = {-150 * std::cos(animationTime),
                                    300 * std::sin(animationTime * 1.3f)};
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 300);
@@ -442,7 +442,7 @@ void BM_Update_MovingColumnExclusions_300w(benchmark::State& state) {
   flow.shapes().push_back(ExclusionFlow::Shape::fromPath(donut.detach(), 8));
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 26;  // column pitch
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
 
   float animationTime = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -453,7 +453,7 @@ void BM_Update_MovingColumnExclusions_300w(benchmark::State& state) {
     flow.shapes()[1].pathOffset = {300 * std::sin(animationTime * 1.3f),
                                    -150 * std::cos(animationTime)};
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 300);
@@ -472,10 +472,10 @@ void BM_Layout_Vertical_ClampedEllipsis_500w(benchmark::State& state) {
   options.overflow.maxLines = 8;
   options.overflow.ellipsis = u"\u2026";
   VerticalBlockFlow flow(SkRect::MakeWH(20000, 600));
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -496,13 +496,13 @@ void BM_Update_ReplaceWholeParagraph_500w(benchmark::State& state) {
   BlockFlow flow(SkRect::MakeWH(600, 20000));
   for (const std::u8string& variant : variants) {
     paragraph.replaceText(0, (uint32_t)paragraph.text().size(), variant);
-    layoutParagraph(sharedContext(), paragraph, flow);
+    layoutParagraph(sigil::test::fonts(), paragraph, flow);
   }
   int variantIndex = 0;
   for ([[maybe_unused]] auto iteration : state) {
     paragraph.replaceText(0, (uint32_t)paragraph.text().size(),
                           variants[(++variantIndex) % 4]);
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -515,13 +515,13 @@ void BM_Update_ReplaceWholeParagraph_Cold_500w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(500, /*mixed=*/true), basicStyle());
   BlockFlow flow(SkRect::MakeWH(600, 20000));
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
   std::mt19937
       randomEngine(  // NOLINT(bugprone-random-generator-seed): a fixed corpus
           1000);
   for ([[maybe_unused]] auto iteration : state) {
     state.PauseTiming();
-    sharedContext().purgeShapeCache();
+    sigil::test::fonts().purgeShapeCache();
     // Unique gibberish words so no shape can be reused, unlike makeText's
     // small vocabulary.
     std::u8string next;
@@ -534,7 +534,7 @@ void BM_Update_ReplaceWholeParagraph_Cold_500w(benchmark::State& state) {
     }
     state.ResumeTiming();
     paragraph.replaceText(0, (uint32_t)paragraph.text().size(), next);
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 500);
@@ -570,9 +570,9 @@ void BM_Confetti_Babel_2000(benchmark::State& state) {
                       {std::cos(angle), std::sin(angle)},
                       60}});
   }
-  layoutParagraph(sharedContext(), paragraph, flow);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow);
   for ([[maybe_unused]] auto iteration : state) {
-    ParagraphLayout layout = layoutParagraph(sharedContext(), paragraph, flow);
+    ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 2000);
@@ -602,12 +602,12 @@ void BM_Live_Composer_AnimatingMeasure_600w(benchmark::State& state) {
   const ParagraphLayoutOptions options = liveComposer();
   float measure = 380.0f;
   BlockFlow warm(SkRect::MakeWH(measure, 40000));
-  layoutParagraph(sharedContext(), paragraph, warm, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, warm, options);
   int frame = 0;
   for ([[maybe_unused]] auto iteration : state) {
     BlockFlow flow(SkRect::MakeWH(measure + (float)(frame++ % 120), 40000));
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 600);
@@ -622,10 +622,10 @@ void BM_Live_Composer_SeenMeasure_600w(benchmark::State& state) {
   paragraph.appendText(makeText(600, /*mixed=*/false), basicStyle());
   const ParagraphLayoutOptions options = liveComposer();
   BlockFlow flow(SkRect::MakeWH(380, 40000));
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 600);
@@ -641,7 +641,7 @@ void BM_Live_Composer_ContentChurn_600w(benchmark::State& state) {
   paragraph.appendText(makeText(600, /*mixed=*/false), basicStyle());
   const ParagraphLayoutOptions options = liveComposer();
   BlockFlow flow(SkRect::MakeWH(380, 40000));
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   // Same-length replacements, so the churn moves glyphs and not offsets.
   const char8_t* alternatives[] = {u8"aaaa", u8"bbbb", u8"cccc", u8"dddd"};
   std::mt19937
@@ -658,7 +658,7 @@ void BM_Live_Composer_ContentChurn_600w(benchmark::State& state) {
                             alternatives[(frame + (int)index) % 4]);
     ++frame;
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 600);
@@ -677,7 +677,7 @@ void BM_Live_Story_Refill_600w_SixFrames(benchmark::State& state) {
     for (int frameIndex = 0; frameIndex < 6; ++frameIndex) {
       BlockFlow flow(SkRect::MakeWH(380, 700));
       ParagraphLayout layout =
-          layoutParagraph(sharedContext(), paragraph, flow, options, cursor);
+          layoutParagraph(sigil::test::fonts(), paragraph, flow, options, cursor);
       benchmark::DoNotOptimize(layout.runs.data());
       if (!layout.overflowed()) break;
       cursor = layout.firstUnplacedWord;
@@ -713,10 +713,10 @@ void BM_Layout_ParagraphStyles_600w(benchmark::State& state) {
     options.blocks.push_back(style);
   }
   BlockFlow flow(SkRect::MakeWH(420, 40000));
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 600);
@@ -735,10 +735,10 @@ void BM_Layout_JustificationRanges_600w(benchmark::State& state) {
   options.justification.glyphScaleMaximum = 1.03f;
   options.justification.singleWord = JustificationOptions::SingleWord::kJustify;
   BlockFlow flow(SkRect::MakeWH(420, 40000));
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 600);
@@ -754,12 +754,12 @@ void BM_Layout_ReservedBand_600w(benchmark::State& state) {
   ParagraphLayoutOptions options;
   TextStyle reading = basicStyle();
   reading.shaping.fontSize = 8.0f;
-  options.reserved.before = bandBeside(sharedContext(), reading, 1.0f);
+  options.reserved.before = bandBeside(sigil::test::fonts(), reading, 1.0f);
   BlockFlow flow(SkRect::MakeWH(420, 40000));
-  layoutParagraph(sharedContext(), paragraph, flow, options);
+  layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
   for ([[maybe_unused]] auto iteration : state) {
     ParagraphLayout layout =
-        layoutParagraph(sharedContext(), paragraph, flow, options);
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
   }
   countWords(state, 600);

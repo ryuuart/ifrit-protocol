@@ -30,7 +30,8 @@ sigil_library(SigilWeaveUnicode
   PRIVATE ICU::i18n ICU::uc ICU::data ${SIGIL_HARFBUZZ_ICU}
           harfbuzz::harfbuzz)
 
-# The leaf shapes nothing, so its test links neither fonts nor a font port.
+# The leaf shapes nothing, so its test links neither fonts nor a font port
+# and asks nothing of the machine it runs on.
 sigil_test(weave_unicode_test
   SOURCES test/UnicodeTest.cpp
   LIBRARIES SigilWeaveUnicode)

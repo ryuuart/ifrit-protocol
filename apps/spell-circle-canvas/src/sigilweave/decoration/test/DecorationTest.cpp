@@ -1,9 +1,9 @@
 /** @file
- * Decoration bands resolved without drawing: metrics fill in what the
- * style left at zero, every kind and side lands on the anchor it names,
- * skip-ink cuts a band around descenders, a paint override is applied
- * verbatim, a highlight defaults to a translucent foreground, and the walk
- * both draws run over turns a paragraph's decorations into rectangles.
+ * Decoration bands resolved without drawing: what a face's metrics fill in
+ * and what an explicit number overrides, where every kind and side anchors
+ * its band, skip-ink cutting a band around descenders, a paint override
+ * applied verbatim, a highlight's translucent default, and the walk both
+ * draws run over turning a paragraph's decorations into rectangles.
  */
 
 #include <gtest/gtest.h>
@@ -18,60 +18,72 @@
 #include <string>
 #include <vector>
 
-#include "support/Fonts.h"
+#include "support/Faces.h"
 #include "support/Layouts.h"
 #include "support/Paragraphs.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
-TEST(DecorationBand, BandResolvesFromMetricsWithFloors) {
+namespace {
+
+/// A face that reports no band metrics at all: a band resolved against it
+/// has nothing but the floors and the style's own numbers to go on.
+SkFontMetrics silentMetrics() {
   SkFontMetrics metrics = {};
-  metrics.fFlags = 0;  // face reports no underline/strikeout metrics
+  metrics.fFlags = 0;
   metrics.fAscent = -20.0f;
   metrics.fXHeight = 10.0f;
+  return metrics;
+}
 
+}  // namespace
+
+TEST(DecorationBand, AFaceThatReportsNoBandMetricsGetsAOnePixelFloor) {
   const detail::ResolvedDecorationBand underline =
-      detail::resolveDecorationBand({}, metrics, SK_ColorRED);
-  EXPECT_FLOAT_EQ(underline.thickness, 1.0f) << "1px floor without metrics";
-  EXPECT_GT(underline.position, 0.0f) << "underline sits below the baseline";
-  EXPECT_EQ(underline.color, SK_ColorRED) << "transparent → foreground color";
+      detail::resolveDecorationBand({}, silentMetrics(), SK_ColorRED);
+  EXPECT_FLOAT_EQ(underline.thickness, 1.0f);
+}
 
-  Decoration strike;
-  strike.kind = Decoration::Kind::kStrikethrough;
-  const detail::ResolvedDecorationBand strikeBand =
-      detail::resolveDecorationBand(strike, metrics, SK_ColorRED);
-  EXPECT_LT(strikeBand.position, 0.0f) << "strikethrough sits above baseline";
-
-  Decoration overline;
-  overline.kind = Decoration::Kind::kOverline;
-  overline.color = SK_ColorBLUE;
-  const detail::ResolvedDecorationBand overBand =
-      detail::resolveDecorationBand(overline, metrics, SK_ColorRED);
-  EXPECT_FLOAT_EQ(overBand.position, -20.0f) << "overline rides the ascent";
-  EXPECT_EQ(overBand.color, SK_ColorBLUE) << "explicit color wins";
-
-  // Explicit thickness/offset override the metrics entirely.
-  Decoration custom;
-  custom.thickness = 3.5f;
-  custom.offset = 7.0f;
-  const detail::ResolvedDecorationBand customBand =
-      detail::resolveDecorationBand(custom, metrics, SK_ColorRED);
-  EXPECT_FLOAT_EQ(customBand.thickness, 3.5f);
-  EXPECT_FLOAT_EQ(customBand.position, 7.0f);
-
-  // When the face DOES report metrics, they win over the floor.
+TEST(DecorationBand, AFacesOwnBandMetricsWinOverTheFloor) {
+  SkFontMetrics metrics = silentMetrics();
   metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
                    SkFontMetrics::kUnderlinePositionIsValid_Flag;
   metrics.fUnderlineThickness = 2.25f;
   metrics.fUnderlinePosition = 4.0f;
-  const detail::ResolvedDecorationBand metricBand =
+  const detail::ResolvedDecorationBand band =
       detail::resolveDecorationBand({}, metrics, SK_ColorRED);
-  EXPECT_FLOAT_EQ(metricBand.thickness, 2.25f);
-  EXPECT_FLOAT_EQ(metricBand.position, 4.0f);
+  EXPECT_FLOAT_EQ(band.thickness, 2.25f);
+  EXPECT_FLOAT_EQ(band.position, 4.0f);
+}
+
+TEST(DecorationBand, AnExplicitThicknessAndOffsetOverrideTheMetricsEntirely) {
+  SkFontMetrics metrics = silentMetrics();
+  metrics.fFlags = SkFontMetrics::kUnderlineThicknessIsValid_Flag |
+                   SkFontMetrics::kUnderlinePositionIsValid_Flag;
+  metrics.fUnderlineThickness = 2.25f;
+  metrics.fUnderlinePosition = 4.0f;
+  Decoration custom;
+  custom.thickness = 3.5f;
+  custom.offset = 7.0f;
+  const detail::ResolvedDecorationBand band =
+      detail::resolveDecorationBand(custom, metrics, SK_ColorRED);
+  EXPECT_FLOAT_EQ(band.thickness, 3.5f);
+  EXPECT_FLOAT_EQ(band.position, 7.0f);
+}
+
+TEST(DecorationBand, AnUnsetColourIsTheForegroundAndAnExplicitOneWins) {
+  EXPECT_EQ(detail::resolveDecorationBand({}, silentMetrics(), SK_ColorRED)
+                .color,
+            SK_ColorRED);
+  Decoration blue;
+  blue.color = SK_ColorBLUE;
+  EXPECT_EQ(detail::resolveDecorationBand(blue, silentMetrics(), SK_ColorRED)
+                .color,
+            SK_ColorBLUE);
 }
 
 TEST(DecorationBand, SkipInkBreaksAroundDescenders) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"gjpqy", 48.0f);
   ParagraphLayout layout = layoutSingleLine(fontContext, paragraph, {10, 100});
   ASSERT_FALSE(layout.runs.empty());
@@ -147,7 +159,7 @@ TEST(DecorationBand, HighlightDefaultColorIsTranslucentForeground) {
 }
 
 TEST(DecorationBand, AColumnBandRunsUncutDownItsRun) {
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"縦書きの傍線", 32.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   VerticalBlockFlow flow(SkRect::MakeWH(120, 400));
@@ -293,14 +305,9 @@ TEST(DecorationRects, ASpanningBandIsOneRectangleAcrossEveryRunItCovers) {
   // The walk merges contiguous runs of one style on one line into a single
   // band that also covers the glue between them, and emits it in the pass
   // its kind belongs to.
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
-  BlockFlow flow(SkRect::MakeWH(400, 80));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-  std::vector<const PositionedRun*> wordRuns;
-  for (const PositionedRun& run : layout.runs)
-    if (run.shaped) wordRuns.push_back(&run);
-  ASSERT_GE(wordRuns.size(), 2u);
+  auto [paragraph, layout] = twoWordsOnOneLine();
+  const std::vector<const PositionedRun*> placed = wordRuns(layout);
+  ASSERT_GE(placed.size(), 2u);
 
   PaintStyle underlined(SK_ColorBLACK);
   Decoration underline;
@@ -322,22 +329,19 @@ TEST(DecorationRects, ASpanningBandIsOneRectangleAcrossEveryRunItCovers) {
   const std::vector<SkRect> above =
       rectsInPhase(detail::DecorationPhase::kAboveGlyphs);
   ASSERT_EQ(above.size(), 1u) << "two words under one style are one band";
-  EXPECT_FLOAT_EQ(above.front().left(), wordRuns.front()->origin.x());
+  EXPECT_FLOAT_EQ(above.front().left(), placed.front()->origin.x());
   EXPECT_FLOAT_EQ(above.front().right(),
-                  wordRuns.back()->origin.x() + wordRuns.back()->shaped->advance)
+                  placed.back()->origin.x() + placed.back()->shaped->advance)
       << "the band must reach across the glue to the last run";
   EXPECT_FLOAT_EQ(above.front().height(), 3.0f);
-  EXPECT_FLOAT_EQ(above.front().top(), wordRuns.front()->origin.y() + 6.0f);
+  EXPECT_FLOAT_EQ(above.front().top(), placed.front()->origin.y() + 6.0f);
 
   EXPECT_TRUE(rectsInPhase(detail::DecorationPhase::kBelowGlyphs).empty())
       << "only a highlight draws beneath the glyphs";
 }
 
 TEST(DecorationRects, APerWordBandIsOneRectanglePerRunWithTheGapLeftOpen) {
-  FontContext& fontContext = sharedContext();
-  Paragraph paragraph = makeParagraph(u8"mono nano", 32.0f);
-  BlockFlow flow(SkRect::MakeWH(400, 80));
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
+  auto [paragraph, layout] = twoWordsOnOneLine();
 
   PaintStyle underlined(SK_ColorBLACK);
   Decoration perWord;

@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include "support/Fonts.h"
+#include "support/Faces.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

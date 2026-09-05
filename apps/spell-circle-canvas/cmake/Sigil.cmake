@@ -149,7 +149,9 @@ function(_sigil_binary_support target kind)
   if(kind STREQUAL test)
     list(APPEND dirs ${SIGIL_TEST_DIR} ${SIGIL_TEST_SUPPORT_DIR})
   else()
-    list(APPEND dirs ${SIGIL_BENCH_DIR})
+    # A bench reads the same fixtures a test does, so the tree-wide support
+    # directory is on its include path too.
+    list(APPEND dirs ${SIGIL_BENCH_DIR} ${SIGIL_TEST_SUPPORT_DIR})
   endif()
   list(APPEND dirs ${ARG_SUPPORT_DIRS})
   if(dirs)

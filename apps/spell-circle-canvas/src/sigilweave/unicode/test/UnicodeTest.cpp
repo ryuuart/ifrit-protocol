@@ -58,7 +58,7 @@ TEST(Properties, WhitespaceExcludesNoBreakSpaces) {
   EXPECT_FALSE(isWhitespace(U'a'));
 }
 
-TEST(Properties, HardLineBreaks) {
+TEST(Properties, EveryMandatoryBreakCharacterSaysSoAndNoOtherDoes) {
   EXPECT_TRUE(isHardLineBreak(u'\n'));
   EXPECT_TRUE(isHardLineBreak(u'\r'));
   EXPECT_TRUE(isHardLineBreak(u'\u0085')) << "next line";
@@ -130,7 +130,7 @@ TEST(Properties, EachCharacterSaysWhetherAColumnStandsItUprightOrTurnsIt) {
 
 // ── Scripts ────────────────────────────────────────────────────────────
 
-TEST(Scripts, ACodePointNamesItsScriptAndOnlyARealScriptHasAName) {
+TEST(ScriptItemization, ACodePointNamesItsScriptAndOnlyARealScriptHasAName) {
   const Script latin = scriptOf(U'a');
   const Script han = scriptOf(U'中');
   EXPECT_TRUE(isSpecificScript(latin));
@@ -147,7 +147,7 @@ TEST(Scripts, ACodePointNamesItsScriptAndOnlyARealScriptHasAName) {
   EXPECT_EQ(scriptShortName(-1), nullptr);
 }
 
-TEST(Scripts, TheShaperTagIsTheIsoCodePackedIntoFourBytes) {
+TEST(ScriptItemization, TheShaperTagIsTheIsoCodePackedIntoFourBytes) {
   const auto packed = [](char a, char b, char c, char d) {
     return static_cast<ShaperScript>(
         (static_cast<uint32_t>(static_cast<unsigned char>(a)) << 24) |
@@ -177,7 +177,7 @@ TEST(Properties, FullWidthIsACharacterPropertyAndNotAScriptOne) {
   EXPECT_FALSE(isFullWidth(U' '));
 }
 
-TEST(Scripts, ItemizeAttachesCommonToNeighbours) {
+TEST(ScriptItemization, ItemizeAttachesCommonToNeighbours) {
   const std::u16string text = u"  abc, 中文! ";
   const std::vector<ScriptRun> runs = itemize(text);
   ASSERT_EQ(runs.size(), 2u);
@@ -188,7 +188,7 @@ TEST(Scripts, ItemizeAttachesCommonToNeighbours) {
   EXPECT_EQ(runs[1].end, text.size()) << "trailing punctuation stays with Han";
 }
 
-TEST(Scripts, ItemizeDegenerateInputs) {
+TEST(ScriptItemization, ItemizeHandsBackNothingForATextWithNoCharacters) {
   const std::vector<ScriptRun> empty = itemize(u"");
   ASSERT_EQ(empty.size(), 1u);
   EXPECT_EQ(empty[0].end, 0u);
@@ -273,6 +273,8 @@ TEST(CaseMapping, OutParameterFormReplacesContents) {
 
 // ── Segmentation ───────────────────────────────────────────────────────
 
+namespace {
+
 /// The offsets alone, for the cases the flag is not what is under test.
 std::vector<uint32_t> breakOffsets(std::u16string_view text,
                                    std::string_view locale = {}) {
@@ -281,6 +283,8 @@ std::vector<uint32_t> breakOffsets(std::u16string_view text,
     offsets.push_back(entry.offset);
   return offsets;
 }
+
+}  // namespace
 
 TEST(Segmentation, LineBreaksFollowSpacesAndEndAtTheText) {
   const std::u16string text = u"one two\nthree";

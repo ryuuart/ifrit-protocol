@@ -98,99 +98,6 @@ TEST(ComposeParagraphs, OneEntryStylesTheFirstBlockAndLeavesTheRestPlain) {
   EXPECT_LT(lines.back().rect.left(), 1.0f);
 }
 
-TEST(ComposeParagraphs, TheGapBetweenBlocksIsTheLargerOfTheTwo) {
-  const auto renderWith = [](Host& host, float after, float before) {
-    sigil::weave::ParagraphStyle first;
-    first.spaceAfter = after;
-    sigil::weave::ParagraphStyle second;
-    second.spaceBefore = before;
-    host.composer.render(box().child(text(twoBlocks(), whiteStyle(13))
-                                         .key("t")
-                                         .width(Dim(320.0f))
-                                         .paragraphs({first, second})));
-    host.frame();
-  };
-  Host bare(400, 500), spaced(400, 500);
-  renderWith(bare, 0.0f, 0.0f);
-  renderWith(spaced, 30.0f, 12.0f);
-  const std::vector<float> tight = baselinesOf(bare, "t");
-  const std::vector<float> apart = baselinesOf(spaced, "t");
-  ASSERT_EQ(tight.size(), apart.size());
-  ASSERT_GE(tight.size(), 3u);
-  // Everything after the boundary has moved by 30, never by 42 or 12.
-  const float moved = apart.back() - tight.back();
-  EXPECT_NEAR(moved, 30.0f, 0.5f);
-}
-
-// ── Justification, read off the ink the lines actually reached ───────────
-
-namespace {
-
-/** A passage long enough, and awkward enough, that a narrow measure
- *  leaves the word gaps unable to fill every line on their own — which is
- *  what gives the letter pass anything to do. */
-std::u8string tightPassage() {
-  return toU8(
-      "Justification spends interword gaps before letterspacing, and "
-      "reaches for horizontal glyph-scaling last of all.");
-}
-
-/** Where each line's LAST GLYPH ends, ascending by line, for every line
- *  but the closing one — the closing line is not justified. The units'
- *  rects are glyph boxes, so this is where the ink stops and not where
- *  the pen did. */
-std::vector<float> justifiedLineEnds(Host& host, const char* key) {
-  std::vector<float> ends;
-  const std::vector<TextUnit> lines =
-      host.composer.units(key, sel::each(unit::Line), unit::Line);
-  for (size_t i = 0; i + 1 < lines.size(); ++i)
-    ends.push_back(lines[i].rect.right());
-  return ends;
-}
-
-/** The passage set justified in a 130 px measure under @p just, and where
- *  each of its justified lines ended. */
-std::vector<float> endsUnder(Host& host,
-                             const sigil::weave::JustificationOptions& just) {
-  host.composer.render(box().child(
-      text(tightPassage(), whiteStyle(12))
-          .key("t")
-          .width(Dim(130.0f))
-          .textAlign(sigil::weave::TextAlignment::kJustify)
-          .lineBreak(sigil::weave::LineBreakStrategy::kKnuthPlass)
-          .justification(just)));
-  host.frame();
-  return justifiedLineEnds(host, "t");
-}
-
-}  // namespace
-
-TEST(ComposeJustification, EveryPassRunningOutOfRoomLeavesTheGapsToFillTheLine) {
-  // THE BOUND ON THE GAPS RESTS ON ONE CLAIM: what they may not take, a
-  // later pass takes. A pass standing at its own limit does not take it,
-  // and holding the gaps at their limit anyway leaves a hole at the right
-  // margin that nothing in the line is allowed to close — which is the
-  // one thing the bound exists to prevent. Both of these settings run
-  // their later pass out of room: the letter pass may add half again what
-  // it was asked for, and the glyph pass may only scale back up to one.
-  sigil::weave::JustificationOptions letters;
-  letters.letterSpacing = 0.05f;
-  letters.letterSpacingMaximum = 0.1f;
-  sigil::weave::JustificationOptions glyphs;
-  glyphs.glyphScale = 0.92f;
-  glyphs.glyphScaleMinimum = 0.92f;
-
-  for (const auto& [what, spec] :
-       {std::pair{"the letter pass", letters}, std::pair{"the glyph pass",
-                                                         glyphs}}) {
-    Host host(400, 400);
-    const std::vector<float> ends = endsUnder(host, spec);
-    ASSERT_GE(ends.size(), 3u) << what;
-    for (size_t index = 0; index < ends.size(); ++index)
-      EXPECT_NEAR(ends[index], 130.0f, 1.0f) << what << ", line " << index;
-  }
-}
-
 // ── The units everything beside a text is placed from ─────────────────────
 
 TEST(ComposeUnits, EveryUnitASelectorAddressesIsReportedOnce) {
@@ -924,22 +831,19 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownAStoryFrame) {
 }
 
 
-// ── The three passes a justified line is fitted in ───────────────────────
+// ── The door from a leaf to the engine's justification ───────────────────
 
 /** The right edge each line of a justified passage reached, in the measure
  *  `spec` set it in. */
-std::vector<float> justifiedEdges(
-    sigil::weave::JustificationOptions spec, const char* body, float measure,
-    sigil::weave::LineBreakStrategy strategy =
-        sigil::weave::LineBreakStrategy::kGreedy) {
+std::vector<float> justifiedEdges(sigil::weave::JustificationOptions spec,
+                                  const char* body, float measure) {
   Host host(400, 400);
-  host.composer.render(box().child(text(toU8(body), whiteStyle(12))
-                                       .key("t")
-                                       .width(Dim(measure))
-                                       .textAlign(
-                                           sigil::weave::TextAlignment::kJustify)
-                                       .lineBreak(strategy)
-                                       .justification(spec)));
+  host.composer.render(box().child(
+      text(toU8(body), whiteStyle(12))
+          .key("t")
+          .width(Dim(measure))
+          .textAlign(sigil::weave::TextAlignment::kJustify)
+          .justification(spec)));
   host.frame();
   std::vector<float> edges;
   for (const TextUnit& line :
@@ -953,164 +857,11 @@ const char* kJustified =
     "Justification spends interword gaps before letterspacing, and "
     "reaches for horizontal glyph-scaling last of all.";
 
-TEST(ComposeJustification, EachPassPastTheGapsChangesTheSetting) {
-  // A justified line is fitted in three passes: the word gaps first, then
-  // letter spacing between the glyphs, then a horizontal scale on the
-  // glyphs. Each pass's DESIRED value widens the line before any of them
-  // is fitted, and its two limits bound what it may add on top — so a
-  // passage set with a pass opened is set differently from the same
-  // passage without it, which is the whole of what the passes are for.
-  const std::vector<float> stock =
-      justifiedEdges({}, kJustified, 130.0f);
-  ASSERT_GE(stock.size(), 4u);
-  // The stock fit is the gaps alone, and they fill the measure.
-  for (size_t index = 0; index + 1 < stock.size(); ++index)
-    EXPECT_NEAR(stock[index], 130.0f, 0.5f);
-
-  // WHERE THE WORDS LAND, not where the lines end: EVERY justified line
-  // ends at the measure whatever passes are open, because the gaps take
-  // back whatever no pass could spend. What a pass changes is the
-  // INTERIOR of the line — how much of the fit stands in the gaps and how
-  // much between the letters — so that is what is read here.
-  const auto wordEdgesUnder = [](sigil::weave::JustificationOptions spec) {
-    Host host(400, 400);
-    host.composer.render(box().child(
-        text(toU8(kJustified), whiteStyle(12))
-            .key("t")
-            .width(Dim(130.0f))
-            .textAlign(sigil::weave::TextAlignment::kJustify)
-            .justification(spec)));
-    host.frame();
-    std::vector<float> lefts;
-    for (const TextUnit& word :
-         host.composer.units("t", sel::each(unit::Word), unit::Word))
-      lefts.push_back(word.rect.left());
-    return lefts;
-  };
-  const std::vector<float> stockWords = wordEdgesUnder({});
-  ASSERT_GE(stockWords.size(), 4u);
-
-  const auto differsFromStock = [&](sigil::weave::JustificationOptions spec) {
-    const std::vector<float> words = wordEdgesUnder(spec);
-    if (words.size() != stockWords.size()) return true;
-    for (size_t index = 0; index < words.size(); ++index)
-      if (std::abs(words[index] - stockWords[index]) > 0.5f) return true;
-    return false;
-  };
-
-  sigil::weave::JustificationOptions letters;
-  letters.letterSpacing = 0.05f;
-  letters.letterSpacingMaximum = 0.1f;
-  EXPECT_TRUE(differsFromStock(letters)) << "letterSpacing";
-
-  // A SCALE MEANT TO HOLD SAYS SO WITH ITS LIMITS. Room above the desired
-  // scale is room the fit spends: an underfull line scales up through it
-  // before the gaps take anything back, so a scale of 0.92 with the stock
-  // maximum of 1 is a scale of 1 on every line that needed widening —
-  // which is the same setting as stock and not a different one. Pinned
-  // both sides, it is what every justified line is set at.
-  sigil::weave::JustificationOptions glyphs;
-  glyphs.glyphScale = 0.92f;
-  glyphs.glyphScaleMinimum = 0.92f;
-  glyphs.glyphScaleMaximum = 0.92f;
-  EXPECT_TRUE(differsFromStock(glyphs)) << "glyphScale";
-}
-
-TEST(ComposeJustification, TheWidthAGapIsAimedAtIsWhatABreakIsWeighedAgainst) {
-  // The gap pass's own desired width is not a placement decision: a
-  // justified line fills its measure whatever the gaps were aimed at. It
-  // is what the optimizing breaker weighs a break against, so a passage
-  // aimed at twice the shaped space is BROKEN differently.
-  using Strategy = sigil::weave::LineBreakStrategy;
-  const std::vector<float> stock =
-      justifiedEdges({}, kJustified, 130.0f, Strategy::kKnuthPlass);
-  sigil::weave::JustificationOptions wider;
-  wider.wordSpacing = 2.0f;
-  const std::vector<float> aimed =
-      justifiedEdges(wider, kJustified, 130.0f, Strategy::kKnuthPlass);
-  bool differs = aimed.size() != stock.size();
-  for (size_t index = 0; !differs && index < aimed.size(); ++index)
-    differs = std::abs(aimed[index] - stock[index]) > 0.5f;
-  EXPECT_TRUE(differs);
-}
-
-TEST(ComposeJustification, TheLetterPassTakesWhatTheGapsMayNotStretchTo) {
-  // The gaps open only to their own stretch limit where a later pass can
-  // spend what they may not: with the letter pass opened, the gaps stay
-  // near the width they were aimed at and the letters take the rest, so
-  // the line still reaches the measure with tighter word spacing than the
-  // gaps alone would have left.
-  const auto secondWordOf = [](sigil::weave::JustificationOptions spec) {
-    Host host(400, 400);
-    host.composer.render(box().child(
-        text(toU8(kJustified), whiteStyle(12))
-            .key("t")
-            .width(Dim(130.0f))
-            .textAlign(sigil::weave::TextAlignment::kJustify)
-            .justification(spec)));
-    host.frame();
-    const std::vector<TextUnit> words =
-        host.composer.units("t", sel::each(unit::Word), unit::Word);
-    return words.size() > 1 ? words[1].rect.left() : 0.0f;
-  };
-  sigil::weave::JustificationOptions tightGaps;
-  tightGaps.spaceStretch = 0.02f;
-  tightGaps.letterSpacingMaximum = 0.3f;
-  const std::vector<float> closed =
-      justifiedEdges(tightGaps, kJustified, 130.0f);
-  ASSERT_GE(closed.size(), 2u);
-  EXPECT_NEAR(closed.front(), 130.0f, 1.0f) << "the line did not fill";
-  EXPECT_LT(secondWordOf(tightGaps), secondWordOf({}) - 1.0f)
-      << "the gaps opened as wide as they always did";
-}
-
-TEST(ComposeJustification, GapsStayUnboundedWhenNoLaterPassCanSpendWhatTheyDrop) {
-  // A bound on the gaps with both later passes shut would open a hole at
-  // the right margin that nothing in the line is allowed to close. So a
-  // stretch limit alone, and a rule about lone-word lines alone, leave
-  // every ordinary line set exactly as the gaps alone set it.
-  const std::vector<float> stock = justifiedEdges({}, kJustified, 130.0f);
-  ASSERT_GE(stock.size(), 2u);
-  sigil::weave::JustificationOptions tightGaps;
-  tightGaps.spaceStretch = 0.02f;
-  sigil::weave::JustificationOptions lone;
-  lone.singleWord = sigil::weave::JustificationOptions::SingleWord::kJustify;
-  for (const sigil::weave::JustificationOptions& spec : {tightGaps, lone}) {
-    const std::vector<float> edges = justifiedEdges(spec, kJustified, 130.0f);
-    ASSERT_EQ(edges.size(), stock.size());
-    for (size_t index = 0; index < edges.size(); ++index)
-      EXPECT_NEAR(edges[index], stock[index], 0.5f);
-  }
-}
-
-TEST(ComposeJustification, ALineOfOneWordStretchesOnlyWhenAskedTo) {
-  // A line holding ONE word has no gaps to spend at all: kAlign leaves it
-  // at the block's alignment, kJustify stretches it across the measure
-  // with letter spacing alone.
-  sigil::weave::JustificationOptions aligned;
-  aligned.justifyLastLine = true;
-  sigil::weave::JustificationOptions stretched = aligned;
-  stretched.singleWord =
-      sigil::weave::JustificationOptions::SingleWord::kJustify;
-  // The measure is derived from the word's own shaped width rather than
-  // named, so the word is on one line whatever face the machine hands us
-  // and the stretch target is a number this case computed rather than one
-  // fitted to a face.
-  const char* kWord = "Antidisestablishmentarianism";
-  float wordWidth = 0;
-  for (float advance : measureRun(toU8(kWord), whiteStyle(12), fonts()))
-    wordWidth += advance;
-  ASSERT_GT(wordWidth, 0.0f);
-  const float measure = wordWidth + 40.0f;
-  const std::vector<float> left = justifiedEdges(aligned, kWord, measure);
-  const std::vector<float> spread = justifiedEdges(stretched, kWord, measure);
-  ASSERT_EQ(left.size(), 1u) << "the word did not fit on one line";
-  ASSERT_EQ(spread.size(), 1u);
-  EXPECT_LT(left.front(), measure - 20.0f);
-  EXPECT_NEAR(spread.front(), measure, 1.0f);
-}
-
-TEST(ComposeJustification, TheLastLineJustifiesOnlyWhenAskedTo) {
+TEST(ComposeJustification, WhatALeafIsToldAboutJustificationReachesTheLayout) {
+  // How a justified line is fitted is SigilWeave's, and it is asked there.
+  // What this tier promises is that the options a leaf is handed arrive:
+  // the same passage set with the last line justified reaches the measure
+  // where the stock setting leaves it ragged.
   const std::vector<float> ragged = justifiedEdges({}, kJustified, 130.0f);
   sigil::weave::JustificationOptions all;
   all.justifyLastLine = true;

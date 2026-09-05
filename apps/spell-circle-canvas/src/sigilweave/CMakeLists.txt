@@ -10,8 +10,9 @@
 #
 # Test fixtures every binary shares sit in test/support/ and the bench
 # corpus in bench/support/; a feature's test and bench binaries include
-# "support/<Name>.h". The constructed faces under test/assets/ reach a
-# binary through SIGIL_TEST_ASSET_DIR.
+# "support/<Name>.h". The font context is the whole test tree's rather than
+# this library's, so a binary reaches it through <Fonts.h>. The constructed
+# faces under test/assets/ reach a binary through SIGIL_TEST_ASSET_DIR.
 sigil_library_root(SigilWeave
   BRIEF "Styled Unicode text shaped into positioned glyph runs ready for a Skia canvas")
 

@@ -8,7 +8,7 @@
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cstddef>
 
-#include "Fonts.h"
+#include "Faces.h"
 #include "Paragraphs.h"
 
 namespace sigil::weave::test {

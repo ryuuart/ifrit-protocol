@@ -1,8 +1,9 @@
 /** @file
- * Decorations as drawn: a band added after the layout still inks, spanning
- * bands cover the gaps between words while per-word bands break at them,
- * highlights sit beneath the glyphs, a shaded band draws independently of
- * the glyph paint, and a column's band runs beside the type.
+ * Decorations as drawn. Where a band's rectangles land is the decoration
+ * feature's own claim; what reaches the canvas is this file's: a band
+ * declared after the layout still inks, a highlight sits beneath the
+ * glyphs, a shaded band draws independently of the glyph paint, and a
+ * column's band runs beside the type on one side of it.
  */
 
 #include <gtest/gtest.h>
@@ -13,28 +14,26 @@
 #include <include/effects/SkGradient.h>
 
 #include <algorithm>
-#include <iomanip>
+#include <utility>
 #include <vector>
 
-#include "support/Fonts.h"
+#include "support/Faces.h"
 #include "support/Layouts.h"
 #include "support/Paragraphs.h"
 #include "support/Pixels.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
-/// Two words at 32px on one line of a 400×80 block, with the glue gap
-/// between them measured off the shaped advances: the setting every band
-/// in this file is read across, since a band's whole question is what it
-/// does at a word boundary.
+/// The two-word setting every band is read across, with the glue gap
+/// between the words measured off the shaped advances: a band's whole
+/// question is what it does at a word boundary.
 class DecorationInk : public ::testing::Test {
  protected:
   void SetUp() override {
-    m_paragraph.appendText(u8"mono nano", basicStyle(32.0f));
-    BlockFlow flow(SkRect::MakeWH(400, 80));
-    m_layout = layoutParagraph(sharedContext(), m_paragraph, flow);
-    for (const PositionedRun& run : m_layout.runs)
-      if (run.shaped) m_wordRuns.push_back(&run);
+    LaidOut setting = twoWordsOnOneLine();
+    m_paragraph = std::move(setting.paragraph);
+    m_layout = std::move(setting.layout);
+    m_wordRuns = wordRuns(m_layout);
     ASSERT_GE(m_wordRuns.size(), 2u) << "the fixture must place two words";
     m_gapStart = m_wordRuns[0]->origin.x() + m_wordRuns[0]->shaped->advance;
     m_gapEnd = m_wordRuns[1]->origin.x();
@@ -106,59 +105,6 @@ TEST_F(DecorationInk, ADecorationDeclaredAfterTheLayoutStillReachesTheCanvas) {
   }
 }
 
-TEST_F(DecorationInk, ASpanningUnderlineCoversTheGapBetweenTwoWords) {
-  PaintStyle underlined(SK_ColorBLACK);
-  Decoration underline;
-  underline.thickness = 3.0f;
-  underline.offset = 6.0f;  // clear of any glyph ink
-  underline.skipInk = false;
-  underlined.addDecoration(underline);
-  paintEverything(underlined);
-
-  // The decorated range is one continuous band: the middle of the glue gap
-  // must be inked, not white.
-  const int probeY = baselineY() + static_cast<int>(6.0f + 1.5f);
-  const SkPixmap solid = probe(/*batched=*/false);
-  ASSERT_LT(gapX(), solid.width());
-  ASSERT_LT(probeY, solid.height());
-  const SkColor gapColor = solid.getColor(gapX(), probeY);
-  EXPECT_LT(SkColorGetR(gapColor), 100u)
-      << "underline must cover the word gap (got " << std::hex << gapColor
-      << ")";
-
-  // Same probe with skip-ink on: gaps still covered (no ink there).
-  PaintStyle skipInked(SK_ColorBLACK);
-  Decoration inkAware;
-  inkAware.thickness = 3.0f;
-  inkAware.offset = 6.0f;
-  skipInked.addDecoration(inkAware);
-  paintEverything(skipInked);
-  EXPECT_LT(SkColorGetR(probe(/*batched=*/false).getColor(gapX(), probeY)),
-            100u)
-      << "skip-ink must only break at glyph ink, never at word gaps";
-}
-
-TEST_F(DecorationInk, APerWordUnderlineStopsAtTheGapAndResumesAfterIt) {
-  PaintStyle underlined(SK_ColorBLACK);
-  Decoration perWord;
-  perWord.span = Decoration::Span::kPerWord;
-  perWord.thickness = 3.0f;
-  perWord.offset = 6.0f;
-  perWord.skipInk = false;
-  underlined.addDecoration(perWord);
-  paintEverything(underlined);
-
-  const SkPixmap pixmap = probe(/*batched=*/false);
-  const int bandY = baselineY() + static_cast<int>(6.0f + 1.5f);
-  // The gap stays bare…
-  EXPECT_GT(SkColorGetR(pixmap.getColor(gapX(), bandY)), 200u)
-      << "kPerWord must not underline the word gap";
-  // …while both words still carry their own bands.
-  const int firstWordX = static_cast<int>(
-      m_wordRuns[0]->origin.x() + m_wordRuns[0]->shaped->advance * 0.5f);
-  EXPECT_LT(SkColorGetR(pixmap.getColor(firstWordX, bandY)), 100u);
-}
-
 TEST_F(DecorationInk, AHighlightCoversTheGapAndTheGlyphsDrawOverIt) {
   PaintStyle marked(SK_ColorBLACK);
   Decoration highlight;
@@ -223,7 +169,7 @@ TEST(ColumnDecorationInk, AColumnDrawsItsBandBesideTheType) {
   // 傍線: down a column the emphasis line runs BESIDE the characters on the
   // right, the length of the run — the same band the horizontal setting
   // draws under a line, turned with the type.
-  FontContext& fontContext = sharedContext();
+  FontContext& fontContext = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"縦書きの傍線", 32.0f);
   paragraph.setWritingMode(WritingMode::kVerticalRL);
   VerticalBlockFlow flow(SkRect::MakeWH(120, 300));
@@ -275,5 +221,4 @@ TEST(ColumnDecorationInk, AColumnDrawsItsBandBesideTheType) {
       << "the band crossed to the wrong side of the column";
   EXPECT_GT(bottomMost - topMost, 60)
       << "the band must run DOWN the column, not across it";
-  EXPECT_LT(maxX - minX, 6.0f) << "a 3px band must stay 3px wide";
 }

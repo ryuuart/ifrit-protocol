@@ -18,7 +18,7 @@ using namespace sigil::weave::test;
 // ── The frame ─────────────────────────────────────────────────────────────
 
 TEST(FrameSeating, FixedFirstBaselineMovesTheWholePassage) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(u8"one two three four five six seven");
   BlockFlow flow(SkRect::MakeWH(120, 600));
   ParagraphLayoutOptions options;
@@ -33,7 +33,7 @@ TEST(FrameSeating, FixedFirstBaselineMovesTheWholePassage) {
 }
 
 TEST(FrameSeating, CentredDistributionHalvesTheLeftoverRoom) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph plain = makeParagraph(u8"one two three four");
   Paragraph centred = makeParagraph(u8"one two three four");
   BlockFlow flowA(SkRect::MakeWH(120, 400));
@@ -91,7 +91,7 @@ ParagraphLayoutOptions framedTo(int lines) {
 }  // namespace
 
 TEST(Keeps, AnOrphanTooShortToStandMovesItsWholeBlockOver) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph measured = twoBlocks();
   BlockFlow open(SkRect::MakeWH(150, 600));
   const ParagraphLayout whole = layoutParagraph(fonts, measured, open);
@@ -119,7 +119,7 @@ TEST(Keeps, AnOrphanTooShortToStandMovesItsWholeBlockOver) {
 }
 
 TEST(Keeps, BothBreakersEnforceTheSameKeepBecauseNoBreakIsReDecided) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph measured = twoBlocks();
   BlockFlow open(SkRect::MakeWH(150, 600));
   const int firstBlockLines = layoutParagraph(fonts, measured, open).lineCount -
@@ -141,7 +141,7 @@ TEST(Keeps, BothBreakersEnforceTheSameKeepBecauseNoBreakIsReDecided) {
 }
 
 TEST(Keeps, WithNextTakesTheBlockThatEndedAtTheBoundaryWithIt) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   // Three blocks: a body, a heading that asks to keep with what follows,
   // and the body under it.
   const std::u8string text =
@@ -179,7 +179,7 @@ TEST(Keeps, WithNextTakesTheBlockThatEndedAtTheBoundaryWithIt) {
 }
 
 TEST(Keeps, StartInNextFrameEndsTheFillBeforeTheBlock) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = twoBlocks();
   BlockFlow flow(SkRect::MakeWH(150, 600));
   ParagraphLayoutOptions options;
@@ -193,7 +193,7 @@ TEST(Keeps, StartInNextFrameEndsTheFillBeforeTheBlock) {
 }
 
 TEST(Keeps, AKeepNeverEmptiesAFrame) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(
       u8"A single block whose lines cannot go anywhere but here.", 16.0f);
   BlockFlow flow(SkRect::MakeWH(150, 600));
@@ -211,7 +211,7 @@ TEST(Keeps, AKeepNeverEmptiesAFrame) {
 }
 
 TEST(Keeps, AWidowIsCountedInTheLinesTheNextFrameWouldGet) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph measured = makeParagraph(
       u8"One block long enough to fill several lines of a narrow frame and "
       u8"leave a short remainder behind it.",
@@ -239,7 +239,7 @@ TEST(Keeps, AWidowIsCountedInTheLinesTheNextFrameWouldGet) {
 }
 
 TEST(Keeps, AWidowIsCountedAtTheMeasureTheNextFrameSetsIn) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   const std::u8string body =
       u8"One block long enough to fill several lines of a narrow frame and "
       u8"leave a short remainder behind it.";

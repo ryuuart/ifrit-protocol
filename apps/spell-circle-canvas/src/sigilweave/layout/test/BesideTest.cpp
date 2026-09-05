@@ -19,7 +19,7 @@ using namespace sigil::weave::test;
 // ── A reading set beside a base ───────────────────────────────────────────
 
 TEST(Beside, TheBandAReadingNeedsIsItsOwnStrutPlusTheGap) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   const float small = bandBeside(fonts, basicStyle(8.0f), 0.0f);
   const float large = bandBeside(fonts, basicStyle(24.0f), 0.0f);
   EXPECT_GT(large, small * 2.0f);
@@ -27,7 +27,7 @@ TEST(Beside, TheBandAReadingNeedsIsItsOwnStrutPlusTheGap) {
 }
 
 TEST(Beside, AReadingStandsCentredOnItsBaseAndClearOfIt) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph reading = makeParagraph(u8"note", 9.0f);
   const SkRect base = SkRect::MakeXYWH(100, 200, 60, 20);
   const ParagraphLayout above =
@@ -44,7 +44,7 @@ TEST(Beside, AReadingStandsCentredOnItsBaseAndClearOfIt) {
 }
 
 TEST(Beside, AColumnReadsItsFurnitureOnTheRight) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph reading = makeParagraph(u8"\xe3\x81\xbb", 9.0f);
   const SkRect base = SkRect::MakeXYWH(100, 200, 24, 60);
   const ParagraphLayout beside =
@@ -70,7 +70,7 @@ TEST(Beside, ABrokenBaseSharesItsReadingByAdvance) {
 // ── A note set in two lines inside one ────────────────────────────────────
 
 TEST(Warichu, TheCutLeavesTwoLinesAsCloseInLengthAsTheBreaksAllow) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph note = makeParagraph(u8"one two three four", 8.0f);
   const WarichuSplit split = warichuSplit(fonts, note);
   ASSERT_GT(split.cutWord, 0u);
@@ -100,7 +100,7 @@ TEST(Warichu, TheCutLeavesTwoLinesAsCloseInLengthAsTheBreaksAllow) {
 }
 
 TEST(Warichu, TheTwoLinesStackInsideTheSlotTheBaseReserved) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph note = makeParagraph(u8"one two three four", 8.0f);
   const WarichuSplit split = warichuSplit(fonts, note);
   const SkRect slot = SkRect::MakeXYWH(100, 200, split.advance, split.band);
@@ -120,7 +120,7 @@ TEST(Warichu, TheTwoLinesStackInsideTheSlotTheBaseReserved) {
 }
 
 TEST(Warichu, AColumnSetsItsTwoLinesSideBySideAcrossTheSlot) {
-  FontContext& fonts = sharedContext();
+  FontContext& fonts = sigil::test::fonts();
   Paragraph note =
       makeParagraph(u8"\xe3\x81\xbb\xe3\x82\x93\xe3\x81\xa8", 8.0f);
   const SkRect slot = SkRect::MakeXYWH(100, 200, 24, 60);
