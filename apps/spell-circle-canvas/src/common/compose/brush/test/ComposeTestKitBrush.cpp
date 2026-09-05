@@ -309,7 +309,7 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
 // must not collapse into Wave — a sharp zigzag and a smooth wave are
 // separate marks, and a shared parameter pair makes them easy to conflate.
 
-TEST(ComposeKitStrokes, TheThreeTwinsThatAbsorbedTheOpsStructs) {
+TEST(ComposeKitStrokes, TheThreeShapersAreOneValueEach) {
   SkPathBuilder b;
   b.moveTo(10, 10);
   b.lineTo(160, 10);
@@ -346,7 +346,7 @@ TEST(ComposeKitStrokes, TheNewTwinsAreComparableSeamValuesLikeTheRest) {
                geometry::path::Shaper(geometry::shapers::zigzag(4, 28)));
 }
 
-TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
+TEST(ComposeKitPresets, TheFourPresetsAreTheCoreValuesTheyName) {
   // Each preset is pinned against a HAND-BUILT copy of its layer stack.
   // `LayeredBrush` has a defaulted `==`, so this compares every field of
   // every layer — width, colour, blur, dash, phase, blend, the lot.
@@ -424,7 +424,7 @@ TEST(ComposeKitPresets, TheFourPresetsCameOutOfCoreUNCHANGED) {
   EXPECT_TRUE(pulse() == wantPulse);
 }
 
-TEST(ComposeKitPresets, TheDefaultArgumentsSurvivedTheMove) {
+TEST(ComposeKitPresets, EveryPresetKeepsItsDefaultArguments) {
   // The presets' default arguments are part of their published shape: a
   // caller writing `rope(1)` must get the same brush as `rope(1, 1.0f)`.
   // Nothing else in the suite would notice a changed default, since every

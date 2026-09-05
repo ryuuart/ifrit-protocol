@@ -385,7 +385,7 @@ TEST(ComposeInstances, APerInstanceUVWindowAddressesInsideACell) {
   EXPECT_FALSE(plain->hasTexWindows());
 }
 
-TEST(ComposeR1Pool, CommitPublishesABulkEdit) {
+TEST(ComposeInstances, CommitPublishesABulkEdit) {
   instancing::Pool pool;
   pool.add({10, 10});
   pool.add({20, 20});
@@ -399,7 +399,7 @@ TEST(ComposeR1Pool, CommitPublishesABulkEdit) {
   EXPECT_NE(pool.revision(), committed) << "each publish is its own revision";
 }
 
-TEST(ComposeR1Pool, AFlightLaneCarriesTheEntranceThePoolUsedToShadow) {
+TEST(ComposeInstances, AFlightLaneCarriesTheEntranceThePoolCannot) {
   using namespace sigil::compose::instancing;
   Pool pool;
   pool.add({0, 0});
@@ -446,7 +446,7 @@ TEST(ComposeR1Pool, AFlightLaneCarriesTheEntranceThePoolUsedToShadow) {
   EXPECT_NE(pool.revision(), before);
 }
 
-TEST(ComposeR1Pool, AFlightMaterialisesAtRestAndKeepsStepWithTheLanes) {
+TEST(ComposeInstances, AFlightMaterialisesAtRestAndKeepsStepWithTheLanes) {
   using namespace sigil::compose::instancing;
   Pool pool;
   pool.add({10, 20}, 0, 0.5f, 2.0f);

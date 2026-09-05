@@ -6,7 +6,7 @@
 
 // ---- one namespace, one name per brush kind -------------------------------
 
-TEST(ComposeR3Brush, TheFoldIsOneNamespaceAndOneNamePerKind) {
+TEST(ComposeBrushKinds, EveryKindAnswersToOneNameUnderOneNamespace) {
   // Every brush kind answers to exactly one name, under `brush::`, with no
   // suffix and no second namespace.
   const brush::Ribbon taught = brush::taper(10, 2, red());
@@ -24,7 +24,7 @@ TEST(ComposeR3Brush, TheFoldIsOneNamespaceAndOneNamePerKind) {
 
 // ---- 8. cornerAlign is a required argument --------------------------------
 
-TEST(ComposeR1Corner, AlignmentCannotBeOmitted) {
+TEST(ComposeBrushKinds, CornerArtCannotBeBuiltWithoutItsAlignment) {
   // Corner alignment has no defensible default — bisector and outgoing are
   // both right for different marks — so it is required by the type system
   // rather than defaulted and warned about. There is no way to describe

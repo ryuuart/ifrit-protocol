@@ -825,7 +825,7 @@ TEST(ComposeCache, TheSplitSurvivesTheClipThatMadeTheChildAChild) {
       << "the clip was not reproduced identically in both phases";
 }
 
-TEST(ComposeCache, TheVOLATILECHILDIsWhatCausesTheSplit) {
+TEST(ComposeCache, ItIsTheVolatileChildThatSplitsTheBake) {
   // THE POSITIVE CONTROL. "It was split" proves nothing on its own: a node
   // split for some unrelated reason passes exactly as well as one split for
   // the reason under test. So render the SAME scene with the child's

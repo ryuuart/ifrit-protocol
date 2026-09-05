@@ -132,7 +132,7 @@ TEST(ComposeDecorations, SliceStretchesCenterKeepsCorners) {
   EXPECT_EQ(host.pixel(60, 4), SK_ColorRED);  // edge strip
 }
 
-TEST(ComposeUtil, ShadowAndStrokeSugar) {
+TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
   Host host;
   host.composer.render(box().child(
       box()

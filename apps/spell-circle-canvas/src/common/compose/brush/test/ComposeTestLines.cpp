@@ -78,7 +78,7 @@ TEST(ComposeText, TextAlignCentersWithinWideBox) {
   EXPECT_GT(centerX, startX + 60);  // centered glyphs sit near mid-box
 }
 
-TEST(ComposeUtil, MarqueeSlidesTwoCopies) {
+TEST(ComposeKitMarquee, TwoCopiesSlideUnderOneClip) {
   Host host(200, 60);
   choreograph::Output<float> phase{0.0f};
   host.composer.render(box().padding(10).child(
@@ -1449,7 +1449,7 @@ TEST(ComposeCache, PromotesAnExpensiveLeafAndKeepsEveryPixel) {
       << "promoting the leaf changed its pixels";
 }
 
-TEST(ComposeCache, ARefusalSaysWhy) {
+TEST(ComposeCache, ARefusalNamesTheReasonItRefused) {
   // Every refusal is individually correct and individually invisible, so an
   // author looking at a node that is painting live and slow has nothing to
   // act on unless the refusal names itself.

@@ -168,7 +168,7 @@ TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
   }
 }
 
-TEST(ComposeBrushes, PatternCornerAlignOutgoingIsStillAvailable) {
+TEST(ComposeBrushes, OutgoingCornerAlignmentFacesTheNextEdge) {
   // The other alignment is what a directional marker wants — an arrow that
   // turns a corner should keep pointing the way it is going.
   Host host(400, 340);

@@ -154,7 +154,7 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
                               "never reached the uniforms";
 }
 
-TEST(TextPass, TwoUnitCountsInOneSession) {
+TEST(TextPass, TwoUnitCountsInOneSessionEachDrawTheirOwn) {
   // Two nodes, two unit counts, one source: each track compiles (or finds)
   // its own specialization and both draw.
   Host host;
@@ -179,7 +179,7 @@ TEST(TextPass, TwoUnitCountsInOneSession) {
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeXYWH(10, 50, 180, 60)));
 }
 
-TEST(TextPass, BoundedByBoxPlusReach) {
+TEST(TextPass, ThePassFillsTheBoxGrownByItsReachAndNothingBeyond) {
   // The flood pass returns opaque green at EVERY coordinate — so wherever
   // green lands is exactly the pass's footprint. It must fill the node's
   // box grown by the track's reach and nothing beyond it.
@@ -407,7 +407,7 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
   EXPECT_TRUE(plain.restsAt(0.0f).restPhases().empty());
 }
 
-TEST(TextPass, RidesAPathBaseline) {
+TEST(TextPass, ThePassFollowsAPathBaseline) {
   Host host;
   host.composer.render(box().padding(10).child(
       text(u8"AROUND THE RING", whiteStyle(22))
@@ -423,7 +423,7 @@ TEST(TextPass, RidesAPathBaseline) {
   EXPECT_FALSE(host.composer.beatsOf("ring", 0).empty());
 }
 
-TEST(TextPass, RidesAVerticalColumn) {
+TEST(TextPass, ThePassFollowsAVerticalColumn) {
   Host host;
   host.composer.render(box().padding(10).child(
       text(u8"VERTICAL", whiteStyle(22))

@@ -25,7 +25,7 @@ int redInk(Host& host, int x0 = 0, int y0 = 0, int x1 = 200, int y1 = 200) {
 
 // ---- S1 · the helper's three strokes, gated from OUTSIDE the helper -------
 
-TEST(ComposeR4Mask, S1AHelpersMarksAreGatedFromOutsideIt) {
+TEST(ComposeMaskGates, AHelpersMarksAreGatedFromOutsideIt) {
   // A helper returns an element carrying THREE strokes, and the caller wants
   // all three to draw on together while being able to reach none of them
   // individually. This rules out any design where the gate lives inside the
@@ -51,7 +51,7 @@ TEST(ComposeR4Mask, S1AHelpersMarksAreGatedFromOutsideIt) {
 
 // ---- S2 · the wet nib rides the head of the gate --------------------------
 
-TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
+TEST(ComposeMaskGates, ADecorationReceivesTheAlreadyGatedRun) {
   // thunder_fulu: a brush stroke writes itself at the scribe's pace with a
   // wet pool at the NIB. The pool is a PathFormat with its own
   // trimStart 0.93 — a fraction of what is written, not of the whole line,
@@ -90,7 +90,7 @@ TEST(ComposeR4Mask, S2ADecorationReceivesTheAlreadyGatedRun) {
 
 // ---- S3 · the retarget: one mask in both branches -------------------------
 
-TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
+TEST(ComposeMaskGates, TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
   // A gate written in both branches of an if/else must occupy the SAME
   // animation slot, so that switching branches RETARGETS the running motion
   // instead of mounting a new one from zero — otherwise the mark blinks off
@@ -130,7 +130,7 @@ TEST(ComposeR4Mask, S3TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
 
 // ---- S4 · a gate applied conditionally to an ALREADY-BUILT element --------
 
-TEST(ComposeR4Mask, S4TheGateIsAPropertyOfABuiltElement) {
+TEST(ComposeMaskGates, TheGateIsAPropertyOfABuiltElement) {
   // A mark that animates on in motion but must appear whole in a still
   // capture is an ordinary requirement, and it means the gate has to be
   // applicable CONDITIONALLY to an element that already exists. A gate
@@ -153,7 +153,7 @@ TEST(ComposeR4Mask, S4TheGateIsAPropertyOfABuiltElement) {
 
 // ---- S5 · a span-qualified CLAIM under a whole-node gate ------------------
 
-TEST(ComposeR4Mask, S5AClaimUnderAGateIsTheIntersection) {
+TEST(ComposeMaskGates, AClaimUnderAGateIsTheIntersection) {
   // Reticle brackets that light up as a sweep reaches them. The pass claims
   // the corners, the mask gates the marks to [0, t], and what paints is
   // `corners ∩ upTo(t)` — the claim and the gate compose rather than one
@@ -195,7 +195,7 @@ TEST(ComposeR4Mask, S5AClaimUnderAGateIsTheIntersection) {
 
 // ---- S8 · per-mark granularity -------------------------------------------
 
-TEST(ComposeR4Mask, S8OneMarkIsGatedAndItsSiblingIsNot) {
+TEST(ComposeMaskGates, OneMarkIsGatedAndItsSiblingIsNot) {
   // Hazard stripes wipe on while the bevel keyline STAYS. A whole-node-only
   // gate cannot draw this at all: the only workaround is a child node that
   // re-declares its parent's shape, which costs a node and loses the
@@ -238,7 +238,7 @@ TEST(ComposeR4Mask, S8OneMarkIsGatedAndItsSiblingIsNot) {
 
 // ---- the intersection law, as arithmetic ---------------------------------
 
-TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
+TEST(ComposeMaskGates, TheIntersectionIsExactIntervalArithmetic) {
   // Pinned at pixels rather than at the helper, because the arithmetic is
   // only worth anything if it reaches the boundary. maskBox()'s perimeter
   // is 400 px and fraction 0 is the BOTTOM-LEFT corner running UP the left
@@ -277,7 +277,7 @@ TEST(ComposeR4Mask, TheIntersectionIsExactIntervalArithmetic) {
 
 // ---- the sugar law, pinned -----------------------------------------------
 
-TEST(ComposeR4Mask, TheStrokeSpansSugarLawIsPixelExact) {
+TEST(ComposeMaskGates, TheStrokeSpansSugarLawIsPixelExact) {
   // STATED AS LAW in Compose.h:
   //     .stroke(where, what, name)
   //        == .stroke(what, name).mask(parts::named(name), by::spans(where))
@@ -301,7 +301,7 @@ TEST(ComposeR4Mask, TheStrokeSpansSugarLawIsPixelExact) {
   EXPECT_LT(inkedCount(passDoor), passDoor.size());
 }
 
-TEST(ComposeR4Mask, AnUnmatchedMaskNameIsASilentNoOp) {
+TEST(ComposeMaskGates, AnUnmatchedMaskNameIsASilentNoOp) {
   // parts::named() addresses ONE mark by its LOCAL label, and a label that
   // matches nothing selects nothing — SILENTLY. This is the same rule the
   // whole derive family follows for unknown keys, and it is a real trap:
@@ -322,7 +322,7 @@ TEST(ComposeR4Mask, AnUnmatchedMaskNameIsASilentNoOp) {
 
 // ---- the scalar memo under a gate ----------------------------------------
 
-TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
+TEST(ComposeMaskGates, AGatedNodeKeepsTheScalarMemoAndPrunes) {
   // A mask's gate scalars are a BOUNDED per-node list, so they can ride the
   // content-scalar memo as a vector and an element-level gate keeps its
   // node cacheable. Per-pass span endpoints cannot: they belong to an
@@ -373,7 +373,7 @@ TEST(ComposeR4Mask, AGatedNodeKeepsTheScalarMemoAndPrunes) {
   EXPECT_GT(afterHold, 0u) << "…and re-record the moment the number ticks";
 }
 
-TEST(ComposeR4Mask, AStaticGateStillPrunesAndAMovingOneRepaints) {
+TEST(ComposeMaskGates, AStaticGateStillPrunesAndAMovingOneRepaints) {
   // The other half of the same claim: a mask is read live, so it
   // participates in reconciler equality. A re-describe with the SAME mask
   // must prune; a re-describe with a different one must not.
@@ -397,7 +397,7 @@ TEST(ComposeR4Mask, AStaticGateStillPrunesAndAMovingOneRepaints) {
 
 // ---- the fold: what trim() and wipe() were -------------------------------
 
-TEST(ComposeR4Mask, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
+TEST(ComposeMaskGates, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
   // Which parts a spans gate can reach follows from what a span IS: a
   // boundary is a one-dimensional coordinate, so it can address the paint
   // that TRACES that boundary — the surface and the marks — and has nothing
@@ -432,7 +432,7 @@ TEST(ComposeR4Mask, TheSpansGateReachesSurfaceAndMarksAndNotTheChildren) {
   EXPECT_GT(SkColorGetG(onlySurface.pixel(20, 70)), 150) << "marks kept";
 }
 
-TEST(ComposeR4Mask, TheEdgeGateIsWipesHalfPlaneToTheBit) {
+TEST(ComposeMaskGates, TheEdgeGateIsWipesHalfPlaneToTheBit) {
   // by::edge(angle, t) is a HALF-PLANE reveal, not a squash: the edge lands
   // at the stated fraction of the box and everything behind it is untouched.
   // It reaches the node's decorations and its children too, which is what
@@ -458,7 +458,7 @@ TEST(ComposeR4Mask, TheEdgeGateIsWipesHalfPlaneToTheBit) {
   EXPECT_NE(host.pixel(21, 100), SK_ColorBLACK) << "the left stroke is not";
 }
 
-TEST(ComposeR4Mask, TheGateGeometryIsTrimsGeometry) {
+TEST(ComposeMaskGates, TheGateGeometryIsTrimsGeometry) {
   // A spans gate must cut the outline exactly as SkTrimPathEffect does.
   // The expected geometry is therefore built HERE by SkTrimPathEffect itself
   // and drawn through a custom() leaf that the masking family never touches,
@@ -501,7 +501,7 @@ TEST(ComposeR4Mask, TheGateGeometryIsTrimsGeometry) {
   }
 }
 
-TEST(ComposeR4Mask, ASettledBoundGateRecachesWithoutAnyNewApi) {
+TEST(ComposeMaskGates, ASettledBoundGateRecaches) {
   // A bound gate that has held still for enough frames stops declaring
   // volatility, so its ANCESTORS can cache across it. Without the release
   // the recording is kept but every frame still paints live — the node
@@ -676,7 +676,7 @@ TEST(ComposeSettledFill, AMovingBoundFillNeverReleases) {
 
 // ---- S6 · the directional wipe, over a lattice of children ---------------
 
-TEST(ComposeR4Mask, S6TheEdgeGateReachesTheChildren) {
+TEST(ComposeMaskGates, TheEdgeGateReachesTheChildren) {
   // chevreul_circle's twelve grounds arrive and withdraw as a downward
   // wipe. The CHILDREN are the point — an arc-length window has nothing to
   // say about them, and this is the sample that says the family needs more
@@ -706,7 +706,7 @@ TEST(ComposeR4Mask, S6TheEdgeGateReachesTheChildren) {
 
 // ---- S7 · the seal: a region gate, and its complement --------------------
 
-TEST(ComposeR4Mask, S7TheShapeGateAndItsComplementAreBothTerms) {
+TEST(ComposeMaskGates, TheShapeGateAndItsComplementAreBothTerms) {
   // A portrait masked to a wax-seal silhouette. Nothing in the tree could
   // express this: a study reached for `clipOut()` and
   // `geometry::shapes::subtract` BY NAME, found neither, and dropped below the
@@ -741,7 +741,7 @@ TEST(ComposeR4Mask, S7TheShapeGateAndItsComplementAreBothTerms) {
   EXPECT_EQ(diff.pixel(110, 110), SK_ColorBLACK) << "outside the outer";
 }
 
-TEST(ComposeR4Mask, S7bTheAlphaGateTakesItsCoverageFromAMaterial) {
+TEST(ComposeMaskGates, TheAlphaGateTakesItsCoverageFromAMaterial) {
   // …and SOFT-EDGED, which is the other half of what a coverage gate is
   // for. Without it, the only way to fade a node by a gradient is to hand-
   // roll a Material plus a kDstIn layer at every call site.
@@ -787,7 +787,7 @@ int plateByte(Host& host, int i) {
 
 }  // namespace
 
-TEST(ComposeR4Mask, S7cTheLumaGateIsRec601OnEncodedPremultipliedValues) {
+TEST(ComposeMaskGates, TheLumaGateIsRec601OnEncodedPremultipliedValues) {
   // THE PIXEL PIN FOR THE LUMA LAW, and it is deliberately not pinned with
   // greys: a grey pins NOTHING about the coefficients (every weighting of
   // equal channels is the same number), and the primaries alone pin nothing
@@ -832,7 +832,7 @@ TEST(ComposeR4Mask, S7cTheLumaGateIsRec601OnEncodedPremultipliedValues) {
          "a transparent matte reads as black and hides";
 }
 
-TEST(ComposeR4Mask, S7cTheLumaLawIsTheSameThroughAShader) {
+TEST(ComposeMaskGates, TheLumaLawIsTheSameThroughAShader) {
   // The colour path and the shader path are two implementations of one law
   // (a dot product in C++, an SkSL pass over the coverage layer), which is
   // exactly the shape of asymmetry that ships wrong. One ramp, green to
@@ -858,7 +858,7 @@ TEST(ComposeR4Mask, S7cTheLumaLawIsTheSameThroughAShader) {
   EXPECT_NEAR((int)SkColorGetR(host.pixel(177, 100)), 29, 4) << "blue end";
 }
 
-TEST(ComposeR4Mask, S7dEachCoverageGateHasItsComplementAsItsOwnTerm) {
+TEST(ComposeMaskGates, EachCoverageGateHasItsComplementAsItsOwnTerm) {
   // `by::outside(r)` made the region complement a TERM rather than a mode
   // flag; the coverage sources get the same treatment and the same law —
   // a gate is a SHOW set, and the complement shows exactly the rest.
@@ -884,7 +884,7 @@ TEST(ComposeR4Mask, S7dEachCoverageGateHasItsComplementAsItsOwnTerm) {
       << "…and so must the luma complement";
 }
 
-TEST(ComposeR4Mask, ACoverageGatesChannelAndSenseReachTheComparator) {
+TEST(ComposeMaskGates, ACoverageGatesChannelAndSenseReachTheComparator) {
   // Taken against the comparator DIRECTLY. A harness that renders two
   // trees and counts patches can pass while the comparator is broken,
   // because keyed siblings never prune into one another.
@@ -910,7 +910,7 @@ TEST(ComposeR4Mask, ACoverageGatesChannelAndSenseReachTheComparator) {
   EXPECT_FALSE(same(by::alphaOut(m), by::lumaOut(m)));
 }
 
-TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
+TEST(ComposeMaskGates, ThreeMasksAtThreeRatesIntersectPerFrame) {
   // Masks whose selections overlap INTERSECT, and each carries its OWN
   // animation, so three masks can run at three rates on one node. Sharing
   // one animation slot would make the second gate retarget the first, and
@@ -955,7 +955,7 @@ TEST(ComposeR4Mask, S8PlusThreeMasksAtThreeRatesIntersectPerFrame) {
 
 // ---- Region is a VALUE ---------------------------------------------------
 
-TEST(ComposeR4Mask, RegionIsComparableFromDayOne) {
+TEST(ComposeMaskGates, RegionIsAComparableValue) {
   // The shape gate's obvious signature takes an OutlineFn — an
   // incomparable std::function, whose node never prunes and therefore never
   // caches. Region is a closed, comparable value instead, which is what lets

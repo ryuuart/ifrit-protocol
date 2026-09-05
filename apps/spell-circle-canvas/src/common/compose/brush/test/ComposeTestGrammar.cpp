@@ -1022,7 +1022,7 @@ TEST(ComposeComposites, CompositesNest) {
 
 // ---- 1. animate(to(v), spec) ----------------------------------------------
 
-TEST(ComposeR1Animate, AnimateToIsTheChangeRamp) {
+TEST(ComposeMotionWords, AnimateToIsTheChangeRamp) {
   // Read the property MID-RAMP, which is the only place a snap and a ramp
   // differ — both agree at the endpoints. The second arm describes the same
   // value with no animate() at all and must snap, which is what makes the
@@ -1053,7 +1053,7 @@ TEST(ComposeR1Animate, AnimateToIsTheChangeRamp) {
   EXPECT_EQ((int)SkColorGetR(snapped), 0) << "the bare value is already there";
 }
 
-TEST(ComposeR1Animate, ToAloneHasNoEntranceAndFromToDoes) {
+TEST(ComposeMotionWords, ToAloneHasNoEntranceAndFromToDoes) {
   // The whole distinction between the two, as pixels: to() mounts already
   // holding its value, and motion::from().to() plays a path on first
   // appearance.
@@ -1101,7 +1101,7 @@ struct SaysTheDeadWord {
 
 }  // namespace
 
-TEST(ComposeR3Volatility, OneWordDeclaresVolatilityAndTheOthersAreGone) {
+TEST(ComposeVolatility, IsAnimatedIsTheOnlyWordThatDeclaresIt) {
   static_assert(AnimatedDecoration<SaysAnimated>);
   static_assert(!AnimatedDecoration<SaysTheDeadWord>,
                 "only isAnimated() declares volatility");
@@ -1111,7 +1111,7 @@ TEST(ComposeR3Volatility, OneWordDeclaresVolatilityAndTheOthersAreGone) {
   EXPECT_FALSE(Decoration(SaysTheDeadWord{true}).isAnimated());
 }
 
-TEST(ComposeR3Volatility, LibrarySchemesDeclareWithTheOneWord) {
+TEST(ComposeVolatility, EveryLibrarySchemeDeclaresItWithTheSameWord) {
   lines::Line line;
   choreograph::Output<float> phase;
   line.dashPhaseBinding = &phase;
@@ -1128,7 +1128,7 @@ TEST(ComposeR3Volatility, LibrarySchemesDeclareWithTheOneWord) {
 
 // ---- 3. Bound::source / ::target -------------------------------------------
 
-TEST(ComposeR1Bound, SourceAndTargetAreTheOldStagesRenamed) {
+TEST(ComposeMotionWords, TargetIsScaleAndOffsetWrittenAsTwoBounds) {
   choreograph::Output<float> hp;
   hp = 25.0f;
   const sigil::motion::BoundFloat named =
@@ -1144,7 +1144,7 @@ TEST(ComposeR1Bound, SourceAndTargetAreTheOldStagesRenamed) {
   EXPECT_FLOAT_EQ(named.apply(100.0f), 170.0f);
 }
 
-TEST(ComposeR1Bound, WindowIsStillSourceThatClamps) {
+TEST(ComposeMotionWords, WindowIsSourceThatClamps) {
   choreograph::Output<float> t;
   const sigil::motion::BoundFloat w =
       motion::bind(&t).window(0.2f, 0.4f).value();
@@ -1157,7 +1157,7 @@ TEST(ComposeR1Bound, WindowIsStillSourceThatClamps) {
 
 // ---- 5. Ribbon on the profile seam ----------------------------------------
 
-TEST(ComposeR1Ribbon, ProfileRibbonPaintsItsBand) {
+TEST(ComposeRibbon, ProfileRibbonPaintsItsBand) {
   Host host(200, 200);
   brush::Ribbon r;
   r.width = geometry::path::Profile(
@@ -1354,7 +1354,7 @@ TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
       << frFull.first << " vs half " << frHalf.first << ")";
 }
 
-TEST(ComposeWidthProfile, TheLastNeverPruneRibbonsCanPruneNow) {
+TEST(ComposeWidthProfile, ARibbonUnderAWidthProfilePrunes) {
   // A varying-width ribbon must be comparable. Carry the width as a callable
   // and the ribbon is unequal to ITSELF, so its whole band re-records on
   // every describe; carry it as a Profile over a plain struct law and two
@@ -1472,7 +1472,7 @@ TEST(ComposeWidthProfile, ANonFiniteSamplePinchesInsteadOfDeletingTheBand) {
 
 // ---- 6. the derive family --------------------------------------------------
 
-TEST(ComposeR1Derive, TheFamilyHasOneSpelling) {
+TEST(ComposeDeriveWords, TheQualifiedAndPlainConnectorDrawOnePicture) {
   // Aliases, so the same picture, term for term.
   auto draw = [](bool qualified) {
     Host host(200, 200);
@@ -1494,7 +1494,7 @@ TEST(ComposeR1Derive, TheFamilyHasOneSpelling) {
   EXPECT_GT(inkedCount(qualified), 10u) << "the wire actually drew";
 }
 
-TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
+TEST(ComposeDeriveWords, TheFreeFlowAroundVerbIsTheMethod) {
   auto draw = [](bool freeVerb) {
     Host host(300, 200);
     // whiteStyle, not styleAt: the default foreground is BLACK and so is the
@@ -1534,7 +1534,7 @@ TEST(ComposeR1Derive, FlowAroundAsAFreeVerbIsTheMethod) {
 // also bounds the ink away from "nothing" and "everything" so that two
 // agreeing blank frames cannot pass.
 
-TEST(ComposeR1Wrap, StaticSeamCrossingWindowMatchesWrapTrim) {
+TEST(ComposeSpanWrap, StaticSeamCrossingWindowMatchesWrapTrim) {
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
     Element e = revealBox();
@@ -1554,7 +1554,7 @@ TEST(ComposeR1Wrap, StaticSeamCrossingWindowMatchesWrapTrim) {
   EXPECT_LT(inked, spanned.size() / 2);
 }
 
-TEST(ComposeR1Wrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
+TEST(ComposeSpanWrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   // The full marching-ants idiom: a fixed-length window driven all the way
   // round, compared at eight phases — two of which straddle the seam, and
   // one of which sits exactly ON it.
@@ -1588,7 +1588,7 @@ TEST(ComposeR1Wrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   }
 }
 
-TEST(ComposeR1Wrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
+TEST(ComposeSpanWrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
   // The composer-driven half: BOTH endpoints on animate() ramps that carry
   // the window past 1.0, so the seam is crossed by a transition rather than
   // by a bound value.
@@ -1620,7 +1620,7 @@ TEST(ComposeR1Wrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
   }
 }
 
-TEST(ComposeR1Wrap, DegenerateWindowsMatchTrimToo) {
+TEST(ComposeSpanWrap, DegenerateWindowsMatchTrimToo) {
   auto ink = [](bool useLegacyTrim, float a, float b) {
     Host host(200, 200);
     Element e = revealBox();
@@ -1643,7 +1643,7 @@ TEST(ComposeR1Wrap, DegenerateWindowsMatchTrimToo) {
   EXPECT_EQ(ink(false, 0.3f, 2.6f), ink(true, 0.3f, 2.6f));
 }
 
-TEST(ComposeR1Wrap, WrapIsItsOwnTermAndRangeStillClamps) {
+TEST(ComposeSpanWrap, WrapIsItsOwnTermAndRangeStillClamps) {
   // wrap() is a separate term rather than a mode of range(), because
   // range(0.9, 0.1) already has a meaning — a reversed pair normalised into
   // one run — and because a reader looking at a claim conflict needs the
@@ -1667,7 +1667,7 @@ TEST(ComposeR1Wrap, WrapIsItsOwnTermAndRangeStillClamps) {
   EXPECT_NEAR(two[1].end, 1.0f, 1e-4f);
 }
 
-TEST(ComposeR1Wrap, WrapWindowsParticipateInReconcilerEquality) {
+TEST(ComposeSpanWrap, WrapWindowsParticipateInReconcilerEquality) {
   // Without this the marching reveal above would prune to its first frame:
   // every wrapped window would compare equal to every other one.
   EXPECT_TRUE(spans::wrap(0.1f, 0.4f) == spans::wrap(0.1f, 0.4f));
@@ -1684,7 +1684,7 @@ TEST(ComposeR1Wrap, WrapWindowsParticipateInReconcilerEquality) {
 // bounds its own ink, because two identically blank frames would otherwise
 // satisfy the comparison.
 
-TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
+TEST(ComposeSpanTrim, ClampWindowWithBothEndsNamed) {
   // A window with a NON-ZERO start. upTo() only ever covers the start == 0
   // case, so this row is where a start offset would go wrong unnoticed.
   auto draw = [](bool useLegacyTrim) {
@@ -1704,7 +1704,7 @@ TEST(ComposeR1TrimParity, ClampWindowWithBothEndsNamed) {
   EXPECT_LT(inkedCount(spanned), spanned.size());
 }
 
-TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
+TEST(ComposeSpanTrim, ClampWindowOutsideZeroToOnePins) {
   // Clamped behaviour: fractions outside [0,1] PIN rather than wrap, and
   // normalizeSpans clamps the same way on both doors.
   auto draw = [](bool useLegacyTrim) {
@@ -1743,7 +1743,7 @@ TEST(ComposeR1TrimParity, ClampWindowOutsideZeroToOnePins) {
       << "…and the bottom edge is not: [-0.4, 0.6] PINNED, it did not wrap";
 }
 
-TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
+TEST(ComposeSpanTrim, BoundEndpointsScrubTheSameWindow) {
   // Plain bound endpoints — the case both modes share.
   choreograph::Output<float> begin, end;
   Host trimmed(200, 200), spanned(200, 200);
@@ -1767,7 +1767,7 @@ TEST(ComposeR1TrimParity, BoundEndpointsScrubTheSameWindow) {
   }
 }
 
-TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
+TEST(ComposeSpanTrim, TheOffsetArgumentIsEndpointArithmetic) {
   // The gate's third argument. A CONSTANT offset is just addition at the
   // call site; a BOUND offset over constant ends is
   // `motion::bind(&off).offset(k)` on each end. Both are checked against the
@@ -1803,7 +1803,7 @@ TEST(ComposeR1TrimParity, TheOffsetArgumentIsEndpointArithmetic) {
   }
 }
 
-TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
+TEST(ComposeSpanTrim, AnimatedEndpointsRampTheSameWindow) {
   // Composer-manufactured endpoints under Clamp: both doors must ramp the
   // same window on the same frames.
   auto host = [](bool useLegacyTrim) {
@@ -1833,7 +1833,7 @@ TEST(ComposeR1TrimParity, AnimatedEndpointsRampTheSameWindow) {
   EXPECT_GT(lastInk, 5u) << "the ramp never painted";
 }
 
-TEST(ComposeR1TrimParity, OnePassPerClaimIsTheNPassRule) {
+TEST(ComposeSpanTrim, OnePassPerClaimIsTheNPassRule) {
   // A node gate reveals EVERY outline-following decoration at once, while a
   // span claims exactly ONE pass — and two passes claiming the same run is
   // the loud error. So revealing several marks together is spelled as one
@@ -1852,7 +1852,7 @@ TEST(ComposeR1TrimParity, OnePassPerClaimIsTheNPassRule) {
 // The harder parity rows: a third live term, background-half passes, seams,
 // and wrap under the overlap law.
 
-TEST(ComposeR2Offset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
+TEST(ComposeSpanOffset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
   // A bound endpoint holds ONE source pointer, so endpoint arithmetic alone
   // cannot express two independently driven values summed into one endpoint
   // — a window that both scrubs and marches. `Spans::offset()` is that third
@@ -1880,7 +1880,7 @@ TEST(ComposeR2Offset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
   }
 }
 
-TEST(ComposeR2Offset, TheSummedEndpointWrapsLikeTrimDoes) {
+TEST(ComposeSpanOffset, TheSummedEndpointWrapsLikeTrimDoes) {
   // The same row in Wrap mode — where the offset is the marching term and
   // the ends are the window, each on its own Output.
   choreograph::Output<float> begin, end, off;
@@ -1914,7 +1914,7 @@ TEST(ComposeR2Offset, TheSummedEndpointWrapsLikeTrimDoes) {
   }
 }
 
-TEST(ComposeR2Offset, TheOffsetIsAComparableEndpointLikeTheOthers) {
+TEST(ComposeSpanOffset, TheOffsetIsAComparableEndpointLikeTheOthers) {
   // The offset participates in equality exactly as begin/end do. Without it
   // a claim that only SLIDES compares equal frame to frame, prunes, and
   // freezes at its first position — the marching reveal simply stops, with
@@ -1940,7 +1940,7 @@ TEST(ComposeR2Offset, TheOffsetIsAComparableEndpointLikeTheOthers) {
   EXPECT_NEAR(withOffset[0].end, 0.65f, 1e-4f);
 }
 
-TEST(ComposeR2Background, TrimmedBackgroundFollowerHasASpanSpelling) {
+TEST(ComposeSpanBackground, TrimmedBackgroundFollowerHasASpanSpelling) {
   // A node gate reveals BACKGROUND-slot followers too, so a span pass needs
   // a background twin: without one, every span-claimed mark is forced above
   // the children. Same claim, same brush, opposite z-half.
@@ -1961,7 +1961,7 @@ TEST(ComposeR2Background, TrimmedBackgroundFollowerHasASpanSpelling) {
   EXPECT_LT(inkedCount(spanned), spanned.size());
 }
 
-TEST(ComposeR2Background, ThePassPaintsUNDERTheChildren) {
+TEST(ComposeSpanBackground, ThePassPaintsUNDERTheChildren) {
   // The z-order is the entire reason the slot exists, so it is pinned:
   // the same brush in the two halves lands on opposite sides of a child.
   auto topPixel = [](bool asBackground) {
@@ -1982,7 +1982,7 @@ TEST(ComposeR2Background, ThePassPaintsUNDERTheChildren) {
   EXPECT_EQ(topPixel(false), SK_ColorRED) << "foreground half: mark on top";
 }
 
-TEST(ComposeR2Background, OneBoundaryIsOneClaimLedgerAcrossBothHalves) {
+TEST(ComposeSpanBackground, OneBoundaryIsOneClaimLedgerAcrossBothHalves) {
   // The halves share a ledger because they share a BOUNDARY. Two passes
   // claiming the same run is the same mistake whichever half they paint in,
   // and it is still said out loud.
@@ -2000,7 +2000,7 @@ TEST(ComposeR2Background, OneBoundaryIsOneClaimLedgerAcrossBothHalves) {
   EXPECT_NE(log.find("over"), std::string::npos) << log;
 }
 
-TEST(ComposeR2Background, RestReadsAcrossTheHalvesToo) {
+TEST(ComposeSpanBackground, RestReadsAcrossTheHalvesToo) {
   // rest() is the complement of what the OTHER claiming passes took — and
   // "the other passes" is the whole ledger, not this half of it.
   Host host(200, 200);
@@ -2016,7 +2016,7 @@ TEST(ComposeR2Background, RestReadsAcrossTheHalvesToo) {
   EXPECT_EQ(host.pixel(60, 20), SK_ColorGREEN) << "rest() took the remainder";
 }
 
-TEST(ComposeR2Seam, AWholeContourClaimKeepsItsCornerJoin) {
+TEST(ComposeSpanCorner, AWholeContourClaimKeepsItsCornerJoin) {
   // A claim covering the WHOLE contour must be re-closed. SkContourMeasure's
   // getSegment returns an OPEN run whose ends merely coincide, so stroking it
   // as-is puts two butt caps at the seam vertex where a miter join belongs —
@@ -2071,7 +2071,7 @@ TEST(ComposeR2Seam, AWholeContourClaimKeepsItsCornerJoin) {
   EXPECT_EQ(corner(4), truth) << "bare rest() against nothing";
 }
 
-TEST(ComposeR2Wrap, WrapIsUnderTheOverlapLawLikeEveryOtherTerm) {
+TEST(ComposeSpanWrap, WrapIsUnderTheOverlapLawLikeEveryOtherTerm) {
   // wrap() is the only term that yields TWO runs from one pair of endpoints,
   // which is the stated reason it is its own word. So the law has to read
   // BOTH runs: a claim that overlaps only the piece on the far side of the
@@ -2104,7 +2104,7 @@ TEST(ComposeR2Wrap, WrapIsUnderTheOverlapLawLikeEveryOtherTerm) {
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "");
 }
 
-TEST(ComposeR2Wrap, RestIsTheComplementOfBothOfWrapsRuns) {
+TEST(ComposeSpanWrap, RestIsTheComplementOfBothOfWrapsRuns) {
   // rest() reads RESOLVED runs, so a seam-crossing claim leaves rest() a
   // single interval in the middle — not two, and not the naive [end, begin].
   Host host(200, 200);
@@ -2126,7 +2126,7 @@ TEST(ComposeR2Wrap, RestIsTheComplementOfBothOfWrapsRuns) {
   EXPECT_EQ(host.pixel(20, 120), SK_ColorRED) << "the seam vertex itself";
 }
 
-TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
+TEST(ComposeVolatility, ALiveMaterialOnASpanPassDeclaresItself) {
   // spanVolatile reads the PASS BRUSH's isAnimated(), which means a live
   // MATERIAL on a span pass must declare itself just as a bound endpoint
   // does: a stroke whose colour comes from a uTime shader has to repaint
@@ -2147,7 +2147,7 @@ TEST(ComposeR2Volatility, ALiveMaterialOnASpanPassDeclaresItself) {
   EXPECT_EQ(paintedPerFrame(false), 0u) << "…and a static one must still cache";
 }
 
-TEST(ComposeR1Ribbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
+TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   // A BAND IS A SURFACE, and a surface a material can dress — the same
   // door a stroke opens with strokeMaterial. Without it a ribbon beside a
   // stroked outline has to have the same paint written twice, once as a
@@ -2201,7 +2201,7 @@ struct FlatWidth {
 
 }  // namespace
 
-TEST(ComposeR1Ribbon, TheInsideOfATightBendIsFilled) {
+TEST(ComposeRibbon, TheInsideOfATightBendIsFilled) {
   // A band is the UNION of its cross-sections, and the union is what the
   // construction has to produce. Zipped into one left-forward, right-back
   // contour the inner rail crosses itself, the crossing winds the wrong
@@ -2221,7 +2221,7 @@ TEST(ComposeR1Ribbon, TheInsideOfATightBendIsFilled) {
   EXPECT_FALSE(band.contains(50, 105)) << "25px off a 40-wide band";
 }
 
-TEST(ComposeR1Ribbon, TheJoinShapesTheOutsideOfTheCorner) {
+TEST(ComposeRibbon, TheJoinShapesTheOutsideOfTheCorner) {
   // Outside the turn the three joins differ by construction, and the
   // difference is exactly what each word means: the chord, the arc, the
   // point. The corner is at (80,80) and the outer side is down-right.
@@ -2261,7 +2261,7 @@ TEST(ComposeR1Ribbon, TheJoinShapesTheOutsideOfTheCorner) {
   EXPECT_FALSE(miter == tight);
 }
 
-TEST(ComposeR1Ribbon, WidthAlongMeasuresTheBandTheRibbonDrew) {
+TEST(ComposeRibbon, WidthAlongMeasuresTheBandTheRibbonDrew) {
   // The audit reads the geometry the ribbon hands back, so what is
   // measured is what was drawn rather than a transcription of how it is
   // built — which is what goes stale the moment the sampling changes.
@@ -2294,7 +2294,7 @@ TEST(ComposeR1Ribbon, WidthAlongMeasuresTheBandTheRibbonDrew) {
   EXPECT_FALSE(wrong.within(1.0f));
 }
 
-TEST(ComposeR1Ribbon, WidthAlongMeasuresATrunkOfHundredsOfOverlappingSteps) {
+TEST(ComposeRibbon, WidthAlongMeasuresATrunkOfHundredsOfOverlappingSteps) {
   // THE CASE THAT BREAKS EVERY OUTLINE-FIRST MEASUREMENT. A band is a
   // union of one quadrilateral per sampled step, and a long one is
   // hundreds of them; resolving that union into a boundary gives an
@@ -2338,7 +2338,7 @@ TEST(ComposeR1Ribbon, WidthAlongMeasuresATrunkOfHundredsOfOverlappingSteps) {
   EXPECT_EQ(badOnAStraightLeg, 0);
 }
 
-TEST(ComposeR1Ribbon, WidthAlongSkipsTheCapsAndSeesTheCorner) {
+TEST(ComposeRibbon, WidthAlongSkipsTheCapsAndSeesTheCorner) {
   // Within half a width of an end the shortest chord through a point runs
   // diagonally out through the cap rather than across the band, so the
   // margin is not a nicety: without it every audit reports its own ends as

@@ -49,7 +49,7 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
   EXPECT_LT(SkColorGetR(host.pixel(3, 3)), 40u);     // corner outside circle
 }
 
-TEST(ComposeSdf, StarFillsCenterMissesCorners) {
+TEST(ComposeSdf, AStarFillsItsCentreAndMissesTheBoxCorners) {
   // The analytic N-star: fill covers the body, the box corners lie outside
   // the arms. One shader pass, pixel-space distance.
   Host host;
@@ -239,7 +239,7 @@ TEST(ComposePattern, ReseedingACopyLeavesTheOriginalAlone) {
   EXPECT_EQ(plate(), before) << "and dropped its bake with it";
 }
 
-TEST(ComposePattern, ElementTreeAsTile) {
+TEST(ComposePattern, AnElementTreeIsATile) {
   // Patterns are compositions: an element tree (two boxes) as the tile.
   Pattern duo = Pattern::tile(
       {20, 10}, box()
@@ -259,7 +259,7 @@ TEST(ComposePattern, ElementTreeAsTile) {
   EXPECT_EQ(host.pixel(25, 5), SK_ColorRED);  // the repeat
 }
 
-TEST(ComposePattern, Girih8IsTheRealStarAndCross) {
+TEST(ComposePattern, TheGirihEightTileIsAStarAndACross) {
   // The construction is Hankin's polygons-in-contact method on a 4.8.8
   // tiling at θ=45: a khatam star at the tile centre in the star colour, the
   // cross ground at the flanks of each edge midpoint, and the strap ribbon
@@ -310,7 +310,7 @@ TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {
   EXPECT_LT(bot + 20, mid);  // shaded edge
 }
 
-TEST(ComposeStyles, OverlayAndStrokeSugar) {
+TEST(ComposeStyles, AnOverlaySitsOverTheFillAndAStrokeOverBoth) {
   // colorOverlay tints the shape through its blend; .stroke() is fill's
   // ergonomic peer for dressing the outline.
   Host host;
