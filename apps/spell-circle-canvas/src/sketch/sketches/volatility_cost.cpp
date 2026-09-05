@@ -380,22 +380,20 @@ struct VolatilityCost final : sketch::Sketch {
                                  "worst first"),
                       label(12.5f, kInk, 0.8f))
                      .margin(0, 0, 0, 4));
-    for (const Composer::NodeCost& row : worst) {
-      column.child(
-          box()
-              .row()
-              .gap(8)
-              .alignItems(Align::Center)
-              .child(box().width(9).height(9).fill(
-                  Fill::color(tierColor(row.cacheState))))
-              .child(text(toU8(row.label), label(11, kInk)).width(Dim(126)))
-              .child(text(toU8(ms(ctx.measured(row.selfMs))), label(11, kInk))
-                         .width(Dim(46)))
-              .child(text(toU8(tierName(row.cacheState)), label(11, kDim))
-                         .width(Dim(66)))
-              .child(text(toU8(Composer::promotionReason(row.promotion)),
-                          label(11, kDim))));
-    }
+    std::vector<sketch::kit::Row> rows;
+    rows.reserve(worst.size());
+    for (const Composer::NodeCost& row : worst)
+      rows.push_back({{toU8(row.label), toU8(ms(ctx.measured(row.selfMs))),
+                       toU8(tierName(row.cacheState)),
+                       toU8(Composer::promotionReason(row.promotion))},
+                      Fill::color(tierColor(row.cacheState))});
+    // The tier and the reason are the row's own quiet columns; the key
+    // and the cost are what a reader is looking for, so those two carry
+    // the figure register.
+    column.child(sketch::kit::table(
+        std::move(rows), {.columns = {{126, true}, {46, true}, {66}, {}},
+                          .gap = 8,
+                          .swatch = 9}));
     return column;
   }
 

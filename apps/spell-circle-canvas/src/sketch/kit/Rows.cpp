@@ -1,6 +1,8 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilsketch/kit/Rows.h>
 
+#include <algorithm>
+#include <cstddef>
 #include <utility>
 
 namespace sigil::sketch::kit {
@@ -56,6 +58,48 @@ compose::Element readout(std::vector<Reading> rows, const Readout& how) {
                        .fill(Fill::color(look.palette.rule)));
     first = false;
     column.child(labelRow(reading, how));
+  }
+  return column;
+}
+
+compose::Element table(std::vector<Row> rows, const Table& how) {
+  const Theme& look = theme();
+  const auto ink = [&](bool figure) {
+    return figure ? look.style(look.type.captionLabel, look.palette.figure)
+                  : look.style(look.type.captionNote, look.palette.ash);
+  };
+  Element column = box().column().gap(look.spacing.rowGap);
+  bool first = true;
+  for (const Row& row : rows) {
+    if (!first && how.ruled)
+      column.child(box()
+                       .height(Dim(1))
+                       .alignSelf(Align::Stretch)
+                       .fill(Fill::color(look.palette.rule)));
+    first = false;
+    Element line = box().row().alignItems(Align::Center).gap(
+        how.gap.value_or(look.spacing.labelGap));
+    if (!row.key.empty()) line.key(row.key);
+    if (row.swatch.kind != Fill::Kind::None) {
+      const float side = how.swatch.value_or(look.spacing.swatch);
+      Element mark =
+          box().width(Dim(side)).height(Dim(side)).fill(row.swatch).shrink(0);
+      if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
+      line.child(std::move(mark));
+    }
+    for (size_t i = 0; i < row.cells.size(); ++i) {
+      // A row with more words than columns sets the surplus in the last
+      // column's register, at its own width — which is the shape a table
+      // whose final column is prose already has.
+      const Column spec =
+          how.columns.empty()
+              ? Column{}
+              : how.columns[std::min(i, how.columns.size() - 1)];
+      Element cell = text(row.cells[i], ink(spec.figure));
+      if (spec.width > 0 && i < how.columns.size()) cell.width(Dim(spec.width));
+      line.child(std::move(cell));
+    }
+    column.child(std::move(line));
   }
   return column;
 }

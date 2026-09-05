@@ -1,8 +1,9 @@
 #pragma once
 
 /** @file
- * A NAME AND THE FIGURE THAT ANSWERS IT: one row of it, and the table
- * several of them make.
+ * A NAME AND THE FIGURE THAT ANSWERS IT: one row of it, the readout
+ * several of them make, and the fixed-column table for the reading that
+ * is more than a pair.
  */
 
 #include <sigilcompose/core/Element.h>
@@ -67,5 +68,53 @@ struct Readout {
  */
 [[nodiscard]] compose::Element readout(std::vector<Reading> rows,
                                        const Readout& how = {});
+
+/** ONE ROW OF A TABLE: its words in column order, with the mark that
+ *  stands before them. */
+struct Row {
+  std::vector<std::u8string> cells;
+  /** Before the first column, for a table that is also a key. */
+  compose::Fill swatch;
+  /** Names the row, so a query can read it back and a reveal can address
+   *  it one row at a time. Empty keys nothing. */
+  std::string key;
+};
+
+/** ONE COLUMN OF A TABLE. */
+struct Column {
+  /** The width it takes. 0 lets it size itself, which is what the LAST
+   *  column usually wants, since nothing ranges after it. */
+  float width = 0;
+  /** Sets the column in the theme's figure colour and in the face a CALL
+   *  is set in, so its digits are one width. false sets it in the quiet
+   *  register a name is set in. */
+  bool figure = false;
+};
+
+/** HOW A TABLE IS SET. */
+struct Table {
+  /** In order across. A row with more words than there are columns sets
+   *  the surplus in the last column's register at its own width. */
+  std::vector<Column> columns;
+  /** Between columns; unset is the theme's label gap. */
+  std::optional<float> gap;
+  /** The side of a row's swatch; unset is the theme's. */
+  std::optional<float> swatch;
+  float swatchCorners = 0;
+  /** A hairline between neighbouring rows. */
+  bool ruled = false;
+};
+
+/** THE TABLE — @p rows in @p how's columns, at the theme's row gap.
+ *
+ *      sketch::kit::table(rows, {.columns = {{126}, {46, true}, {66}, {}}})
+ *
+ *  A READOUT and a TABLE are different readings. A readout is a PAIR
+ *  ranged to opposite edges of one measure, which is what makes a stack
+ *  of them line up on their figures; a table is N columns each at its
+ *  own width, which is what a reading of more than a name and a figure
+ *  needs. Neither is the other with a field set. */
+[[nodiscard]] compose::Element table(std::vector<Row> rows,
+                                     const Table& how);
 
 }  // namespace sigil::sketch::kit

@@ -133,7 +133,8 @@ sketch::kit::titleCard({.eyebrow = toU8("SIGIL · COMPOSE"),
 | | |
 | --- | --- |
 | `labelRow(Reading, Readout)` | the name at the left in the quiet register, the figure at the right in the figure colour and the face a call is set in, with a swatch before the name where the row is also a key |
-| `readout(rows, Readout)` | a table of those, at the theme's row gap, optionally ruled between |
+| `readout(rows, Readout)` | a stack of those, at the theme's row gap, optionally ruled between |
+| `table(rows, Table)` | N columns each at its own width, the ones that carry a number in the figure register, with a mark before the first — the reading a pair cannot hold |
 
 ```cpp
 sketch::kit::readout({{u8"nodes", nodes}, {u8"instances", live}},
@@ -141,8 +142,19 @@ sketch::kit::readout({{u8"nodes", nodes}, {u8"instances", live}},
 ```
 
 `Readout` is HOW a row is set and the rows are the data, so one value
-sets a whole table. `nameMeasure` is what makes a table a table: without
-one the figures range only when the names happen to be one length.
+sets a whole stack. `nameMeasure` is what ranges the figures of unequal
+names.
+
+A READOUT and a TABLE are different readings, and neither is the other
+with a field set. A readout is a PAIR ranged to opposite edges of one
+measure; a table is N columns each at its own width, which is what a
+reading of more than a name and a figure needs — a key, a cost, the tier
+it took and the condition that refused it.
+
+```cpp
+sketch::kit::table(rows, {.columns = {{126, true}, {46, true}, {66}, {}},
+                          .swatch = 9});
+```
 
 A figure a sketch measured about its own execution goes through
 `ctx.measured` **before** it reaches here. These components arrange a

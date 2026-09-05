@@ -490,6 +490,69 @@ TEST(SketchKitLegend, AnOutlinedSwatchIsNotAFilledOne) {
                                         .strokeWidth = 1.4f})));
 }
 
+/** The four-column reading a name-and-figure pair cannot hold: each
+ *  column at its own width, the last one taking what is left. */
+TEST(SketchKitRows, ATableDrawsTheHandSpelledColumns) {
+  const kit::Theme& house = kit::houseTheme();
+  const Fill tier = Fill::color({0.4f, 0.9f, 0.55f, 1});
+  const auto figure = [&] {
+    return house.style(house.type.captionLabel, house.palette.figure);
+  };
+  const auto quiet = [&] {
+    return house.style(house.type.captionNote, house.palette.ash);
+  };
+  Element byHand =
+      compose::box().column().gap(house.spacing.rowGap).child(
+      compose::box()
+          .row()
+          .alignItems(compose::Align::Center)
+          .gap(8)
+          .child(compose::box()
+                     .width(compose::Dim(9))
+                     .height(compose::Dim(9))
+                     .fill(tier)
+                     .shrink(0))
+          .child(compose::text(u8"cellPanel", figure())
+                     .width(compose::Dim(126)))
+          .child(compose::text(u8"0.00", figure()).width(compose::Dim(46)))
+          .child(compose::text(u8"Promoted", quiet()).width(compose::Dim(66)))
+          .child(compose::text(u8"baked by the library", quiet())));
+  Element byKit = kit::table(
+      {{{u8"cellPanel", u8"0.00", u8"Promoted", u8"baked by the library"},
+        tier}},
+      {.columns = {{126, true}, {46, true}, {66}, {}},
+       .gap = 8,
+       .swatch = 9});
+  EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
+}
+
+/** A row with more words than there are columns sets the surplus in the
+ *  last column's register, at its own width — the shape a table whose
+ *  final column is prose already has. */
+TEST(SketchKitRows, ASurplusWordTakesTheLastColumnsRegister) {
+  const kit::Theme& house = kit::houseTheme();
+  Element byHand =
+      compose::box().column().gap(house.spacing.rowGap).child(
+          compose::box()
+              .row()
+              .alignItems(compose::Align::Center)
+              .gap(house.spacing.labelGap)
+              .child(compose::text(u8"key",
+                                   house.style(house.type.captionNote,
+                                               house.palette.ash))
+                         .width(compose::Dim(60)))
+              .child(compose::text(u8"0.00",
+                                   house.style(house.type.captionLabel,
+                                               house.palette.figure)))
+              .child(compose::text(u8"12",
+                                   house.style(house.type.captionLabel,
+                                               house.palette.figure))));
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::table({{{u8"key", u8"0.00", u8"12"}}},
+                 {.columns = {{60}, {0, true}}})));
+}
+
 // ---------------------------------------------------------------------------
 // Colour, named
 
