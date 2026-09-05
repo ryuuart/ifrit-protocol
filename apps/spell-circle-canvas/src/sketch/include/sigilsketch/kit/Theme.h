@@ -47,7 +47,9 @@ struct Palette {
 struct Register {
   float size = 11;
   float track = 0;
-  /** false sets the line in the theme's sans face, true in its mono. */
+  /** false sets the line in the theme's first face, true in its second —
+   *  the one a CALL is set in, which is monospaced on the house sheet and
+   *  whatever a theme puts there on another. */
   bool mono = false;
   bool operator==(const Register&) const = default;
 };
@@ -55,12 +57,17 @@ struct Register {
 /** THE REGISTERS A SHEET'S LINES ARE SET IN, and the two faces they are
  *  set with.
  *
+ *  TWO FACES: `sans`, which a line is set in unless it says otherwise,
+ *  and `mono`, the one a CALL is set in — monospaced on the house sheet,
+ *  and a book serif on a sheet about body type.
+ *
  *  A null face is the FontContext's own default plus its fallback chain
  *  — which is what a style that names no face gets, so leaving `sans`
  *  null and setting a line in it is the same style as setting it in
- *  nothing. `mono` is resolved once, and compared by pointer wherever a
- *  style or an inherited value is compared, so a theme must hold the
- *  resolution rather than repeat it. */
+ *  nothing. A face is resolved once and held, because it is compared by
+ *  POINTER wherever a style or an inherited value is compared, and a
+ *  theme that resolved one per read would never compare equal to
+ *  itself. */
 struct TypeScale {
   Register title{14, 2.4f};
   Register subtitle{11.5f, 0.8f};
@@ -152,6 +159,9 @@ struct Theme {
  *      ctx.composer.render(sketch::kit::page({...}, content));
  *
  *  RAII and LIFO, and it costs one empty vector where nothing binds one.
+ *  BIND IT WHERE THE TREE IS DESCRIBED: a sketch that describes again
+ *  when its data changes does so outside the scope its setup opened, and
+ *  a theme bound only there is not in scope for the second description.
  *  A callable the KERNEL invokes later — a `custom()` paint program, a
  *  memo's deferred describe — runs outside this scope, so such a lambda
  *  captures the colours it needs by value here, where the scope still

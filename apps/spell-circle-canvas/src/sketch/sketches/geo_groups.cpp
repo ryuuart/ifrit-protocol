@@ -29,13 +29,14 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
-#include <sigilweave/style/Type.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/codec/Decode.h>
 #include <sigilgeometry/mesh/codec/Encode.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 #include <string>
@@ -55,6 +56,24 @@ constexpr float kRingRadius = 120.0f;
 constexpr float kRingWidth = 34.0f;
 constexpr float kTwistDeg = 70.0f;
 constexpr float kPanel = 360.0f;
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
+  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionGap = 5;
+  return look;
+}
 
 const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
 const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
@@ -115,26 +134,14 @@ Element splat(geometry::mesh::Cloud cloud) {
       .cache(Cache::None);
 }
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(12.5f, kInk, 0.4f),
-          .note = label(10.5f, kDim, 0.2f),
-          .gap = 5,
-          .noteMeasure = kPanel};
-}
-
 Element panel(const char* title, const char* note, Element inner) {
-  return kit::cell(voice(), toU8(title), toU8(note),
-                   box()
-                       .width(kPanel)
-                       .height(kPanel * 0.8f)
-                       .clip()
-                       .stroke(stroke(1.0f, Fill::color(kFrame)))
-                       .child(std::move(inner)));
+  return sketch::kit::caption(kPanel, toU8(title), toU8(note),
+                              box()
+                                  .width(kPanel)
+                                  .height(kPanel * 0.8f)
+                                  .clip()
+                                  .stroke(stroke(1.0f, Fill::color(kFrame)))
+                                  .child(std::move(inner)));
 }
 
 // a literal table; only allocation could throw
@@ -149,8 +156,8 @@ struct GeoGroups : sketch::Sketch {
   std::string caption;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1200, 440);
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1200, 440}});
     // Every cloud is cooked in setup; nothing reads the clock.
     ctx.captureAt(0.05);
 
@@ -160,9 +167,10 @@ struct GeoGroups : sketch::Sketch {
                                              "grid.geo");
     if (!model || model->parts.empty()) {
       caption = "the .geo did not parse";
-      ctx.composer.render(text(toU8(caption), weave::textStyle({.size = 15, .color = kInk}))
-                              .left(30)
-                              .top(16));
+      ctx.composer.render(
+          text(toU8(caption), weave::textStyle({.size = 15, .color = kInk}))
+              .left(30)
+              .top(16));
       return;
     }
     // asCloud(): positions, "normal" from N, "tint" from Cd, and every
@@ -197,35 +205,24 @@ struct GeoGroups : sketch::Sketch {
                   .op(kRingLarger)
                   .cloud();
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("GEO GROUPS \xc2\xb7 a point group is a pop mask "
-                           "the moment it lands"),
-             .subtitle = toU8(caption),
-             .footer = toU8("a point group arrives from the file as a 0/1 "
-                            "lane under its own name — which is what "
-                            "masked() reads, and what encode::geo writes "
-                            "back out"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kDim, 0.6f),
-             .footerStyle = label(10.5f, kDim, 0.2f),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells = {panel("pop::on(part.asCloud())",
-                                 "Cd from the file; group \"ring\" scaled up",
-                                 splat(saved)),
-                           panel("peak(60).masked(\"outside\")",
-                                 "the inverted group; the ring stays put",
-                                 splat(peaked)),
-                           panel("twist(70).masked(\"ring\")",
-                                 "only the group turns", splat(twisted))},
-                 .gap = 20}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("GEO GROUPS \xc2\xb7 a point group is a pop mask "
+                       "the moment it lands"),
+         .subtitle = toU8(caption),
+         .footer = toU8("a point group arrives from the file as a 0/1 "
+                        "lane under its own name — which is what "
+                        "masked() reads, and what encode::geo writes "
+                        "back out")},
+        kit::cells(
+            {.cells = {panel("pop::on(part.asCloud())",
+                             "Cd from the file; group \"ring\" scaled up",
+                             splat(saved)),
+                       panel("peak(60).masked(\"outside\")",
+                             "the inverted group; the ring stays put",
+                             splat(peaked)),
+                       panel("twist(70).masked(\"ring\")",
+                             "only the group turns", splat(twisted))},
+             .gap = 20})));
   }
 };
 

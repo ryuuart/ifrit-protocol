@@ -34,13 +34,11 @@
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <string>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace material = sigil::material;
 namespace sdf = sigil::material::sdf;
 
@@ -56,30 +54,6 @@ constexpr float kPicture = 196;
 constexpr int kPoints = 6;           // arms
 constexpr float kPointiness = 2.6f;  // m in [2, points]
 constexpr float kGlow = 14;          // the glow's falloff radius, px
-
-constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
-constexpr SkColor4f kCellGround{0.085f, 0.09f, 0.105f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 SkPath whole() {
   static const SkPath path =
@@ -97,26 +71,33 @@ sdf::Style plain() {
 
 Element cell(const char* call, const std::string& note, sdf::Shape shape,
              const sdf::Style& style) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      kit::well({.width = kCell,
-                 .height = kPicture,
-                 .ground = Fill::color(kCellGround)},
-                custom(call, [paint = sdf::material(shape, style)](
-                                 SkCanvas& canvas, const PaintContext& pc) {
-                  material::skia::fill(
-                      canvas, whole(), paint,
-                      {.resolution = {pc.size.width(), pc.size.height()}});
-                })));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well(
+          {.width = kCell, .height = kPicture},
+          custom(call, [paint = sdf::material(shape, style)](
+                           SkCanvas& canvas, const PaintContext& pc) {
+            material::skia::fill(
+                canvas, whole(), paint,
+                {.resolution = {pc.size.width(), pc.size.height()}});
+          })));
+}
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
+  look.palette.cellGround = {0.085f, 0.09f, 0.105f, 1};
+  return look;
 }
 
 }  // namespace
 
 struct SdfStar final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     material::skia::install();  // the SkSL compiler, once per process
 
     sdf::Style glowing = plain();
@@ -135,87 +116,91 @@ struct SdfStar final : sketch::Sketch {
     heavy.borderWidth = 9;
     heavy.borderColor = {0.42f, 0.86f, 0.92f, 1};
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("SDF STAR \xc2\xb7 sdf::star + sdf::Style + "
-                           "sdf::pad"),
-             .subtitle = toU8("dials \xc2\xb7 the point count (6) \xc2\xb7 "
-                              "the pointiness (m in [2, points]) \xc2\xb7 "
-                              "the glow radius (14 px, then 22)"),
-             .footer = toU8("one draw per cell: shadow, glow, fill and "
-                            "border are four layers of one distance, which "
-                            "is what a path and four stacked passes would "
-                            "have cost four of"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {kit::cells(
-                          {.cells =
-                               {cell("sdf::star(6, 2)",
-                                     kit::format("the clamp's lower end \xc2\xb7 "
-                                          "the notch between two arms is "
-                                          "shallowest here \xc2\xb7 pad "
-                                          "%.0f px",
-                                          (double)sdf::pad(plain())),
-                                     sdf::star(kPoints, 2), plain()),
-                                cell("sdf::star(6, 3.4)",
-                                     "the notch cuts deeper \xc2\xb7 the "
-                                     "shape is REBUILT through the factory, "
-                                     "never edited into another kind",
-                                     sdf::star(kPoints, 3.4f), plain()),
-                                cell("sdf::star(6, 5)",
-                                     "\xe2\x80\xa6" "and deeper again, "
-                                     "toward the point count the clamp "
-                                     "stops at",
-                                     sdf::star(kPoints, 5), plain()),
-                                cell("sdf::star(12, 3)",
-                                     "twice the arms at one m \xc2\xb7 one "
-                                     "recipe per KIND, not per parameter",
-                                     sdf::star(12, 3), plain())},
-                           .gap = 14}),
-                      kit::cells(
-                          {.cells =
-                               {cell("\xe2\x80\xa6" ".glowRadius = 14",
-                                     kit::format("exp(\xe2\x88\x92" "d / radius), "
-                                          "not a blurred copy \xc2\xb7 pad "
-                                          "%.0f px",
-                                          (double)sdf::pad(glowing)),
-                                     sdf::star(kPoints, kPointiness),
-                                     glowing),
-                                cell("\xe2\x80\xa6" ".glowRadius = 22",
-                                     kit::format("the falloff is the radius and "
-                                          "nothing else \xc2\xb7 pad %.0f "
-                                          "px, so in a fixed box the "
-                                          "silhouette shrinks; minBoxFor("
-                                          "style, 120) is %.0f",
-                                          (double)sdf::pad(wide),
-                                          (double)sdf::minBoxFor(wide, 120)),
-                                     sdf::star(kPoints, kPointiness), wide),
-                                cell("\xe2\x80\xa6" ".shadowOffset, "
-                                     ".shadowBlur",
-                                     kit::format("the layer BEHIND the fill "
-                                          "\xc2\xb7 pad %.0f px, which is "
-                                          "the offset and the blur together",
-                                          (double)sdf::pad(dropped)),
-                                     sdf::star(kPoints, kPointiness),
-                                     dropped),
-                                cell("\xe2\x80\xa6" ".borderWidth = 9",
-                                     "the border is CENTRED on the edge, so "
-                                     "half of it is the pad and half eats "
-                                     "the fill",
-                                     sdf::star(kPoints, kPointiness), heavy)},
-                           .gap = 14})},
-                 .column = true,
-                 .gap = 18}))
-            .absolute()
-            .inset(0));
+    Element content = kit::cells(
+        {.cells = {kit::cells(
+                       {.cells = {cell("sdf::star(6, 2)",
+                                       kit::format(
+                                           "the clamp's lower end \xc2\xb7 "
+                                           "the notch between two arms is "
+                                           "shallowest here \xc2\xb7 pad "
+                                           "%.0f px",
+                                           (double)sdf::pad(plain())),
+                                       sdf::star(kPoints, 2), plain()),
+                                  cell("sdf::star(6, 3.4)",
+                                       "the notch cuts deeper \xc2\xb7 the "
+                                       "shape is REBUILT through the factory, "
+                                       "never edited into another kind",
+                                       sdf::star(kPoints, 3.4f), plain()),
+                                  cell("sdf::star(6, 5)",
+                                       "\xe2\x80\xa6"
+                                       "and deeper again, "
+                                       "toward the point count the clamp "
+                                       "stops at",
+                                       sdf::star(kPoints, 5), plain()),
+                                  cell("sdf::star(12, 3)",
+                                       "twice the arms at one m \xc2\xb7 one "
+                                       "recipe per KIND, not per parameter",
+                                       sdf::star(12, 3), plain())},
+                        .gap = 14}),
+                   kit::cells({.cells =
+                                   {cell("\xe2\x80\xa6"
+                                         ".glowRadius = 14",
+                                         kit::format("exp(\xe2\x88\x92"
+                                                     "d / radius), "
+                                                     "not a blurred copy "
+                                                     "\xc2\xb7 pad "
+                                                     "%.0f px",
+                                                     (double)sdf::pad(glowing)),
+                                         sdf::star(kPoints, kPointiness),
+                                         glowing),
+                                    cell("\xe2\x80\xa6"
+                                         ".glowRadius = 22",
+                                         kit::format("the falloff is the "
+                                                     "radius and "
+                                                     "nothing else \xc2\xb7 "
+                                                     "pad %.0f "
+                                                     "px, so in a fixed box "
+                                                     "the "
+                                                     "silhouette shrinks; "
+                                                     "minBoxFor("
+                                                     "style, 120) is %.0f",
+                                                     (double)sdf::pad(wide),
+                                                     (double)sdf::minBoxFor(wide, 120)),
+                                         sdf::star(kPoints, kPointiness), wide),
+                                    cell("\xe2\x80\xa6"
+                                         ".shadowOffset, "
+                                         ".shadowBlur",
+                                         kit::format("the layer BEHIND the "
+                                                     "fill "
+                                                     "\xc2\xb7 pad %.0f px, "
+                                                     "which is "
+                                                     "the offset and the blur "
+                                                     "together",
+                                                     (double)sdf::pad(dropped)),
+                                         sdf::star(kPoints, kPointiness),
+                                         dropped),
+                                    cell("\xe2\x80\xa6"
+                                         ".borderWidth = 9",
+                                         "the border is CENTRED on the edge, "
+                                         "so "
+                                         "half of it is the pad and half eats "
+                                         "the fill",
+                                         sdf::star(kPoints, kPointiness),
+                                         heavy)},
+                               .gap = 14})},
+         .column = true,
+         .gap = 18});
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("SDF STAR \xc2\xb7 sdf::star + sdf::Style + "
+                       "sdf::pad"),
+         .subtitle = toU8("dials \xc2\xb7 the point count (6) \xc2\xb7 "
+                          "the pointiness (m in [2, points]) \xc2\xb7 "
+                          "the glow radius (14 px, then 22)"),
+         .footer = toU8("one draw per cell: shadow, glow, fill and "
+                        "border are four layers of one distance, which "
+                        "is what a path and four stacked passes would "
+                        "have cost four of")},
+        std::move(content)));
   }
 };
 

@@ -70,6 +70,13 @@ never perceptually, never epsilon'd — and why the mono face is resolved
 once and held rather than resolved per call: a face is compared by
 pointer, and two resolutions of one family never compare equal.
 
+**Bind it where the tree is DESCRIBED, not where setup runs.** A sketch
+that describes again — from `update()`, when its data changes — describes
+outside setup's scope, and a theme bound only there would not be in it.
+Put the `Provide` at the top of whatever function builds the tree, and
+another in `setup` if `stage()` is to take its ground from the same
+theme.
+
 **One caveat.** A callable the kernel invokes later — a `custom()` paint
 program, a memo's deferred describe — runs with no scope. Capture the
 colours such a lambda needs by value at the call site, where the scope

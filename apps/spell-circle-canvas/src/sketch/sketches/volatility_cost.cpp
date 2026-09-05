@@ -70,6 +70,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -101,11 +102,24 @@ constexpr float kFieldWidth = 620.0f;
 constexpr float kFieldHeight = 560.0f;
 constexpr float kCellsWidth = 620.0f;
 
-constexpr SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
 constexpr SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};
 constexpr SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
-constexpr SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 constexpr SkColor4f kAccent{0.95f, 0.35f, 0.18f, 1};
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.92f, 0.94f, 0.98f, 1};
+  look.palette.ash = {0.56f, 0.61f, 0.72f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.5f};
+  look.type.footer = {.size = 10, .track = 0.2f};
+  look.spacing.marginX = 26;
+  look.spacing.marginBottom = 14;
+  return look;
+}
 
 /** ONE COLOUR PER TIER, used by the outlines and by the legend, so the
  *  map and its key cannot disagree. */
@@ -299,11 +313,8 @@ struct VolatilityCost final : sketch::Sketch {
                     .row()
                     .gap(6)
                     .alignItems(Align::Center)
-                    .child(box()
-                               .width(11)
-                               .height(11)
-                               .stroke(stroke(1.4f,
-                                              Fill::color(tierColor(state)))))
+                    .child(box().width(11).height(11).stroke(
+                        stroke(1.4f, Fill::color(tierColor(state)))))
                     .child(text(toU8(std::string(tierName(state)) +
                                      "  \xc2\xb7  " + what),
                                 label(10.5f, kDim))));
@@ -344,8 +355,8 @@ struct VolatilityCost final : sketch::Sketch {
     column.child(line("volatile ms", ms(ctx.measured(frame.volatileMs))));
     column.child(line("paint ms", ms(ctx.measured(frame.paintMs))));
     column.child(box().height(8));
-    column.child(text(toU8("the split"), label(12.5f, kInk, 0.8f))
-                     .margin(0, 0, 0, 4));
+    column.child(
+        text(toU8("the split"), label(12.5f, kInk, 0.8f)).margin(0, 0, 0, 4));
     column.child(line("refused: Volatile", count((size_t)volatileNodes)));
     column.child(line("reached a bake", count((size_t)bakedNodes)));
     column.child(line("nodes profiled", count(profiled)));
@@ -357,23 +368,19 @@ struct VolatilityCost final : sketch::Sketch {
    *  number lands on the node that actually costs. */
   Element costTable(const sketch::SketchContext& ctx) const {
     Element column = box().column().gap(3);
-    column.child(
-        text(toU8("Composer::profile() \xc2\xb7 self ms, worst first"),
-             label(12.5f, kInk, 0.8f))
-            .margin(0, 0, 0, 4));
+    column.child(text(toU8("Composer::profile() \xc2\xb7 self ms, worst first"),
+                      label(12.5f, kInk, 0.8f))
+                     .margin(0, 0, 0, 4));
     for (const Composer::NodeCost& row : worst) {
       column.child(
           box()
               .row()
               .gap(8)
               .alignItems(Align::Center)
-              .child(box()
-                         .width(9)
-                         .height(9)
-                         .fill(Fill::color(tierColor(row.cacheState))))
+              .child(box().width(9).height(9).fill(
+                  Fill::color(tierColor(row.cacheState))))
               .child(text(toU8(row.label), label(11, kInk)).width(Dim(126)))
-              .child(text(toU8(ms(ctx.measured(row.selfMs))),
-                          label(11, kInk))
+              .child(text(toU8(ms(ctx.measured(row.selfMs))), label(11, kInk))
                          .width(Dim(46)))
               .child(text(toU8(tierName(row.cacheState)), label(11, kDim))
                          .width(Dim(66)))
@@ -385,59 +392,46 @@ struct VolatilityCost final : sketch::Sketch {
 
   Element readout(const sketch::SketchContext& ctx) const {
     if (!snapped)
-      return box().child(text(toU8("reading at " + ms(kSnapAt) + " s\xe2\x80\xa6"),
-                              label(12, kDim)));
-    return box()
-        .column()
-        .gap(12)
-        .child(legend())
-        .child(box()
-                   .row()
-                   .gap(34)
-                   .child(statsBlock(ctx))
-                   .child(costTable(ctx)));
+      return box().child(
+          text(toU8("reading at " + ms(kSnapAt) + " s\xe2\x80\xa6"),
+               label(12, kDim)));
+    return box().column().gap(12).child(legend()).child(
+        box().row().gap(34).child(statsBlock(ctx)).child(costTable(ctx)));
   }
 
   Element describe(sketch::SketchContext& ctx) {
+    // The theme is bound where the tree is DESCRIBED, not where setup
+    // runs: this sketch describes again on every reading, and a scope
+    // that ended with setup would not be there.
+    const sketch::kit::Provide look(sheetTheme());
     // The map is a SIBLING of the sheet, not a child of it: it draws in
     // canvas coordinates, which is what `bounds()` answers in, and a
     // child of the padded page would be offset by the page's margins.
-    return stack().inset(0).child(tierMap()).child(kit::sheet(
-               {.title = toU8("THE CACHING PROOF \xc2\xb7 what every node "
-                              "did to produce its pixels"),
-                .subtitle = toU8("volatility propagates upward, so one "
-                                 "bound leaf decides what its whole subtree "
-                                 "costs \xe2\x80\x94 every keyed node is "
-                                 "outlined in the tier it took, read back "
-                                 "from the composer at " +
-                                 ms(kSnapAt) + " s"),
-                .footer = toU8("a picture records the DRAW CALLS, so "
-                               "replaying one re-runs every shader over "
-                               "every pixel; only a bake replaces that with "
-                               "a blit \xc2\xb7 numbers the sheet measured "
-                               "about itself are pinned for a diff"),
-                .titleStyle = label(15, kInk, 2.0f),
-                .subtitleStyle = label(11, kDim, 0.5f),
-                .footerStyle = label(10, kDim, 0.2f),
-                .marginX = 26,
-                .marginTop = 20,
-                .marginBottom = 14,
-                .ground = Fill::color(kGround),
-                .rule = Fill::color(kRule)},
-               box()
-                   .column()
-                   .gap(16)
-                   .child(kit::cells({.cells = {field(), cells(&tint)},
-                                      .gap = 22}))
-                   .child(readout(ctx)))
-                                       .absolute()
-                                       .inset(0));
+    return stack().inset(0).child(tierMap()).child(sketch::kit::page(
+        {.title = toU8("THE CACHING PROOF \xc2\xb7 what every node "
+                       "did to produce its pixels"),
+         .subtitle = toU8("volatility propagates upward, so one "
+                          "bound leaf decides what its whole subtree "
+                          "costs \xe2\x80\x94 every keyed node is "
+                          "outlined in the tier it took, read back "
+                          "from the composer at " +
+                          ms(kSnapAt) + " s"),
+         .footer = toU8("a picture records the DRAW CALLS, so "
+                        "replaying one re-runs every shader over "
+                        "every pixel; only a bake replaces that with "
+                        "a blit \xc2\xb7 numbers the sheet measured "
+                        "about itself are pinned for a diff")},
+        box()
+            .column()
+            .gap(16)
+            .child(kit::cells({.cells = {field(), cells(&tint)}, .gap = 22}))
+            .child(readout(ctx))));
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1320, 980);
-    ctx.background(kGround);
-    ctx.captureAt(kSnapAt + 0.5);  // the reading is taken and frozen by then
+    const sketch::kit::Provide look(sheetTheme());
+    // the reading is taken and frozen by then
+    sketch::kit::stage(ctx, {.size = {1320, 980}, .captureAt = kSnapAt + 0.5});
     movers.clear();
     marks.clear();
     worst.clear();

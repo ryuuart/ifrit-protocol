@@ -53,6 +53,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -78,6 +79,26 @@ constexpr double kPeriod = 6.0;  // seconds per lap of `phase`
 constexpr float kLook = 0.02f;   // lookAhead: the auto-orient chord
 constexpr float kLaps = 2.0f;    // track 4's .target(0, kLaps)
 
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
+  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f};
+  look.type.captionLabel = {.size = 13};
+  look.type.captionNote = {.size = 11};
+  look.captionWhere = kit::Caption::Where::Below;
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionGap = 8;
+  look.spacing.captionNoteGap = 3;
+  return look;
+}
+
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 const SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
@@ -95,15 +116,6 @@ weave::TextStyle label(float size, SkColor4f color, float track = 0) {
 /** The one voice every panel on this sheet is captioned in: the picture,
  *  then what it is, then the call that spelled it, measured to the cell
  *  so a note never widens its own panel. */
-kit::Caption voice(float measure) {
-  return {.where = kit::Caption::Where::Below,
-          .label = label(13, kInk),
-          .note = label(11, kDim),
-          .gap = 8,
-          .noteGap = 3,
-          .noteMeasure = measure};
-}
-
 void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
                 float width) {
   SkPaint paint;
@@ -197,12 +209,12 @@ Element locus(const BoundFloat& wx, const BoundFloat& wy, SkColor4f color) {
 Element panel(float width, float height, const char* title, const char* sub,
               Element inner) {
   inner.inset(0);  // the plot fills its frame
-  return kit::cell(voice(width), toU8(title), toU8(sub),
-                   box()
-                       .width(width)
-                       .height(height)
-                       .stroke(stroke(1.0f, Fill::color(kFrame)))
-                       .child(std::move(inner)));
+  return sketch::kit::caption(width, toU8(title), toU8(sub),
+                              box()
+                                  .width(width)
+                                  .height(height)
+                                  .stroke(stroke(1.0f, Fill::color(kFrame)))
+                                  .child(std::move(inner)));
 }
 
 /** The mark: 22 px, and its CENTRE (the default transformOrigin, hence
@@ -223,14 +235,14 @@ Element track(Shape curve, MotionPath along, Element mark, const char* caption,
               const char* spelling) {
   along.path = curve;
   mark.travel(std::move(along));
-  return kit::cell(voice(232), toU8(caption), toU8(spelling),
-                   box()
-                       .width(176)
-                       .height(176)
-                       .margin(22, 4, 22, 10)
-                       .shape(std::move(curve))
-                       .stroke(stroke(1.4f, Fill::color(kCurve)))
-                       .child(std::move(mark)));
+  return sketch::kit::caption(232, toU8(caption), toU8(spelling),
+                              box()
+                                  .width(176)
+                                  .height(176)
+                                  .margin(22, 4, 22, 10)
+                                  .shape(std::move(curve))
+                                  .stroke(stroke(1.4f, Fill::color(kCurve)))
+                                  .child(std::move(mark)));
 }
 
 }  // namespace
@@ -240,9 +252,8 @@ struct BoundLane : sketch::Sketch {
   choreograph::Output<float> phase{0};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1280, 900);
-    ctx.background(kGround);
-    ctx.captureAt(6.0);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1280, 900}, .captureAt = 6.0});
 
     // `seconds` is the SCHEDULE the shake is phased off. It ramps forever
     // rather than wrapping, so `frequency` reads as plain Hz and the noise
@@ -285,25 +296,25 @@ struct BoundLane : sketch::Sketch {
     };
 
     Element chain = kit::cells(
-        {.cells =
-             {panel(190, 128, "bare", "bind(&phase)",
-                    stage(bind(&phase).value(), -0.15f, 1.15f)),
-              panel(190, 128, "envelope", ".pingPong()",
-                    stage(bind(&phase).pingPong().value(), -0.15f, 1.15f)),
-              panel(190, 128, "curve", ".map(ease::outBack())",
-                    stage(bind(&phase).map(ease::outBack()).value(), -0.15f,
-                          1.15f)),
-              panel(190, 128, "quantize", ".quantize(8)",
-                    stage(bind(&phase).quantize(8).value(), -0.15f, 1.15f)),
-              panel(190, 128, "wrap", ".scale(3).wrap(1)",
-                    stage(bind(&phase).scale(3.0f).wrap(1.0f).value(), -0.15f,
-                          1.15f)),
-              panel(190, 128, "wiggle \xc2\xb7 3 octaves",
-                    "rails are \xc2\xb1"
-                    "amount",
-                    wiggleStage(wiggle(&seconds, kAmount, kFrequency, kSeedX,
-                                       kOctaves, kFalloff)
-                                    .value()))},
+        {.cells = {panel(190, 128, "bare", "bind(&phase)",
+                         stage(bind(&phase).value(), -0.15f, 1.15f)),
+                   panel(190, 128, "envelope", ".pingPong()",
+                         stage(bind(&phase).pingPong().value(), -0.15f, 1.15f)),
+                   panel(190, 128, "curve", ".map(ease::outBack())",
+                         stage(bind(&phase).map(ease::outBack()).value(),
+                               -0.15f, 1.15f)),
+                   panel(
+                       190, 128, "quantize", ".quantize(8)",
+                       stage(bind(&phase).quantize(8).value(), -0.15f, 1.15f)),
+                   panel(190, 128, "wrap", ".scale(3).wrap(1)",
+                         stage(bind(&phase).scale(3.0f).wrap(1.0f).value(),
+                               -0.15f, 1.15f)),
+                   panel(190, 128, "wiggle \xc2\xb7 3 octaves",
+                         "rails are \xc2\xb1"
+                         "amount",
+                         wiggleStage(wiggle(&seconds, kAmount, kFrequency,
+                                            kSeedX, kOctaves, kFalloff)
+                                         .value()))},
          .gap = 12});
 
     Element locusRow = kit::cells(
@@ -342,8 +353,7 @@ struct BoundLane : sketch::Sketch {
               // 2 — lookAhead engages auto-orient: the angle of the chord
               // ahead is ADDED to rotate() (which is 0 here).
               track(shapes::circle(), {.t = &phase, .lookAhead = kLook},
-                    arrowMark(), "2 \xc2\xb7 + lookAhead",
-                    ".lookAhead = 0.02"),
+                    arrowMark(), "2 \xc2\xb7 + lookAhead", ".lookAhead = 0.02"),
               // 3 — …and rotate() still composes on top of the bank. Same
               // flight as 2; the arrow also spins as it goes.
               track(shapes::circle(), {.t = &phase, .lookAhead = kLook},
@@ -352,45 +362,32 @@ struct BoundLane : sketch::Sketch {
               // 4 — the lane is the SCHEDULE, so "two laps" is one affine
               // verb on it. A closed curve wraps; no API.
               track(shapes::circle(),
-                    {.t = bind(&phase).target(0.0f, kLaps),
-                     .lookAhead = kLook},
+                    {.t = bind(&phase).target(0.0f, kLaps), .lookAhead = kLook},
                     arrowMark(), "4 \xc2\xb7 two laps", ".target(0, 2) wraps"),
               // 5 — an OPEN curve CLAMPS at its ends and holds the last good
               // chord there, so a parked arrow still points down the final
               // leg instead of reading atan2(0, 0).
               track(shapes::arc(140.0f, 260.0f),
-                    {.t = bind(&phase).target(-0.3f, 1.3f),
-                     .lookAhead = kLook},
+                    {.t = bind(&phase).target(-0.3f, 1.3f), .lookAhead = kLook},
                     arrowMark(), "5 \xc2\xb7 open curve",
                     ".target(-0.3, 1.3) clamps")},
          .gap = 8});
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE BOUND LANE \xc2\xb7 bind(&output)"),
-             .subtitle = toU8("normalise \xe2\x86\x92 envelope "
-                              "\xe2\x86\x92 curve \xe2\x86\x92 quantize "
-                              "\xe2\x86\x92 affine \xe2\x86\x92 wrap "
-                              "\xe2\x86\x92 wiggle \xe2\x86\x92 clamp, "
-                              "in that order whatever order they were "
-                              "written in"),
-             .footer = toU8("outline and motion path are one Shape value "
-                            "\xc2\xb7 translateX/Y are IGNORED while a path "
-                            "is engaged"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kDim, 0.6f),
-             .footerStyle = label(10.5f, kDim),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells({.cells = {std::move(chain), std::move(locusRow),
-                                  std::move(tracks)},
-                        .column = true,
-                        .gap = 26}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE BOUND LANE \xc2\xb7 bind(&output)"),
+         .subtitle = toU8("normalise \xe2\x86\x92 envelope "
+                          "\xe2\x86\x92 curve \xe2\x86\x92 quantize "
+                          "\xe2\x86\x92 affine \xe2\x86\x92 wrap "
+                          "\xe2\x86\x92 wiggle \xe2\x86\x92 clamp, "
+                          "in that order whatever order they were "
+                          "written in"),
+         .footer = toU8("outline and motion path are one Shape value "
+                        "\xc2\xb7 translateX/Y are IGNORED while a path "
+                        "is engaged")},
+        kit::cells({.cells = {std::move(chain), std::move(locusRow),
+                              std::move(tracks)},
+                    .column = true,
+                    .gap = 26})));
   }
 };
 

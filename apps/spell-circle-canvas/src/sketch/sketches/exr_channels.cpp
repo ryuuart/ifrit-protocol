@@ -56,6 +56,7 @@
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -81,18 +82,20 @@ constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
 constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.3f};
+  look.type.captionLabel = {.size = 11, .track = 0.4f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.captionGap = 6;
+  return look;
+}
 
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(11, kInk, 0.4f),
-          .note = label(10.5f, kAsh, 0.2f),
-          .gap = 6,
-          .noteMeasure = kCell};
 }
 
 /** THE FIXTURE, as floats. Three fields that have nothing to do with one
@@ -141,19 +144,19 @@ sk_sp<SkData> writeExr() {
 
 Element cell(std::string key, sk_sp<SkImage> picture, const char* call,
              std::string note) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(std::move(key),
-                          [picture](SkCanvas& canvas, const PaintContext&) {
-                            if (!picture) return;
-                            SkPaint paint;
-                            canvas.drawImageRect(
-                                picture, SkRect::MakeWH(kCell, kCell),
-                                SkSamplingOptions(SkFilterMode::kLinear),
-                                &paint);
-                          })
-                       .width(kCell)
-                       .height(kCell)
-                       .fill(Fill::color(kCellGround)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      custom(std::move(key),
+             [picture](SkCanvas& canvas, const PaintContext&) {
+               if (!picture) return;
+               SkPaint paint;
+               canvas.drawImageRect(picture, SkRect::MakeWH(kCell, kCell),
+                                    SkSamplingOptions(SkFilterMode::kLinear),
+                                    &paint);
+             })
+          .width(kCell)
+          .height(kCell)
+          .fill(Fill::color(kCellGround)));
 }
 
 }  // namespace
@@ -172,9 +175,9 @@ struct ExrChannels final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const sk_sp<SkData> bytes = writeExr();
     if (!bytes) {
@@ -255,23 +258,14 @@ struct ExrChannels final : sketch::Sketch {
       foot += "nothing";
     }
 
-    return kit::sheet({.title = toU8("FLOAT CHANNELS \xc2\xb7 decodeChannels "
-                                     "+ ChannelData::index / makeImage"),
-                       .subtitle = toU8("dials \xc2\xb7 the channel (named on "
-                                        "each cell) \xc2\xb7 the slot the "
-                                        "picked plane fills"),
-                       .footer = toU8(foot),
-                       .titleStyle = label(14, kInk, 2.4f),
-                       .subtitleStyle = label(11, kAsh, 0.6f),
-                       .footerStyle = label(10.5f, kAsh, 0.3f),
-                       .marginX = 24,
-                       .marginTop = 20,
-                       .marginBottom = 16,
-                       .ground = Fill::color(kGround),
-                       .rule = Fill::color(kRule)},
-                      kit::cells(std::move(shelf)))
-        .absolute()
-        .inset(0);
+    return sketch::kit::page(
+        {.title = toU8("FLOAT CHANNELS \xc2\xb7 decodeChannels "
+                       "+ ChannelData::index / makeImage"),
+         .subtitle = toU8("dials \xc2\xb7 the channel (named on "
+                          "each cell) \xc2\xb7 the slot the "
+                          "picked plane fills"),
+         .footer = toU8(foot)},
+        kit::cells(std::move(shelf)));
   }
 
   static Element missing(const std::string& why) {

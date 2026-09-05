@@ -39,7 +39,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
 #include <memory>
@@ -47,7 +47,6 @@
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace mesh = sigil::geometry::mesh;
 namespace camera = sigil::geometry::mesh::camera;
 namespace render = sigil::geometry::mesh::render;
@@ -62,26 +61,19 @@ constexpr SkSize kCell = {536, 512};
 constexpr int kPanels = 3;
 constexpr float kCurve = 300;
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.035f, 0.038f, 0.055f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
+  look.type.captionNote = {.size = 11, .track = 0.3f};
+  return look;
 }
 
 /** The one voice both cells are captioned in: the call over the picture,
  *  what that executor did under it. */
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(11.5f, kInk, 0.6f),
-          .note = label(11, kAsh, 0.3f),
-          .gap = 7,
-          .noteMeasure = kCell.width()};
-}
-
 /** What a card carries: a header pill, a stack of rules and a bar row.
  *  An element tree like any other — the only thing 3D about it is where
  *  it ends up. */
@@ -98,11 +90,12 @@ Element card(float w, float h, SkColor4f accent) {
   auto bars = box().row().gap(5).alignItems(Align::End);
   for (int i = 0; i < 10; ++i) {
     const float t = (float)i / 9.0f;
-    bars.child(box()
-                   .width(8)
-                   .height(8 + 26.0f * (0.5f + 0.5f * std::sin(t * 8.0f + 1.1f)))
-                   .corners({2})
-                   .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f})));
+    bars.child(
+        box()
+            .width(8)
+            .height(8 + 26.0f * (0.5f + 0.5f * std::sin(t * 8.0f + 1.1f)))
+            .corners({2})
+            .fill(Fill::color({accent.fR, accent.fG, accent.fB, 0.85f})));
   }
 
   return box()
@@ -175,26 +168,26 @@ struct PainterGpu final : sketch::Sketch {
 
   Element cell(const char* call, std::u8string note,
                const render::Runtime& runtime) {
-    return kit::cell(voice(), toU8(call), std::move(note),
-                     custom(std::string("cell.") + call,
-                            [this, runtime](SkCanvas& canvas,
-                                            const PaintContext&) {
-                              draw(canvas, runtime);
-                            })
-                         .width(kCell.width())
-                         .height(kCell.height())
-                         // The viewport a mesh is projected onto is the
-                         // cell, and the canvas it lands on is the sheet:
-                         // without this the floor runs under the cell
-                         // beside it.
-                         .clip()
-                         .fill(Fill::color(kCellGround)));
+    return sketch::kit::caption(
+        kCell.width(), toU8(call), std::move(note),
+        custom(std::string("cell.") + call,
+               [this, runtime](SkCanvas& canvas, const PaintContext&) {
+                 draw(canvas, runtime);
+               })
+            .width(kCell.width())
+            .height(kCell.height())
+            // The viewport a mesh is projected onto is the
+            // cell, and the canvas it lands on is the sheet:
+            // without this the floor runs under the cell
+            // beside it.
+            .clip()
+            .fill(Fill::color(kCellGround)));
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const SkColor4f accents[3] = {{0.2f, 0.85f, 1.0f, 1},
                                   {1.0f, 0.62f, 0.26f, 1},
@@ -219,39 +212,27 @@ struct PainterGpu final : sketch::Sketch {
               u8"with a depth test and reading the pixels back onto this "
               u8"canvas";
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("PAINTER RUNTIME \xc2\xb7 MeshStyle::runtime + "
-                           "sketch::painterRuntime()"),
-             .subtitle = toU8("dials \xc2\xb7 the runtime (named on each "
-                              "cell) \xc2\xb7 the panel count (3 flat cards "
-                              "and one curved sheet per cell)"),
-             .footer = toU8("drawMesh changes hands; drawImagePanel does "
-                            "not \xe2\x80\x94 a panel concats the "
-                            "perspective and hands the image to the canvas, "
-                            "so the cards are the same on both executors and "
-                            "only the floor and the curve can differ"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells = {cell("render::Runtime::cpu()",
-                                u8"the built-in executor — no device, "
-                                u8"triangles sorted back to front, their "
-                                u8"edges antialiased",
-                                render::Runtime::cpu()),
-                           cell("sketch::painterRuntime()", got,
-                                sketch::painterRuntime())},
-                 .gap = 22,
-                 .divider = Fill::color(kRule),
-                 .align = Align::Start}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("PAINTER RUNTIME \xc2\xb7 MeshStyle::runtime + "
+                       "sketch::painterRuntime()"),
+         .subtitle = toU8("dials \xc2\xb7 the runtime (named on each "
+                          "cell) \xc2\xb7 the panel count (3 flat cards "
+                          "and one curved sheet per cell)"),
+         .footer = toU8("drawMesh changes hands; drawImagePanel does "
+                        "not \xe2\x80\x94 a panel concats the "
+                        "perspective and hands the image to the canvas, "
+                        "so the cards are the same on both executors and "
+                        "only the floor and the curve can differ")},
+        kit::cells({.cells = {cell("render::Runtime::cpu()",
+                                   u8"the built-in executor — no device, "
+                                   u8"triangles sorted back to front, their "
+                                   u8"edges antialiased",
+                                   render::Runtime::cpu()),
+                              cell("sketch::painterRuntime()", got,
+                                   sketch::painterRuntime())},
+                    .gap = 22,
+                    .divider = Fill::color(kRule),
+                    .align = Align::Start})));
   }
 };
 

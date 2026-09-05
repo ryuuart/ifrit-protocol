@@ -39,6 +39,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -62,14 +63,13 @@ constexpr float kBakeSizes[3] = {9, 12, 16};      // the sweep in the first cell
 constexpr float kScale = 3;                       // integer, always
 constexpr SkColor4f kOn{0.62f, 0.98f, 0.72f, 1};  // what a mask is tinted
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.055f, 0.065f, 0.06f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.cellGround = {0.055f, 0.065f, 0.06f, 1};
+  return look;
 }
 
 weave::TextStyle mono(float size, SkColor4f color) {
@@ -93,23 +93,14 @@ weave::TextStyle bakeFace(float size, bool proportional = false) {
                            .aliased = true});
 }
 
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
-
 Element plate(Element body) {
-  return kit::well({.width = kCell,
-                    .height = kPicture,
-                    .ground = Fill::color(kCellGround)})
+  return sketch::kit::well({.width = kCell, .height = kPicture})
       .child(std::move(body).absolute().inset(14));
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note), plate(std::move(body)));
+  return sketch::kit::caption(kCell, toU8(call), toU8(note),
+                              plate(std::move(body)));
 }
 
 }  // namespace
@@ -120,8 +111,8 @@ struct PixFontDotSprite final : sketch::Sketch {
   sk_sp<SkImage> dot;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = kCanvas});
     // The readout is live, so the sheet is complete only once the number
     // has run far enough to have moved every column of it.
     ctx.captureAt(1.28);
@@ -131,32 +122,21 @@ struct PixFontDotSprite final : sketch::Sketch {
     font = kit::bakeFont(*ctx.fonts, bakeFace(kBakeSizes[2], true));
     dot = kit::dotSprite(32);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("PIXEL TYPE AND THE STAMP \xc2\xb7 kit::bakeRun, "
-                           "kit::bakeFont / kit::blit, kit::dotSprite"),
-             .subtitle =
-                 toU8("dials \xc2\xb7 the bake size (9, 12, 16 px) \xc2\xb7 "
-                      "the present scale (3\xc3\x97, integer) \xc2\xb7 the "
-                      "on colour \xc2\xb7 the blit's track (1 and 5 px)"),
-             .footer =
-                 toU8("the threshold is INERT under aliased shaping: Skia "
-                      "lights a pixel iff its centre is inside the outline, "
-                      "so the coverage is already binary and what decides "
-                      "legibility is whether the x-height rounds up or down"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells({.cells = {sizeSweep(), presented(), shadowed(),
-                                  readout(), stamp()},
-                        .gap = 12}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("PIXEL TYPE AND THE STAMP \xc2\xb7 kit::bakeRun, "
+                       "kit::bakeFont / kit::blit, kit::dotSprite"),
+         .subtitle =
+             toU8("dials \xc2\xb7 the bake size (9, 12, 16 px) \xc2\xb7 "
+                  "the present scale (3\xc3\x97, integer) \xc2\xb7 the "
+                  "on colour \xc2\xb7 the blit's track (1 and 5 px)"),
+         .footer =
+             toU8("the threshold is INERT under aliased shaping: Skia "
+                  "lights a pixel iff its centre is inside the outline, "
+                  "so the coverage is already binary and what decides "
+                  "legibility is whether the x-height rounds up or down")},
+        kit::cells({.cells = {sizeSweep(), presented(), shadowed(), readout(),
+                              stamp()},
+                    .gap = 12})));
   }
 
   /** Trap 2: the size is the control. One run baked at three sizes and

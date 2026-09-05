@@ -61,7 +61,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/blend/Blend.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
 #include <string>
@@ -69,7 +69,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace blend = sigil::geometry::path::blend;
 namespace shapes = sigil::geometry::shapes;
 
@@ -78,33 +77,35 @@ using sigil::compose::toU8;
 
 namespace {
 
-constexpr float kBand = 1140;     // a full-width band's drawn width, px
-constexpr float kRun = 150;       // the height of a run band
-constexpr float kWide = 210;      // the height of the derived-count band
-constexpr float kSpine = 300;     // one spine cell, square-ish
-constexpr float kSpineCell = 561; // (kBand - the gap between the two) / 2
+constexpr float kBand = 1140;      // a full-width band's drawn width, px
+constexpr float kRun = 150;        // the height of a run band
+constexpr float kWide = 210;       // the height of the derived-count band
+constexpr float kSpine = 300;      // one spine cell, square-ish
+constexpr float kSpineCell = 561;  // (kBand - the gap between the two) / 2
 
-constexpr SkColor4f kGround{0.055f, 0.055f, 0.075f, 1};
 constexpr SkColor4f kCellGround{0.085f, 0.085f, 0.105f, 1};
-constexpr SkColor4f kInk{0.90f, 0.91f, 0.94f, 1};
-constexpr SkColor4f kAsh{0.56f, 0.58f, 0.66f, 1};
-constexpr SkColor4f kRule{0.19f, 0.20f, 0.24f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.055f, 0.075f, 1};
+  look.palette.ink = {0.90f, 0.91f, 0.94f, 1};
+  look.palette.ash = {0.56f, 0.58f, 0.66f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.24f, 1};
+  look.type.title = {.size = 15, .track = 2.2f};
+  look.type.subtitle = {.size = 11, .track = 0.7f};
+  look.type.footer = {.size = 10, .track = 0.3f};
+  look.type.captionLabel = {.size = 12, .track = 0.6f};
+  look.type.captionNote = {.size = 11, .track = 0.3f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 24;
+  look.spacing.marginBottom = 18;
+  return look;
 }
 
 /** The caption voice, measured to the cell it sits under: a note wider
  *  than its own picture would widen the cell and push its neighbour off
  *  the sheet. */
-kit::Caption voice(float measure) {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(12, kInk, 0.6f),
-          .note = label(11, kAsh, 0.3f),
-          .gap = 7,
-          .noteMeasure = measure};
-}
-
 /** A generator's outline at a diameter, centred on a point. The shape
  *  kit inscribes its figures in a box at the origin; every figure on
  *  this sheet is placed by its centre instead. */
@@ -143,14 +144,13 @@ using Painter = void (*)(SkCanvas&);
 
 Element band(std::string key, float width, float height, const char* call,
              const char* note, Painter paint) {
-  return kit::cell(voice(width), toU8(call), toU8(note),
-                   custom(std::move(key),
-                          [paint](SkCanvas& canvas, const PaintContext&) {
-                            paint(canvas);
-                          })
-                       .width(width)
-                       .height(height)
-                       .fill(Fill::color(kCellGround)));
+  return sketch::kit::caption(
+      width, toU8(call), toU8(note),
+      custom(std::move(key),
+             [paint](SkCanvas& canvas, const PaintContext&) { paint(canvas); })
+          .width(width)
+          .height(height)
+          .fill(Fill::color(kCellGround)));
 }
 
 // 1 — the two-key run at a stated count.
@@ -185,8 +185,7 @@ void strokes(SkCanvas& canvas) {
                   {0, 0, 0, 0}};
   from.stroke = SkColor4f{0.2f, 0.9f, 1.0f, 1};
   from.strokeWidth = 6;
-  blend::Key to{at(shapes::circle(), 56, {kBand - 80, kRun / 2}),
-                {0, 0, 0, 0}};
+  blend::Key to{at(shapes::circle(), 56, {kBand - 80, kRun / 2}), {0, 0, 0, 0}};
   to.stroke = SkColor4f{1.0f, 0.35f, 0.75f, 1};
   to.strokeWidth = 1;
   blend::Options options;
@@ -235,8 +234,10 @@ void spined(SkCanvas& canvas, blend::Orientation orientation) {
   // The spiral is inscribed in a square inside the cell, so both cells
   // walk one spine and only the orientation differs.
   const float side = kSpine - 40;
-  options.spine = shapes::spiral(2.2f).path({side, side}).makeTransform(
-      SkMatrix::Translate((kSpineCell - side) / 2, 20));
+  options.spine =
+      shapes::spiral(2.2f)
+          .path({side, side})
+          .makeTransform(SkMatrix::Translate((kSpineCell - side) / 2, 20));
   options.orientation = orientation;
   options.smoothOutlines = true;
   blend::draw(canvas, blend::make(from, to, options));
@@ -253,8 +254,8 @@ void spineTurned(SkCanvas& canvas) {
 
 struct BlendOptions final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1200, 1330);
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1200, 1330}});
     // Every step is computed from the keys and the options; nothing here
     // reads the clock.
     ctx.captureAt(0.05);
@@ -300,25 +301,13 @@ struct BlendOptions final : sketch::Sketch {
          .gap = 18});
     bands.push_back(std::move(spineRow));
 
-    ctx.composer.render(
-        kit::sheet({.title = toU8("BLEND OPTIONS \xc2\xb7 how many steps, "
-                                 "what rides along, and where they walk"),
-                    .subtitle = toU8("path::blend interpolates OUTLINES: "
-                                     "every intermediate is a real path"),
-                    .footer = toU8("Sketchbook \xc2\xb7 blend_options"),
-                    .titleStyle = label(15, kInk, 2.2f),
-                    .subtitleStyle = label(11, kAsh, 0.7f),
-                    .footerStyle = label(10, kAsh, 0.3f),
-                    .marginX = 30,
-                    .marginTop = 24,
-                    .marginBottom = 18,
-                    .ground = Fill::color(kGround),
-                    .rule = Fill::color(kRule)},
-                   kit::cells({.cells = std::move(bands),
-                               .column = true,
-                               .gap = 18}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("BLEND OPTIONS \xc2\xb7 how many steps, "
+                       "what rides along, and where they walk"),
+         .subtitle = toU8("path::blend interpolates OUTLINES: "
+                          "every intermediate is a real path"),
+         .footer = toU8("Sketchbook \xc2\xb7 blend_options")},
+        kit::cells({.cells = std::move(bands), .column = true, .gap = 18})));
   }
 };
 

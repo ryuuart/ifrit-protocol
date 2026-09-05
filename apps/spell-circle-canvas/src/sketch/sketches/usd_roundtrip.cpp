@@ -54,11 +54,10 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
 
 #include <filesystem>
 #include <glm/glm.hpp>
@@ -67,7 +66,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace usd = sigil::usd;
 namespace material = sigil::material;
 namespace world = sigil::world;
@@ -87,11 +85,20 @@ constexpr int kNu = 44, kNv = 22;  // how finely it is tessellated
 constexpr int kMotes = 900;        // points the instancer carries
 constexpr double kMetersPerUnit = 0.01;
 
-constexpr SkColor4f kGround{0.07f, 0.075f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.56f, 0.57f, 0.63f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.07f, 0.075f, 0.085f, 1};
+  look.palette.ash = {0.56f, 0.57f, 0.63f, 1};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.3f};
+  look.type.captionLabel = {.size = 12, .track = 1.2f};
+  look.type.captionNote = {.size = 10, .mono = true};
+  look.spacing.captionGap = 8;
+  return look;
+}
 
 }  // namespace
 
@@ -100,27 +107,9 @@ using sigil::compose::toU8;
 
 namespace {
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
 /** The one voice every cell is captioned in: the file over the picture,
  *  what came back out of it under, monospaced so four readouts line
  *  up. */
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(12, kInk, 1.2f),
-          .note = mono(10, kAsh),
-          .gap = 8,
-          .noteMeasure = kCell};
-}
-
 render::MeshStyle stageStyle() {
   render::MeshStyle style;
   style.baseColor = {0.78f, 0.72f, 0.62f, 1};
@@ -155,18 +144,16 @@ const char* kindName(world::light::Kind kind) {
 
 Element cell(const std::string& key, const char* heading,
              const std::string& reading, gm::Mesh mesh, camera::Camera lens) {
-  return kit::cell(
-      voice(), toU8(heading), toU8(reading),
-      kit::well({.width = kCell,
-                 .height = kPicture,
-                 .ground = Fill::color(kCellGround),
-                 .clip = false},
-                custom(key, [mesh = std::move(mesh), lens](
-                                SkCanvas& canvas, const PaintContext& pc) {
-                  if (mesh.positions.empty()) return;
-                  render::drawMesh(canvas, mesh, glm::mat4(1.0f), lens, pc.size,
-                                   stageStyle());
-                })));
+  return sketch::kit::caption(
+      kCell, toU8(heading), toU8(reading),
+      sketch::kit::well(
+          {.width = kCell, .height = kPicture, .clip = false},
+          custom(key, [mesh = std::move(mesh), lens](SkCanvas& canvas,
+                                                     const PaintContext& pc) {
+            if (mesh.positions.empty()) return;
+            render::drawMesh(canvas, mesh, glm::mat4(1.0f), lens, pc.size,
+                             stageStyle());
+          })));
 }
 
 }  // namespace
@@ -178,9 +165,9 @@ struct UsdRoundtrip final : sketch::Sketch {
   static bool available(std::string* why) { return usd::available(why); }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // THE SOURCE, as values. Nothing below reaches into a renderer.
     const gm::Mesh source = gm::torus(kR, kr, kNu, kNv);
@@ -270,26 +257,16 @@ struct UsdRoundtrip final : sketch::Sketch {
     if (!trouble.empty())
       foot += "   \xc2\xb7   a package layer is not written through save()";
 
-    ctx.composer.render(
-        kit::sheet({.title = toU8("USD ROUND TRIP \xc2\xb7 usd::Writer "
-                                  "\xe2\x86\x92 readModel / readLights / "
-                                  "readCameras"),
-                    .subtitle = toU8("dials \xc2\xb7 the format (.usdc, "
-                                     ".usda, .usdz) \xc2\xb7 metersPerUnit "
-                                     "\xe2\x80\x94 each cell drawn from the "
-                                     "camera its own file gave back"),
-                    .footer = toU8(foot),
-                    .titleStyle = label(14, kInk, 2.4f),
-                    .subtitleStyle = label(11, kAsh, 0.6f),
-                    .footerStyle = label(10.5f, kAsh, 0.3f),
-                    .marginX = 24,
-                    .marginTop = 20,
-                    .marginBottom = 16,
-                    .ground = Fill::color(kGround),
-                    .rule = Fill::color(kRule)},
-                   kit::cells(std::move(shelf)))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("USD ROUND TRIP \xc2\xb7 usd::Writer "
+                       "\xe2\x86\x92 readModel / readLights / "
+                       "readCameras"),
+         .subtitle = toU8("dials \xc2\xb7 the format (.usdc, "
+                          ".usda, .usdz) \xc2\xb7 metersPerUnit "
+                          "\xe2\x80\x94 each cell drawn from the "
+                          "camera its own file gave back"),
+         .footer = toU8(foot)},
+        kit::cells(std::move(shelf))));
   }
 };
 

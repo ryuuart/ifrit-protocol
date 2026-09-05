@@ -40,14 +40,12 @@
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <array>
 #include <string>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
@@ -64,27 +62,13 @@ constexpr float kBevel = 30;    // the disc's shoulder, px
 constexpr SkColor4f kGroundColour{0.14f, 0.12f, 0.10f, 1};
 
 constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
-constexpr SkColor4f kCellGround{0.085f, 0.09f, 0.105f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
+  look.palette.cellGround = {0.085f, 0.09f, 0.105f, 1};
+  return look;
 }
 
 /** One cube face: a flat ground under a bar and a disc, in the face's own
@@ -151,16 +135,14 @@ material::Texture shoulder() {
 
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&, const material::FrameData&)> draw) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      kit::well({.width = kCell,
-                 .height = kPicture,
-                 .ground = Fill::color(kCellGround)},
-                custom(call, [draw = std::move(draw)](SkCanvas& canvas,
-                                                      const PaintContext& pc) {
-                  draw(canvas,
-                       {.resolution = {pc.size.width(), pc.size.height()}});
-                })));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well(
+          {.width = kCell, .height = kPicture},
+          custom(call, [draw = std::move(draw)](SkCanvas& canvas,
+                                                const PaintContext& pc) {
+            draw(canvas, {.resolution = {pc.size.width(), pc.size.height()}});
+          })));
 }
 
 /** The panorama itself, fitted into the cell. */
@@ -195,9 +177,9 @@ Element reflector(const char* call, const std::string& note,
 
 struct EnvFaces final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);        // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     material::skia::install();  // the SkSL compiler, once per process
 
     const material::EnvironmentMap studio =
@@ -212,93 +194,91 @@ struct EnvFaces final : sketch::Sketch {
         resampled.withGround(kGroundColour);
     const SkColor4f mean = resampled.average();
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("ENVIRONMENT FACES \xc2\xb7 EnvironmentMap "
-                           "studio, fromFaces, fromCubeMap, fromEquirect, "
-                           "withGround"),
-             .subtitle = toU8("dials \xc2\xb7 the face set (six baked here) "
-                              "\xc2\xb7 the ground colour \xc2\xb7 the "
-                              "roughness the reflection reads the panorama "
-                              "at"),
-             .footer = toU8("one internal form, four ways in: u is azimuth, "
-                            "v is 0 at the zenith, and every source is "
-                            "resampled into that while the value is built "
-                            "rather than at each lookup"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {kit::cells(
-                          {.cells =
-                               {panorama("EnvironmentMap::studio(384)",
-                                         "baked with no assets \xc2\xb7 a "
-                                         "graded sky, a floor bounce and "
-                                         "three softboxes",
-                                         studio),
-                                panorama("fromFaces(six)",
-                                         kit::format(
-                                             "six cube faces resampled into "
-                                             "one equirect \xc2\xb7 average "
-                                             "(%.2f %.2f %.2f)",
-                                             (double)mean.fR, (double)mean.fG,
-                                             (double)mean.fB),
-                                         resampled),
-                                panorama(
-                                    "fromCubeMap(6:1 row)",
-                                    "the SAME six as one sheet, "
-                                    "unpacked by aspect ratio \xc2\xb7 "
-                                    "the layout is read, never "
-                                    "declared",
-                                    unpacked),
-                                panorama(
-                                    "resampled.withGround(warm)",
-                                    "everything below the horizon "
-                                    "replaced IN the panorama, so the "
-                                    "blurs and the irradiance see it "
-                                    "too",
-                                    grounded)},
-                           .gap = 14}),
-                      kit::cells({.cells =
-                                      {reflector(
-                                           "kit::chrome(bevel, studio)",
-                                           "the two textures a reflective "
-                                           "surface is shaded from: a normal "
-                                           "map at the outline's bounds and "
-                                           "a panorama",
-                                           studio),
-                                       reflector(
-                                           "kit::chrome(bevel, fromFaces)",
-                                           "the same disc, the same "
-                                           "normals \xc2\xb7 the six faces "
-                                           "are legible in the rim because "
-                                           "the rim looks sideways",
-                                           resampled),
-                                       reflector(
-                                           "\xe2\x80\xa6"
-                                           " at roughness 0.45",
-                                           "image(roughness) is one of nine "
-                                           "wrap-aware blurs, picked by how "
-                                           "rough the surface says it is",
-                                           resampled, 0.45f),
-                                       reflector(
-                                           "kit::chrome(bevel, withGround)",
-                                           "the same reflection over a "
-                                           "panorama whose lower half is one "
-                                           "colour \xc2\xb7 which is what a "
-                                           "car park is replaced with",
-                                           grounded)},
-                                  .gap = 14})},
-                 .column = true,
-                 .gap = 18}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("ENVIRONMENT FACES \xc2\xb7 EnvironmentMap "
+                       "studio, fromFaces, fromCubeMap, fromEquirect, "
+                       "withGround"),
+         .subtitle = toU8("dials \xc2\xb7 the face set (six baked here) "
+                          "\xc2\xb7 the ground colour \xc2\xb7 the "
+                          "roughness the reflection reads the panorama "
+                          "at"),
+         .footer = toU8("one internal form, four ways in: u is azimuth, "
+                        "v is 0 at the zenith, and every source is "
+                        "resampled into that while the value is built "
+                        "rather than at each lookup")},
+        kit::cells(
+            {.cells =
+                 {kit::cells(
+                      {.cells =
+                           {panorama("EnvironmentMap::studio(384)",
+                                     "baked with no assets \xc2\xb7 a "
+                                     "graded sky, a floor bounce and "
+                                     "three softboxes",
+                                     studio),
+                            panorama(
+                                "fromFaces(six)",
+                                kit::format(
+                                    "six cube faces resampled into "
+                                    "one equirect \xc2\xb7 average "
+                                    "(%.2f %.2f %.2f)",
+                                    (
+                                        double)mean.fR,
+                                    (
+                                        double)mean.fG,
+                                    (
+                                        double)mean.fB),
+                                resampled),
+                            panorama(
+                                "fromCubeMap(6:1 row)",
+                                "the SAME six as one sheet, "
+                                "unpacked by aspect ratio \xc2\xb7 "
+                                "the layout is read, never "
+                                "declared",
+                                unpacked),
+                            panorama(
+                                "resampled.withGround(warm)",
+                                "everything below the horizon "
+                                "replaced IN the panorama, so the "
+                                "blurs and the irradiance see it "
+                                "too",
+                                grounded)},
+                       .gap =
+                           14}),
+                  kit::cells(
+                      {.cells =
+                           {reflector(
+                                "kit::chrome(bevel, studio)",
+                                "the two textures a reflective "
+                                "surface is shaded from: a normal "
+                                "map at the outline's bounds and "
+                                "a panorama",
+                                studio),
+                            reflector(
+                                "kit::chrome(bevel, fromFaces)",
+                                "the same disc, the same "
+                                "normals \xc2\xb7 the six faces "
+                                "are legible in the rim because "
+                                "the rim looks sideways",
+                                resampled),
+                            reflector(
+                                "\xe2\x80\xa6"
+                                " at roughness 0.45",
+                                "image(roughness) is one of nine "
+                                "wrap-aware blurs, picked by how "
+                                "rough the surface says it is",
+                                resampled,
+                                0.45f),
+                            reflector(
+                                "kit::chrome(bevel, withGround)",
+                                "the same reflection over a "
+                                "panorama whose lower half is one "
+                                "colour \xc2\xb7 which is what a "
+                                "car park is replaced with",
+                                grounded)},
+                       .gap =
+                           14})},
+             .column = true,
+             .gap = 18})));
   }
 };
 

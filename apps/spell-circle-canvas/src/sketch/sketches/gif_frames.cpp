@@ -40,6 +40,7 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <memory>
@@ -70,15 +71,19 @@ constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 11, .track = 0.3f};
+  look.type.captionLabel = {.size = 11, .track = 0.4f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.captionGap = 6;
+  return look;
 }
 
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(11, kInk, 0.4f),
-          .note = label(10.5f, kAsh, 0.2f),
-          .gap = 6};
+weave::TextStyle label(float size, SkColor4f color, float track = 0) {
+  return weave::textStyle({.size = size, .color = color, .track = track});
 }
 
 /** One frame, drawn at kScale with the texels kept hard: this file is
@@ -86,19 +91,19 @@ kit::Caption voice() {
  *  sheet is about. */
 Element cell(std::string key, sk_sp<SkImage> frame, float w, float h,
              const char* call, std::string note) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   custom(std::move(key),
-                          [frame, w, h](SkCanvas& canvas, const PaintContext&) {
-                            if (!frame) return;
-                            SkPaint paint;
-                            canvas.drawImageRect(
-                                frame, SkRect::MakeWH(w, h),
-                                SkSamplingOptions(SkFilterMode::kNearest),
-                                &paint);
-                          })
-                       .width(w)
-                       .height(h)
-                       .fill(Fill::color(kCellGround)));
+  return sketch::kit::caption(
+      0, toU8(call), toU8(note),
+      custom(std::move(key),
+             [frame, w, h](SkCanvas& canvas, const PaintContext&) {
+               if (!frame) return;
+               SkPaint paint;
+               canvas.drawImageRect(frame, SkRect::MakeWH(w, h),
+                                    SkSamplingOptions(SkFilterMode::kNearest),
+                                    &paint);
+             })
+          .width(w)
+          .height(h)
+          .fill(Fill::color(kCellGround)));
 }
 
 }  // namespace
@@ -111,9 +116,9 @@ struct GifFrames final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // every frame is on the sheet; nothing moves
+    const sketch::kit::Provide look(sheetTheme());
+    // every frame is on the sheet; nothing moves
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     io::Hub& hub = ctx.assets.hub();
     const std::optional<io::ResourceInfo> probed = hub.probe(kSource);
@@ -168,38 +173,27 @@ struct GifFrames final : sketch::Sketch {
                  ? std::string("repeating forever")
                  : std::to_string(gif.repetitionCount()) + " repetitions");
 
-    return kit::sheet(
-               {.title = toU8("ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
-                              "+ frameAt(ms)"),
-                .subtitle =
-                    toU8(std::string("dials \xc2\xb7 the file (") + kSource +
-                         ") \xc2\xb7 the moments the lower "
-                         "shelf reads"),
-                .footer = toU8(foot),
-                .titleStyle = label(14, kInk, 2.4f),
-                .subtitleStyle = label(11, kAsh, 0.6f),
-                .footerStyle = label(11, kAsh, 0.3f),
-                .marginX = 24,
-                .marginTop = 20,
-                .marginBottom = 16,
-                .ground = Fill::color(kGround),
-                .rule = Fill::color(kRule)},
-               kit::cells({.cells = {kit::cell(header(), toU8("DECODED"),
-                                               toU8("every frame, composited "
-                                                    "at decode \xe2\x80\x94 "
-                                                    "drawing one never needs "
-                                                    "the one before it"),
-                                               decoded(gif)),
-                                     kit::cell(header(), toU8("PLAYED"),
-                                               toU8("frameAt looks the moment "
-                                                    "up in the durations and "
-                                                    "loops past the last one"),
-                                               sampled(gif))},
-                           .column = true,
-                           .gap = 26,
-                           .divider = Fill::color(kRule)}))
-        .absolute()
-        .inset(0);
+    return sketch::kit::page(
+        {.title = toU8("ANIMATED FRAMES \xc2\xb7 ImageAsset::frames() "
+                       "+ frameAt(ms)"),
+         .subtitle = toU8(std::string("dials \xc2\xb7 the file (") + kSource +
+                          ") \xc2\xb7 the moments the lower "
+                          "shelf reads"),
+         .footer = toU8(foot)},
+        kit::cells({.cells = {kit::cell(header(), toU8("DECODED"),
+                                        toU8("every frame, composited "
+                                             "at decode \xe2\x80\x94 "
+                                             "drawing one never needs "
+                                             "the one before it"),
+                                        decoded(gif)),
+                              kit::cell(header(), toU8("PLAYED"),
+                                        toU8("frameAt looks the moment "
+                                             "up in the durations and "
+                                             "loops past the last one"),
+                                        sampled(gif))},
+                    .column = true,
+                    .gap = 26,
+                    .divider = Fill::color(kRule)}));
   }
 
   /** The voice the two shelves are titled in — a heading over the run

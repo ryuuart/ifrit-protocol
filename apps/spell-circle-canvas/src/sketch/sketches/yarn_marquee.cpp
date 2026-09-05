@@ -60,6 +60,7 @@
 #include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -91,25 +92,31 @@ constexpr int kSections = 220;   // rings along a rail
 constexpr int kStations = 34;    // across-vector ticks per panel
 constexpr int kSectors = 16;     // numbered sectors down the banner
 
-constexpr SkColor4f kGround{0.031f, 0.031f, 0.051f, 1};
 constexpr SkColor4f kCellGround{0.055f, 0.055f, 0.085f, 1};
 constexpr SkColor4f kInk{0.925f, 0.957f, 0.996f, 1};
 constexpr SkColor4f kAccent{0.455f, 0.878f, 0.745f, 1};
 constexpr SkColor4f kNumeral{0.588f, 0.659f, 0.769f, 1};
-constexpr SkColor4f kAsh{0.56f, 0.58f, 0.66f, 1};
-constexpr SkColor4f kRule{0.17f, 0.18f, 0.24f, 1};
 constexpr SkColor4f kTick{1.0f, 0.72f, 0.36f, 1};
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.031f, 0.031f, 0.051f, 1};
+  look.palette.ink = {0.925f, 0.957f, 0.996f, 1};
+  look.palette.ash = {0.56f, 0.58f, 0.66f, 1};
+  look.palette.rule = {0.17f, 0.18f, 0.24f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 13, .track = 0.5f};
+  look.type.captionNote = {.size = 11, .track = 0.2f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  return look;
+}
 
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(13, kInk, 0.5f),
-          .note = label(11, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kPanel};
 }
 
 /** THE BANNER, as one column laid out at the full strip length. Sector
@@ -129,10 +136,16 @@ Element banner(float length) {
                        .height(length)
                        .padding(14, 48)
                        .fill(Fill::color({0.031f, 0.047f, 0.086f, 0.62f}));
-  column.child(box().absolute().inset(3, 0, (float)kAcrossPx - 6, 0).fill(
-      Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.9f})));
-  column.child(box().absolute().inset((float)kAcrossPx - 5, 0, 3, 0).fill(
-      Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f})));
+  column.child(
+      box()
+          .absolute()
+          .inset(3, 0, (float)kAcrossPx - 6, 0)
+          .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.9f})));
+  column.child(
+      box()
+          .absolute()
+          .inset((float)kAcrossPx - 5, 0, 3, 0)
+          .fill(Fill::color({kAccent.fR, kAccent.fG, kAccent.fB, 0.5f})));
   column.child(text(u8"THE HUNG RAIL", label(60, kAccent)));
   for (int s = 0; s < kSectors; ++s) {
     column.child(box().grow());
@@ -167,10 +180,9 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
   const SkSize viewport = {kPanel, kPanelH};
   const camera::Camera camera = view();
 
-  const mesh::Mesh cloth =
-      mesh::pop::sweep(rail, mesh::pop::profile::line(),
-                   {.scale = kWidth,
-                    .normals = mesh::pop::SweepOptions::Normals::Frame});
+  const mesh::Mesh cloth = mesh::pop::sweep(
+      rail, mesh::pop::profile::line(),
+      {.scale = kWidth, .normals = mesh::pop::SweepOptions::Normals::Frame});
   render::MeshStyle style;
   style.texture = art;
   style.baseColor = {1, 1, 1, 1};
@@ -213,20 +225,20 @@ struct YarnMarquee final : sketch::Sketch {
 
   Element panel(const char* call, const char* note, std::string key,
                 const std::vector<curve::Frame3>* rail) const {
-    return kit::cell(voice(), toU8(call), toU8(note),
-                     custom(std::move(key),
-                            [this, rail](SkCanvas& canvas,
-                                         const PaintContext&) {
-                              paintRail(canvas, *rail, art);
-                            })
-                         .width(kPanel)
-                         .height(kPanelH)
-                         .fill(Fill::color(kCellGround)));
+    return sketch::kit::caption(
+        kPanel, toU8(call), toU8(note),
+        custom(std::move(key),
+               [this, rail](SkCanvas& canvas, const PaintContext&) {
+                 paintRail(canvas, *rail, art);
+               })
+            .width(kPanel)
+            .height(kPanelH)
+            .fill(Fill::color(kCellGround)));
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1200, 660);
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1200, 660}});
     // Both rails are computed from the loop and nothing reads the clock.
     ctx.captureAt(0.05);
 
@@ -236,8 +248,8 @@ struct YarnMarquee final : sketch::Sketch {
       const sk_sp<SkPicture> picture =
           snapshot(box().child(banner((float)kBannerPx)), *ctx.fonts,
                    {(float)kAcrossPx, (float)kBannerPx});
-      sk_sp<SkSurface> surface = SkSurfaces::Raster(
-          SkImageInfo::MakeN32Premul(kAcrossPx, kBannerPx));
+      sk_sp<SkSurface> surface =
+          SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kAcrossPx, kBannerPx));
       SkCanvas* c = surface->getCanvas();
       c->clear(SK_ColorTRANSPARENT);
       // A swept band charts u ACROSS the profile from the side the wall
@@ -252,40 +264,28 @@ struct YarnMarquee final : sketch::Sketch {
     transported = curve::frames(rail, kSections);
     hung = curve::hangFrames(rail, kSections, 1.0f, 1.0f);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE HUNG RAIL \xc2\xb7 curve::hangFrames against "
-                           "curve::frames"),
-             .subtitle = toU8("one closed winding, one banner, a two-point "
-                              "line profile \xe2\x80\x94 the ticks are each "
-                              "frame's across-vector at the band's own "
-                              "width"),
-             .footer = toU8("painter order is the depth test \xc2\xb7 the "
-                            "cull is off, so both faces of a cloth show"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kAsh, 0.6f),
-             .footerStyle = label(10.5f, kAsh, 0.2f),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {panel("curve::frames(loop, 220)",
-                            "parallel transport \xe2\x80\x94 the smallest "
-                            "turn from one frame to the next, and no "
-                            "relation to the world: the ticks tilt and the "
-                            "banner rolls onto its edge",
-                            "transported", &transported),
-                      panel("curve::hangFrames(loop, 220, head 1, span 1)",
-                            "the hang direction \xe2\x80\x94 straight down, "
-                            "made perpendicular to the tangent: the ticks "
-                            "stay level and the banner never turns over",
-                            "hung", &hung)},
-                 .gap = 20}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE HUNG RAIL \xc2\xb7 curve::hangFrames against "
+                       "curve::frames"),
+         .subtitle = toU8("one closed winding, one banner, a two-point "
+                          "line profile \xe2\x80\x94 the ticks are each "
+                          "frame's across-vector at the band's own "
+                          "width"),
+         .footer = toU8("painter order is the depth test \xc2\xb7 the "
+                        "cull is off, so both faces of a cloth show")},
+        kit::cells(
+            {.cells = {panel("curve::frames(loop, 220)",
+                             "parallel transport \xe2\x80\x94 the smallest "
+                             "turn from one frame to the next, and no "
+                             "relation to the world: the ticks tilt and the "
+                             "banner rolls onto its edge",
+                             "transported", &transported),
+                       panel("curve::hangFrames(loop, 220, head 1, span 1)",
+                             "the hang direction \xe2\x80\x94 straight down, "
+                             "made perpendicular to the tangent: the ticks "
+                             "stay level and the banner never turns over",
+                             "hung", &hung)},
+             .gap = 20})));
   }
 };
 

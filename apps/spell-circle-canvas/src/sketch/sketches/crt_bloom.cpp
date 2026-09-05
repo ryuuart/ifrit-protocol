@@ -49,6 +49,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <utility>
@@ -74,21 +75,27 @@ constexpr float kPitch = 6.0f;
 constexpr SkColor4f kGround{0.02f, 0.03f, 0.05f, 1};
 constexpr SkColor4f kCore{0.616f, 0.949f, 1.0f, 1};
 constexpr SkColor4f kHalo{0.165f, 0.498f, 0.588f, 1};
-constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
-constexpr SkColor4f kAsh{0.62f, 0.66f, 0.74f, 1};
-constexpr SkColor4f kRule{0.16f, 0.20f, 0.26f, 1};
 constexpr SkColor4f kSeam{0.95f, 0.62f, 0.24f, 1};
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.02f, 0.03f, 0.05f, 1};
+  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
+  look.palette.ash = {0.62f, 0.66f, 0.74f, 1};
+  look.palette.rule = {0.16f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 13, .track = 0.4f};
+  look.type.captionNote = {.size = 11, .track = 0.2f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  return look;
+}
 
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(13, kInk, 0.4f),
-          .note = label(11, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kPanel};
 }
 
 Element headline(SkColor4f color) {
@@ -99,11 +106,8 @@ Element headline(SkColor4f color) {
  *  and corner falloff, in black, so both panels are seen through one
  *  glass. */
 Element tube() {
-  return box()
-      .absolute()
-      .inset(0)
-      .zIndex(9)
-      .fill(mskia::Paint::recipe(field::crtOverlay(kPitch, 0.10f)));
+  return box().absolute().inset(0).zIndex(9).fill(
+      mskia::Paint::recipe(field::crtOverlay(kPitch, 0.10f)));
 }
 
 /** A panel: the ground, the construction, the tube. Both panels are laid
@@ -126,18 +130,16 @@ Element seam() {
       .alignItems(Align::Center)
       .gap(6)
       .child(text(u8"SEAM", label(10, kSeam, 2.0f)))
-      .child(box()
-                 .width(2)
-                 .height(kPanelH)
-                 .fill(Fill::color({kSeam.fR, kSeam.fG, kSeam.fB, 0.55f})));
+      .child(box().width(2).height(kPanelH).fill(
+          Fill::color({kSeam.fR, kSeam.fG, kSeam.fB, 0.55f})));
 }
 
 }  // namespace
 
 struct CrtBloom final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1000, 500);
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1000, 500}});
     // Nothing on the sheet reads the clock: both halos are static and the
     // tube is a function of the box.
     ctx.captureAt(0.05);
@@ -154,63 +156,50 @@ struct CrtBloom final : sketch::Sketch {
     // The blurred copy is given the WHOLE panel to spread in. A blur is
     // clipped by its own node's box, so putting the effect on the tight
     // text node would cut the halo off square at the letters' bounds.
-    Element built =
-        panel(stack()
-                  .alignItems(Align::Center)
-                  .justify(Justify::Center)
-                  .child(box()
-                             .absolute()
-                             .inset(0)
-                             .alignItems(Align::Center)
-                             .justify(Justify::Center)
-                             .zIndex(1)
-                             .child(headline(kHalo))
-                             .effect(mskia::Effect::directionalBlur(
-                                 kSigma, 0.0f, kSigma))
-                             .blend(SkBlendMode::kPlus)
-                             .cache(Cache::Texture))
-                  .child(headline(kCore).zIndex(2)));
+    Element built = panel(stack()
+                              .alignItems(Align::Center)
+                              .justify(Justify::Center)
+                              .child(box()
+                                         .absolute()
+                                         .inset(0)
+                                         .alignItems(Align::Center)
+                                         .justify(Justify::Center)
+                                         .zIndex(1)
+                                         .child(headline(kHalo))
+                                         .effect(mskia::Effect::directionalBlur(
+                                             kSigma, 0.0f, kSigma))
+                                         .blend(SkBlendMode::kPlus)
+                                         .cache(Cache::Texture))
+                              .child(headline(kCore).zIndex(2)));
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("CRT BLOOM \xc2\xb7 Effect::glow beside the stack "
-                           "it names"),
-             .subtitle = toU8("identical content either side of the seam "
-                              "\xe2\x80\x94 one word, one size, one spread, "
-                              "one tube; only the construction differs"),
-             .footer = toU8("glow composites its halo UNDER the letters, "
-                            "which is a drop shadow at zero offset; the "
-                            "stack ADDS it, so the core blows out \xc2\xb7 a "
-                            "phosphor adds, a shadow does not"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kAsh, 0.6f),
-             .footerStyle = label(10.5f, kAsh, 0.2f),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells = {kit::cell(voice(),
-                                     toU8("Effect::glow(halo, 14)"),
-                                     toU8("one node \xe2\x80\x94 the halo is "
-                                          "the headline's own coverage, so "
-                                          "nothing can drift out of step "
-                                          "with the letters"),
-                                     std::move(primitive)),
-                           seam(),
-                           kit::cell(
-                               voice(),
-                               toU8("directionalBlur(14, 0\xc2\xb0, 14) + "
-                                    "kPlus"),
-                               toU8("two nodes \xe2\x80\x94 the same "
-                                    "headline described twice, the lower "
-                                    "copy blurred, added and baked to a "
-                                    "texture because it never changes"),
-                               std::move(built))},
-                 .gap = 22}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("CRT BLOOM \xc2\xb7 Effect::glow beside the stack "
+                       "it names"),
+         .subtitle = toU8("identical content either side of the seam "
+                          "\xe2\x80\x94 one word, one size, one spread, "
+                          "one tube; only the construction differs"),
+         .footer = toU8("glow composites its halo UNDER the letters, "
+                        "which is a drop shadow at zero offset; the "
+                        "stack ADDS it, so the core blows out \xc2\xb7 a "
+                        "phosphor adds, a shadow does not")},
+        kit::cells({.cells = {sketch::kit::caption(
+                                  kPanel, toU8("Effect::glow(halo, 14)"),
+                                  toU8("one node \xe2\x80\x94 the halo is "
+                                       "the headline's own coverage, so "
+                                       "nothing can drift out of step "
+                                       "with the letters"),
+                                  std::move(primitive)),
+                              seam(),
+                              sketch::kit::caption(
+                                  kPanel,
+                                  toU8("directionalBlur(14, 0\xc2\xb0, 14) + "
+                                       "kPlus"),
+                                  toU8("two nodes \xe2\x80\x94 the same "
+                                       "headline described twice, the lower "
+                                       "copy blurred, added and baked to a "
+                                       "texture because it never changes"),
+                                  std::move(built))},
+                    .gap = 22})));
   }
 };
 

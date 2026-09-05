@@ -30,11 +30,12 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
-#include <sigilweave/style/Type.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 #include <vector>
@@ -57,6 +58,24 @@ constexpr float kPanel = 180.0f;
 constexpr float kHeight = 300.0f;  // the column: y in [-150, 150]
 constexpr float kLead = 374.0f;    // two panels and the gap between them
 
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
+  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 12, .track = 0.4f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionGap = 5;
+  return look;
+}
+
 const SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
 const SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 const SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
@@ -65,14 +84,6 @@ const SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice(float measure) {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(12, kInk, 0.4f),
-          .note = label(10.5f, kDim, 0.2f),
-          .gap = 5,
-          .noteMeasure = measure};
 }
 
 /** A thin vertical loop: points scatter along it with a radial spread,
@@ -119,13 +130,13 @@ Element panel(const char* title, const char* note, Element inner) {
   // The cell is held to the picture's width: a call longer than its own
   // panel would otherwise widen the cell and the two rows would stop
   // lining up column for column.
-  return kit::cell(voice(kPanel), toU8(title), toU8(note),
-                   box()
-                       .width(kPanel)
-                       .height(kPanel * 1.6f)
-                       .clip()
-                       .stroke(stroke(1.0f, Fill::color(kFrame)))
-                       .child(std::move(inner)))
+  return sketch::kit::caption(kPanel, toU8(title), toU8(note),
+                              box()
+                                  .width(kPanel)
+                                  .height(kPanel * 1.6f)
+                                  .clip()
+                                  .stroke(stroke(1.0f, Fill::color(kFrame)))
+                                  .child(std::move(inner)))
       .width(Dim(kPanel));
 }
 
@@ -156,8 +167,8 @@ struct PopDeform final : sketch::Sketch {
   geometry::mesh::Cloud twistedM, taperedM, bentM, peakedM;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1240, 860);
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1240, 860}});
     // Every cloud is cooked once in setup; nothing here reads the clock.
     ctx.captureAt(0.05);
 
@@ -221,7 +232,8 @@ struct PopDeform final : sketch::Sketch {
                        .width(Dim(kLead))
                        .column()
                        .gap(6)
-                       .child(text(toU8("\xe2\x80\xa6" "and the same four, "
+                       .child(text(toU8("\xe2\x80\xa6"
+                                        "and the same four, "
                                         ".masked(\"band\")"),
                                    label(13, kInk, 0.6f)))
                        .child(text(toU8("a mask is one more lane on the "
@@ -244,30 +256,19 @@ struct PopDeform final : sketch::Sketch {
                          "only the band is pushed", splat(peakedM))},
          .gap = 14});
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("POP DEFORM \xc2\xb7 select() writes a lane, "
-                           "masked() takes it"),
-             .subtitle = toU8("one column of 1,400 points \xc2\xb7 twist, "
-                              "taper, bend and orient+peak, on the whole "
-                              "cloud above and on the selected band below"),
-             .footer = toU8("every chain is cooked once by the CPU "
-                            "reference executor and splatted by "
-                            "points::drawBillboards \xc2\xb7 all ten are "
-                            "GPU-executable unchanged"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kDim, 0.6f),
-             .footerStyle = label(10.5f, kDim, 0.2f),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells({.cells = {std::move(whole), std::move(banded)},
-                        .column = true,
-                        .gap = 22}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("POP DEFORM \xc2\xb7 select() writes a lane, "
+                       "masked() takes it"),
+         .subtitle = toU8("one column of 1,400 points \xc2\xb7 twist, "
+                          "taper, bend and orient+peak, on the whole "
+                          "cloud above and on the selected band below"),
+         .footer = toU8("every chain is cooked once by the CPU "
+                        "reference executor and splatted by "
+                        "points::drawBillboards \xc2\xb7 all ten are "
+                        "GPU-executable unchanged")},
+        kit::cells({.cells = {std::move(whole), std::move(banded)},
+                    .column = true,
+                    .gap = 22})));
   }
 };
 

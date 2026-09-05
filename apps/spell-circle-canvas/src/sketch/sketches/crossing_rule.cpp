@@ -23,13 +23,12 @@
  *                  lenses merge and one strand claims both.
  */
 
+#include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
-
-#include <include/core/SkPathBuilder.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
 #include <string>
@@ -37,7 +36,6 @@
 
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -45,34 +43,26 @@ using sigil::compose::toU8;
 namespace {
 
 constexpr SkSize kCanvas = {1120, 736};
-constexpr float kCell = 250;   // the drawn square of one cell
-constexpr float kReach = 15;   // a strand's full mark width, px
+constexpr float kCell = 250;        // the drawn square of one cell
+constexpr float kReach = 15;        // a strand's full mark width, px
 constexpr float kPatchRadius = 30;  // the cap on one patch's reach, px
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.11f, 0.11f, 0.13f, 1};
 constexpr SkColor4f kCasing{0.05f, 0.05f, 0.06f, 1};
 constexpr SkColor4f kCore{0.86f, 0.80f, 0.66f, 1};
 constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
+  look.type.captionNote = {.size = 11, .track = 0.3f};
+  return look;
 }
 
 /** The one voice every cell on this sheet is captioned in: the call over
  *  the picture, what it did under it, both ranged left at the cell's
  *  width. */
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(11.5f, kInk, 0.6f),
-          .note = label(11, kAsh, 0.3f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
-
 /** Seven chords of a regular heptagon, each joining a vertex to the one
  *  two round — the {7/2} star as seven separate strands, because a
  *  crossing is between two strands and a self-crossing path has one. */
@@ -153,11 +143,11 @@ void paintWeave(SkCanvas& canvas, const std::vector<SkPath>& strands,
 Element cell(std::string key, std::vector<SkPath> strands,
              path::CrossingRule rule, int pinned, const char* call,
              const char* note) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
       custom(std::move(key),
-             [strands = std::move(strands), rule = std::move(rule),
-              pinned](SkCanvas& canvas, const PaintContext&) {
+             [strands = std::move(strands), rule = std::move(rule), pinned](
+                 SkCanvas& canvas, const PaintContext&) {
                paintWeave(canvas, strands, rule, pinned);
              })
           .width(kCell)
@@ -169,9 +159,9 @@ Element cell(std::string key, std::vector<SkPath> strands,
 
 struct CrossingRuleSheet final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const auto sevenCycle = [] {
       std::vector<std::pair<int, int>> d;
@@ -179,88 +169,92 @@ struct CrossingRuleSheet final : sketch::Sketch {
       return path::crossing::pairs(d);
     };
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("CROSSING RULE \xc2\xb7 discoverCrossings + "
-                           "CrossingRule + crossingPatch"),
-             .subtitle = toU8("dials \xc2\xb7 the rule (named on each cell) "
-                              "\xc2\xb7 the patch width (reach 15 px, cap "
-                              "30 px)"),
-             .footer = toU8("a knot is decided, never drawn in order "
-                            "\xe2\x80\x94 the cyclic dominance in the "
-                            "third ring cell has no draw order at all"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {kit::cells(
-                          {.cells =
-                               {cell("hept.alternate", heptagram(),
-                                     path::crossing::alternate(), -1,
-                                     "crossing::alternate()",
-                                     "{7/2} heptagram \xe2\x80\x94 seven "
-                                     "knots, so the over-under run cannot "
-                                     "close and one seam doubles"),
-                                cell("hept.sequence", heptagram(),
-                                     path::crossing::sequence(
-                                         {path::Order::Over, path::Order::Over,
-                                          path::Order::Under}),
-                                     -1,
-                                     "crossing::sequence({Over, Over, Under})",
-                                     "any repeating pattern, read off the "
-                                     "knot's ordinal"),
-                                cell("hept.pairs", heptagram(), sevenCycle(),
-                                     -1, "crossing::pairs({{i, i+1}})",
-                                     "strand dominance round a seven-cycle, "
-                                     "which no draw order can spell"),
-                                cell("hept.except", heptagram(),
-                                     path::crossing::alternate().except(
-                                         0, path::Order::Under),
-                                     0, "alternate().except(0, Under)",
-                                     "one positional pin, ringed; pins move "
-                                     "when the geometry does")},
-                           .gap = 14}),
-                      kit::cells(
-                          {.cells =
-                               {cell("ring.alternate", rings(),
-                                     path::crossing::alternate(), -1,
-                                     "crossing::alternate()",
-                                     "three rings \xe2\x80\x94 six knots "
-                                     "alternating by ordinal, which is not a "
-                                     "weave here"),
-                                cell("ring.sequence", rings(),
-                                     path::crossing::sequence(
-                                         {path::Order::Over, path::Order::Under,
-                                          path::Order::Under}),
-                                     -1,
-                                     "crossing::sequence({Over, Under, Under})",
-                                     "the same six knots on a three-long "
-                                     "pattern"),
-                                cell("ring.pairs", rings(),
-                                     path::crossing::pairs(
-                                         {{0, 1}, {1, 2}, {2, 0}}),
-                                     -1,
-                                     "crossing::pairs({{0,1},{1,2},{2,0}})",
-                                     "the cyclic dominance: every ring over "
-                                     "one and under another"),
-                                cell("ring.except", rings(),
-                                     path::crossing::pairs(
-                                         {{0, 1}, {1, 2}, {2, 0}})
-                                         .except(3, path::Order::Under),
-                                     3, "pairs(...).except(3, Under)",
-                                     "the cycle with knot 3 corrected by "
-                                     "hand, ringed")},
-                           .gap = 14})},
-                 .column = true,
-                 .gap = 18}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("CROSSING RULE \xc2\xb7 discoverCrossings + "
+                       "CrossingRule + crossingPatch"),
+         .subtitle = toU8("dials \xc2\xb7 the rule (named on each cell) "
+                          "\xc2\xb7 the patch width (reach 15 px, cap "
+                          "30 px)"),
+         .footer = toU8("a knot is decided, never drawn in order "
+                        "\xe2\x80\x94 the cyclic dominance in the "
+                        "third ring cell has no draw order at all")},
+        kit::cells(
+            {.cells = {kit::cells(
+                           {.cells = {cell(
+                                          "hept.alternate", heptagram(),
+                                          path::crossing::alternate(), -1,
+                                          "crossing::alternate()",
+                                          "{7/2} heptagram \xe2\x80\x94 seven "
+                                          "knots, so the over-under run cannot "
+                                          "close and one seam doubles"),
+                                      cell(
+                                          "hept.sequence", heptagram(),
+                                          path::crossing::sequence(
+                                              {path::Order::Over,
+                                               path::Order::Over,
+                                               path::Order::Under}),
+                                          -1,
+                                          "crossing::sequence({Over, Over, "
+                                          "Under})",
+                                          "any repeating pattern, read off the "
+                                          "knot's ordinal"),
+                                      cell("hept.pairs",
+                                           heptagram(), sevenCycle(),
+                                           -1, "crossing::pairs({{i, i+1}})",
+                                           "strand dominance round a "
+                                           "seven-cycle, "
+                                           "which no draw order can spell"),
+                                      cell(
+                                          "hept.except", heptagram(),
+                                          path::crossing::alternate().except(0,
+                                                                             path::Order::Under),
+                                          0, "alternate().except(0, Under)",
+                                          "one positional pin, ringed; pins "
+                                          "move "
+                                          "when the geometry does")},
+                            .gap = 14}),
+                       kit::cells({.cells = {cell("ring.alternate",
+                                                  rings(), path::crossing::alternate(),
+                                                  -1, "crossing::alternate()",
+                                                  "three rings \xe2\x80\x94 "
+                                                  "six knots "
+                                                  "alternating by ordinal, "
+                                                  "which is not a "
+                                                  "weave here"),
+                                             cell(
+                                                 "ring.sequence", rings(),
+                                                 path::crossing::sequence(
+                                                     {path::Order::Over, path::Order::Under, path::Order::Under}),
+                                                 -1,
+                                                 "crossing::sequence({Over, "
+                                                 "Under, Under})",
+                                                 "the same six knots on a "
+                                                 "three-long "
+                                                 "pattern"),
+                                             cell(
+                                                 "ring.pairs", rings(),
+                                                 path::crossing::pairs(
+                                                     {{0, 1}, {1, 2}, {2, 0}}),
+                                                 -1,
+                                                 "crossing::pairs({{0,1},{1,2},"
+                                                 "{2,0}})",
+                                                 "the cyclic dominance: every "
+                                                 "ring over "
+                                                 "one and under another"),
+                                             cell(
+                                                 "ring.except", rings(),
+                                                 path::crossing::pairs(
+                                                     {{0, 1}, {1, 2}, {2, 0}})
+                                                     .except(
+                                                         3, path::Order::Under),
+                                                 3,
+                                                 "pairs(...).except(3, Under)",
+                                                 "the cycle with knot 3 "
+                                                 "corrected by "
+                                                 "hand, ringed")},
+                                   .gap = 14})},
+             .column = true,
+             .gap = 18})));
   }
 };
 

@@ -44,14 +44,13 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
 #include <string>
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace mat = sigil::material;
 namespace mskia = sigil::material::skia;
 namespace ptn = sigil::material::pattern;
@@ -66,21 +65,22 @@ constexpr float kMaxSigma = 14.0f;  // the map's 1.0 end, in px of sigma
 constexpr float kFocal = 0.42f;     // panel 2's sharp line, 0..1 down the box
 constexpr double kRackHz = 0.18;    // panel 4's breathing rate
 
-constexpr SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
-constexpr SkColor4f kInk{0.92f, 0.94f, 0.98f, 1};
-constexpr SkColor4f kDim{0.56f, 0.61f, 0.72f, 1};
-constexpr SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(13, kInk, 0.4f),
-          .note = label(11, kDim, 0.2f),
-          .gap = 6,
-          .noteMeasure = kPanel};
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.92f, 0.94f, 0.98f, 1};
+  look.palette.ash = {0.56f, 0.61f, 0.72f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.7f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 13, .track = 0.4f};
+  look.type.captionNote = {.size = 11, .track = 0.2f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionGap = 6;
+  return look;
 }
 
 /** THE CONTENT, one function so every panel blurs the SAME picture: fine
@@ -133,8 +133,9 @@ mskia::Paint lensMap() {
 
 Element panel(const char* call, const char* note, mskia::Effect e,
               std::string key) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   subject().key(std::move(key)).effect(std::move(e)));
+  return sketch::kit::caption(
+      kPanel, toU8(call), toU8(note),
+      subject().key(std::move(key)).effect(std::move(e)));
 }
 
 }  // namespace
@@ -143,54 +144,42 @@ struct BlurFalloff final : sketch::Sketch {
   choreograph::Output<float> rack{0.0f};  // panel 4's bound maxSigma
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1080, 430);
-    ctx.background(kGround);
-    ctx.captureAt(2.78);  // the top of panel 4's breath: 1 / (2 kRackHz)
+    const sketch::kit::Provide look(sheetTheme());
+    // the top of panel 4's breath: 1 / (2 kRackHz)
+    sketch::kit::stage(ctx, {.size = {1080, 430}, .captureAt = 2.78});
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("BLUR FALLOFF \xc2\xb7 Effect::blur(Paint "
-                           "sigmaMap, float maxSigma)"),
-             .subtitle = toU8("one effect, four falloffs \xe2\x80\x94 same "
-                              "content, same maximum sigma, only the map "
-                              "differs"),
-             .footer = toU8("the parameter is a PAINT, so it prunes, it "
-                            "animates on the one uniform channel, and its "
-                            "unit square is whatever box the layout decided"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kDim, 0.7f),
-             .footerStyle = label(10.5f, kDim, 0.2f),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {panel("filter(Blur(14, 14))",
-                            "a constant blur, for contrast: all legible or "
-                            "none of it",
-                            mskia::Effect::filter(SkImageFilters::Blur(
-                                kMaxSigma, kMaxSigma, nullptr)),
-                            "flat"),
-                      panel("blur(linearUnit 3 stops, 14)",
-                            "depth of field \xe2\x80\x94 sharp at the focal "
-                            "line, blurred away from it on both sides",
-                            mskia::Effect::blur(dofMap(), kMaxSigma), "dof"),
-                      panel("blur(glowUnit, 14)",
-                            "a lens edge \xe2\x80\x94 sharp on axis, soft at "
-                            "the inscribed circle",
-                            mskia::Effect::blur(lensMap(), kMaxSigma), "lens"),
-                      panel("blur(dofMap, 14).uniform(\"maxSigma\", &rack)",
-                            "rack focus \xe2\x80\x94 the SAME map, maxSigma "
-                            "bound inside the declared range: nothing "
-                            "re-describes, the held passes are reused",
-                            mskia::Effect::blur(dofMap(), kMaxSigma)
-                                .uniform("maxSigma", &rack),
-                            "rack")},
-                 .gap = 20}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("BLUR FALLOFF \xc2\xb7 Effect::blur(Paint "
+                       "sigmaMap, float maxSigma)"),
+         .subtitle = toU8("one effect, four falloffs \xe2\x80\x94 same "
+                          "content, same maximum sigma, only the map "
+                          "differs"),
+         .footer = toU8("the parameter is a PAINT, so it prunes, it "
+                        "animates on the one uniform channel, and its "
+                        "unit square is whatever box the layout decided")},
+        kit::cells(
+            {.cells = {panel("filter(Blur(14, 14))",
+                             "a constant blur, for contrast: all legible or "
+                             "none of it",
+                             mskia::Effect::filter(SkImageFilters::Blur(
+                                 kMaxSigma, kMaxSigma, nullptr)),
+                             "flat"),
+                       panel("blur(linearUnit 3 stops, 14)",
+                             "depth of field \xe2\x80\x94 sharp at the focal "
+                             "line, blurred away from it on both sides",
+                             mskia::Effect::blur(dofMap(), kMaxSigma), "dof"),
+                       panel("blur(glowUnit, 14)",
+                             "a lens edge \xe2\x80\x94 sharp on axis, soft at "
+                             "the inscribed circle",
+                             mskia::Effect::blur(lensMap(), kMaxSigma), "lens"),
+                       panel("blur(dofMap, 14).uniform(\"maxSigma\", &rack)",
+                             "rack focus \xe2\x80\x94 the SAME map, maxSigma "
+                             "bound inside the declared range: nothing "
+                             "re-describes, the held passes are reused",
+                             mskia::Effect::blur(dofMap(), kMaxSigma)
+                                 .uniform("maxSigma", &rack),
+                             "rack")},
+             .gap = 20})));
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {

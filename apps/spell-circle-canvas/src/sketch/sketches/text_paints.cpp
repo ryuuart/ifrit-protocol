@@ -33,6 +33,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -54,20 +55,15 @@ constexpr const char* kWord = "SIGIL";
 constexpr float kSize = 56;      // the type size, px
 constexpr float kMoment = 6.4f;  // the second every field is frozen at
 
-constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
-constexpr SkColor4f kCellGround{0.10f, 0.105f, 0.125f, 1};
 constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
+  look.palette.cellGround = {0.10f, 0.105f, 0.125f, 1};
+  look.spacing.captionGap = 8;
+  return look;
 }
 
 /** The wordmark's own face: as heavy as the machine has, so the fill has
@@ -80,14 +76,6 @@ weave::TextStyle display() {
       {.face = face, .size = kSize, .color = kInk, .track = 3.0f});
 }
 
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 8,
-          .noteMeasure = kCell};
-}
-
 /** The run's box, which is what an animated field is parameterised over.
  *  One rect for all six, so the six differ only in their bodies. */
 SkRect run() { return SkRect::MakeWH(1, 1); }
@@ -96,9 +84,7 @@ SkRect run() { return SkRect::MakeWH(1, 1); }
  *  UNDER the first — which is what a transparent field is drawn over. */
 Element cell(const char* call, const char* note, paint::Paint fill,
              paint::Paint beneath = {}) {
-  Element plate = kit::well({.width = kCell,
-                             .height = kPicture,
-                             .ground = Fill::color(kCellGround)})
+  Element plate = sketch::kit::well({.width = kCell, .height = kPicture})
                       .alignItems(Align::Center)
                       .justify(Justify::Center);
   Element word = text(toU8(kWord), display()).textFill(std::move(fill));
@@ -110,8 +96,8 @@ Element cell(const char* call, const char* note, paint::Paint fill,
             .alignItems(Align::Center)
             .justify(Justify::Center)
             .child(text(toU8(kWord), display()).textFill(std::move(beneath))));
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   std::move(plate).child(std::move(word)));
+  return sketch::kit::caption(kCell, toU8(call), toU8(note),
+                              std::move(plate).child(std::move(word)));
 }
 
 Element field(const char* call, const char* note, material::Material m) {
@@ -122,88 +108,73 @@ Element field(const char* call, const char* note, material::Material m) {
 
 struct TextPaints final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // the fields are frozen at kMoment, not at the clock
+    const sketch::kit::Provide look(sheetTheme());
+    // the fields are frozen at kMoment, not at the clock
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     material::skia::install();  // the SkSL compiler, once per process
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("TEXT PAINTS \xc2\xb7 Element::textFill over "
-                           "kit::water, meshGradient, sparkle, starNest, "
-                           "clouds, tunnel"),
-             .subtitle = toU8("dials \xc2\xb7 the paint \xc2\xb7 the type "
-                              "size (56 px \xe2\x80\x94 change it and the "
-                              "fills do not move) \xc2\xb7 the moment "
-                              "(6.4 s)"),
-             .footer = toU8("the material's unit square lands with x across "
-                            "the widest line and y from cap top to "
-                            "baseline, so a ramp authored once in [0, 1] "
-                            "crosses the capitals at any size"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {kit::cells(
-                          {.cells =
-                               {field("kit::water(bounds, t)",
-                                      "rippling blue with fine caustic "
-                                      "highlights",
-                                      material::kit::water(run(), kMoment)),
-                                field("kit::meshGradient(bounds, t)",
-                                      "four corners with softly moving "
-                                      "control regions",
-                                      material::kit::meshGradient(run(),
-                                                                  kMoment)),
-                                cell("kit::sparkle(bounds, t)",
-                                     "a TRANSPARENT field of twinkling "
-                                     "points, drawn here over a solid copy "
-                                     "of the word \xc2\xb7 on its own it "
-                                     "is an overlay",
-                                     paint::Paint::recipe(
-                                         material::kit::sparkle(run(),
-                                                                kMoment)),
-                                     paint::Paint::solid(
-                                         {0.14f, 0.18f, 0.30f, 1})),
-                                field("kit::starNest(bounds, t)",
-                                      "a volumetric raymarch \xc2\xb7 the "
-                                      "heaviest of the six, since it is a "
-                                      "nested loop",
-                                      material::kit::starNest(run(), kMoment))},
-                           .gap = 14}),
-                      kit::cells(
-                          {.cells =
-                               {field("kit::clouds(bounds, t)",
-                                      "layered ridged and fbm noise "
-                                      "drifting on the shared motion "
-                                      "vector",
-                                      material::kit::clouds(run(), kMoment)),
-                                field("kit::tunnel(bounds, t)",
-                                      "an endless kaleidoscope falling "
-                                      "away \xc2\xb7 the same ABI, a very "
-                                      "different body",
-                                      material::kit::tunnel(run(), kMoment)),
-                                cell("kit::sunsetChromeType()",
-                                     "not a field at all \xc2\xb7 a stop "
-                                     "list in UNIT space, so the hard "
-                                     "horizon lands at half cap height",
-                                     kit::sunsetChromeType()),
-                                cell("kit::silverChromeType()",
-                                     "the same construction, colder "
-                                     "\xc2\xb7 one ramp, and the metrics do "
-                                     "the placing",
-                                     kit::silverChromeType())},
-                           .gap = 14})},
-                 .column = true,
-                 .gap = 18}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("TEXT PAINTS \xc2\xb7 Element::textFill over "
+                       "kit::water, meshGradient, sparkle, starNest, "
+                       "clouds, tunnel"),
+         .subtitle = toU8("dials \xc2\xb7 the paint \xc2\xb7 the type "
+                          "size (56 px \xe2\x80\x94 change it and the "
+                          "fills do not move) \xc2\xb7 the moment "
+                          "(6.4 s)"),
+         .footer = toU8("the material's unit square lands with x across "
+                        "the widest line and y from cap top to "
+                        "baseline, so a ramp authored once in [0, 1] "
+                        "crosses the capitals at any size")},
+        kit::cells(
+            {.cells =
+                 {kit::cells(
+                      {.cells =
+                           {field("kit::water(bounds, t)",
+                                  "rippling blue with fine caustic "
+                                  "highlights",
+                                  material::kit::water(run(), kMoment)),
+                            field("kit::meshGradient(bounds, t)",
+                                  "four corners with softly moving "
+                                  "control regions",
+                                  material::kit::meshGradient(run(), kMoment)),
+                            cell("kit::sparkle(bounds, t)",
+                                 "a TRANSPARENT field of twinkling "
+                                 "points, drawn here over a solid copy "
+                                 "of the word \xc2\xb7 on its own it "
+                                 "is an overlay",
+                                 paint::Paint::recipe(
+                                     material::kit::sparkle(run(), kMoment)),
+                                 paint::Paint::solid({0.14f, 0.18f, 0.30f, 1})),
+                            field("kit::starNest(bounds, t)",
+                                  "a volumetric raymarch \xc2\xb7 the "
+                                  "heaviest of the six, since it is a "
+                                  "nested loop",
+                                  material::kit::starNest(run(), kMoment))},
+                       .gap = 14}),
+                  kit::cells(
+                      {.cells = {field("kit::clouds(bounds, t)",
+                                       "layered ridged and fbm noise "
+                                       "drifting on the shared motion "
+                                       "vector",
+                                       material::kit::clouds(run(), kMoment)),
+                                 field("kit::tunnel(bounds, t)",
+                                       "an endless kaleidoscope falling "
+                                       "away \xc2\xb7 the same ABI, a very "
+                                       "different body",
+                                       material::kit::tunnel(run(), kMoment)),
+                                 cell("kit::sunsetChromeType()",
+                                      "not a field at all \xc2\xb7 a stop "
+                                      "list in UNIT space, so the hard "
+                                      "horizon lands at half cap height",
+                                      kit::sunsetChromeType()),
+                                 cell("kit::silverChromeType()",
+                                      "the same construction, colder "
+                                      "\xc2\xb7 one ramp, and the metrics do "
+                                      "the placing",
+                                      kit::silverChromeType())},
+                       .gap = 14})},
+             .column = true,
+             .gap = 18})));
   }
 };
 

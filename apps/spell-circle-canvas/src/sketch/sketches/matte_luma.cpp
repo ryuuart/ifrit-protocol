@@ -46,6 +46,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -82,22 +83,30 @@ const std::array<Band, 8> kBands{{
     {{0.5f, 0.5f, 0.5f, 1}, "grey .5"},
 }};
 
-constexpr SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
 constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 constexpr SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 constexpr SkColor4f kFrame{0.24f, 0.28f, 0.36f, 1};
-constexpr SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
+
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
+  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 13, .track = 0.4f};
+  look.type.captionNote = {.size = 11, .track = 0.2f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionGap = 6;
+  return look;
+}
 
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(13, kInk, 0.4f),
-          .note = label(11, kDim, 0.2f),
-          .gap = 6,
-          .noteMeasure = kPanel};
 }
 
 /** The "is it there?" backdrop — the stock checker tile, 8 px cells. */
@@ -160,8 +169,7 @@ Element content(float w, float h) {
                                       {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(text(u8"MATTE",
-                  label(30, {1, 1, 1, 0.92f})));
+      .child(text(u8"MATTE", label(30, {1, 1, 1, 0.92f})));
 }
 
 /** A panel: checkerboard, then the content, then the gate. */
@@ -189,8 +197,8 @@ Element bandLabels(float stripW) {
 
 struct MatteLuma final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1180, 620);
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1180, 620}});
     // Every gate is a constant: the sheet is complete on the first frame.
     ctx.captureAt(0.05);
 
@@ -204,7 +212,8 @@ struct MatteLuma final : sketch::Sketch {
     };
     const auto captioned = [&](const char* call, const char* note,
                                Element body) {
-      return kit::cell(voice(), toU8(call), toU8(note), std::move(body));
+      return sketch::kit::caption(kPanel, toU8(call), toU8(note),
+                                  std::move(body));
     };
 
     // The bottom row: the run as a picture, and the run as a matte.
@@ -214,20 +223,22 @@ struct MatteLuma final : sketch::Sketch {
     bandMatted.mask(by::luma(bands));
 
     Element gates = kit::cells(
-        {.cells = {captioned("the coverage paint",
-                             "greys on the left | white ramping in ALPHA on "
-                             "the right",
-                             cell(kPanel, kPanel,
-                                  box().inset(0).fill(coverage))),
+        {.cells = {captioned(
+                       "the coverage paint",
+                       "greys on the left | white ramping in ALPHA on "
+                       "the right",
+                       cell(kPanel, kPanel, box().inset(0).fill(coverage))),
                    captioned("by::alpha(coverage)", "keeps what it COVERS",
                              gated(by::alpha(coverage))),
                    captioned("by::alphaOut(coverage)",
-                             "\xe2\x80\xa6" "and the complement",
+                             "\xe2\x80\xa6"
+                             "and the complement",
                              gated(by::alphaOut(coverage))),
                    captioned("by::luma(coverage)", "keeps what is BRIGHT",
                              gated(by::luma(coverage))),
                    captioned("by::lumaOut(coverage)",
-                             "\xe2\x80\xa6" "and the complement",
+                             "\xe2\x80\xa6"
+                             "and the complement",
                              gated(by::lumaOut(coverage)))},
          .gap = 12});
 
@@ -241,36 +252,26 @@ struct MatteLuma final : sketch::Sketch {
                         label(13, kInk)))
             .child(cell(stripW, 64, box().inset(0).fill(bands)))
             .child(bandLabels(stripW))
-            .child(text(toU8("\xe2\x80\xa6" "the same eight bands as a by::luma "
+            .child(text(toU8("\xe2\x80\xa6"
+                             "the same eight bands as a by::luma "
                              "matte \xe2\x86\x93 each pair reads the SAME"),
                         label(11, kDim))
                        .margin(0, 6, 0, 0))
             .child(cell(stripW, 64, std::move(bandMatted)));
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("TRACK MATTES \xc2\xb7 by::alpha / alphaOut / "
-                           "luma / lumaOut"),
-             .subtitle = toU8("one content, one coverage paint, four gates "
-                              "\xe2\x80\x94 right halves match between alpha "
-                              "and luma because the luma is taken on the "
-                              "PREMULTIPLIED colour; left halves do not"),
-             .footer = toU8("Y' = 0.299 R' + 0.587 G' + 0.114 B' \xc2\xb7 "
-                            "Rec. 709's luminance coefficients on encoded "
-                            "values would break every pair above"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kDim, 0.6f),
-             .footerStyle = label(10.5f, kDim, 0.2f),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells({.cells = {std::move(gates), std::move(law)},
-                        .column = true,
-                        .gap = 26}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("TRACK MATTES \xc2\xb7 by::alpha / alphaOut / "
+                       "luma / lumaOut"),
+         .subtitle = toU8("one content, one coverage paint, four gates "
+                          "\xe2\x80\x94 right halves match between alpha "
+                          "and luma because the luma is taken on the "
+                          "PREMULTIPLIED colour; left halves do not"),
+         .footer = toU8("Y' = 0.299 R' + 0.587 G' + 0.114 B' \xc2\xb7 "
+                        "Rec. 709's luminance coefficients on encoded "
+                        "values would break every pair above")},
+        kit::cells({.cells = {std::move(gates), std::move(law)},
+                    .column = true,
+                    .gap = 26})));
   }
 };
 

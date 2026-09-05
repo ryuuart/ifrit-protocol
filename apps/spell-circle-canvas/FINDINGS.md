@@ -97,8 +97,21 @@ same binary produce different plates, and its own header says every
 number it draws is pinned. Something it prints is not — the node and
 instance counts go through `std::to_string` rather than `ctx.measured`.
 
+A SECOND, DIFFERENT NONDETERMINISM sits beside it, and it is the more
+alarming of the two: a handful of sketches are byte-reproducible when
+rendered ALONE (`--sketch <stem>`) and differ between two full sweeps of
+the same binary. The set rotates — `chladni_tab1` and `minard_1869`
+differed on one sweep, `eva_magi_deliberation` and `fallout2_charsheet`
+on the next, each of the four identical to the reference when rendered on
+its own. So it is not what those sketches draw; it is something a sweep
+carries from one sketch to the next, or something a parallel path decides
+differently under load. Until it is found, a byte-identity sweep cannot
+distinguish a real mover from this, which is the whole value of the
+sweep.
+
 Assert once fixed: two headless sweeps of the same binary produce
-byte-identical plates for every canvas sketch.
+byte-identical plates for every canvas sketch, and each plate equals the
+one that sketch renders alone.
 
 ## The house colours a paint program needs are still typed out
 

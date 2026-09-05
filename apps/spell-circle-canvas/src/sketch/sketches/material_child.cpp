@@ -44,14 +44,13 @@
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace mat = sigil::material;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
@@ -68,23 +67,25 @@ constexpr int kCells = 4;           // the index chart is kCells x kCells
 
 constexpr float kMaskContrast = 3.2f;  // how hard the grain field's cut is
 
-constexpr SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
-constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
-constexpr SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 constexpr SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
-constexpr SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 constexpr float kPanel = 180.0f;
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(12.5f, kInk, 0.4f),
-          .note = label(10.5f, kDim, 0.2f),
-          .gap = 6,
-          .noteMeasure = kPanel};
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
+  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionGap = 6;
+  return look;
 }
 
 /** THE SHADER. Two `uniform shader` slots, one float, and main() kept
@@ -167,15 +168,16 @@ const sk_sp<SkImage>& indexChart() {
 }
 
 mskia::Paint indexSource() {
-  return mskia::Paint::image(indexChart(), SkTileMode::kClamp, SkTileMode::kClamp,
-                         SkMatrix::Scale(kPanel / kCells, kPanel / kCells),
-                         SkSamplingOptions(SkFilterMode::kNearest));
+  return mskia::Paint::image(indexChart(), SkTileMode::kClamp,
+                             SkTileMode::kClamp,
+                             SkMatrix::Scale(kPanel / kCells, kPanel / kCells),
+                             SkSamplingOptions(SkFilterMode::kNearest));
 }
 
 mskia::Paint lutSource(const sk_sp<SkImage>& table) {
   return mskia::Paint::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
-                         SkMatrix::I(),
-                         SkSamplingOptions(SkFilterMode::kNearest));
+                             SkMatrix::I(),
+                             SkSamplingOptions(SkFilterMode::kNearest));
 }
 
 /** THE CALL SITE, in one place: one effect, two children, one uniform.
@@ -191,23 +193,24 @@ mskia::Paint paletted(const sk_sp<SkImage>& table, float shade) {
 Element lutStrip(const sk_sp<SkImage>& table) {
   return box().width(kPanel).height(14).fill(
       mskia::Paint::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
-                      SkMatrix::Scale(kPanel / 16.0f, 14.0f),
-                      SkSamplingOptions(SkFilterMode::kNearest)));
+                          SkMatrix::Scale(kPanel / 16.0f, 14.0f),
+                          SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
 Element panel(const char* call, const char* note, const sk_sp<SkImage>& table,
               float shade, std::string key) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .column()
-                       .gap(6)
-                       .child(box()
-                                  .key(std::move(key))
-                                  .width(kPanel)
-                                  .height(kPanel)
-                                  .fill(paletted(table, shade))
-                                  .stroke(stroke(1.0f, Fill::color(kFrame))))
-                       .child(lutStrip(table)));
+  return sketch::kit::caption(
+      kPanel, toU8(call), toU8(note),
+      box()
+          .column()
+          .gap(6)
+          .child(box()
+                     .key(std::move(key))
+                     .width(kPanel)
+                     .height(kPanel)
+                     .fill(paletted(table, shade))
+                     .stroke(stroke(1.0f, Fill::color(kFrame))))
+          .child(lutStrip(table)));
 }
 
 // ------------------------------------------------------- over(base, top, mask)
@@ -236,13 +239,14 @@ mat::Material stackMask() {
 
 Element operand(const char* call, const char* note, mat::Material material,
                 std::string key) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   box()
-                       .key(std::move(key))
-                       .width(kPanel)
-                       .height(kPanel)
-                       .fill(mskia::Paint::recipe(std::move(material)))
-                       .stroke(stroke(1.0f, Fill::color(kFrame))));
+  return sketch::kit::caption(
+      kPanel, toU8(call), toU8(note),
+      box()
+          .key(std::move(key))
+          .width(kPanel)
+          .height(kPanel)
+          .fill(mskia::Paint::recipe(std::move(material)))
+          .stroke(stroke(1.0f, Fill::color(kFrame))));
 }
 
 Element stacked(const char* call, const char* note, mat::Blend blend,
@@ -269,22 +273,29 @@ struct MaterialChild final : sketch::Sketch {
   }
 
   Element describe() {
+    // The theme is bound where the tree is DESCRIBED, not where setup
+    // runs: this sketch describes again when the live panel changes
+    // lane, and a scope that ended with setup would not be there.
+    const sketch::kit::Provide look(sheetTheme());
     Element slots = kit::cells(
         {.cells = {panel("child(\"uPalette\", grey)",
-                         "the indices themselves: a 0..15 staircase",
-                         greyLut(), 0.0f, "grey"),
+                         "the indices themselves: a 0..15 staircase", greyLut(),
+                         0.0f, "grey"),
                    panel("child(\"uPalette\", fire)",
                          "the SAME index texture, another table", fireLut(),
                          0.0f, "fire"),
                    panel("child(\"uPalette\", ice)",
-                         "\xe2\x80\xa6" "and another", iceLut(), 0.0f, "ice"),
+                         "\xe2\x80\xa6"
+                         "and another",
+                         iceLut(), 0.0f, "ice"),
                    panel("uniform(\"uShade\", 6)",
                          "min(i + 6, 15): the top cells flatten onto the "
                          "last entry \xe2\x80\x94 index arithmetic, drawn",
                          iceLut(), kShade, "shade"),
                    panel("the LUT swapped by update()",
                          "door 3: data changes, the tree is described again, "
-                         "one node patches", liveLut(), 0.0f, "live")},
+                         "one node patches",
+                         liveLut(), 0.0f, "live")},
          .gap = 20});
 
     Element stack = kit::cells(
@@ -292,10 +303,12 @@ struct MaterialChild final : sketch::Sketch {
                            "the BASE of the stack", stackBase(), "base"),
                    operand("kit::stone({.bedAngle = 62})",
                            "the TOP \xe2\x80\x94 a crust with a bed of its "
-                           "own", stackTop(), "top"),
+                           "own",
+                           stackTop(), "top"),
                    operand("field::grain(0.018, 4, contrast 3.2)",
                            "the MASK: an ordinary material, read as its red "
-                           "channel", stackMask(), "mask"),
+                           "channel",
+                           stackMask(), "mask"),
                    stacked("over(base, top, mask)",
                            "Blend::Mix \xe2\x80\x94 the base moves toward "
                            "the top where the mask says",
@@ -306,37 +319,27 @@ struct MaterialChild final : sketch::Sketch {
                            mat::Blend::Multiply, "over.mul")},
          .gap = 20});
 
-    return kit::sheet(
-               {.title = toU8("CHILD SLOTS \xc2\xb7 a material filling "
-                              "another's"),
-                .subtitle = toU8("top: Paint::sksl(\xe2\x80\xa6).child() "
-                                 "\xe2\x80\x94 an index texture read "
-                                 "through a palette LUT \xc2\xb7 bottom: "
-                                 "over(base, top, mask) \xe2\x80\x94 the "
-                                 "same idea one level up"),
-                .footer = toU8("one effect, two children, ONE draw \xc2\xb7 "
-                               "children ride the prune signature, so a "
-                               "swapped LUT repatches and an identical one "
-                               "prunes"),
-                .titleStyle = label(15, kInk, 2.0f),
-                .subtitleStyle = label(11, kDim, 0.6f),
-                .footerStyle = label(10.5f, kDim, 0.2f),
-                .marginX = 30,
-                .marginTop = 22,
-                .marginBottom = 16,
-                .ground = Fill::color(kGround),
-                .rule = Fill::color(kRule)},
-               kit::cells({.cells = {std::move(slots), std::move(stack)},
-                           .column = true,
-                           .gap = 26}))
-        .absolute()
-        .inset(0);
+    return sketch::kit::page(
+        {.title = toU8("CHILD SLOTS \xc2\xb7 a material filling "
+                       "another's"),
+         .subtitle = toU8("top: Paint::sksl(\xe2\x80\xa6).child() "
+                          "\xe2\x80\x94 an index texture read "
+                          "through a palette LUT \xc2\xb7 bottom: "
+                          "over(base, top, mask) \xe2\x80\x94 the "
+                          "same idea one level up"),
+         .footer = toU8("one effect, two children, ONE draw \xc2\xb7 "
+                        "children ride the prune signature, so a "
+                        "swapped LUT repatches and an identical one "
+                        "prunes")},
+        kit::cells({.cells = {std::move(slots), std::move(stack)},
+                    .column = true,
+                    .gap = 26}));
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1060, 690);
-    ctx.background(kGround);
-    ctx.captureAt(1.0);  // the live panel is on the fire LUT here
+    const sketch::kit::Provide look(sheetTheme());
+    // the live panel is on the fire LUT here
+    sketch::kit::stage(ctx, {.size = {1060, 690}, .captureAt = 1.0});
     ctx.composer.render(describe());
   }
 

@@ -35,8 +35,7 @@
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <array>
 #include <cmath>
@@ -44,7 +43,6 @@
 #include <string>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
@@ -63,11 +61,14 @@ constexpr float kPicture = 196;
 constexpr int kBars = 12;      // the table's length, and a constant in the body
 constexpr float kGain = 0.9f;  // every bar's height multiplier
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.09f, 0.095f, 0.11f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.cellGround = {0.09f, 0.095f, 0.11f, 1};
+  look.type.captionLabel = {.size = 11, .mono = true};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  return look;
+}
 
 /** The ABI: a float, a colour and a table. Packed floats with float
  *  alignment, which is what lets the struct's memory image BE the
@@ -155,24 +156,6 @@ const std::shared_ptr<const Recipe>& flatRecipe() {
   return r;
 }
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(11, kInk),
-          .note = label(10.5f, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
-
 SkPath whole() {
   static const SkPath path =
       SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
@@ -181,28 +164,27 @@ SkPath whole() {
 
 Element cell(const char* call, const std::string& note, material::Material m,
              float contentScale, glm::mat3 world = glm::mat3(1.0f)) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      kit::well({.width = kCell,
-                 .height = kPicture,
-                 .ground = Fill::color(kCellGround)},
-                custom(call, [m = std::move(m), contentScale, world](
-                                 SkCanvas& canvas, const PaintContext& pc) {
-                  material::skia::fill(
-                      canvas, whole(), m,
-                      {.resolution = {pc.size.width(), pc.size.height()},
-                       .contentScale = contentScale,
-                       .world = world});
-                })));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well(
+          {.width = kCell, .height = kPicture},
+          custom(call, [m = std::move(m), contentScale, world](
+                           SkCanvas& canvas, const PaintContext& pc) {
+            material::skia::fill(
+                canvas, whole(), m,
+                {.resolution = {pc.size.width(), pc.size.height()},
+                 .contentScale = contentScale,
+                 .world = world});
+          })));
 }
 
 }  // namespace
 
 struct FrameInputs final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);        // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     material::skia::install();  // the SkSL compiler, once per process
 
     // The caller's table, owned beside the model rather than in the
@@ -229,79 +211,69 @@ struct FrameInputs final : sketch::Sketch {
     ramped.bind("uBars", second);
     ramped.set("uTint", Color{0.96f, 0.68f, 0.34f, 1});
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("FRAME INPUTS \xc2\xb7 Recipe::frame + "
-                           "UniformBlock + Material::withRecipe"),
-             .subtitle = toU8("dials \xc2\xb7 the content scale (1, then 3) "
-                              "\xc2\xb7 the world translation \xc2\xb7 the "
-                              "block's twelve floats \xc2\xb7 the recipe the "
-                              "instance is worn on"),
-             .footer = toU8("what a compiler KEEPS is what the upload "
-                            "fills: a field a body never reads reaches "
-                            "nothing, and the program cache names the "
-                            "recipe and every field the compiler dropped "
-                            "once per target"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {kit::cells(
-                          {.cells =
-                               {cell("bind(\"uBars\", block) \xc2\xb7 "
-                                     "contentScale 1",
-                                     kit::format(
-                                         "twelve floats read LIVE at every "
-                                         "resolve \xc2\xb7 the hairlines "
-                                         "are 1 / uContentScale wide, so "
-                                         "here they are 1 px"),
-                                     bars, 1.0f),
-                                cell("\xe2\x80\xa6"
-                                     " contentScale 3",
-                                     "the same material and the same block "
-                                     "\xc2\xb7 only the frame value moved, "
-                                     "and the hairlines thinned to a third",
-                                     bars, 3.0f),
-                                cell("a second block, a second tint",
-                                     "the block compares by IDENTITY, so "
-                                     "this is a different binding \xc2\xb7 "
-                                     "its values never enter the prune "
-                                     "comparison",
-                                     ramped, 1.0f)},
-                           .gap = 14}),
-                      kit::cells(
-                          {.cells =
-                               {cell("frame(WorldTransform) \xc2\xb7 uWorld "
-                                     "translated",
-                                     "the body reads column 2 of uWorld as "
-                                     "its phase \xc2\xb7 identity outside a "
-                                     "composite, so it degrades to the "
-                                     "node's own space",
-                                     bars, 1.0f,
-                                     glm::mat3(1, 0, 0, 0, 1, 0, 142, 0, 1)),
-                                cell("withRecipe(dotsRecipe())",
-                                     "THE SAME INSTANCE over a second "
-                                     "definition of one params layout "
-                                     "\xc2\xb7 the values, the binding and "
-                                     "the tint all carried over",
-                                     bars.withRecipe(dotsRecipe()), 1.0f),
-                                cell("withRecipe(flatRecipe())",
-                                     "a body that reads neither uBars nor "
-                                     "uGain \xc2\xb7 the third definition "
-                                     "of one ABI, and the table it is still "
-                                     "bound to reaches nothing",
-                                     bars.withRecipe(flatRecipe()), 1.0f)},
-                           .gap = 14})},
-                 .column = true,
-                 .gap = 18}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("FRAME INPUTS \xc2\xb7 Recipe::frame + "
+                       "UniformBlock + Material::withRecipe"),
+         .subtitle = toU8("dials \xc2\xb7 the content scale (1, then 3) "
+                          "\xc2\xb7 the world translation \xc2\xb7 the "
+                          "block's twelve floats \xc2\xb7 the recipe the "
+                          "instance is worn on"),
+         .footer = toU8("what a compiler KEEPS is what the upload "
+                        "fills: a field a body never reads reaches "
+                        "nothing, and the program cache names the "
+                        "recipe and every field the compiler dropped "
+                        "once per target")},
+        kit::cells(
+            {.cells =
+                 {kit::cells(
+                      {.cells =
+                           {cell("bind(\"uBars\", block) \xc2\xb7 "
+                                 "contentScale 1",
+                                 kit::format("twelve floats read LIVE at every "
+                                             "resolve \xc2\xb7 the hairlines "
+                                             "are 1 / uContentScale wide, so "
+                                             "here they are 1 px"),
+                                 bars, 1.0f),
+                            cell("\xe2\x80\xa6"
+                                 " contentScale 3",
+                                 "the same material and the same block "
+                                 "\xc2\xb7 only the frame value moved, "
+                                 "and the hairlines thinned to a third",
+                                 bars, 3.0f),
+                            cell("a second block, a second tint",
+                                 "the block compares by IDENTITY, so "
+                                 "this is a different binding \xc2\xb7 "
+                                 "its values never enter the prune "
+                                 "comparison",
+                                 ramped, 1.0f)},
+                       .gap = 14}),
+                  kit::cells(
+                      {.cells =
+                           {cell("frame(WorldTransform) \xc2\xb7 uWorld "
+                                 "translated",
+                                 "the body reads column 2 of uWorld as "
+                                 "its phase \xc2\xb7 identity outside a "
+                                 "composite, so it degrades to the "
+                                 "node's own space",
+                                 bars,
+                                 1.0f,
+                                 glm::mat3(1, 0, 0, 0, 1, 0, 142, 0, 1)),
+                            cell("withRecipe(dotsRecipe())",
+                                 "THE SAME INSTANCE over a second "
+                                 "definition of one params layout "
+                                 "\xc2\xb7 the values, the binding and "
+                                 "the tint all carried over",
+                                 bars.withRecipe(dotsRecipe()), 1.0f),
+                            cell("withRecipe(flatRecipe())",
+                                 "a body that reads neither uBars nor "
+                                 "uGain \xc2\xb7 the third definition "
+                                 "of one ABI, and the table it is still "
+                                 "bound to reaches nothing",
+                                 bars.withRecipe(flatRecipe()), 1.0f)},
+                       .gap =
+                           14})},
+             .column = true,
+             .gap = 18})));
   }
 };
 

@@ -37,13 +37,14 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <sigilsketch/scry/SettledPage.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
+#include <sigilsketch/scry/SettledPage.h>
 #include <sigilsketch/scry/SharedEngine.h>
 #include <sigilweave/style/Type.h>
 
@@ -80,16 +81,19 @@ constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.3f};
+  look.type.captionLabel = {.size = 11, .track = 0.4f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.captionGap = 6;
+  return look;
 }
 
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(11, kInk, 0.4f),
-          .note = label(10.5f, kAsh, 0.2f),
-          .gap = 6,
-          .noteMeasure = (float)kViewW};
+weave::TextStyle label(float size, SkColor4f color, float track = 0) {
+  return weave::textStyle({.size = size, .color = color, .track = track});
 }
 
 /** The document all four views load. It is deliberately taller than the
@@ -142,9 +146,9 @@ struct WebScript final : sketch::Sketch {
   std::vector<std::shared_ptr<scry::WebView>> views;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // every stage is done before the first frame
+    const sketch::kit::Provide look(sheetTheme());
+    // every stage is done before the first frame
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const std::shared_ptr<scry::WebEngine> web = sketch::scry::sharedEngine();
     if (!web) {
@@ -177,9 +181,9 @@ struct WebScript final : sketch::Sketch {
     // The heading the script rewrites is the page's own statement that
     // the rewrite has landed AND been painted.
     settled = sketch::scry::awaitAnswer(*scripted, scriptedEvents,
-                                   "document.getElementById('head')"
-                                   ".textContent",
-                                   "EVALUATED") &&
+                                        "document.getElementById('head')"
+                                        ".textContent",
+                                        "EVALUATED") &&
               settled;
     const std::string returned =
         reply.wait_for(sketch::scry::kUnresponsive) == std::future_status::ready
@@ -199,8 +203,8 @@ struct WebScript final : sketch::Sketch {
     // when the walk is over — read EXACTLY, because the last fraction of
     // a pixel of that walk is a row edge antialiased two ways.
     settled = sketch::scry::awaitAnswer(*scrolled, scrolledEvents,
-                                   "String(window.scrollY)",
-                                   std::to_string(kScrollBy)) &&
+                                        "String(window.scrollY)",
+                                        std::to_string(kScrollBy)) &&
               settled;
 
     // ---- the press ---------------------------------------------------
@@ -213,9 +217,9 @@ struct WebScript final : sketch::Sketch {
     pressed->mouseUp(kClickAt.x(), kClickAt.y());
     // The class the page's own handler adds is its statement that the
     // click arrived and the button has been repainted in it.
-    settled = sketch::scry::awaitAnswer(*pressed, pressedEvents,
-                                   "document.getElementById('btn').className",
-                                   "hit") &&
+    settled = sketch::scry::awaitAnswer(
+                  *pressed, pressedEvents,
+                  "document.getElementById('btn').className", "hit") &&
               settled;
 
     views = {plain, scripted, scrolled, pressed};
@@ -231,45 +235,34 @@ struct WebScript final : sketch::Sketch {
                   "CONTENT moves by, so down is negative",
                   kScrollBy);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("DRIVING A PAGE \xc2\xb7 setLoadCallback + "
-                           "evaluateScript + scroll + mouse"),
-             .subtitle = toU8("dials \xc2\xb7 the script \xc2\xb7 the wheel "
-                              "\xc2\xb7 the point pressed \xe2\x80\x94 one "
-                              "document, four views, one call apart"),
-             .footer = toU8(
-                 std::string(
-                     "every call crosses to the web thread, so each cell was "
-                     "driven and then waited on for the engine's own events "
-                     "\xe2\x80\x94 the load, then the page's own answer that "
-                     "what the call asked for is what the latest frame shows") +
-                 (settled ? "" : "; one of those waits expired")),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11, kAsh, 0.6f),
-             .footerStyle = label(10.5f, kAsh, 0.3f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("plain", plain, "loadHTML + setLoadCallback",
-                           std::string("the load callback ") +
-                               (fired ? "fired" : "never fired") + ", and " +
-                               (painted ? "a frame was published"
-                                        : "nothing was published")),
-                      cell("scripted", scripted, "evaluateScript(js, onResult)",
-                           std::string("the page answered \xe2\x80\x9c") +
-                               returned + "\xe2\x80\x9d"),
-                      cell("scrolled", scrolled, "scroll(0, -dy)", wheel),
-                      cell("pressed", pressed,
-                           "mouseMove / mouseDown / mouseUp", press)},
-                 .gap = 18,
-                 .divider = Fill::color(kRule)}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("DRIVING A PAGE \xc2\xb7 setLoadCallback + "
+                       "evaluateScript + scroll + mouse"),
+         .subtitle = toU8("dials \xc2\xb7 the script \xc2\xb7 the wheel "
+                          "\xc2\xb7 the point pressed \xe2\x80\x94 one "
+                          "document, four views, one call apart"),
+         .footer = toU8(
+             std::string(
+                 "every call crosses to the web thread, so each cell was "
+                 "driven and then waited on for the engine's own events "
+                 "\xe2\x80\x94 the load, then the page's own answer that "
+                 "what the call asked for is what the latest frame shows") +
+             (settled ? "" : "; one of those waits expired"))},
+        kit::cells(
+            {.cells = {cell("plain", plain, "loadHTML + setLoadCallback",
+                            std::string("the load callback ") +
+                                (fired ? "fired" : "never fired") + ", and " +
+                                (painted ? "a frame was published"
+                                         : "nothing was published")),
+                       cell("scripted", scripted,
+                            "evaluateScript(js, onResult)",
+                            std::string("the page answered \xe2\x80\x9c") +
+                                returned + "\xe2\x80\x9d"),
+                       cell("scrolled", scrolled, "scroll(0, -dy)", wheel),
+                       cell("pressed", pressed,
+                            "mouseMove / mouseDown / mouseUp", press)},
+             .gap = 18,
+             .divider = Fill::color(kRule)})));
   }
 
   std::shared_ptr<scry::WebView> open(scry::WebEngine& web) const {
@@ -280,8 +273,8 @@ struct WebScript final : sketch::Sketch {
    *  so nothing resamples. */
   static Element cell(std::string key, std::shared_ptr<scry::WebView> view,
                       const char* call, std::string note) {
-    return kit::cell(
-        voice(), toU8(call), toU8(note),
+    return sketch::kit::caption(
+        (float)kViewW, toU8(call), toU8(note),
         custom(std::move(key),
                [view](SkCanvas& canvas, const PaintContext&) {
                  if (view)

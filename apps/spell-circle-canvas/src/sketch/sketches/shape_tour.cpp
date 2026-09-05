@@ -44,7 +44,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <string>
 #include <utility>
@@ -52,37 +52,38 @@
 
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
 
 namespace {
 
-constexpr float kLarge = 96;   // the big box every generator is drawn in
-constexpr float kSmall = 44;   // …and the small one, from the same value
-constexpr float kCell = 168;   // one cell's width
-constexpr float kBed = 118;    // the drawn strip's height
+constexpr float kLarge = 96;  // the big box every generator is drawn in
+constexpr float kSmall = 44;  // …and the small one, from the same value
+constexpr float kCell = 168;  // one cell's width
+constexpr float kBed = 118;   // the drawn strip's height
 
-constexpr SkColor4f kGround{0.945f, 0.937f, 0.918f, 1};
 constexpr SkColor4f kBedTone{0.902f, 0.890f, 0.863f, 1};
-constexpr SkColor4f kInk{0.114f, 0.106f, 0.098f, 1};
-constexpr SkColor4f kAsh{0.376f, 0.365f, 0.345f, 1};
-constexpr SkColor4f kRule{0.749f, 0.733f, 0.706f, 1};
 constexpr SkColor4f kBody{0.827f, 0.318f, 0.220f, 1};
 constexpr SkColor4f kLine{0.129f, 0.298f, 0.451f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Below,
-          .label = label(11, kInk, 0.4f),
-          .note = label(9.5f, kAsh, 0.2f),
-          .gap = 7,
-          .noteGap = 3,
-          .noteMeasure = kCell};
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.945f, 0.937f, 0.918f, 1};
+  look.palette.ink = {0.114f, 0.106f, 0.098f, 1};
+  look.palette.ash = {0.376f, 0.365f, 0.345f, 1};
+  look.palette.rule = {0.749f, 0.733f, 0.706f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.5f};
+  look.type.footer = {.size = 10, .track = 0.2f};
+  look.type.captionLabel = {.size = 11, .track = 0.4f};
+  look.type.captionNote = {.size = 9.5f, .track = 0.2f};
+  look.captionWhere = kit::Caption::Where::Below;
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionNoteGap = 3;
+  return look;
 }
 
 /** ONE CELL: the generator drawn at both sizes on one baseline, then the
@@ -92,8 +93,8 @@ kit::Caption voice() {
 template <class Shape>
 Element cell(Shape shape, const char* call, const char* note,
              bool closed = true) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
       custom([shape, closed](SkCanvas& canvas, const PaintContext& paint) {
         SkPaint fill;
         fill.setAntiAlias(true);
@@ -106,8 +107,9 @@ Element cell(Shape shape, const char* call, const char* note,
 
         const float baseline = paint.size.height() - 8;
         const auto draw = [&](float side, float left) {
-          const SkPath path = shape.path({side, side}).makeTransform(
-              SkMatrix::Translate(left, baseline - side));
+          const SkPath path =
+              shape.path({side, side})
+                  .makeTransform(SkMatrix::Translate(left, baseline - side));
           if (closed) canvas.drawPath(path, fill);
           canvas.drawPath(path, line);
         };
@@ -134,8 +136,8 @@ const char* kHeartD =
 
 struct ShapeShelf final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1120, 840);
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1120, 840}});
     // A generator is a pure function of its parameters and the box.
     ctx.captureAt(0.05);
 
@@ -188,19 +190,24 @@ struct ShapeShelf final : sketch::Sketch {
                    cell(shapes::harmonograph(3, 4, 60),
                         "harmonograph(3, 4, 60)",
                         "the damped pair \xe2\x80\x94 the figure decays "
-                        "inward", false),
+                        "inward",
+                        false),
                    cell(shapes::rose(5, 1), "rose(5)",
                         "r = cos(k\xce\xb8): odd k gives k petals, even k "
-                        "gives 2k", false),
+                        "gives 2k",
+                        false),
                    cell(shapes::spiral(3.5f), "spiral(3.5)",
                         "Archimedean by default; logarithmic on request",
                         false)}),
               row({cell(shapes::trochoid(5, 3, 5), "trochoid(5, 3, 5)",
                         "the spirograph pair \xe2\x80\x94 a circle rolling "
-                        "outside another", false),
+                        "outside another",
+                        false),
                    cell(shapes::trochoid(5, 3, 5, true),
                         "trochoid(5, 3, 5, inside)",
-                        "\xe2\x80\xa6" "and rolling inside it", false),
+                        "\xe2\x80\xa6"
+                        "and rolling inside it",
+                        false),
                    cell(shapes::rounded(shapes::star(5, 0.42f), 8),
                         "rounded(star(5, 0.42), 8)",
                         "a shape OVER a shape: the radius is px, so the "
@@ -217,31 +224,20 @@ struct ShapeShelf final : sketch::Sketch {
          .column = true,
          .gap = 16});
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE SILHOUETTE SHELF \xc2\xb7 every shapes:: "
-                           "generator, at two sizes"),
-             .subtitle = toU8("one comparable VALUE per cell, drawn at 96 px "
-                              "and at 44 px from the same parameters "
-                              "\xe2\x80\x94 a generator is written in the "
-                              "box's coordinates, so the small copy is a "
-                              "construction and not a scaling"),
-             .footer = toU8("closed figures are filled and outlined; the "
-                            "open ones are stroked only, since an open path "
-                            "has no inside \xc2\xb7 anything with "
-                            "path(SkSize) and operator== belongs on this "
-                            "shelf"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kAsh, 0.5f),
-             .footerStyle = label(10, kAsh, 0.2f),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            std::move(generators))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE SILHOUETTE SHELF \xc2\xb7 every shapes:: "
+                       "generator, at two sizes"),
+         .subtitle = toU8("one comparable VALUE per cell, drawn at 96 px "
+                          "and at 44 px from the same parameters "
+                          "\xe2\x80\x94 a generator is written in the "
+                          "box's coordinates, so the small copy is a "
+                          "construction and not a scaling"),
+         .footer = toU8("closed figures are filled and outlined; the "
+                        "open ones are stroked only, since an open path "
+                        "has no inside \xc2\xb7 anything with "
+                        "path(SkSize) and operator== belongs on this "
+                        "shelf")},
+        std::move(generators)));
   }
 };
 

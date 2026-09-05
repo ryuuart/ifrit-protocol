@@ -40,6 +40,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -65,11 +66,7 @@ constexpr float kInset = 8;      // the well's own padding, px
 constexpr float kBodySize = 7;   // the passage's type size, px
 constexpr float kMoment = 6.4f;  // the second every field is frozen at
 
-constexpr SkColor4f kGround{0.06f, 0.06f, 0.075f, 1};
-constexpr SkColor4f kCellGround{0.10f, 0.105f, 0.125f, 1};
 constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
 /// THE PASSAGE — about two thousand words on what a page of type asks of
 /// an ink, which is the same question the sheet asks of each preset.
@@ -271,16 +268,6 @@ const weave::kit::PatternHyphenator& hyphenator() {
   return table;
 }
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
 /** The passage's own face: a text face with real serifs, because what a
  *  fill does to a thin stroke is half of what the sheet is about. */
 weave::TextStyle body() {
@@ -299,14 +286,6 @@ weave::ParagraphStyle block() {
   setting.leading = weave::Leading::multiple(1.32f);
   setting.indent.firstLine = kBodySize * 1.6f;
   return setting;
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(9.5f, kInk),
-          .note = label(9, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kPanel};
 }
 
 /// The bounds every field is parameterised over: the unit square the run's
@@ -331,57 +310,60 @@ Element column(paint::Paint fill) {
  *  the first — which is what a transparent field is drawn over. */
 Element panel(const char* call, const char* note, paint::Paint fill,
               paint::Paint beneath = {}) {
-  Element plate = kit::well({.width = Dim(kPanel),
-                             .height = Dim(kColumn),
-                             .ground = Fill::color(kCellGround),
-                             .padding = kInset})
-                      .column();
+  Element plate =
+      sketch::kit::well(
+          {.width = Dim(kPanel), .height = Dim(kColumn), .padding = kInset})
+          .column();
   if (beneath.isSolid() || beneath.asShader())
     plate.child(box().absolute().inset(0).child(column(std::move(beneath))));
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   std::move(plate).child(column(std::move(fill))));
+  return sketch::kit::caption(kPanel, toU8(call), toU8(note),
+                              std::move(plate).child(column(std::move(fill))));
 }
 
 Element field(const char* call, const char* note, material::Material m) {
   return panel(call, note, paint::Paint::recipe(std::move(m)));
 }
 
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.06f, 0.06f, 0.075f, 1};
+  look.palette.cellGround = {0.10f, 0.105f, 0.125f, 1};
+  look.type.title = {.size = 13, .track = 2.2f};
+  look.type.subtitle = {.size = 10.5f, .track = 0.6f};
+  look.type.footer = {.size = 10, .track = 0.3f};
+  look.type.captionLabel = {.size = 9.5f, .mono = true};
+  look.type.captionNote = {.size = 9, .track = 0.2f};
+  look.spacing.marginX = 20;
+  look.spacing.marginTop = 18;
+  look.spacing.marginBottom = 12;
+  look.spacing.contentGap = 16;
+  return look;
+}
+
 }  // namespace
 
 struct ParagraphPaints final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // the fields are frozen at kMoment, not the clock
+    const sketch::kit::Provide look(sheetTheme());
+    // the fields are frozen at kMoment, not the clock
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
     material::skia::install();  // the SkSL compiler, once per process
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("PARAGRAPH PAINTS \xc2\xb7 the preset text paints "
-                           "over a page of body type"),
-             .subtitle = toU8("one passage \xc2\xb7 one face, size, measure, "
-                              "leading, breaker and justification "
-                              "\xc2\xb7 eight inks \xc2\xb7 the moment "
-                              "(6.4 s)"),
-             .footer = toU8("the material's unit square spans the WHOLE run, "
-                            "so a page gets a sliver of what a word gets "
-                            "whole \xe2\x80\x94 which is the thing to look "
-                            "for here, and the thing a one-word specimen "
-                            "cannot show"),
-             .titleStyle = label(13, kInk, 2.2f),
-             .subtitleStyle = label(10.5f, kAsh, 0.6f),
-             .footerStyle = label(10, kAsh, 0.3f),
-             .marginX = 20,
-             .marginTop = 18,
-             .marginBottom = 12,
-             .contentGap = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells({.cells = {topRow(), bottomRow()},
-                        .column = true,
-                        .gap = 14}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("PARAGRAPH PAINTS \xc2\xb7 the preset text paints "
+                       "over a page of body type"),
+         .subtitle = toU8("one passage \xc2\xb7 one face, size, measure, "
+                          "leading, breaker and justification "
+                          "\xc2\xb7 eight inks \xc2\xb7 the moment "
+                          "(6.4 s)"),
+         .footer = toU8("the material's unit square spans the WHOLE run, "
+                        "so a page gets a sliver of what a word gets "
+                        "whole \xe2\x80\x94 which is the thing to look "
+                        "for here, and the thing a one-word specimen "
+                        "cannot show")},
+        kit::cells(
+            {.cells = {topRow(), bottomRow()}, .column = true, .gap = 14})));
   }
 
   Element topRow() {
@@ -395,12 +377,12 @@ struct ParagraphPaints final : sketch::Sketch {
                     "four corners over the whole block \xc2\xb7 a paragraph "
                     "sits inside one corner's region",
                     material::kit::meshGradient(run(), kMoment)),
-              panel("kit::sparkle(bounds, t)",
-                    "TRANSPARENT \xc2\xb7 set here over a solid copy of the "
-                    "passage; on its own the page is not there",
-                    paint::Paint::recipe(material::kit::sparkle(run(),
-                                                                kMoment)),
-                    paint::Paint::solid({0.42f, 0.46f, 0.58f, 1})),
+              panel(
+                  "kit::sparkle(bounds, t)",
+                  "TRANSPARENT \xc2\xb7 set here over a solid copy of the "
+                  "passage; on its own the page is not there",
+                  paint::Paint::recipe(material::kit::sparkle(run(), kMoment)),
+                  paint::Paint::solid({0.42f, 0.46f, 0.58f, 1})),
               field("kit::starNest(bounds, t)",
                     "a volumetric raymarch \xc2\xb7 the heaviest of the six, "
                     "and now under every glyph on a page",

@@ -36,8 +36,7 @@
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Environment.h>
 #include <sigilworld/frame/Frame.h>
@@ -47,7 +46,6 @@
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace gm = sigil::geometry::mesh;
@@ -66,28 +64,13 @@ constexpr float kBias = 0.45f;     // roughness added to every surface
 constexpr float kBackdrop = 1.0f;  // how much sky is shown
 constexpr float kBlur = 0.35f;     // …and how soft
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.06f, 0.065f, 0.08f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.cellGround = {0.06f, 0.065f, 0.08f, 1};
+  return look;
 }
 
 /** The subject every cell bakes: one near-mirror body over a matte
@@ -129,20 +112,19 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> baked) {
       baked ? image(std::make_shared<const sigil::image::ImageAsset>(
                   sigil::image::ImageAsset::wrap(std::move(baked))))
             : box();
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(std::move(picture).absolute().inset(0)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(std::move(picture).absolute().inset(0)));
 }
 
 }  // namespace
 
 struct EnvLanes final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // every bake has already been taken
+    const sketch::kit::Provide look(sheetTheme());
+    // every bake has already been taken
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const material::EnvironmentMap studio = material::EnvironmentMap::studio();
     const material::EnvironmentMap sunset = material::EnvironmentMap::sunset();
@@ -180,62 +162,50 @@ struct EnvLanes final : sketch::Sketch {
     shown.backdrop.intensity = kBackdrop;
     shown.backdrop.blur = kBlur;
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE ENVIRONMENT'S DIALS \xc2\xb7 exposure, "
-                           "roughnessBias, diffuse/specular, crossfade, "
-                           "backdrop"),
-             .subtitle = toU8("dials \xc2\xb7 one stop against two (1.0 and "
-                              "2.0) \xc2\xb7 the roughness added to every "
-                              "surface (0.45) \xc2\xb7 the crossfade (0.75) "
-                              "\xc2\xb7 the sky's strength and blur"),
-             .footer = toU8("a frame holds ONE environment node, so each "
-                            "cell here is a frame of its own baked at the "
-                            "pixels it will have \xe2\x80\x94 and exposure "
-                            "is the only dial that still means something in "
-                            "a set carrying no panorama at all"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("studio() \xc2\xb7 exposure 1",
-                           "the reference \xc2\xb7 a near-mirror body over a "
-                           "matte slab, lit by the panorama alone",
-                           bake(base)),
-                      cell("exposure = 2",
-                           "one stop \xc2\xb7 every radiance multiplied "
-                           "before the tone curve, so the shoulder falls "
-                           "somewhere else",
-                           bake(brighter)),
-                      cell("roughnessBias = 0.45",
-                           "added to every surface's roughness before it "
-                           "picks a prefiltered level \xc2\xb7 the set "
-                           "softens and no material was edited",
-                           bake(softened)),
-                      cell("diffuse .15 specular 2",
-                           "a bright reflection over a dim bounce \xc2\xb7 "
-                           "pushing one and not the other is a look, not a "
-                           "physical claim",
-                           bake(mirrored)),
-                      cell("crossfade 0.75 to sunset",
-                           "a second panorama mixed over the first \xc2\xb7 "
-                           "both are sampled rather than one rebuilt, which "
-                           "is what lets a sky change mid-frame",
-                           bake(mixed)),
-                      cell("backdrop 1.0 blur 0.35",
-                           "the sky SHOWN rather than only reflected "
-                           "\xc2\xb7 zero draws none of it, so the strength "
-                           "is also the switch",
-                           bake(shown))},
-                 .gap = 10}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE ENVIRONMENT'S DIALS \xc2\xb7 exposure, "
+                       "roughnessBias, diffuse/specular, crossfade, "
+                       "backdrop"),
+         .subtitle = toU8("dials \xc2\xb7 one stop against two (1.0 and "
+                          "2.0) \xc2\xb7 the roughness added to every "
+                          "surface (0.45) \xc2\xb7 the crossfade (0.75) "
+                          "\xc2\xb7 the sky's strength and blur"),
+         .footer = toU8("a frame holds ONE environment node, so each "
+                        "cell here is a frame of its own baked at the "
+                        "pixels it will have \xe2\x80\x94 and exposure "
+                        "is the only dial that still means something in "
+                        "a set carrying no panorama at all")},
+        kit::cells(
+            {.cells = {cell("studio() \xc2\xb7 exposure 1",
+                            "the reference \xc2\xb7 a near-mirror body over a "
+                            "matte slab, lit by the panorama alone",
+                            bake(base)),
+                       cell("exposure = 2",
+                            "one stop \xc2\xb7 every radiance multiplied "
+                            "before the tone curve, so the shoulder falls "
+                            "somewhere else",
+                            bake(brighter)),
+                       cell("roughnessBias = 0.45",
+                            "added to every surface's roughness before it "
+                            "picks a prefiltered level \xc2\xb7 the set "
+                            "softens and no material was edited",
+                            bake(softened)),
+                       cell("diffuse .15 specular 2",
+                            "a bright reflection over a dim bounce \xc2\xb7 "
+                            "pushing one and not the other is a look, not a "
+                            "physical claim",
+                            bake(mirrored)),
+                       cell("crossfade 0.75 to sunset",
+                            "a second panorama mixed over the first \xc2\xb7 "
+                            "both are sampled rather than one rebuilt, which "
+                            "is what lets a sky change mid-frame",
+                            bake(mixed)),
+                       cell("backdrop 1.0 blur 0.35",
+                            "the sky SHOWN rather than only reflected "
+                            "\xc2\xb7 zero draws none of it, so the strength "
+                            "is also the switch",
+                            bake(shown))},
+             .gap = 10})));
   }
 };
 

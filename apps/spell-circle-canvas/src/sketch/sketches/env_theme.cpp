@@ -34,6 +34,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/reconcile/Env.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
@@ -47,6 +48,24 @@ using namespace sigil::compose;
 using sigil::compose::toU8;
 
 namespace {
+/** The house sheet, in this one's own look. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = {0.055f, 0.06f, 0.085f, 1};
+  look.palette.ink = {0.90f, 0.93f, 0.97f, 1};
+  look.palette.ash = {0.55f, 0.60f, 0.70f, 1};
+  look.palette.rule = {0.19f, 0.20f, 0.26f, 1};
+  look.type.title = {.size = 15, .track = 2};
+  look.type.subtitle = {.size = 11, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 0.2f};
+  look.type.captionLabel = {.size = 14, .track = 0.5f};
+  look.type.captionNote = {.size = 11, .track = 0.2f};
+  look.captionWhere = kit::Caption::Where::Above;
+  look.spacing.marginX = 30;
+  look.spacing.marginTop = 22;
+  look.spacing.captionGap = 10;
+  return look;
+}
 
 /** An inherited type is a comparable VALUE. Structural and exact — that is
  *  what makes `propsEqual` the dependency tracker. No std::function lives
@@ -75,24 +94,12 @@ const Palette kInner{"inner (shadowing)",
 
 constexpr int kLevels = 4;  // containers between Provide and the read
 
-constexpr SkColor4f kGround{0.055f, 0.06f, 0.085f, 1};
-constexpr SkColor4f kInk{0.90f, 0.93f, 0.97f, 1};
 constexpr SkColor4f kDim{0.55f, 0.60f, 0.70f, 1};
 constexpr SkColor4f kFrame{0.20f, 0.24f, 0.32f, 1};
-constexpr SkColor4f kRule{0.19f, 0.20f, 0.26f, 1};
 constexpr float kColumn = 340.0f;
 
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Above,
-          .label = label(14, kInk, 0.5f),
-          .note = label(11, kDim, 0.2f),
-          .gap = 10,
-          .noteGap = 4,
-          .noteMeasure = kColumn};
 }
 
 // -------------------------------------------------------------- the consumer
@@ -150,7 +157,8 @@ feed::TextOptions feedOptions(const Palette& c) {
 }
 
 Element panelColumn(const char* heading, const char* note, Element body) {
-  return kit::cell(voice(), toU8(heading), toU8(note), std::move(body));
+  return sketch::kit::caption(kColumn, toU8(heading), toU8(note),
+                              std::move(body));
 }
 
 /** The body every column shares — same code, three environments. */
@@ -174,8 +182,8 @@ struct EnvTheme : sketch::Sketch {
   feed::TextRing ring{16};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1140, 520);
-    ctx.background(kGround);
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = {1140, 520}});
     // Nothing moves: env is a describe-path channel.
     ctx.captureAt(0.05);
 
@@ -220,45 +228,33 @@ struct EnvTheme : sketch::Sketch {
           .stroke(stroke(1.0f, Fill::color(kFrame)))
           .child(std::move(top))
           .child(std::move(inner))
-          .child(text(toU8("\xe2\x80\xa6" "and back OUT of the inner scope:"),
+          .child(text(toU8("\xe2\x80\xa6"
+                           "and back OUT of the inner scope:"),
                       label(10, kDim)))
           .child(handedNothing(kLevels))
           .child(feed::feed(ring));
     }();
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("ENV \xc2\xb7 env::Provide<T> / "
-                           "env::inherited<T>()"),
-             .subtitle = toU8("one component tree, three environments "
-                              "\xe2\x80\x94 read where a component is "
-                              "COMPOSED, not where it is written"),
-             .footer = toU8("bindings are keyed by C++ TYPE \xc2\xb7 there "
-                            "is no library-wide Theme \xc2\xb7 a callable "
-                            "the KERNEL invokes sees no scope"),
-             .titleStyle = label(15, kInk, 2.0f),
-             .subtitleStyle = label(11, kDim, 0.6f),
-             .footerStyle = label(10.5f, kDim, 0.2f),
-             .marginX = 30,
-             .marginTop = 22,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {panelColumn("NO BINDING",
-                                  "inheritedOr() default \xe2\x80\x94 the "
-                                  "feed's own, at its own size",
-                                  std::move(plain)),
-                      panelColumn("OUTER SCOPE",
-                                  "one Provide, four levels up",
-                                  std::move(outer)),
-                      panelColumn("SHADOWED",
-                                  "an inner Provide over the middle band",
-                                  std::move(shadowed))},
-                 .gap = 24}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("ENV \xc2\xb7 env::Provide<T> / "
+                       "env::inherited<T>()"),
+         .subtitle = toU8("one component tree, three environments "
+                          "\xe2\x80\x94 read where a component is "
+                          "COMPOSED, not where it is written"),
+         .footer = toU8("bindings are keyed by C++ TYPE \xc2\xb7 there "
+                        "is no library-wide Theme \xc2\xb7 a callable "
+                        "the KERNEL invokes sees no scope")},
+        kit::cells(
+            {.cells = {panelColumn("NO BINDING",
+                                   "inheritedOr() default \xe2\x80\x94 the "
+                                   "feed's own, at its own size",
+                                   std::move(plain)),
+                       panelColumn("OUTER SCOPE", "one Provide, four levels up",
+                                   std::move(outer)),
+                       panelColumn("SHADOWED",
+                                   "an inner Provide over the middle band",
+                                   std::move(shadowed))},
+             .gap = 24})));
   }
 };
 
