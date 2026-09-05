@@ -4,7 +4,6 @@
 # over a sheet. Links the core and SigilImage (an asset is a source);
 # simdjson reads the sprite tools' JSON and stb packs the sheet, both
 # private: no consumer sees either.
-find_package(simdjson CONFIG REQUIRED)
 # stb is a set of single-file headers, and its port publishes a find
 # module and an include directory rather than a package — the contract
 # the port's own usage states.
