@@ -305,9 +305,17 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
 }
 
 SketchCatalog::~SketchCatalog() {
+  // LEAVING IS NOT WAITING FOR A PICTURE. A still is a walk from zero to
+  // the sketch's declared moment, so a render in flight can have minutes
+  // left in it; a join alone would spend every one of them with the
+  // window already gone. The render is let go first and the join then
+  // costs one frame of whatever sketch it was walking.
+  m_abandon.store(true, std::memory_order_relaxed);
   {
     const std::lock_guard lock(m_mutex);
     m_stop = true;
+    m_pending.clear();
+    m_queued.clear();
   }
   m_wake.notify_all();
   if (m_worker.joinable()) m_worker.join();
@@ -396,23 +404,30 @@ void SketchCatalog::renderLoop() {
     const sketch::Entry& entry = sketch::registry()[index];
     const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
     const std::string key = sketch::thumbnailKey(file);
-    const fs::path out =
+    sketch::ThumbnailRun run;
+    run.out =
         sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name, key);
-    const bool ok = sketch::renderThumbnail(entry, *SketchCatalog::thumbnailFonts,
-                                          *SketchCatalog::thumbnailAssets, out,
-                                          sketch::kThumbnailWidth);
+    run.maxDimension = sketch::kThumbnailWidth;
+    run.stop = &m_abandon;
+    const sketch::ThumbnailOutcome outcome =
+        sketch::renderThumbnail(entry, *SketchCatalog::thumbnailFonts,
+                                *SketchCatalog::thumbnailAssets, run);
     {
       const std::lock_guard lock(m_mutex);
       m_inFlight = -1;
       m_queued.erase(index);
-      if (!ok) m_failed.insert(index);
+      // A render that was let go says nothing about the sketch, so it is
+      // not remembered as one that cannot be drawn.
+      if (outcome == sketch::ThumbnailOutcome::Failed) m_failed.insert(index);
     }
+    if (outcome == sketch::ThumbnailOutcome::Stopped) continue;
+    const bool wrote = outcome == sketch::ThumbnailOutcome::Wrote;
     const QString name = QString::fromUtf8(entry.name);
     // Back to the GUI thread to touch the model.
     QMetaObject::invokeMethod(
         this,
-        [this, index, ok, name] {
-          if (ok)
+        [this, index, wrote, name] {
+          if (wrote)
             fillFromDisk(index);
           else
             emit thumbnailFailed(name);

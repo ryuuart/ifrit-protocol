@@ -16,6 +16,7 @@
 
 #include <sigilsketch/core/Registry.h>
 
+#include <atomic>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -57,19 +58,45 @@ inline constexpr int kThumbnailWidth = 640;
     const std::filesystem::path& dir, std::string_view stem,
     std::string_view key);
 
-/** RENDERS ONE REGISTRY SKETCH'S STILL and writes it to @p out.
+/** HOW ONE RENDER ENDED. */
+enum class ThumbnailOutcome {
+  /** The still is on disk under the key it was asked for. */
+  Wrote,
+  /** The caller's stop was raised and the walk was abandoned. Nothing
+   *  is on disk and nothing is known about the sketch: a stopped render
+   *  is not a sketch that cannot be drawn. */
+  Stopped,
+  /** No kind, an empty canvas, no surface, or the write failed. */
+  Failed,
+};
+
+/** ONE RENDER: where the still goes, how large, and what stops it. */
+struct ThumbnailRun {
+  std::filesystem::path out;
+  /** The still's larger side in pixels. */
+  int maxDimension = kThumbnailWidth;
+  /** READ BETWEEN FRAMES, and raising it abandons the walk at the next
+   *  one. A still is a walk from zero to the sketch's moment, which for
+   *  a sketch that names a late one is thousands of frames — long enough
+   *  that whoever asked for it can be gone before it lands, and long
+   *  enough that a caller waiting for the walk to end is a caller that
+   *  has stopped answering. Null never stops. */
+  const std::atomic_bool* stop = nullptr;
+};
+
+/** RENDERS ONE REGISTRY SKETCH'S STILL and writes it to `run.out`.
  *
  *  It opens the sketch's kind, steps it from zero at the sweep's own
  *  fixed rate to its declared moment (or the sweep's derived default when
  *  it names none), takes the still the plate tier takes, and scales it so
- *  its larger side is @p maxDimension pixels before encoding a PNG. CPU
- *  only — it allocates a raster surface and never a device one, so it can
- *  run on a worker that shares no graphics context. Any older thumbnail
- *  for the same stem under @p out's directory is removed. False when the
- *  sketch has no kind, declares an empty canvas, or the write fails. */
-[[nodiscard]] bool renderThumbnail(const Entry& entry, weave::FontContext& fonts,
-                                   Assets& assets,
-                                   const std::filesystem::path& out,
-                                   int maxDimension);
+ *  its larger side is `run.maxDimension` pixels before encoding a PNG.
+ *  CPU only — it allocates a raster surface and never a device one, so it
+ *  can run on a worker that shares no graphics context. Any older
+ *  thumbnail for the same stem under the output's directory is
+ *  removed. */
+[[nodiscard]] ThumbnailOutcome renderThumbnail(const Entry& entry,
+                                               weave::FontContext& fonts,
+                                               Assets& assets,
+                                               const ThumbnailRun& run);
 
 }  // namespace sigil::sketch

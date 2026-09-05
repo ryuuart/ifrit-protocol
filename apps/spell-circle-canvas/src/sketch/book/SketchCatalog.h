@@ -10,6 +10,7 @@
 #include <QtCore/QUrl>
 #include <QtCore/QVariantList>
 #include <QtCore/QVariantMap>
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <filesystem>
@@ -98,7 +99,7 @@ class SketchCatalog : public QObject {
   Q_INVOKABLE void requestThumbnail(int index);
   /** Drops a pending request — what a row calls as it scrolls away, so
    *  the worker spends its one render on what is still on screen. A
-   *  render already in flight finishes. */
+   *  render already in flight is left to finish. */
   Q_INVOKABLE void cancelThumbnail(int index);
 
   /** Render one still of the sketch through this same binary's `--frame`
@@ -170,4 +171,9 @@ class SketchCatalog : public QObject {
   std::set<int> m_failed;   // rendered once and failed — never retried
   int m_inFlight = -1;
   bool m_stop = false;
+  /** RAISED TO LET GO OF THE RENDER ITSELF, and read by it between
+   *  frames. Outside the mutex because the render reads it while the
+   *  worker holds nothing, and because whoever raises it is about to
+   *  wait for the worker to answer. */
+  std::atomic_bool m_abandon{false};
 };

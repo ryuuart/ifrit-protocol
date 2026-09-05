@@ -738,10 +738,14 @@ int runThumbnails(int only, const std::string& kind,
         sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
     const std::string key = sketch::thumbnailKey(source);
     if (!sketch::freshThumbnail(dir, entry.name, key).empty()) continue;  // fresh
-    const std::filesystem::path out = sketch::thumbnailFile(dir, entry.name, key);
+    sketch::ThumbnailRun run;
+    run.out = sketch::thumbnailFile(dir, entry.name, key);
+    run.maxDimension = sketch::kThumbnailWidth;
     sketch::noteSketch(entry.name);
-    if (sketch::renderThumbnail(entry, fonts, store, out, sketch::kThumbnailWidth)) {
-      std::printf("thumbnail %-24s wrote %s\n", entry.name, out.string().c_str());
+    if (sketch::renderThumbnail(entry, fonts, store, run) ==
+        sketch::ThumbnailOutcome::Wrote) {
+      std::printf("thumbnail %-24s wrote %s\n", entry.name,
+                  run.out.string().c_str());
       ++rendered;
     } else {
       std::fprintf(stderr, "thumbnail %-24s FAILED to render\n", entry.name);

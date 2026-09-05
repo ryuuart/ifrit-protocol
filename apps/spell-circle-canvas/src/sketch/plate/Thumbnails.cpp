@@ -18,6 +18,7 @@
 #include <sigilsketch/live/Host.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -129,22 +130,31 @@ void pruneStale(const fs::path& dir, std::string_view stem,
 
 }  // namespace
 
-bool renderThumbnail(const Entry& entry, weave::FontContext& fonts,
-                     Assets& assets, const fs::path& out, int maxDimension) {
+namespace {
+
+/** True when @p stop is raised. A null stop never is. */
+bool stopped(const std::atomic_bool* stop) {
+  return stop && stop->load(std::memory_order_relaxed);
+}
+
+}  // namespace
+
+ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
+                                 Assets& assets, const ThumbnailRun& run) {
   const Kind kind = entry.kind();
-  if (!kind) return false;
+  if (!kind) return ThumbnailOutcome::Failed;
   // Deterministic, so a sketch that measured something about its own
   // execution pins it — a thumbnail is a picture that will be looked at
   // beside a plate, and the two must agree.
   std::unique_ptr<Session> session = kind->open(fonts, assets, true);
-  if (!session) return false;
+  if (!session) return ThumbnailOutcome::Failed;
   // The plate tier renders with cost-based promotion held off; a
   // thumbnail must be that same picture.
   session->setAutoPromotion(false);
 
   const CanvasSpec& spec = session->canvas();
   const SkSize size = spec.size;
-  if (size.width() <= 0 || size.height() <= 0) return false;
+  if (size.width() <= 0 || size.height() <= 0) return ThumbnailOutcome::Failed;
   const SkColor4f background = spec.background;
 
   // Step from zero to the sketch's declared moment on a working surface
@@ -155,36 +165,45 @@ bool renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   const SkImageInfo workInfo =
       SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height());
   sk_sp<SkSurface> work = SkSurfaces::Raster(workInfo);
-  if (!work) return false;
+  if (!work) return ThumbnailOutcome::Failed;
   for (int f = 0; f < frames; ++f) {
+    // BETWEEN FRAMES IS WHERE THIS WALK CAN BE LET GO. Nothing inside a
+    // frame is interruptible, so the stop is read here and nowhere else,
+    // which bounds how long raising it takes to be obeyed by one frame
+    // of this sketch rather than by the whole walk.
+    if (stopped(run.stop)) return ThumbnailOutcome::Stopped;
     work->getCanvas()->clear(background);
     session->frame(*work->getCanvas(), kStep);
   }
+  if (stopped(run.stop)) return ThumbnailOutcome::Stopped;
 
   // The still, scaled so its larger side is maxDimension: a canvas
   // sketch re-renders here at the smaller scale, a set or a pen presents
   // the frame just finished.
   const float longest = std::max(size.width(), size.height());
-  const float scale = std::min(1.0f, (float)maxDimension / longest);
+  const float scale = std::min(1.0f, (float)run.maxDimension / longest);
   const SkImageInfo thumbInfo = SkImageInfo::MakeN32Premul(
       std::max(1, (int)std::lround(size.width() * scale)),
       std::max(1, (int)std::lround(size.height() * scale)));
   sk_sp<SkSurface> thumb = SkSurfaces::Raster(thumbInfo);
-  if (!thumb) return false;
+  if (!thumb) return ThumbnailOutcome::Failed;
   thumb->getCanvas()->clear(background);
   thumb->getCanvas()->scale(scale, scale);
   session->still(*thumb->getCanvas());
 
   SkBitmap bitmap;
-  if (!bitmap.tryAllocPixels(thumbInfo)) return false;
-  if (!thumb->readPixels(bitmap.pixmap(), 0, 0)) return false;
+  if (!bitmap.tryAllocPixels(thumbInfo)) return ThumbnailOutcome::Failed;
+  if (!thumb->readPixels(bitmap.pixmap(), 0, 0))
+    return ThumbnailOutcome::Failed;
   const sk_sp<SkData> png =
       image::encodeImage(bitmap.pixmap(), image::Format::Png);
-  if (!png || !io::writeBytes(out, png->data(), png->size())) return false;
-  pruneStale(out.parent_path(), out.stem().string().substr(
-                                    0, out.stem().string().find(kKeyMark)),
-             out);
-  return true;
+  if (!png || !io::writeBytes(run.out, png->data(), png->size()))
+    return ThumbnailOutcome::Failed;
+  pruneStale(run.out.parent_path(),
+             run.out.stem().string().substr(
+                 0, run.out.stem().string().find(kKeyMark)),
+             run.out);
+  return ThumbnailOutcome::Wrote;
 }
 
 }  // namespace sigil::sketch
