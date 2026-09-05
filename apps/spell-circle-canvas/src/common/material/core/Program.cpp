@@ -5,8 +5,7 @@
 
 #include "sigilmaterial/core/Program.h"
 
-#include <oneapi/tbb/blocked_range.h>
-#include <oneapi/tbb/parallel_for.h>
+#include <sigilcore/schedule/Parallel.h>
 
 #include <atomic>
 #include <boost/container/flat_map.hpp>
@@ -187,19 +186,13 @@ WarmupResult ProgramCache::warmup(std::span<const WarmupRequest> requests) {
   for (const auto& [key, request] : unique) work.push_back(request);
 
   std::atomic_size_t ready = 0;
-  const auto compile = [&](size_t from, size_t to) {
-    for (size_t i = from; i != to; ++i)
-      if (program(work[i].recipe, work[i].target, work[i].variant)) ++ready;
-  };
-  if (work.size() < 2) {
-    compile(0, work.size());
-  } else {
-    oneapi::tbb::parallel_for(
-        oneapi::tbb::blocked_range<size_t>(0, work.size(), 1),
-        [&](const oneapi::tbb::blocked_range<size_t>& range) {
-          compile(range.begin(), range.end());
-        });
-  }
+  // One key is one whole program compiled, so a worker takes one at a
+  // time: nothing about a second key makes the first one cheaper, and a
+  // warm-up of two keys is worth dividing.
+  sigil::core::schedule::parallelForEach(
+      work, 1, [&](const WarmupRequest& request) {
+        if (program(request.recipe, request.target, request.variant)) ++ready;
+      });
   return {.requested = requests.size(),
           .unique = work.size(),
           .ready = ready.load()};

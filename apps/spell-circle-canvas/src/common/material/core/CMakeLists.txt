@@ -11,10 +11,11 @@
 # nothing links. SigilMaterialColor is the colour value a params struct
 # holds, included by the same header, and glm the vectors beside it. No
 # header here includes SigilGeometry, so no target of it is named: the
-# outline a normals pass is drawn over arrives as pixels.
+# outline a normals pass is drawn over arrives as pixels. A warm-up
+# compiles its distinct keys through SigilCoreSchedule, which is where a
+# divided range is decided for every library that has one.
 find_package(boost_pfr CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-find_package(TBB CONFIG REQUIRED)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 sigil_library(SigilMaterialCore
   SOURCES Combine.cpp Material.cpp Params.cpp Program.cpp Recipe.cpp
@@ -22,7 +23,7 @@ sigil_library(SigilMaterialCore
           Program.h Recipe.h Target.h UniformBlock.h
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr
          Boost::container
-  PRIVATE Boost::unordered TBB::tbb)
+  PRIVATE Boost::unordered SigilCoreSchedule)
 # The three stacking bodies are compiled into the archive, so the value
 # model carries them with no way to read a file.
 sigil_shader_sources(SigilMaterialCore
