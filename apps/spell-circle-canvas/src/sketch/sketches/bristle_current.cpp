@@ -173,7 +173,8 @@ struct BristleCurrent final : sketch::DrawSketch {
     });
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.blendMode(MULTIPLY);
     pen.strokeCap(ROUND);
     for (const Mark& mark : pending) {

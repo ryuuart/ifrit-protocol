@@ -258,7 +258,8 @@ struct Orbit final : sketch::DrawSketch {
     ctx.background(20);
     ctx.pen.noStroke();
   }
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.background(20, 30);  // translucent: a trail
     pen.fill(255, 120, 80);
     pen.circle(200 + 120 * cos(pen.millis() / 900), 150, 40);
@@ -276,7 +277,10 @@ every run. When presentation zoom changes the surface's pixel extent, the
 runtime scales the pixels it already holds into the replacement instead of
 replaying setup or clearing accumulated drawing. `ctx.pen` in setup is for
 whatever a p5 setup would have set on the canvas: a style, a font, a first
-drawing, which lands on the first frame. `pen.noLoop()`, `pen.redraw()` and
+drawing, which lands on the first frame. The same context is handed to
+`draw` every frame, so a frame reaches the ticker and `ctx.measured`
+without keeping either on the sketch; `ctx.pen` is the pen of the frame
+being drawn. `pen.noLoop()`, `pen.redraw()` and
 `pen.frameRate(fps)`
 are honoured by the runtime skipping draws, since the clock is its. The
 pointer and the keys arrive through `Session::pointer` and
@@ -292,9 +296,10 @@ exactly `hz` from accumulated time and publishes the leftover fraction
 of a step into the Output, so a piece drawn as
 `lerp(previous, current, alpha)` is one picture at every draw rate and a
 capture of it is a claim about the piece rather than about the machine.
-Register in `setup` and keep the Outputs on the sketch, since `draw` is
-handed the pen alone; a fresh setup gets a fresh ticker, so a sketch set
-up twice is stepped once.
+Register in `setup` and keep the Outputs on the sketch: a registration
+made in `draw` is made again every frame, and an Output that lives no
+longer than the call is read by nobody. A fresh setup gets a fresh
+ticker, so a sketch set up twice is stepped once.
 
 ```cpp
 struct Cloth final : sketch::DrawSketch {
@@ -304,7 +309,7 @@ struct Cloth final : sketch::DrawSketch {
     ctx.oversample(2);
     ctx.ticker.addFixed(60.0, [this] { solve(); return true; }, 8, &alpha);
   }
-  void draw(Pen& pen) override { paint(pen, alpha); }
+  void draw(sketch::DrawContext& ctx) override { paint(ctx.pen, alpha); }
 };
 ```
 
@@ -478,6 +483,13 @@ changed nothing. `ctx.measured(value, pinned)` returns the real number
 normally and the pinned one when the host is capturing for a diff. The
 rule is broader than clocks: it covers anything computed from the
 sketch's own execution rather than from its data.
+
+Both kinds of sketch carry it on the context they are handed each frame,
+so the figure is routed where it is drawn:
+
+```cpp
+std::snprintf(buf, sizeof buf, "BUILD %.2f ms", ctx.measured(buildMs));
+```
 
 ## Running one
 

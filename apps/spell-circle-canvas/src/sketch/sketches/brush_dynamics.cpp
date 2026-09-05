@@ -52,7 +52,8 @@ struct BrushDynamics final : sketch::DrawSketch {
     context.pen.noiseSeed(0xD1A6A1C5u);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     pen.background(248, 241, 224);
 
     std::vector<brush::Input> pressure = lane(170);

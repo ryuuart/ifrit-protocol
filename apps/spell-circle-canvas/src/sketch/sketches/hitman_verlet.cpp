@@ -1997,7 +1997,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
     ctx.pen.textAlign(draw::LEFT, draw::TOP);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     const double ms = pen.millis();
     // The pools are written every frame, because what they carry is the
     // interpolated position and that moves between steps as well as

@@ -161,7 +161,8 @@ struct BrushBotanicalStudy final : sketch::DrawSketch {
     brushes.scaleBrushes(1.15f);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     pen.background(247, 241, 222);
     paper(pen);
 

@@ -435,7 +435,6 @@ struct GenesisFire final : sketch::DrawSketch {
   bool stepped = false;  // set by the fixed-timestep steppable
   uint64_t simSteps = 0;
   uint32_t rng = 0x9E3779B9u;
-  bool pinned = false;  // the host is capturing for a diff
 
   /** THE FILM CLOCK'S LEFTOVER FRACTION, published by addFixed. The
    *  particles step in whole FILM frames — that is what [R83] counts
@@ -1504,7 +1503,6 @@ struct GenesisFire final : sketch::DrawSketch {
     ctx.canvas(kCanvasW, kCanvasH);
     ctx.background(kInk);
     ctx.captureAt(4.6);
-    pinned = ctx.deterministic;
 
     loopT = 0;
     stepped = false;
@@ -1566,7 +1564,8 @@ struct GenesisFire final : sketch::DrawSketch {
     ctx.pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     // The renderers follow the SIM clock: the streak lists, the two pools
     // and the census row are rebuilt when — and only when — a film frame
     // has passed.
@@ -1631,7 +1630,7 @@ struct GenesisFire final : sketch::DrawSketch {
     pen.noStroke();
 
     // --- the caption band, declared OUTSIDE the artefact ----------------
-    stageCaption(pen);
+    stageCaption(ctx);
 
     // --- the sidebar: five panels, each its own guest --------------------
     pen.element(genEl,
@@ -1664,7 +1663,8 @@ struct GenesisFire final : sketch::DrawSketch {
    *  the picture is hand-placed — and it is drawn OUTSIDE the stage,
    *  because a plate of an artefact is a plate of the artefact. Nothing
    *  here is a mark on the frame; it is a band under it. */
-  void stageCaption(Pen& pen) {
+  void stageCaption(sketch::DrawContext& ctx) {
+    Pen& pen = ctx.pen;
     const float a = cue(pen.millis(), 1250, 300);
     if (a <= 0.001f) return;
     char buf[160];
@@ -1676,10 +1676,10 @@ struct GenesisFire final : sketch::DrawSketch {
                   vertCount % 1000, fieldChunks.size(),
                   // The one number on this canvas that measures the host
                   // rather than the artefact, so it differs between two
-                  // renders of the same frame. It is pinned to zero when
-                  // the host is capturing for a diff, which is what makes
-                  // a captured still comparable byte for byte.
-                  pinned ? 0.0 : buildUs / 1000.0);
+                  // renders of the same frame. `measured` reads zero
+                  // where the host is capturing for a diff, which is what
+                  // makes a captured still comparable byte for byte.
+                  ctx.measured(buildUs / 1000.0));
     const float right = kStageX + kStageW;
     pen.textAlign(sigil::draw::RIGHT, sigil::draw::TOP);
     penMono(pen, 8.5f, fadeTo(hex(0xFFB672, 0.85f), a), 0.5f);

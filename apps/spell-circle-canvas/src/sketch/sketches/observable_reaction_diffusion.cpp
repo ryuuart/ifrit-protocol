@@ -86,7 +86,8 @@ struct ObservableReactionDiffusion final : sketch::DrawSketch {
     }
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     for (int iteration = 0; iteration < 5; ++iteration) advance();
     rasterize();
     pen.background(0);

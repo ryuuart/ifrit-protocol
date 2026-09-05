@@ -17,7 +17,8 @@ struct ObservableNoiseMap final : sketch::DrawSketch {
     context.pen.noStroke();
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     constexpr int kStep = 12;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(0);

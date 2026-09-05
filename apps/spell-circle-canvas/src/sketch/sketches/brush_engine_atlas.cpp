@@ -77,7 +77,8 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
     brushes.add("paper-tip", std::move(paperTip));
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     pen.background(246, 239, 222);
 
     const std::array<const char*, 14> names{{

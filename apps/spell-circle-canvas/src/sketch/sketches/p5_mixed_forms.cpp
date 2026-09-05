@@ -63,7 +63,8 @@ struct P5MixedForms final : sketch::DrawSketch {
                    .key("frame"));
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.background(12, 14, 24, 40);
     const float t = (float)pen.millis() / 1000.0f * kDrift;
     pen.fill(shade);

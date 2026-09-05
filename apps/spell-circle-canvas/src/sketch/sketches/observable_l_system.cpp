@@ -47,7 +47,8 @@ struct ObservableLSystem final : sketch::DrawSketch {
       sentence = rewrite(sentence);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const float cycle = 0.5f - 0.5f * std::cos(clock * 0.42f);
     const size_t visible = std::max<size_t>(

@@ -19,7 +19,8 @@ struct ObservableFlowfield1 final : sketch::DrawSketch {
     context.pen.strokeCap(SQUARE);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     constexpr float kStep = 12.0f;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(0);

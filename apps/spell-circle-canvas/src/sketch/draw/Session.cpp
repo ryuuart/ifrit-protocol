@@ -104,7 +104,9 @@ class DrawSession final : public Session {
       m_pen.begin(target,
                   frameNow(m_frameCount, m_clock.elapsed(), m_sinceDraw));
       dispatchEvents();
-      m_sketch->draw(m_pen);
+      DrawContext ctx{m_pen,   *m_ticker, m_assets,
+                      m_fonts, &m_spec,   m_deterministic};
+      m_sketch->draw(ctx);
       m_pen.end();
       m_sinceDraw = 0.0;
     }

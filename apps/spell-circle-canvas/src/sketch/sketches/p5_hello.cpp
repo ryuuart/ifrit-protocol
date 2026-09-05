@@ -28,7 +28,8 @@ struct P5Hello final : sketch::DrawSketch {
     ctx.pen.noStroke();
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.background(20, kFade);
     x += vx;
     y += vy;

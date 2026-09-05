@@ -76,7 +76,8 @@ struct ObservableCirclePackingContained final : sketch::DrawSketch {
     }
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     pen.background(0);
     pen.noFill();
     pen.stroke(255);

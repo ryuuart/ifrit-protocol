@@ -33,7 +33,8 @@ struct Field : DrawSketch {
     ctx.canvas(640, 480);
     ctx.pen.noStroke();
   }
-  void draw(Pen& pen) override {
+  void draw(DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.background(0, 20);
     pen.fill(220, 120, 80);
     for (int i = 0; i < 500; ++i)

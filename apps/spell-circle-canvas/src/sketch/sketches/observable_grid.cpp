@@ -19,7 +19,8 @@ struct ObservableGrid final : sketch::DrawSketch {
     context.pen.noFill();
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     constexpr int kCells = 10;
     constexpr float kCell = 80.0f;
     const float clock = static_cast<float>(pen.millis() * 0.001);

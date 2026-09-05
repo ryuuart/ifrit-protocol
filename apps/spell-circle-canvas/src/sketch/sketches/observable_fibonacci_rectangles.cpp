@@ -25,7 +25,8 @@ struct ObservableFibonacciRectangles final : sketch::DrawSketch {
     context.pen.colorMode(HSB, 100);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const int count =
         7 + static_cast<int>(5.0f * (0.5f + 0.5f * std::sin(clock * 0.72f)));

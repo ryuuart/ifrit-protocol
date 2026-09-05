@@ -117,7 +117,8 @@ struct P5AttractorLoom final : sketch::DrawSketch {
       pen.canvas()->drawPath(segments.detach(), *stroke);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     pen.background(background);
 

@@ -190,7 +190,6 @@ struct PsxDoomFire final : sketch::DrawSketch {
   // --- clocks ---
   bool stepped = false;   // the automaton advanced since the last picture
   uint64_t simSteps = 0;  // sim ticks since setup
-  bool pinned = false;    // the host is capturing for a diff
 
   /** THE FIXED STEP'S LEFTOVER FRACTION, published by `addFixed`. The
    *  automaton is discrete — there is nothing to interpolate between two
@@ -565,7 +564,8 @@ struct PsxDoomFire final : sketch::DrawSketch {
     pen.textAlign(LEFT, TOP);
   }
 
-  void specPanel(Pen& pen, double seconds, double drawHz) {
+  void specPanel(sketch::DrawContext& ctx, double seconds, double drawHz) {
+    Pen& pen = ctx.pen;
     const float x = kSideX, y = kBodyY, w = kSideW, h = kSpecH;
     pen.noStroke();
     pen.fill(kPanelInk);
@@ -601,9 +601,11 @@ struct PsxDoomFire final : sketch::DrawSketch {
     const float statH = 5 * (10.5f + 3.0f);
     foot -= statH;
     char rate[32], drawn[32], ratio[32];
-    const double simRate =
-        pinned ? kSimHz : (seconds > 0.5 ? (double)simSteps / seconds : kSimHz);
-    const double drawRate = pinned ? 60.0 : drawHz;
+    // Both rates are read off this run's own execution, so a capture
+    // taken for a diff carries the rates the sheet declares instead.
+    const double simRate = ctx.measured(
+        seconds > 0.5 ? (double)simSteps / seconds : kSimHz, kSimHz);
+    const double drawRate = ctx.measured(drawHz, 60.0);
     std::snprintf(rate, sizeof rate, "%.2f Hz", simRate);
     std::snprintf(drawn, sizeof drawn, "%.1f Hz", drawRate);
     std::snprintf(ratio, sizeof ratio, "%.2f\xc3\x97", drawRate / kSimHz);
@@ -710,7 +712,6 @@ struct PsxDoomFire final : sketch::DrawSketch {
     // pixels it is formed with: at 2, one fire cell is six device pixels
     // and the one blit this study is about is never resampled.
     ctx.oversample(2);
-    pinned = ctx.deterministic;
 
     rng = 0x9E3779B9u;
     stepped = false;
@@ -755,7 +756,8 @@ struct PsxDoomFire final : sketch::DrawSketch {
     ctx.pen.textAlign(LEFT, TOP);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     // The picture follows the SIM clock: the automaton stepped or it did
     // not, and when it did the buffer is rasterized once for however many
     // draw frames come before the next step.
@@ -771,7 +773,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
          cue(ms, 320, 400));
     firePanel(pen, ms);
     paletteStrip(pen, ms);
-    specPanel(pen, ms / 1000.0, pen.frameRate());
+    specPanel(ctx, ms / 1000.0, pen.frameRate());
     inspectorPanel(pen, ms);
   }
 };

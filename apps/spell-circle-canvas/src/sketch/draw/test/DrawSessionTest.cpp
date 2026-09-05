@@ -43,7 +43,8 @@ struct Trail : DrawSketch {
     ctx.pen.fill(255, 0, 0);
     ctx.pen.rect(0, 0, 10, 10);
   }
-  void draw(Pen& pen) override {
+  void draw(DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     ++draws;
     lastMillis = pen.millis();
     lastMouseX = pen.mouseX;
@@ -175,7 +176,8 @@ TEST_F(DrawSession, RandomIsSeededPerSession) {
 struct Once : DrawSketch {
   static inline int draws = 0;
   void setup(DrawContext& ctx) override { ctx.canvas(50, 50); }
-  void draw(Pen& pen) override {
+  void draw(DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     ++draws;
     pen.noLoop();
   }
@@ -197,7 +199,7 @@ struct Slow : DrawSketch {
     ctx.canvas(50, 50);
     ctx.pen.frameRate(30);
   }
-  void draw(Pen&) override { ++draws; }
+  void draw(DrawContext&) override { ++draws; }
 };
 
 TEST(DrawSessionLoop, ARequestedFrameRateSkipsDraws) {
@@ -233,7 +235,7 @@ struct Stepped : DrawSketch {
         },
         8, &alpha);
   }
-  void draw(Pen&) override { lastAlpha = alpha; }
+  void draw(DrawContext&) override { lastAlpha = alpha; }
 };
 
 class DrawSessionFixedStep : public ::testing::Test {

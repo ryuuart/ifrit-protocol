@@ -27,14 +27,23 @@ class FontContext;
 
 namespace sigil::sketch {
 
-/** WHAT A DRAW SKETCH IS HANDED AT SETUP: the canvas it declares, what
- *  is behind it, the moment a still is taken, the files it reaches for
- *  — and the pen, for whatever a p5 setup would have set on the canvas:
- *  a style, a font, a first background, a drawing that is never redrawn.
- *  What the pen draws during setup lands on the first frame's canvas.
+/** WHAT A DRAW SKETCH IS HANDED, at setup and again every frame: the
+ *  pen, the session's ticker, the files it reaches for, the canvas it
+ *  declares and what is behind it, the moment a still is taken — and
+ *  `measured`, for a number the sketch took off its own execution.
  *
- *  Handed once per setup and non-copyable: it points at the session's
- *  own spec, and a copy kept past setup would write into nothing. */
+ *  At setup the pen is there for whatever a p5 setup would have set on
+ *  the canvas: a style, a font, a first background, a drawing that is
+ *  never redrawn. What the pen draws during setup lands on the first
+ *  frame's canvas. In `draw` it is the pen of the frame being drawn,
+ *  and the rest of the context is the same session's, so a frame
+ *  reaches the ticker and `measured` without keeping either on the
+ *  sketch.
+ *
+ *  Built for the call it is handed to and non-copyable: it holds
+ *  references to session state and points at the session's own spec, so
+ *  one kept past the call would write into nothing. Keep plain data on
+ *  the sketch instead. */
 struct DrawContext {
   draw::Pen& pen;
   /** THE SESSION'S TICKER, stepped by the session's own clock every
@@ -53,9 +62,11 @@ struct DrawContext {
    *  draws and the judder between rates is gone. Its own words are
    *  SigilMotion's, from `<sigilmotion/clock/Ticker.h>`.
    *
-   *  Register in `setup` and keep the Outputs on the sketch, since
-   *  `draw` is handed the pen alone. A fresh setup gets a fresh ticker,
-   *  so a sketch set up twice is stepped once. */
+   *  Register in `setup` and keep the Outputs on the sketch: a
+   *  registration made in `draw` is made again every frame, and an
+   *  Output that lives no longer than the call is read by nobody. A
+   *  fresh setup gets a fresh ticker, so a sketch set up twice is
+   *  stepped once. */
   motion::Ticker& ticker;
   Assets& assets;
   weave::FontContext& fonts;
@@ -78,9 +89,13 @@ struct DrawContext {
   bool deterministic = false;
 
   /** A number the sketch measured about ITS OWN EXECUTION — a build
-   *  time, a bake cost. Returns @p value normally and @p pinned when the
-   *  host is capturing for a diff, since a plate that carries a number
-   *  no two runs agree on is a plate that differs from itself. */
+   *  time, a step rate, a live count. Returns @p value normally and
+   *  @p pinned when the host is capturing for a diff, since a plate that
+   *  carries a number no two runs agree on is a plate that differs from
+   *  itself, and a pixel sweep reports that as a change nothing made.
+   *  Route the figure through here where it is drawn:
+   *
+   *      pen.text(fmt("BUILD %.2f ms", ctx.measured(buildMs)), x, y); */
   [[nodiscard]] double measured(double value, double pinned = 0.0) const {
     return deterministic ? pinned : value;
   }
@@ -158,8 +173,10 @@ class DrawSketch {
   virtual ~DrawSketch() = default;
   /** Once per (re)load, and again when an asset file changes. */
   virtual void setup(DrawContext& ctx) = 0;
-  /** Every frame, while the loop runs. */
-  virtual void draw(draw::Pen& pen) = 0;
+  /** Every frame, while the loop runs. The pen of the frame is
+   *  `ctx.pen`; the rest of the context is the session's, so a figure
+   *  the frame measured about itself goes through `ctx.measured`. */
+  virtual void draw(DrawContext& ctx) = 0;
 
   /** p5's pointer and key events, called between frames with the pen
    *  ready to draw; the pen's variables already say where the pointer

@@ -90,7 +90,8 @@ struct BristleBloom final : sketch::DrawSketch {
     }
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.background(18, 15, 24);
 
     // Fine warm and cool flecks keep the ground from being a perfectly flat

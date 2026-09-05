@@ -27,7 +27,8 @@ struct ObservableRandomWalker final : sketch::DrawSketch {
     context.captureAt(0.05);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     constexpr float kStep = 20.0f;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const int visible =

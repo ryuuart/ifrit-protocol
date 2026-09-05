@@ -299,7 +299,8 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     label(pen, "*spline()", {0.84f, 0.86f, 0.85f, 1}, x + 65, y);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     const float seconds = (float)pen.millis() / 1000.0f;
     const int scene = (int)std::floor(seconds / kSceneSeconds) % 6;
     const float localSeconds = std::fmod(seconds, kSceneSeconds);

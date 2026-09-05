@@ -41,7 +41,8 @@ struct BrushworkCurrents final : sketch::DrawSketch {
     ctx.pen.noFill();
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.background(241, 234, 215);
 
     pen.stroke(72, 56, 43, 16);

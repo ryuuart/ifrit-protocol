@@ -49,7 +49,8 @@ struct Bounce final : sketch::DrawSketch {
     ctx.pen.noStroke();
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.background(20, 30);
     x += vx;
     y += vy;
@@ -65,9 +66,10 @@ SIGIL_SKETCH(Bounce, "Draw", "The bouncing ball, pasted from p5.")
 
 `createCanvas`, `loadImage` and the moment a plate is taken belong to
 whoever steps the pen — here the `sketch::DrawSketch` runtime, whose
-canon is `src/sketch/README.md` — and `setup` speaks to that runtime
-through its context, which hands over the pen for anything a p5 setup
-would have set on the canvas. Everything else is the pen.
+canon is `src/sketch/README.md` — and both `setup` and `draw` speak to
+that runtime through its context, which hands over the pen: in `setup`
+for anything a p5 setup would have set on the canvas, in `draw` as the
+pen of the frame. Everything else is the pen.
 
 **The one deliberate departure is the pen itself.** p5's verbs are
 globals over one canvas; here they are members of a value that holds the

@@ -42,7 +42,8 @@ struct BrushRain final : sketch::DrawSketch {
     ctx.pen.noiseSeed(0x5EA8EDu);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& ctx) override {
+    Pen& pen = ctx.pen;
     pen.background(249, 246, 231);
 
     for (int stroke = 0; stroke < 112; ++stroke) {

@@ -37,7 +37,8 @@ struct ObservableLSystemTree final : sketch::DrawSketch {
       sentence = grow(sentence);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     const float clock = static_cast<float>(pen.millis() * 0.001);
     const float turn = radians(25.0f + 3.0f * std::sin(clock * 0.55f));
     constexpr float kLength = 15.625f;

@@ -19,7 +19,8 @@ struct ObservableFibonacci final : sketch::DrawSketch {
     context.pen.rectMode(CENTER);
   }
 
-  void draw(Pen& pen) override {
+  void draw(sketch::DrawContext& context) override {
+    Pen& pen = context.pen;
     constexpr int kCount = 1000;
     constexpr float kPhi = 1.61803398875f;
     constexpr float kRadius = 0.70710678118f;
