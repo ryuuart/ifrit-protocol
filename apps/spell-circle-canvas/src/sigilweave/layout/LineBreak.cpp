@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <deque>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 #include "ParagraphLayoutInternal.h"
@@ -1094,6 +1095,12 @@ std::vector<detail::Block> resolveBlocks(
   // The style the setting at the back of `settings` was resolved from, so a
   // run of blocks set the same way shares one setting.
   const ParagraphStyle* resolvedFrom = nullptr;
+  // The layout's own answer with the style list dropped, made at most once
+  // and copied into every setting: a setting is the answer and never the
+  // question, nothing downstream of here reads the list, and copying it
+  // per setting is what would cost a long styled story the square of its
+  // length.
+  std::optional<ParagraphLayoutOptions> plain;
   float previousSpaceAfter = 0;
   for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
     detail::Block& block = blocks[blockIndex];
@@ -1112,12 +1119,11 @@ std::vector<detail::Block> resolveBlocks(
                resolvedFrom->tabStops == style.tabStops) {
       block.options = &settings.back();
     } else {
-      ParagraphLayoutOptions& setting = settings.emplace_back(options);
-      // A SETTING IS THE ANSWER, NEVER THE QUESTION: `blocks` is the list a
-      // setting was resolved from and nothing downstream of here reads it,
-      // so carrying a copy of it in every setting would cost a long styled
-      // story the square of its length.
-      setting.blocks.clear();
+      if (!plain) {
+        plain = options;
+        plain->blocks = {};
+      }
+      ParagraphLayoutOptions& setting = settings.emplace_back(*plain);
       if (style.alignment) setting.alignment = *style.alignment;
       if (style.justification) setting.justification = *style.justification;
       if (style.hyphenation) setting.hyphenation = *style.hyphenation;
