@@ -1,6 +1,6 @@
 # The graphite feature: a Graphite Context and Recorder on a native device
-# and queue, an SkSurface over a native texture, and the pixel reads a
-# device upload takes. One API-independent translation unit per class
+# and queue, an SkSurface over a native texture, an SkImage over one that
+# is only read, and the pixel reads a device upload takes. One API-independent translation unit per class
 # holds the options and the submit; the Metal and Vulkan translation units
 # are the parallel bring-up paths, each defining its own factory and
 # wrapping constructor. The Vulkan units compile everywhere and are live
@@ -17,7 +17,8 @@
 if(APPLE)
   set(SIGIL_SKIA_GRAPHITE_METAL_SOURCES
       GraphiteContextMetal.mm
-      OffscreenSurfaceMetal.mm)
+      OffscreenSurfaceMetal.mm
+      TextureImageMetal.mm)
 else()
   set(SIGIL_SKIA_GRAPHITE_METAL_SOURCES)
 endif()
@@ -28,6 +29,7 @@ sigil_library(SigilSkiaGraphite
           OffscreenSurfaceVulkan.cpp Pixels.cpp
           ${SIGIL_SKIA_GRAPHITE_METAL_SOURCES}
   HEADERS ../Skia.h GraphiteContext.h OffscreenSurface.h Pixels.h
+          TextureImage.h
   PUBLIC unofficial::skia::skia SigilCoreHardware
   PRIVATE Vulkan::Headers Boost::unordered)
 if(APPLE)

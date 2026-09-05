@@ -110,7 +110,9 @@ executable, and the SDK location found at configure time. The gpu
 feature is the driver Ultralight renders through when a device is
 given: `GpuDriver` is the graphics-API-neutral contract (command
 execution plus publish blits, slot textures, uploads, painting through
-a Graphite recorder and wrapping a texture as an `SkImage`), and
+a Graphite recorder and reading a texture as an `SkImage` — which is
+SigilSkia's `wrapImage`, so nothing here spells a Graphite backend
+texture for it), and
 `MetalDriver` its one implementation; a Vulkan driver joins beside it
 and the engine picks it by the device's backend. The engine feature is
 the web thread, the views and the slots — the only feature with a

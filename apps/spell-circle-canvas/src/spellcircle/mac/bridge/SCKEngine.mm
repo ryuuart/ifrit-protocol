@@ -5,6 +5,7 @@
 
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/TextureImage.h>
 #include "SceneGeometry.h"
 #include "SceneModel.h"
 #include "SceneRenderer.h"
@@ -589,15 +590,10 @@ SCK_CONFIG_SETTER(BOOL, fontItalic, setFontItalic)
   platePaint.setShader([self checkerShader]);
   canvas->drawRect(destination, platePaint);
 
-  if (_sceneTexture) {
-    const skgpu::graphite::BackendTexture backendTexture =
-        skgpu::graphite::BackendTextures::MakeMetal(
-            SkISize::Make(static_cast<int>(_sceneTexture.width),
-                          static_cast<int>(_sceneTexture.height)),
-            (__bridge CFTypeRef)_sceneTexture);
-    sk_sp<SkImage> sceneImage =
-        SkImages::WrapTexture(_graphite->recorder(), backendTexture, kBGRA_8888_SkColorType,
-                              kPremul_SkAlphaType, /*colorSpace=*/nullptr);
+  if (_sceneTexture && _graphite->recorder()) {
+    sk_sp<SkImage> sceneImage = sigil::skia::wrapImage(
+        *_graphite->recorder(), (__bridge void *)_sceneTexture,
+        static_cast<int>(_sceneTexture.width), static_cast<int>(_sceneTexture.height));
     if (sceneImage) {
       SkPaint imagePaint;
       imagePaint.setAntiAlias(true);

@@ -5,7 +5,8 @@ already owns. Given a native device and command queue — Metal or Vulkan —
 it builds a Graphite `Context` and `Recorder`, and given a texture — the
 API's own object, or the name a `GpuDevice` gave one — it wraps that
 texture as an `SkSurface`, so ordinary `SkCanvas` draw calls land
-directly in the texture with no copy. Beside those it reads an image out
+directly in the texture with no copy, or as an `SkImage`, so a draw
+samples it where it stands. Beside those it reads an image out
 at the width a device texture takes it. A Qt host reaches the same
 bring-up through an adapter over its `QRhi`. There is no scene, product,
 or drawing logic here: nothing in this library knows what is being drawn.
@@ -27,7 +28,7 @@ directory, and links only what it needs.
 
 | Feature | Target | Headers | What it holds |
 |---|---|---|---|
-| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
+| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/TextureImage.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, the image over one, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
 | qt | `SigilSkiaQt` | `<sigilskia/qt/QtInterop.h>` | the adapters that unwrap a `QRhi`'s native handles and forward to graphite |
 | draw | `SigilSkiaDraw` | `<sigilskia/draw/Direct.h>` | the two `SkCanvas` ops Graphite leaves unimplemented, decomposed into ones every backend performs |
 
@@ -94,6 +95,44 @@ a `GpuDevice` hands the handle over instead and names no API at all.
 construct it fresh each time rather than caching it. If you need the
 underlying objects, `graphite->context()`, `graphite->recorder()` and
 `surface.surface()` hand them out.
+
+### Sampling a texture someone else painted
+
+The other direction: `wrapImage` reads a texture as an `SkImage` a draw
+samples, with nothing copied.
+
+```cpp
+#include <sigilskia/graphite/TextureImage.h>
+
+sk_sp<SkImage> image = sigil::skia::wrapImage(
+    *graphite->recorder(), mtlTexture, width, height);
+if (image)
+  canvas->drawImageRect(image, destination, sampling, &paint);
+```
+
+It takes the RECORDER rather than the context, because that is what a
+wrap is recorded on, and a thread with a recorder of its own — a web
+renderer, a decoder — hands that one over. The texels are read as the
+format the texture itself declares; the alpha type and the colour space
+are the two things a texture cannot say for itself.
+
+**The image holds the texture.** A wrap retains it and releases it when
+the last image naming it is gone, so an image outliving the view or the
+frame that owned its texture still samples pixels rather than whatever
+now holds the slot.
+
+**Several planes are one image.** The overload taking a span of
+`TexturePlane` and an `SkYUVAInfo` wraps a frame that arrived as
+separate luma and chroma textures, so the shader that samples it does
+the colour arithmetic and nothing is converted on the way in. That one
+retains nothing: the planes live as long as the release context the
+caller hands over — one buffer every plane was made from, rather than
+each plane in turn — and the release runs on every path out, including a
+wrap that never happened.
+
+Only the Metal arm is built: it is what every caller of these wraps
+holds. A Vulkan arm stands beside it the day something asks for one, the
+same way the surface wrap has both.
 
 ### Drawing into a texture a device named
 

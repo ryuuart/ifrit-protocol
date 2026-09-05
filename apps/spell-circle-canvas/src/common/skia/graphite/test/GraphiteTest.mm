@@ -22,6 +22,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/TextureImage.h>
 
 #include <cstring>
 #include <string>
@@ -180,6 +181,53 @@ TEST(SigilSkiaGraphite, WrappedTextureIsVisibleToTheSharedQueue) {
   EXPECT_EQ(bytes[3], 255);
   const size_t last = bytes.size() - 4;
   EXPECT_EQ(bytes[last + 2], 255);
+}
+
+// THE OTHER DIRECTION of the same texture: painted through the surface
+// wrap, then read back as an image and drawn onto a second surface. The
+// pixels arrive without a copy, and the image outlives every reference
+// the test still holds to the texture, because the wrap retains it.
+TEST(SigilSkiaGraphite, WrapsATexturePaintedOnItAsAnImage) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const int size = 8;
+  MTLTextureDescriptor *desc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                         width:size
+                                                        height:size
+                                                     mipmapped:NO];
+  desc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+  desc.storageMode = MTLStorageModeShared;
+  id<MTLTexture> texture = [device() newTextureWithDescriptor:desc];
+  ASSERT_NE(texture, nil);
+  {
+    OffscreenSurface painted(*ctx, (__bridge void *)texture, size, size);
+    ASSERT_NE(painted.canvas(), nullptr);
+    painted.canvas()->clear(SkColorSetARGB(255, 0, 0, 255));
+    painted.submit();
+  }
+
+  sk_sp<SkImage> image =
+      sigil::skia::wrapImage(*ctx->recorder(), (__bridge void *)texture, size, size);
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), size);
+  EXPECT_EQ(image->height(), size);
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(size, size);
+  sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  ASSERT_NE(target, nullptr);
+  target->getCanvas()->drawImage(image, 0, 0);
+  const SkBitmap pixels = readGraphiteSurface(*ctx, target.get());
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 0, 255));
+  EXPECT_EQ(pixels.getColor(size - 1, size - 1), SkColorSetARGB(255, 0, 0, 255));
+}
+
+TEST(SigilSkiaGraphite, WrapsNoImageWithoutATexture) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), nullptr, 8, 8), nullptr);
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), (__bridge void *)device(), 0, 8), nullptr);
 }
 
 TEST(SigilSkiaGraphite, NullTextureWrapsNothing) {

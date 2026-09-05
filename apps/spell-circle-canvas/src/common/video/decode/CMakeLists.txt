@@ -15,9 +15,12 @@ sigil_library(SigilVideoDecode
   HEADERS Decode.h Playback.h
   PUBLIC SigilVideoCore unofficial::skia::skia
   PRIVATE concurrentqueue::concurrentqueue sigil_video_ffmpeg)
+# The device executor wraps its planes through SigilSkia, which is where
+# a texture someone else owns becomes an image: nothing here spells a
+# Graphite backend texture.
 if(APPLE)
   target_link_libraries(SigilVideoDecode PRIVATE
-    "-framework CoreVideo" ${METAL_FRAMEWORK})
+    SigilSkiaGraphite "-framework CoreVideo" ${METAL_FRAMEWORK})
 endif()
 
 # The committed clips sit beside this feature's test rather than at the

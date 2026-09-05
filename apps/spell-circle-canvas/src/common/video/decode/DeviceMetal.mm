@@ -4,11 +4,9 @@
 #include "Device.h"
 
 #include <include/core/SkColorSpace.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkYUVAInfo.h>
-#include <include/gpu/graphite/BackendTexture.h>
-#include <include/gpu/graphite/Image.h>
-#include <include/gpu/graphite/YUVABackendTextures.h>
-#include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
+#include <sigilskia/graphite/TextureImage.h>
 
 extern "C" {
 #include <libavutil/frame.h>
@@ -144,26 +142,20 @@ sk_sp<SkImage> wrapNativeFrame(const NativeFrame& frame, skgpu::graphite::Record
     return nullptr;
   }
 
-  std::array<skgpu::graphite::BackendTexture, 2> textures = {
-      skgpu::graphite::BackendTextures::MakeMetal(
-          SkISize::Make(static_cast<int>(yWidth), static_cast<int>(yHeight)),
-          (__bridge CFTypeRef)yTexture),
-      skgpu::graphite::BackendTextures::MakeMetal(
-          SkISize::Make(static_cast<int>(uvWidth), static_cast<int>(uvHeight)),
-          (__bridge CFTypeRef)uvTexture),
+  const std::array<skia::TexturePlane, 2> textures = {
+      skia::TexturePlane{(__bridge void*)yTexture, static_cast<int>(yWidth),
+                         static_cast<int>(yHeight)},
+      skia::TexturePlane{(__bridge void*)uvTexture, static_cast<int>(uvWidth),
+                         static_cast<int>(uvHeight)},
   };
   const SkYUVAInfo info(SkISize::Make(frame.width, frame.height), SkYUVAInfo::PlaneConfig::kY_UV,
                         SkYUVAInfo::Subsampling::k420, colorSpace(frame));
-  const skgpu::graphite::YUVABackendTextures yuva(info, textures);
-  if (!yuva.isValid()) {
-    releasePlanes(planes);
-    return nullptr;
-  }
-
-  sk_sp<SkImage> image = SkImages::TextureFromYUVATextures(
-      recorder, yuva, SkColorSpace::MakeSRGB(), releasePlanes, planes, "SigilVideo frame");
-  if (!image) releasePlanes(planes);
-  return image;
+  // The two planes are one image, sampled where they stand. What holds
+  // them is the pixel buffer they were made from, which the release
+  // frees once the image is gone — on every path out, including a wrap
+  // that never happened.
+  return skia::wrapImage(*recorder, textures, info, SkColorSpace::MakeSRGB(), releasePlanes,
+                         planes);
 }
 
 }  // namespace sigil::video::device

@@ -22,6 +22,7 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <include/gpu/graphite/mtl/MtlGraphiteTypes_cpp.h>
+#include <sigilskia/graphite/TextureImage.h>
 
 #include <cstdio>
 #include <mutex>
@@ -182,15 +183,10 @@ sk_sp<SkImage> MetalDriver::wrapTexture(skgpu::graphite::Recorder *recorder,
                                         sigil::core::hardware::TextureHandle handle, int width, int height) {
   id<MTLTexture> texture = m_state->texture(handle);
   if (!recorder || !texture) return nullptr;
-  // The wrapped image retains the MTLTexture so it stays valid even if
-  // the owning view/image resizes or is destroyed while the image lives.
-  CFTypeRef retained = CFRetain((__bridge CFTypeRef)texture);
-  skgpu::graphite::BackendTexture backendTexture =
-      skgpu::graphite::BackendTextures::MakeMetal(SkISize::Make(width, height), retained);
-  return SkImages::WrapTexture(
-      recorder, backendTexture, kPremul_SkAlphaType, SkColorSpace::MakeSRGB(),
-      [](void *context) { CFRelease(static_cast<CFTypeRef>(context)); },
-      const_cast<void *>(static_cast<const void *>(retained)));
+  // The wrap retains the texture for the image's life, so an image
+  // outliving the view that owned its texture still samples pixels.
+  return skia::wrapImage(*recorder, (__bridge void *)texture, width, height,
+                         kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
 }
 
 }  // namespace sigil::scry
