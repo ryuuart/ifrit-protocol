@@ -22,40 +22,6 @@
 
 namespace sigil::compose::styles {
 
-namespace detail {
-namespace {
-sk_sp<SkShader> vRamp(float y0, float y1, std::vector<SkColor4f> colors,
-                      std::vector<float> stops) {
-  SkPoint pts[2] = {{0, y0}, {0, y1}};
-  return SkShaders::LinearGradient(pts,
-                                   SkGradient({{colors.data(), colors.size()},
-                                               {stops.data(), stops.size()},
-                                               SkTileMode::kClamp},
-                                              {}));
-}
-/** The kit's ramp over [y0, y1]. */
-sk_sp<SkShader> vRamp(float y0, float y1,
-                      const std::vector<sigil::material::kit::RampStop>& ramp) {
-  std::vector<SkColor4f> colors;
-  std::vector<float> stops;
-  for (const auto& s : ramp) {
-    colors.push_back(material::skia::toSkColor(s.color));
-    stops.push_back(s.pos);
-  }
-  return vRamp(y0, y1, std::move(colors), std::move(stops));
-}
-/** The kit's unit-space ramp as a compose gradient. */
-material::skia::Paint unitRamp(
-    const std::vector<sigil::material::kit::RampStop>& ramp) {
-  std::vector<material::skia::Stop> stops;
-  stops.reserve(ramp.size());
-  for (const auto& s : ramp)
-    stops.push_back({s.pos, material::skia::toSkColor(s.color)});
-  return material::skia::Paint::linear({0, 0}, {0, 1}, std::move(stops));
-}
-}  // namespace
-}  // namespace detail
-
 namespace kit = sigil::material::kit;
 
 void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {

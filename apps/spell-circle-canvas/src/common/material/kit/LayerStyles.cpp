@@ -10,29 +10,20 @@
 
 namespace sigil::material::kit {
 
-Color scaled(Color c, float k, float a) {
-  return {c.r * k, c.g * k, c.b * k, a};
-}
-
-Color toward(Color c, Color target, float t, float a) {
-  return {c.r + (target.r - c.r) * t, c.g + (target.g - c.g) * t,
-          c.b + (target.b - c.b) * t, a};
-}
-
 std::vector<RampStop> aquaBodyRamp(Color tint) {
-  return {{0.0f, scaled(tint, 0.72f, 0.9f)},
+  return {{0.0f, scale(tint, 0.72f, 0.9f)},
           {0.55f, tint},
-          {1.0f, toward(tint, {1, 1, 1, 1}, 0.35f, 0.95f)}};
+          {1.0f, mixToward(tint, {1, 1, 1, 1}, 0.35f, 0.95f)}};
 }
 
 std::vector<RampStop> aquaGlowRamp(Color tint, float strength) {
   return {{0.0f, {1, 1, 1, 0}},
-          {1.0f, toward(tint, {1, 1, 1, 1}, 0.80f, strength)}};
+          {1.0f, mixToward(tint, {1, 1, 1, 1}, 0.80f, strength)}};
 }
 
-Color aquaHalo(Color tint) { return toward(tint, {1, 1, 1, 1}, 0.30f, 0.5f); }
-Color aquaTopBand(Color tint) { return scaled(tint, 0.36f, 0.45f); }
-Color aquaHairline(Color tint) { return scaled(tint, 0.45f, 0.6f); }
+Color aquaHalo(Color tint) { return mixToward(tint, {1, 1, 1, 1}, 0.30f, 0.5f); }
+Color aquaTopBand(Color tint) { return scale(tint, 0.36f, 0.45f); }
+Color aquaHairline(Color tint) { return scale(tint, 0.45f, 0.6f); }
 
 std::vector<RampStop> chromeRamp(ChromePalette palette) {
   if (palette == ChromePalette::Silver)

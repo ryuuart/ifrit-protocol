@@ -21,6 +21,7 @@
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Ramp.h>
 
 #include <algorithm>
 #include <cmath>
@@ -28,43 +29,6 @@
 #include <vector>
 
 namespace sigil::compose::kit {
-
-namespace {
-
-/** A vertical ramp over [y0, y1]. */
-sk_sp<SkShader> vRamp(float y0, float y1, std::vector<SkColor4f> colors,
-                      std::vector<float> stops) {
-  SkPoint pts[2] = {{0, y0}, {0, y1}};
-  return SkShaders::LinearGradient(pts,
-                                   SkGradient({{colors.data(), colors.size()},
-                                               {stops.data(), stops.size()},
-                                               SkTileMode::kClamp},
-                                              {}));
-}
-
-/** The same, from the material kit's stops. */
-sk_sp<SkShader> vRamp(float y0, float y1,
-                      const std::vector<material::kit::RampStop>& ramp) {
-  std::vector<SkColor4f> colors;
-  std::vector<float> stops;
-  for (const auto& s : ramp) {
-    colors.push_back(material::skia::toSkColor(s.color));
-    stops.push_back(s.pos);
-  }
-  return vRamp(y0, y1, std::move(colors), std::move(stops));
-}
-
-/** The same stops in the node's UNIT square, as a paint a text fill takes. */
-material::skia::Paint unitRamp(
-    const std::vector<material::kit::RampStop>& ramp) {
-  std::vector<material::skia::Stop> stops;
-  stops.reserve(ramp.size());
-  for (const auto& s : ramp)
-    stops.push_back({s.pos, material::skia::toSkColor(s.color)});
-  return material::skia::Paint::linear({0, 0}, {0, 1}, std::move(stops));
-}
-
-}  // namespace
 
 void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   const float H = ctx.size.height();
@@ -77,7 +41,8 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
   SkPaint body;  // deep at the top, saturated in the middle, light below
   body.setAntiAlias(true);
-  body.setShader(vRamp(0, H, material::kit::aquaBodyRamp(t)));
+  body.setShader(
+      material::skia::verticalRamp(0, H, material::kit::aquaBodyRamp(t)));
   c.drawPath(ctx.outline, body);
   if (opts.topBand > 0) {  // the recess under the top edge
     sigil::material::Color band = material::kit::aquaTopBand(t);
@@ -91,7 +56,8 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
     glow.setAntiAlias(true);
     glow.setBlendMode(SkBlendMode::kScreen);
     glow.setShader(
-        vRamp(H * 0.55f, H, material::kit::aquaGlowRamp(t, opts.bottomGlow)));
+        material::skia::verticalRamp(H * 0.55f, H,
+                                     material::kit::aquaGlowRamp(t, opts.bottomGlow)));
     c.save();
     c.clipPath(ctx.outline, true);
     c.drawRect(SkRect::MakeLTRB(0, H * 0.5f, ctx.size.width(), H), glow);
@@ -106,10 +72,10 @@ void AquaGloss::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
   const float fade = std::clamp(fadeEnd, 0.05f, 1.0f);
-  p.setShader(vRamp(
-      lens.top(), lens.bottom(),
-      {{1, 1, 1, alphaTop}, {1, 1, 1, alphaBottom}, {1, 1, 1, alphaBottom}},
-      {0.0f, fade, 1.0f}));
+  p.setShader(material::skia::verticalRamp(lens.top(), lens.bottom(),
+                                           {{0.0f, {1, 1, 1, alphaTop}},
+                                            {fade, {1, 1, 1, alphaBottom}},
+                                            {1.0f, {1, 1, 1, alphaBottom}}}));
   c.save();
   c.clipPath(ctx.outline, true);
   c.drawRRect(SkRRect::MakeRectXY(lens, lens.height() / 2, lens.height() / 2),
@@ -142,7 +108,8 @@ LayerStyle aquaOrb(SkColor4f tint, float expectedDiameter) {
 void ChromeBody::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
-  p.setShader(vRamp(0, ctx.size.height(), material::kit::chromeRamp(palette)));
+  p.setShader(material::skia::verticalRamp(0, ctx.size.height(),
+                                           material::kit::chromeRamp(palette)));
   c.drawPath(ctx.outline, p);
 }
 
@@ -202,11 +169,11 @@ LayerStyle y2kChrome(material::kit::ChromeOptions opts) {
 }
 
 material::skia::Paint sunsetChromeType() {
-  return unitRamp(material::kit::sunsetChromeText());
+  return material::skia::unitRamp(material::kit::sunsetChromeText());
 }
 
 material::skia::Paint silverChromeType() {
-  return unitRamp(material::kit::silverChromeText());
+  return material::skia::unitRamp(material::kit::silverChromeText());
 }
 
 void GlossContour::paint(SkCanvas& c, const PaintContext& ctx) const {

@@ -138,4 +138,27 @@ inline Color lerpOklab(const Color& a, const Color& b, float t) {
                     la.alpha + (lb.alpha - la.alpha) * t});
 }
 
+/** @p c scaled by @p k in every channel, at alpha @p a. The shading verb
+ *  a highlight and a shadow are both written with: one colour, brighter
+ *  or darker, at a chosen opacity. */
+constexpr Color scale(Color c, float k, float a) {
+  return {c.r * k, c.g * k, c.b * k, a};
+}
+
+/** @p c moved a fraction @p t toward @p target, at alpha @p a. Straight
+ *  sRGB, not OKLab: the caller that wants a perceptual path spells
+ *  `lerpOklab`. */
+constexpr Color mixToward(Color c, Color target, float t, float a) {
+  return {c.r + (target.r - c.r) * t, c.g + (target.g - c.g) * t,
+          c.b + (target.b - c.b) * t, a};
+}
+
+/** ONE STOP OF A RAMP: a position in [0, 1] and its colour. A ramp is a
+ *  vector of these, which every renderer turns into its own gradient. */
+struct RampStop {
+  float pos = 0.0f;
+  Color color;
+  bool operator==(const RampStop&) const = default;
+};
+
 }  // namespace sigil::material

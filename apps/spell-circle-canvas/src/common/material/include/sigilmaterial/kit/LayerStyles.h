@@ -18,18 +18,6 @@
 
 namespace sigil::material::kit {
 
-/** One stop of a ramp: a position in [0, 1] and its colour. */
-struct RampStop {
-  float pos = 0.0f;
-  Color color;
-  bool operator==(const RampStop&) const = default;
-};
-
-/** @p c scaled by @p k in every channel, at alpha @p a. */
-Color scaled(Color c, float k, float a);
-/** @p c moved a fraction @p t toward @p target, at alpha @p a. */
-Color toward(Color c, Color target, float t, float a);
-
 /** Knobs the gel bundle exposes; the defaults dress a pill. */
 struct AquaGelOptions {
   float lensAlphaTop = 0.72f;    ///< lens ramp: white at the top, clear below

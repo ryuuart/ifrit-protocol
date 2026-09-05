@@ -368,9 +368,9 @@ TEST(Patterns, Girih8ContactAngleSharpensTheStar) {
 }
 
 TEST(LayerStyles, ChromeRampsStopOnTheHorizon) {
-  const std::vector<kit::RampStop> steel =
+  const std::vector<RampStop> steel =
       kit::chromeRamp(kit::ChromePalette::Steel);
-  const std::vector<kit::RampStop> silver =
+  const std::vector<RampStop> silver =
       kit::chromeRamp(kit::ChromePalette::Silver);
   // Both ramps straddle the horizon with a hard stop at it.
   EXPECT_LT(steel[2].pos, kit::kChromeHorizonFrac);
