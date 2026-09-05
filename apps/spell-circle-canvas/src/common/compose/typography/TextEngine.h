@@ -10,11 +10,34 @@
  * through.
  */
 
+#include <sigilcore/compute/Intervals.h>
+#include <sigilweave/paragraph/Paragraph.h>
+
+#include <cstdint>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "ComposeRuntime.h"
+
+namespace sigil::core {
+
+/** A paragraph range's endpoints, for the interval algebra the selection
+ *  forms are combined with. */
+template <>
+struct IntervalEnds<sigil::weave::CharRange> {
+  using Value = uint32_t;
+  static uint32_t& low(sigil::weave::CharRange& r) { return r.start; }
+  static uint32_t& high(sigil::weave::CharRange& r) { return r.end; }
+  static const uint32_t& low(const sigil::weave::CharRange& r) {
+    return r.start;
+  }
+  static const uint32_t& high(const sigil::weave::CharRange& r) {
+    return r.end;
+  }
+};
+
+}  // namespace sigil::core
 
 namespace sigil::compose::detail {
 

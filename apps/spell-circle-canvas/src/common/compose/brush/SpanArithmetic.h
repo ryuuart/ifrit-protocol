@@ -11,8 +11,24 @@
 #include <sigilcompose/core/Mask.h>
 #include <sigilcompose/core/Stroke.h>
 
+#include <sigilcore/compute/Intervals.h>
+
 #include <optional>
 #include <vector>
+
+namespace sigil::core {
+
+/** A span's endpoints, for the interval algebra one library up. */
+template <>
+struct IntervalEnds<sigil::compose::Span> {
+  using Value = float;
+  static float& low(sigil::compose::Span& s) { return s.begin; }
+  static float& high(sigil::compose::Span& s) { return s.end; }
+  static const float& low(const sigil::compose::Span& s) { return s.begin; }
+  static const float& high(const sigil::compose::Span& s) { return s.end; }
+};
+
+}  // namespace sigil::core
 
 namespace sigil::compose::detail {
 

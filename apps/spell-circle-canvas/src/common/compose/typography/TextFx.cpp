@@ -18,10 +18,13 @@
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/query/Query.h>
 
+#include <sigilcore/compute/Intervals.h>
+
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 #include <cstring>
 #include <numeric>
 #include <utility>
@@ -338,50 +341,19 @@ namespace {
 using Ranges = std::vector<sigil::weave::CharRange>;
 
 /** Sorted, merged, empties dropped — the one normal form every answer is
- *  in, so union, intersection and complement are honest interval
- *  arithmetic and not a pile of special cases. */
-Ranges normalize(Ranges ranges) {
-  std::erase_if(ranges,
-                [](const sigil::weave::CharRange& r) { return r.empty(); });
-  std::sort(
-      ranges.begin(), ranges.end(),
-      [](const sigil::weave::CharRange& a, const sigil::weave::CharRange& b) {
-        return a.start != b.start ? a.start < b.start : a.end < b.end;
-      });
-  Ranges merged;
-  for (const sigil::weave::CharRange& r : ranges) {
-    if (!merged.empty() && r.start <= merged.back().end)
-      merged.back().end = std::max(merged.back().end, r.end);
-    else
-      merged.push_back(r);
-  }
-  return merged;
+ *  in. A code-unit index is exact, so the interval algebra runs with no
+ *  epsilon and no clamp beyond the paragraph's own length. */
+Ranges normalize(Ranges ranges, uint32_t length = UINT32_MAX) {
+  return core::normalizeIntervals<sigil::weave::CharRange>(std::move(ranges), 0u,
+                                                           length);
 }
 
 Ranges intersectRanges(const Ranges& a, const Ranges& b) {
-  Ranges out;
-  size_t i = 0, j = 0;
-  while (i < a.size() && j < b.size()) {
-    const uint32_t start = std::max(a[i].start, b[j].start);
-    const uint32_t end = std::min(a[i].end, b[j].end);
-    if (start < end) out.push_back({start, end});
-    if (a[i].end < b[j].end)
-      ++i;
-    else
-      ++j;
-  }
-  return out;
+  return core::intersectIntervals<sigil::weave::CharRange>(a, b);
 }
 
 Ranges complementRanges(const Ranges& ranges, uint32_t length) {
-  Ranges out;
-  uint32_t cursor = 0;
-  for (const sigil::weave::CharRange& r : ranges) {
-    if (r.start > cursor) out.push_back({cursor, r.start});
-    cursor = std::max(cursor, r.end);
-  }
-  if (cursor < length) out.push_back({cursor, length});
-  return out;
+  return core::complementIntervals<sigil::weave::CharRange>(ranges, 0u, length);
 }
 
 }  // namespace

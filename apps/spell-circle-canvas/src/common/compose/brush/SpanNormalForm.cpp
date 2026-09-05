@@ -24,6 +24,7 @@
 #include "SpanArithmetic.h"
 #include "SpanContours.h"
 #include "sigilgeometry/path/Contour.h"
+#include <sigilcore/compute/Intervals.h>
 
 namespace sigil::compose {
 
@@ -141,70 +142,41 @@ std::vector<Span> fitSpans(const SkPath& outline, const SkRect& box,
 
 namespace detail {
 
+/** SHORTER THAN NOTHING, on a fraction of a path's total arc length: the
+ *  span the normal form drops, the gap the complement will not emit, and
+ *  the sliver two runs may share and still count as disjoint. */
+constexpr float kEpsilon = 1e-6f;
+/** …and the looser one an overlap REPORT reads by, so two runs that merely
+ *  meet at a corner are not called a conflict. */
+constexpr float kOverlapEpsilon = 1e-4f;
+
 std::vector<Span> normalizeSpans(const std::vector<Span>& spans) {
-  std::vector<Span> out;
-  out.reserve(spans.size());
-  for (Span s : spans) {
-    if (s.end < s.begin) std::swap(s.begin, s.end);
-    s.begin = std::clamp(s.begin, 0.0f, 1.0f);
-    s.end = std::clamp(s.end, 0.0f, 1.0f);
-    if (s.end - s.begin > 1e-6f) out.push_back(s);
-  }
-  std::sort(out.begin(), out.end(),
-            [](const Span& a, const Span& b) { return a.begin < b.begin; });
-  std::vector<Span> merged;
-  for (const Span& s : out) {
-    if (!merged.empty() && s.begin <= merged.back().end + 1e-6f)
-      merged.back().end = std::max(merged.back().end, s.end);
-    else
-      merged.push_back(s);
-  }
-  return merged;
+  // A span written backwards names the same run, so it is turned round
+  // rather than dropped; kEpsilon is what "shorter than nothing" means on
+  // a fraction of an arc length.
+  return core::normalizeIntervals<Span>(spans, 0.0f, 1.0f, kEpsilon,
+                                        core::Inverted::Swap);
 }
 
 std::vector<Span> complementSpans(const std::vector<Span>& spans) {
-  std::vector<Span> out;
-  float at = 0;
-  for (const Span& s : spans) {
-    if (s.begin - at > 1e-6f) out.push_back({at, s.begin});
-    at = std::max(at, s.end);
-  }
-  if (1.0f - at > 1e-6f) out.push_back({at, 1.0f});
-  return out;
+  return core::complementIntervals<Span>(spans, 0.0f, 1.0f, kEpsilon);
 }
 
 std::vector<Span> intersectSpans(const std::vector<Span>& a,
                                  const std::vector<Span>& b) {
-  // Both inputs are normalized (sorted, disjoint, non-degenerate), so one
-  // sweep suffices. Touching endpoints are not an intersection, by the
-  // same 1e-6 rule normalizeSpans drops empties with — two runs meeting
-  // at a corner share no arc length.
-  std::vector<Span> out;
-  size_t i = 0, j = 0;
-  while (i < a.size() && j < b.size()) {
-    const float lo = std::max(a[i].begin, b[j].begin);
-    const float hi = std::min(a[i].end, b[j].end);
-    if (hi - lo > 1e-6f) out.push_back({lo, hi});
-    if (a[i].end < b[j].end)
-      ++i;
-    else
-      ++j;
-  }
-  return out;
+  // Touching endpoints are not an intersection, by the same rule
+  // normalizeSpans drops empties with — two runs meeting at a corner
+  // share no arc length.
+  return core::intersectIntervals<Span>(a, b, kEpsilon);
 }
 
 std::optional<Span> spansOverlap(const std::vector<Span>& a,
                                  const std::vector<Span>& b) {
-  for (const Span& x : a)
-    for (const Span& y : b) {
-      const float lo = std::max(x.begin, y.begin);
-      const float hi = std::min(x.end, y.end);
-      // A shared END POINT is two runs meeting, not two runs overlapping —
-      // exactly what corners() next to edges() produces, and it must not
-      // be an error.
-      if (hi - lo > 1e-4f) return Span{lo, hi};
-    }
-  return std::nullopt;
+  // A shared END POINT is two runs meeting, not two runs overlapping —
+  // exactly what corners() next to edges() produces, and it must not be
+  // reported as a conflict. That wants a looser threshold than the one
+  // the normal form was built with.
+  return core::firstOverlap<Span>(a, b, kOverlapEpsilon);
 }
 
 SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
