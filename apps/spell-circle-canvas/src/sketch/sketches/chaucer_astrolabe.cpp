@@ -3025,6 +3025,12 @@ struct ChaucerAstrolabe : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kVellum);
+    // A 2400×1600 sheet over nine cached material passes under one live
+    // rotation of the whole rete: its subject is the size of the sheet,
+    // so --bench judges it on the still it is photographed as, not on
+    // holding 60 FPS at that size. Never a timeout override; the plate
+    // sweep is untouched.
+    ctx.plate();
     // The still has to name its moment: this is a 26 s loop of named states,
     // and tStill is CHAUCER'S MOMENT — the 12 March 1391 trace at full
     // opacity [21.9, 24.8]. Any other state asserts a different date, and an

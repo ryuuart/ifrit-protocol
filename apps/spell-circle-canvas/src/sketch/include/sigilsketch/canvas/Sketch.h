@@ -204,6 +204,16 @@ struct SketchContext {
   void oversample(int perCanvasPixel) {
     if (spec) spec->oversample = std::max(1, perCanvasPixel);
   }
+  /** DECLARE THIS SKETCH A PLATE, not a live scene. Its subject is the
+   *  size of the sheet it draws, so `--bench` judges it on the cost of
+   *  the still it is photographed as rather than on holding 60 FPS at
+   *  that size. Nothing else changes: the plate sweep steps and captures
+   *  it exactly as before, and this is never a timeout override.
+   *
+   *      ctx.plate(); // a 2400×1600 sheet, judged on its capture */
+  void plate() {
+    if (spec) spec->plateOnly = true;
+  }
 };
 
 /** A SKETCH THAT DRAWS A COMPOSE ELEMENT TREE.
