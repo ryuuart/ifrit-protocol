@@ -144,3 +144,8 @@ committed Python schema modules. `setup.py` configures: it discovers Qt
 6.11+, vcpkg and the optional SDKs, writes the uncommitted
 `CMakeUserPresets.json`, and builds Release unless `--config` says
 otherwise.
+
+The overlay triplet `cmake/triplets/arm64-osx.cmake` is hashed WHOLE into
+every port's ABI key — its comments with the rest of it — so editing one
+character of it rebuilds every dependency from source. Say what has to be
+said there, and say it once.

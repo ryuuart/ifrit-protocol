@@ -62,8 +62,6 @@ find_package_handle_standard_args(Ultralight
 )
 
 if(Ultralight_FOUND AND NOT TARGET Ultralight::Ultralight)
-  get_filename_component(_ultralight_libdir "${Ultralight_LIBRARY}" DIRECTORY)
-
   # ultralight::* base-class symbols are split across the core dylibs
   # (e.g. FileSystem/Logger dtors live in UltralightCore), so all three
   # non-AppCore dylibs link as one unit.
@@ -81,11 +79,12 @@ if(Ultralight_FOUND AND NOT TARGET Ultralight::Ultralight)
     INTERFACE_INCLUDE_DIRECTORIES "${Ultralight_INCLUDE_DIR}"
     INTERFACE_LINK_LIBRARIES
       "Ultralight::WebCore;Ultralight::UltralightCore"
-    # The SDK dylibs carry @rpath install names and load each other as
-    # siblings, so consumers need the SDK lib dir on their runtime
-    # search path.
-    INTERFACE_LINK_OPTIONS "-Wl,-rpath,${_ultralight_libdir}"
   )
+  # The SDK dylibs carry @rpath install names and load each other as
+  # siblings, so a consumer needs the SDK lib dir on its runtime search
+  # path — which CMake adds for it, from the imported location. Naming it
+  # here as well would put the same -rpath on the link line twice, and the
+  # linker warns about that on every consumer.
 
   add_library(Ultralight::AppCore SHARED IMPORTED)
   set_target_properties(Ultralight::AppCore PROPERTIES
@@ -93,8 +92,6 @@ if(Ultralight_FOUND AND NOT TARGET Ultralight::Ultralight)
     INTERFACE_INCLUDE_DIRECTORIES "${Ultralight_INCLUDE_DIR}"
     INTERFACE_LINK_LIBRARIES Ultralight::Ultralight
   )
-
-  unset(_ultralight_libdir)
 endif()
 
 function(ultralight_copy_resources target)
