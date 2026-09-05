@@ -1,11 +1,14 @@
 # The source leaf: the byte vocabulary in both directions — Bytes, the
 # ByteSource, ResolvingByteSource and Decoder concepts, AnyByteSource
 # (the type-erased source value), and the ByteSink concept with the
-# local-filesystem write behind it. Header only and standard library
-# only, so a decoder or an encoder can depend on it without inheriting
-# the hub, libcurl, or any codec.
+# local-filesystem write behind it, and the two places only the platform
+# can name: where the running binary stands and where a process may leave
+# throwaway files. Standard library plus the one platform call that
+# answers an executable's own path, so a decoder or an encoder can depend
+# on it without inheriting the hub, libcurl, or any codec.
 sigil_library(SigilIOSource
-  HEADERS Sink.h Source.h)
+  SOURCES Places.cpp
+  HEADERS Places.h Sink.h Source.h)
 
 # The concepts checked against a fixture source and a fixture decoder,
 # with no hub, codec or disk in the binary.

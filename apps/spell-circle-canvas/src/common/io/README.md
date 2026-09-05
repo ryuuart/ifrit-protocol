@@ -16,7 +16,7 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilIOSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
+| `SigilIOSource` | `source/Source.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
 
 `SigilIO` is the umbrella target over both, and
@@ -277,7 +277,8 @@ cmake --build build --config Release --target io_source_test io_hub_test
 ctest --test-dir build -C Release -R '^io_' --output-on-failure
 ```
 
-Targets: `SigilIOSource` (header only, `source/`) with
+Targets: `SigilIOSource` (`source/` — headers plus the one call that
+asks the platform where the running binary stands) with
 `io_source_test`, which checks the concepts against a fixture source,
 a fixture decoder and a fixture sink with no hub in the binary, and
 `writeBytes` against a real scratch directory; `SigilIOHub` (static

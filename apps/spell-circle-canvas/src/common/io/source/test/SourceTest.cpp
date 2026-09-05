@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilio/source/Places.h>
 #include <sigilio/source/Sink.h>
 #include <sigilio/source/Source.h>
 
@@ -148,4 +149,30 @@ TEST(SinkVocabulary, TheBytesSpellingWritesTheSameFile) {
   const std::filesystem::path file = root.path / "abc.bin";
   EXPECT_TRUE(writeBytes(file, bytes));
   EXPECT_EQ(std::filesystem::file_size(file), 3u);
+}
+
+// ---- the two places the platform names -------------------------------------
+
+TEST(Places, TheExecutableIsThisTestBinary) {
+  const std::filesystem::path binary = sigil::io::executablePath();
+  ASSERT_FALSE(binary.empty());
+  EXPECT_TRUE(binary.is_absolute());
+  EXPECT_TRUE(std::filesystem::is_regular_file(binary));
+  // The answer is the running binary, not its directory or an argv copy.
+  EXPECT_NE(binary.filename().string().find("io_source_test"),
+            std::string::npos);
+}
+
+TEST(Places, AScratchDirectoryIsNamedForThisProcessAndIsNotMade) {
+  const std::filesystem::path scratch = sigil::io::scratchDirectory("io_places");
+  ASSERT_FALSE(scratch.empty());
+  EXPECT_TRUE(std::filesystem::equivalent(
+      scratch.parent_path(), std::filesystem::temp_directory_path()));
+  EXPECT_TRUE(scratch.filename().string().starts_with("io_places_"));
+  // Two labels in one run are two directories; the same label is one.
+  EXPECT_NE(scratch, sigil::io::scratchDirectory("io_places_other"));
+  EXPECT_EQ(scratch, sigil::io::scratchDirectory("io_places"));
+  // Naming a place does not make it: the caller decides what a stale one
+  // from a run that died is worth.
+  EXPECT_FALSE(std::filesystem::exists(scratch));
 }
