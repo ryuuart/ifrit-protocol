@@ -2,7 +2,7 @@
 
 /** @file
  * SigilCompose typography — the TRACK: one entry of a text leaf's `fx()`
- * list, which is which glyphs (`Selector`), what deviation from rest
+ * list, which is which glyphs (`weave::Selector`), what deviation from rest
  * (`TextEffect`), how the beats spread (`motion::Spread`), what a unit is,
  * and the master progress that drives it — with `Beats`, which list a
  * cascade numbers its beats against, and `Beat`, one beat of a resolved
@@ -12,10 +12,12 @@
 #include <include/core/SkRect.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextEffect.h>
-#include <sigilcompose/typography/Units.h>
+#include <sigilcompose/typography/TextUnit.h>
 #include <sigilcore/comparable/Fields.h>
 #include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 
 #include <cstdint>
 
@@ -55,7 +57,7 @@ inline constexpr Beats Text = Beats::Text;
  *  the element paints live; once every track settles it caches like a
  *  static leaf. */
 struct Track {
-  Selector where;    ///< default: every glyph
+  sigil::weave::Selector where;  ///< default: every glyph
   TextEffect effect; /**< what it does */
   /** THE PER-UNIT TIME REMAP (the GSAP stagger model), which is
    *  SigilMotion's and says nothing about text: the master progress
@@ -66,15 +68,15 @@ struct Track {
    *  rather than over a set's children or a feed's rows. */
   motion::Spread stagger;
   /** Which units get a beat. It is what makes the remap above more than
-   *  per-glyph spacing: `over = unit::Word` beats once per word, and
+   *  per-glyph spacing: `over = weave::unit::Word` beats once per word, and
    *  every glyph of that word shares its beat. The default,
-   *  `unit::Cluster`, is per-glyph for ordinary Latin text and keeps a
+   *  `weave::unit::Cluster`, is per-glyph for ordinary Latin text and keeps a
    *  base letter attached to its combining marks everywhere else. */
-  Unit over = Unit::Cluster;
+  sigil::weave::Unit over = sigil::weave::Unit::Cluster;
   /** Which units the NESTED cascade — `stagger.then({…})` — beats over
    *  inside each of `over`'s beats. Read only when the spread nests; a
    *  spread with no inner level never looks at it. */
-  Unit innerOver = Unit::Glyph;
+  sigil::weave::Unit innerOver = sigil::weave::Unit::Glyph;
   /** WHICH LIST those beats are numbered against — see `Beats`. The
    *  default numbers the track's own selection, which is what a track
    *  that owns its text means; `beats::Text` numbers the paragraph, which

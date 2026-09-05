@@ -28,7 +28,9 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/typography/Selector.h>
-#include <sigilcompose/typography/Units.h>
+#include <sigilcompose/typography/TextUnit.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 
 #include <functional>
 #include <optional>
@@ -62,9 +64,10 @@ struct Beside {
 /** ONE ELEMENT PER UNIT a selector addresses on a keyed text node, placed
  *  beside it.
  *
- *      root.child(kit::annotate(composer, "verse", sel::each(unit::Word),
- *                               unit::Word, {.side = Beside::Side::End,
- *                                            .gap = 14},
+ *      root.child(kit::annotate(composer, "verse",
+ *                               weave::sel::each(weave::unit::Word),
+ *                               weave::unit::Word,
+ *                               {.side = Beside::Side::End, .gap = 14},
  *                               [&](const TextUnit &u) {
  *                                 return text(gloss(u.range), small);
  *                               })
@@ -88,8 +91,8 @@ struct Beside {
  *  nothing all give an EMPTY overlay, silently, exactly as
  *  `Composer::units` answers empty. */
 [[nodiscard]] inline Element annotate(
-    const Composer& composer, std::string_view baseKey, const Selector& where,
-    Unit unit, Beside beside,
+    const Composer& composer, std::string_view baseKey,
+    const sigil::weave::Selector& where, sigil::weave::Unit unit, Beside beside,
     const std::function<Element(const TextUnit&)>& make) {
   Element overlay = positioned();
   const std::vector<TextUnit> units = composer.units(baseKey, where, unit);
@@ -151,7 +154,6 @@ struct Beside {
   return overlay;
 }
 
-
 /** WHERE AN ANCHORED OBJECT STANDS when the caller states the position
  *  rather than a side: an object still TIED to a text position — it moves
  *  when the text reflows, because it is placed off a unit the layout
@@ -192,8 +194,9 @@ struct Anchored {
 /** ONE ELEMENT PER UNIT, AT THE POSITION THE CALLER STATES — the same
  *  read-back as the placement above, with the arithmetic handed over.
  *
- *      root.child(kit::annotate(composer, "verse", sel::text(u8"Ishmael"),
- *                               unit::Word,
+ *      root.child(kit::annotate(composer, "verse",
+ *                               weave::sel::text(u8"Ishmael"),
+ *                               weave::unit::Word,
  *                               {.horizontal = kit::Anchored::From::Frame,
  *                                .offset = {-44, 0}},
  *                               [&](const TextUnit &u) { return figure(u); })
@@ -206,9 +209,9 @@ struct Anchored {
  *  read-back and the silent empty answer holds here word for word — it is
  *  one mechanism with two ways of saying where. */
 [[nodiscard]] inline Element annotate(
-    const Composer& composer, std::string_view baseKey, const Selector& where,
-    Unit unit, Anchored anchored,
-    const std::function<Element(const TextUnit&)>& make) {
+    const Composer& composer, std::string_view baseKey,
+    const sigil::weave::Selector& where, sigil::weave::Unit unit,
+    Anchored anchored, const std::function<Element(const TextUnit&)>& make) {
   Element overlay = positioned();
   const std::vector<TextUnit> units = composer.units(baseKey, where, unit);
   if (units.empty()) return overlay;
@@ -220,8 +223,11 @@ struct Anchored {
   // reports the whole line rather than the part a selector addressed: an
   // object measured from the line is measured from all of it.
   const std::vector<TextUnit> lines =
-      wantsLine ? composer.units(baseKey, sel::each(Unit::Line), Unit::Line)
-                : std::vector<TextUnit>{};
+      wantsLine
+          ? composer.units(baseKey,
+                           sigil::weave::sel::each(sigil::weave::Unit::Line),
+                           sigil::weave::Unit::Line)
+          : std::vector<TextUnit>{};
   const std::optional<SkRect> frame =
       wantsFrame ? composer.bounds(baseKey) : std::nullopt;
   for (const TextUnit& entry : units) {

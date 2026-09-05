@@ -1,14 +1,17 @@
 # SigilComposeTypography — the text vocabulary and the text engine.
 #
-# The VOCABULARY is the public headers: the unit, the selector, the effect
-# and the effects the runtime evaluates by structure, the track and the
-# beat, mixed text and the story, the reading beside the type, and the
-# path a baseline can be. The kernel's text leaf is described in it — a
+# The VOCABULARY is the public headers: one unit as the layout placed it,
+# the two selector forms whose subject is a description of this library,
+# the effect and the effects the runtime evaluates by structure, the track
+# and the beat, the reading beside the type, and the path a baseline can
+# be. The text's own words — the content, the granularity, the selector
+# value and every form that names a position in the text — are SigilWeave's
+# and are included from there. The kernel's text leaf is described in it — a
 # description stores tracks, runs and readings — so every member the
 # kernel stores, compares or evaluates is defined in the header that
 # declares it, and the kernel links nothing here to do so. What the
-# archive holds is the members that carry a diagnostic, the builders of
-# mixed text, and the ENGINE behind dressed type: fx() tracks resolved and
+# archive holds is the members that carry a diagnostic and the ENGINE
+# behind dressed type: fx() tracks resolved and
 # drawn per glyph, a run laid along a path, mark() anchors, span restyles
 # folded into axis tracks, and the schedule read back — reached by the
 # kernel through the TextPainter value the text verbs install on a
@@ -23,20 +26,20 @@
 #
 # The vocabulary's headers spell the seeded mixer an effect draws from, the
 # field count a track's pin reads, the paint a pass runs, the spread a
-# cascade is and the type a run is set in, so those libraries are PUBLIC.
-# The engine's sources walk a geometry contour, stamp image assets, read
-# the inherited style set a named run resolves through, and shape,
-# choreograph, decorate, lay out and query text through SigilWeave; none of
-# that reaches a public header, so those are PRIVATE.
+# cascade is, and the selector, granularity and style a run is set in, so
+# those libraries are PUBLIC. The engine's sources walk a geometry contour,
+# stamp image assets, and shape, choreograph, decorate, lay out and query
+# text through SigilWeave; none of that reaches a public header, so those
+# are PRIVATE.
 sigil_library(SigilComposeTypography
   SOURCES
     # the vocabulary's out-of-line members
-    TextEffect.cpp RichText.cpp
+    TextEffect.cpp
     # the engine
     TextFx.cpp TextFxPainting.cpp TextAnnotations.cpp TextMarks.cpp
     PathText.cpp TextPainter.cpp AxisGate.h TextEngine.h TextPose.h
-  HEADERS Annotation.h RichText.h Selector.h TextEffect.h TextPath.h Track.h
-          Typography.h Units.h ../kit/Legibility.h
+  HEADERS Annotation.h Selector.h TextEffect.h TextPath.h TextUnit.h
+          Track.h Typography.h ../kit/Legibility.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilCoreComparable SigilCoreCompute SigilMaterial
          SigilMotion SigilWeave

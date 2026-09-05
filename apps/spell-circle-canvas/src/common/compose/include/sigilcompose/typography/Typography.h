@@ -2,18 +2,23 @@
 
 /** @file
  * SigilCompose typography — the feature umbrella over the text
- * vocabulary: the unit and the laid-out unit, the selector, the effect
- * and the effects the runtime evaluates by structure, the track and the
- * beat, mixed text and the story, the reading beside the type, and the
- * path a run's baseline can be. A style's own numbers and the face behind
- * them are SigilWeave's (`weave::textStyle`, `weave::ports::pickTypeface`);
- * the stock effects over the seam are the kit's (`kit/Kinetic.h`).
+ * vocabulary: the laid-out unit, the two selector forms that address a
+ * compose description, the effect and the effects the runtime evaluates
+ * by structure, the track and the beat, the reading beside the type, and
+ * the path a run's baseline can be.
+ *
+ * The TEXT'S OWN vocabulary is SigilWeave's and is included from there:
+ * mixed text and the story (`weave::rich`, `weave::Story`), the
+ * granularity (`weave::unit::Word`), the selector value and every form
+ * that addresses the text itself (`weave::sel::`), a style's own numbers
+ * and the face behind them (`weave::textStyle`,
+ * `weave::ports::pickTypeface`). The stock effects over the seam are the
+ * kit's (`kit/Kinetic.h`).
  */
 
 #include "sigilcompose/typography/Annotation.h"
-#include "sigilcompose/typography/RichText.h"
 #include "sigilcompose/typography/Selector.h"
 #include "sigilcompose/typography/TextEffect.h"
 #include "sigilcompose/typography/TextPath.h"
+#include "sigilcompose/typography/TextUnit.h"
 #include "sigilcompose/typography/Track.h"
-#include "sigilcompose/typography/Units.h"

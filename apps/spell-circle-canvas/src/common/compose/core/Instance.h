@@ -47,7 +47,7 @@ struct Instance;
  *  their rects in their own descriptions instead of in the flex engine. And
  *  a TEXT node's children never can: Yoga forbids children under a node
  *  that has a measure function, and the measure function is how text sizes
- *  to its container. So text keeps measuring, and a `rich().slot()` pill
+ *  to its container. So text keeps measuring, and a `weave::rich().slot()` pill
  *  takes its box from the paragraph — which is the only thing that knows
  *  where the reserved run landed. */
 inline bool childrenCarryYoga(const Instance& inst);
@@ -111,7 +111,7 @@ struct TextState {
   // not a per-frame one: the masks below are rebuilt when the text changes,
   // when the layout reflows (a line selector moves with the break), or when
   // the description's selectors themselves change.
-  std::vector<Selector> selectionKeys;
+  std::vector<sigil::weave::Selector> selectionKeys;
   std::vector<std::vector<uint8_t>> selectionMasks;
   uint32_t selectionRev = ~0u;
   float selectionWidth = -1.0f;
@@ -153,7 +153,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // chain, and whatever the frame before it left unplaced for every other.
   uint32_t threadCursor = 0;
   // …and the LINE this frame's first line is, counted from the story's
-  // start. A story numbers its own lines: sel::line(40) is the fortieth
+  // start. A story numbers its own lines: weave::sel::line(40) is the fortieth
   // line of the story wherever it landed, so a chain that reflows moves
   // the selection with the text instead of addressing a different line in
   // every frame. 0 for the head, and for every text that is not a frame.
@@ -175,8 +175,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   bool threadedInto = false;
   uint32_t contentRev = 0;     // bumped on text/exclusion change
   uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
-  // rich().slot(): the slot names in the order the content declares them —
-  // which is the order weave matches its placeholder records in — and where
+  // weave::rich().slot(): the slot names in the order the content declares them
+  // — which is the order weave matches its placeholder records in — and where
   // the finished layout put each one, in this node's own space. A child
   // keyed by one of these names takes that rect as its box.
   std::vector<std::string> textSlotKeys;
@@ -194,9 +194,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     sigil::weave::ParagraphLayout layout;
   };
   std::vector<PlacedAnnotation> textAnnotations;
-  // rich().add(text, styleName): each named run and the text it occupies, in
-  // declaration order — what sel::style resolves against. Cleared and
-  // rebuilt with the paragraph, so the names a node answers for are exactly
+  // weave::rich().add(text, styleName): each named run and the text it
+  // occupies, in declaration order — what sel::style resolves against. Cleared
+  // and rebuilt with the paragraph, so the names a node answers for are exactly
   // the ones its current content declares.
   std::vector<detail::NamedRun> textNamedRuns;
   // The engine's state (TextState) — null until dressed type first asks

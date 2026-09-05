@@ -7,7 +7,9 @@
  */
 
 #include <sigilcompose/typography/Selector.h>
-#include <sigilcompose/typography/Units.h>
+#include <sigilcompose/typography/TextUnit.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/TextStyle.h>
 
 #include <string>
@@ -29,8 +31,8 @@ namespace sigil::compose {
  *  callouts and word labels belong there.
  *
  *  MONO, GROUP AND JUKUGO RUBY ARE THE UNIT CHOICE and nothing else.
- *  `unit::Cluster` gives one reading per character, which is mono ruby;
- *  `unit::Word` gives one per word, which is group ruby; and a base that
+ *  `weave::unit::Cluster` gives one reading per character, which is mono ruby;
+ *  `weave::unit::Word` gives one per word, which is group ruby; and a base that
  *  BREAKS ACROSS A LINE OR A COLUMN reports its units on both, so its
  *  reading splits with it, in proportion to the base's advance either
  *  side. That is not a special case here — it is what reading the units off
@@ -42,10 +44,10 @@ namespace sigil::compose {
  *  caller's. */
 struct Annotation {
   /** Which of the base's units are annotated. */
-  Selector where;
+  sigil::weave::Selector where;
   /** The granularity the readings map to — cluster for mono ruby, word for
    *  group ruby, sentence or line for a note over a passage. */
-  Unit unit = Unit::Cluster;
+  sigil::weave::Unit unit = sigil::weave::Unit::Cluster;
   /** One reading per addressed unit, in draw order. A LIST OF ONE is used
    *  for every unit, which is how a row of identical emphasis marks is
    *  written; a list shorter than the units leaves the rest bare. */

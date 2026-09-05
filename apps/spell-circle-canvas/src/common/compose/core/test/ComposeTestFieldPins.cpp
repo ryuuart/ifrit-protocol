@@ -116,7 +116,7 @@ void perturb(std::vector<Element>& v) { v.push_back(box()); }
 
 void perturb(cd::PaintProps& v) { perturb(v.opacity); }
 
-void perturb(Unit& v) { v = Unit::Line; }
+void perturb(sigil::weave::Unit& v) { v = sigil::weave::Unit::Line; }
 
 void perturb(Beats& v) { v = Beats::Text; }
 

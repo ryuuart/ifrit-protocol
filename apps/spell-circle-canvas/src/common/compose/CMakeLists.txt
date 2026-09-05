@@ -129,6 +129,7 @@ add_custom_command(
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia/draw
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../draw/include/sigildraw
           --include ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../../test
           --out ${COMPOSE_API_DOC_PROBES}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md

@@ -10,6 +10,10 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilweave/layout/Story.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 
 #include "ShapeTestSupport.h"
 

@@ -47,8 +47,9 @@ std::u8string twoBlocks() {
 /** Distinct baselines of a keyed text node's placed lines, ascending. */
 std::vector<float> baselinesOf(Host& host, const char* key) {
   std::vector<float> found;
-  const std::vector<TextUnit> lines =
-      host.composer.units(key, sel::each(unit::Line), unit::Line);
+  const std::vector<TextUnit> lines = host.composer.units(
+      key, sigil::weave::sel::each(sigil::weave::unit::Line),
+      sigil::weave::unit::Line);
   for (const TextUnit& line : lines) found.push_back(line.axis);
   return found;
 }
@@ -90,8 +91,9 @@ TEST(ComposeParagraphs, OneEntryStylesTheFirstBlockAndLeavesTheRestPlain) {
                                        .width(Dim(320.0f))
                                        .paragraphs({heading})));
   host.frame();
-  const std::vector<TextUnit> lines =
-      host.composer.units("t", sel::each(unit::Line), unit::Line);
+  const std::vector<TextUnit> lines = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::unit::Line),
+      sigil::weave::unit::Line);
   ASSERT_GE(lines.size(), 3u);
   // The first block's lines are centred and the last block's are not.
   EXPECT_GT(lines.front().rect.left(), 1.0f);
@@ -106,8 +108,9 @@ TEST(ComposeUnits, EveryUnitASelectorAddressesIsReportedOnce) {
       text(toU8("alpha beta gamma"), whiteStyle(16)).key("t").width(
           Dim(360.0f))));
   host.frame();
-  const std::vector<TextUnit> words =
-      host.composer.units("t", sel::each(unit::Word), unit::Word);
+  const std::vector<TextUnit> words = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::unit::Word),
+      sigil::weave::unit::Word);
   ASSERT_EQ(words.size(), 3u);
   // In draw order, left to right, each with its own rect and none of them
   // the union of the others — which is the whole difference from mark().
@@ -131,8 +134,9 @@ TEST(ComposeUnits, AUnitReportsOnEveryLineItLandedOn) {
   host.composer.render(box().child(
       text(passage(), whiteStyle(14)).key("t").width(Dim(160.0f))));
   host.frame();
-  const std::vector<TextUnit> lines =
-      host.composer.units("t", sel::each(unit::Line), unit::Line);
+  const std::vector<TextUnit> lines = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::unit::Line),
+      sigil::weave::unit::Line);
   ASSERT_GE(lines.size(), 2u);
   for (size_t i = 1; i < lines.size(); ++i) {
     EXPECT_GT(lines[i].axis, lines[i - 1].axis);
@@ -145,10 +149,15 @@ TEST(ComposeUnits, AnUnknownKeyAndAnEmptySelectionAnswerEmpty) {
   host.composer.render(box().child(
       text(toU8("alpha beta"), whiteStyle(16)).key("t").width(Dim(280.0f))));
   host.frame();
-  EXPECT_TRUE(host.composer.units("nope", sel::each(unit::Word), unit::Word)
+  EXPECT_TRUE(host.composer
+                  .units("nope",
+                         sigil::weave::sel::each(sigil::weave::unit::Word),
+                         sigil::weave::unit::Word)
                   .empty());
-  EXPECT_TRUE(
-      host.composer.units("t", sel::text(toU8("omega")), unit::Word).empty());
+  EXPECT_TRUE(host.composer
+                  .units("t", sigil::weave::sel::text(toU8("omega")),
+                         sigil::weave::unit::Word)
+                  .empty());
 }
 
 TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
@@ -161,8 +170,9 @@ TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
                    .left(Dim(20.0f))
                    .top(Dim(40.0f))
                    .width(Dim(360.0f)))
-        .child(kit::annotate(host.composer, "t", sel::each(unit::Word),
-                             unit::Word,
+        .child(kit::annotate(host.composer, "t",
+                             sigil::weave::sel::each(sigil::weave::unit::Word),
+                             sigil::weave::unit::Word,
                              {.side = kit::Beside::Side::After, .gap = 4.0f},
                              [](const TextUnit&) {
                                return box().width(Dim(6.0f)).height(Dim(6.0f)).fill(
@@ -177,8 +187,9 @@ TEST(ComposeUnits, ASiblingAnnotationPlacesOneElementPerUnit) {
   // layout to read: the second is the one that places anything.
   host.composer.render(describe());
   host.frame();
-  const std::vector<TextUnit> words =
-      host.composer.units("t", sel::each(unit::Word), unit::Word);
+  const std::vector<TextUnit> words = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::unit::Word),
+      sigil::weave::unit::Word);
   ASSERT_EQ(words.size(), 3u);
   for (const TextUnit& word : words) {
     const SkIRect under = SkIRect::MakeXYWH(
@@ -208,8 +219,9 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
                    .left(Dim(80.0f))
                    .top(Dim(40.0f))
                    .width(Dim(300.0f)))
-        .child(kit::annotate(host.composer, "t", sel::text(toU8("gamma")),
-                             unit::Word, anchored,
+        .child(kit::annotate(host.composer, "t",
+                             sigil::weave::sel::text(toU8("gamma")),
+                             sigil::weave::unit::Word, anchored,
                              [](const TextUnit&) {
                                return box()
                                    .width(Dim(6.0f))
@@ -228,8 +240,8 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
   host.composer.render(describe(fromFrame));
   host.frame();
 
-  const std::vector<TextUnit> words =
-      host.composer.units("t", sel::text(toU8("gamma")), unit::Word);
+  const std::vector<TextUnit> words = host.composer.units(
+      "t", sigil::weave::sel::text(toU8("gamma")), sigil::weave::unit::Word);
   ASSERT_EQ(words.size(), 1u);
   const SkRect& word = words.front().rect;
   const auto frame = host.composer.bounds("t");
@@ -266,8 +278,9 @@ TEST(ComposeTypeset, ANestedStyleCoversTheWordsItCountsAndStops) {
                       .width(Dim(360.0f))
                       .spanStyle(kit::nestedRun(opening), opening.style)));
   host.frame();
-  const std::vector<TextUnit> words =
-      host.composer.units("t", sel::each(unit::Word), unit::Word);
+  const std::vector<TextUnit> words = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::unit::Word),
+      sigil::weave::unit::Word);
   ASSERT_EQ(words.size(), 5u);
   for (size_t index = 0; index < words.size(); ++index) {
     const SkRect& word = words[index].rect;
@@ -296,8 +309,9 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
                       .width(Dim(360.0f))
                       .spanStyle(kit::nestedRun(lead), lead.style)));
   host.frame();
-  const std::vector<TextUnit> words =
-      host.composer.units("t", sel::each(unit::Word), unit::Word);
+  const std::vector<TextUnit> words = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::unit::Word),
+      sigil::weave::unit::Word);
   ASSERT_GE(words.size(), 4u);
   const auto greenAt = [&](size_t index) {
     const SkRect& word = words[index].rect;
@@ -347,8 +361,9 @@ TEST(ComposeTypeset, ADropCapCarriesANestedOpeningIntoItsBody) {
           .child(std::move(initial))
           .child(std::move(body).key("body").width(Dim(240.0f)))));
   host.frame();
-  const std::vector<TextUnit> words =
-      host.composer.units("body", sel::each(unit::Word), unit::Word);
+  const std::vector<TextUnit> words = host.composer.units(
+      "body", sigil::weave::sel::each(sigil::weave::unit::Word),
+      sigil::weave::unit::Word);
   ASSERT_GE(words.size(), 4u);
   const auto greenAt = [&](size_t index) {
     const SkRect& word = words[index].rect;
@@ -365,8 +380,9 @@ TEST(ComposeTypeset, ADropCapCarriesANestedOpeningIntoItsBody) {
 
 TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
   const auto pitchOf = [](Host& host) {
-    const std::vector<TextUnit> lines =
-        host.composer.units("t", sel::each(unit::Line), unit::Line);
+    const std::vector<TextUnit> lines = host.composer.units(
+        "t", sigil::weave::sel::each(sigil::weave::unit::Line),
+        sigil::weave::unit::Line);
     return lines.empty() ? 0.0f : lines.front().pitch;
   };
   Host bare(400, 400);
@@ -375,12 +391,13 @@ TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
   bare.frame();
 
   Host read(400, 400);
-  read.composer.render(
-      box().child(text(passage(), whiteStyle(16))
-                      .key("t")
-                      .width(Dim(220.0f))
-                      .annotate(kit::ruby(sel::text(toU8("three")), unit::Word,
-                                          {toU8("iii")}, whiteStyle(8), 1.0f))));
+  read.composer.render(box().child(
+      text(passage(), whiteStyle(16))
+          .key("t")
+          .width(Dim(220.0f))
+          .annotate(kit::ruby(sigil::weave::sel::text(toU8("three")),
+                              sigil::weave::unit::Word, {toU8("iii")},
+                              whiteStyle(8), 1.0f))));
   read.frame();
 
   EXPECT_GT(pitchOf(read), pitchOf(bare) + 4.0f);
@@ -388,8 +405,9 @@ TEST(ComposeAnnotate, AReservingReadingOpensThePitchBeforeTheBaseIsBroken) {
 
 TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
   const auto pitchOf = [](Host& host) {
-    const std::vector<TextUnit> lines =
-        host.composer.units("t", sel::each(unit::Line), unit::Line);
+    const std::vector<TextUnit> lines = host.composer.units(
+        "t", sigil::weave::sel::each(sigil::weave::unit::Line),
+        sigil::weave::unit::Line);
     return lines.empty() ? 0.0f : lines.front().pitch;
   };
   Host bare(400, 400);
@@ -398,12 +416,12 @@ TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
   bare.frame();
 
   Host marked(400, 400);
-  marked.composer.render(
-      box().child(text(passage(), whiteStyle(16))
-                      .key("t")
-                      .width(Dim(220.0f))
-                      .annotate(kit::kenten(sel::text(toU8("three")),
-                                            whiteStyle(6), toU8("."), 1.0f))));
+  marked.composer.render(box().child(
+      text(passage(), whiteStyle(16))
+          .key("t")
+          .width(Dim(220.0f))
+          .annotate(kit::kenten(sigil::weave::sel::text(toU8("three")),
+                                whiteStyle(6), toU8("."), 1.0f))));
   marked.frame();
 
   EXPECT_NEAR(pitchOf(marked), pitchOf(bare), 0.01f);
@@ -412,8 +430,10 @@ TEST(ComposeAnnotate, AReadingThatReservesNothingLeavesThePitchAlone) {
 // ── A story through a chain of frames ────────────────────────────────────
 
 TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
-  Story article(rich(whiteStyle(13)).add(passage()).add(toU8(" ")).add(
-      passage()));
+  sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
+                                  .add(passage())
+                                  .add(toU8(" "))
+                                  .add(passage()));
   Host host(500, 300);
   host.composer.render(
       box()
@@ -422,10 +442,12 @@ TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
               Dim(60.0f)))
           .child(frame(article).key("b").width(Dim(160.0f)).height(Dim(200.0f))));
   host.frame();
-  const std::vector<TextUnit> first =
-      host.composer.units("a", sel::each(unit::Word), unit::Word);
-  const std::vector<TextUnit> second =
-      host.composer.units("b", sel::each(unit::Word), unit::Word);
+  const std::vector<TextUnit> first = host.composer.units(
+      "a", sigil::weave::sel::each(sigil::weave::unit::Word),
+      sigil::weave::unit::Word);
+  const std::vector<TextUnit> second = host.composer.units(
+      "b", sigil::weave::sel::each(sigil::weave::unit::Word),
+      sigil::weave::unit::Word);
   // The first frame ran out of room, which is the normal case for every
   // frame of a chain but the last.
   const sigil::weave::ParagraphLayout* head = host.composer.paragraphLayout("a");
@@ -440,8 +462,10 @@ TEST(ComposeStory, EachFrameFillsFromWhereTheOneBeforeItStopped) {
 
 TEST(ComposeStory, ANarrowerFirstFrameMovesTheCut) {
   const auto cutAt = [](float measure) {
-    Story article(rich(whiteStyle(13)).add(passage()).add(toU8(" ")).add(
-        passage()));
+    sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
+                                    .add(passage())
+                                    .add(toU8(" "))
+                                    .add(passage()));
     Host host(500, 300);
     host.composer.render(
         box()
@@ -451,8 +475,9 @@ TEST(ComposeStory, ANarrowerFirstFrameMovesTheCut) {
             .child(
                 frame(article).key("b").width(Dim(160.0f)).height(Dim(200.0f))));
     host.frame();
-    const std::vector<TextUnit> second =
-        host.composer.units("b", sel::each(unit::Word), unit::Word);
+    const std::vector<TextUnit> second = host.composer.units(
+        "b", sigil::weave::sel::each(sigil::weave::unit::Word),
+        sigil::weave::unit::Word);
     return second.empty() ? ~0u : second.front().range.start;
   };
   EXPECT_LT(cutAt(120.0f), cutAt(220.0f));
@@ -465,8 +490,10 @@ TEST(ComposeStory, TheMarkerEndsTheChainAndNoCutInsideIt) {
   // it must NOT take one — a mark at every cut reads as three texts
   // rather than one threaded through three frames.
   const auto chainOf = [](Host& host, std::u8string marker) {
-    Story article(rich(whiteStyle(13)).add(passage()).add(toU8(" ")).add(
-        passage()));
+    sigil::weave::Story article(sigil::weave::rich(whiteStyle(13))
+                                    .add(passage())
+                                    .add(toU8(" "))
+                                    .add(passage()));
     host.composer.render(box().child(
         kit::columns(article, 3, 12.0f, 240.0f, 32.0f, "col",
                      std::move(marker))));
@@ -639,7 +666,8 @@ namespace {
 
 /** A chain of two frames over one story, drawn once. */
 void twoFrames(Host& host, float measure = 160.0f) {
-  Story article(rich(whiteStyle(13)).add(longPassage()));
+  sigil::weave::Story article(
+      sigil::weave::rich(whiteStyle(13)).add(longPassage()));
   host.composer.render(
       box()
           .row()
@@ -666,16 +694,24 @@ TEST(ComposeStory, LinesAreNumberedFromTheStoryAndNotFromTheFrame) {
 
   // A line the FIRST frame holds is addressed on the first frame and
   // nowhere else…
-  EXPECT_FALSE(host.composer.units("a", sel::line(0), unit::Line).empty());
-  EXPECT_TRUE(host.composer.units("b", sel::line(0), unit::Line).empty());
+  EXPECT_FALSE(
+      host.composer
+          .units("a", sigil::weave::sel::line(0), sigil::weave::unit::Line)
+          .empty());
+  EXPECT_TRUE(
+      host.composer
+          .units("b", sigil::weave::sel::line(0), sigil::weave::unit::Line)
+          .empty());
   // …and the line just past it is the second frame's first line, addressed
   // by its number in the STORY rather than by its number in the frame.
-  EXPECT_TRUE(
-      host.composer.units("a", sel::line((uint32_t)headLines), unit::Line)
-          .empty());
-  EXPECT_FALSE(
-      host.composer.units("b", sel::line((uint32_t)headLines), unit::Line)
-          .empty());
+  EXPECT_TRUE(host.composer
+                  .units("a", sigil::weave::sel::line((uint32_t)headLines),
+                         sigil::weave::unit::Line)
+                  .empty());
+  EXPECT_FALSE(host.composer
+                   .units("b", sigil::weave::sel::line((uint32_t)headLines),
+                          sigil::weave::unit::Line)
+                   .empty());
 }
 
 TEST(ComposeStory, InFrameIsTheFrameLocalAddressBesideTheStoryWideOnes) {
@@ -687,16 +723,22 @@ TEST(ComposeStory, InFrameIsTheFrameLocalAddressBesideTheStoryWideOnes) {
 
   // On its own it is everything that frame holds, and nothing anywhere
   // else.
-  EXPECT_FALSE(host.composer.units("b", sel::inFrame("b"), unit::Line).empty());
-  EXPECT_TRUE(host.composer.units("a", sel::inFrame("b"), unit::Line).empty());
+  EXPECT_FALSE(
+      host.composer.units("b", sel::inFrame("b"), sigil::weave::unit::Line)
+          .empty());
+  EXPECT_TRUE(
+      host.composer.units("a", sel::inFrame("b"), sigil::weave::unit::Line)
+          .empty());
   // Composed, it cuts a story-wide address to one frame: the story's line 0
   // is in frame a, so asking for it inside frame b addresses nothing.
-  EXPECT_TRUE(
-      host.composer.units("b", sel::inFrame("b") & sel::line(0), unit::Line)
-          .empty());
-  EXPECT_FALSE(
-      host.composer.units("a", sel::inFrame("a") & sel::line(0), unit::Line)
-          .empty());
+  EXPECT_TRUE(host.composer
+                  .units("b", sel::inFrame("b") & sigil::weave::sel::line(0),
+                         sigil::weave::unit::Line)
+                  .empty());
+  EXPECT_FALSE(host.composer
+                   .units("a", sel::inFrame("a") & sigil::weave::sel::line(0),
+                          sigil::weave::unit::Line)
+                   .empty());
 }
 
 // ── The line-edge and full-width tables, from a compose leaf ─────────────
@@ -714,8 +756,8 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
     if (tsume != 0) leaf.mojikumi({}, tsume);
     host.composer.render(box().child(std::move(leaf)));
     host.frame();
-    const std::vector<TextUnit> line =
-        host.composer.units("t", sel::line(0), unit::Line);
+    const std::vector<TextUnit> line = host.composer.units(
+        "t", sigil::weave::sel::line(0), sigil::weave::unit::Line);
     return line.empty() ? 0.0f : line.front().rect.width();
   };
   const float plain = widthWith(0.0f);
@@ -725,11 +767,12 @@ TEST(ComposeLineTables, TsumeClosesTheGapsBetweenFullWidthCharacters) {
 
 TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
   Host host(600, 500);
-  Story article(rich(whiteStyle(13)).add(longPassage()));
+  sigil::weave::Story article(
+      sigil::weave::rich(whiteStyle(13)).add(longPassage()));
   const auto reveal = [] {
     Track track;
     track.effect = fx::rise(20.0f);
-    track.over = unit::Word;
+    track.over = sigil::weave::unit::Word;
     track.beatsOver = beats::Text;
     track.stagger = {.durationMs = 100.0f, .eachMs = 20.0f};
     track.progress = 0.5f;
@@ -809,7 +852,8 @@ TEST(ComposeFrameOptions, DistributeSpendsTheRoomLeftOverDownAStoryFrame) {
   // magazine is written in.
   const auto baselines = [](sigil::weave::FrameOptions::Distribute rule) {
     Host host(360, 400);
-    Story article(rich(whiteStyle(14)).add(passage()));
+    sigil::weave::Story article(
+        sigil::weave::rich(whiteStyle(14)).add(passage()));
     host.composer.render(box().child(frame(article)
                                          .key("t")
                                          .width(Dim(200.0f))
@@ -846,8 +890,9 @@ std::vector<float> justifiedEdges(sigil::weave::JustificationOptions spec,
           .justification(spec)));
   host.frame();
   std::vector<float> edges;
-  for (const TextUnit& line :
-       host.composer.units("t", sel::each(unit::Line), unit::Line))
+  for (const TextUnit& line : host.composer.units(
+           "t", sigil::weave::sel::each(sigil::weave::unit::Line),
+           sigil::weave::unit::Line))
     edges.push_back(line.rect.right());
   return edges;
 }

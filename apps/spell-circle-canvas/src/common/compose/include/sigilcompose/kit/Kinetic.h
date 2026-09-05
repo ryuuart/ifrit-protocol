@@ -18,8 +18,8 @@
  * progress:
  *
  *   text(u8"ONE LINE, TWO MOVES", display)
- *       .fx({.effect = fx::rise(20), .over = unit::Word})
- *       .fx({.where = sel::text(u8"TWO"),
+ *       .fx({.effect = fx::rise(20), .over = weave::unit::Word})
+ *       .fx({.where = weave::sel::text(u8"TWO"),
  *            .effect = fx::waveLoop(),
  *            .progress = &phase});
  *

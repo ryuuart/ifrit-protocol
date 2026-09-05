@@ -8,7 +8,8 @@ each control.
 
 - [Text fx](#text-fx) — the multi-track per-glyph seam, its selectors, cascades and presets
 - [Text on a path](#text-on-a-path)
-- [Mixed text](#mixed-text) — `rich()`, span restyling, and the layout setters
+- [Mixed text](#mixed-text) — `weave::rich()`, span restyling, and the
+  layout setters
 - [A passage whose input moves](#a-passage-whose-input-moves) — `live`, the budget, and what a frame reports
 - [Paragraphs, frames and stories](#paragraphs-frames-and-stories)
 - [Beside the text](#beside-the-text) — `Composer::units`, annotations, and the kit over them
@@ -18,10 +19,23 @@ What a decoration dresses — `Element::boundary`, and the three
 mechanisms behind it — stays in the README, because a glyph boundary is
 one of three answers and the other two are about shapes and images.
 
+**Where the words live.** The TEXT'S OWN vocabulary is the paragraph
+engine's and is spelled `weave::`: the content (`weave::rich`,
+`weave::RichText`, `weave::Story`), the granularity (`weave::Unit`,
+`weave::unit::Word`), and selection with every form that names a position
+in the text (`weave::Selector`, `weave::sel::word`, `weave::sel::regex`,
+`weave::sel::each`). Include them from `<sigilweave/paragraph/RichText.h>`,
+`<sigilweave/layout/Story.h>`, `<sigilweave/paragraph/Unit.h>` and
+`<sigilweave/query/Selector.h>`. What this library adds is the DRESSING —
+the track, the effect, the reading, the path, the unit as the layout
+placed it — and the two selector forms whose subject is a description of
+this library: `sel::style`, a run written under a name, and
+`sel::inFrame`, one frame of a chain named by its `Element::key`.
+
 ### Text fx
 
 Motion inside a text leaf is a list of **tracks**. One `Track` is five
-values — *which* glyphs (`Selector`), *what* deviation from rest
+values — *which* glyphs (`weave::Selector`), *what* deviation from rest
 (`TextEffect`), *how* the beats spread (`motion::Spread`), what a unit IS
 (`Track::over`), and the master `Animatable<float>` progress that drives
 it. The spread is SigilMotion's and says nothing about text; `over` is the
@@ -36,33 +50,35 @@ the kit's, in `kit/Kinetic.h`.
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
-    .fx({.effect = fx::rise(20), .over = unit::Word})
-    .fx({.where = sel::text(u8"TWO"),
+    .fx({.effect = fx::rise(20), .over = weave::unit::Word})
+    .fx({.where = weave::sel::text(u8"TWO"),
          .effect = fx::waveLoop(),
          .progress = &phase});
 ```
 
-**Units.** `Unit` is the granularity a selector slices and a cascade beats
-over: `unit::Glyph`, `unit::Cluster`, `unit::Word`, `unit::Line`,
-`unit::Sentence`. `unit::Cluster` is the default, and it is the one that
-keeps text correct — a base letter and its combining marks are one unit
-and never separate under a stagger.
+**Units.** `weave::Unit` is the granularity a selector slices and a cascade
+beats over: `weave::unit::Glyph`, `weave::unit::Cluster`,
+`weave::unit::Word`, `weave::unit::Line`, `weave::unit::Sentence`.
+`weave::unit::Cluster` is the default, and it is the one that keeps text
+correct — a base letter and its combining marks are one unit and never
+separate under a stagger.
 
-**Selectors.** `sel::word`, `sel::words`, `sel::line`, `sel::sentence`,
-`sel::range`, `sel::text` and `sel::regex` name a position in the text;
-`sel::each` slices every unit of one granularity the same way, with
-`Selector::take` and `Selector::drop` partitioning each unit exactly.
-Combine with `|`, `&` and `!`. A default-constructed `Selector` addresses
-everything. Selection is resolved once per (content, layout, selector) and
-cached on the element; a pattern that does not compile selects nothing and
-warns once.
+**Selectors.** `weave::sel::word`, `weave::sel::words`, `weave::sel::line`,
+`weave::sel::sentence`, `weave::sel::range`, `weave::sel::text` and
+`weave::sel::regex` name a position in the text; `weave::sel::each` slices
+every unit of one granularity the same way, with `weave::Selector::take` and
+`weave::Selector::drop` partitioning each unit exactly. Combine with `|`,
+`&` and `!`. A default-constructed `weave::Selector` addresses everything.
+Selection is resolved once per (content, layout, selector) and cached on the
+element; a pattern that does not compile selects nothing and warns once.
 
 `sel::style` is the odd one out and addresses the TREATMENT rather than a
-position: every run a `rich()` value added under a style name
-(`RichText::add` with a name resolved through a `sigil::weave::StyleSet`).
+position: every run a `weave::rich()` value added under a style name
+(`weave::RichText::add` with a name resolved through a
+`sigil::weave::StyleSet`).
 
 ```cpp
-text(rich(base).styles(set)
+text(weave::rich(base).styles(set)
          .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
     .fx({.where = !sel::style("term"), .effect = TextEffect::variableAxis("GRAD", 900)});
 ```
@@ -72,7 +88,7 @@ changes, where naming the literal words means editing the selector every
 time an author edits a sentence. It resolves through the run's TEXT, so
 re-registering the name against a different style — or a `spanPaint` or
 `spanStyle` cutting across the run — leaves the same runs selected. Only a
-named `rich()` run carries a name: plain text, a run given a style
+named `weave::rich()` run carries a name: plain text, a run given a style
 directly, and the paragraph overload have none, so there it selects nothing
 and warns once per name, as does a name no run was written with.
 
@@ -97,7 +113,7 @@ and lip-sync timing actually is:
 text(lyric).fx({.effect = fx::rise(12),
                 .stagger = motion::Spread{.durationMs = 180}
                                .cues({0, 340, 720, 1180}),
-                .over = unit::Word});
+                .over = weave::unit::Word});
 ```
 
 It answers the spread itself, so it goes anywhere one goes and compares
@@ -188,8 +204,10 @@ phase** — an `Output` stepped mod 1, the clock `fx::waveLoop` already reads
 motion::Spread cascade = motion::Spread{}.cues(columnStartsMs);
 cascade.then({.eachMs = 80, .durationMs = 1400});
 cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
-text(field, rain).fx({.effect = streak, .stagger = cascade,
-                      .over = unit::Line, .innerOver = unit::Cluster,
+text(field, rain).fx({.effect = streak,
+                      .stagger = cascade,
+                      .over = weave::unit::Line,
+                      .innerOver = weave::unit::Cluster,
                       .progress = &phase});  // phase wraps every 5 s
 ```
 
@@ -219,14 +237,14 @@ resolves — a caret, a callout, a tick, a rule standing at a word's edge:
 
 ```cpp
 text(line, style)
-    .mark(sel::word(3), box().left(0).top(pct(100))
+    .mark(weave::sel::word(3), box().left(0).top(pct(100))
                              .width(pct(100)).height(2).fill(ink));
 ```
 
 The child's box is that rect, and its own placement longhand is read
 *inside* it, exactly as a `positioned()` child reads it against its parent —
 so a mark with no dims at all simply is the unit's rect, and one with them
-is free to hang outside it. That is the difference from `RichText::slot`,
+is free to hang outside it. That is the difference from `weave::RichText::slot`,
 which reserves space *in the flow*: the line breaks around a slot and the
 type after it starts further along, where a mark is placed on a line laid
 out as though it were not there. A selector resolving several units gives
@@ -580,29 +598,33 @@ declare by hand; it follows from the baseline you gave it.
 ### Mixed text
 
 **There is no markup language.** Text that is not all set the same way is a
-`RichText` value plus selector styling, and the two cover different halves
-of the problem: `rich()` says what the CONTENT is, and `spanPaint` /
-`spanStyle` say what a RANGE of it looks like.
+`weave::RichText` value plus selector styling, and the two cover different
+halves of the problem: `weave::rich()` says what the CONTENT is, and
+`spanPaint` / `spanStyle` say what a RANGE of it looks like.
 
 ```cpp
-auto p = rich(base)
+auto p = weave::rich(base)
              .add(u8"Signal ")
              .add(u8"woven", accent)
              .add(u8" through ")
              .add(u8"noise", mono);
 
 text(p)
-    .spanPaint(sel::regex(u8"[0-9]+"), sigil::weave::PaintStyle(SK_ColorRED))
+    .spanPaint(weave::sel::regex(u8"[0-9]+"),
+               sigil::weave::PaintStyle(SK_ColorRED))
     .maxLines(3)
     .ellipsis(u8"…");
 ```
 
-`RichText::slot` reserves an INLINE SLOT in the run stream — a box of blank
-space the flow weaves in, and the name a child of this text node is laid out
-into:
+`weave::RichText::slot` reserves an INLINE SLOT in the run stream — a box of
+blank space the flow weaves in, and the name a child of this text node is
+laid out into:
 
 ```cpp
-text(rich(body).add(u8"press ").slot("key", {28, 18}).add(u8" to continue"))
+text(weave::rich(body)
+         .add(u8"press ")
+         .slot("key", {28, 18})
+         .add(u8" to continue"))
     .child(box().key("key").fill(ink).corners({4}));
 ```
 
@@ -625,14 +647,15 @@ and neither is reachable by `renderSlot`. A child keyed for a slot the
 content does not declare draws nothing and says so once; a slot the geometry
 could not place is silent, like every other word that did not fit.
 
-`RichText::add` takes a run in the base style, a run in its own
+`weave::RichText::add` takes a run in the base style, a run in its own
 `sigil::weave::TextStyle`, or a run under a NAME resolved through a
-`sigil::weave::StyleSet` — supplied by `RichText::styles` or inherited
-through `core::env::Provide`. An explicit set beats the inherited one whichever
-order the two are written in, and a name the set does not register resolves
-to the base `rich()` was given, so a misspelling shows as content set in
-the default rather than as content that did not draw. `RichText::runs` and
-`RichText::base` read the finished value back.
+`sigil::weave::StyleSet` — supplied by `weave::RichText::styles` or
+inherited through `core::env::Provide`. An explicit set beats the inherited
+one whichever order the two are written in, and a name the set does not
+register resolves to the base `weave::rich()` was given, so a misspelling
+shows as content set in the default rather than as content that did not
+draw. `weave::RichText::runs` and `weave::RichText::base` read the finished
+value back.
 
 **It is a comparable value, and that is the point.** Two rich texts with
 the same base and the same runs in the same styles are equal, so a
@@ -645,7 +668,7 @@ colours in a sentence.
 
 **Selector styling.** `Element::spanPaint` and `Element::spanStyle`
 restyle whatever the SAME `sel::` selectors the tracks use address, on
-every content form alike — plain text, `rich()` spans and the paragraph
+every content form alike — plain text, `weave::rich()` spans and the paragraph
 overload. They are ordered by **what they are allowed to disturb**:
 
 | verb | changes | re-shapes |
@@ -675,7 +698,7 @@ restyle keeps it:
 ```cpp
 sigil::weave::TextStyle graded = base;
 graded.variation("GRAD", 780);
-text(copy, base).spanStyle(sel::regex(u8"[0-9]+"), graded);
+text(copy, base).spanStyle(weave::sel::regex(u8"[0-9]+"), graded);
 ```
 
 Such a restyle is carried as a track holding `TextEffect::variableAxis`,
@@ -690,17 +713,18 @@ an earlier axis-only restyle under a later reshaping one over the same text
 re-shapes too, so the later declaration is the one that stands.
 
 `spanPaint` and `spanStyle` resolve their selection as TEXT RANGES rather
-than glyphs, because a restyle runs on the paragraph before there are
-glyphs to point at: `sel::text` and `sel::regex` through weave's query
-layer, `sel::word`, `sel::words`, `sel::sentence` and `sel::range` through
-the paragraph's own structure, `sel::style` through the named runs the
-content declared, and `sel::line` through the layout. Two consequences
-follow. `Selector::take` and `Selector::drop` slice glyphs inside a unit,
-which no text range can express — an `sel::each` selector restyles its
-whole units and the slice warns once. And a `sel::line` restyle costs a
-second layout pass and addresses the layout of the text BEFORE the restyle:
-it does not chase its own result, so a `spanStyle` that moves the line
-breaks leaves the selection where the first breaking put it.
+than glyphs, because a restyle runs on the paragraph before there are glyphs
+to point at: `weave::sel::text` and `weave::sel::regex` through weave's
+query layer, `weave::sel::word`, `weave::sel::words`, `weave::sel::sentence`
+and `weave::sel::range` through the paragraph's own structure, `sel::style`
+through the named runs the content declared, and `weave::sel::line` through
+the layout. Two consequences follow. `weave::Selector::take` and
+`weave::Selector::drop` slice glyphs inside a unit, which no text range can
+express — an `weave::sel::each` selector restyles its whole units and the
+slice warns once. And a `weave::sel::line` restyle costs a second layout
+pass and addresses the layout of the text BEFORE the restyle: it does not
+chase its own result, so a `spanStyle` that moves the line breaks leaves the
+selection where the first breaking put it.
 
 **Layout options, fluently.** `Element::textAlign`, `Element::lineBreak`
 (greedy or Knuth-Plass), `Element::hyphenation`, `Element::ellipsis`,
@@ -766,7 +790,7 @@ reader sees — and `Element::paragraphs` says how each one is set, one entry
 per block in block order:
 
 ```cpp
-text(rich(body).add(u8"A heading\nand its body, which runs on\nand on"))
+text(weave::rich(body).add(u8"A heading\nand its body, which runs on\nand on"))
     .width(Dim(360.0f))
     .paragraphs({headingStyle, bodyStyle})
     .firstBaseline(sigil::weave::FrameOptions::FirstBaseline::kCapHeight)
@@ -781,7 +805,7 @@ end of the list is set by the leaf's own settings alone, so ONE entry
 styles the first block and leaves the rest plain. `Element::paragraph`
 sets every block alike, and `Element::paragraphs` also takes NAMES,
 resolved through the `sigil::weave::ParagraphStyleSet` the environment
-offers — the same discipline `rich().add(text, name)` follows for
+offers — the same discipline `weave::rich().add(text, name)` follows for
 character styles. A name no set in scope carries WARNS ONCE and the block
 is set in the set's base entry, because a block quietly set in a default
 nobody asked for looks exactly like a style that did not take.
@@ -790,13 +814,13 @@ nobody asked for looks exactly like a style that did not take.
 FRAME makes that no line makes for itself: where baseline 0 sits below the
 top of the box, and what becomes of the room left over down it.
 
-**A story fills as many frames as it is given.** `Story` is content plus
+**A story fills as many frames as it is given.** `weave::Story` is content plus
 its block styles and nothing else — no layout, no cursor, no frame — and
 `frame(story)` is one text leaf over it, which `Element::key` names and
 `Element::thread` links to the next:
 
 ```cpp
-Story article(rich(body).add(u8"…"));
+weave::Story article(weave::rich(body).add(u8"…"));
 article.paragraphs({headingStyle, bodyStyle, bodyStyle});
 
 root.child(frame(article).key("a").thread("b").width(Dim(300.0f)))
@@ -807,14 +831,14 @@ Each frame fills from where the one before it stopped, so the cut moves as
 any frame's measure moves, and the blocks are numbered from the STORY's
 start — the third block is set the same way whichever frame it lands in.
 
-**A STORY NUMBERS ITS OWN LINES.** `sel::line(40)` is the fortieth line
+**A STORY NUMBERS ITS OWN LINES.** `weave::sel::line(40)` is the fortieth line
 of the story wherever it landed, so a chain that reflows moves the
 selection with the text instead of addressing a different line in every
 frame; words, characters, sentences and named runs were the story's
 already, since every frame builds the whole story's paragraph and resumes
 at a word. `sel::inFrame("b")` is the frame-local address beside it —
 everything the named frame holds, and nothing anywhere else — so
-`sel::inFrame("b") & sel::line(40)` is "line 40, if frame b is where it
+`sel::inFrame("b") & weave::sel::line(40)` is "line 40, if frame b is where it
 landed". A frame-local address on a leaf with no `key` can never match and
 warns once.
 
@@ -857,8 +881,9 @@ from: one `TextUnit` per unit a selector addresses, in draw order, in the
 composer's space.
 
 ```cpp
-for (const TextUnit &u : composer.units("verse", sel::each(unit::Word),
-                                        unit::Word))
+for (const TextUnit &u :
+     composer.units("verse", weave::sel::each(weave::unit::Word),
+                    weave::unit::Word))
   ;  // u.rect, u.axis, u.pitch, u.ascent, u.range, u.style, u.lineIndex
 ```
 
@@ -895,7 +920,8 @@ the caller: the object is still tied to a text position and still moves
 when the text reflows, but it stands at an offset the author states.
 
 ```cpp
-kit::annotate(composer, "verse", sel::text(u8"Ishmael"), unit::Word,
+kit::annotate(composer, "verse", weave::sel::text(u8"Ishmael"),
+              weave::unit::Word,
               {.horizontal = kit::Anchored::From::Frame, .offset = {-44, 0}},
               [&](const TextUnit &u) { return figure(u); });
 ```
@@ -922,7 +948,7 @@ of it — is a selector and a span restyle, and `kit::NestedStyle` is the
 statement of where it stops: `kit::NestedStyle::Until::Words` counts the
 paragraph's own words, `Until::Characters` counts a character range, and
 `Until::Delimiter` runs through the first occurrence of a mark, inclusive.
-`kit::nestedRun` answers the `Selector` that means, `Element::spanStyle`
+`kit::nestedRun` answers the `weave::Selector` that means, `Element::spanStyle`
 does the work, and `kit::dropCap` takes one so an initial and the small
 caps that carry a paragraph out of it are written together.
 
@@ -944,11 +970,11 @@ delimiter leaves it covering nothing rather than covering the paragraph.
 `sigil::weave::WritingMode::kVerticalRL` is the CJK book layout: characters
 top to bottom, columns advancing RIGHT TO LEFT from the node's right edge.
 It is a field-masked override like every other layout setter, so it works on
-plain text, on `rich()` spans, and on the paragraph overload — where a mode
-nobody names leaves the paragraph's own mode standing.
+plain text, on `weave::rich()` spans, and on the paragraph overload — where
+a mode nobody names leaves the paragraph's own mode standing.
 
 ```cpp
-text(rich(mincho)
+text(weave::rich(mincho)
          .add(u8"平成")
          .add(u8"31", tateChuYoko)
          .add(u8"年、縦組みに対応した。"))
@@ -970,7 +996,7 @@ with a horizontal neighbour's first line.
 **Per character the orientation is UTR#50's**: ideographs stand upright and
 take their `vert` forms, Latin lies on its side. A run that wants otherwise
 says so in its own style — `sigil::weave::VerticalForm` is `kAuto`,
-`kUpright`, `kRotated` or `kTateChuYoko` — set on a `rich()` run's
+`kUpright`, `kRotated` or `kTateChuYoko` — set on a `weave::rich()` run's
 `sigil::weave::TextStyle` or through `spanStyle`. It is a SHAPING field, so
 it re-shapes the words it covers and nothing else; there is no separate verb
 because there is no separate concept. 縦中横 is the one to know: a short run
@@ -988,20 +1014,21 @@ naming one re-shapes the runs it covers — and they are NOT gated on the
 writing direction, so a style carrying them and set along a line takes them
 there too.
 
-**The engine runs in columns.** `unit::Line` IS A COLUMN here, so a
-track with `.over = unit::Line` beats column by column and `sel::line(0)` addresses
-the rightmost one; `unit::Cluster` runs down a column in reading order.
-`spanPaint`, `spanStyle`, `textAlign` (start is the top of the column),
-`maxLines` (which clamps COLUMNS) with `ellipsis` at the clamped column's
-foot, `flowAround`, `lastLine`, `lineBreak`, `textStroke`,
-`variationDrive` and `feed()`'s text tier all work as they do across a line.
-`mark()` anchors as it does anywhere — its rect is the union of the advance
-boxes its selector addressed, and in a column those stack downward, so a
-phrase's mark is a tall box standing in that phrase's column.
-`Element::textFill` maps its unit square onto the COLUMN BLOCK rather than
-onto a cap band — a column's glyphs centre across its axis instead of
-standing on a baseline, so there is no cap band to hang a ramp on — which
-means a gradient authored in [0,1]² crosses the type reading DOWN the page.
+**The engine runs in columns.** `weave::unit::Line` IS A COLUMN here, so a
+track with `.over = weave::unit::Line` beats column by column and
+`weave::sel::line(0)` addresses the rightmost one; `weave::unit::Cluster`
+runs down a column in reading order. `spanPaint`, `spanStyle`, `textAlign`
+(start is the top of the column), `maxLines` (which clamps COLUMNS) with
+`ellipsis` at the clamped column's foot, `flowAround`, `lastLine`,
+`lineBreak`, `textStroke`, `variationDrive` and `feed()`'s text tier all
+work as they do across a line. `mark()` anchors as it does anywhere — its
+rect is the union of the advance boxes its selector addressed, and in a
+column those stack downward, so a phrase's mark is a tall box standing in
+that phrase's column. `Element::textFill` maps its unit square onto the
+COLUMN BLOCK rather than onto a cap band — a column's glyphs centre across
+its axis instead of standing on a baseline, so there is no cap band to hang
+a ramp on — which means a gradient authored in [0,1]² crosses the type
+reading DOWN the page.
 
 **Track deviations apply in the frame the layout placed the glyph in**, the
 same rule a path baseline follows — and in a column the placed frame is the

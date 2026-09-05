@@ -29,6 +29,11 @@ class SkCanvas;
 
 namespace sigil::weave {
 class FontContext;
+// What a text query addresses and at which granularity — the paragraph
+// engine's, in <sigilweave/query/Selector.h> and
+// <sigilweave/paragraph/Unit.h>.
+class Selector;
+enum class Unit : uint8_t;
 }
 
 namespace sigil::compose {
@@ -39,9 +44,8 @@ struct Instance;
 
 // The typography vocabulary the text queries answer in, defined under
 // <sigilcompose/typography/>: a caller of `beatsOf` or `units` includes
-// the header that spells the value it reads back.
-class Selector;
-enum class Unit : uint8_t;
+// the header that spells the value it reads back. What it addresses and
+// at which granularity are SigilWeave's, declared above.
 struct TextUnit;
 struct Beat;
 
@@ -259,9 +263,9 @@ class Composer {
    *  An unknown key, a node that is not text, and a selector that addresses
    *  nothing all resolve to an EMPTY vector, silently, exactly as an
    *  unknown key resolves everywhere else in the query family. */
-  [[nodiscard]] std::vector<TextUnit> units(std::string_view key,
-                                            const Selector& selector,
-                                            Unit unit) const;
+  [[nodiscard]] std::vector<TextUnit> units(
+      std::string_view key, const sigil::weave::Selector& selector,
+      sigil::weave::Unit unit) const;
   /** THE CASCADE'S WHOLE VIRTUAL SPAN, in ms — what track @p trackIndex's
    *  master progress [0,1] maps onto: the moment its last beat closes,
    *  compounded under a nested cascade and read off the table under a cue

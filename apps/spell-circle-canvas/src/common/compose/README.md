@@ -24,7 +24,7 @@ without rebuilding the world.
 **`TYPOGRAPHY.md` is the type chapter.** Everything a passage of type can
 be told past `text(utf8, style)` — the per-glyph fx tracks, a run on a
 path, span restyling, the paragraph controls, threaded frames over a
-`Story`, readings beside the type, a passage whose measure moves, and
+`weave::Story`, readings beside the type, a passage whose measure moves, and
 vertical CJK — lives there, and is checked against the headers by the
 same probe this page is.
 
@@ -232,10 +232,10 @@ are painted back to front by depth (see "3D, the CSS way").
 
 ### Type
 
-`text(utf8, style)` and `text(rich(base).add(…))` are the two content
+`text(utf8, style)` and `text(weave::rich(base).add(…))` are the two content
 forms, and everything a passage can be told past that — the per-glyph fx
 tracks and their selectors, a run riding a path, span restyling, the
-paragraph controls, threaded frames over a `Story`, readings set beside
+paragraph controls, threaded frames over a `weave::Story`, readings set beside
 the type, a passage whose measure moves, and vertical CJK columns — is in
 **`TYPOGRAPHY.md`**, one file over. It is checked against the headers by
 the same probe this page is.
@@ -657,28 +657,32 @@ once per colour type, and a host whose surface never changes pays one
 comparison a frame. A view handed over as an `Effect` is already built
 and is taken as it stands.
 
-**Type — `typography/`.** The text vocabulary is this feature's, one
-header per value family: `typography/Units.h` — `Unit` and `unit::`, the
-granularity a selector slices and a cascade beats over, and `TextUnit`,
-one unit as the layout placed it; `typography/Selector.h` — `Selector`
-and `sel::`; `typography/TextEffect.h` — `GlyphInfo`, `GlyphMod`,
-`TextEffect`, `Phase`, and the effects the runtime evaluates by
-structure: `fx::scramble`, the `fx::keys` keyframe table, the `fx::pass`
-shader pass, the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the
-`fx::effect` door; `typography/Track.h` — `Track`, `Beats` and `Beat`;
-`typography/RichText.h` — `rich` / `RichText` and `Story`;
+**Type — `typography/`.** The DRESSING is this feature's, one header per
+value family: `typography/TextUnit.h` — `TextUnit`, one unit as the layout
+placed it; `typography/Selector.h` — `sel::style` and `sel::inFrame`, the
+two selector forms whose subject is a description of this library;
+`typography/TextEffect.h` — `GlyphInfo`, `GlyphMod`, `TextEffect`,
+`Phase`, and the effects the runtime evaluates by structure:
+`fx::scramble`, the `fx::keys` keyframe table, the `fx::pass` shader pass,
+the `fx::seq`, `fx::mix` and `fx::hold` combinators, and the `fx::effect`
+door; `typography/Track.h` — `Track`, `Beats` and `Beat`;
 `typography/Annotation.h` — `Annotation`; `typography/TextPath.h` —
 `TextPath`; and `typography/Typography.h`, the umbrella over them. The
-kernel describes its text leaf in this vocabulary — a description stores
-tracks, runs and readings — and every member it stores, compares or
+TEXT ITSELF is SigilWeave's and is included from there: `weave::rich` /
+`weave::RichText` and `weave::Story` for the content, `weave::Unit` and
+`weave::unit::` for the granularity, `weave::Selector` and `weave::sel::`
+for what a track addresses.
+
+The kernel describes its text leaf in that vocabulary — a description
+stores tracks, runs and readings — and every member it stores, compares or
 evaluates is defined in the header that declares it, so the kernel links
 no engine to do so; what the feature's archive holds is the members that
-carry a diagnostic, the mixed-text builders, and the engine behind
-dressed type. The stock effects over the seam are stock values, and so
-the kit's — `kit/Kinetic.h`, below. A text verb takes this
-vocabulary and a text query answers in it, and the kernel's own headers
-only name it: a call site that dresses its type, or reads a beat or a
-unit back, includes the typography header that spells the value. A
+carry a diagnostic and the engine behind dressed type. The stock effects
+over the seam are stock values, and so the kit's — `kit/Kinetic.h`, below.
+A text verb takes this vocabulary and a text query answers in it, and the
+kernel's own headers only name it: a call site that dresses its type, or
+reads a beat or a unit back, includes the header that spells the value —
+this feature's for the dressing, SigilWeave's for the text. A
 style's own numbers are SigilWeave's: `weave::textStyle` builds a
 `weave::TextStyle` from the designated-init `weave::Type`
 (`<sigilweave/style/Type.h>`), and `weave::ports::pickTypeface` resolves the
@@ -881,11 +885,11 @@ Several correct behaviours produce nothing, with no diagnostic, and look
 exactly like a layout bug.
 
 - **An unknown key resolves to nothing, everywhere in the derive family.**
-  `flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a
-  `connector` to a node not in the tree, a `strand::from` on a missing key
-  — every one draws nothing and says nothing. Check your keys first. (A
-  `rich().slot()` name is the one that is LOUD, once: it names a mount point
-  the author typed, not a geometry source.)
+`flowAround("typo")`, `spans::fit("typo")`, `around("typo")`, a `connector`
+to a node not in the tree, a `strand::from` on a missing key — every one
+draws nothing and says nothing. Check your keys first. (A
+`weave::rich().slot()` name is the one that is LOUD, once: it names a mount
+point the author typed, not a geometry source.)
 - **Hit testing returns any keyed node whose box contains the point,
   painted or not.** A keyed full-bleed layout shell with no fill therefore
   swallows every hit in the frame, and the failure is total and silent.

@@ -472,7 +472,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *      auto burn = Material::recipe(material::Material(dissolve, Burn{ink}));
  *      text(u8"EMBER DECODE", display)
  *          .fx({.effect = fx::pass(burn),
- *               .stagger = {.eachMs = 260}, .over = unit::Cluster});
+ *               .stagger = {.eachMs = 260}, .over = weave::unit::Cluster});
  *
  *  THE MATERIAL MUST BE RECIPE-BACKED (`Material::recipe`) over a recipe
  *  with an SkSL body, because the unit count is baked into the compiled

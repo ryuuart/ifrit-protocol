@@ -160,7 +160,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
         !propEqual(ta.tracks[i].progress, tb.tracks[i].progress))
       return false;
   if (ta.utf8 != tb.utf8 || !(ta.style == tb.style)) return false;
-  // rich(): a whole mixed paragraph as one comparable value — same base,
+  // weave::rich(): a whole mixed paragraph as one comparable value — same base,
   // same runs, same resolved styles — so a component that rebuilds its
   // spans every describe prunes like a static leaf. This is exactly what
   // the shared_ptr<Paragraph> overload below cannot answer.
@@ -619,12 +619,12 @@ void Composer::Impl::materializeText(
   } else if (!text.rich.empty()) {
     // The runs concatenate with nothing between them: a rich text's spacing
     // is the author's own, exactly as it is in the strings they wrote.
-    for (const RichText::Run& run : text.rich.runs()) {
-      if (!run.slotKey.empty()) {
+    for (const sigil::weave::RichText::Run& run : text.rich.runs()) {
+      if (!run.slotName.empty()) {
         // A slot run reserves a box instead of setting glyphs. The names go
         // into one list in declaration order, which is the order weave
         // matches its placeholder records to the U+FFFCs in the text.
-        inst.textSlotKeys.push_back(run.slotKey);
+        inst.textSlotKeys.push_back(run.slotName);
         inst.paragraph->appendPlaceholder(
             {run.slotSize.width(), run.slotSize.height(), run.slotBaselineDrop},
             run.style);

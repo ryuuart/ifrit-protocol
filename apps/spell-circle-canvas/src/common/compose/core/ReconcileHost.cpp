@@ -252,7 +252,7 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
         prevText->spanRestyles != text.spanRestyles;
     if (textChanged) {
       inst.contentRev++;
-      // No layout yet at describe time, so a sel::line restyle resolves
+      // No layout yet at describe time, so a weave::sel::line restyle resolves
       // against nothing here; layoutText() re-materializes against the
       // fresh line geometry when one is asked for.
       materializeText(inst);

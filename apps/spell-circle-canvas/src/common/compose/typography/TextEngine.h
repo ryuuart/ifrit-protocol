@@ -48,10 +48,10 @@ namespace sigil::compose::detail {
  *  numbering the words and lines — do not depend on which track is asking.
  *  Reused across frames: build() keeps the allocations. */
 struct GlyphStructure {
-  static constexpr size_t kUnits = 5;  ///< one lane per Unit enumerator
+  static constexpr size_t kUnits = 5;  ///< one lane per weave::Unit enumerator
 
   std::vector<GlyphInfo> glyphs;  ///< in draw order, structure filled in
-  /** Per Unit: glyph index → the unit it belongs to, numbered from 0 in
+  /** Per weave::Unit: glyph index → the unit it belongs to, numbered from 0 in
    *  draw order. */
   std::array<std::vector<uint32_t>, kUnits> unitOf;
   std::array<uint32_t, kUnits> unitCounts{};
@@ -80,7 +80,7 @@ struct GlyphStructure {
 /** Which glyphs a selector addresses: one byte per glyph, in walk order.
  *  A pattern that does not compile answers all-zero and warns once, and so
  *  does an `sel::style` name @p named does not carry. */
-std::vector<uint8_t> resolveSelection(const Selector& selector,
+std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
                                       const GlyphStructure& structure,
                                       const sigil::weave::Paragraph& paragraph,
                                       std::span<const NamedRun> named);
@@ -97,17 +97,17 @@ void warnNoSuchFrameKey(const std::u8string& key);
  *
  *  Sorted, merged and non-overlapping. `|`, `&` and `!` are interval
  *  arithmetic over the text; the complement is taken against the whole
- *  text. `sel::line` reads @p lines, or @p columns where the passage is
+ *  text. `weave::sel::line` reads @p lines, or @p columns where the passage is
  *  vertical and a line IS a column — the geometry a previous layout
  *  produced, passed as plain values rather than as a layout because the
  *  paragraph that layout belongs to is the one being replaced — and
- *  addresses nothing when both are empty. `Selector::take`/`drop` slice
- *  glyphs inside a unit, which no text range can express: an `sel::each`
+ *  addresses nothing when both are empty. `weave::Selector::take`/`drop` slice
+ *  glyphs inside a unit, which no text range can express: an `weave::sel::each`
  *  selector answers with its whole units and the slice warns once.
  *  `sel::style` reads @p named, which is why the table is built before the
  *  restyles that consume it run. */
 std::vector<sigil::weave::CharRange> resolveTextRanges(
-    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    const sigil::weave::Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,
@@ -186,7 +186,8 @@ std::vector<Beat> beatsOfTrack(Composer::Impl& impl, Instance& inst,
  *  from this and a mark anchored to the same selection cannot disagree
  *  about where a unit is. Rects come out in the NODE's own space. */
 std::vector<TextUnit> unitsOfText(Composer::Impl& impl, Instance& inst,
-                                  const Selector& selector, Unit unit);
+                                  const sigil::weave::Selector& selector,
+                                  sigil::weave::Unit unit);
 /** THE BAND A TEXT'S RESERVING READINGS NEED, from their own metrics
  *  alone: the tallest reading's line height plus its standoff, on each
  *  side that carries one. Asked BEFORE the base is laid out. */

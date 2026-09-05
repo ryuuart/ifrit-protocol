@@ -28,9 +28,12 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/typography/Annotation.h>
-#include <sigilcompose/typography/RichText.h>
 #include <sigilcompose/typography/Selector.h>
-#include <sigilcompose/typography/Units.h>
+#include <sigilcompose/typography/TextUnit.h>
+#include <sigilweave/layout/Story.h>
+#include <sigilweave/paragraph/RichText.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Style.h>
 
 #include <algorithm>
@@ -46,19 +49,20 @@ namespace sigil::compose::kit {
 /** FURIGANA: a reading set over the base it reads.
  *
  *      text(passage, body)
- *          .annotate(kit::ruby(sel::text(u8"漢字"), unit::Word,
+ *          .annotate(kit::ruby(weave::sel::text(u8"漢字"), weave::unit::Word,
  *                              {u8"かんじ"}, furigana))
  *
- *  MONO, GROUP AND JUKUGO ARE THE UNIT: `unit::Cluster` gives one reading
- *  per character, `unit::Word` one per word, and a compound annotated per
- *  cluster with the readings its characters take is jukugo. A base that
- *  breaks across a line or a column carries its reading across with it,
+ *  MONO, GROUP AND JUKUGO ARE THE UNIT: `weave::unit::Cluster` gives one
+ *  reading per character, `weave::unit::Word` one per word, and a compound
+ *  annotated per cluster with the readings its characters take is jukugo.
+ *  A base that breaks across a line or a column carries its reading with it,
  *  split in proportion to the base's advance either side.
  *
  *  It RESERVES: the band the reading occupies goes into the base's strut
  *  before the base is broken, so the line pitch — or the column pitch —
  *  opens to hold it and the base is laid out once. */
-[[nodiscard]] inline Annotation ruby(Selector over, Unit unit,
+[[nodiscard]] inline Annotation ruby(sigil::weave::Selector over,
+                                     sigil::weave::Unit unit,
                                      std::vector<std::u8string> readings,
                                      sigil::weave::TextStyle style,
                                      float gap = 0) {
@@ -82,12 +86,12 @@ namespace sigil::compose::kit {
  *  line already has, which is why a marked phrase does not open the pitch
  *  of the paragraph it stands in — and why a passage that wants them clear
  *  of the type asks for leading rather than for a reservation. */
-[[nodiscard]] inline Annotation kenten(Selector over,
+[[nodiscard]] inline Annotation kenten(sigil::weave::Selector over,
                                        sigil::weave::TextStyle style,
                                        std::u8string mark = u8"\xef\xb9\x85",
                                        float gap = 0) {
   return Annotation{.where = std::move(over),
-                    .unit = Unit::Cluster,
+                    .unit = sigil::weave::Unit::Cluster,
                     .readings = {std::move(mark)},
                     .style = std::move(style),
                     .side = Annotation::Side::Before,
@@ -138,17 +142,19 @@ struct NestedStyle {
  *  adds a word before the delimiter extends the run, and one that removes
  *  the delimiter leaves the run covering nothing rather than covering the
  *  paragraph. */
-[[nodiscard]] inline Selector nestedRun(const NestedStyle& nested) {
+[[nodiscard]] inline sigil::weave::Selector nestedRun(
+    const NestedStyle& nested) {
   switch (nested.until) {
     case NestedStyle::Until::Characters:
-      return sel::range({0, nested.count});
+      return sigil::weave::sel::range({0, nested.count});
     case NestedStyle::Until::Words:
-      return sel::words(0, nested.count);
+      return sigil::weave::sel::words(0, nested.count);
     case NestedStyle::Until::Delimiter:
       break;
   }
-  if (nested.delimiter.empty()) return sel::words(0, 0);
-  return sel::regex(u8"\\A[\\s\\S]*?\\Q" + nested.delimiter + u8"\\E");
+  if (nested.delimiter.empty()) return sigil::weave::sel::words(0, 0);
+  return sigil::weave::sel::regex(u8"\\A[\\s\\S]*?\\Q" + nested.delimiter +
+                                  u8"\\E");
 }
 
 /** A BLOCK'S OPENING LETTER OR ORNAMENT, dropped into the lines beneath it.
@@ -258,8 +264,8 @@ struct DroppedCap {
  *  read as three separate texts rather than one story threaded through
  *  three frames. Empty (the default) is the run-on, for a caller who
  *  clips the chain or knows the story fits. */
-[[nodiscard]] inline Element columns(Story story, int count, float gutter,
-                                     float width, float height,
+[[nodiscard]] inline Element columns(sigil::weave::Story story, int count,
+                                     float gutter, float width, float height,
                                      std::string keyPrefix = "column",
                                      std::u8string ellipsis = {}) {
   Element row = box().row().gap(gutter);
@@ -298,20 +304,22 @@ struct BlockRule {
  *                             .bleed = 4, .colour = tint})
  *                     .absolute().inset(0));
  *
- *  The extent comes from `Composer::units` over `unit::Line`, so a rule is
- *  as wide as the lines it dresses rather than as wide as the box they sit
- *  in — which is the difference between a rule under a heading and a rule
- *  under the column the heading is in. `Behind` fills one box over the
- *  whole run of lines; `Above` and `Below` draw one rule at the run's two
- *  ends.
+ *  The extent comes from `Composer::units` over `weave::unit::Line`, so a
+ *  rule is as wide as the lines it dresses rather than as wide as the box
+ *  they sit in — which is the difference between a rule under a heading and
+ *  a rule under the column the heading is in. `Behind` fills one box over
+ *  the whole run of lines; `Above` and `Below` draw one rule at the run's
+ *  two ends.
  *
  *  Describe-time, from the layout the last draw left standing, on the same
  *  terms as everything else here that reads a resolved layout. */
 [[nodiscard]] inline Element rules(const Composer& composer,
-                                   std::string_view key, const Selector& where,
+                                   std::string_view key,
+                                   const sigil::weave::Selector& where,
                                    BlockRule rule) {
   Element overlay = positioned();
-  const std::vector<TextUnit> lines = composer.units(key, where, Unit::Line);
+  const std::vector<TextUnit> lines =
+      composer.units(key, where, sigil::weave::Unit::Line);
   if (lines.empty()) return overlay;
   SkRect extent = lines.front().rect;
   for (const TextUnit& line : lines) extent.join(line.rect);

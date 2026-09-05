@@ -139,8 +139,9 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   }
 }
 
-std::vector<TextUnit> detail::unitsOfText(Composer::Impl& impl, Instance& inst,
-                                          const Selector& selector, Unit unit) {
+std::vector<TextUnit> detail::unitsOfText(
+    Composer::Impl& impl, Instance& inst,
+    const sigil::weave::Selector& selector, sigil::weave::Unit unit) {
   if (!inst.description || !inst.paragraph) return {};
   const sigil::weave::Paragraph& paragraph = *inst.paragraph;
   const TextData* textData =

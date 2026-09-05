@@ -477,11 +477,11 @@ TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
 }
 
 TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
-  // textFill and the Unit ramps must compose, and they very nearly do not:
-  // the metric band already maps the shader's [0,1]² onto the text, so a
-  // Unit ramp dividing by the NODE's size a second time collapses the whole
-  // gradient to a sliver near zero. Every glyph then paints the first stop,
-  // flat — a wrong picture that looks like a deliberate solid fill.
+  // textFill and the weave::Unit ramps must compose, and they very nearly do
+  // not: the metric band already maps the shader's [0,1]² onto the text, so a
+  // weave::Unit ramp dividing by the NODE's size a second time collapses the
+  // whole gradient to a sliver near zero. Every glyph then paints the first
+  // stop, flat — a wrong picture that looks like a deliberate solid fill.
   Host host(320, 160);
   host.composer.render(box().padding(20).child(
       text(u8"HH", whiteStyle(96))
@@ -860,10 +860,10 @@ TEST(ComposeText, EveryCascadeFieldOfATrackParticipatesInEquality) {
   // this makes the decision about it mechanical.
   const Track base{.stagger = {.eachMs = 30}};
   Track over = base;
-  over.over = Unit::Line;
+  over.over = sigil::weave::Unit::Line;
   EXPECT_FALSE(base.sameShape(over)) << "over";
   Track innerOver = base;
-  innerOver.innerOver = Unit::Line;
+  innerOver.innerOver = sigil::weave::Unit::Line;
   EXPECT_FALSE(base.sameShape(innerOver)) << "innerOver";
   Track beatsOver = base;
   beatsOver.beatsOver = Beats::Text;

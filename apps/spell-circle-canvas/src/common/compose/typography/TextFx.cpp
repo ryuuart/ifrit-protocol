@@ -6,7 +6,7 @@
  * by structure — the sequence, the keyframe table, the hold, the
  * scramble and the mix. The arithmetic over those beat numbers is
  * SigilMotion's cascade; the comparable values themselves — `TextEffect`,
- * `Selector` — are defined with their headers.
+ * `weave::Selector` — are defined with their headers.
  *
  * Nothing here touches an Instance or a canvas. TextFxPainting.cpp drives it:
  * build the structure once per frame, resolve each track's selection (cached on
@@ -43,24 +43,25 @@ namespace {
  *  order forEachPlacedGlyph guarantees, so "changed since the previous
  *  glyph" is the whole test — no map, no sort, and a cluster's glyphs stay
  *  together because a cluster's glyphs are adjacent by construction. */
-bool startsUnit(Unit granularity, const sigil::weave::PlacedGlyph& glyph,
+bool startsUnit(sigil::weave::Unit granularity,
+                const sigil::weave::PlacedGlyph& glyph,
                 const sigil::weave::PlacedGlyph& previous, bool first) {
   if (first) return true;
   switch (granularity) {
-    case Unit::Glyph:
+    case sigil::weave::Unit::Glyph:
       return true;
-    case Unit::Cluster:
+    case sigil::weave::Unit::Cluster:
       // The text offset, not the shaped-run-local cluster: a base and a
       // combining mark that fell back to a second font are two runs and one
       // cluster, and a stagger that separated them would leave the accent
       // behind in mid-air.
       return glyph.wordIndex != previous.wordIndex ||
              glyph.textIndex != previous.textIndex;
-    case Unit::Word:
+    case sigil::weave::Unit::Word:
       return glyph.wordIndex != previous.wordIndex;
-    case Unit::Line:
+    case sigil::weave::Unit::Line:
       return glyph.lineIndex != previous.lineIndex;
-    case Unit::Sentence:
+    case sigil::weave::Unit::Sentence:
       return glyph.sentenceIndex != previous.sentenceIndex;
   }
   return true;
@@ -99,7 +100,7 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
         glyphs.push_back(info);
 
         for (size_t lane = 0; lane < kUnits; ++lane) {
-          if (startsUnit((Unit)lane, placed, previous, first))
+          if (startsUnit((sigil::weave::Unit)lane, placed, previous, first))
             ++unitCounts[lane];
           unitOf[lane].push_back(unitCounts[lane] - 1);
         }
@@ -107,13 +108,16 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
           // The three lanes the placed glyph carries a STORY ordinal for.
           // A cluster and a glyph are walk positions and the walk is this
           // frame's, so they keep the frame's numbering.
-          storyUnitOf[(size_t)Unit::Word].push_back(placed.wordIndex);
-          storyUnitOf[(size_t)Unit::Sentence].push_back(placed.sentenceIndex);
-          storyUnitOf[(size_t)Unit::Line].push_back(info.lineIndex);
-          storyUnitOf[(size_t)Unit::Cluster].push_back(
-              unitOf[(size_t)Unit::Cluster].back());
-          storyUnitOf[(size_t)Unit::Glyph].push_back(
-              unitOf[(size_t)Unit::Glyph].back());
+          storyUnitOf[(size_t)sigil::weave::Unit::Word].push_back(
+              placed.wordIndex);
+          storyUnitOf[(size_t)sigil::weave::Unit::Sentence].push_back(
+              placed.sentenceIndex);
+          storyUnitOf[(size_t)sigil::weave::Unit::Line].push_back(
+              info.lineIndex);
+          storyUnitOf[(size_t)sigil::weave::Unit::Cluster].push_back(
+              unitOf[(size_t)sigil::weave::Unit::Cluster].back());
+          storyUnitOf[(size_t)sigil::weave::Unit::Glyph].push_back(
+              unitOf[(size_t)sigil::weave::Unit::Glyph].back());
         }
         previous = placed;
         first = false;
@@ -121,19 +125,21 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
 
   if (textScope.inChain) {
     storyUnitCounts = unitCounts;
-    storyUnitCounts[(size_t)Unit::Word] = (uint32_t)paragraph.words().size();
-    storyUnitCounts[(size_t)Unit::Sentence] =
+    storyUnitCounts[(size_t)sigil::weave::Unit::Word] =
+        (uint32_t)paragraph.words().size();
+    storyUnitCounts[(size_t)sigil::weave::Unit::Sentence] =
         (uint32_t)paragraph.sentenceStarts().size();
-    storyUnitCounts[(size_t)Unit::Line] = textScope.storyLines
-                                              ? textScope.storyLines
-                                              : unitCounts[(size_t)Unit::Line];
+    storyUnitCounts[(size_t)sigil::weave::Unit::Line] =
+        textScope.storyLines ? textScope.storyLines
+                             : unitCounts[(size_t)sigil::weave::Unit::Line];
   }
 
   // The two per-word facts an effect reads (which letter of its word, of
   // how many) need the word's size, which is only known once the word has
   // been walked — so they are a second pass over the finished runs.
   const uint32_t total = (uint32_t)glyphs.size();
-  const std::vector<uint32_t>& wordUnits = unitOf[(size_t)Unit::Word];
+  const std::vector<uint32_t>& wordUnits =
+      unitOf[(size_t)sigil::weave::Unit::Word];
   for (uint32_t begin = 0; begin < total;) {
     uint32_t end = begin + 1;
     while (end < total && wordUnits[end] == wordUnits[begin]) ++end;
@@ -173,12 +179,13 @@ std::vector<sigil::weave::CharRange> namedRunRanges(
   return out;
 }
 
-void resolveInto(const Selector& selector, const GlyphStructure& structure,
+void resolveInto(const sigil::weave::Selector& selector,
+                 const GlyphStructure& structure,
                  const sigil::weave::Paragraph& paragraph,
                  std::span<const NamedRun> named, std::vector<uint8_t>& out) {
   const size_t count = structure.glyphs.size();
   out.assign(count, 0);
-  const Selector::State* s = selector.state();
+  const sigil::weave::Selector::State* s = selector.state();
   if (!s) {  // default-constructed: everything
     std::fill(out.begin(), out.end(), (uint8_t)1);
     return;
@@ -190,27 +197,27 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
     }
   };
   switch (s->kind) {
-    case Selector::Kind::All:
+    case sigil::weave::Selector::Kind::All:
       std::fill(out.begin(), out.end(), (uint8_t)1);
       break;
-    case Selector::Kind::Word:
-    case Selector::Kind::Words:
+    case sigil::weave::Selector::Kind::Word:
+    case sigil::weave::Selector::Kind::Words:
       byIndex([](const GlyphInfo& g) { return g.wordIndex; }, s->lo, s->hi);
       break;
-    case Selector::Kind::Line:
+    case sigil::weave::Selector::Kind::Line:
       byIndex([](const GlyphInfo& g) { return g.lineIndex; }, s->lo, s->hi);
       break;
-    case Selector::Kind::Sentence:
+    case sigil::weave::Selector::Kind::Sentence:
       byIndex([](const GlyphInfo& g) { return g.sentenceIndex; }, s->lo, s->hi);
       break;
-    case Selector::Kind::Range:
+    case sigil::weave::Selector::Kind::Range:
       byIndex([](const GlyphInfo& g) { return g.textIndex; }, s->lo, s->hi);
       break;
-    case Selector::Kind::Text:
+    case sigil::weave::Selector::Kind::Text:
       markRanges(sigil::weave::findAllOccurrences(paragraph, s->pattern),
                  structure, out);
       break;
-    case Selector::Kind::Regex: {
+    case sigil::weave::Selector::Kind::Regex: {
       std::optional<std::vector<sigil::weave::CharRange>> matches =
           sigil::weave::findRegexMatches(paragraph, s->pattern);
       if (!matches) {
@@ -220,7 +227,7 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
       markRanges(*matches, structure, out);
       break;
     }
-    case Selector::Kind::Style: {
+    case sigil::weave::Selector::Kind::Named: {
       const std::vector<sigil::weave::CharRange> runs =
           namedRunRanges(named, s->pattern);
       if (runs.empty()) {
@@ -230,7 +237,7 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
       markRanges(runs, structure, out);
       break;
     }
-    case Selector::Kind::InFrame: {
+    case sigil::weave::Selector::Kind::Scope: {
       // The frame-local address, resolved on the leaf being addressed: it
       // is everything on the frame it names and nothing anywhere else, so
       // intersecting it with a story-wide form cuts that form to one frame.
@@ -242,7 +249,7 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
         std::fill(out.begin(), out.end(), (uint8_t)1);
       break;
     }
-    case Selector::Kind::Each: {
+    case sigil::weave::Selector::Kind::Each: {
       // Every unit sliced the same way, at GLYPH granularity inside it.
       // `drop(n)` and `take(n)` partition a unit exactly: the two answer
       // opposite sides of the same cut, so no glyph is in both and none is
@@ -260,17 +267,18 @@ void resolveInto(const Selector& selector, const GlyphStructure& structure,
       }
       break;
     }
-    case Selector::Kind::Union:
-    case Selector::Kind::Intersect: {
+    case sigil::weave::Selector::Kind::Union:
+    case sigil::weave::Selector::Kind::Intersect: {
       std::vector<uint8_t> lhs, rhs;
       resolveInto(s->operands[0], structure, paragraph, named, lhs);
       resolveInto(s->operands[1], structure, paragraph, named, rhs);
       for (size_t i = 0; i < count; ++i)
-        out[i] = s->kind == Selector::Kind::Union ? (lhs[i] | rhs[i])
-                                                  : (lhs[i] & rhs[i]);
+        out[i] = s->kind == sigil::weave::Selector::Kind::Union
+                     ? (lhs[i] | rhs[i])
+                     : (lhs[i] & rhs[i]);
       break;
     }
-    case Selector::Kind::Complement: {
+    case sigil::weave::Selector::Kind::Complement: {
       std::vector<uint8_t> inner;
       resolveInto(s->operands[0], structure, paragraph, named, inner);
       for (size_t i = 0; i < count; ++i) out[i] = inner[i] ? 0 : 1;
@@ -287,10 +295,11 @@ void warnBadSelectorPattern(const std::u8string& pattern) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)pattern.data(), pattern.size());
   if (!seen.insert(key).second) return;
-  std::fprintf(stderr,
-               "SigilCompose: sel::regex(\"%s\") does not compile — this "
-               "track selects no glyphs\n",
-               key.c_str());
+  std::fprintf(
+      stderr,
+      "SigilCompose: weave::sel::regex(\"%s\") does not compile — this "
+      "track selects no glyphs\n",
+      key.c_str());
 }
 
 void warnNoSuchStyleName(const std::u8string& name) {
@@ -299,11 +308,12 @@ void warnNoSuchStyleName(const std::u8string& name) {
   static thread_local boost::unordered_flat_set<std::string> seen;
   std::string key((const char*)name.data(), name.size());
   if (!seen.insert(key).second) return;
-  std::fprintf(stderr,
-               "SigilCompose: sel::style(\"%s\") — no run of this text was "
-               "written under that name, so it addresses nothing (only a "
-               "rich() run added with add(text, styleName) carries one)\n",
-               key.c_str());
+  std::fprintf(
+      stderr,
+      "SigilCompose: sel::style(\"%s\") — no run of this text was "
+      "written under that name, so it addresses nothing (only a "
+      "weave::rich() run added with add(text, styleName) carries one)\n",
+      key.c_str());
 }
 
 void warnNoSuchFrameKey(const std::u8string& key) {
@@ -318,7 +328,7 @@ void warnNoSuchFrameKey(const std::u8string& key) {
                name.c_str());
 }
 
-std::vector<uint8_t> resolveSelection(const Selector& selector,
+std::vector<uint8_t> resolveSelection(const sigil::weave::Selector& selector,
                                       const GlyphStructure& structure,
                                       const sigil::weave::Paragraph& paragraph,
                                       std::span<const NamedRun> named) {
@@ -360,38 +370,38 @@ Ranges complementRanges(const Ranges& ranges, uint32_t length) {
 
 namespace {
 
-/** Once per process: an `sel::each` slice asked of a text range. */
+/** Once per process: an `weave::sel::each` slice asked of a text range. */
 void warnSliceIgnored() {
   static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   std::fprintf(stderr,
-               "SigilCompose: Selector::take/drop slice GLYPHS inside a "
+               "SigilCompose: weave::Selector::take/drop slice GLYPHS inside a "
                "unit, which a text range cannot express — this span restyle "
                "covers whole units\n");
 }
 
 Ranges resolveTextRangesInto(
-    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    const sigil::weave::Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,
     std::span<const NamedRun> named, const TextScope& scope) {
   const auto length = (uint32_t)paragraph.text().size();
-  const Selector::State* s = selector.state();
+  const sigil::weave::Selector::State* s = selector.state();
   if (!s) return {{0, length}};  // default-constructed: everything
   switch (s->kind) {
-    case Selector::Kind::All:
+    case sigil::weave::Selector::Kind::All:
       return {{0, length}};
-    case Selector::Kind::Word:
-    case Selector::Kind::Words: {
+    case sigil::weave::Selector::Kind::Word:
+    case sigil::weave::Selector::Kind::Words: {
       Ranges words = sigil::weave::wordRanges(paragraph, fonts);
       Ranges out;
       for (uint32_t i = s->lo; i < s->hi && i < words.size(); ++i)
         out.push_back(words[i]);
       return normalize(std::move(out));
     }
-    case Selector::Kind::Line: {
+    case sigil::weave::Selector::Kind::Line: {
       // A vertical passage numbers COLUMNS where a horizontal one numbers
       // lines, and only one of the two lists is ever populated. The index
       // asked for is the STORY's, so it is brought back to this frame's
@@ -411,14 +421,14 @@ Ranges resolveTextRangesInto(
           out.push_back({column.textBegin, column.textEnd});
       return normalize(std::move(out));
     }
-    case Selector::Kind::InFrame: {
+    case sigil::weave::Selector::Kind::Scope: {
       const std::u8string_view key((const char8_t*)scope.frameKey.data(),
                                    scope.frameKey.size());
       if (key.empty()) warnNoSuchFrameKey(s->pattern);
       if (!key.empty() && key == s->pattern) return {{0, length}};
       return {};
     }
-    case Selector::Kind::Sentence: {
+    case sigil::weave::Selector::Kind::Sentence: {
       const std::span<const uint32_t> starts = paragraph.sentenceStarts();
       Ranges out;
       for (uint32_t i = s->lo; i < s->hi && i < starts.size(); ++i)
@@ -426,11 +436,11 @@ Ranges resolveTextRangesInto(
             {starts[i], i + 1 < starts.size() ? starts[i + 1] : length});
       return normalize(std::move(out));
     }
-    case Selector::Kind::Range:
+    case sigil::weave::Selector::Kind::Range:
       return normalize({{std::min(s->lo, length), std::min(s->hi, length)}});
-    case Selector::Kind::Text:
+    case sigil::weave::Selector::Kind::Text:
       return normalize(sigil::weave::findAllOccurrences(paragraph, s->pattern));
-    case Selector::Kind::Regex: {
+    case sigil::weave::Selector::Kind::Regex: {
       std::optional<Ranges> matches =
           sigil::weave::findRegexMatches(paragraph, s->pattern);
       if (!matches) {
@@ -439,20 +449,20 @@ Ranges resolveTextRangesInto(
       }
       return normalize(*std::move(matches));
     }
-    case Selector::Kind::Style: {
+    case sigil::weave::Selector::Kind::Named: {
       Ranges runs = namedRunRanges(named, s->pattern);
       if (runs.empty()) warnNoSuchStyleName(s->pattern);
       return normalize(std::move(runs));
     }
-    case Selector::Kind::Each: {
+    case sigil::weave::Selector::Kind::Each: {
       // A unit's whole extent. The glyph slice has no text-range meaning;
       // saying so once beats a restyle that silently covers more than the
       // author asked for.
       if (s->take >= 0 || s->drop > 0) warnSliceIgnored();
       switch (s->each) {
-        case Unit::Word:
+        case sigil::weave::Unit::Word:
           return normalize(sigil::weave::wordRanges(paragraph, fonts));
-        case Unit::Line: {
+        case sigil::weave::Unit::Line: {
           Ranges out;
           for (const sigil::weave::LineMetrics& line : lines)
             out.push_back({line.textBegin, line.textEnd});
@@ -464,7 +474,7 @@ Ranges resolveTextRangesInto(
           return {{0, length}};
       }
     }
-    case Selector::Kind::Union: {
+    case sigil::weave::Selector::Kind::Union: {
       Ranges out = resolveTextRangesInto(s->operands[0], paragraph, fonts,
                                          lines, columns, named, scope);
       Ranges rhs = resolveTextRangesInto(s->operands[1], paragraph, fonts,
@@ -472,13 +482,13 @@ Ranges resolveTextRangesInto(
       out.insert(out.end(), rhs.begin(), rhs.end());
       return normalize(std::move(out));
     }
-    case Selector::Kind::Intersect:
+    case sigil::weave::Selector::Kind::Intersect:
       return intersectRanges(
           resolveTextRangesInto(s->operands[0], paragraph, fonts, lines,
                                 columns, named, scope),
           resolveTextRangesInto(s->operands[1], paragraph, fonts, lines,
                                 columns, named, scope));
-    case Selector::Kind::Complement:
+    case sigil::weave::Selector::Kind::Complement:
       return complementRanges(
           resolveTextRangesInto(s->operands[0], paragraph, fonts, lines,
                                 columns, named, scope),
@@ -490,7 +500,7 @@ Ranges resolveTextRangesInto(
 }  // namespace
 
 std::vector<sigil::weave::CharRange> resolveTextRanges(
-    const Selector& selector, sigil::weave::Paragraph& paragraph,
+    const sigil::weave::Selector& selector, sigil::weave::Paragraph& paragraph,
     sigil::weave::FontContext& fonts,
     std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns,

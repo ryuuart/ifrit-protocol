@@ -637,8 +637,8 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
 }
 
 std::vector<TextUnit> Composer::units(std::string_view key,
-                                      const Selector& selector,
-                                      Unit unit) const {
+                                      const sigil::weave::Selector& selector,
+                                      sigil::weave::Unit unit) const {
   auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return {};
   // Logically const: resolving the units fills the same per-instance

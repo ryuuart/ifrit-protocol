@@ -44,6 +44,13 @@ class ImageAsset;
 
 namespace sigil::weave {
 class FontContext;
+// Which glyphs a text verb addresses, and the granularity it addresses
+// them by — the paragraph engine's, in <sigilweave/query/Selector.h> and
+// <sigilweave/paragraph/Unit.h>.
+class Selector;
+class RichText;
+class Story;
+enum class Unit : uint8_t;
 }
 
 namespace sigil::material::pattern {
@@ -61,8 +68,8 @@ class Composer;
 class Pattern;
 // The typography vocabulary the text verbs take, defined under
 // <sigilcompose/typography/>: a call site that dresses its type includes
-// the header that spells the value it passes.
-class Selector;
+// the header that spells the value it passes. Which glyphs a verb
+// addresses is SigilWeave's `Selector`, declared above.
 struct Track;
 struct Annotation;
 struct TextPath;
@@ -715,7 +722,7 @@ class Element {
    *  inside that rect, and free to sit outside it:
    *
    *      text(line, style)
-   *          .mark(sel::word(3), box().left(0).top(pct(100))
+   *          .mark(weave::sel::word(3), box().left(0).top(pct(100))
    *                                   .width(pct(100)).height(2)
    *                                   .fill(Fill::color(ink)))
    *
@@ -724,8 +731,8 @@ class Element {
    *  carries one keeps it, and that key is what `Composer::bounds` and
    *  `hitTest` answer for.
    *
-   *  A MARK IS NOT A `rich().slot()`. A slot reserves space INSIDE the flow
-   *  — the line breaks around it, it moves the line's height, and the type
+   *  A MARK IS NOT A `weave::rich().slot()`. A slot reserves space INSIDE the
+   * flow — the line breaks around it, it moves the line's height, and the type
    *  after it starts further along. A mark reserves nothing: the text is
    *  laid out as though the mark were not there and the mark is placed on
    *  the result, so it may overlap the letters, straddle several, or hang
@@ -733,10 +740,10 @@ class Element {
    *  part of the sentence; mark the type that is already there.
    *
    *  A SELECTOR RESOLVING SEVERAL UNITS GIVES ONE RECT, the union of every
-   *  glyph it addressed — `sel::each(unit::Word)` therefore anchors a mark
-   *  to the whole paragraph, which is a rect and rarely the intent. One
-   *  mark is one element with one identity and one box; to mark each of
-   *  several units, write one mark per unit. A selector resolving NOTHING —
+   *  glyph it addressed — `weave::sel::each(weave::unit::Word)` therefore
+   * anchors a mark to the whole paragraph, which is a rect and rarely the
+   * intent. One mark is one element with one identity and one box; to mark each
+   * of several units, write one mark per unit. A selector resolving NOTHING —
    *  including a name no run carries and a pattern that does not compile —
    *  places nothing and warns once, on the silent-no-op family's terms.
    *
@@ -761,7 +768,7 @@ class Element {
    *  RESTS on the curve — a run driven along its baseline (`at` bound) is
    *  a paint-time deviation like any track's, and the same rule applies:
    *  read `beatsOf` to ride it. */
-  Element& mark(Selector where, Element what);
+  Element& mark(sigil::weave::Selector where, Element what);
 
   /** Text leaves only: how lines sit inside the node's width (SigilWeave
    *  TextAlignment — kStart/kCenter/kEnd/kJustify). Meaningful when the
@@ -770,7 +777,7 @@ class Element {
   Element& textAlign(sigil::weave::TextAlignment a);
 
   /** Text leaves only: THE FRAME THIS ONE FILLS INTO — the next link of a
-   *  chain over one `Story`.
+   *  chain over one `weave::Story`.
    *
    *      root.child(frame(article).key("a").thread("b").width(Dim(280)))
    *          .child(frame(article).key("b").thread("c").width(Dim(280)))
@@ -792,8 +799,8 @@ class Element {
    *
    *      text(passage, body)
    *          .writingMode(WritingMode::kVerticalRL)
-   *          .annotate({.where = sel::text(u8"漢字"),
-   *                     .unit = unit::Word,          // group ruby
+   *          .annotate({.where = weave::sel::text(u8"漢字"),
+   *                     .unit = weave::unit::Word,          // group ruby
    *                     .readings = {u8"かんじ"},
    *                     .style = furigana})
    *
@@ -830,7 +837,7 @@ class Element {
    *
    *  Resolution happens where this is written, inside the author's describe
    *  scope, so the finished description holds real styles and depends on no
-   *  scope that has since ended — the same discipline `rich().add(text,
+   *  scope that has since ended — the same discipline `weave::rich().add(text,
    *  name)` follows for character styles. A name the set does not carry
    *  resolves to the set's base entry, and with no set in scope every name
    *  resolves to a plain block. */
@@ -940,7 +947,7 @@ class Element {
    *  Per character the mode is UTR#50's: ideographs stand upright and take
    *  their `vert` forms, Latin lies on its side. A run that wants
    *  otherwise says so in its own style — `TextStyle::shaping.verticalForm`
-   *  is `kUpright`, `kRotated` or `kTateChuYoko` — on a `rich()` run or
+   *  is `kUpright`, `kRotated` or `kTateChuYoko` — on a `weave::rich()` run or
    *  through `spanStyle`.
    *
    *  A vertical leaf MEASURES ON THE OTHER AXIS: its main extent is its
@@ -962,8 +969,8 @@ class Element {
   // rule followed by a narrow exception reads in the order it is written.
   //
   // They apply to every content form alike: plain `text(utf8, style)`,
-  // `rich()` spans, and the `shared_ptr<Paragraph>` overload, because all
-  // three are one materialized paragraph by the time a restyle runs.
+  // `weave::rich()` spans, and the `shared_ptr<Paragraph>` overload, because
+  // all three are one materialized paragraph by the time a restyle runs.
   //
   // The two are ordered by WHAT THEY ARE ALLOWED TO DISTURB. `spanPaint`
   // repaints and nothing else. `spanStyle` may change anything, and
@@ -979,15 +986,15 @@ class Element {
   // paints with the style it is given, as ever.
   //
   // Both run on the PARAGRAPH and resolve their selection as TEXT RANGES,
-  // not glyphs: `sel::text` and
-  // `sel::regex` go through weave's query layer, `sel::word`, `sel::words`,
-  // `sel::sentence` and `sel::range` through the paragraph's own structure,
-  // and `sel::line` through the layout. `Selector::take` and
-  // `Selector::drop` slice GLYPHS inside a unit, which a text range cannot
-  // express — an `sel::each` selector restyles its whole units here, and
-  // the slice is ignored with a warning.
+  // not glyphs: `weave::sel::text` and
+  // `weave::sel::regex` go through weave's query layer, `weave::sel::word`,
+  // `weave::sel::words`, `weave::sel::sentence` and `weave::sel::range` through
+  // the paragraph's own structure, and `weave::sel::line` through the layout.
+  // `weave::Selector::take` and `weave::Selector::drop` slice GLYPHS inside a
+  // unit, which a text range cannot express — an `weave::sel::each` selector
+  // restyles its whole units here, and the slice is ignored with a warning.
   //
-  // A `sel::line` restyle addresses THE LAYOUT OF THE TEXT BEFORE THE
+  // A `weave::sel::line` restyle addresses THE LAYOUT OF THE TEXT BEFORE THE
   // RESTYLE, and costs a second layout pass. It does not chase its own
   // result: a `spanStyle` on a line that moves the line breaks leaves the
   // selection where the first breaking put it.
@@ -998,7 +1005,8 @@ class Element {
    *  unrestyled text shaped, drawn differently. The paint it declares is
    *  the one the range keeps: a `spanStyle` on the same text after it
    *  restyles everything else and leaves this colour alone. */
-  Element& spanPaint(Selector where, sigil::weave::PaintStyle paint);
+  Element& spanPaint(sigil::weave::Selector where,
+                     sigil::weave::PaintStyle paint);
   /** Text leaves only: restyle the range this selector finds with a
    *  complete TextStyle — a different face, size, weight or tracking as
    *  well as paint. Re-shapes, and only the words the range covers: the
@@ -1020,7 +1028,8 @@ class Element {
    *  reshape too, so the later one is the one that stands. A `spanPaint`
    *  declared EARLIER over the same text keeps its colour: this style's own
    *  paint stands only where none reached. */
-  Element& spanStyle(Selector where, sigil::weave::TextStyle style);
+  Element& spanStyle(sigil::weave::Selector where,
+                     sigil::weave::TextStyle style);
 
   // ---- layout options, fluently ----------------------------------------
   //

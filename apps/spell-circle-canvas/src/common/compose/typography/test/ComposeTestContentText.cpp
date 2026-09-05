@@ -70,7 +70,7 @@ struct StructuredRow {
 }  // namespace
 
 TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
-  // A richer row — a severity stripe beside ONE rich() leaf whose runs
+  // A richer row — a severity stripe beside ONE weave::rich() leaf whose runs
   // speak named styles, entered by a track that settles — is a small
   // subtree rather than a single text node. That changes the CONSTANT in
   // the append price, never its shape: an append patches exactly the new
@@ -83,7 +83,7 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
   for (int i = 0; i < 30; ++i)
     ring.append({"0412.50", "AUTH", "row " + std::to_string(i)});
   auto rowEl = [&](const StructuredRow& r) {
-    auto line = rich(styles.base())
+    auto line = sigil::weave::rich(styles.base())
                     .styles(styles)
                     .add(toU8(r.ts + "  "), "ts")
                     .add(toU8(r.tag + "  "), "tag")
@@ -397,10 +397,11 @@ std::vector<size_t> addressed(const std::vector<FxSample>& samples) {
 }
 
 /** A track whose effect records, over the whole text unless told otherwise. */
-Track probeTrack(std::vector<FxSample>* into, Selector where = {},
+Track probeTrack(std::vector<FxSample>* into, sigil::weave::Selector where = {},
                  sigil::motion::Spread cascade = {.eachMs = 0,
                                                   .durationMs = 100},
-                 float progress = 1.0f, Unit over = Unit::Cluster) {
+                 float progress = 1.0f,
+                 sigil::weave::Unit over = sigil::weave::Unit::Cluster) {
   return Track{.where = std::move(where),
                .effect = probe("probe", into),
                .stagger = std::move(cascade),
@@ -414,14 +415,14 @@ TEST(ComposeTextFx, AWordCascadeBeatsOncePerWordAndInOrder) {
   // The stagger runs over the track's UNITS, so a word-unit cascade gives
   // every glyph of a word one shared local time and delays the next word by
   // a whole beat. Per-glyph spacing inside a word would be a different
-  // effect entirely, and is what `unit::Glyph` is for.
+  // effect entirely, and is what `weave::unit::Glyph` is for.
   Host host(300, 120);
   std::vector<FxSample> samples;
   host.composer.render(box().padding(10).child(
       text(u8"AAA BBB CCC", whiteStyle(20))
           .key("k")
           .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100}, 0.5f,
-                         unit::Word))));
+                         sigil::weave::unit::Word))));
   host.frame();
   ASSERT_EQ(samples.size(), 9u) << "the probe did not see every glyph";
 
@@ -446,7 +447,7 @@ TEST(ComposeTextFx, ASentenceCascadeBeatsOncePerSentence) {
           .key("k")
           .width(pct(100))
           .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100}, 0.5f,
-                         unit::Sentence))));
+                         sigil::weave::unit::Sentence))));
   host.frame();
   ASSERT_FALSE(samples.empty());
   EXPECT_EQ(samples.front().info.unitCount, 3u)
@@ -491,15 +492,15 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
           << "a combining mark was staggered away from its base letter";
     }
 
-  // THE CONTROL: the same text over unit::Glyph, which is the raw shaping
-  // unit and DOES separate a mark from its base. Without it the check above
-  // is satisfied by a cascade that never beat at all.
+  // THE CONTROL: the same text over weave::unit::Glyph, which is the raw
+  // shaping unit and DOES separate a mark from its base. Without it the check
+  // above is satisfied by a cascade that never beat at all.
   std::vector<FxSample> raw;
   host.composer.render(box().padding(10).child(
       text(u8"x́ýz", markStyle(28))
           .key("k")
           .fx(probeTrack(&raw, {}, {.eachMs = 100, .durationMs = 400}, 0.5f,
-                         unit::Glyph))));
+                         sigil::weave::unit::Glyph))));
   host.frame();
   ASSERT_EQ(raw.size(), samples.size());
   EXPECT_EQ(raw.front().info.unitCount, (uint32_t)raw.size());
@@ -508,9 +509,9 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
     if (raw[i].info.textIndex == raw[i - 1].info.textIndex &&
         raw[i].t != raw[i - 1].t)
       anySplit = true;
-  EXPECT_TRUE(anySplit)
-      << "unit::Glyph did not split the cluster, so the cluster case above "
-         "proves nothing";
+  EXPECT_TRUE(anySplit) << "weave::unit::Glyph did not split the cluster, so "
+                           "the cluster case above "
+                           "proves nothing";
 }
 
 TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
@@ -556,7 +557,7 @@ TEST(ComposeTextFx, SelectorsAddressWhatTheyName) {
   // Absolute forms, the regular expression and the substring, all resolved
   // against the paragraph and all comparable values.
   Host host(300, 120);
-  const auto run = [&](Selector where) {
+  const auto run = [&](sigil::weave::Selector where) {
     std::vector<FxSample> samples;
     host.composer.render(box().padding(10).child(
         text(u8"AAA BBB CCC", whiteStyle(20))
@@ -565,13 +566,17 @@ TEST(ComposeTextFx, SelectorsAddressWhatTheyName) {
     host.frame();
     return addressed(samples);
   };
-  EXPECT_EQ(run(sel::word(1)), (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sel::words(1, 3)), (std::vector<size_t>{3, 4, 5, 6, 7, 8}));
-  EXPECT_EQ(run(sel::text(u8"BBB")), (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sel::regex(u8"B+")), (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(sel::line(0)).size(), 9u);  // one line, everything
-  EXPECT_EQ(run(Selector()).size(), 9u);    // default: everything
-  EXPECT_TRUE(run(sel::regex(u8"([")).empty())
+  EXPECT_EQ(run(sigil::weave::sel::word(1)), (std::vector<size_t>{3, 4, 5}));
+  EXPECT_EQ(run(sigil::weave::sel::words(1, 3)),
+            (std::vector<size_t>{3, 4, 5, 6, 7, 8}));
+  EXPECT_EQ(run(sigil::weave::sel::text(u8"BBB")),
+            (std::vector<size_t>{3, 4, 5}));
+  EXPECT_EQ(run(sigil::weave::sel::regex(u8"B+")),
+            (std::vector<size_t>{3, 4, 5}));
+  EXPECT_EQ(run(sigil::weave::sel::line(0)).size(),
+            9u);                                        // one line, everything
+  EXPECT_EQ(run(sigil::weave::Selector()).size(), 9u);  // default: everything
+  EXPECT_TRUE(run(sigil::weave::sel::regex(u8"([")).empty())
       << "a pattern that does not compile must select NOTHING rather than "
          "everything — silently addressing the whole paragraph is the "
          "failure this rule exists to prevent";
@@ -579,7 +584,7 @@ TEST(ComposeTextFx, SelectorsAddressWhatTheyName) {
 
 TEST(ComposeTextFx, SelectorAlgebraUnionsIntersectsAndComplements) {
   Host host(300, 120);
-  const auto run = [&](Selector where) {
+  const auto run = [&](sigil::weave::Selector where) {
     std::vector<FxSample> samples;
     host.composer.render(box().padding(10).child(
         text(u8"AAA BBB CCC", whiteStyle(20))
@@ -588,12 +593,14 @@ TEST(ComposeTextFx, SelectorAlgebraUnionsIntersectsAndComplements) {
     host.frame();
     return addressed(samples);
   };
-  EXPECT_EQ(run(sel::word(0) | sel::word(2)),
+  EXPECT_EQ(run(sigil::weave::sel::word(0) | sigil::weave::sel::word(2)),
             (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
-  EXPECT_EQ(run(sel::words(0, 2) & sel::word(1)),
+  EXPECT_EQ(run(sigil::weave::sel::words(0, 2) & sigil::weave::sel::word(1)),
             (std::vector<size_t>{3, 4, 5}));
-  EXPECT_EQ(run(!sel::word(1)), (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
-  EXPECT_TRUE(run(sel::word(0) & sel::word(1)).empty());
+  EXPECT_EQ(run(!sigil::weave::sel::word(1)),
+            (std::vector<size_t>{0, 1, 2, 6, 7, 8}));
+  EXPECT_TRUE(
+      run(sigil::weave::sel::word(0) & sigil::weave::sel::word(1)).empty());
 }
 
 TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
@@ -601,7 +608,7 @@ TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
   // so together they cover the text exactly once. A gap or an overlap here
   // means a two-track composition double-counts letters it should split.
   Host host(300, 120);
-  const auto run = [&](Selector where) {
+  const auto run = [&](sigil::weave::Selector where) {
     std::vector<FxSample> samples;
     host.composer.render(box().padding(10).child(
         text(u8"AAA BBB CCC", whiteStyle(20))
@@ -610,8 +617,10 @@ TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
     host.frame();
     return addressed(samples);
   };
-  const std::vector<size_t> firsts = run(sel::each(unit::Word).take(1));
-  const std::vector<size_t> rest = run(sel::each(unit::Word).drop(1));
+  const std::vector<size_t> firsts =
+      run(sigil::weave::sel::each(sigil::weave::unit::Word).take(1));
+  const std::vector<size_t> rest =
+      run(sigil::weave::sel::each(sigil::weave::unit::Word).drop(1));
   EXPECT_EQ(firsts, (std::vector<size_t>{0, 3, 6}));
   EXPECT_EQ(rest, (std::vector<size_t>{1, 2, 4, 5, 7, 8}));
   std::vector<size_t> both = firsts;
@@ -715,10 +724,11 @@ TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
   // A beat is 100 + 50·2 = 200 ms and the whole cascade spans 400; 0.3 of
   // that lands inside the first word's beat, where the two ladders are
   // both readable.
-  host.composer.render(box().padding(10).child(
-      text(u8"AAA BBB", whiteStyle(20))
-          .key("k")
-          .fx(probeTrack(&samples, {}, cascade, 0.3f, unit::Word))));
+  host.composer.render(
+      box().padding(10).child(text(u8"AAA BBB", whiteStyle(20))
+                                  .key("k")
+                                  .fx(probeTrack(&samples, {}, cascade, 0.3f,
+                                                 sigil::weave::unit::Word))));
   host.frame();
   ASSERT_EQ(samples.size(), 6u);
   // Inside a word the glyphs no longer share a time — the inner ladder ran.
@@ -1638,7 +1648,8 @@ void expectFastPathLineUntouched(GlyphMod lean) {
                     .width(70)
                     .fx({.effect = fixed("lift", lift)});
     if (shearSecondLine)
-      t.fx({.where = sel::line(1), .effect = fixed("lean", lean)});
+      t.fx(
+          {.where = sigil::weave::sel::line(1), .effect = fixed("lean", lean)});
     return box().padding(10).child(std::move(t));
   };
   Host plain(200, 200), mixed(200, 200);
@@ -1805,12 +1816,15 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
         text(u8"AA BB CC DD", whiteStyle(16))
             .key("p")
             .width(360)
-            .fx({.where = sel::each(unit::Word).take(1) & sel::words(1, 4),
+            .fx({.where =
+                     sigil::weave::sel::each(sigil::weave::unit::Word).take(1) &
+                     sigil::weave::sel::words(1, 4),
                  .effect = fx::rise(6),
                  .stagger = spec,
-                 .over = unit::Word,
+                 .over = sigil::weave::unit::Word,
                  .beatsOver = numbering})
-            .fx({.where = sel::each(unit::Word).drop(1),
+            .fx({.where =
+                     sigil::weave::sel::each(sigil::weave::unit::Word).drop(1),
                  .effect = fx::rise(6),
                  .stagger = spec})));
     host.frame();
@@ -1845,8 +1859,8 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
 
 TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
   // Real caption timing is a table cut against a recording, not a spacing.
-  // Unit k starts at table[k], exactly, and nothing about `eachMs` survives
-  // beside it.
+  // weave::Unit k starts at table[k], exactly, and nothing about `eachMs`
+  // survives beside it.
   const std::vector<float> table{0.0f, 340.0f, 720.0f, 1180.0f};
   Host host(400, 120);
   host.composer.render(box().padding(6).child(
@@ -1857,7 +1871,7 @@ TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
                .stagger =
                    sigil::motion::Spread{.eachMs = 999, .durationMs = 180}.cues(
                        table),
-               .over = unit::Word})));
+               .over = sigil::weave::unit::Word})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
   ASSERT_EQ(beats.size(), table.size());
@@ -1889,7 +1903,7 @@ TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
           .fx({.effect = fx::rise(6),
                .stagger = sigil::motion::Spread{.durationMs = 100}.cues(
                    {0.0f, 200.0f}),
-               .over = unit::Word})));
+               .over = sigil::weave::unit::Word})));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(log.find("cue table"), std::string::npos) << log;
@@ -1916,13 +1930,13 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
   // a re-measured line would land in the wrong place twice over.
   Host host(240, 240);
   choreograph::Output<float> progress{0.5f};
-  RichText copy = rich(whiteStyle(15));
+  sigil::weave::RichText copy = sigil::weave::rich(whiteStyle(15));
   copy.add(u8"alpha bravo ").add(u8"charlie", whiteStyle(24)).add(u8" delta");
   host.composer.render(
       box().padding(10).child(text(copy).key("p").width(120).fx(
           {.effect = fx::rise(8),
            .stagger = {.eachMs = 100, .durationMs = 200},
-           .over = unit::Word,
+           .over = sigil::weave::unit::Word,
            .progress = &progress})));
   host.frame();
 
@@ -1975,13 +1989,13 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
   // and a mark placed from anything but the placement would sit in the
   // node's box while the type rides a circle beside it.
   Host host(300, 200);
-  host.composer.render(
-      box().child(text(u8"CIRCVMFERENTIA", whiteStyle(18))
-                      .key("ring")
-                      .width(100)
-                      .height(100)
-                      .onPath({.path = BeatRing{}})
-                      .fx({.effect = fx::rise(4), .over = unit::Cluster})));
+  host.composer.render(box().child(
+      text(u8"CIRCVMFERENTIA", whiteStyle(18))
+          .key("ring")
+          .width(100)
+          .height(100)
+          .onPath({.path = BeatRing{}})
+          .fx({.effect = fx::rise(4), .over = sigil::weave::unit::Cluster})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
   ASSERT_GT(beats.size(), 8u);
@@ -2022,14 +2036,14 @@ TEST(ComposeTextFx, BeatsOfCompoundsANestedCascade) {
   Host host(400, 120);
   sigil::motion::Spread cascade{.eachMs = 300};
   cascade.then({.eachMs = 40, .durationMs = 100});
-  host.composer.render(
-      box().padding(6).child(text(u8"AB CD", whiteStyle(16))
-                                 .key("p")
-                                 .width(360)
-                                 .fx({.effect = fx::rise(6),
-                                      .stagger = cascade,
-                                      .over = unit::Word,
-                                      .innerOver = unit::Cluster})));
+  host.composer.render(box().padding(6).child(
+      text(u8"AB CD", whiteStyle(16))
+          .key("p")
+          .width(360)
+          .fx({.effect = fx::rise(6),
+               .stagger = cascade,
+               .over = sigil::weave::unit::Word,
+               .innerOver = sigil::weave::unit::Cluster})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
   ASSERT_EQ(beats.size(), 4u) << "one beat per letter, two letters per word";
@@ -2049,7 +2063,7 @@ TEST(ComposeTextFx, BeatsOfResolvesEmptyRatherThanGuessing) {
   host.composer.render(box().padding(6).child(
       text(u8"AA BB", whiteStyle(16))
           .key("p")
-          .fx({.effect = fx::rise(6), .over = unit::Word})));
+          .fx({.effect = fx::rise(6), .over = sigil::weave::unit::Word})));
   host.frame();
   EXPECT_FALSE(host.composer.beatsOf("p", 0).empty());
   EXPECT_TRUE(host.composer.beatsOf("typo", 0).empty()) << "unknown key";
@@ -2064,11 +2078,13 @@ TEST(ComposeTextFx, CascadeSpanMsIsWhatTheMasterProgressMapsOnto) {
   // declare-time form answers the same number from the counts alone.
   const sigil::motion::Spread spec{.eachMs = 100, .durationMs = 200};
   Host host(400, 120);
-  host.composer.render(box().padding(6).child(
-      text(u8"AA BB CC DD", whiteStyle(16))
-          .key("p")
-          .width(360)
-          .fx({.effect = fx::rise(6), .stagger = spec, .over = unit::Word})));
+  host.composer.render(
+      box().padding(6).child(text(u8"AA BB CC DD", whiteStyle(16))
+                                 .key("p")
+                                 .width(360)
+                                 .fx({.effect = fx::rise(6),
+                                      .stagger = spec,
+                                      .over = sigil::weave::unit::Word})));
   host.frame();
   const float span = host.composer.cascadeSpanMs("p", 0);
   EXPECT_FLOAT_EQ(span, 500.0f) << "durationMs + eachMs·(N−1) over 4 words";
@@ -2100,14 +2116,14 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
   nested.then({.eachMs = 40, .durationMs = 100});
   {
     Host host(400, 120);
-    host.composer.render(
-        box().padding(6).child(text(u8"AB CD", whiteStyle(16))
-                                   .key("p")
-                                   .width(360)
-                                   .fx({.effect = fx::rise(6),
-                                        .stagger = nested,
-                                        .over = unit::Word,
-                                        .innerOver = unit::Cluster})));
+    host.composer.render(box().padding(6).child(
+        text(u8"AB CD", whiteStyle(16))
+            .key("p")
+            .width(360)
+            .fx({.effect = fx::rise(6),
+                 .stagger = nested,
+                 .over = sigil::weave::unit::Word,
+                 .innerOver = sigil::weave::unit::Cluster})));
     host.frame();
     const float span = host.composer.cascadeSpanMs("p", 0);
     EXPECT_FLOAT_EQ(span, 440.0f) << "300·1 + 40·1 + 100";
@@ -2126,11 +2142,13 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
       sigil::motion::Spread{.durationMs = 180}.cues(table);
   {
     Host host(400, 120);
-    host.composer.render(box().padding(6).child(
-        text(u8"AA BB CC DD", whiteStyle(16))
-            .key("p")
-            .width(360)
-            .fx({.effect = fx::rise(6), .stagger = cued, .over = unit::Word})));
+    host.composer.render(
+        box().padding(6).child(text(u8"AA BB CC DD", whiteStyle(16))
+                                   .key("p")
+                                   .width(360)
+                                   .fx({.effect = fx::rise(6),
+                                        .stagger = cued,
+                                        .over = sigil::weave::unit::Word})));
     host.frame();
     const float span = host.composer.cascadeSpanMs("p", 0);
     EXPECT_FLOAT_EQ(span, 1360.0f) << "the table's last time plus one beat";
@@ -2148,7 +2166,7 @@ TEST(ComposeTextFx, CascadeSpanMsResolvesZeroRatherThanGuessing) {
   host.composer.render(box().padding(6).key("b").child(
       text(u8"AA BB", whiteStyle(16))
           .key("p")
-          .fx({.effect = fx::rise(6), .over = unit::Word})));
+          .fx({.effect = fx::rise(6), .over = sigil::weave::unit::Word})));
   host.frame();
   EXPECT_GT(host.composer.cascadeSpanMs("p", 0), 0.0f);
   EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("typo", 0), 0.0f)
@@ -2170,7 +2188,7 @@ std::vector<Beat> loopBeatsAt(Host& host, float master, float loopMs = 400) {
           .width(360)
           .fx({.effect = fx::rise(6),
                .stagger = {.eachMs = 100, .durationMs = 200, .loopMs = loopMs},
-               .over = unit::Word,
+               .over = sigil::weave::unit::Word,
                .progress = master})));
   host.frame();
   return host.composer.beatsOf("p", 0);
@@ -2231,7 +2249,7 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
             .width(360)
             .fx({.effect = fx::rise(6),
                  .stagger = {.eachMs = 300, .durationMs = 200, .loopMs = 400},
-                 .over = unit::Word,
+                 .over = sigil::weave::unit::Word,
                  .progress = 0.75f})));  // virtual 300
     host.frame();
     const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
@@ -2262,7 +2280,7 @@ TEST(ComposeTextFx, LoopMsZeroIsTheOneShotCascade) {
                                    .width(360)
                                    .fx({.effect = fx::rise(6),
                                         .stagger = std::move(cascade),
-                                        .over = unit::Word,
+                                        .over = sigil::weave::unit::Word,
                                         .progress = 0.25f})));
     host.frame();
     return std::pair(host.composer.beatsOf("p", 0),
@@ -2299,7 +2317,7 @@ TEST(ComposeTextFx, AHeldEffectOnALoopingCascadeHasNothingLeftToVeto) {
                                             .stagger = {.eachMs = 300,
                                                         .durationMs = 100,
                                                         .loopMs = loopMs},
-                                            .over = unit::Word,
+                                            .over = sigil::weave::unit::Word,
                                             .progress = 0.25f}));
   };
   const auto rightHalfInk = [](Host& host) {
@@ -2339,7 +2357,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
           .key("p")
           .fx({.effect = fx::rise(24),
                .stagger = {.eachMs = 100, .durationMs = 200, .loopMs = 400},
-               .over = unit::Cluster,
+               .over = sigil::weave::unit::Cluster,
                .progress = &phase})));
   live.frame();
   double clock = 0.0;
@@ -2358,7 +2376,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
           .key("p")
           .fx({.effect = fx::rise(24),
                .stagger = {.eachMs = 100, .durationMs = 200},
-               .over = unit::Cluster,
+               .over = sigil::weave::unit::Cluster,
                .progress = animate(motion::from(0.0f).to(1.0f),
                                    {200ms, &choreograph::easeNone})})));
   for (int i = 0; i < 24; ++i) still.frame(0.016);
@@ -2453,7 +2471,8 @@ TEST(TextRich, MixedRunsPaintTheirOwnStyles) {
   const sigil::weave::TextStyle base = coloredStyle(36, SK_ColorWHITE);
   const sigil::weave::TextStyle accent = coloredStyle(36, SK_ColorRED);
   host.composer.render(box().padding(10).child(
-      text(rich(base).add(u8"AAA ").add(u8"BBB", accent)).key("t")));
+      text(sigil::weave::rich(base).add(u8"AAA ").add(u8"BBB", accent))
+          .key("t")));
   host.frame();
   const SkIRect band = SkIRect::MakeXYWH(0, 0, 400, 80);
   EXPECT_GT(countColor(host, band, SK_ColorWHITE), 20) << "the base run";
@@ -2461,8 +2480,8 @@ TEST(TextRich, MixedRunsPaintTheirOwnStyles) {
 }
 
 TEST(TextRich, AnIdenticalValuePrunesWhereAFreshPointerCannot) {
-  // The whole reason rich() is a value: a component that rebuilds its spans
-  // every describe must prune like a static leaf. The shared_ptr overload
+  // The whole reason weave::rich() is a value: a component that rebuilds its
+  // spans every describe must prune like a static leaf. The shared_ptr overload
   // cannot answer the question — a fresh make_shared is a fresh identity —
   // which is exactly the difference this pins.
   Host host(400, 120);
@@ -2470,7 +2489,8 @@ TEST(TextRich, AnIdenticalValuePrunesWhereAFreshPointerCannot) {
   const sigil::weave::TextStyle accent = coloredStyle(20, SK_ColorRED);
   auto describe = [&](std::u8string_view tail) {
     return box().child(
-        text(rich(base).add(u8"Signal ").add(tail, accent)).key("t"));
+        text(sigil::weave::rich(base).add(u8"Signal ").add(tail, accent))
+            .key("t"));
   };
   host.composer.render(describe(u8"woven"));
   host.frame();
@@ -2496,7 +2516,7 @@ TEST(TextRich, AnIdenticalValuePrunesWhereAFreshPointerCannot) {
 TEST(TextRich, AChangedRunStylePatchesToo) {
   Host host(400, 120);
   auto describe = [&](SkColor accentColor) {
-    return box().child(text(rich(coloredStyle(20, SK_ColorWHITE))
+    return box().child(text(sigil::weave::rich(coloredStyle(20, SK_ColorWHITE))
                                 .add(u8"Signal ")
                                 .add(u8"woven", coloredStyle(20, accentColor)))
                            .key("t"));
@@ -2509,40 +2529,40 @@ TEST(TextRich, AChangedRunStylePatchesToo) {
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
 }
 
-TEST(TextRich, NamedRunsResolveThroughAStyleSet) {
+TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSet) {
+  // How a name resolves is weave's (see its own test). What is this
+  // library's is the AMBIENT set: `env::Provide<weave::StyleSet>` reaches a
+  // text leaf described in its scope, and a set the value names beats it.
   const sigil::weave::TextStyle base = coloredStyle(20, SK_ColorWHITE);
   sigil::weave::StyleSet reds;
   reds.set("accent", coloredStyle(20, SK_ColorRED));
   sigil::weave::StyleSet greens;
   greens.set("accent", coloredStyle(20, SK_ColorGREEN));
 
-  const auto colorOf = [](const RichText& value, size_t run) {
-    return value.runs()[run].style.paint.foreground.getColor();
+  Host host(200, 120);
+  const auto accentColor = [&](sigil::weave::RichText content) {
+    host.composer.render(
+        box().padding(6).child(text(std::move(content)).key("t")));
+    host.frame();
+    const std::vector<TextUnit> units = host.composer.units(
+        "t", sel::style("accent"), sigil::weave::unit::Cluster);
+    return units.empty() ? SK_ColorTRANSPARENT
+                         : units[0].style.paint.foreground.getColor();
   };
-
-  const RichText supplied = rich(base).add(u8"x", "accent").styles(reds);
-  EXPECT_EQ(colorOf(supplied, 0), SK_ColorRED);
-
-  // styles() before the named run resolves identically: the order the two
-  // are written in must not matter.
-  const RichText suppliedFirst = rich(base).styles(reds).add(u8"x", "accent");
-  EXPECT_EQ(colorOf(suppliedFirst, 0), SK_ColorRED);
-  EXPECT_TRUE(supplied == suppliedFirst);
 
   {
     core::env::Provide<sigil::weave::StyleSet> ambient(reds);
-    const RichText inherited = rich(base).add(u8"x", "accent");
-    EXPECT_EQ(colorOf(inherited, 0), SK_ColorRED) << "the env set was ignored";
-    const RichText overridden = rich(base).add(u8"x", "accent").styles(greens);
-    EXPECT_EQ(colorOf(overridden, 0), SK_ColorGREEN)
-        << "an explicit style set must beat the inherited one";
+    EXPECT_EQ(accentColor(sigil::weave::rich(base).add(u8"x", "accent")),
+              SK_ColorRED)
+        << "the env set never reached the leaf";
+    EXPECT_EQ(accentColor(
+                  sigil::weave::rich(base).add(u8"x", "accent").styles(greens)),
+              SK_ColorGREEN)
+        << "an explicit style set must beat the ambient one";
   }
-  // Out of scope again: nothing is inherited, so the base answers.
-  const RichText unbound = rich(base).add(u8"x", "accent");
-  EXPECT_EQ(colorOf(unbound, 0), SK_ColorWHITE);
-  // A name the set does not register resolves to rich()'s own base.
-  const RichText unknown = rich(base).add(u8"x", "nope").styles(reds);
-  EXPECT_EQ(colorOf(unknown, 0), SK_ColorWHITE);
+  // Out of scope again: nothing is offered, so rich()'s own base answers.
+  EXPECT_EQ(accentColor(sigil::weave::rich(base).add(u8"x", "accent")),
+            SK_ColorWHITE);
 }
 
 TEST(TextSpans, SpanPaintRecolorsWithoutReshaping) {
@@ -2559,7 +2579,7 @@ TEST(TextSpans, SpanPaintRecolorsWithoutReshaping) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sel::regex(u8"[0-9]+"),
+          .spanPaint(sigil::weave::sel::regex(u8"[0-9]+"),
                      sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
@@ -2582,10 +2602,11 @@ TEST(TextSpans, SpanStyleReshapesOnlyTheWordsItCovers) {
   ASSERT_EQ(before.size(), 3u);
 
   // The LAST word, so the two ahead of it keep their pen positions too.
-  host.composer.render(box().padding(10).child(
-      text(body, base)
-          .spanStyle(sel::text(u8"gamma"), coloredStyle(40, SK_ColorRED))
-          .key("t")));
+  host.composer.render(
+      box().padding(10).child(text(body, base)
+                                  .spanStyle(sigil::weave::sel::text(u8"gamma"),
+                                             coloredStyle(40, SK_ColorRED))
+                                  .key("t")));
   host.frame();
   const std::vector<const void*> after = runShapes(host, "t");
   ASSERT_EQ(after.size(), 3u);
@@ -2602,8 +2623,10 @@ TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sel::text(u8"beta"), sigil::weave::PaintStyle(SK_ColorRED))
-          .spanPaint(sel::words(0, 2), sigil::weave::PaintStyle(SK_ColorGREEN))
+          .spanPaint(sigil::weave::sel::text(u8"beta"),
+                     sigil::weave::PaintStyle(SK_ColorRED))
+          .spanPaint(sigil::weave::sel::words(0, 2),
+                     sigil::weave::PaintStyle(SK_ColorGREEN))
           .key("t")));
   host.frame();
   EXPECT_EQ(countColor(host, band, SK_ColorRED), 0)
@@ -2612,8 +2635,10 @@ TEST(TextSpans, ALaterRestyleWinsOnOverlap) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sel::words(0, 2), sigil::weave::PaintStyle(SK_ColorGREEN))
-          .spanPaint(sel::text(u8"beta"), sigil::weave::PaintStyle(SK_ColorRED))
+          .spanPaint(sigil::weave::sel::words(0, 2),
+                     sigil::weave::PaintStyle(SK_ColorGREEN))
+          .spanPaint(sigil::weave::sel::text(u8"beta"),
+                     sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
   EXPECT_GT(countColor(host, band, SK_ColorRED), 10) << "the narrow exception";
@@ -2634,7 +2659,8 @@ TEST(TextSpans, ALineSelectorAddressesTheLayout) {
   host.composer.render(box().padding(10).child(
       text(body, base)
           .width(200)
-          .spanPaint(sel::line(0), sigil::weave::PaintStyle(SK_ColorRED))
+          .spanPaint(sigil::weave::sel::line(0),
+                     sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   host.frame();
   const SkIRect all = SkIRect::MakeXYWH(0, 0, 240, 200);
@@ -2652,8 +2678,8 @@ sigil::weave::StyleSet glossarySet(SkColor termColor, float termSize) {
 
 /** "alpha beta gamma beta delta beta", where the first and last `beta` are
  *  written under the name and the middle one is not. */
-RichText glossaryCopy(const sigil::weave::StyleSet& set) {
-  RichText copy = rich(set.base());
+sigil::weave::RichText glossaryCopy(const sigil::weave::StyleSet& set) {
+  sigil::weave::RichText copy = sigil::weave::rich(set.base());
   copy.styles(set)
       .add(u8"alpha ")
       .add(u8"beta", "term")
@@ -2668,22 +2694,24 @@ RichText glossaryCopy(const sigil::weave::StyleSet& set) {
 
 TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
   Host host(760, 140);
-  const RichText copy = glossaryCopy(glossarySet(SK_ColorRED, 24));
+  const sigil::weave::RichText copy =
+      glossaryCopy(glossarySet(SK_ColorRED, 24));
   // Beats at WORD granularity number the units the track's own selection
   // resolved, so the beat list IS the addressed word list — and each beat's
   // rect says which word it is.
-  const auto wordsAddressed = [&](Selector where) {
+  const auto wordsAddressed = [&](sigil::weave::Selector where) {
     host.composer.render(box().padding(10).child(
         text(copy).key("t").fx({.where = std::move(where),
                                 .effect = fx::rise(0),
                                 .stagger = {.eachMs = 1, .durationMs = 1},
-                                .over = unit::Word})));
+                                .over = sigil::weave::unit::Word})));
     host.frame();
     return host.composer.beatsOf("t", 0);
   };
 
   const std::vector<Beat> byName = wordsAddressed(sel::style("term"));
-  const std::vector<Beat> byWords = wordsAddressed(sel::text(u8"beta"));
+  const std::vector<Beat> byWords =
+      wordsAddressed(sigil::weave::sel::text(u8"beta"));
   ASSERT_EQ(byWords.size(), 3u) << "the three literal betas";
   ASSERT_EQ(byName.size(), 2u)
       << "the name caught a run nobody wrote it on — sel::style is matching "
@@ -2696,34 +2724,38 @@ TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
 
 TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
   Host host(760, 140);
-  const RichText copy = glossaryCopy(glossarySet(SK_ColorRED, 24));
+  const sigil::weave::RichText copy =
+      glossaryCopy(glossarySet(SK_ColorRED, 24));
   // Beats at GLYPH granularity: one per addressed glyph, so the count is the
   // selection's size and the algebra can be checked as arithmetic.
-  const auto glyphsAddressed = [&](Selector where) {
+  const auto glyphsAddressed = [&](sigil::weave::Selector where) {
     host.composer.render(box().padding(10).child(
         text(copy).key("t").fx({.where = std::move(where),
                                 .effect = fx::rise(0),
                                 .stagger = {.eachMs = 1, .durationMs = 1},
-                                .over = unit::Glyph})));
+                                .over = sigil::weave::unit::Glyph})));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };
 
-  const size_t whole = glyphsAddressed(Selector{});
+  const size_t whole = glyphsAddressed(sigil::weave::Selector{});
   const size_t named = glyphsAddressed(sel::style("term"));
   ASSERT_EQ(named, 8u) << "two four-letter runs";
-  EXPECT_EQ(glyphsAddressed(sel::text(u8"beta")), 12u) << "three of them";
+  EXPECT_EQ(glyphsAddressed(sigil::weave::sel::text(u8"beta")), 12u)
+      << "three of them";
 
   // The three operators, against the same two runs.
-  EXPECT_EQ(glyphsAddressed(sel::style("term") | sel::word(0)), named + 5u)
+  EXPECT_EQ(glyphsAddressed(sel::style("term") | sigil::weave::sel::word(0)),
+            named + 5u)
       << "alpha joined the union";
-  EXPECT_EQ(glyphsAddressed(sel::style("term") & sel::word(1)), 4u)
+  EXPECT_EQ(glyphsAddressed(sel::style("term") & sigil::weave::sel::word(1)),
+            4u)
       << "the intersection is the first named run alone";
   EXPECT_EQ(glyphsAddressed(!sel::style("term")), whole - named);
 }
 
 TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
-  // Only a named rich() run carries a name. Plain text has none, so the
+  // Only a named weave::rich() run carries a name. Plain text has none, so the
   // selector addresses nothing — the silent-no-op rule, made audible.
   Host host(400, 120);
   ::testing::internal::CaptureStderr();
@@ -2734,7 +2766,7 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
             .fx({.where = sel::style("unregistered-register"),
                  .effect = fx::rise(0),
                  .stagger = {.durationMs = 1},
-                 .over = unit::Glyph}));
+                 .over = sigil::weave::unit::Glyph}));
   };
   host.composer.render(describe());
   host.frame();
@@ -2749,7 +2781,7 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
           .fx({.where = sel::style("unregistered-register"),
                .effect = fx::rise(0),
                .stagger = {.durationMs = 1},
-               .over = unit::Glyph})));
+               .over = sigil::weave::unit::Glyph})));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
   size_t seen = 0;
@@ -2764,15 +2796,16 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   // resolver. One vocabulary means one answer: the name must address the
   // same two runs there.
   Host host(760, 140);
-  const RichText copy = glossaryCopy(glossarySet(SK_ColorWHITE, 24));
+  const sigil::weave::RichText copy =
+      glossaryCopy(glossarySet(SK_ColorWHITE, 24));
 
   // Where the three betas actually sit, read off the layout rather than
   // guessed, so the assertions below can name one of them.
   host.composer.render(box().padding(10).child(
-      text(copy).key("t").fx({.where = sel::text(u8"beta"),
+      text(copy).key("t").fx({.where = sigil::weave::sel::text(u8"beta"),
                               .effect = fx::rise(0),
                               .stagger = {.eachMs = 1, .durationMs = 1},
-                              .over = unit::Word})));
+                              .over = sigil::weave::unit::Word})));
   host.frame();
   const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
   ASSERT_EQ(betas.size(), 3u);
@@ -2781,7 +2814,7 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
                              (int)std::ceil(b.rect.right()), 140);
   };
 
-  const auto redsIn = [&](Selector where, const Beat& beat) {
+  const auto redsIn = [&](sigil::weave::Selector where, const Beat& beat) {
     host.composer.render(box().padding(10).child(text(copy).key("t").spanPaint(
         std::move(where), sigil::weave::PaintStyle(SK_ColorRED))));
     host.frame();
@@ -2793,7 +2826,7 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   EXPECT_EQ(redsIn(sel::style("term"), betas[1]), 0)
       << "the unnamed beta was repainted, so the restyle resolver matched "
          "the word rather than the run";
-  EXPECT_GT(redsIn(sel::text(u8"beta"), betas[1]), 5)
+  EXPECT_GT(redsIn(sigil::weave::sel::text(u8"beta"), betas[1]), 5)
       << "…which the literal selector does catch, as it must";
 
   // And through spanStyle, which re-shapes: exactly the named runs do.
@@ -2801,7 +2834,7 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   host.frame();
   const std::vector<const void*> before = runShapes(host, "t");
   ASSERT_FALSE(before.empty());
-  const auto reshapedUnder = [&](Selector where) {
+  const auto reshapedUnder = [&](sigil::weave::Selector where) {
     host.composer.render(box().padding(10).child(text(copy).key("t").spanStyle(
         std::move(where), coloredStyle(34, SK_ColorGREEN))));
     host.frame();
@@ -2815,7 +2848,7 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
     return moved;
   };
   EXPECT_EQ(reshapedUnder(sel::style("term")), 2u);
-  EXPECT_EQ(reshapedUnder(sel::text(u8"beta")), 3u);
+  EXPECT_EQ(reshapedUnder(sigil::weave::sel::text(u8"beta")), 3u);
 }
 
 TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
@@ -2830,7 +2863,7 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
             .fx({.where = sel::style("term"),
                  .effect = fx::rise(0),
                  .stagger = {.eachMs = 1, .durationMs = 1},
-                 .over = unit::Glyph})));
+                 .over = sigil::weave::unit::Glyph})));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };
@@ -2925,7 +2958,8 @@ TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
 
   host.composer.render(box().padding(10).child(
       text(body, base)
-          .spanStyle(sel::regex(u8"[0-9]+"), withAxis(base, "GRAD", hi))
+          .spanStyle(sigil::weave::sel::regex(u8"[0-9]+"),
+                     withAxis(base, "GRAD", hi))
           .key("t")));
   host.frame();
   EXPECT_EQ(runShapes(host, "t"), shapesBefore)
@@ -2960,9 +2994,10 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   Host paintFirst(400, 120);
   paintFirst.composer.render(box().padding(10).child(
       text(body, base)
-          .spanPaint(sel::regex(u8"[0-9]+"),
+          .spanPaint(sigil::weave::sel::regex(u8"[0-9]+"),
                      sigil::weave::PaintStyle(SK_ColorRED))
-          .spanStyle(sel::regex(u8"[0-9]+"), withAxis(base, "GRAD", hi))
+          .spanStyle(sigil::weave::sel::regex(u8"[0-9]+"),
+                     withAxis(base, "GRAD", hi))
           .key("t")));
   paintFirst.frame();
   EXPECT_GT(countColor(paintFirst, all, SK_ColorRED), 20)
@@ -2974,8 +3009,9 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   Host styleFirst(400, 120);
   styleFirst.composer.render(box().padding(10).child(
       text(body, base)
-          .spanStyle(sel::regex(u8"[0-9]+"), withAxis(base, "GRAD", hi))
-          .spanPaint(sel::regex(u8"[0-9]+"),
+          .spanStyle(sigil::weave::sel::regex(u8"[0-9]+"),
+                     withAxis(base, "GRAD", hi))
+          .spanPaint(sigil::weave::sel::regex(u8"[0-9]+"),
                      sigil::weave::PaintStyle(SK_ColorRED))
           .key("t")));
   styleFirst.frame();
@@ -3009,7 +3045,7 @@ TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
   const auto at = [&](float weight) {
     host.composer.render(box().padding(10).child(
         text(body, base)
-            .spanStyle(Selector{}, withAxis(base, "wght", weight))
+            .spanStyle(sigil::weave::Selector{}, withAxis(base, "wght", weight))
             .key("t")));
     host.frame();
     return grab(host, 400, 120);
@@ -3060,7 +3096,8 @@ TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
           // A default-constructed selector addresses every glyph.
           text(u8"888", style)
               .key("t")
-              .spanStyle(Selector{}, withAxis(style, "GRAD", value))));
+              .spanStyle(sigil::weave::Selector{},
+                         withAxis(style, "GRAD", value))));
       ticker.tick(1.0 / 60.0);
       surface->getCanvas()->clear(SK_ColorBLACK);
       composer.draw(*surface->getCanvas());
@@ -3096,17 +3133,17 @@ TEST(TextSpanAxis, ALaterDeclarationWinsOnOverlap) {
     return grab(host, 400, 120);
   };
   const SkBitmap light = drawn([&](Element t) {
-    return t.spanStyle(Selector{}, withAxis(base, "GRAD", lo));
+    return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", lo));
   });
   const SkBitmap heavy = drawn([&](Element t) {
-    return t.spanStyle(Selector{}, withAxis(base, "GRAD", hi));
+    return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", hi));
   });
   ASSERT_GT(pixelsDiffering(light, heavy, 400, 120), 20)
       << "the two ends of the axis draw the same, so nothing below is a test";
 
   const SkBitmap both = drawn([&](Element t) {
-    return t.spanStyle(Selector{}, withAxis(base, "GRAD", lo))
-        .spanStyle(Selector{}, withAxis(base, "GRAD", hi));
+    return t.spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", lo))
+        .spanStyle(sigil::weave::Selector{}, withAxis(base, "GRAD", hi));
   });
   EXPECT_EQ(pixelsDiffering(both, heavy, 400, 120), 0)
       << "the earlier declaration survived the later one — an axis is a "
@@ -3216,7 +3253,7 @@ Element pillCaption(const std::string& childKey, float width,
   // The width lives on an inner box: the render root is always resized to
   // the composer's own size, so a width written there is overwritten.
   return box().child(box().padding(8).width(width).child(
-      text(rich(coloredStyle(18, SK_ColorWHITE))
+      text(sigil::weave::rich(coloredStyle(18, SK_ColorWHITE))
                .add(u8"press the archive key ")
                .slot("pill", size, 4)
                .add(u8" to continue the long descent"))
@@ -3236,8 +3273,9 @@ TEST(TextSlot, ASlotTallerThanTheTypeOpensTheLinesItSitsIn) {
     host.composer.render(pillCaption("pill", 280, size));
     host.frame();
     std::vector<float> found;
-    for (const TextUnit& line :
-         host.composer.units("caption", sel::each(unit::Line), unit::Line))
+    for (const TextUnit& line : host.composer.units(
+             "caption", sigil::weave::sel::each(sigil::weave::unit::Line),
+             sigil::weave::unit::Line))
       found.push_back(line.axis);
     return found;
   };
@@ -3339,7 +3377,7 @@ TEST(TextSlot, TheSlotNamespaceIsTheValuesOwnNotTheMountRegistry) {
   // slot is matched against THIS text node's children and nowhere else.
   Host host(320, 240);
   auto caption = [](SkColor ink, const char8_t* words) {
-    return text(rich(coloredStyle(16, SK_ColorWHITE))
+    return text(sigil::weave::rich(coloredStyle(16, SK_ColorWHITE))
                     .slot("icon", {20, 12}, 2)
                     .add(words))
         .child(box().key("icon").fill(Fill::color(SkColor4f::FromColor(ink))));
@@ -3453,8 +3491,8 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
   host.composer.render(box().padding(10).child(
       text(u8"ALPHA BETA GAMMA", whiteStyle(24))
           .key("line")
-          .fx({.effect = fx::rise(4), .over = unit::Word})
-          .mark(sel::word(1), box().key("caret").fill(green()))));
+          .fx({.effect = fx::rise(4), .over = sigil::weave::unit::Word})
+          .mark(sigil::weave::sel::word(1), box().key("caret").fill(green()))));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
   ASSERT_EQ(beats.size(), 3u);
@@ -3473,7 +3511,7 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
       text(u8"ALPHA BETA GAMMA", whiteStyle(24))
           .key("line")
           .mark(
-              sel::word(1),
+              sigil::weave::sel::word(1),
               box().key("caret").left(0).top(pct(100)).width(2).height(9).fill(
                   green()))));
   pinned.frame();
@@ -3490,11 +3528,12 @@ TEST(ComposeTextFx, MarkFollowsItsUnitWhenTheTextReflows) {
   // caret rather than compute one.
   const auto placeAt = [](float width) {
     Host host(400, 200);
-    host.composer.render(box().padding(10).child(
-        text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
-            .key("line")
-            .width(width)
-            .mark(sel::word(3), box().key("caret").fill(green()))));
+    host.composer.render(
+        box().padding(10).child(text(u8"ALPHA BETA GAMMA DELTA", whiteStyle(24))
+                                    .key("line")
+                                    .width(width)
+                                    .mark(sigil::weave::sel::word(3),
+                                          box().key("caret").fill(green()))));
     host.frame();
     return markRect(host, "caret");
   };
@@ -3519,7 +3558,8 @@ TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
             .fx({.effect = fx::rise(40),
                  .stagger = {.eachMs = 0, .durationMs = 100},
                  .progress = progress})
-            .mark(sel::word(1), box().key("caret").fill(green()))));
+            .mark(sigil::weave::sel::word(1),
+                  box().key("caret").fill(green()))));
     host.frame();
     return markRect(host, "caret");
   };
@@ -3543,8 +3583,8 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .width(180)
           .height(180)
           .onPath({.path = geometry::shapes::circle()})
-          .fx({.effect = fx::rise(4), .over = unit::Word})
-          .mark(sel::word(2), box().key("caret").fill(green()))));
+          .fx({.effect = fx::rise(4), .over = sigil::weave::unit::Word})
+          .mark(sigil::weave::sel::word(2), box().key("caret").fill(green()))));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
   ASSERT_GT(beats.size(), 2u);
@@ -3563,8 +3603,8 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .key("ring")
           .width(180)
           .height(180)
-          .fx({.effect = fx::rise(4), .over = unit::Word})
-          .mark(sel::word(2), box().key("caret").fill(green()))));
+          .fx({.effect = fx::rise(4), .over = sigil::weave::unit::Word})
+          .mark(sigil::weave::sel::word(2), box().key("caret").fill(green()))));
   straight.frame();
   const SkRect flow = markRect(straight, "caret");
   EXPECT_TRUE(std::abs(caret.left() - flow.left()) > 1.0f ||
@@ -3599,10 +3639,10 @@ TEST(ComposeTextFx, MarkPrunesAndReResolvesWhenItMoves) {
   // different word must not, or the caret keeps the rect it had.
   Host host(400, 140);
   const auto describe = [](uint32_t word) {
-    return box().padding(10).child(
-        text(u8"ALPHA BETA GAMMA", whiteStyle(24))
-            .key("line")
-            .mark(sel::word(word), box().key("caret").fill(green())));
+    return box().padding(10).child(text(u8"ALPHA BETA GAMMA", whiteStyle(24))
+                                       .key("line")
+                                       .mark(sigil::weave::sel::word(word),
+                                             box().key("caret").fill(green())));
   };
   host.composer.render(describe(0));
   host.frame();
@@ -3632,7 +3672,8 @@ TEST(ComposeTextFx, MarkIsNotASlotAndReservesNoSpaceInTheFlow) {
   const float bare = widthOf(text(u8"ALPHA BETA", whiteStyle(24)));
   const float marked =
       widthOf(text(u8"ALPHA BETA", whiteStyle(24))
-                  .mark(sel::word(0), box().key("m").width(40).fill(green())));
+                  .mark(sigil::weave::sel::word(0),
+                        box().key("m").width(40).fill(green())));
   EXPECT_NEAR(marked, bare, 0.01f) << "the mark reserved space in the flow";
 }
 

@@ -21,12 +21,14 @@
 #include <string_view>
 #include <vector>
 
-namespace sigil::compose {
-
+namespace sigil::weave {
 // The two composed text values the text factories take, defined in
-// <sigilcompose/typography/RichText.h>.
+// <sigilweave/paragraph/RichText.h> and <sigilweave/layout/Story.h>.
 class RichText;
 class Story;
+}  // namespace sigil::weave
+
+namespace sigil::compose {
 
 /** UTF-8 std::string → std::u8string for text() call sites. */
 inline std::u8string toU8(std::string_view s) {
@@ -67,16 +69,17 @@ Element stack();
  *  world. */
 Element positioned();
 Element text(std::u8string utf8, sigil::weave::TextStyle style);
-/** Mixed-style text as a COMPARABLE VALUE — see RichText. A re-described
+/** Mixed-style text as a COMPARABLE VALUE — see weave::RichText. A re-described
  *  identical value prunes, which is the whole difference between this and
  *  the pointer overload below. */
-Element text(RichText spans);
+Element text(sigil::weave::RichText spans);
 /** ONE FRAME OF A STORY — a text leaf over `story`'s content and block
  *  styles, which `key()` names and `thread()` links to the next.
  *
  *  Every frame of a chain declares the same story, and the chain decides
- *  which part of it each one holds. See `Story` and `Element::thread`. */
-Element frame(Story story);
+ *  which part of it each one holds. See `weave::Story` and `Element::thread`.
+ */
+Element frame(sigil::weave::Story story);
 
 /** Full-control text: a prebuilt Paragraph (spans, mixed styles) plus
  *  ParagraphLayoutOptions (justification, hyphenation, Knuth–Plass,

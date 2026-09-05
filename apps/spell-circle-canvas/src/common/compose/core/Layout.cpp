@@ -196,8 +196,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   };
   layOut();
   readGeometry();
-  // A sel::line span restyle needs line geometry to name a line at all, and
-  // the materialization that ran at describe time had none. Re-materialize
+  // A weave::sel::line span restyle needs line geometry to name a line at all,
+  // and the materialization that ran at describe time had none. Re-materialize
   // against the lines just produced — plain values, so the paragraph they
   // came from is free to go — and lay out once more. The WHOLE restyle list
   // runs again in declaration order, so the "later wins" rule holds across
@@ -216,10 +216,10 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
     layOut();
     readGeometry();
   }
-  // rich().slot(): where the finished layout put each reserved box. Resolved
-  // once per layout rather than per read, and by NAME rather than by index,
-  // because a slot the geometry could not place is simply absent from the
-  // report and every later slot would otherwise shift up onto its rect.
+  // weave::rich().slot(): where the finished layout put each reserved box.
+  // Resolved once per layout rather than per read, and by NAME rather than by
+  // index, because a slot the geometry could not place is simply absent from
+  // the report and every later slot would otherwise shift up onto its rect.
   if (inst.paragraph && !inst.textSlotKeys.empty()) {
     inst.textSlotRects.clear();
     for (const sigil::weave::ParagraphLayout::PlacedPlaceholder& placed :
@@ -271,12 +271,14 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   inst.measuredRev = inst.contentRev;
 }
 
-bool detail::selectorNeedsLayout(const Selector& selector) {
-  const Selector::State* s = selector.state();
+bool detail::selectorNeedsLayout(const sigil::weave::Selector& selector) {
+  const sigil::weave::Selector::State* s = selector.state();
   if (!s) return false;
-  if (s->kind == Selector::Kind::Line) return true;
-  if (s->kind == Selector::Kind::Each && s->each == Unit::Line) return true;
-  for (const Selector& operand : s->operands)
+  if (s->kind == sigil::weave::Selector::Kind::Line) return true;
+  if (s->kind == sigil::weave::Selector::Kind::Each &&
+      s->each == sigil::weave::Unit::Line)
+    return true;
+  for (const sigil::weave::Selector& operand : s->operands)
     if (selectorNeedsLayout(operand)) return true;
   return false;
 }

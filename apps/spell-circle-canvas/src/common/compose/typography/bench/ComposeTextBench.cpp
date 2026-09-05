@@ -105,7 +105,7 @@ static void BM_Draw_KineticText(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_KineticText)->Arg(14)->Arg(56)->Unit(benchmark::kMicrosecond);
 
-/** The same looping reveal set DOWN COLUMNS, beating over `unit::Line` —
+/** The same looping reveal set DOWN COLUMNS, beating over `weave::unit::Line` —
  *  which in a vertical passage is a column. Read against
  *  BM_Draw_KineticText: the deviation is applied in the frame the layout
  *  placed each glyph in, and a column places every glyph as its own
@@ -126,7 +126,7 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
             .writingMode(sigil::weave::WritingMode::kVerticalRL)
             .fx({.effect = fx::rise(24),
                  .stagger = {.eachMs = 120},
-                 .over = unit::Line,
+                 .over = sigil::weave::unit::Line,
                  .progress = &progress}));
   host.composer.render(block);
   host.draw();

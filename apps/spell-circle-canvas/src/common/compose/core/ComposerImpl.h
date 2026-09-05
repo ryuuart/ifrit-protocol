@@ -304,12 +304,12 @@ struct Composer::Impl {
   void rebuildKeyIndex();
   void applyLayoutProps(detail::Instance& inst);
   /** Builds the instance's Paragraph from whichever content form its
-   *  description carries — plain utf8, `rich()` runs, or a copy of a
+   *  description carries — plain utf8, `weave::rich()` runs, or a copy of a
    *  supplied Paragraph — and then applies the span restyles in
    *  declaration order. @p lines is the geometry a previous layout
-   *  produced, which is what a `sel::line` restyle addresses; empty leaves
-   *  those selectors unresolved. @p columns carries the same geometry for a
-   *  vertical passage, where a line IS a column. */
+   *  produced, which is what a `weave::sel::line` restyle addresses; empty
+   *  leaves those selectors unresolved. @p columns carries the same
+   *  geometry for a vertical passage, where a line IS a column. */
   void materializeText(
       detail::Instance& inst,
       std::span<const sigil::weave::LineMetrics> lines = {},

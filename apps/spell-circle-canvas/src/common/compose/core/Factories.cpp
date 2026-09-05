@@ -44,7 +44,17 @@ Element text(std::u8string utf8, sigil::weave::TextStyle style) {
   return e;
 }
 
-Element text(RichText spans) {
+Element text(sigil::weave::RichText spans) {
+  // The style set a named run resolves through, when the author named none
+  // on the value itself: whatever `env::Provide<weave::StyleSet>` offers
+  // this describe scope. Supplied here rather than left to the value
+  // because the scope is this library's — the value holds resolved styles
+  // afterwards and depends on no scope that has since ended — and an
+  // explicit set always wins, whichever order the two were written in.
+  if (!spans.hasStyles())
+    if (const sigil::weave::StyleSet* ambient =
+            core::env::inherited<sigil::weave::StyleSet>())
+      spans.styles(*ambient);
   Element e;
   e.node()->kind = Kind::Text;
   detail::TextData& text = e.node()->textData.ensure();
@@ -57,7 +67,7 @@ Element text(RichText spans) {
   return e;
 }
 
-Element frame(Story story) {
+Element frame(sigil::weave::Story story) {
   Element e = text(story.content());
   const std::span<const sigil::weave::ParagraphStyle> blocks = story.blocks();
   if (!blocks.empty())

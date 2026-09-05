@@ -131,7 +131,7 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
           .key("probe")
           .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
                .stagger = {.eachMs = 90, .durationMs = 200},
-               .over = unit::Cluster,
+               .over = sigil::weave::unit::Cluster,
                .progress = 0.55f})));
   host.frame();
 
@@ -277,7 +277,7 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
             .key("run")
             .fx({.effect = fx::pass(passOver(kPhaseProbeSksl)),
                  .stagger = {.eachMs = 60, .durationMs = 200},
-                 .over = unit::Cluster,
+                 .over = sigil::weave::unit::Cluster,
                  .progress = animate(sigil::motion::to(target),
                                      motion::Transition{.duration = 200ms})}));
   };
@@ -351,7 +351,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
                                     .key("t")
                                     .fx({.effect = std::move(effect),
                                          .stagger = std::move(cascade),
-                                         .over = unit::Cluster,
+                                         .over = sigil::weave::unit::Cluster,
                                          .progress = master})));
     host.frame();
     return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));

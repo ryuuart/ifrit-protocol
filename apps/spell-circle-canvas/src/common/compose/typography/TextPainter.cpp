@@ -36,8 +36,8 @@ struct TextEngine final : TextPainterOps {
     resolveTextMarks(*inst.owner, inst);
   }
   std::vector<sigil::weave::CharRange> ranges(
-      const Selector& selector, sigil::weave::Paragraph& paragraph,
-      sigil::weave::FontContext& fonts,
+      const sigil::weave::Selector& selector,
+      sigil::weave::Paragraph& paragraph, sigil::weave::FontContext& fonts,
       std::span<const sigil::weave::LineMetrics> lines,
       std::span<const sigil::weave::ColumnMetrics> columns,
       std::span<const NamedRun> named, TextScope scope) const override {
@@ -53,8 +53,9 @@ struct TextEngine final : TextPainterOps {
     return foldableAsAxes(*inst.owner, style, ranges, paragraph, paintCarried,
                           axes);
   }
-  std::vector<TextUnit> units(Instance& inst, const Selector& selector,
-                              Unit unit) const override {
+  std::vector<TextUnit> units(Instance& inst,
+                              const sigil::weave::Selector& selector,
+                              sigil::weave::Unit unit) const override {
     return unitsOfText(*inst.owner, inst, selector, unit);
   }
   void annotations(Instance& inst) const override {
@@ -118,7 +119,7 @@ Element& Element::annotate(Annotation reading) {
   return *this;
 }
 
-Element& Element::mark(Selector where, Element what) {
+Element& Element::mark(sigil::weave::Selector where, Element what) {
   detail::TextData& text = dressedText(m_node->textData.ensure());
   // A KEY IS THE ANCHOR'S HANDLE, so a mark that carries none is given one
   // from its declaration order: the layout looks its rect up by key, and
@@ -174,7 +175,8 @@ Element& Element::variationDrive(const char (&tag)[5],
   return *this;
 }
 
-Element& Element::spanPaint(Selector where, sigil::weave::PaintStyle paint) {
+Element& Element::spanPaint(sigil::weave::Selector where,
+                            sigil::weave::PaintStyle paint) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   restyle.style.paint = std::move(paint);
@@ -184,7 +186,8 @@ Element& Element::spanPaint(Selector where, sigil::weave::PaintStyle paint) {
   return *this;
 }
 
-Element& Element::spanStyle(Selector where, sigil::weave::TextStyle style) {
+Element& Element::spanStyle(sigil::weave::Selector where,
+                            sigil::weave::TextStyle style) {
   detail::SpanRestyle restyle;
   restyle.where = std::move(where);
   restyle.style = std::move(style);

@@ -16,6 +16,8 @@
 #include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/layout/PositionedRun.h>
 #include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/paragraph/Unit.h>
+#include <sigilweave/query/Selector.h>
 #include <sigilweave/style/PaintStyle.h>
 #include <sigilweave/style/TextStyle.h>
 
@@ -38,11 +40,8 @@ namespace sigil::compose {
 
 struct PaintContext;
 // The typography vocabulary the seam is spelled in, defined under
-// <sigilcompose/typography/>: which units a selector addresses, the unit
-// itself and where one landed, one beat of a cascade, a reading beside the
-// type, and a run's path baseline.
-class Selector;
-enum class Unit : uint8_t;
+// <sigilcompose/typography/>: one unit as the layout placed it, one beat
+// of a cascade, a reading beside the type, and a run's path baseline.
 struct TextUnit;
 struct Beat;
 struct Annotation;
@@ -52,7 +51,7 @@ struct Instance;
 }  // namespace detail
 
 namespace detail {
-/** ONE `rich()` RUN THAT WAS WRITTEN UNDER A STYLE NAME, and the text it
+/** ONE `weave::rich()` RUN THAT WAS WRITTEN UNDER A STYLE NAME, and the text it
  *  occupies — what `sel::style` resolves against.
  *
  *  The name is tied to the run's TEXT rather than to the style span it
@@ -70,7 +69,7 @@ struct NamedRun {
   sigil::weave::CharRange chars;
 };
 
-/** WHERE A LEAF STANDS IN ITS STORY — what makes `sel::line` address the
+/** WHERE A LEAF STANDS IN ITS STORY — what makes `weave::sel::line` address the
  *  story and `sel::inFrame` address one frame of it.
  *
  *  A story's words, characters, sentences and named runs are the story's
@@ -121,8 +120,8 @@ class TextPainterOps {
    *  the same layout the letters are drawn from — the query behind
    *  `Composer::units`. */
   virtual std::vector<TextUnit> units(detail::Instance& inst,
-                                      const Selector& selector,
-                                      Unit unit) const = 0;
+                                      const sigil::weave::Selector& selector,
+                                      sigil::weave::Unit unit) const = 0;
   /** LAYS OUT EVERY READING this text carries against the layout its
    *  letters are drawn from, and leaves the results on the instance for
    *  the kernel to draw. */
@@ -134,11 +133,11 @@ class TextPainterOps {
       detail::Instance& inst,
       std::span<const Annotation> annotations) const = 0;
   /** WHICH TEXT A SELECTOR ADDRESSES, as UTF-16 ranges — sorted, merged,
-   *  non-overlapping. `sel::line` reads @p lines, or @p columns where the
-   *  passage is vertical; `sel::style` reads @p named. */
+   *  non-overlapping. `weave::sel::line` reads @p lines, or @p columns where
+   * the passage is vertical; `sel::style` reads @p named. */
   virtual std::vector<sigil::weave::CharRange> ranges(
-      const Selector& selector, sigil::weave::Paragraph& paragraph,
-      sigil::weave::FontContext& fonts,
+      const sigil::weave::Selector& selector,
+      sigil::weave::Paragraph& paragraph, sigil::weave::FontContext& fonts,
       std::span<const sigil::weave::LineMetrics> lines,
       std::span<const sigil::weave::ColumnMetrics> columns,
       std::span<const detail::NamedRun> named,

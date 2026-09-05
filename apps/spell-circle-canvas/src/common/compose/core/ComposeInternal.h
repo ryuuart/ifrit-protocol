@@ -10,7 +10,9 @@
 #include <sigilcore/reconcile/Reads.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animated.h>
+#include <sigilweave/layout/Story.h>
 #include <sigilweave/paragraph/Paragraph.h>
+#include <sigilweave/paragraph/RichText.h>
 
 #include <array>
 #include <vector>
@@ -122,7 +124,7 @@ class Box {
  *  and what it does to the range it finds. Ordered — later declarations win
  *  on overlap — and comparable, so a re-described list prunes. */
 struct SpanRestyle {
-  Selector where;
+  sigil::weave::Selector where;
   sigil::weave::TextStyle style;  ///< paintOnly reads `style.paint` alone
   /** setPaint (never re-shapes) rather than setStyle. */
   bool paintOnly = false;
@@ -139,7 +141,7 @@ struct SpanRestyle {
  *  learn which rect that child's box is. Comparable, so a re-described mark
  *  list prunes. */
 struct MarkAnchor {
-  Selector where;
+  sigil::weave::Selector where;
   std::string key;
   bool operator==(const MarkAnchor&) const = default;
 };
@@ -242,9 +244,9 @@ struct TextData {
   Fill textStrokeFill;
   std::u8string utf8;
   sigil::weave::TextStyle style;
-  // text(RichText): several runs, several styles, one comparable value. Empty
-  // on every other content form.
-  RichText rich;
+  // text(weave::RichText): several runs, several styles, one comparable value.
+  // Empty on every other content form.
+  sigil::weave::RichText rich;
   // Full-control overload: identity (the pointer) is the change signal.
   std::shared_ptr<sigil::weave::Paragraph> paragraphOverride;
   sigil::weave::ParagraphLayoutOptions layoutOptions;
@@ -658,6 +660,6 @@ void warnNoSuchParagraphStyle(std::string_view name, bool anySetInScope);
 
 /** Does this selector reach for a LINE, and therefore need a layout to
  *  resolve against? The question the second layout pass is gated on. */
-bool selectorNeedsLayout(const Selector& selector);
+bool selectorNeedsLayout(const sigil::weave::Selector& selector);
 
 }  // namespace sigil::compose::detail
