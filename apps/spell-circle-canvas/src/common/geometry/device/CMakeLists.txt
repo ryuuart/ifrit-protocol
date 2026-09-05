@@ -6,9 +6,14 @@
 # a map is an image; a draw needs buffers and textures. The crossing has
 # one vertex layout, one lifetime rule and one cache, and two executors
 # sharing a device share the crossing rather than each copying every
-# mesh and every map a second time. That is why the mesh currency and
-# the material texture are linked here: they are what gets made
-# resident, and nothing here reads either for anything else.
+# mesh and every map a second time. The same is true of a pipeline: what
+# distinguishes two draws of one compiled program is how they blend and
+# whether they depth-test, and building that twice from two renderers
+# would only mean two caches. That is why the mesh currency, the
+# material texture and SigilMaterial's Slang backend are linked here:
+# they are what gets made resident and what a pipeline is built out of,
+# and nothing here reads any of them for anything else. Nothing here
+# decides a picture.
 #
 # THE CREATION POINT SITS BELOW EVERY CONSUMER, and it has to. Diligent
 # creates the Vulkan device — this build of it cannot attach to a device
@@ -49,12 +54,13 @@ enable_language(C)
 
 
 sigil_library(SigilGeometryDevice
-  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Meshes.cpp Resources.cpp
-          Textures.cpp VolkShim.c
-  HEADERS Device.h Meshes.h Resources.h Textures.h
+  SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Meshes.cpp Pipelines.cpp
+          Resources.cpp Textures.cpp VolkShim.c
+  HEADERS Device.h Meshes.h Pipelines.h Resources.h Textures.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC unofficial::diligent-engine::DiligentCore SigilCoreHardware
          SigilSkiaGraphite SigilGeometryMesh SigilMaterialTexture
+         SigilMaterialSlang
   PRIVATE unofficial::diligent-engine::volk Vulkan::Headers)
 
 # The device fixture every binary with device cases reads: one device per

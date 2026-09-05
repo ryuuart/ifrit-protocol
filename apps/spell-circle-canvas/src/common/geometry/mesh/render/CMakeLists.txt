@@ -16,3 +16,7 @@ sigil_test(geometry_mesh_render_test
 sigil_bench(geometry_mesh_render_bench
   SOURCES bench/RenderBench.cpp
   LIBRARIES SigilGeometryMeshRender SigilGeometryKit)
+
+# …and the device executor of the same seam, its own target so that this
+# one keeps its promise to know nothing about a device.
+add_subdirectory(device)

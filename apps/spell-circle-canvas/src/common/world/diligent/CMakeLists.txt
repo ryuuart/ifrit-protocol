@@ -10,9 +10,9 @@
 # mistake in one a build failure rather than a first-frame surprise.
 include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
-# Every module here imports the portable subset, and Surface.slang and
-# Painter.slang the material kit's shading terms as well, so slangc is
-# pointed at the two directories those files live in. At run time the
+# Every module here imports the portable subset, and Surface.slang the
+# material kit's shading terms as well, so slangc is pointed at the two
+# directories those files live in. At run time the
 # same texts, embedded in the libraries they belong to, are loaded into
 # the compiler session by name.
 set(_imports ${_shaders} ${SIGIL_MATERIAL_SLANG_SHADER_DIR}
@@ -22,10 +22,6 @@ sigil_slang_module(NAME Surface SOURCE ${_shaders}/Surface.slang
   ENTRIES vsMain fsFlat INCLUDE ${_imports}
   DEPENDS ${_portable} ${SIGIL_MATERIAL_TERMS_DIR}/Shading.slang
   PROOF_VAR SIGIL_WORLD_SURFACE_PROOF)
-sigil_slang_module(NAME Painter SOURCE ${_shaders}/Painter.slang
-  ENTRIES vsPaint fsPaint INCLUDE ${_imports}
-  DEPENDS ${_portable} ${SIGIL_MATERIAL_TERMS_DIR}/Shading.slang
-  PROOF_VAR SIGIL_WORLD_PAINTER_PROOF)
 sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
   ENTRIES vsFullscreen fsCopy fsBlur fsLevels fsMasked INCLUDE ${_imports}
   DEPENDS ${_portable}
@@ -44,15 +40,16 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # arrives through SigilGeometryDevice, which links it PUBLIC, and is
 # never named again here: that target's archive must come first on the
 # link line. The hardware device a native import names and the
-# mesh-renderer seam the painter stands in are PUBLIC because the headers
-# spell them; the Graphite pixel reads an environment upload takes are
-# PRIVATE.
+# mesh-renderer seam a frame's bodies are styled through are PUBLIC
+# because the headers spell them; the Graphite pixel reads an
+# environment upload takes are PRIVATE. The mesh painter's own device
+# executor is not here: it draws no frame, so it stands beside its CPU
+# twin in SigilGeometry.
 sigil_library(SigilWorldDiligent
-  SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp PainterGpu.cpp Post.cpp
+  SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp Post.cpp
           Programs.cpp Programs.h Runtime.cpp
-          ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_PAINTER_PROOF}
-          ${SIGIL_WORLD_POST_PROOF}
-  HEADERS Import.h Painter.h Runtime.h
+          ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_POST_PROOF}
+  HEADERS Import.h Runtime.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
@@ -73,7 +70,7 @@ sigil_shader_sources(SigilWorldDiligent
 # `ctest -L gpu` is the run that needs a device, and a run that excludes
 # it is a run nobody should read a device verdict out of.
 sigil_test(world_diligent_test
-  SOURCES test/PainterTest.cpp test/RuntimeTest.cpp test/StackTest.cpp
+  SOURCES test/RuntimeTest.cpp test/StackTest.cpp
           test/SurfaceTest.cpp test/DeviceSeams.h
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}

@@ -71,7 +71,7 @@
 
 #ifndef SIGILSKETCH_NO_DEVICE
 #include <sigilgeometry/device/Device.h>
-#include <sigilworld/diligent/Painter.h>
+#include <sigilgeometry/mesh/render/device/Painter.h>
 #include <sigilworld/diligent/Runtime.h>
 #endif
 
@@ -222,7 +222,8 @@ bool useDevice() {
   sketch::useRuntime(sigil::world::diligent::runtime(*g_device));
   // …and the 2D twin: a canvas sketch that stands a mesh up in space
   // reaches the same device through sketch::painterRuntime().
-  sketch::usePainterRuntime(sigil::world::diligent::painterRuntime(*g_device));
+  sketch::usePainterRuntime(
+      sigil::geometry::mesh::render::deviceRuntime(*g_device));
   // …and the device itself, for the calls no runtime can stand in for:
   // a foreign texture entering a material slot names the device it
   // already stands on.

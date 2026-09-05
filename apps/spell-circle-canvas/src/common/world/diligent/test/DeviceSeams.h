@@ -21,12 +21,10 @@
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
-#include <sigilworld/diligent/Painter.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -39,38 +37,22 @@
 
 namespace sigil::world::diligent {
 
-/** A DEVICE AND ONE SEAM VALUE STANDING ON IT, or the reason there is
- *  neither. The runtime type is the parameter because two seams stand on
- *  the same device: the one that performs a frame's passes and the one
- *  that draws a mesh onto a canvas. */
-template <class R>
+/** A DEVICE AND THE SEAM VALUE STANDING ON IT, or the reason there is
+ *  neither: the runtime that performs a frame's passes. */
 struct OnDevice {
   geometry::device::Device* device = nullptr;
-  R runtime;
+  ::sigil::world::Runtime runtime;
   std::string error;
   explicit operator bool() const { return device != nullptr; }
 };
 
-/** The runtime that performs a frame's passes. */
-inline OnDevice<::sigil::world::Runtime> onDevice() {
+inline OnDevice onDevice() {
   const geometry::device::test::OnDevice shared =
       geometry::device::test::onDevice();
-  OnDevice<::sigil::world::Runtime> out;
+  OnDevice out;
   out.device = shared.device;
   out.error = shared.error;
   if (out.device) out.runtime = ::sigil::world::diligent::runtime(*out.device);
-  return out;
-}
-
-/** The runtime that draws a mesh onto a canvas. */
-inline OnDevice<::sigil::geometry::mesh::render::Runtime> onPainterDevice() {
-  const geometry::device::test::OnDevice shared =
-      geometry::device::test::onDevice();
-  OnDevice<::sigil::geometry::mesh::render::Runtime> out;
-  out.device = shared.device;
-  out.error = shared.error;
-  if (out.device)
-    out.runtime = ::sigil::world::diligent::painterRuntime(*out.device);
   return out;
 }
 

@@ -3,7 +3,9 @@
 /** @file
  * THE PROGRAMS THIS BACKEND DRAWS WITH, each compiled once for the
  * process, and the registration that lets a material's own body join
- * them.
+ * them. The mesh painter's is not among them: it draws no frame and
+ * reads no material, so it stands with the mesh-render seam's device
+ * executor in SigilGeometry.
  *
  * The scaffold is the text every surface is built on: a material's body
  * is appended to it and compiled when the library RUNS, because a body
@@ -31,11 +33,6 @@ const material::slang::Compiled& scaffold(bool lit);
  *  and a depth, and a sky has none of the three. Empty when it failed to
  *  compile, which is reported once. */
 const material::slang::Compiled& backdropProgram();
-
-/** THE MESH PAINTER'S PROGRAM: the one a draw with no material takes,
- *  whose three shading modes are a uniform rather than three builds.
- *  Empty when it failed to compile, which is reported once. */
-const material::slang::Compiled& painterProgram();
 
 /** WHAT A POST PASS DOES, one program each. Each is a triangle covering
  *  the target and one fragment stage; none of them depends on a

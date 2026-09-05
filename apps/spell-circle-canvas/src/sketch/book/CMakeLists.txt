@@ -86,8 +86,11 @@ if(TARGET SigilSketchScry)
 endif()
 
 # The device lane for set sketches: a flag that asked for the device
-# answers with the device or with nothing, never with a fallback.
-target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent)
+# answers with the device or with nothing, never with a fallback. The
+# frame runtime is the world's; the mesh painter's device executor
+# stands beside its CPU twin in SigilGeometry, so both are named.
+target_link_libraries(Sketchbook PRIVATE SigilWorldDiligent
+                                         SigilGeometryMeshRenderDevice)
 
 # Draw straight into QQuickRhiItem's texture through the shared Skia
 # Graphite context when the active QRhi backend supports it; the

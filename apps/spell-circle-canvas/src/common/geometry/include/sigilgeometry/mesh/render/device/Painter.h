@@ -11,10 +11,11 @@ namespace sigil::geometry::device {
 class Device;
 }  // namespace sigil::geometry::device
 
-namespace sigil::world::diligent {
+namespace sigil::geometry::mesh::render {
 
 /**
- * The `render::Runtime` whose executor draws on @p device.
+ * The `Runtime` whose executor draws on @p device — the device twin of
+ * `Runtime::cpu()`, standing beside it as every other seam here has one.
  *
  * WHAT RUNS WHERE. A mesh draw is one pipeline over the mesh's vertices:
  * the style's three modes are a uniform rather than three programs, the
@@ -57,7 +58,6 @@ namespace sigil::world::diligent {
  * Two runtimes made by one call to this compare equal; two separate
  * calls do not, because they hold separate device state.
  */
-::sigil::geometry::mesh::render::Runtime painterRuntime(
-    ::sigil::geometry::device::Device& device);
+Runtime deviceRuntime(::sigil::geometry::device::Device& device);
 
-}  // namespace sigil::world::diligent
+}  // namespace sigil::geometry::mesh::render

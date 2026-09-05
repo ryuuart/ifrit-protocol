@@ -44,7 +44,7 @@ library that is not here.
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
 | `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane; and the rails a body rides — the turntable's ring, a loop that rises and falls, a winding round a shell. Nothing here decides a look. |
-| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky, the mesh painter and the post stages, compiled through SigilMaterial's Slang backend — and the two seam values that stand on that device: the `Runtime` that performs a frame's passes and the `geometry::mesh::render::Runtime` that draws a mesh onto a canvas — plus `importNative`, the door a foreign texture reaches a material slot by. Putting a mesh or a map ON that device is not here: `geometry::device::MeshResidency` and `geometry::device::TextureResidency` do it, and this feature asks them. The chain cook and the swept rings are SigilGeometry's own device executors, beside the CPU ones of the same seams. |
+| `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky and the post stages, compiled through SigilMaterial's Slang backend — the `Runtime` that performs a frame's passes on that device, and `importNative`, the door a foreign texture reaches a material slot by. What stands on the device beneath all of it is SigilGeometry's: `geometry::device::MeshResidency` and `TextureResidency` put a mesh and a map there, `PipelineCache` builds a pipeline out of a compiled program, and this feature asks them. So are the device executors of every seam it is not — the chain cook, the swept rings and the mesh painter each stand beside the CPU executor of their own seam. |
 | — | `SigilWorld` | — | the umbrella: an interface target over every feature above, and `<sigilworld/World.h>`, which is their public headers in one include. A consumer of the whole library names only this; the device feature is in it where it was built. |
 
 ## Writing a scene
@@ -806,45 +806,13 @@ machine with no Vulkan runtime has nothing to disagree about.
 
 ### The mesh painter on the device
 
-`diligent::painterRuntime(device)` is a `geometry::mesh::render::Runtime`
-whose executor draws on the device: one pipeline over the mesh's
-vertices, the style's three modes as a uniform rather than three
-programs, the shading per vertex in view space exactly as the host
-executor's is, the primitive lane multiplying the shaded colour, and the
-texture read through the sampler its placement, its wrap and its filter
-ask for. The pixels are then READ BACK and drawn onto the canvas the
-caller passed, premultiplied and under whatever transform that canvas
-carries.
-
-**It is a readback, and this page says so rather than implying
-otherwise.** A canvas does not name the texture behind it, so there is
-nothing to compare against this device to decide that the pixels could be
-bound where they stand — the zero-copy path SigilSkia offers needs a
-caller holding both the surface and the device, and a `geometry::mesh::render::Executor`
-is handed neither.
-
-**Each mesh draw is a device frame of its own**, because the heap a
-draw's uniforms are written into is refilled once a frame. The command
-context is shared with every other runtime on the device, so a draw taken
-from inside a frame's pass body would close that frame early; a canvas
-draw stands between frames, which is where this belongs.
-
-**A PANEL draw is the canvas's own.** Both executors concat the same
-perspective transform and hand the canvas to the caller, because that
-content is Skia's to rasterise and a panel on a GPU-backed canvas is
-already on the GPU. The two are therefore the same BYTES for a panel, and
-the test says exactly that rather than measuring a distance.
-
-**How far this stands from the host executor is not asked in a test.**
-The host sorts triangles back to front and antialiases their edges, this
-depth-tests them and does not, so the two draw the same picture and not
-the same bytes; what a whole-picture comparison of them is worth depends
-on the subject, which is a scene's property rather than this code's. That
-judgement belongs to the plate ledger's device tier, which makes it
-against a committed baseline. `painter_gpu` and `floating_panels` stand
-a mesh on a canvas through `painterRuntime`, and `--gpu` rasterises a
-canvas sketch's mesh painter on the device, so the quick tier's plates
-of those two are what put the mesh painter under that judgement.
+It is not here. `geometry::mesh::render::deviceRuntime(device)` draws a
+mesh onto a canvas on the device, and it stands beside the CPU executor
+of that seam, in SigilGeometry — a mesh draw has no pass, no named
+resources and no material, so nothing about it is a frame. SigilGeometry's
+README is canon for what it does and how far it stands from its host
+twin. A host that brought a device up installs it beside the frame
+runtime below, from the same device.
 
 ### The swept rings on the device
 
@@ -1039,8 +1007,8 @@ back. At run time the scaffold's text, a recipe's generated
 declarations, its body and one fragment entry point are assembled into
 one module and compiled through `material::slang::compileModule`, which
 is also what reports every uniform's offset. `Programs.h` is where this
-backend's own four programs live — the scaffold in its lit and unlit
-builds, the sky, the mesh painter and the post stages — each compiled
+backend's own programs live — the scaffold in its lit and unlit
+builds, the sky and the post stages — each compiled
 once for the process; `installSlangCompiler()` registers the one that
 appends a recipe's body to the scaffold, because only this backend knows
 what that scaffold is.
@@ -1189,9 +1157,6 @@ is SigilGeometryDevice's**, whose `test/support/OnDevice.h` brings up ONE
 for the process, because that library is the one point in the tree where
 a device can be created at all.
 
-`diligent/test/PainterTest.cpp` is the mesh painter: the runtime as a
-value, a surface that is its own light standing brighter than a lit one
-on both executors, and a panel that is the same bytes on either.
 `diligent/test/SurfaceTest.cpp` is the sampled slots and the import door —
 an occlusion map darkening only where it is dark, an emissive map
 carrying its own colour, a cutout dropping texels outright, a normal map

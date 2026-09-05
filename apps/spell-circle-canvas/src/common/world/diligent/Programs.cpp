@@ -1,7 +1,7 @@
 /** @file
  * The programs this backend draws with: the scaffold in its two builds,
- * the sky, the mesh painter, the post stages, and the compiler
- * registration that appends a recipe's body to the scaffold.
+ * the sky, the post stages, and the compiler registration that appends a
+ * recipe's body to the scaffold.
  */
 
 #include "Programs.h"
@@ -47,24 +47,6 @@ const Compiled& backdropProgram() {
                                         /*lit=*/true, &program, &error))
       material::reportOnce("world.diligent.backdrop",
                            "the sky pass did not compile: " + error);
-    return program;
-  }();
-  return built;
-}
-
-const Compiled& painterProgram() {
-  static const Compiled built = [] {
-    Compiled program;
-    std::string error;
-    // Compiled once and unspecialised: the painter's modes and its
-    // "does light reach this" answer are fields of a style, which is a
-    // value a caller changes between two draws, so specialising on one
-    // would compile a program per draw rather than per material.
-    if (!material::slang::compileModule(shaderSource("Painter.slang"),
-                                        "vsPaint", "fsPaint", /*lit=*/false,
-                                        &program, &error))
-      material::reportOnce("world.diligent.painter",
-                           "the mesh painter did not compile: " + error);
     return program;
   }();
   return built;

@@ -212,7 +212,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
                         false,
                         false,
                         cull};
-  const Pipeline* pipeline = gpu.pipeline(key);
+  const Pipeline* pipeline = gpu.pipelines.pipeline(key);
   if (!pipeline) return;
 
   // THE PANORAMA, uploaded once per map and kept. Its level count is
@@ -296,8 +296,8 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   // The WRAP is the map's own, not a default: one wrap serves both axes
   // and every slot bound here, and clamping an axis that was asked to
   // repeat drags one edge's texels across the whole face.
-  bindAndCommit(gpu, *pipeline, *surface.program, uniforms, textures,
-                sampling.filter, sampling.tile, &isEnvironmentSlot);
+  device::bindDraw(gpu.shared, *pipeline, *surface.program, uniforms, textures,
+                   sampling.filter, sampling.tile, &isEnvironmentSlot);
   dg::IBuffer* vertices = buffers->vertices;
   const dg::Uint64 offset = 0;
   context->SetVertexBuffers(0, 1, &vertices, &offset,
@@ -333,7 +333,7 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   // The sky is opaque and stands behind everything, so it writes no
   // depth and takes none: whatever is drawn after it covers it.
   const PipelineKey key{&program, SkBlendMode::kSrc, false, false, true};
-  const Pipeline* pipeline = gpu.pipeline(key);
+  const Pipeline* pipeline = gpu.pipelines.pipeline(key);
   if (!pipeline) return;
 
   material::slang::Uniforms uniforms(program);
@@ -373,8 +373,8 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
 
   dg::IDeviceContext* context = gpu.device->context();
   context->SetPipelineState(pipeline->state);
-  bindAndCommit(gpu, *pipeline, program, uniforms, textures,
-                SkFilterMode::kLinear, false, &isEnvironmentSlot);
+  device::bindDraw(gpu.shared, *pipeline, program, uniforms, textures,
+                   SkFilterMode::kLinear, false, &isEnvironmentSlot);
   dg::DrawAttribs draw;
   draw.NumVertices = 3;
   draw.Flags = dg::DRAW_FLAG_VERIFY_ALL;

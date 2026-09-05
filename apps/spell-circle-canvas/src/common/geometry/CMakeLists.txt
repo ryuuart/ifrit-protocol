@@ -21,5 +21,6 @@ add_subdirectory(kit)
 sigil_library(SigilGeometry
   INTERFACE SigilGeometryPath SigilGeometryPathBlend SigilGeometryMesh
             SigilGeometryMeshCamera SigilGeometryMeshRender
+            SigilGeometryMeshRenderDevice
             SigilGeometryMeshCurve SigilGeometryMeshPop
             SigilGeometryMeshCodec SigilGeometryKit SigilGeometryDevice)

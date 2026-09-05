@@ -40,7 +40,7 @@ void drawStage(Gpu& gpu, const material::slang::Compiled& program, dg::ITexture*
                const std::vector<dg::ITexture*>& textures, bool clear) {
   if (program.empty() || !into) return;
   const PipelineKey key{&program, blend, false, false, true};
-  const Pipeline* pipeline = gpu.pipeline(key);
+  const Pipeline* pipeline = gpu.pipelines.pipeline(key);
   if (!pipeline) return;
 
   dg::IDeviceContext* context = gpu.device->context();
@@ -53,7 +53,7 @@ void drawStage(Gpu& gpu, const material::slang::Compiled& program, dg::ITexture*
                                dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   }
   context->SetPipelineState(pipeline->state);
-  bindAndCommit(gpu, *pipeline, program, uniforms, textures);
+  device::bindDraw(gpu.shared, *pipeline, program, uniforms, textures);
   dg::DrawAttribs draw;
   draw.NumVertices = kFullscreenVertices;
   draw.Flags = dg::DRAW_FLAG_VERIFY_ALL;

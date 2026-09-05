@@ -103,7 +103,7 @@ class EitherTier : public testing::TestWithParam<Tier> {
     runtime = on.runtime;
   }
 
-  diligent::OnDevice<Runtime> on;
+  diligent::OnDevice on;
   Runtime runtime = Runtime::cpu();
 };
 

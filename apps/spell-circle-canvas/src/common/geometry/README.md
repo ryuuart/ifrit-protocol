@@ -39,6 +39,11 @@ path/          SigilGeometryPath          sigil::geometry::path
 mesh/          SigilGeometryMesh          sigil::geometry::mesh
   camera/      SigilGeometryMeshCamera    sigil::geometry::mesh::camera
   render/      SigilGeometryMeshRender    sigil::geometry::mesh::render
+    device/    SigilGeometryMeshRenderDevice
+                                          (the same ::render namespace:
+                                           a device executor stands in
+                                           the scope of the seam it
+                                           serves, as pop's do)
   curve/       SigilGeometryMeshCurve     sigil::geometry::mesh::curve
   pop/         SigilGeometryMeshPop       sigil::geometry::mesh::pop
   codec/       SigilGeometryMeshCodec     sigil::geometry::mesh::codec
@@ -542,6 +547,18 @@ own repertoire here rather than inside whatever draws through it.
 **`mesh/render`** — `SigilGeometryMeshRender`, needs `mesh` and
 `mesh/camera`.
 
+- **`mesh/render/device/Painter.h`** — `render::deviceRuntime(device)`,
+  the device executor of that seam, beside `Runtime::cpu()`. It is its
+  own target so the feature above stays free of a device: a consumer
+  that draws meshes on the host links no renderer's dependencies. What
+  differs from the host is not a shading disagreement — the host sorts
+  triangles back to front and antialiases their edges, this depth-tests
+  them and does not — and a panel is the same BYTES on either, because a
+  panel's content is Skia's to rasterise whichever executor holds it.
+  One readback per mesh draw: a canvas does not name the texture behind
+  it, so there is nothing to compare against the device to decide the
+  pixels could stay where they are.
+
 - **`mesh/render/Runtime.h`** — the seam a draw executes through, as a
   value. `Executor` is what a runtime supplies (the mesh draw and the
   panel draw); `Runtime` holds one and compares like the model it holds;
@@ -1028,11 +1045,13 @@ it on the device is not a thing each renderer answers for itself.
 carries.
 
 **The device executors of this library's own seams stand beside their CPU
-ones**, in `mesh/pop/device/`: `pop::deviceRuntime(device)` cooks a chain
+ones**, in `mesh/pop/device/` and `mesh/render/device/`:
+`pop::deviceRuntime(device)` cooks a chain
 by dispatching the kernel this build compiled,
 `pop::sweepDeviceRuntime(device)` forms a sweep's rings by dispatching
-theirs, and `points::deviceRuntime(device)` forms a stamping's vertices
-by dispatching the third. Neither computes an arithmetic of its own — the kernel is one
+theirs, `points::deviceRuntime(device)` forms a stamping's vertices
+by dispatching the third, and `render::deviceRuntime(device)` rasterises
+a mesh draw. Neither computes an arithmetic of its own — the kernel is one
 Slang source compiled twice, to the C++ the host executor calls and to
 the SPIR-V dispatched here — which is what lets the two tiers be held to
 bit identity rather than to a tolerance. All three are absent from a build with no device feature, and
