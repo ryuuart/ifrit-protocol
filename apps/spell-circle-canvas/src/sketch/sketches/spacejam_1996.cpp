@@ -34,7 +34,7 @@
 // not a panel: no chrome, no bevel, no border, not one stroked rectangle.
 // Three things carry it instead.
 //
-//  1. THE LAYOUT IS PRODUCED BY AN ALGORITHM. `layouts::Table` is the HTML
+//  1. THE LAYOUT IS PRODUCED BY AN ALGORITHM. `Table` is the HTML
 //     auto table, and this page is set with it: five columns, five rows, a
 //     colspan=2, a colspan=3 rowspan=2 and a rowspan=2, per-cell
 //     align/valign, and the proportional surplus distribution that is why
@@ -102,7 +102,7 @@
 // deficit is NOT. Chrome gives the whole of the logotype's overflow to the
 // LAST row it spans and leaves the first untouched; distributing it
 // proportionally instead makes the second row far too tall and drags every
-// image below it down. Both branches are in `layouts::Table::solve()`.
+// image below it down. Both branches are in `Table::solve()`.
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
@@ -1159,7 +1159,7 @@ struct SpaceJam1996 : sketch::Sketch {
   mskia::Paint starsMat;
   // <TABLE WIDTH=500 CELLSPACING=2 CELLPADDING=1>, at this sketch's scale.
   // The columns and rows are the ones the children claim.
-  layouts::Table table{.columns = 5,
+  Table table{.columns = 5,
                        .rows = 5,
                        .width = sj::S(500),
                        .spacing = sj::S(2),
@@ -1263,7 +1263,7 @@ struct SpaceJam1996 : sketch::Sketch {
       fastRow.child(revealed(kFastbreak, true).left(Dim(S(53))).top(Dim(S(3))));
     }
 
-    // 3. the planet table. Nothing below is hand-placed: `layouts::Table`
+    // 3. the planet table. Nothing below is hand-placed: `Table`
     //    runs the auto-layout rule over the children's measured sizes and
     //    the cells they claim.
     Element grid = layout(table)
@@ -1372,7 +1372,7 @@ struct SpaceJam1996 : sketch::Sketch {
                                .down = s.down,
                                .declared = true});
     }
-    const layouts::Table::Grid grid = table.solve(in);
+    const Table::Grid grid = table.solve(in);
     SkDebugf("[spacejam] resolved columns (content px, 1x):");
     for (float w : grid.columnWidths) SkDebugf(" %.2f", w / kScale);
     SkDebugf(
@@ -1515,5 +1515,5 @@ struct SpaceJam1996 : sketch::Sketch {
 
 SIGIL_SKETCH(
     SpaceJam1996, "Study \xc2\xb7 Screens",
-    "spacejam.com, still live \xe2\x80\x94 the page set by layouts::Table, "
+    "spacejam.com, still live \xe2\x80\x94 the page set by Table, "
     "each <TD> naming its own cells")

@@ -132,7 +132,7 @@ class Element {
    *  center correctly; implies absolute(). */
   Element& centerAt(SkPoint p);
   /** WHICH CELLS this child claims of the `layout()` scheme above it, and
-   *  how many it covers — read by grid-shaped schemes (`layouts::Table`,
+   *  how many it covers — read by grid-shaped schemes (`Table`,
    *  `layouts::ModularGrid`) and by nothing else.
    *
    *  Said HERE, on the child, rather than in a list the scheme carries

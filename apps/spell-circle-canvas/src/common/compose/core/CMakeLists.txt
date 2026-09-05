@@ -49,7 +49,7 @@ sigil_library(SigilComposeCore
     Transforms.h ComposerImpl.h PaintInternal.h
   HEADERS ../Compose.h Composer.h Core.h Derive.h Element.h Factories.h
           Feed.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
-          Shape.h Stroke.h TextPainter.h Tiles.h
+          Shape.h Stroke.h Table.h TextPainter.h Tiles.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial

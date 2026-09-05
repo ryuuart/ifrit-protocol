@@ -724,7 +724,7 @@ TEST(ComposeLayouts, TableSizesColumnsByTheirContentAndSharesTheSurplus) {
   // each column starts at its widest child, and the 300 − 180 left over is
   // shared out IN PROPORTION, so the widest column takes the most of it.
   Host host;
-  layouts::Table table{.width = 300};
+  Table table{.width = 300};
   host.composer.render(
       box().child(layout(table)
                       .width(pct(100))
@@ -750,7 +750,7 @@ TEST(ComposeLayouts, TableSpansTopUpColumnsAndRowsDifferently) {
   // deficit is shared across the columns it covers, a rowspan's lands
   // entirely on the LAST row it covers.
   Host host;
-  layouts::Table table{.columns = 2, .rows = 2, .width = 100};
+  Table table{.columns = 2, .rows = 2, .width = 100};
   host.composer.render(box().child(
       layout(table)
           .width(200)
@@ -778,7 +778,7 @@ TEST(ComposeLayouts, TableFlowsWhatNoChildClaimedAndAlignsInsideTheCell) {
   // claimed — never one already spoken for, which is the failure of a
   // scheme that counts its flow from zero.
   Host host;
-  layouts::Table table{.columns = 2, .width = 200};
+  Table table{.columns = 2, .width = 200};
   host.composer.render(
       box().child(layout(table)
                       .width(200)

@@ -529,7 +529,9 @@ SigilGeometry's, spelled `geometry::shapes::` from
 needs nothing of a component tree, and every one of them prunes a shaped
 node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement schemes for the `layout()`
 seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
-`BaselineGrid`, `Scatter`, `Table`).
+`BaselineGrid`, `Scatter`) — each one a placement FUNCTION an author
+could have written out. `core/Table.h` stands beside the seam instead,
+because the auto table is an algorithm and not a formula.
 
 **A scheme sees one thing about a child it could not measure: the cells
 the child claimed.** `LayoutInput` carries the container's size, every
@@ -542,11 +544,11 @@ every entry after it silently addresses the wrong one, taking another
 cell's span, alignment and origin, with no error and a picture that still
 looks plausible. `CellSpan::declared` is what a scheme reads to tell
 "cell (0,0)" from "wherever you like", so a table can flow the children
-that said nothing into the cells no child claimed. `layouts::Table` is
+that said nothing into the cells no child claimed. `Table` is
 placed entirely by it; `ModularGrid` reads it too and falls back to its
 own parallel `spans` list for a child that named no cells.
 
-`layouts::Table` is the HTML automatic table layout: unequal columns
+`Table` is the HTML automatic table layout: unequal columns
 sized by what is in them, spans, and a surplus shared out in proportion.
 It is not a modular grid under another name and it goes through none of
 `geometry::arrange` — a module is one size repeated, and no column of a
