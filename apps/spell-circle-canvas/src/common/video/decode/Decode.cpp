@@ -314,6 +314,7 @@ struct Video::Impl {
     av_buffer_unref(&hardwareDevice);
     hardwarePixelFormat = AV_PIX_FMT_NONE;
     hardwareActive = false;
+    decodedNative = false;
   }
 
   bool open() {
@@ -377,6 +378,7 @@ struct Video::Impl {
                            : decodedSequence;
         cached.hardwareDecoded =
             receiveFrame->format == hardwarePixelFormat && hardwareActive;
+        decodedNative = cached.hardwareDecoded;
         if (options.hardware == HardwarePreference::Required &&
             !cached.hardwareDecoded) {
           error = "the decoder did not produce a native hardware frame";
@@ -631,6 +633,10 @@ struct Video::Impl {
   double cursorSeconds = -std::numeric_limits<double>::infinity();
   int64_t decodedSequence = 0;
   bool hardwareActive = false;
+  // The surface the last decoded frame actually arrived on. The hardware
+  // configuration is chosen when the decoder opens; whether the device
+  // hands back a native frame is only known once one has been decoded.
+  bool decodedNative = false;
   bool sentDrain = false;
 };
 
@@ -639,7 +645,9 @@ Video::~Video() = default;
 
 const VideoProbe& Video::probe() const { return m_impl->metadata; }
 
-bool Video::hardwareAccelerated() const { return m_impl->hardwareActive; }
+bool Video::hardwareConfigured() const { return m_impl->hardwareActive; }
+
+bool Video::hardwareDecoding() const { return m_impl->decodedNative; }
 
 VideoFrame Video::frameAt(double seconds, skgpu::graphite::Recorder* recorder) {
   return m_impl->frameAt(seconds, recorder);

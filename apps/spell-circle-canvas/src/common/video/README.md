@@ -34,6 +34,12 @@ decoder; it does not decode the whole file. `frameAt()` seeks when needed,
 decodes forward to the requested presentation time, and retains only
 `DecodeOptions::cachedFrames` decoded frames.
 
+A device grants a hardware decompression session on the first decode, not
+when the decoder opens, so a `Video` separates the two: `hardwareConfigured()`
+is the configuration it holds and `hardwareDecoding()` is the surface its
+most recent frame arrived on. A caller that needs the fact rather than the
+intent decodes one frame and then asks.
+
 Alpha-bearing video is reported by `VideoProbe::hasAlpha` and produces
 premultiplied `VideoFrame` images. WebM VP8 and VP9 alpha use FFmpeg's libvpx
 decoder because the container carries the alpha bitstream beside the colour
@@ -176,6 +182,13 @@ input, alpha, seeking, the cache's capacity, `Playback` in its synchronous
 mode, and the hardware-policy failure contract. `video_device_test`
 exercises the native device path on a Graphite Metal surface where the
 platform makes VideoToolbox available; it carries the `gpu` ctest label.
-`video_device_bench --async --streams 100 --surfaces 100 --rate 120` exercises
-independent mixed-resolution clocks through the worker pool and reports native,
-ready, and fresh frame percentages separately from render-thread frame time.
+`video_device_bench` measures independent mixed-resolution clocks through
+the device path in two arms: `BM_RenderThread` pulls every stream with
+`frameAt` on the thread that presents, and `BM_WorkerPool` drives the same
+streams through `Playback` paced at the presentation rate, timing the render
+thread's own work alone. Each arm prints a `VIDEO_DEVICE` line stating how
+many hardware decompression sessions the device granted and the native,
+ready and fresh frame percentages beside the frame time. `--streams`,
+`--surfaces`, `--rate` and `--workers` override the arms' own counts; a
+stream count past what the device will grant sessions for is what makes the
+native percentage report where that limit lies.

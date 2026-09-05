@@ -72,7 +72,19 @@ class Video {
   Video& operator=(const Video&) = delete;
 
   const VideoProbe& probe() const;
-  bool hardwareAccelerated() const;
+
+  /** Whether the decoder holds a platform hardware configuration. True from
+   *  the moment a hardware decoder opens, which is before the device has
+   *  been asked for a decompression session: a device grants a limited
+   *  number of them at once, and a refusal arrives on the first decode and
+   *  clears this. Frames then arrive through the software path, or not at
+   *  all under `HardwarePreference::Required`. */
+  bool hardwareConfigured() const;
+
+  /** Whether the most recently decoded frame arrived as a native device
+   *  surface. False until a frame has been decoded, so a caller that needs
+   *  the fact rather than the intent decodes one frame first. */
+  bool hardwareDecoding() const;
 
   /** The frame covering @p seconds. Passing a Graphite recorder enables
    *  direct device-plane composition when the decoder produced one. */
