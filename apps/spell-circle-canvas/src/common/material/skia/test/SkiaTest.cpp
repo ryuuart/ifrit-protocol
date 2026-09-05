@@ -26,15 +26,17 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "ShaderTable.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::identical;
+using sigil::material::test::render;
 
 namespace {
 
@@ -45,22 +47,6 @@ struct TwoParams {
 
 constexpr const char* kBody =
     "half4 main(float2 p) { return half4(uColor * uScale); }";
-
-SkBitmap render(const sk_sp<SkShader>& shader) {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(4, 4));
-  SkCanvas canvas(bm);
-  canvas.clear(SK_ColorTRANSPARENT);
-  SkPaint paint;
-  paint.setShader(shader);
-  canvas.drawPaint(paint);
-  return bm;
-}
-
-bool identical(const SkBitmap& a, const SkBitmap& b) {
-  return a.computeByteSize() == b.computeByteSize() &&
-         std::memcmp(a.getPixels(), b.getPixels(), a.computeByteSize()) == 0;
-}
 
 }  // namespace
 
@@ -125,55 +111,78 @@ TEST(SkiaCompiler, ABodyThatDoesNotCompileResolvesToNoProgram) {
   EXPECT_EQ(skia::shader(m, FrameData{}), nullptr);
 }
 
-// A GPU backend inlines a runtime effect's body into its fragment shader
-// under parameters it names itself, discarding the names the body's own
-// main declared: `pos` for the coordinates, `inColor` for the colour from
-// the stage before, `destColor` for a blender's destination,
-// `primitiveColor` for the draw's own. A body declaring anything else by
-// one of those names redeclares a parameter — which is invisible to
-// SkRuntimeEffect::MakeForShader, where the body IS the whole program and
-// the name is free, and fatal on a device. So the compile refuses them
-// here, on the CPU, where the refusal is a resolve that answers nothing
-// and a message naming the recipe.
-TEST(SkiaCompiler, ABodyDeclaringAReservedParameterNameResolvesToNoProgram) {
-  skia::install();
-  const auto refused = [](const char* body) {
-    static int serial = 0;
-    auto recipe = std::make_shared<const Recipe>(
-        Recipe::of<TwoParams>("reserved." + std::to_string(serial++))
-            .body(Target::SkSL, body));
-    return skia::shader(Material(recipe), FrameData{}) == nullptr;
-  };
-  EXPECT_TRUE(
-      refused("half4 main(float2 p) { float2 pos = p * 0.5; "
-              "return half4(half2(pos), 0.0, 1.0); }"));
-  EXPECT_TRUE(
-      refused("half4 main(float2 p) { half4 inColor = half4(1.0); "
-              "return inColor; }"));
-  EXPECT_TRUE(
-      refused("half4 main(float2 p) { half4 destColor = half4(1.0); "
-              "return destColor; }"));
-  EXPECT_TRUE(
-      refused("half4 main(float2 p) { half4 primitiveColor = half4(1.0); "
-              "return primitiveColor; }"));
-  // A helper's parameter is a declaration too, and lands in the same
-  // generated scope.
-  EXPECT_TRUE(
-      refused("float2 shift(float2 pos) { return pos * 0.5; }\n"
-              "half4 main(float2 p) { return half4(half2(shift(p)), "
-              "0.0, 1.0); }"));
+namespace {
 
-  // What must still pass: main's OWN parameter by that name, which is the
-  // one declaration the backend replaces rather than collides with; and
-  // the word in a comment or inside another identifier.
-  EXPECT_FALSE(
-      refused("half4 main(float2 pos) { return half4(half2(pos), "
-              "0.0, 1.0); }"));
-  EXPECT_FALSE(
-      refused("half4 main(float2 p) { /* float2 pos; */ float2 "
-              "position = p; return half4(half2(position), 0.0, "
-              "1.0); }"));
+/** A GPU backend inlines a runtime effect's body into its fragment
+ *  shader under parameters it names itself, discarding the names the
+ *  body's own main declared: `pos` for the coordinates, `inColor` for the
+ *  colour from the stage before, `destColor` for a blender's destination,
+ *  `primitiveColor` for the draw's own. A body declaring anything else by
+ *  one of those names redeclares a parameter — which is invisible to
+ *  SkRuntimeEffect::MakeForShader, where the body IS the whole program
+ *  and the name is free, and fatal on a device. So the compile refuses
+ *  them here, on the CPU, where the refusal is a resolve that answers
+ *  nothing. One body per row, and the rows that must still COMPILE are
+ *  here too: a rule that refused everything would pass every refusal. */
+struct ReservedName {
+  const char* what;
+  const char* body;
+  bool refused;
+};
+
+class BodyOverAReservedName : public testing::TestWithParam<ReservedName> {};
+
+std::string reservedNameOf(const testing::TestParamInfo<ReservedName>& info) {
+  return info.param.what;
 }
+
+const ReservedName kReservedNames[] = {
+    {"ALocalNamedForTheCoordinates",
+     "half4 main(float2 p) { float2 pos = p * 0.5; "
+     "return half4(half2(pos), 0.0, 1.0); }",
+     true},
+    {"ALocalNamedForTheIncomingColour",
+     "half4 main(float2 p) { half4 inColor = half4(1.0); return inColor; }",
+     true},
+    {"ALocalNamedForTheDestination",
+     "half4 main(float2 p) { half4 destColor = half4(1.0); return destColor; }",
+     true},
+    {"ALocalNamedForThePrimitiveColour",
+     "half4 main(float2 p) { half4 primitiveColor = half4(1.0); "
+     "return primitiveColor; }",
+     true},
+    // A helper's parameter is a declaration too, and lands in the same
+    // generated scope.
+    {"AHelpersParameter",
+     "float2 shift(float2 pos) { return pos * 0.5; }\n"
+     "half4 main(float2 p) { return half4(half2(shift(p)), 0.0, 1.0); }",
+     true},
+    // Main's OWN parameter by that name is the one declaration the
+    // backend replaces rather than collides with…
+    {"MainsOwnParameter",
+     "half4 main(float2 pos) { return half4(half2(pos), 0.0, 1.0); }", false},
+    // …and the word in a comment, or inside a longer identifier, is not a
+    // declaration at all.
+    {"TheWordInACommentAndInsideALongerName",
+     "half4 main(float2 p) { /* float2 pos; */ float2 position = p; "
+     "return half4(half2(position), 0.0, 1.0); }",
+     false},
+};
+
+}  // namespace
+
+TEST_P(BodyOverAReservedName, ResolvesToNoProgramWhereItRedeclaresAParameter) {
+  skia::install();
+  static int serial = 0;
+  const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<TwoParams>("reserved." + std::to_string(serial++))
+          .body(Target::SkSL, GetParam().body));
+  const bool refused = skia::shader(Material(recipe), FrameData{}) == nullptr;
+  EXPECT_EQ(refused, GetParam().refused);
+}
+
+INSTANTIATE_TEST_SUITE_P(TheNamesAGpuBackendTakes, BodyOverAReservedName,
+                         testing::ValuesIn(kReservedNames), reservedNameOf);
 
 TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
   skia::install();

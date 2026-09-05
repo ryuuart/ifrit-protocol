@@ -1,6 +1,7 @@
 /** @file
- * The colour feature: the sRGB curve round-trips, so does OKLab, and the
- * hue wheel folds whatever it is handed.
+ * The colour feature: the sRGB curve round-trips and clamps, so does
+ * OKLab, its midpoint is perceptual, the hue wheel folds whatever it is
+ * handed, and a four-float colour crosses in by shape.
  */
 
 #include <gtest/gtest.h>
@@ -10,13 +11,32 @@
 
 using namespace sigil::material;
 
-TEST(Color, SrgbRoundTrips) {
-  for (float v : {0.0f, 0.02f, 0.25f, 0.5f, 0.75f, 1.0f})
-    EXPECT_NEAR(linearToSrgb(srgbToLinear(v)), v, 1e-5f);
+TEST(Color, TheTransferFunctionRoundTripsAndClampsAtWhite) {
+  for (float v : {0.0f, 0.001f, 0.02f, 0.04045f, 0.25f, 0.5f, 0.75f, 1.0f})
+    EXPECT_NEAR(linearToSrgb(srgbToLinear(v)), v, 1e-5f) << v;
+  EXPECT_FLOAT_EQ(srgbToLinear(1.0f), 1.0f);
+  // Mid-grey is a fifth of the light, which is the whole reason a blend
+  // that lerps encoded channels is the wrong blend.
+  EXPECT_NEAR(srgbToLinear(0.5f), 0.2140f, 1e-3f);
+  // Past white there is no more light to encode.
+  EXPECT_FLOAT_EQ(linearToSrgb(2.0f), 1.0f);
+}
+
+TEST(Color, TheOklabRoundTripIsTheColourItStartedFrom) {
   const Color mid{0.5f, 0.5f, 0.5f, 1};
   const Color back = fromOklab(toOklab(mid));
   EXPECT_NEAR(back.r, 0.5f, 1e-4f);
   EXPECT_NEAR(back.g, 0.5f, 1e-4f);
+  // Lightness runs from black at zero to white at one, so the two ends
+  // of the axis are the two colours a caller names them by.
+  EXPECT_NEAR(toOklab({1, 1, 1, 1}).L, 1.0f, 1e-3f);
+  EXPECT_NEAR(toOklab({0, 0, 0, 1}).L, 0.0f, 1e-6f);
+  const Color a{0.9f, 0.1f, 0.2f, 1.0f}, b{0.1f, 0.3f, 0.8f, 0.5f};
+  const Color start = lerpOklab(a, b, 0.0f), end = lerpOklab(a, b, 1.0f);
+  EXPECT_NEAR(start.r, a.r, 1e-4f);
+  EXPECT_NEAR(start.a, a.a, 1e-6f);
+  EXPECT_NEAR(end.b, b.b, 1e-4f);
+  EXPECT_NEAR(end.a, b.a, 1e-6f);
 }
 
 TEST(Color, HsvWalksTheWheelAndFoldsWhateverItIsGiven) {

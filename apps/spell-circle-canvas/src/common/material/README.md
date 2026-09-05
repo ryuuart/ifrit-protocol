@@ -905,9 +905,6 @@ a node's fill and routes it, and holds no paint model of its own.
 
 ## Building and testing
 
-Ten tests and ten benchmarks, one pair per feature, and one device sweep
-over all of them:
-
 ```sh
 ctest --test-dir build -C Release -R material
 python3 scripts/bench_ledger.py --benches material_color_bench \
@@ -916,43 +913,100 @@ python3 scripts/bench_ledger.py --benches material_color_bench \
     material_skia_bench material_kit_bench material_slang_bench
 ```
 
-`material_core_test` links the core alone, so a link edge that pulled a
-renderer into the model would fail there. `material_texture_test` covers
-the sources, the sampling dials, the tools' names, the environment and
-bevel producers and the atlas readers and packer. `material_skia_test`
-compiles a two-uniform recipe through the cache and checks the raster it
-shades is byte-identical to the same SkSL compiled and filled by hand.
-`material_sdf_test`, `material_pattern_test`, `material_field_test` and
-`material_color_test` cover the primitives, and `material_ocio_test`
-bakes an exponent through OpenColorIO where it is available and holds
-the two lowerings of it to each other — the table an eight-bit surface
-admits must paint what the program paints, to within one code across a
-ramp, while a float surface and a channel-mixing transform keep the
-program; `material_kit_test` compiles
-every preset and checks a fill stays inside its path, dresses a surface
-from a decoded set and pins the packed channels it wires, and shades a
-stack at both ends of its mask. `material_core_test` pins what `over()`
-builds: the operands as children, a blend per recipe, and the walk down
-to the bottom of a stack.
+A case here asserts one thing this library promises through its public
+headers and is named that promise as a sentence, so a failure line reads
+as the claim that broke. It pins only what editing this library could
+falsify — a reflected layout against the struct's own `offsetof`, a
+compile count, a closed form, one material shaded two ways — never a
+byte layout the compiler chose, an anti-aliased pixel, a fitted tolerance
+or elapsed time: pixel identity is the plate ledger's to judge and timing
+is the bench ledger's. A claim made N times with one thing varying is one
+`TEST_P` whose parameter is that thing, with a name per row — the shading
+terms against their closed forms, the reserved parameter names a body may
+not redeclare, and the file names the texture tools write.
 
-`material_gpu_test` is the eleventh, and it belongs to the whole library
-rather than to a feature: every other suite shades on a raster surface,
-where a body is compiled as its own SkSL program, and a body can pass
-that and fail once a GPU backend has inlined it into a pipeline. It
-stands Graphite up, installs a shader-error handler through
+**A binary exists where it links a strictly smaller set of targets than
+its neighbours and that boundary is a promise somebody could read**; two
+binaries over one closure are one binary. That is why there are six here
+and not eleven: the colour leaf, the signed-distance surfaces, the tiles,
+the fields and the baked view transforms are five features, and a test of
+any of them shades through the Skia backend, so `material_test` is one
+binary over the five. The features themselves are still five archives —
+a consumer of the colour leaf links the colour leaf alone, and that is
+what the library promises.
+
+| binary | what it proves | label |
+|---|---|---|
+| `material_core_test` | the value model, with no renderer in reach | — |
+| `material_test` | the primitives, the colour leaf, the view transforms | `ocio` |
+| `material_texture_test` | the image side | — |
+| `material_kit_test` | the presets and the shading terms | — |
+| `material_skia_test` | the SkSL backend | — |
+| `material_slang_test` | the Slang backend, with no device | — |
+| `material_gpu_test` | every body this library ships, on a device | `gpu` |
+
+`material_core_test` links the core alone, so a link edge that pulled a
+renderer into the model would fail there. It covers params reflection —
+including that the schema IS the params struct's own layout, read off
+`offsetof` rather than off the numbers this compiler happened to choose —
+recipe identity against definition equality, the program cache's keys, a
+compile held open until every concurrent request has arrived so the fold
+is asked without a clock, the field it names once when a compiled body
+never reads it, material equality, bindings, children and tiers, what
+`over()` stacks, and `UniformBlock` revisioning.
+
+`material_test` covers the primitives and the leaf beneath them: the
+colour value's transfer function and OKLab round trips and its
+perceptual midpoint, the SDF surfaces, the tile mechanism and the stock
+generators over it, the fields, and the OpenColorIO bake — an exponent
+baked to a response row, that row lowered to a table an eight-bit
+surface admits, holding it to what the program paints across a whole
+ramp, while a float surface and a channel-mixing transform keep the
+program. The view-transform cases skip where the transforms are
+unavailable, which is what the `ocio` label says; a config that cannot
+be read failing soft is asked unconditionally, because that needs no
+OpenColorIO to ask.
+
+`material_texture_test` covers the image side: the sources and their
+identity across the erasure, the sampling dials, the environment map, the
+bevel producer, the atlas readers and packer, and the tools' file names —
+one row per name, so a failure says which tool's spelling moved rather
+than that a list changed. `material_skia_test` compiles a two-uniform
+recipe through the cache and checks the raster it shades is byte
+identical to the same SkSL compiled and filled by hand, and states the
+four parameter names a body may not redeclare together with the three
+spellings that must still compile. `material_kit_test` compiles every
+preset and checks a fill stays inside its path, dresses a surface from a
+decoded set, shades a stack at both ends of its mask, and holds every
+shading term to its closed form.
+
+`material_gpu_test` belongs to the whole library rather than to a
+feature: every other suite shades on a raster surface, where a body is
+compiled as its own SkSL program, and a body can pass that and fail once
+a GPU backend has inlined it into a pipeline. It stands Graphite up,
+installs a shader-error handler through
 `GraphiteContext::reportShaderErrorsTo`, and draws every material
 `kit::everyRecipe()`, `sdf::everyRecipe()` and `field::everyRecipe()`
 answer — plus a stack per blend, the whole terms text, and the ocio bake
 where OpenColorIO is available — through the same `skia::Paint` a
 consumer draws it through, demanding that not one reports an error. It
 is labelled `gpu` and needs Metal, and it carries its own control: the
-collision the four reserved names exist to prevent, built as a raw
-runtime effect so it reaches the device, must be reported — which is
-what proves the handler is wired to anything at all. Run it with
+collision the reserved names exist to prevent, built as a raw runtime
+effect so it reaches the device, must be reported — which is what proves
+the handler is wired to anything at all. Run it with
 
 ```sh
 ctest --test-dir build -C Release -R material_gpu_test
 ```
+
+One file per subject, named for what it asserts. **The fixtures more than
+one file needs live once, in `test/support/`**: `Shade.h` holds the two
+ways of drawing a material — the shader over a whole surface, which asks
+what a body computes at each point, and a fill over a path, which asks
+what a caller painting a shape gets — beside the readings taken off the
+result. A directory a case writes into is `sigil::test::ScratchDir` from
+the tree-wide `src/test/`, keyed by process id and emptied both ways, so
+two runs side by side never read each other's files.
 
 The acceptance pieces are the
 `material_lab`, `material_atlas`, `material_child`, `stock_materials`,

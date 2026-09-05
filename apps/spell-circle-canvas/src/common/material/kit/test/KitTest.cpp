@@ -34,8 +34,12 @@
 #include <string>
 
 #include "ShaderTable.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::differing;
+using sigil::material::test::luminance;
+using sigil::material::test::shade;
 
 namespace {
 
@@ -77,153 +81,160 @@ float scalar(const std::string& expression) {
   return term(expression + ", 0.0, 0.0, 1.0").fR;
 }
 
-/** @p m shaded over a @p w × @p h rect, read back. */
-SkBitmap shade(const Material& m, int w, int h) {
-  skia::install();
-  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  s->getCanvas()->clear(SK_ColorBLACK);
-  skia::fill(*s->getCanvas(), SkPath::Rect(SkRect::MakeWH((float)w, (float)h)),
-             m);
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  s->makeImageSnapshot()->readPixels(nullptr, bm.pixmap(), 0, 0);
-  return bm;
+/** ONE SHADING TERM AND THE NUMBER IT HAS TO ANSWER. The tolerance is
+ *  per row because the transcendentals here are polynomials, so each is
+ *  held to what a polynomial of its degree can do rather than to the
+ *  standard library's answer. */
+struct ClosedForm {
+  const char* what;
+  const char* expression;
+  float expected;
+  float tolerance;
+};
+
+class ShadingTerm : public testing::TestWithParam<ClosedForm> {};
+
+std::string closedFormOf(const testing::TestParamInfo<ClosedForm>& info) {
+  return info.param.what;
 }
 
-int luminance(SkColor c) {
-  return ((int)SkColorGetR(c) * 299 + (int)SkColorGetG(c) * 587 +
-          (int)SkColorGetB(c) * 114) /
-         1000;
-}
+const float kSqrtHalf = std::sqrt(0.5f);
+const float kBlinnAt22Point5 = std::pow(std::cos(3.14159265f / 8.0f), 4.0f);
 
-int differing(const SkBitmap& a, const SkBitmap& b) {
-  int n = 0;
-  for (int y = 0; y < a.height(); ++y)
-    for (int x = 0; x < a.width(); ++x)
-      n += a.getColor(x, y) != b.getColor(x, y);
-  return n;
-}
+const ClosedForm kClosedForms[] = {
+    {"Atan2InTheFirstQuadrant", "atan2P(1.0, 1.0)", 0.78539816f, 2e-3f},
+    {"Atan2InTheSecondQuadrant", "atan2P(1.0, -1.0)", 2.35619449f, 2e-3f},
+    {"Atan2BelowTheAxis", "atan2P(-0.3, 0.7)", -0.40489179f, 2e-3f},
+    {"AcosOfAHalf", "acosP(0.5)", 1.04719755f, 2e-3f},
+    {"AcosNearTheEndOfItsRange", "acosP(-0.9)", 2.69056584f, 2e-3f},
+    // LAMBERT at 45 degrees is the cosine of 45 degrees; head on it is
+    // all of the light and edge on none of it.
+    {"LambertAtFortyFiveDegrees",
+     "lambert(float3(0.0, 0.0, 1.0), normalize(float3(1.0, 0.0, 1.0)))",
+     kSqrtHalf, 2e-3f},
+    {"LambertHeadOn",
+     "lambert(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0))", 1.0f, 2e-3f},
+    {"LambertEdgeOn",
+     "lambert(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0))", 0.0f, 2e-3f},
+    // BLINN with the light and the eye together: the half vector is the
+    // normal and the highlight is at its peak whatever the exponent.
+    {"BlinnAtItsPeak",
+     "blinn(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0), "
+     "float3(0.0, 0.0, 1.0), 48.0)",
+     1.0f, 2e-3f},
+    {"BlinnWithTheHalfVectorAtTwentyTwoAndAHalf",
+     "blinn(float3(0.0, 0.0, 1.0), normalize(float3(1.0, 0.0, 1.0)), "
+     "float3(0.0, 0.0, 1.0), 4.0)",
+     kBlinnAt22Point5, 3e-3f},
+    // FRESNEL: a dielectric's four per cent head on, and white at the rim.
+    {"FresnelHeadOn", "fresnel(float3(0.04, 0.04, 0.04), 1.0).r", 0.04f, 2e-3f},
+    {"FresnelAtTheRim", "fresnel(float3(0.04, 0.04, 0.04), 0.0).r", 1.0f,
+     2e-3f},
+    // A metal's reflectance IS its base colour; a dielectric's is four
+    // per cent whatever colour it is.
+    {"AMetalsReflectanceIsItsColour",
+     "specularColor(float3(0.9, 0.6, 0.3), 1.0).g", 0.6f, 2e-3f},
+    {"ADielectricsReflectanceIsFourPerCent",
+     "specularColor(float3(0.9, 0.6, 0.3), 0.0).g", 0.04f, 2e-3f},
+    // THE SPLIT SUM at its one exact point: a mirror seen head on returns
+    // the radiance it was handed, scale plus bias summing to one.
+    {"TheSplitSumIsExactForAMirrorSeenHeadOn",
+     "environmentSpecular(float3(1.0, 1.0, 1.0), float3(1.0, 1.0, 1.0), "
+     "0.0, 1.0).r",
+     1.0f, 3e-3f},
+    // ADDITIVE reflection is the radiance at its weight and nothing else.
+    {"AdditiveReflectionIsTheRadianceAtItsWeight",
+     "environmentReflection(float3(0.5, 0.5, 0.5), 0.6).r", 0.3f, 2e-3f},
+    // BEER-LAMBERT over half a unit of a medium that takes one per unit,
+    // and nothing absorbed is everything through.
+    {"AttenuationOverHalfAUnit",
+     "attenuate(float3(1.0, 1.0, 1.0), float3(1.0, 1.0, 1.0), 0.5).r",
+     0.60653066f, 2e-3f},
+    {"AttenuationThroughNothingAtAll",
+     "attenuate(float3(0.8, 0.8, 0.8), float3(0.0, 0.0, 0.0), 100.0).r", 0.8f,
+     2e-3f},
+    {"OcclusionBelievedInFull", "occlusion(0.5, 1.0)", 0.5f, 2e-3f},
+    {"OcclusionNotBelievedAtAll", "occlusion(0.5, 0.0)", 1.0f, 2e-3f},
+    {"EmissionIsTheColourTimesTheMapTimesTheStrength",
+     "emission(float3(0.5, 0.5, 0.5), 2.0, float3(0.4, 0.4, 0.4)).r", 0.4f,
+     2e-3f},
+    // REFRACTION through no change of index is the ray it was given, and
+    // past total internal reflection there is no refracted ray at all.
+    {"RefractionThroughNoChangeOfIndex",
+     "-refraction(float3(0.0, 0.0, -1.0), float3(0.0, 0.0, 1.0), 1.0).z", 1.0f,
+     2e-3f},
+    {"RefractionPastTotalInternalReflection",
+     "length(refraction(normalize(float3(1.0, 0.0, -0.05)), "
+     "float3(0.0, 0.0, 1.0), 1.6))",
+     0.0f, 2e-3f},
+    // THE PANORAMA'S CONVENTION: v = 0 is the zenith, and a direction and
+    // a coordinate round trip.
+    {"TheZenithIsAtTheTopOfThePanorama",
+     "equirectUv(float3(0.0, 1.0, 0.0)).y", 0.0f, 2e-3f},
+    {"ADirectionAndAPanoramaCoordinateRoundTrip",
+     "equirectDirection(equirectUv(normalize(float3(0.3, 0.5, -0.8)))).y",
+     0.50507627f, 4e-3f},
+    // A roughness reads across the chain it was prefiltered into.
+    {"HalfRoughnessIsHalfwayUpTheChain", "roughnessLevel(0.5, 9.0)", 4.0f,
+     2e-3f},
+    {"FullRoughnessIsTheTopOfTheChain", "roughnessLevel(1.0, 9.0)", 8.0f,
+     2e-3f},
+    // LUMINANCE: the three weights sum to one, so a grey reads at its own
+    // value and a colour reads between its channels.
+    {"LuminanceOfWhiteIsOne", "luminance(float3(1.0, 1.0, 1.0))", 1.0f, 2e-3f},
+    {"LuminanceOfGreenIsItsWeight", "luminance(float3(0.0, 1.0, 0.0))",
+     0.715160f, 2e-3f},
+    // THE TONE CURVE. Black stays black, and a grey lands at its own
+    // value over one plus itself — white at a half.
+    {"TheToneCurveLeavesBlackBlack", "toneMap(float3(0.0, 0.0, 0.0), 1.0).r",
+     0.0f, 2e-3f},
+    {"TheToneCurvePutsWhiteAtAHalf", "toneMap(float3(1.0, 1.0, 1.0), 1.0).r",
+     0.5f, 2e-3f},
+    {"TheToneCurvePutsAQuarterAtAFifth",
+     "toneMap(float3(0.25, 0.25, 0.25), 1.0).r", 0.2f, 2e-3f},
+    // NOTHING CLIPS: a radiance a hundred times over white lands just
+    // under one rather than flat on it, which is the whole point of the
+    // curve. And a negative radiance answers black rather than a negative
+    // colour.
+    {"AHundredTimesWhiteLandsJustUnderOne",
+     "toneMap(float3(100.0, 100.0, 100.0), 1.0).r", 100.0f / 101.0f, 2e-3f},
+    {"ANegativeRadianceAnswersBlack",
+     "toneMap(float3(-1.0, -1.0, -1.0), 1.0).r", 0.0f, 2e-3f},
+};
 
 }  // namespace
 
-TEST(Terms, EachTermMeetsItsClosedForm) {
-  // The transcendentals are polynomials, so they are held to what a
-  // polynomial of their degree can do rather than to the library's.
-  EXPECT_NEAR(scalar("atan2P(1.0, 1.0)"), std::atan2(1.0f, 1.0f), 2e-3f);
-  EXPECT_NEAR(scalar("atan2P(1.0, -1.0)"), std::atan2(1.0f, -1.0f), 2e-3f);
-  EXPECT_NEAR(scalar("atan2P(-0.3, 0.7)"), std::atan2(-0.3f, 0.7f), 2e-3f);
-  EXPECT_NEAR(scalar("acosP(0.5)"), std::acos(0.5f), 2e-3f);
-  EXPECT_NEAR(scalar("acosP(-0.9)"), std::acos(-0.9f), 2e-3f);
+TEST_P(ShadingTerm, MeetsItsClosedForm) {
+  EXPECT_NEAR(scalar(GetParam().expression), GetParam().expected,
+              GetParam().tolerance);
+}
 
-  // LAMBERT at 45 degrees is the cosine of 45 degrees.
-  EXPECT_NEAR(scalar("lambert(float3(0.0, 0.0, 1.0), "
-                     "normalize(float3(1.0, 0.0, 1.0)))"),
-              std::sqrt(0.5f), 2e-3f);
-  // Head on, all of it; edge on, none.
-  EXPECT_NEAR(scalar("lambert(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0))"),
-              1.0f, 2e-3f);
-  EXPECT_NEAR(scalar("lambert(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0))"),
-              0.0f, 2e-3f);
+INSTANTIATE_TEST_SUITE_P(EveryTerm, ShadingTerm,
+                         testing::ValuesIn(kClosedForms), closedFormOf);
 
-  // BLINN with the light and the eye together: the half vector is the
-  // normal and the highlight is at its peak whatever the exponent.
-  EXPECT_NEAR(scalar("blinn(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0), "
-                     "float3(0.0, 0.0, 1.0), 48.0)"),
-              1.0f, 2e-3f);
-  // Light at 45 degrees, eye head on: the half vector stands at 22.5.
-  EXPECT_NEAR(scalar("blinn(float3(0.0, 0.0, 1.0), "
-                     "normalize(float3(1.0, 0.0, 1.0)), "
-                     "float3(0.0, 0.0, 1.0), 4.0)"),
-              std::pow(std::cos(3.14159265f / 8.0f), 4.0f), 3e-3f);
-
-  // FRESNEL: a dielectric's four per cent head on, and white at the rim.
-  EXPECT_NEAR(scalar("fresnel(float3(0.04, 0.04, 0.04), 1.0).r"), 0.04f, 2e-3f);
-  EXPECT_NEAR(scalar("fresnel(float3(0.04, 0.04, 0.04), 0.0).r"), 1.0f, 2e-3f);
-  // A metal's reflectance IS its base colour; a dielectric's is four
-  // per cent whatever colour it is.
-  EXPECT_NEAR(scalar("specularColor(float3(0.9, 0.6, 0.3), 1.0).g"), 0.6f,
-              2e-3f);
-  EXPECT_NEAR(scalar("specularColor(float3(0.9, 0.6, 0.3), 0.0).g"), 0.04f,
-              2e-3f);
-
-  // THE SPLIT SUM at its one exact point: a mirror seen head on returns
-  // the radiance it was handed, scale plus bias summing to one.
-  EXPECT_NEAR(scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
-                     "float3(1.0, 1.0, 1.0), 0.0, 1.0).r"),
-              1.0f, 3e-3f);
-  // And a rough surface takes less of it than a smooth one.
+TEST(Terms, ARoughSurfaceTakesLessOfTheEnvironmentThanASmoothOne) {
   EXPECT_LT(scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
                    "float3(0.04, 0.04, 0.04), 1.0, 1.0).r"),
             scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
                    "float3(0.04, 0.04, 0.04), 0.0, 1.0).r"));
+}
 
-  // ADDITIVE reflection is the radiance at its weight and nothing else.
-  EXPECT_NEAR(scalar("environmentReflection(float3(0.5, 0.5, 0.5), 0.6).r"),
-              0.3f, 2e-3f);
-
-  // BEER-LAMBERT over half a unit of a medium that takes one per unit.
-  EXPECT_NEAR(scalar("attenuate(float3(1.0, 1.0, 1.0), "
-                     "float3(1.0, 1.0, 1.0), 0.5).r"),
-              std::exp(-0.5f), 2e-3f);
-  // Nothing absorbed is everything through.
-  EXPECT_NEAR(scalar("attenuate(float3(0.8, 0.8, 0.8), "
-                     "float3(0.0, 0.0, 0.0), 100.0).r"),
-              0.8f, 2e-3f);
-
-  // OCCLUSION believed in full, and not at all.
-  EXPECT_NEAR(scalar("occlusion(0.5, 1.0)"), 0.5f, 2e-3f);
-  EXPECT_NEAR(scalar("occlusion(0.5, 0.0)"), 1.0f, 2e-3f);
-  // EMISSION is the colour times the map times the strength.
-  EXPECT_NEAR(
-      scalar("emission(float3(0.5, 0.5, 0.5), 2.0, float3(0.4, 0.4, 0.4)).r"),
-      0.4f, 2e-3f);
-
-  // REFRACTION through no change of index is the ray it was given.
-  EXPECT_NEAR(scalar("-refraction(float3(0.0, 0.0, -1.0), "
-                     "float3(0.0, 0.0, 1.0), 1.0).z"),
-              1.0f, 2e-3f);
-  // Past total internal reflection there is no refracted ray.
-  EXPECT_NEAR(scalar("length(refraction(normalize(float3(1.0, 0.0, -0.05)), "
-                     "float3(0.0, 0.0, 1.0), 1.6))"),
-              0.0f, 2e-3f);
-
-  // THE PANORAMA'S CONVENTION: u = 0.5 looks along -z, v = 0 is the
-  // zenith, and a direction and a coordinate round trip.
+TEST(Terms, LookingAlongMinusZIsTheMiddleOfThePanorama) {
   const SkColor4f forward =
       term("equirectUv(float3(0.0, 0.0, -1.0)), 0.0, 1.0");
   EXPECT_NEAR(forward.fR, 0.5f, 2e-3f);
   EXPECT_NEAR(forward.fG, 0.5f, 2e-3f);
-  EXPECT_NEAR(scalar("equirectUv(float3(0.0, 1.0, 0.0)).y"), 0.0f, 2e-3f);
-  EXPECT_NEAR(scalar("equirectDirection(equirectUv("
-                     "normalize(float3(0.3, 0.5, -0.8)))).y"),
-              0.5f / std::sqrt(0.09f + 0.25f + 0.64f), 4e-3f);
+}
 
-  // A roughness reads across the chain it was prefiltered into.
-  EXPECT_NEAR(scalar("roughnessLevel(0.5, 9.0)"), 4.0f, 2e-3f);
-  EXPECT_NEAR(scalar("roughnessLevel(1.0, 9.0)"), 8.0f, 2e-3f);
-
-  // LUMINANCE: the three weights sum to one, so a grey reads at its own
-  // value and a colour reads between its channels.
-  EXPECT_NEAR(scalar("luminance(float3(1.0, 1.0, 1.0))"), 1.0f, 2e-3f);
-  EXPECT_NEAR(scalar("luminance(float3(0.0, 1.0, 0.0))"), 0.715160f, 2e-3f);
-
-  // THE TONE CURVE. Black stays black, and a grey lands at its own value
-  // over one plus itself — white at a half.
-  EXPECT_NEAR(scalar("toneMap(float3(0.0, 0.0, 0.0), 1.0).r"), 0.0f, 2e-3f);
-  EXPECT_NEAR(scalar("toneMap(float3(1.0, 1.0, 1.0), 1.0).r"), 0.5f, 2e-3f);
-  EXPECT_NEAR(scalar("toneMap(float3(0.25, 0.25, 0.25), 1.0).r"), 0.2f, 2e-3f);
-  // The exposure multiplies the radiance BEFORE the curve, so twice the
-  // exposure over half the radiance is the same colour.
+TEST(Terms, TheExposureMultipliesTheRadianceBeforeTheCurve) {
+  // Twice the exposure over half the radiance is the same colour, which
+  // is what makes the dial an exposure rather than a gain on the result.
   EXPECT_NEAR(scalar("toneMap(float3(0.5, 0.5, 0.5), 2.0).r"),
               scalar("toneMap(float3(1.0, 1.0, 1.0), 1.0).r"), 2e-3f);
-  // NOTHING CLIPS: a radiance a hundred times over white lands just
-  // under one rather than flat on it, which is the whole point of the
-  // curve. And a negative radiance answers black rather than a negative
-  // colour.
-  EXPECT_NEAR(scalar("toneMap(float3(100.0, 100.0, 100.0), 1.0).r"),
-              100.0f / 101.0f, 2e-3f);
+}
+
+TEST(Terms, TheToneCurveNeverReachesWhite) {
   EXPECT_LT(scalar("toneMap(float3(100.0, 100.0, 100.0), 1.0).r"), 1.0f);
-  EXPECT_NEAR(scalar("toneMap(float3(-1.0, -1.0, -1.0), 1.0).r"), 0.0f, 2e-3f);
 }
 
 TEST(Surfaces, RecipesCompileAndShade) {

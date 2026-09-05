@@ -3,26 +3,22 @@
  * per target; recipe identity against definition equality; the program
  * cache's keys, its once-reported missing body and the params field it
  * names once when the compiled body never reads it; material equality,
- * bindings, children and tiers; the OKLab round trips; and UniformBlock
- * revisioning.
+ * bindings, children and tiers; what `over()` stacks; and UniformBlock
+ * revisioning. The colour leaf's own claims are material_test's.
  */
 
 #include <gtest/gtest.h>
 #include <sigilmaterial/Material.h>
 #include <sigilshaders/MaterialCore.h>
-#include <unistd.h>
 
 #include <array>
 #include <atomic>
-#include <chrono>
-#include <cmath>
-#include <cstdio>
+#include <cstddef>
 #include <cstring>
 #include <functional>
 #include <future>
 #include <memory>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "ShaderTable.h"
@@ -72,30 +68,14 @@ class DroppingProgram : public Program {
 
 /** Everything the cache writes to stderr while @p fn runs. */
 std::string captureStderr(const std::function<void()>& fn) {
-  char path[] = "/tmp/sigil_material_core_test_XXXXXX";
-  const int tmp = mkstemp(path);
-  if (tmp < 0) return {};
-  std::fflush(stderr);
-  const int saved = dup(STDERR_FILENO);
-  dup2(tmp, STDERR_FILENO);
+  testing::internal::CaptureStderr();
   fn();
-  std::fflush(stderr);
-  dup2(saved, STDERR_FILENO);
-  close(saved);
-  lseek(tmp, 0, SEEK_SET);
-  std::string out;
-  char buffer[512];
-  for (ssize_t n = read(tmp, buffer, sizeof buffer); n > 0;
-       n = read(tmp, buffer, sizeof buffer))
-    out.append(buffer, (size_t)n);
-  close(tmp);
-  std::remove(path);
-  return out;
+  return testing::internal::GetCapturedStderr();
 }
 
 }  // namespace
 
-TEST(Params, NamesCountsAndOffsets) {
+TEST(Params, ReflectionNamesEveryFieldInDeclarationOrderAndFindsThemByName) {
   EXPECT_EQ(fieldCount<TwoParams>(), 2u);
   EXPECT_EQ(fieldCount<EveryKind>(), 5u);
   EXPECT_EQ((fieldName<0, TwoParams>()), "uScale");
@@ -103,22 +83,33 @@ TEST(Params, NamesCountsAndOffsets) {
   const Schema& s = schema<EveryKind>();
   ASSERT_EQ(s.fields.size(), 5u);
   EXPECT_EQ(s.fields[0].name, "f");
-  EXPECT_EQ(s.fields[0].kind, Kind::Float);
-  EXPECT_EQ(s.fields[1].kind, Kind::Vec2);
-  EXPECT_EQ(s.fields[1].offset, 4u);
-  EXPECT_EQ(s.fields[2].kind, Kind::Vec4);
-  EXPECT_EQ(s.fields[2].offset, 12u);
-  EXPECT_EQ(s.fields[3].kind, Kind::FloatArray);
-  EXPECT_EQ(s.fields[3].floats, 3u);
-  EXPECT_EQ(s.fields[3].offset, 28u);
-  EXPECT_EQ(s.fields[4].kind, Kind::Color);
-  EXPECT_EQ(s.fields[4].offset, 40u);
-  EXPECT_EQ(s.byteSize, sizeof(EveryKind));
+  EXPECT_EQ(s.fields[3].name, "arr");
   EXPECT_EQ(s.find("arr"), &s.fields[3]);
   EXPECT_EQ(s.find("nope"), nullptr);
 }
 
-TEST(Params, ForEachFieldWalksValues) {
+TEST(Params, TheSchemaIsTheParamsStructsOwnLayout) {
+  // A material's bytes ARE its params struct, so what a renderer writes
+  // a uniform at is where the field stands in the struct — whatever the
+  // compiler chose to put it. The kinds are this library's reading of
+  // the C++ types beside them.
+  const Schema& s = schema<EveryKind>();
+  ASSERT_EQ(s.fields.size(), 5u);
+  EXPECT_EQ(s.fields[0].kind, Kind::Float);
+  EXPECT_EQ(s.fields[0].offset, offsetof(EveryKind, f));
+  EXPECT_EQ(s.fields[1].kind, Kind::Vec2);
+  EXPECT_EQ(s.fields[1].offset, offsetof(EveryKind, v2));
+  EXPECT_EQ(s.fields[2].kind, Kind::Vec4);
+  EXPECT_EQ(s.fields[2].offset, offsetof(EveryKind, v4));
+  EXPECT_EQ(s.fields[3].kind, Kind::FloatArray);
+  EXPECT_EQ(s.fields[3].floats, 3u);
+  EXPECT_EQ(s.fields[3].offset, offsetof(EveryKind, arr));
+  EXPECT_EQ(s.fields[4].kind, Kind::Color);
+  EXPECT_EQ(s.fields[4].offset, offsetof(EveryKind, c));
+  EXPECT_EQ(s.byteSize, sizeof(EveryKind));
+}
+
+TEST(Params, TheFieldWalkVisitsEveryFieldInDeclarationOrder) {
   const EveryKind p{
       1.5f, {2, 3}, {4, 5, 6, 7}, {8, 9, 10}, {0.1f, 0.2f, 0.3f, 1}};
   std::string names;
@@ -130,7 +121,7 @@ TEST(Params, ForEachFieldWalksValues) {
   EXPECT_EQ(names, "f v2 v4 arr c ");
 }
 
-TEST(Params, DeclarationsPerTarget) {
+TEST(Params, EachTargetSpellsTheDeclarationsItsCompilerReads) {
   const std::string sksl = declare<EveryKind>(Target::SkSL);
   EXPECT_EQ(sksl,
             "uniform float f;\n"
@@ -182,7 +173,7 @@ TEST(Recipe, LayoutAppendsFrameInputsAndDeclarationsListChildren) {
                 "half4 main(float2 p) { return half4(1); }");
 }
 
-TEST(ProgramCache, KeysByRecipeTargetAndVariant) {
+TEST(ProgramCache, OneProgramPerRecipeTargetAndVariant) {
   ProgramCache cache;
   cache.registerCompiler(Target::Slang, countingCompiler);
   auto a = std::make_shared<const Recipe>(
@@ -210,22 +201,32 @@ TEST(ProgramCache, KeysByRecipeTargetAndVariant) {
 }
 
 TEST(ProgramCache, ConcurrentRequestsShareOneInFlightCompile) {
+  constexpr int kAsks = 8;
   ProgramCache cache;
   std::atomic_int compiles = 0;
+
+  // THE COMPILE IS HELD OPEN until every ask has reached the cache, so
+  // what is being asked is whether the cache folds requests that arrive
+  // while one is in flight — with no wall clock deciding what "while"
+  // means.
+  std::promise<void> everyAskIsIn;
+  const std::shared_future<void> release = everyAskIsIn.get_future().share();
   cache.registerCompiler(
       Target::Slang,
       [&](std::shared_ptr<const Recipe> recipe, Variant variant, std::string&) {
         ++compiles;
-        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        release.wait();
         return std::shared_ptr<Program>(std::make_shared<Program>(
             std::move(recipe), Target::Slang, variant));
       });
   auto recipe = std::make_shared<const Recipe>(
       Recipe::of<TwoParams>("concurrent").body(Target::Slang, "x"));
 
+  std::atomic_int arrived = 0;
   std::vector<std::future<std::shared_ptr<Program>>> asks;
-  for (int i = 0; i < 8; ++i)
+  for (int i = 0; i < kAsks; ++i)
     asks.push_back(std::async(std::launch::async, [&] {
+      if (arrived.fetch_add(1) + 1 == kAsks) everyAskIsIn.set_value();
       return cache.program(recipe, Target::Slang);
     }));
   const std::shared_ptr<Program> first = asks.front().get();
@@ -549,37 +550,6 @@ TEST(Material, ResolveSamplesBindingsInjectsFrameAndMemoises) {
   EXPECT_EQ(none.bytes.size(), r->layout().byteSize);
 }
 
-TEST(Color, SrgbLinearRoundTrip) {
-  for (float c : {0.0f, 0.001f, 0.04045f, 0.2f, 0.5f, 0.9f, 1.0f}) {
-    EXPECT_NEAR(linearToSrgb(srgbToLinear(c)), c, 1e-5f) << c;
-  }
-  EXPECT_FLOAT_EQ(srgbToLinear(1.0f), 1.0f);
-  EXPECT_FLOAT_EQ(linearToSrgb(2.0f), 1.0f);  // clamped
-  EXPECT_NEAR(srgbToLinear(0.5f), 0.2140f, 1e-3f);
-}
-
-TEST(Color, OklabLerpEndpointsRoundTrip) {
-  const Color a{0.9f, 0.1f, 0.2f, 1.0f}, b{0.1f, 0.3f, 0.8f, 0.5f};
-  const Color a0 = lerpOklab(a, b, 0.0f), b1 = lerpOklab(a, b, 1.0f);
-  EXPECT_NEAR(a0.r, a.r, 1e-4f);
-  EXPECT_NEAR(a0.g, a.g, 1e-4f);
-  EXPECT_NEAR(a0.b, a.b, 1e-4f);
-  EXPECT_NEAR(a0.a, a.a, 1e-6f);
-  EXPECT_NEAR(b1.r, b.r, 1e-4f);
-  EXPECT_NEAR(b1.g, b.g, 1e-4f);
-  EXPECT_NEAR(b1.b, b.b, 1e-4f);
-  EXPECT_NEAR(b1.a, b.a, 1e-6f);
-  // White's lightness is one, black's zero. Lightness is a cube root of
-  // linear light, so the grey halfway between them is linear one-eighth,
-  // which the transfer function encodes near 0.389.
-  EXPECT_NEAR(toOklab({1, 1, 1, 1}).L, 1.0f, 1e-3f);
-  EXPECT_NEAR(toOklab({0, 0, 0, 1}).L, 0.0f, 1e-6f);
-  const Color mid = lerpOklab({0, 0, 0, 1}, {1, 1, 1, 1}, 0.5f);
-  EXPECT_NEAR(mid.r, mid.g, 1e-4f);
-  EXPECT_NEAR(mid.r, mid.b, 1e-4f);
-  EXPECT_NEAR(mid.r, linearToSrgb(0.125f), 1e-3f);
-}
-
 TEST(UniformBlock, RevisionAdvancesOnCommitOnly) {
   UniformBlock block(3);
   EXPECT_EQ(block.size(), 3u);
@@ -595,34 +565,50 @@ TEST(UniformBlock, RevisionAdvancesOnCommitOnly) {
   EXPECT_EQ(ro.values()[0], 0.0f);
 }
 
-TEST(Combine, StacksMaterialsThroughAMask) {
-  const std::shared_ptr<const Recipe> r = twoRecipe();
-  const Material base(r, TwoParams{1, {1, 0, 0, 1}});
-  const Material top(r, TwoParams{1, {0, 0, 1, 1}});
-  const Material mask(r, TwoParams{0.5f, {1, 1, 1, 1}});
-  const Material stack = over(base, top, mask);
+namespace {
+
+/** THE THREE OPERANDS every stacking case below is built from. */
+struct Operands {
+  std::shared_ptr<const Recipe> recipe = twoRecipe();
+  Material base{recipe, TwoParams{1, {1, 0, 0, 1}}};
+  Material top{recipe, TwoParams{1, {0, 0, 1, 1}}};
+  Material mask{recipe, TwoParams{0.5f, {1, 1, 1, 1}}};
+};
+
+}  // namespace
+
+TEST(Stacking, TheOperandsAreTheStacksChildren) {
+  const Operands o;
+  const Material stack = over(o.base, o.top, o.mask);
   // The operands are the result's children, so every query answers over
   // the whole stack.
   EXPECT_EQ(stack.children().size(), 3u);
   ASSERT_NE(stack.child("base"), nullptr);
-  EXPECT_EQ(*stack.child("base"), base);
-  EXPECT_EQ(*stack.child("top"), top);
-  EXPECT_EQ(*stack.child("mask"), mask);
-  EXPECT_EQ(stack, over(base, top, mask));
-  // A different blend is a different recipe, so a different material.
-  EXPECT_FALSE(stack == over(base, top, mask, Blend::Add));
+  EXPECT_EQ(*stack.child("base"), o.base);
+  EXPECT_EQ(*stack.child("top"), o.top);
+  EXPECT_EQ(*stack.child("mask"), o.mask);
+  EXPECT_EQ(stack, over(o.base, o.top, o.mask));
+}
+
+TEST(Stacking, ADifferentBlendIsADifferentRecipeAndSoADifferentMaterial) {
+  const Operands o;
+  EXPECT_FALSE(over(o.base, o.top, o.mask) ==
+               over(o.base, o.top, o.mask, Blend::Add));
   EXPECT_NE(overRecipe(Blend::Mix), overRecipe(Blend::Multiply));
   EXPECT_EQ(name(Blend::Multiply), "multiply");
+}
 
-  EXPECT_EQ(stackDepth(base), 0);
-  EXPECT_EQ(*under(base), base);
+TEST(Stacking, UnderWalksOneStepDownSoRepeatingItReachesTheBottom) {
+  const Operands o;
+  EXPECT_EQ(stackDepth(o.base), 0);
+  EXPECT_EQ(*under(o.base), o.base);
+  const Material stack = over(o.base, o.top, o.mask);
   EXPECT_EQ(stackDepth(stack), 1);
-  EXPECT_EQ(*under(stack), base);
-  const Material deeper = over(stack, top, mask, Blend::Add);
+  EXPECT_EQ(*under(stack), o.base);
+  const Material deeper = over(stack, o.top, o.mask, Blend::Add);
   EXPECT_EQ(stackDepth(deeper), 2);
-  // One step down, so walking it repeatedly reaches the bottom.
   EXPECT_EQ(*under(deeper), stack);
-  EXPECT_EQ(*under(*under(deeper)), base);
+  EXPECT_EQ(*under(*under(deeper)), o.base);
 }
 
 // ---- the embedded shader table --------------------------------------------

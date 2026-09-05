@@ -23,23 +23,18 @@
 
 #include <algorithm>
 #include <boost/container/map.hpp>
-#include <cstdio>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 #include "CubeContainers.h"
+#include "ScratchDir.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::solid;
 
 namespace {
-
-sk_sp<SkImage> solid(SkColor color, int w, int h) {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  bm.eraseColor(color);
-  bm.setImmutable();
-  return bm.asImage();
-}
 
 /** A panorama of one colour, in F32 so a value above 1 survives. */
 sk_sp<SkImage> constantPanorama(int w, int h, SkColor4f color) {
@@ -168,67 +163,111 @@ TEST(Texture, FillsAMaterialSlotAsALeaf) {
   EXPECT_FALSE(a == c);
 }
 
-TEST(TextureSet, ClassifiesTheToolsNames) {
+namespace {
+
+/** ONE FILE NAME AS A TOOL WRITES IT, and what this library reads out of
+ *  it: which map it is, and — for a normal map — which way round its
+ *  green channel runs, which is the one thing a name can say that a
+ *  picture cannot. */
+struct ToolName {
+  const char* what;
+  const char* file;
+  texture::Role role;
+  bool directX;
+};
+
+class ToolFileName : public testing::TestWithParam<ToolName> {};
+
+std::string toolNameOf(const testing::TestParamInfo<ToolName>& info) {
+  return info.param.what;
+}
+
+const ToolName kSubstance[] = {
+    {"BaseColor", "Rock_BaseColor.png", texture::Role::BaseColor, false},
+    {"Normal", "Rock_Normal.png", texture::Role::Normal, false},
+    {"NormalDX", "Rock_NormalDX.png", texture::Role::Normal, true},
+    {"NormalDirectX", "Rock_Normal_DirectX.png", texture::Role::Normal, true},
+    {"Roughness", "Rock_Roughness.png", texture::Role::Roughness, false},
+    {"Metallic", "Rock_Metallic.png", texture::Role::Metallic, false},
+    {"Height", "Rock_Height.png", texture::Role::Height, false},
+    {"Emissive", "Rock_Emissive.png", texture::Role::Emissive, false},
+    {"OcclusionRoughnessMetallic",
+     "Rock_OcclusionRoughnessMetallic.png", texture::Role::Packed, false},
+};
+
+const ToolName kPolyHaven[] = {
+    {"Diff", "metal_plate_diff_1k.png", texture::Role::BaseColor, false},
+    {"NorGl", "metal_plate_nor_gl_1k.png", texture::Role::Normal, false},
+    {"NorDx", "metal_plate_nor_dx_2k.png", texture::Role::Normal, true},
+    {"Rough", "metal_plate_rough_1k.png", texture::Role::Roughness, false},
+    {"Metal", "metal_plate_metal_1k.png", texture::Role::Metallic, false},
+    {"Ao", "metal_plate_ao_1k.png", texture::Role::Occlusion, false},
+    {"Arm", "metal_plate_arm_1k.png", texture::Role::Packed, false},
+    {"Disp", "metal_plate_disp_1k.png", texture::Role::Height, false},
+};
+
+const ToolName kAmbientCg[] = {
+    {"Color", "Metal049A_1K-PNG_Color.png", texture::Role::BaseColor, false},
+    {"NormalGL", "Metal049A_1K-PNG_NormalGL.png", texture::Role::Normal, false},
+    {"NormalDX", "Metal049A_1K-PNG_NormalDX.png", texture::Role::Normal, true},
+    {"Metalness", "Metal049A_1K-PNG_Metalness.png", texture::Role::Metallic,
+     false},
+    {"AmbientOcclusion", "Metal049A_1K-PNG_AmbientOcclusion.png",
+     texture::Role::Occlusion, false},
+    {"Displacement", "Metal049A_1K-PNG_Displacement.png", texture::Role::Height,
+     false},
+};
+
+const ToolName kOtherwise[] = {
+    {"GltfOrm", "thing_orm.png", texture::Role::Packed, false},
+    {"GltfAlbedo", "thing_albedo.jpg", texture::Role::BaseColor, false},
+    {"NoRoleWordAtAll", "photo.png", texture::Role::Unknown, false},
+    {"ACameraSerial", "IMG_2048.png", texture::Role::Unknown, false},
+};
+
+}  // namespace
+
+TEST_P(ToolFileName, NamesTheMapItHoldsAndItsNormalConvention) {
+  const texture::Classified classified = texture::classify(GetParam().file);
+  EXPECT_EQ(classified.role, GetParam().role);
+  EXPECT_EQ(classified.directX, GetParam().directX);
+}
+
+INSTANTIATE_TEST_SUITE_P(SubstanceWrites, ToolFileName,
+                         testing::ValuesIn(kSubstance), toolNameOf);
+INSTANTIATE_TEST_SUITE_P(PolyHavenWrites, ToolFileName,
+                         testing::ValuesIn(kPolyHaven), toolNameOf);
+INSTANTIATE_TEST_SUITE_P(AmbientCgWrites, ToolFileName,
+                         testing::ValuesIn(kAmbientCg), toolNameOf);
+INSTANTIATE_TEST_SUITE_P(AnyoneElseWrites, ToolFileName,
+                         testing::ValuesIn(kOtherwise), toolNameOf);
+
+TEST(TextureSet, TheSetNameIsWhatStandsBeforeTheRoleWord) {
+  // Which files belong together is the whole of what a set is, so the
+  // name has to survive the role word and the size token being cut off
+  // it — otherwise two maps of one material land in two sets.
   using texture::classify;
-  using texture::Role;
-  // Substance Painter / Designer.
-  EXPECT_EQ(classify("Rock_BaseColor.png").role, Role::BaseColor);
   EXPECT_EQ(classify("Rock_BaseColor.png").set, "Rock");
-  EXPECT_EQ(classify("Rock_Normal.png").role, Role::Normal);
-  EXPECT_FALSE(classify("Rock_Normal.png").directX);
-  EXPECT_TRUE(classify("Rock_NormalDX.png").directX);
-  EXPECT_TRUE(classify("Rock_Normal_DirectX.png").directX);
-  EXPECT_EQ(classify("Rock_Roughness.png").role, Role::Roughness);
-  EXPECT_EQ(classify("Rock_Metallic.png").role, Role::Metallic);
-  EXPECT_EQ(classify("Rock_Height.png").role, Role::Height);
-  EXPECT_EQ(classify("Rock_Emissive.png").role, Role::Emissive);
-  EXPECT_EQ(classify("Rock_OcclusionRoughnessMetallic.png").role, Role::Packed);
-  // Poly Haven.
-  EXPECT_EQ(classify("metal_plate_diff_1k.png").role, Role::BaseColor);
   EXPECT_EQ(classify("metal_plate_diff_1k.png").set, "metal_plate");
-  EXPECT_EQ(classify("metal_plate_nor_gl_1k.png").role, Role::Normal);
-  EXPECT_FALSE(classify("metal_plate_nor_gl_1k.png").directX);
   EXPECT_EQ(classify("metal_plate_nor_gl_1k.png").set, "metal_plate");
-  EXPECT_TRUE(classify("metal_plate_nor_dx_2k.png").directX);
-  EXPECT_EQ(classify("metal_plate_rough_1k.png").role, Role::Roughness);
-  EXPECT_EQ(classify("metal_plate_metal_1k.png").role, Role::Metallic);
-  EXPECT_EQ(classify("metal_plate_ao_1k.png").role, Role::Occlusion);
-  EXPECT_EQ(classify("metal_plate_arm_1k.png").role, Role::Packed);
-  EXPECT_EQ(classify("metal_plate_disp_1k.png").role, Role::Height);
-  // ambientCG.
-  EXPECT_EQ(classify("Metal049A_1K-PNG_Color.png").role, Role::BaseColor);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_NormalGL.png").role, Role::Normal);
-  EXPECT_TRUE(classify("Metal049A_1K-PNG_NormalDX.png").directX);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_Metalness.png").role, Role::Metallic);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_AmbientOcclusion.png").role,
-            Role::Occlusion);
-  EXPECT_EQ(classify("Metal049A_1K-PNG_Displacement.png").role, Role::Height);
   EXPECT_EQ(classify("Metal049A_1K-PNG_Color.png").set, "Metal049A_1K_PNG");
-  // glTF-ish.
-  EXPECT_EQ(classify("thing_orm.png").role, Role::Packed);
-  EXPECT_EQ(classify("thing_albedo.jpg").role, Role::BaseColor);
-  // Nothing recognizable.
-  EXPECT_EQ(classify("photo.png").role, Role::Unknown);
-  EXPECT_EQ(classify("IMG_2048.png").role, Role::Unknown);
-  EXPECT_EQ(texture::roleForUsage("ambientOcclusion"), Role::Occlusion);
-  EXPECT_EQ(texture::roleForUsage("baseColor"), Role::BaseColor);
-  EXPECT_EQ(texture::roleForUsage("wibble"), Role::Unknown);
-  EXPECT_EQ(texture::name(Role::Packed), "packed");
+}
+
+TEST(TextureSet, AUsageWordNamesARoleAndAnUnrecognisedOneIsUnknown) {
+  EXPECT_EQ(texture::roleForUsage("ambientOcclusion"), texture::Role::Occlusion);
+  EXPECT_EQ(texture::roleForUsage("baseColor"), texture::Role::BaseColor);
+  EXPECT_EQ(texture::roleForUsage("wibble"), texture::Role::Unknown);
+  EXPECT_EQ(texture::name(texture::Role::Packed), "packed");
 }
 
 TEST(TextureSet, DiscoversAndDecodesByRole) {
   namespace fs = std::filesystem;
-  const fs::path dir = fs::temp_directory_path() / "sigilmaterial_texset";
-  fs::create_directories(dir);
+  const sigil::test::ScratchDir scratch("sigilmaterial_texset");
   for (const char* name :
        {"tiles_diff_1k.png", "tiles_nor_dx_1k.png", "tiles_arm_1k.png",
-        "tiles_rough_1k.png", "other_BaseColor.png", "notes.txt"}) {
-    FILE* f = std::fopen((dir / name).string().c_str(), "wb");
-    ASSERT_TRUE(f);
-    std::fputs("x", f);
-    std::fclose(f);
-  }
-  const std::vector<texture::TextureSet> sets = texture::discover(dir);
+        "tiles_rough_1k.png", "other_BaseColor.png", "notes.txt"})
+    scratch.write(name, "x");
+  const std::vector<texture::TextureSet> sets = texture::discover(scratch.path);
   ASSERT_EQ(sets.size(), 2u);
   EXPECT_EQ(sets[0].name, "other");
   EXPECT_EQ(sets[1].name, "tiles");
@@ -253,7 +292,6 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
   EXPECT_EQ(maps.map(texture::Role::Packed)->image().get(),
             decoded["tiles_arm_1k.png"].get());
   EXPECT_EQ(maps.map(texture::Role::Emissive), nullptr);
-  fs::remove_all(dir);
 
   // The usage door: the first word naming a role wins, in key order.
   const sk_sp<SkImage> a = solid(SK_ColorWHITE, 2, 2);
@@ -266,7 +304,7 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
   EXPECT_EQ(u.map(texture::Role::Height)->image().get(), a.get());
 }
 
-TEST(Surface, EnvironmentRoughnessBlursAndCaches) {
+TEST(EnvironmentMap, RoughnessBlursAndEachBucketIsBuiltOnce) {
   const EnvironmentMap env = EnvironmentMap::sunset(128);
   ASSERT_TRUE(env.valid());
   sk_sp<SkImage> sharp = env.image(0);
@@ -504,7 +542,7 @@ TEST(EnvironmentMap, GroundColourReplacesTheLowerHemisphere) {
   EXPECT_FALSE(floored == sky);
 }
 
-TEST(Surface, BevelNormalsFlatInteriorTiltedRim) {
+TEST(Bevel, TheNormalsAreFlatInsideAndTiltedAtTheRim) {
   const SkPath shape = SkPath::Circle(50, 50, 40);
   const Texture normals = bevelNormals(shape, SkIRect::MakeWH(100, 100), 10);
   sk_sp<SkImage> img = normals.image();
@@ -530,7 +568,7 @@ TEST(Surface, BevelNormalsFlatInteriorTiltedRim) {
   EXPECT_FLOAT_EQ(placed.uv().getTranslateY(), 148);
 }
 
-TEST(Atlas, GridCutsEqualCellsRowMajor) {
+TEST(Atlas, AGridCutsEqualCellsRowMajorAndNamesThemByIndex) {
   const Atlas atlas = Atlas::grid(Texture::of(solid(SK_ColorRED, 8, 4)), 4, 2);
   ASSERT_EQ(atlas.regions().size(), 8u);
   EXPECT_EQ(atlas.regions()[5].rect, SkIRect::MakeXYWH(2, 2, 2, 2));
@@ -578,7 +616,7 @@ TEST(Atlas, ReadsTexturePackerAndDerivesSequences) {
   EXPECT_EQ(fromArray->regions()[1].name, "b");
 }
 
-TEST(Atlas, ReadsAsepriteTags) {
+TEST(Atlas, AsepritesTagsBecomeTheSequences) {
   const char* json = R"({"frames": [
     {"filename": "hero 0.aseprite", "frame": {"x": 0, "y": 0, "w": 8, "h": 8}, "duration": 100},
     {"filename": "hero 1.aseprite", "frame": {"x": 8, "y": 0, "w": 8, "h": 8}, "duration": 100},

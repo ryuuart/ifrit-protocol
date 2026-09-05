@@ -15,22 +15,12 @@
 #include <sigilshaders/MaterialField.h>
 
 #include "ShaderTable.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::render;
 
 namespace {
-
-SkBitmap render(const Material& m, int w, int h) {
-  skia::install();
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  SkCanvas canvas(bm);
-  canvas.clear(SK_ColorTRANSPARENT);
-  SkPaint paint;
-  paint.setShader(skia::shader(m, {.resolution = {(float)w, (float)h}}));
-  canvas.drawPaint(paint);
-  return bm;
-}
 
 int coverage(const SkBitmap& bm, int y) {
   int n = 0;

@@ -23,11 +23,8 @@ else()
     "OpenColorIO not found — <sigilmaterial/ocio/Ocio.h> answers unavailable")
 endif()
 
-# The test shades through the Skia backend, and skips where the
-# transforms are unavailable.
-sigil_test(material_ocio_test
-  SOURCES test/OcioTest.cpp
-  LIBRARIES SigilMaterialOcio SigilMaterialSkia)
+# test/OcioTest.cpp is compiled into material_test, at the library root,
+# which carries the `ocio` label for it.
 
 sigil_bench(material_ocio_bench
   SOURCES bench/OcioBench.cpp

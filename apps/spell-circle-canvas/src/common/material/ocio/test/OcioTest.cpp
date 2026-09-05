@@ -3,9 +3,11 @@
  * response row that darkens mid-grey by the expected amount and leaves
  * white alone; that row lowers to a table on an eight-bit surface and
  * paints what the program paints, while a float surface and an unknown
- * one keep the program; a transform that mixes channels bakes the volume
- * and keeps the program everywhere; and a bad config fails soft. Skips
- * where the transforms are unavailable.
+ * one keep the program; and a transform that mixes channels bakes the
+ * volume and keeps the program everywhere. A config that cannot be read
+ * fails soft, which needs no OpenColorIO to ask; every other case here
+ * skips where the transforms are unavailable, and the binary carries the
+ * `ocio` label that says so.
  */
 
 #include <gtest/gtest.h>
@@ -23,7 +25,16 @@
 
 using namespace sigil::material;
 
-TEST(Ocio, ExponentBakesToAResponseRowThatGradesTheContent) {
+TEST(Ocio, AConfigThatCannotBeReadFailsSoftWithAnEmptyLut) {
+  // No OCIO needed and none asked for: a transform the library cannot
+  // bake answers a material with nothing in its LUT slot rather than
+  // throwing, so a caller naming a config that is not there paints the
+  // content it was handed.
+  const Material bad = ocio::viewTransform("ocio://no-such-config", "x", "y");
+  EXPECT_EQ(bad.leaf("lut"), nullptr);
+}
+
+TEST(Ocio, AnExponentBakesToAResponseRowThatGradesTheContent) {
   if (!ocio::available()) GTEST_SKIP() << "OCIO raw config unavailable";
   skia::install();
   Material grade = ocio::exponent(2.2f);
@@ -49,9 +60,6 @@ TEST(Ocio, ExponentBakesToAResponseRowThatGradesTheContent) {
   const int expected = (int)std::lround(255.0 * std::pow(128.0 / 255.0, 2.2));
   EXPECT_NEAR(grey, expected, 3);
   EXPECT_EQ(SkColorGetR(out.getColor(0, 0)), 255u);
-  // A bad config fails soft: an empty LUT slot, no throw.
-  const Material bad = ocio::viewTransform("ocio://no-such-config", "x", "y");
-  EXPECT_EQ(bad.leaf("lut"), nullptr);
 }
 
 namespace {

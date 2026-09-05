@@ -1,6 +1,8 @@
 # The signed-distance surfaces: three recipes, every style dial a uniform.
 # Links the core alone.
-set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
+set(SIGIL_MATERIAL_SDF_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
+    CACHE INTERNAL "the sdf feature's shader modules")
+set(_shaders ${SIGIL_MATERIAL_SDF_SHADER_DIR})
 sigil_library(SigilMaterialSdf
   SOURCES Sdf.cpp
   HEADERS Sdf.h
@@ -8,14 +10,10 @@ sigil_library(SigilMaterialSdf
 sigil_shader_sources(SigilMaterialSdf
   DIR ${_shaders} NAMESPACE sigil::material::sdf)
 
-# The test shades, so it links the Skia backend beside the feature. The
-# shader directory is named for the case that asks whether the embedded
-# table holds every file in it.
-sigil_test(material_sdf_test
-  SOURCES test/SdfTest.cpp
-  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
-  DEFINITIONS SIGIL_MATERIAL_SDF_SHADER_DIR="${_shaders}"
-  LIBRARIES SigilMaterialSdf SigilMaterialSkia)
+# test/SdfTest.cpp is compiled into material_test, at the library root:
+# the primitives, the colour leaf and the view transforms all shade
+# through the Skia backend, so a binary per feature would be five
+# binaries over one link closure.
 
 sigil_bench(material_sdf_bench
   SOURCES bench/SdfBench.cpp

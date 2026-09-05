@@ -388,32 +388,25 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
   EXPECT_LT(SkColorGetR(host.pixel(30, 80)), 12u);  // fades with distance
 }
 
-TEST(ComposePatterns, SequencePaintsColouredRunsAndPhaseSlides) {
-  // stripes() is single-colour and cannot be phased, so a multi-colour
-  // repeating band — and any animated slide of one — would otherwise be a
-  // hand-written pattern program each time.
-  auto sample = [](float phase, int x) {
-    Host host;
-    host.composer.render(box().child(
-        box()
-            .width(120)
-            .height(40)
-            .inset(0, 0, 80, 160)
-            .absolute()
-            .fill(Pattern(material::pattern::sequence({{10, {1, 0, 0, 1}},
-                                                       {10, {0, 1, 0, 1}},
-                                                       {10, {0, 0, 1, 1}}},
-                                                      phase))
-                      .material())));
-    host.frame();
-    return host.pixel(x, 20);
-  };
-  EXPECT_EQ(sample(0.0f, 5), SK_ColorRED);     // run 1
-  EXPECT_EQ(sample(0.0f, 15), SK_ColorGREEN);  // run 2
-  EXPECT_EQ(sample(0.0f, 25), SK_ColorBLUE);   // run 3
-  EXPECT_EQ(sample(0.0f, 35), SK_ColorRED);    // wraps
-  EXPECT_EQ(sample(10.0f, 5), SK_ColorGREEN);  // slid one run: green leads
-  EXPECT_EQ(sample(10.0f, 15), SK_ColorBLUE);
+TEST(ComposePatterns, APatternFillReachesThePixels) {
+  // A Pattern is a material this tier spells as a fill, so what is asked
+  // here is that the tile a node was filled with is the tile that lands
+  // on it. What the stock tiles themselves paint — the run order, the
+  // wrap, the phase — is SigilMaterial's own claim.
+  Host host;
+  host.composer.render(box().child(
+      box()
+          .width(120)
+          .height(40)
+          .inset(0, 0, 80, 160)
+          .absolute()
+          .fill(Pattern(material::pattern::sequence({{10, {1, 0, 0, 1}},
+                                                     {10, {0, 1, 0, 1}},
+                                                     {10, {0, 0, 1, 1}}}))
+                    .material())));
+  host.frame();
+  EXPECT_EQ(host.pixel(5, 20), SK_ColorRED);
+  EXPECT_EQ(host.pixel(15, 20), SK_ColorGREEN);
 }
 
 TEST(ComposeColor, OcioViewTransformsOutputAndClears) {

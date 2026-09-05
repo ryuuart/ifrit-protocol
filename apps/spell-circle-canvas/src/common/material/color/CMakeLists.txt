@@ -6,9 +6,7 @@ sigil_library(SigilMaterialColor
   SOURCES Color.cpp
   HEADERS Color.h)
 
-sigil_test(material_color_test
-  SOURCES test/ColorTest.cpp
-  LIBRARIES SigilMaterialColor)
+# test/ColorTest.cpp is compiled into material_test, at the library root.
 
 sigil_bench(material_color_bench
   SOURCES bench/ColorBench.cpp

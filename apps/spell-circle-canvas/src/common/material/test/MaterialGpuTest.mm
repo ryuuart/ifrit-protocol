@@ -17,7 +17,9 @@
  * and the shading terms, demanding that not one of them reports an
  * error. The control below proves the handler is wired to something: the
  * exact collision the reserved names exist to prevent, built as a raw
- * runtime effect so it reaches the device, must be reported.
+ * runtime effect so it reaches the device, must be reported. That this
+ * library refuses such a body before a device ever sees it is asserted
+ * where the refusal is written, in material_skia_test.
  */
 
 #include <sigilcore/hardware/GpuDevice.h>
@@ -238,15 +240,18 @@ TEST(MaterialGpu, EveryRecipeCompilesOnTheDevice) {
   }
 }
 
-// THE CONTROL, twice over. Graphite inlines a runtime effect's body into
-// its fragment shader under parameters of its own naming — `pos` for the
+// THE CONTROL. Graphite inlines a runtime effect's body into its
+// fragment shader under parameters of its own naming — `pos` for the
 // coordinates — and discards the name the body's own main declared. So a
 // body declaring a local `pos` redeclares that parameter: it makes a
 // perfectly good SkRuntimeEffect, because there the body is the whole
-// program, and the device rejects it. This proves both halves: that the
-// device really does reject it and the sink really does hear, and that
-// the material compiler refuses the body before it can get that far.
-TEST(MaterialGpu, ABodyDeclaringAReservedNameIsCaughtBothWays) {
+// program, and the device rejects it. Built raw, past the material
+// compiler, it must be REPORTED — which is what proves the sink is wired
+// to anything at all, and so what makes the sweep above a verdict. That
+// this library refuses such a body before it can reach a device is
+// material_skia_test's claim, over all four names and the three
+// spellings that must still compile.
+TEST(MaterialGpu, TheDeviceRejectsABodyThatRedeclaresItsOwnParameter) {
   REQUIRE_GPU();
   skia::install();
   constexpr char kCollides[] = R"(
@@ -265,10 +270,4 @@ TEST(MaterialGpu, ABodyDeclaringAReservedNameIsCaughtBothWays) {
       << "the device accepted a body that redeclares its own parameter — "
          "either Graphite stopped naming it `pos` or the error sink is not "
          "installed";
-
-  // Through the library: refused at compile, so it never reaches a device.
-  const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<NoParams>("gpu.collides").body(Target::SkSL, kCollides));
-  EXPECT_FALSE(skia::shader(Material(recipe, NoParams{}), {}))
-      << "the material compiler let a reserved parameter name through";
 }

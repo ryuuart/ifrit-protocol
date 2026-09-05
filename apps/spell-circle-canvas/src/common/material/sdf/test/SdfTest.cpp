@@ -16,26 +16,12 @@
 #include <cmath>
 
 #include "ShaderTable.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
+using sigil::material::test::render;
 
-namespace {
-
-SkBitmap render(const Material& m, int w, int h) {
-  skia::install();
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
-  SkCanvas canvas(bm);
-  canvas.clear(SK_ColorTRANSPARENT);
-  SkPaint paint;
-  paint.setShader(skia::shader(m, {.resolution = {(float)w, (float)h}}));
-  canvas.drawPaint(paint);
-  return bm;
-}
-
-}  // namespace
-
-TEST(Sdf, StarFillsCenterMissesCorners) {
+TEST(Sdf, AStarFillsItsCentreAndMissesTheCornersOfItsBox) {
   sdf::Style style;
   style.fill = {1, 1, 1, 1};
   const SkBitmap bm = render(sdf::material(sdf::star(5, 2.5f), style), 64, 64);
@@ -49,7 +35,7 @@ TEST(Sdf, StarFillsCenterMissesCorners) {
       0u);
 }
 
-TEST(Sdf, PointinessRunsBluntToSharp) {
+TEST(Sdf, ThePointinessDialRunsFromTheRegularPolygonToClosedArms) {
   // The dial's ends are what a caller reads off the comment and gets
   // wrong in silence: 2 is the REGULAR POLYGON, and the point count
   // itself closes the arms to nothing. What is asserted is the ordering
@@ -81,7 +67,7 @@ TEST(Sdf, PointinessRunsBluntToSharp) {
               0.03);
 }
 
-TEST(Sdf, PadReservesTheStylesReach) {
+TEST(Sdf, ThePadReservesWhateverTheStyleReachesPastitsShape) {
   sdf::Style plain;
   EXPECT_FLOAT_EQ(sdf::pad(plain), 1.0f);
   sdf::Style glow;

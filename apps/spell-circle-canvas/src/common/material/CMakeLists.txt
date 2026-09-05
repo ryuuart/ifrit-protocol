@@ -14,7 +14,10 @@
 # sdf, pattern and field features are the primitives — fully
 # parameterised generators — the ocio feature bakes OpenColorIO's view
 # transforms to LUT materials over the texture feature, and the kit
-# holds the presets over them. `SigilMaterial` is the umbrella: an
+# holds the presets over them. The stock feature gathers every catalogue
+# into the one list a host warms in one call, which is why it is the one
+# target that links the primitives and the kit together.
+# `SigilMaterial` is the umbrella: an
 # interface over every feature, for a consumer of the whole library.
 # <sigilmaterial/Material.h> is the umbrella header over the core.
 sigil_library_root(SigilMaterial
@@ -30,13 +33,37 @@ add_subdirectory(pattern)
 add_subdirectory(field)
 add_subdirectory(skia)
 add_subdirectory(kit)
+add_subdirectory(stock)
 add_subdirectory(slang)
 
 sigil_library(SigilMaterial
   INTERFACE SigilMaterialColor SigilMaterialCore SigilMaterialTexture
             SigilMaterialOcio SigilMaterialSdf SigilMaterialPattern
             SigilMaterialField SigilMaterialSkia SigilMaterialKit
-            SigilMaterialSlang)
+            SigilMaterialStock SigilMaterialSlang)
+
+# THE PRIMITIVES AND THE LEAF, in one binary. The colour value, the
+# signed-distance surfaces, the tiles, the fields and the baked view
+# transforms are five features, and a test of any of them shades through
+# the Skia backend — so five binaries would be five names over one link
+# closure and no boundary between them anybody could read. The features
+# themselves stay five archives: a consumer of the colour leaf still
+# links the colour leaf alone.
+#
+# The `ocio` label says the view-transform cases need OpenColorIO's
+# built-in config; every other case here runs everywhere. The shader
+# directories are named for the cases that ask whether each embedded
+# table holds every file in its directory.
+sigil_test(material_test
+  SOURCES color/test/ColorTest.cpp field/test/FieldTest.cpp
+          ocio/test/OcioTest.cpp pattern/test/PatternTest.cpp
+          sdf/test/SdfTest.cpp
+  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
+  DEFINITIONS SIGIL_MATERIAL_SDF_SHADER_DIR="${SIGIL_MATERIAL_SDF_SHADER_DIR}"
+              SIGIL_MATERIAL_FIELD_SHADER_DIR="${SIGIL_MATERIAL_FIELD_SHADER_DIR}"
+  LIBRARIES SigilMaterialColor SigilMaterialField SigilMaterialOcio
+            SigilMaterialPattern SigilMaterialSdf SigilMaterialSkia
+  LABELS ocio)
 
 # THE DEVICE SWEEP, over the whole library rather than one feature: a body
 # is validated one way as its own runtime effect and another once a GPU

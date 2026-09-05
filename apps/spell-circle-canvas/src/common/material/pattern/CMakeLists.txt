@@ -8,9 +8,7 @@ sigil_library(SigilMaterialPattern
   PUBLIC SigilMaterialTexture SigilMaterialColor
   PRIVATE SigilCoreCompute)
 
-sigil_test(material_pattern_test
-  SOURCES test/PatternTest.cpp
-  LIBRARIES SigilMaterialPattern)
+# test/PatternTest.cpp is compiled into material_test, at the library root.
 
 sigil_bench(material_pattern_bench
   SOURCES bench/PatternBench.cpp

@@ -76,7 +76,7 @@ TEST(Tile, MappingIsPerObjectAndNeverRebakes) {
   EXPECT_EQ(t.texture(), pattern::Tile(t).texture());
 }
 
-TEST(Patterns, CheckerTilesSeamlessly) {
+TEST(StockTiles, CheckerTilesSeamlessly) {
   const pattern::Tile checker = pattern::checker(4, {1, 0, 0, 1}, {0, 0, 1, 1});
   const SkBitmap bm =
       fill(checker.texture().filter(SkFilterMode::kNearest), 16, 16);
@@ -86,7 +86,7 @@ TEST(Patterns, CheckerTilesSeamlessly) {
   EXPECT_EQ(bm.getColor(13, 5), SK_ColorRED);
 }
 
-TEST(Patterns, SequencePaintsRunsInOrderAndPhaseSlides) {
+TEST(StockTiles, SequencePaintsRunsInOrderAndPhaseSlides) {
   const pattern::Tile runs = pattern::sequence(
       {{2, {1, 0, 0, 1}}, {3, {0, 1, 0, 1}}, {1, {0, 0, 1, 1}}});
   EXPECT_EQ(runs.size(), SkSize::Make(6, 8));
@@ -124,7 +124,7 @@ TEST(Patterns, SequencePaintsRunsInOrderAndPhaseSlides) {
             0u);
 }
 
-TEST(Patterns, GridLinesTakeATwoAxisPitchAndSpeckleReseeds) {
+TEST(StockTiles, GridLinesTakeATwoAxisPitchAndSpeckleReseeds) {
   const pattern::Tile grid = pattern::gridLines(8, 4, 1, {1, 1, 1, 1});
   EXPECT_EQ(grid.size(), SkSize::Make(8, 4));
   const SkBitmap bm =
