@@ -597,5 +597,36 @@ TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
   on.device->gpu()->destroy(painted.handle);
 }
 
+TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
+  // A variant surface is a colour laid over the bodies a selector names,
+  // and it is shaded by the pass's own lights the way any body is: the
+  // side of the sphere facing away from the sun is darker in the overlay
+  // too. An overlay drawn flat would be one white from edge to edge.
+  Frame frame(set());
+  frame.extent(kExtent)
+      .camera(diligent::raisedEye())
+      .pass(geometryPass("colour")
+                .writes("colour")
+                .clear(SkColors::kBlack)
+                .only(sel::tag("glow"))
+                .variant(material::kit::surface({.baseColor = {1, 1, 1, 1}})));
+  const SkBitmap plate = photograph(frame, runtime);
+  // The sphere stands at the centre of the frame; the sun travels toward
+  // -x, so its +x side is the lit one.
+  const int y = kExtent.height() / 2;
+  const SkColor4f shaded = plate.getColor4f(kExtent.width() / 2 - 14, y);
+  const SkColor4f sunlit = plate.getColor4f(kExtent.width() / 2 + 14, y);
+  // The overlay is the variant's white and not the body's own amber…
+  EXPECT_NEAR(sunlit.fG, sunlit.fR, 0.05f);
+  EXPECT_NEAR(sunlit.fB, sunlit.fR, 0.05f);
+  EXPECT_NEAR(shaded.fG, shaded.fR, 0.05f);
+  EXPECT_NEAR(shaded.fB, shaded.fR, 0.05f);
+  // …and it is lit: darker where the sun does not reach.
+  const auto luma = [](SkColor4f c) {
+    return c.fR * 0.3f + c.fG * 0.59f + c.fB * 0.11f;
+  };
+  EXPECT_LT(luma(shaded), luma(sunlit) - 0.1f);
+}
+
 INSTANTIATE_TEST_SUITE_P(Tiers, EitherTier,
                          testing::Values(Tier::Host, Tier::Device), tierName);

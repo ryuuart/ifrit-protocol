@@ -380,13 +380,18 @@ void drawBodies(Gpu& gpu, const View& view, const glm::mat4& viewProj,
                 const glm::vec4* flat) {
   // A FLAT colour replaces the body's own AND its material: coverage and
   // a variant re-draw are about where a body is, not what it is made of.
+  // Whether the flat colour is then SHADED is the pass's call — coverage
+  // is not a picture and is drawn unlit; a variant surface is a colour
+  // laid over the bodies a selector names and stands under the pass's
+  // lights like any other, which is the same reading the host tier makes
+  // of it.
   for (const Draw& body : view.draws) {
     if (!body.mesh) continue;
     if (only && !only->matches(subjectOf(body))) continue;
     const glm::vec4 colour = flat ? *flat : body.baseColor;
     // A BODY THAT IS ITS OWN LIGHT is drawn unlit whatever the pass
     // says, because that is what its surface is and not how this pass
-    // reads it. A flat draw is unlit already.
+    // reads it — a variant laid over it included.
     drawBody(gpu, viewProj, viewMatrix, body.geometry, *body.mesh, body.world,
              colour, flat ? nullptr : body.material,
              flat ? nullptr : body.texture, view.lights, view.environment,
@@ -469,7 +474,7 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
                                  ? pass.variant()->get<glm::vec4>("baseColor")
                                  : glm::vec4{1, 1, 1, 1};
     drawBodies(gpu, view, viewProj, viewMatrix, &pass.selector(),
-               /*lit=*/false, &colour);
+               /*lit=*/true, &colour);
   }
 
   if (work.coverageOut.empty()) return;
