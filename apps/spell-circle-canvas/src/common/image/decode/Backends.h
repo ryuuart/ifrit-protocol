@@ -2,9 +2,10 @@
 
 /** @file
  * The backends the routing entry points choose between, one
- * translation unit each: the Skia codecs' channel read, the SVG
- * rasterizer when SIGILIMAGE_HAS_SVG is defined, and the OpenImageIO
- * reader when SIGILIMAGE_HAS_OIIO is. Private to the decode feature.
+ * translation unit each: the Skia codecs' channel read, the KTX reader,
+ * the SVG rasterizer when SIGILIMAGE_HAS_SVG is defined, and the
+ * OpenImageIO reader when SIGILIMAGE_HAS_OIIO is. Private to the decode
+ * feature.
  */
 
 #include <cstddef>
@@ -22,6 +23,23 @@ namespace sigil::image::backend {
  *  nullopt when Skia does not recognise the bytes. */
 std::optional<ChannelData> decodeChannelsWithSkia(const std::byte* bytes,
                                                   size_t size);
+
+/** The twelve-byte identifier of a KTX 1 or KTX 2 container. */
+bool looksLikeKtx(const std::byte* bytes, size_t size);
+
+/** The base level of a KTX 1 or KTX 2 file as ChannelData — R, G, B, A
+ *  in the texel's own number type, a cube map's six faces stacked into
+ *  one column in the +x -x +y -y +z -z order the container names them,
+ *  the same column OpenImageIO's DDS reader produces. Uncompressed
+ *  texels only: 8-bit, half and float in one to four channels. A
+ *  block-compressed, supercompressed, array, 3D or big-endian file is
+ *  nullopt. */
+std::optional<ChannelData> decodeChannelsWithKtx(const std::byte* bytes,
+                                                 size_t size);
+
+/** The same header as a probe: "ktx" or "ktx2", the base level's size
+ *  (a cube map's as the column), channels and float-ness. */
+std::optional<ImageProbe> probeWithKtx(const std::byte* bytes, size_t size);
 
 #ifdef SIGILIMAGE_HAS_SVG
 

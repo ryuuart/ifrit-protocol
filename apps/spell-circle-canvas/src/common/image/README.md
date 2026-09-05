@@ -3,10 +3,12 @@
 Image meaning, both directions: encoded bytes in and Skia images out, and
 pixels in and encoded bytes out. Skia's own codecs decode PNG, JPEG,
 WebP, GIF and AVIF, including multi-frame animation, and encode the first
-three; two optional backends extend that — OpenImageIO for EXR, PSD, TIFF
-and HDR with layer and channel selection on the way in, and EXR on the way
-out with those channels' names kept, and Skia's SVG module for
-rasterizing vector sources. For sources
+three; a KTX 1 or 2 with uncompressed texels is read here from its
+header, a cube map's six faces as one 1:6 column; two optional backends
+extend that — OpenImageIO for EXR, PSD, TIFF, HDR and DDS (a cube map as
+the same column) with layer and channel selection on the way in, and EXR
+on the way out with those channels' names kept, and Skia's SVG module
+for rasterizing vector sources. For sources
 carrying more than plain RGBA, the raw float channel planes are exposed
 directly. No Qt, no windowing, no filesystem abstraction — the library
 sees bytes.
@@ -114,8 +116,8 @@ composites the group with `ChannelData::makeImage` first.
 
 `decode/Decode.h` is the routing surface. `decodeImage()` sniffs the bytes and
 tries the Skia codecs first (skipped when a layer is named, since layers
-are an OpenImageIO concept), then SVG, then OpenImageIO; `probeImage()`
-follows the same order. The `pathHint` argument only sharpens format
+are an OpenImageIO concept), then KTX, then SVG, then OpenImageIO;
+`probeImage()` follows the same order. The `pathHint` argument only sharpens format
 detection — nothing dispatches on file extension.
 
 Animated frames are fully composited at decode time. The source format's
@@ -205,11 +207,15 @@ includes that header and links that feature itself. A
 consumer that only draws decoded images links `SigilImageAsset` and never
 sees a backend.
 
-**No codec is written here.** Every format is somebody else's encoder or
-decoder called by name — `SkPngEncoder`, `SkJpegEncoder` and
-`SkWebpEncoder` from Skia's `include/encode/`, `OIIO::ImageOutput` and
-`OIIO::ImageInput` from OpenImageIO, Skia's own codecs and SVG module.
-What this library adds is the routing, the readback, and the decisions a
+**No codec is written here, with one container read.** Every format is
+somebody else's encoder or decoder called by name — `SkPngEncoder`,
+`SkJpegEncoder` and `SkWebpEncoder` from Skia's `include/encode/`,
+`OIIO::ImageOutput` and `OIIO::ImageInput` from OpenImageIO, Skia's own
+codecs and SVG module. The exception is KTX, whose uncompressed texels
+are plain rows behind a header and level table: no dependency this build
+installs reads it without a device, so `decode/Ktx.cpp` reads the header
+itself and refuses anything block-compressed or supercompressed. What
+this library adds is the routing, the readback, and the decisions a
 format offers that a caller should not have to re-make.
 
 SigilImage owns **meaning**: format sniffing, decode and encode backends,

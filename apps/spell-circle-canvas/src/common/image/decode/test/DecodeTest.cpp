@@ -1,8 +1,9 @@
 /** @file
  * The format-routing decode surface — the Skia codecs reached through
- * decodeImage()/probeImage() on raw bytes, and the SVG backend when it
- * is built in. The file reads here are the test's own; the library takes
- * no paths.
+ * decodeImage()/probeImage() on raw bytes, the KTX reader, the DDS cube
+ * map through OpenImageIO when it is built in, and the SVG backend when
+ * it is. The file reads here are the test's own; the library takes no
+ * paths.
  */
 
 #include <gtest/gtest.h>
@@ -14,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "CubeContainers.h"
 #include "Pixels.h"
 
 namespace {
@@ -74,6 +76,60 @@ TEST(ImageDecode, RejectsUnsupportedBytes) {
                                sizeof(kGarbage))
           .has_value());
 }
+
+// The six faces of a cube map, each its own colour in the +x -x +y -y
+// +z -z order, so where a face landed in the column is legible from the
+// texel.
+constexpr sigil::image::test::CubeFaces kCubeFaces = {
+    SK_ColorRED,    SK_ColorGREEN, SK_ColorBLUE,
+    SK_ColorYELLOW, SK_ColorCYAN,  SK_ColorMAGENTA};
+
+/** The decoded image must be the faces stacked into a 1:6 column. */
+void expectCubeColumn(const std::vector<std::byte>& bytes, const char* name) {
+  auto asset = sigil::image::decodeImage(bytes.data(), bytes.size(), {}, name);
+  ASSERT_TRUE(asset.has_value()) << name;
+  ASSERT_EQ(asset->frames().size(), 1u) << name;
+  const sk_sp<SkImage>& image = asset->frames()[0].image;
+  EXPECT_EQ(image->width(), 8) << name;
+  EXPECT_EQ(image->height(), 48) << name;
+  for (int face = 0; face < 6; ++face)
+    expectNearColor(pixelAt(image, 4, face * 8 + 4), kCubeFaces[(size_t)face],
+                    0, name);
+  auto info = sigil::image::probeImage(bytes.data(), bytes.size(), name);
+  ASSERT_TRUE(info.has_value()) << name;
+  EXPECT_EQ(info->width, 8) << name;
+  EXPECT_EQ(info->height, 48) << name;
+  EXPECT_EQ(info->channels, 4) << name;
+  EXPECT_FALSE(info->floatingPoint) << name;
+}
+
+TEST(KtxDecode, ACubeMapInEitherContainerIsTheSixFacesAsAColumn) {
+  const auto ktx1 = sigil::image::test::cubeKtx1(kCubeFaces, 8);
+  expectCubeColumn(ktx1, "cube.ktx");
+  auto info = sigil::image::probeImage(ktx1.data(), ktx1.size());
+  ASSERT_TRUE(info.has_value());
+  EXPECT_EQ(info->format, "ktx");
+  const auto ktx2 = sigil::image::test::cubeKtx2(kCubeFaces, 8);
+  expectCubeColumn(ktx2, "cube.ktx2");
+  info = sigil::image::probeImage(ktx2.data(), ktx2.size());
+  ASSERT_TRUE(info.has_value());
+  EXPECT_EQ(info->format, "ktx2");
+}
+
+TEST(KtxDecode, ATruncatedFileIsRefused) {
+  auto ktx2 = sigil::image::test::cubeKtx2(kCubeFaces, 8);
+  ktx2.resize(ktx2.size() - 1);  // the last face is one byte short
+  EXPECT_FALSE(sigil::image::decodeImage(ktx2.data(), ktx2.size()).has_value());
+  EXPECT_FALSE(sigil::image::probeImage(ktx2.data(), ktx2.size()).has_value());
+}
+
+#ifdef SIGILIMAGE_HAS_OIIO
+
+TEST(OiioDecode, ADdsCubeMapIsTheSixFacesAsAColumn) {
+  expectCubeColumn(sigil::image::test::cubeDds(kCubeFaces, 8), "cube.dds");
+}
+
+#endif  // SIGILIMAGE_HAS_OIIO
 
 #ifdef SIGILIMAGE_HAS_SVG
 

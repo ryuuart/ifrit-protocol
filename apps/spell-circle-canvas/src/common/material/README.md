@@ -319,8 +319,10 @@ resolve into that single form while the value is built: `studio()` and
 lat-long panorama, `fromFaces()` resamples six cube faces and
 `fromCubeMap()` unpacks one sheet — a 4:3 or 3:4 cross, a 6:1 row or a
 1:6 column — into the same. A cube map arrives as an ordinary image
-because that is what SigilImage decodes; DDS and KTX, the containers
-that hold six surfaces in one file, decode nowhere in this tree.
+because that is what SigilImage decodes, and the two containers that
+hold six faces in one file arrive as the 1:6 column: a KTX 1 or 2
+through SigilImage's own reader (uncompressed texels), a DDS through
+its OpenImageIO backend.
 
 Two readings hang off the panorama, cached with it and shared by every
 copy of the value. The SPECULAR side is `image(roughness)` — nine

@@ -78,10 +78,11 @@ class EnvironmentMap {
    *
    *  A cube map reaches this library as an ordinary image because that is
    *  what the image library decodes: PNG, JPEG, WebP, AVIF, and — where
-   *  the OpenImageIO backend is built — EXR, HDR, TIFF and PSD. The
-   *  container formats that hold six surfaces and a mip chain in one file,
-   *  DDS and KTX, decode nowhere in this tree, so a cube map is unpacked
-   *  to a sheet or to six files before it gets here. */
+   *  the OpenImageIO backend is built — EXR, HDR, TIFF and PSD. The two
+   *  containers that hold six faces and a mip chain in one file decode
+   *  to the 1:6 column: a KTX 1 or 2 through the image library's own
+   *  reader (uncompressed texels), a DDS through OpenImageIO, faces in
+   *  the +x -x +y -y +z -z order from the top at the base mip level. */
   static EnvironmentMap fromCubeMap(sk_sp<SkImage> sheet);
 
   bool valid() const { return m_state != nullptr; }

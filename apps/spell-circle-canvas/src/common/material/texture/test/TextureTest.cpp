@@ -19,12 +19,15 @@
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/texture/TextureSet.h>
+#include <sigilimage/decode/Decode.h>
 
 #include <algorithm>
 #include <boost/container/map.hpp>
 #include <cstdio>
 #include <filesystem>
 #include <vector>
+
+#include "CubeContainers.h"
 
 using namespace sigil::material;
 
@@ -369,6 +372,66 @@ TEST(EnvironmentMap, ACubeSheetIsUnpackedByItsLayout) {
   EXPECT_NEAR(a.fR, b.fR, 1e-5f);
   EXPECT_NEAR(a.fG, b.fG, 1e-5f);
   EXPECT_NEAR(a.fB, b.fB, 1e-5f);
+}
+
+TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
+  // A DDS through OpenImageIO and a KTX 1 or 2 through the KTX reader
+  // each decode to the six faces as one 1:6 column, which is a sheet
+  // fromCubeMap already reads — so the panorama is the same texel the
+  // sheet of the same faces gives at each face's centre direction.
+  const sigil::image::test::CubeFaces kFace = {
+      SK_ColorRED,    SK_ColorGREEN, SK_ColorBLUE,
+      SK_ColorYELLOW, SK_ColorCYAN,  SK_ColorMAGENTA};
+  constexpr int kEdge = 16;
+  SkBitmap column;
+  column.allocPixels(SkImageInfo::MakeN32Premul(kEdge, 6 * kEdge));
+  for (int i = 0; i < 6; ++i) {
+    SkPaint paint;
+    paint.setColor(kFace[(size_t)i]);
+    SkCanvas(column).drawIRect(SkIRect::MakeXYWH(0, i * kEdge, kEdge, kEdge),
+                               paint);
+  }
+  column.setImmutable();
+  const EnvironmentMap fromSheet = EnvironmentMap::fromCubeMap(column.asImage());
+  ASSERT_TRUE(fromSheet.valid());
+
+  const SkV3 axes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
+                        {0, -1, 0}, {0, 0, 1},  {0, 0, -1}};
+  const auto expectSameAsSheet = [&](const std::vector<std::byte>& bytes,
+                                     const char* name) {
+    auto asset = sigil::image::decodeImage(bytes.data(), bytes.size(), {}, name);
+    ASSERT_TRUE(asset.has_value()) << name;
+    const EnvironmentMap env =
+        EnvironmentMap::fromCubeMap(asset->frames()[0].image);
+    ASSERT_TRUE(env.valid()) << name;
+    ASSERT_EQ(env.size(), fromSheet.size()) << name;
+    const sk_sp<SkImage> pano = env.image(0);
+    const sk_sp<SkImage> sheet = fromSheet.image(0);
+    for (int i = 0; i < 6; ++i) {
+      const SkV2 uv = equirectUv(axes[i]);
+      const int x = std::min((int)(uv.x * (float)pano->width()), pano->width() - 1);
+      const int y =
+          std::min((int)(uv.y * (float)pano->height()), pano->height() - 1);
+      const SkColor4f got = floatPixel(pano, x, y);
+      const SkColor4f want = floatPixel(sheet, x, y);
+      EXPECT_EQ(got.fR, want.fR) << name << " face " << i;
+      EXPECT_EQ(got.fG, want.fG) << name << " face " << i;
+      EXPECT_EQ(got.fB, want.fB) << name << " face " << i;
+      // …and that texel IS the face, so the order the container names
+      // its faces in is the order the sheet reads them.
+      const SkColor4f face = SkColor4f::FromColor(kFace[(size_t)i]);
+      EXPECT_NEAR(got.fR, face.fR, 0.02f) << name << " face " << i;
+      EXPECT_NEAR(got.fG, face.fG, 0.02f) << name << " face " << i;
+      EXPECT_NEAR(got.fB, face.fB, 0.02f) << name << " face " << i;
+    }
+  };
+  expectSameAsSheet(sigil::image::test::cubeKtx1(kFace, kEdge), "cube.ktx");
+  expectSameAsSheet(sigil::image::test::cubeKtx2(kFace, kEdge), "cube.ktx2");
+  // The DDS reader is OpenImageIO's; without that backend the bytes
+  // decode to nothing, which is the one outcome the case cannot judge.
+  const auto dds = sigil::image::test::cubeDds(kFace, kEdge);
+  if (sigil::image::probeImage(dds.data(), dds.size(), "cube.dds"))
+    expectSameAsSheet(dds, "cube.dds");
 }
 
 TEST(EnvironmentMap, IrradianceOfAConstantPanoramaIsTheConstant) {

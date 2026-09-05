@@ -1,7 +1,7 @@
 /** @file
  * The routing entry points: decodeImage(), decodeChannels() and
- * probeImage() try the Skia codecs first, then the SVG and OpenImageIO
- * backends that are built in, by sniffing content.
+ * probeImage() try the Skia codecs first, then KTX, then the SVG and
+ * OpenImageIO backends that are built in, by sniffing content.
  */
 
 #include "sigilimage/decode/Decode.h"
@@ -23,6 +23,10 @@ std::optional<ImageAsset> decodeImage(const std::byte* bytes, size_t size,
     if (auto asset = ImageAsset::decode(SkData::MakeWithoutCopy(bytes, size)))
       return asset;
   }
+  if (backend::looksLikeKtx(bytes, size))
+    if (auto channels = backend::decodeChannelsWithKtx(bytes, size))
+      if (sk_sp<SkImage> image = channels->makeImage(options.layer))
+        return ImageAsset::wrap(std::move(image));
 #ifdef SIGILIMAGE_HAS_SVG
   if (backend::looksLikeSvg(bytes, size, pathHint))
     if (auto asset = backend::decodeWithSvg(bytes, size, options)) return asset;
@@ -43,6 +47,8 @@ std::optional<ChannelData> decodeChannels(
     const std::filesystem::path& pathHint) {
   if (auto channels = backend::decodeChannelsWithSkia(bytes, size))
     return channels;
+  if (backend::looksLikeKtx(bytes, size))
+    return backend::decodeChannelsWithKtx(bytes, size);
 #ifdef SIGILIMAGE_HAS_OIIO
   return backend::decodeChannelsWithOiio(bytes, size, pathHint);
 #else
@@ -55,6 +61,7 @@ std::optional<ImageProbe> probeImage(const std::byte* bytes, size_t size,
                                      const std::filesystem::path& pathHint) {
   if (auto sniff = ImageAsset::probe(SkData::MakeWithoutCopy(bytes, size)))
     return sniff;  // Skia path: web formats, channels stay the N32 four
+  if (backend::looksLikeKtx(bytes, size)) return backend::probeWithKtx(bytes, size);
 #ifdef SIGILIMAGE_HAS_SVG
   if (backend::looksLikeSvg(bytes, size, pathHint))
     if (auto info = backend::probeWithSvg(bytes, size)) return info;

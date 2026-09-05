@@ -4,14 +4,16 @@
  * The decode surface of SigilImage: DecodeOptions, and the three entry
  * points that route bytes between the backends by sniffing content —
  * decodeImage(), probeImage() and decodeChannels(). Skia's codecs cover
- * the web formats (PNG/JPEG/WebP/GIF/AVIF, animation included); the
- * OpenImageIO backend, when built in (SIGILIMAGE_HAS_OIIO), extends
- * decoding and probing to EXR (with layer/channel selection), PSD
- * (composited), TIFF, HDR, and the rest of OIIO's roster, float
- * sources landing as RGBA_F32 SkImages so HDR range survives into
- * compositing; the Skia SVG module, when built in (SIGILIMAGE_HAS_SVG),
- * rasterizes SVG sources at DecodeOptions::width/height (intrinsic size
- * by default).
+ * the web formats (PNG/JPEG/WebP/GIF/AVIF, animation included); a KTX 1
+ * or 2 with uncompressed texels is read from its header, its base level
+ * only and a cube map's six faces as one 1:6 column; the OpenImageIO
+ * backend, when built in (SIGILIMAGE_HAS_OIIO), extends decoding and
+ * probing to EXR (with layer/channel selection), PSD (composited), TIFF,
+ * HDR, DDS (a cube map as the same column), and the rest of OIIO's
+ * roster, float sources landing as RGBA_F32 SkImages so HDR range
+ * survives into compositing; the Skia SVG module, when built in
+ * (SIGILIMAGE_HAS_SVG), rasterizes SVG sources at
+ * DecodeOptions::width/height (intrinsic size by default).
  *
  * Resource ACCESS (URIs, mounts, caching, hot reload) is SigilIO's
  * concern; this header only ever sees bytes.

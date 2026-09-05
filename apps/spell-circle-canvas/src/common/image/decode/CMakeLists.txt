@@ -1,9 +1,10 @@
 # The decode surface: format-routing decodeImage()/probeImage()/
-# decodeChannels() over pluggable backends — the Skia codecs, OpenImageIO
-# and the Skia SVG module — and the raw channel planes. The backends are
-# PRIVATE to it; a consumer sees bytes in and images out.
+# decodeChannels() over pluggable backends — the Skia codecs, the KTX
+# reader, OpenImageIO and the Skia SVG module — and the raw channel
+# planes. The backends are PRIVATE to it; a consumer sees bytes in and
+# images out.
 sigil_library(SigilImageDecode
-  SOURCES ChannelData.cpp Decode.cpp Oiio.cpp SkiaCodec.cpp Svg.cpp
+  SOURCES ChannelData.cpp Decode.cpp Ktx.cpp Oiio.cpp SkiaCodec.cpp Svg.cpp
           Backends.h
   HEADERS ChannelData.h Decode.h
   PUBLIC SigilImageAsset)
@@ -38,7 +39,8 @@ endif()
 sigil_test(image_decode_test
   SOURCES test/DecodeTest.cpp
   LIBRARIES SigilImageDecode
-  DEFINITIONS $<$<TARGET_EXISTS:unofficial::skia::modules::svg>:SIGILIMAGE_HAS_SVG>)
+  DEFINITIONS $<$<TARGET_EXISTS:unofficial::skia::modules::svg>:SIGILIMAGE_HAS_SVG>
+              $<$<BOOL:${OpenImageIO_FOUND}>:SIGILIMAGE_HAS_OIIO>)
 
 # Encodes its own fixtures in memory through the encode feature and reads
 # the committed ones for the per-call floor.

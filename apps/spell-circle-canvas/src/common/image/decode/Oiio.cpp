@@ -32,7 +32,13 @@ std::string oiioName(const std::filesystem::path& pathHint) {
 /** Reads EVERY channel of the source as ChannelData: subimage 0's
  *  channels under their own names, plus any named same-size part's
  *  channels prefixed "part." (multi-part EXR layers become uniform
- *  with channel-prefix layers). */
+ *  with channel-prefix layers).
+ *
+ *  A DDS cube map arrives as OpenImageIO presents it: one subimage
+ *  holding the six faces stacked into a column, +x -x +y -y +z -z from
+ *  the top, at the base mip level — the same column the KTX reader
+ *  builds, so a cube sheet reads by its aspect ratio whichever
+ *  container it came from. */
 std::optional<ChannelData> decodeChannelsWithOiio(
     const std::byte* bytes, size_t size,
     const std::filesystem::path& pathHint) {
