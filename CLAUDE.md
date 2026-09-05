@@ -28,6 +28,8 @@ do not reconstruct a library's rules from another library's document.
   p5's verbs, the imperative way beside compose
 - `src/sketch/README.md` — SigilSketch: every renderable thing as one
   sketch, with Sketchbook, the live host and the plates
+  - `src/sketch/kit/README.md` — the sheet a sketch stands on: the
+    theme, the page and the furniture a specimen is built out of
   - `src/sketch/sketches/README.md` — the reference studies, one row
     per sketch that rebuilds a real artefact
 - `src/common/geometry/README.md` — higher-level drawing over Skia, the
@@ -163,9 +165,14 @@ ones disable themselves without the SDK, GPU tests need Metal, and
 `world_diligent_test` skips without a Vulkan runtime (`brew install
 molten-vk vulkan-loader`). Demo assets come from `mise run assets`.
 
-The checks and ledgers — `check.py`, `gate.py`, `plate_ledger.py`,
+The checks and ledgers — `check.py`, `plate_ledger.py`,
 `app_fps_ledger.py`, `bench_ledger.py`, `coverage.py`, `sanitize.py` —
-are documented in `apps/spell-circle-canvas/scripts/README.md`.
+are documented in `apps/spell-circle-canvas/scripts/README.md`. A
+library's own build module lives with the library
+(`src/common/material/cmake/Slang.cmake`,
+`src/sketch/cmake/SketchLinkSurface.cmake`); `cmake/` at the app root
+holds only what the whole tree shares, `cmake/Sigil.cmake` first — the
+four calls a Sigil library is built from.
 
 ### Visual work
 
@@ -203,6 +210,8 @@ apps/spell-circle-canvas/src/
   sketch/          SigilSketch: the sketches, and Sketchbook over them
   sigilweave/      the text engine
   spellcircle/     the product: shared/ core embedded by qt/ and mac/
+  test/            test support belonging to no library, and the
+                   instrument faces every binary shapes against
 apps/python/       scene authoring and UDP transport
 touchdesigner/     TouchDesigner project and editor tooling
 ```

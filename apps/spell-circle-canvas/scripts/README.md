@@ -10,7 +10,7 @@ each script is the canon for its flags.
 
 A unit test asserts one behaviour a library promises through its public
 headers to a caller who has read only its README, and its name is that
-promise written as a sentence — `ASettledOpacityRebakesTheLeaf` — so a
+promise written as a sentence — `ASettledTreeBakesOnceAndReplaysAfter` — so a
 failure reads as the claim that broke. It pins only what editing the
 code alone could falsify: a caching count, a closed form, a field walk
 over whatever a type declares; never what a rebuild, a font, a device or
@@ -146,7 +146,10 @@ from its hash-pinned manifest and needs no configured tree.
 `extract_sketch_flags.py` lifts the sketch compile command out of the
 compilation database into the flags file the live host uses.
 `regen_flatbuffers.sh` (`mise run flatbuffers`) regenerates the
-committed Python schema modules. `setup.py` configures: it discovers Qt
+committed Python schema modules. `stage_asset.py` (`mise run assets:sdk`)
+puts an archive nobody can download without an account into the vcpkg
+asset cache under the SHA-512 the port declares, so every configure
+after that resolves it locally. `setup.py` configures: it discovers Qt
 6.11+, vcpkg and the optional SDKs, writes the uncommitted
 `CMakeUserPresets.json`, and builds Release unless `--config` says
 otherwise.

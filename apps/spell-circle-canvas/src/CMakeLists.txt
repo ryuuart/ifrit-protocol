@@ -1,16 +1,19 @@
 # Source tree layout:
 #
-#   common/      libraries shared across products: skia/ (SigilSkia,
-#                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls), image/
-#                (SigilImage), video/ (SigilVideo), io/ (SigilIO),
-#                scry/ (SigilScry),
-#                measure/ (SigilMeasure), motion/ (SigilMotion), core/ (SigilCore),
-#                geometry/ (SigilGeometry), world/ (SigilWorldElement,
-#                SigilWorldFrame, SigilWorldGraph, SigilWorldScene,
-#                SigilWorldLight, SigilWorldKit, SigilWorldDiligent),
-#                material/ (SigilMaterial), draw/ (SigilDraw), compose/
-#                (SigilCompose), and substance/ (SigilSubstance) and usd/
-#                (SigilUsd), each only where its SDK was found
+#   common/      libraries shared across products, in the order they are
+#                added below: core/ (SigilCore), skia/ (SigilSkia,
+#                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls),
+#                image/ (SigilImage), video/ (SigilVideo), io/ (SigilIO),
+#                scry/ (SigilScry), measure/ (SigilMeasure), motion/
+#                (SigilMotion), geometry/ (SigilGeometry), material/
+#                (SigilMaterial), draw/ (SigilDraw), world/
+#                (SigilWorldElement, SigilWorldFrame, SigilWorldGraph,
+#                SigilWorldScene, SigilWorldLight, SigilWorldKit,
+#                SigilWorldDiligent), compose/ (SigilCompose), and
+#                substance/ (SigilSubstance) and usd/ (SigilUsd), each
+#                only where its SDK was found. Each library carries its
+#                own features as its own archives, and a build module
+#                only one library needs stands in that library's cmake/.
 #   sketch/      SigilSketch: every renderable thing in this repository as
 #                one sketch file, with the registry, the three runtimes a
 #                sketch may draw through, the live host and the headless
