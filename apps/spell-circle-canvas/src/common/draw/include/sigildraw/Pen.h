@@ -319,6 +319,10 @@ class Pen {
   void ellipseMode(Constant mode);
   void imageMode(Constant mode);
   void angleMode(Constant mode);
+  /** The mode every angle-taking verb reads: RADIANS until set. A
+   *  library drawing beside the pen — a brush engine — reads it here so
+   *  its angles and the pen's are in one unit. */
+  [[nodiscard]] Constant angleMode() const { return m_style.angleMode; }
 
   // ---- shapes --------------------------------------------------------------
   void point(float x, float y);

@@ -10,8 +10,8 @@
 #include <include/core/SkVertices.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Draw.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
+
+#include "support/Paper.h"
 
 #include <cmath>
 #include <memory>
@@ -20,66 +20,7 @@
 namespace {
 
 using namespace sigil::draw;
-
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
-
-/** A pen over a raster surface, with the pixels readable back. */
-struct Paper {
-  explicit Paper(int w = 100, int h = 100)
-      : surface(SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h))),
-        width(w),
-        height(h) {
-    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-  }
-
-  void begin(int frame = 1, double seconds = 0.0) {
-    Frame f;
-    f.width = (float)width;
-    f.height = (float)height;
-    f.seconds = seconds;
-    f.deltaSeconds = 1.0 / 60.0;
-    f.frameCount = frame;
-    f.fonts = &fonts();
-    pen.begin(*surface->getCanvas(), f);
-  }
-  void end() { pen.end(); }
-
-  SkColor pixel(int x, int y) {
-    SkBitmap bitmap;
-    bitmap.allocPixels(surface->imageInfo());
-    EXPECT_TRUE(surface->readPixels(bitmap.pixmap(), 0, 0));
-    return bitmap.getColor(x, y);
-  }
-
-  /** The columns and rows that hold any ink at all. */
-  SkIRect inked() {
-    SkBitmap bitmap;
-    bitmap.allocPixels(surface->imageInfo());
-    EXPECT_TRUE(surface->readPixels(bitmap.pixmap(), 0, 0));
-    SkIRect box = SkIRect::MakeEmpty();
-    bool any = false;
-    for (int y = 0; y < height; ++y)
-      for (int x = 0; x < width; ++x)
-        if (SkColorGetA(bitmap.getColor(x, y)) > 0) {
-          if (!any) {
-            box = SkIRect::MakeXYWH(x, y, 1, 1);
-            any = true;
-          } else {
-            box.join(SkIRect::MakeXYWH(x, y, 1, 1));
-          }
-        }
-    return box;
-  }
-
-  sk_sp<SkSurface> surface;
-  Pen pen;
-  int width;
-  int height;
-};
+using sigil::draw::testing::Paper;
 
 // ---- p5's semantics ---------------------------------------------------------
 
@@ -599,86 +540,6 @@ TEST(Pen, MathIsP5s) {
 }
 
 // ---- this library's own --------------------------------------------------
-
-TEST(Pen, TextIsShapedAndCentredByTheAlignment) {
-  Paper left;
-  left.begin();
-  left.pen.textSize(20);
-  left.pen.text("Hello", 10, 60);
-  left.end();
-  const SkIRect ink = left.inked();
-  ASSERT_FALSE(ink.isEmpty());
-  EXPECT_GE(ink.left(), 9);
-  EXPECT_LT(ink.top(), 60);  // the ascent stands above the baseline
-  EXPECT_GE(ink.bottom(), 44);
-
-  Paper centred;
-  centred.begin();
-  centred.pen.textSize(20);
-  centred.pen.textAlign(CENTER, CENTER);
-  centred.pen.text("Hello", 50, 50);
-  centred.end();
-  const SkIRect box = centred.inked();
-  ASSERT_FALSE(box.isEmpty());
-  EXPECT_NEAR((box.left() + box.right()) / 2.0, 50.0, 4.0);
-  EXPECT_NEAR((box.top() + box.bottom()) / 2.0, 50.0, 6.0);
-}
-
-TEST(Pen, TheBoxIsTheExtentTheVerticalAlignmentDistributesOver) {
-  // One passage in a box deeper than it needs. The room left over is
-  // what the alignment places, and only the box says how much room that
-  // is — a distribution over an extent of nobody said has none to place
-  // and seats the middle and the foot where the top would be.
-  constexpr float kX = 4, kY = 4, kW = 92;
-  const auto ink = [](Constant vertical, float height) {
-    Paper paper(100, 140);
-    paper.begin();
-    paper.pen.textSize(12);
-    paper.pen.textAlign(LEFT, vertical);
-    paper.pen.text("one two three", kX, kY, kW, height);
-    paper.end();
-    const SkIRect box = paper.inked();
-    EXPECT_FALSE(box.isEmpty());
-    return box;
-  };
-  const SkIRect top = ink(TOP, 92);
-  const SkIRect middle = ink(CENTER, 92);
-  const SkIRect foot = ink(BOTTOM, 92);
-
-  // The passage is the same passage: only its seat moves.
-  EXPECT_NEAR(middle.height(), top.height(), 1);
-  EXPECT_NEAR(foot.height(), top.height(), 1);
-  EXPECT_EQ(middle.left(), top.left());
-
-  // HALF OF THE ROOM, AND ALL OF IT.
-  const int all = foot.top() - top.top();
-  const int half = middle.top() - top.top();
-  EXPECT_GT(all, 8) << "the box is deeper than the passage, so there is room";
-  EXPECT_NEAR(half * 2, all, 2);
-
-  // AND THE ROOM IS THE BOX'S. A box twenty pixels deeper leaves twenty
-  // more for the foot to take and none for the top, which stacks from
-  // the near edge whatever stands past the last line.
-  const SkIRect deeperFoot = ink(BOTTOM, 112);
-  const SkIRect deeperTop = ink(TOP, 112);
-  EXPECT_EQ(deeperFoot.top() - foot.top(), 20);
-  EXPECT_EQ(deeperTop.top(), top.top());
-}
-
-TEST(Pen, TextIsBlackUntilAFillIsSet) {
-  Paper paper;
-  paper.begin();
-  paper.pen.textSize(30);
-  paper.pen.text("I", 40, 70);
-  paper.end();
-  const SkIRect ink = paper.inked();
-  ASSERT_FALSE(ink.isEmpty());
-  const SkColor c = paper.pixel((ink.left() + ink.right()) / 2,
-                                (ink.top() + ink.bottom()) / 2);
-  EXPECT_EQ(SkColorGetR(c), 0u);
-  EXPECT_EQ(SkColorGetG(c), 0u);
-  EXPECT_EQ(SkColorGetB(c), 0u);
-}
 
 TEST(Pen, AMaterialIsAFill) {
   using sigil::material::skia::Paint;

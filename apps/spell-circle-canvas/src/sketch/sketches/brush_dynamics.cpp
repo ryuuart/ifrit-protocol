@@ -4,7 +4,7 @@
 // stable, making pressure, tilt, barrel rotation and speed response readable
 // without an attached tablet.
 
-#include <sigildraw/kit/Brushwork.h>
+#include <sigildraw/brush/Brush.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <array>
@@ -60,7 +60,7 @@ struct BrushDynamics final : sketch::DrawSketch {
       const float t = (float)index / (float)(pressure.size() - 1);
       pressure[index].pressure = 0.12f + std::sin(t * PI) * 0.98f;
     }
-    brush::Brush pressureTool = brush::marker(kInk[0], 28.0f);
+    brush::Tool pressureTool = brush::marker(kInk[0], 28.0f);
     pressureTool.opacity = 0.58f;
     pressureTool.scatter = 0.4f;
     pressureTool.markerTip = false;
@@ -75,7 +75,7 @@ struct BrushDynamics final : sketch::DrawSketch {
       tilt[index].tilt = 0.15f + 0.85f * std::sin(t * PI);
       tilt[index].tiltDirection = -HALF_PI + t * PI;
     }
-    brush::Brush tiltTool = brush::marker(kInk[1], 24.0f);
+    brush::Tool tiltTool = brush::marker(kInk[1], 24.0f);
     tiltTool.opacity = 0.5f;
     tiltTool.scatter = 0.0f;
     tiltTool.aspect = 0.18f;
@@ -93,7 +93,7 @@ struct BrushDynamics final : sketch::DrawSketch {
       const float t = (float)index / (float)(barrel.size() - 1);
       barrel[index].barrelRotation = t * TWO_PI * 2.0f;
     }
-    brush::Brush barrelTool = brush::marker(kInk[2], 25.0f);
+    brush::Tool barrelTool = brush::marker(kInk[2], 25.0f);
     barrelTool.opacity = 0.52f;
     barrelTool.scatter = 0.0f;
     barrelTool.aspect = 0.12f;
@@ -111,7 +111,7 @@ struct BrushDynamics final : sketch::DrawSketch {
       seconds += 0.003 + 0.045 * std::pow(std::sin(t * PI), 2.0f);
       speed[index].seconds = seconds;
     }
-    brush::Brush speedTool = brush::spray(kInk[3], 25.0f);
+    brush::Tool speedTool = brush::spray(kInk[3], 25.0f);
     speedTool.opacity = 0.32f;
     speedTool.speedReference = 520.0f;
     speedTool.speedSize = 0.82f;

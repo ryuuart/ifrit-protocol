@@ -143,7 +143,7 @@ add_library(SigilSketches OBJECT
 # reaches no library through a neighbour's link line.
 target_link_libraries(SigilSketches PUBLIC
   SigilSketchCanvas SigilSketchSet SigilSketchDraw
-  SigilDrawKit
+  SigilDrawBrush
   SigilCompose SigilComposeTexture SigilComposeTesting SigilComposeDraw
   SigilComposeVideo
   SigilGeometry SigilMaterial

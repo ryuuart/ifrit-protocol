@@ -5,10 +5,10 @@ argument orders and defaults, so a sketch written for p5 pastes in and
 runs. Compose is the declarative way to draw here; this is the
 imperative way beside it, and the two open onto each other.
 
-Namespace `sigil::draw`, with the `SigilDraw` pen and the `SigilDrawKit`
-stock tools over it. Every public header is under `include/sigildraw/`;
-`<sigildraw/Draw.h>` is the pen's umbrella and
-`<sigildraw/kit/Brushwork.h>` is the brush kit's.
+Namespace `sigil::draw`, with the `SigilDraw` pen and the `SigilDrawBrush`
+procedural tools over it under `sigil::draw::brush`. Every public header
+is under `include/sigildraw/`; `<sigildraw/Draw.h>` is the pen's umbrella
+and `<sigildraw/brush/Brush.h>` is the brush library's.
 
 ## A p5 sketch, pasted in
 
@@ -281,158 +281,158 @@ beside the verbs, never a renamed one.
   are the host's, and its style and its pixels hold between frames as a
   pen's and a canvas's do.
 
-## The brush kit
+## The brush library
 
-A natural-media drawing has five independent parts: DEVICE INPUT, an evenly
-spaced stream of DABS, a TOOL that says how each dab lands, optionally a FIELD
-that bends the centreline, and a polygonal SURFACE that can receive a wash,
-hatch or mass of gestures.
-`SigilDrawKit` keeps those as separate values under `sigil::draw::brush`, so
-one path can be tried with five tools and one polygon can receive several
-interiors. Mutable selection lives in an explicit `Engine`, never in process
-globals.
+A natural-media mark has five independent parts: DEVICE INPUT, an evenly
+spaced stream of DABS, a TOOL that says how each dab lands, optionally a
+FIELD that bends the centreline, and a polygonal SURFACE that receives a
+wash, a hatch or a mass of gestures. `SigilDrawBrush` keeps each as its
+own value under `sigil::draw::brush`, so one path can be tried with five
+tools and one polygon can receive several interiors. Selection lives in
+an explicit `Engine`, never in a process global.
 
 ```cpp
-#include <sigildraw/kit/Brushwork.h>
+#include <sigildraw/brush/Brush.h>
 
 namespace brush = sigil::draw::brush;
 
-brush::Engine brushes;
+brush::Engine brushes;                       // a member of the sketch
 brushes.scaleBrushes(2);
-brushes.angleMode(DEGREES);
 brushes.set("HB", {0.10f, 0.18f, 0.28f, 1}, 1.4f);
 brushes.wiggle(3);
 brushes.line(pen, {30, 220}, {570, 220});
+
+brush::Tool lead = brush::pencil({0.1f, 0.1f, 0.12f, 1}, 2.0f);
+brush::line(pen, lead, {30, 260}, {570, 262}, 0.9f, 0.2f);
 ```
 
-`Input` carries position, pressure, tilt, tilt direction, barrel rotation and
-host time. Tilt is zero with the stylus upright and one with it flat against
-the surface; both orientations are radians.
-`Sampler` converts any event rate into evenly spaced `Dab` values while
-carrying the unused part of a spacing interval between events. Its speed is a
-first-order filtered value, so size and opacity dynamics do not chatter when a
-device reports uneven intervals. `deposit` is the executor seam. A stored path,
-a live stylus and generated geometry all reach the same deposition code. Round
-grain, nib and scatter tips accumulate their independently coloured and sized
-dabs into sprite vertices and submit the whole stroke in bounded batches;
-custom callbacks and the subtract blender retain their direct executor.
+Two conventions run through the whole library. **Angles are the pen's**:
+clockwise-positive on the y-down canvas, as `pen.rotate` turns, so
+`pen.arc` and `brushes.arc` sweep the same quadrant and a sketch's own
+field agrees with the stock ones. A scalar angle passed beside a pen —
+`flowLine`, `arc`, `move`, `endStroke`, the scalar `hatch` — is in the
+pen's angle mode; an angle inside a value (`Hatch`, `Wash`, `Plot`, a
+field's answer) is radians. **The clock is the pen's**: every engine verb
+that takes a pen reads its field at `pen.millis()`, so a time-varying
+field moves with the frame and stands still on a plate.
 
-`Brush` is public data. `Tip::Grain` deposits dry-media particles,
-`Tip::Fibers` carries persistent hairs with clustered dry gaps, and `Tip::Nib`,
-`Tip::Scatter`, `Tip::Image` and `Tip::Custom` provide the other deposition
-mechanisms. Width, spacing and scatter are canvas units; opacity is a unit
-value; grain is a deposit density; bristle count, blend, aspect, fixed,
-natural, random or stylus-tilt rotation, size and opacity jitter, speed
-response and a pressure curve are direct knobs. Pressure can drive size and
-opacity. Tilt can
-drive size, opacity, aspect and offset independently, while barrel rotation
-remains a separate input. An image tip treats dark artwork on white as its mask
-by default, matching common brush-tip assets; `ImageMask::Alpha` selects an
-authored alpha channel instead. A callback tip draws around the origin in a
-one-unit square after the engine applies the dab's position, orientation, size
-and aspect. `pencil`, `charcoal`, `marker`, `watercolor` and `spray` remain
-plain stock values.
+### Tools
 
-`Box` is an instance-owned catalogue. `Box::stock()` contains `2B`, `HB`, `2H`,
-`cpencil`, `pen`, `rotring`, `spray`, `marker`, `marker2`, `charcoal`,
-`hatch_brush`, `pastel` and `crayon`. `Engine` owns one box and the current
-brush, colour, weight, watercolor fill, flat wash, hatch, mass, field and clip.
-Fill and wash are independent and can be active together. A surface is composed
-in wash, fill, mass, hatch and outline order. A hatch uses the current brush
-until `hatchStyle` supplies a dedicated one. Its `add`, `box`, `scaleBrushes`,
-`pick`, `set`, `stroke`, `noStroke` and `strokeWeight` form the stateful
-convenience over the same public values. Two engines can draw through one pen
-without seeing one another's state. `angleMode(RADIANS | DEGREES)` sets the
-units of every angle-taking engine operation. Public directions are
-anticlockwise on the downward-y canvas, while reusable values remain normalized
-to radians internally.
-
-A `Stroke` is a vector of `{position, pressure}` samples. `segment`
-samples a line, `spline` smooths control samples and `trace` integrates
-through ANY callable answering a direction in radians for `(point,
-seconds)`. The stock `fields::Curl`, `fields::Vortex` and `fields::Wave`
-are ordinary callables; a lambda or a sketch's own field drops into the
-same seam. `paint` deposits a brush along an existing stroke, while
-`line`, `spline` and `flowLine` are the direct conveniences.
-
-`hatch` clips parallel brush marks to a polygon. Its `Hatch` value carries
-spacing, angle, placement jitter, continuous serpentine lines and a spacing gradient while the ordinary
-`Brush` still controls how each line deposits. `wash` builds a polygonal
-interior from independently perturbed translucent layers; its `Wash` value
-controls colour, opacity, bleed, granulation, edge pooling, layer count and
-blend. `mass` intersects spaced scanlines with the actual even-odd surface,
-projects those chords around a shared outside pivot and paints only arcs whose
-interior samples remain in the shape. Up to three translated layers make the
-edge and gesture family vary together; precision controls their displacement,
-strength controls the layer count, and gradient and outline remain independent.
-None leaves a clip or style change behind.
-
-`Engine` carries the built-in fields `hand`, `curved`, `zigzag`, `waves`,
-`seabed`, `spiral` and `columns`; `addField` accepts any callable answering an
-angle from a point and time, with radians as the default and degrees accepted
-explicitly. `field`, `noField`, `refreshField`, `listFields` and `wiggle`
-control the current instance. Geometry is integrated through the selected
-field as it travels; `wiggle` scales its angular influence. Closed geometry
-removes accumulated drift before it becomes a surface. The free `warp`
-operator remains the direct displacement form over the same callable seam.
-
-`Polygon` stores vertices and sides and can draw, fill, wash, hatch and mass
-itself. `show` composes every active surface operation in the engine's order.
-`Plot` stores relative segments, angles and pressures; it can be rotated,
-sampled by distance, scaled, converted into a polygon and replayed through the
-same operations. Plots returned by strokes and primitives retain their sampled
-geometry exactly. `Position` exposes `x`, `y` and accumulated `plotted`
-distance, moves directly or through a `Plot` while sampling the active field,
-and provides `angle`, `reset`, `update`, `isIn` and `isInCanvas`. A position
-made with `Engine::position(pen, ...)` stops after leaving the canvas plus its
-half-canvas working margin. `hatchArray` and `massArray` accept either one
-polygon or a collection and treat a collection as one even-odd surface, so
-nested contours cut holes and disjoint contours remain part of the same
-gesture.
-
-Painting uses the pen's seeded random stream, colour, blend and primitive
-verbs. It pushes and pops the pen around the mark, so the style and
-transform it found are restored, while the transform still moves the
-mark itself. Seed the pen once and the same brushwork is reproduced on a
-plate and in a live session. `wRand` uses that stream to choose from weighted
-values and returns no value for an empty distribution.
-
-The p5.brush-shaped surface maps to the kit as follows:
-
-| area | surface |
+| word | what it is |
 | --- | --- |
-| target, transform and seeds | the caller begins a `Pen` on its target; the pen's transform and seeded streams are inherited by every mark |
-| brush definitions | named box, scaling, dry grain, persistent fiber, nib, spray, custom and luminance/alpha image tips, four rotation modes, piecewise, callback and Gaussian pressure curves, sharpness, grain, stroke noise and scattered endpoint buildup |
-| dynamics | pressure-to-size/opacity, tilt-to-size/opacity/aspect/offset, tilt direction, barrel rotation, speed-to-size/opacity and per-dab size/opacity/spacing jitter |
-| stroke state | set, pick, stroke, noStroke, strokeWeight, captured rectangular clip, noClip, angleMode, push and pop |
-| strokes | line, flowLine, spline, relative beginStroke/move/endStroke and live beginInput/moveInput/endInput over the same sampler and executor |
-| fields | all seven stock names, field/noField/refreshField/listFields/addField/wiggle and field-aware Position |
-| interiors | independent fill/noFill and wash/noWash, directional fillBleed, fillTexture, hatch/noHatch/hatchStyle/hatchArray and mass/noMass/massArray |
-| primitives | rect, rounded rect, circle, arc, polygon and beginShape/vertex/endShape |
-| exposed values | Brush, Input, Dab, Stroke, Box, Engine, Hatch, Wash, Mass, Polygon, Plot, PlacedPlot and Position, including their direct draw/fill/wash/hatch/mass/show operations |
-| utility | deterministic random/noise through Pen and weighted choice through wRand |
+| `Tool` | one procedural tool, plain data: tip, colour, width, spacing, opacity, scatter, grain, bristles, pressure envelope, blend, rotation, aspect, the jitters, the speed, pressure and tilt responses, `sharpness`, `noise`, `markerTip`, an image tip and its mask, a custom tip |
+| `Tip` | `Grain` (dry particles around the centreline), `Fibres` (parallel hairs, intermittently dry), `Nib` (one pressure-width mark), `Scatter` (particles around each dab), `Image` (a mask stamped per dab), `Custom` (a callback per dab) |
+| `Rotation` | how an image or custom tip turns: `Fixed`, `Natural` (with the heading), `Random`, `Tilt` (with the stylus azimuth) |
+| `Pressure` | the envelope along a stroke: a three-point start/middle/end, or a bell (`gaussianProfile`), or a caller's `curve`; `variation` and the bell's jitters are re-rolled per stroke by `prepareStroke`, which is what makes two strokes with one tool differ |
+| `pencil`, `charcoal`, `marker`, `watercolor`, `spray` | stock values; every field stays public |
+| `Catalogue` | named tools; `Catalogue::stock()` holds `2B`, `HB`, `2H`, `cpencil`, `pen`, `rotring`, `spray`, `marker`, `marker2`, `charcoal`, `hatch_brush`, `pastel`, `crayon`; `scale` multiplies width, scatter AND spacing |
+| `weightedChoice(pen, {{value, weight}…})` | a value in proportion to its weight from the pen's stream; empty answers nothing |
 
-The host operations do not need brush-kit aliases. `DrawContext::canvas` and
-`Pen::begin` provide canvas creation, target loading and instance selection;
-`Pen::end` renders the drawing pass and `Pen::clear` clears it.
-`Pen::random`, `Pen::noise`, `Pen::randomSeed` and `Pen::noiseSeed` own every
-brush random stream. The pen's `push`, `pop`, `translate`, `rotate` and `scale`
-already carry the canvas state the kit draws through, and `Engine::angleMode`
-both sets and reads brush angle units. `SkColor4f` is the plain colour value.
-An image-tip URI is resolved by SigilIO and SigilImage before its `SkImage`
-is assigned to the plain `Brush` value.
+Opacity is the tool's load and the colour's own alpha multiplies it.
+Grain is a deposit density: the probability a grain lands and the share
+of fibres and scatter particles that deposit, so a value above one only
+lets a light pressure keep depositing. An image tip reads dark artwork on
+white as its mask (`ImageMask::InvertedLuminance`); `ImageMask::Alpha`
+reads an authored alpha channel. A custom tip is called with the pen
+translated to the dab, rotated to its angle, scaled to its size and
+aspect, the pigment as fill and stroke, and the default rect and ellipse
+modes; the transform is restored after every dab, and those four style
+words are reset before the next.
 
-The timed `brush_live_tutorial` moves through field lines, the stock-tool
-wheel, overlapping hatches, accumulating watercolor and pressure-bearing
-splines in one authoring example. `brush_engine_atlas` and `brush_dynamics`
-remain compact diagnostic plates for tool definitions and stylus input.
-`brush_rain`, `brushwork_currents` and `brush_botanical_study` use the same
-parts in complete compositions rather than isolating one call. Every sketch
-seeds both fields and deposition and produces the same image on every fresh
-run. `bristle_bloom` and `bristle_current` are lower-level companion studies:
-they build brush bundles directly from the pen's curves, line segments, blend
-modes, persistent canvas and fixed-step runtime when a sketch needs a
-deposition model outside the stock kit.
+### Dabs and deposition
+
+| word | what it is |
+| --- | --- |
+| `Input` | one device observation: position, pressure, tilt (0 upright, 1 flat), barrel rotation, seconds on the host's clock, tilt direction |
+| `Dab` | one deposition event: position, pressure, tilt, barrel, direction, speed, distance, unit progress, tilt direction |
+| `Sampler` | live input resampled one spacing apart, the unspent part of an interval carried across events; speed through a first-order filter of `kSpeedFilterSeconds`; the first dab is held until the first movement gives it a heading, and a stroke that never moves is one dab at direction zero |
+| `dabs(input, spacing)` | a whole recorded path resampled, with progress assigned |
+| `deposit(pen, tool, dabs, options)` | THE EXECUTOR SEAM: a stored path, a live stylus and generated geometry all reach it. Grain, nib and scatter dabs go down as one sprite batch per stroke; fibres, image and custom tips and the SUBTRACT blend draw through the pen's verbs dab by dab. `markerTip` pools pigment at the ends the options name |
+| `paint(pen, tool, stroke)` | rolls the tool's randomness once, then deposits along a stroke. The dabs carry no speed: a stored path has no clock, so `speedSize` and `speedOpacity` act on live input only |
+| `line`, `spline`, `flowLine` | the conveniences over `segment`, `spline` and `trace` |
+
+Deposition pushes and pops the pen around the mark, so the style and
+transform it found are restored while the transform still moves the
+mark. The round tips' sprite is promoted to a texture once per pen and
+kept in the pen's `Retained` store.
+
+### Strokes and fields
+
+| word | what it is |
+| --- | --- |
+| `Sample`, `Stroke` | `{position, pressure}` and a vector of them: reusable geometry, painted by any tool |
+| `segment(from, to, spacing, p0, p1)` | a straight centreline with a linear pressure ramp |
+| `spline(controls, spacing, curvature)` | Catmull-Rom through the controls, blended toward the chord by `1 − curvature`, pressure interpolated |
+| `Direction`, `DirectionField` | the field seam: anything answering a heading in radians for `(SkPoint, float seconds)` |
+| `trace(start, length, spacing, seconds, field)` | integrates a start through a field |
+| `warp(polygon, spacing, amount, seconds, field)` | a polygon subdivided and displaced along the field, closed |
+| `Curl`, `Vortex`, `Wave` | stock fields as values; `Curl` owns its own seeded noise, so two curls with one seed agree whichever pen paints them |
+| `stockFields()` | the seven named fields an engine starts with: `hand`, `curved`, `zigzag`, `waves`, `seabed`, `spiral`, `columns` |
+
+### Interiors
+
+| word | what it is |
+| --- | --- |
+| `Hatch`, `hatch(pen, tool, polygon, style)` | parallel marks at `angle` radians and `spacing`, cut at the polygon's edges with crossings paired across every contour, so holes are skipped; `jitter` moves each mark's ends after the cut, by up to twice that fraction of the spacing, so a jittered mark may cross the edge; `gradient` grows or shrinks the spacing by a tenth per lane; `continuous` joins the marks into one serpentine line. Every mark is thinned at both ends |
+| `Wash`, `wash(pen, pigment, polygon)` | a wet interior: `layers` translucent deposits, each the polygon's edge pushed out by a gaussian of the `bleed` and rippled by noise, blooms lifted out and grains settled in by `texture`, pigment gathered at the edge by `border`, the whole composited once with `blend`. It is built in one layer on the pen's canvas, so its pixels are wherever the pen's are |
+| `Mass`, `mass(pen, tool, polygon, style)` | chords across the shape at the tool's scatter, each bent into an arc around a pivot outside it and painted only where the arc stays inside; `strength` sets one to three passes, later passes displaced by up to twice the scatter; `precision` steadies the hand — narrower lane jitter, less wobble on each arc; `outline` finishes the boundary |
+
+### Stored geometry
+
+| word | what it is |
+| --- | --- |
+| `Polygon` | vertices, the whole of its state; `intersect(line)`, `translated`, and `draw`/`fill`/`wash`/`hatch`/`mass` with a tool or through an engine; `show` is every active interior in the engine's order |
+| `Plot` | a path by turns: `addSegment(angle, length, pressure)`, `endPlot`, `rotate`; `angle(distance)` and `pressure(distance)`; `path(origin, spacing, curvature, scale)` and `polygon(x, y, …)` place it anywhere at any scale. `fromStroke` records a stroke's turns relative to its first sample. A plot is always relative |
+| `PlacedPlot` | a plot and the origin it was first drawn at — what the engine's `circle`, `arc`, `spline` and `endShape` answer |
+| `Position` | a cursor: `moveTo(direction, length, step)` walks with its field's answer added to the direction, `plotTo(plot, length, step, scale)` walks a plot's headings; `plotted()` accumulates; with bounds it stops once it has left them by half their size |
+| `hatchArray`, `massArray` | one gesture through an even-odd collection: the first polygon is the boundary, the rest cut holes or stand as islands |
+
+The geometry an engine answers is the geometry as sampled, before the
+field bent it.
+
+### The engine
+
+`Engine` owns a catalogue, the selected tool with its colour and weight,
+a pigment wash and a flat wash (independent, both can be active), a
+hatch with an optional dedicated tool, a mass with its tool, a field with
+its influence, and a clip; `push`/`pop` save and restore all of it. A
+name lookup — `add`, `pick`, `set`, `hatchStyle`, `mass` — answers the
+tool it found or null; `field` answers whether the name is known; every
+other setter and verb answers nothing.
+
+| verb | what it does |
+| --- | --- |
+| `set(name, colour, weight)`, `pick`, `stroke`, `noStroke`, `strokeWeight`, `tool()` | the selection; the weight scales width and scatter |
+| `fill(colour, opacity)`, `fillBleed`, `fillTexture`, `noFill` | the pigment wash (`Wash`) |
+| `wash(colour, opacity)`, `noWash` | the flat wash |
+| `hatch(Hatch)`, `hatch(pen, spacing, angle, …)`, `hatchStyle`, `noHatch` | the hatch; the value's angle is radians, the scalar's is the pen's mode; until `hatchStyle`, the selected tool hatches |
+| `mass(name, colour, Mass)`, `noMass` | the mass and its tool |
+| `field(name)`, `addField(name, field, units)`, `listFields`, `noField`, `wiggle(amount)` | the field; `wiggle` selects `hand` and scales its influence |
+| `clip(rect)`, `clip(pen, rect)`, `noClip` | a rectangle every mark, interior and outline is confined to; with a pen, captured in the pen's space at the call and applied there whatever the transform is later — for that canvas |
+| `paint`, `line`, `flowLine`, `spline` | strokes with the selected tool through the field; `spline` answers its plot |
+| `polygon`, `rect(…, mode)`, `rect(…, radius)`, `circle(…, irregularity)`, `arc`, `beginShape`/`vertex`/`endShape` | surfaces: wash, fill, mass, hatch and the outline in that order, all under the clip, all through one bent boundary; `rect` takes p5's `CORNER`, `CORNERS` or `CENTER` |
+| `draw`/`fill`/`wash`/`hatch`/`mass(pen, Polygon)` and `(pen, Plot, x, y, scale)` | one interior over stored geometry |
+| `hatchArray`, `massArray` | over a collection |
+| `position(x, y)`, `position(pen, x, y)` | a cursor through the field; with a pen, at the pen's clock and bounded by the canvas |
+| `beginInput`, `moveInput`, `endInput`, `cancelInput` | live input through the sampler and the executor; nothing is deposited before the first movement, and the tool's randomness is rolled once at `beginInput` |
+| `beginStroke(kind, at)`, `move(pen, angle, length, pressure)`, `endStroke(pen, angle)`, `cancelStroke` | a stroke by turns, in the pen's angle mode |
+
+A closed shape's interiors and outline come from one boundary: the
+polygon is resampled at a fixed step, bent through the field once, and
+the drift the bends accumulate is taken back out along the way, so the
+outline sits on the wash's edge and the shape closes. Two engines draw
+through one pen without seeing each other's state.
+
+### Sketches
+
+`brush_live_tutorial` moves through field lines, the stock-tool wheel,
+overlapping hatches, accumulating watercolor and pressure-bearing splines
+in one authoring example. `brush_engine_atlas` and `brush_dynamics` are
+compact plates for tool definitions and stylus input. `brush_rain`,
+`brushwork_currents` and `brush_botanical_study` use the same parts in
+complete compositions. `bristle_bloom` and `bristle_current` are
+lower-level companion studies that build brush bundles from the pen's
+curves, lines and blend modes with no brush library in them.
 
 ## Not provided
 
@@ -493,23 +493,35 @@ src/common/draw/
     Retained.h    Slot and Retained
     Graphics.h    the offscreen buffer, p5's createGraphics
     Math.h        the pure calculations
-    kit/
-      Brushwork.h the brush kit's umbrella
-      Brush.h     tools, pressure envelopes and dab deposition
-      Box.h       instance-owned named definitions
-      Dab.h       device input, filtered sampling and deposition records
-      Engine.h    selection, live strokes and surface-effect state
-      Path.h      pressure-bearing paths and field tracing
-      Fields.h    curl, vortex and wave direction fields
-      Geometry.h  reusable Polygon, Plot and field-aware Position values
-      Shape.h     clipped hatches, pigment washes, mass and field warping
+    brush/
+      Brush.h     the brush library's umbrella
+      Tool.h      Tool, Tip, Rotation, ImageMask, the stock tools, prepareStroke
+      Pressure.h  the pressure envelope
+      Catalogue.h named tools and the stock catalogue
+      Choice.h    weightedChoice
+      Dab.h       Input and Dab
+      Sampler.h   the live sampler and dabs()
+      Deposit.h   deposit, paint, line, spline, flowLine
+      Stroke.h    Sample, Stroke, segment, spline
+      Field.h     Direction, DirectionField, trace, warp
+      Fields.h    Curl, Vortex, Wave, stockFields
+      Hatch.h     Hatch and hatch
+      Wash.h      Wash and wash
+      Mass.h      Mass and mass
+      Polygon.h   Polygon, hatchArray, massArray
+      Plot.h      Plot and PlacedPlot
+      Position.h  the cursor
+      Engine.h    the engine
   Pen.cpp         the frame, the style, the shapes, the transform, the streams
   Graphics.cpp    the offscreen buffer
   Text.cpp        text through SigilWeave
   Color.cpp       the colour models and the CSS string
   Noise.cpp       the layered field
-  kit/            the stock brush target, test and benchmark
-  test/           draw_test
+  brush/          one source per header above; the executors (Stamps, Fibres,
+                  Tips) and the engine's strokes and surfaces in their own
+                  files; the private seams DabStyle.h, Executors.h,
+                  HatchLines.h, PenUnits.h, PolygonMath.h; test/ and bench/
+  test/           draw_test, draw_text_test and the Paper fixture in support/
   bench/          draw_bench
 ```
 
@@ -523,10 +535,12 @@ src/common/draw/
   frame; the sketch runtime that steps it and the compose feature that
   hosts it both stand above this library. A guest reaches the pen
   through the `paintRetained` seam, never through a type named here.
-* **The kit reaches down only to the pen.** Its brushes, hatches and washes
-  are arrangements of paths and points over public verbs, its paths are
-  plain data, and its fields are callable values over `NoiseField`. A
-  consumer with its own tools links `SigilDraw` without `SigilDrawKit`.
+* **The brush library reaches down to the pen, and to SigilSkia's direct
+  drawing for one thing.** Its tools, hatches, washes and masses are
+  arrangements of paths and points over the pen's public verbs, its
+  strokes are plain data, and its fields are callable values; the sprite
+  batch a round tip goes down as is `sigilskia/draw/Direct.h`'s. A
+  consumer with its own tools links `SigilDraw` without `SigilDrawBrush`.
 * **Never reads the wall.** Every number a pen answers about time comes
   from the frame it was given.
 
@@ -535,11 +549,11 @@ src/common/draw/
 From `apps/spell-circle-canvas`:
 
 ```sh
-cmake --build build --config Release --target draw_test draw_kit_test \
-  draw_bench draw_kit_bench
-ctest --test-dir build -C Release -R 'draw(_kit)?_test' --output-on-failure
+cmake --build build --config Release --target draw_test draw_text_test \
+  draw_brush_test draw_bench draw_brush_bench
+ctest --test-dir build -C Release -R 'draw_' --output-on-failure
 ./build/bin/Release/draw_bench
-./build/bin/Release/draw_kit_bench
+./build/bin/Release/draw_brush_bench
 ```
 
 `draw_test` holds p5's semantics to the pen — a rect at `rectMode(CENTER)`
@@ -548,23 +562,33 @@ fills the pie unless `CHORD`, seeded `random` repeats, `noise` at a
 lattice corner is core's word, `noSmooth` sampling an image
 nearest-neighbour, a `fill` between two vertices colouring the corners
 either side of it — and this library's own: a material as a fill, a
-silhouette as a shape, text shaped and centred by its alignment, a guest
-retained per call site, the canvas carrying the pen's transform, an
-offscreen buffer formed at the host's density and put down in canvas
-units, a unit-space material ramping across the frame under `CANVAS` and
-across each box under `SHAPE`, a built `SkVertices` drawn with the pen's
-fill and moved by the pen's transform, and both paints answering null
-where the style says there is nothing to draw with.
-`draw_bench` times ten thousand circles
-filled and stroked, ten thousand rects, a screen of text, a translucent
-background and a thousand noise samples per frame; it builds through the
-`benches` target and runs through `scripts/bench_ledger.py`.
-`draw_kit_test` holds pressure interpolation and custom curves, path endpoints,
-event-rate-independent dab spacing, filtered speed, tilt and barrel-angle
-interpolation, stylus dynamics, luminance image masks, weighted choice, the
-complete stock box, custom-tip transforms, isolated engine and angle-mode
-state, captured clipping, integrated callable fields, reusable and scaled
-plots, bounded positions, even-odd array effects, pen-style restoration,
-polygon clipping, independent fill and wash, wash deposition and mass fill.
-`draw_kit_bench` measures sampling, a field-traced watercolor mark, hatching,
-a curved dry mass and a pigment wash.
+silhouette as a shape, a guest retained per call site, the canvas
+carrying the pen's transform, an offscreen buffer formed at the host's
+density and put down in canvas units, a unit-space material ramping
+across the frame under `CANVAS` and across each box under `SHAPE`, a
+built `SkVertices` drawn with the pen's fill and moved by the pen's
+transform, and both paints answering null where the style says there is
+nothing to draw with. `draw_text_test`, under the ctest label `fonts`,
+holds text shaped and centred by its alignment and seated by its box; it
+shapes against the machine's system fonts, so it pins relations rather
+than pixels. `draw_bench` times ten thousand circles filled and stroked,
+ten thousand rects, a screen of text, a translucent background and a
+thousand noise samples per frame; it builds through the `benches` target
+and runs through `scripts/bench_ledger.py`.
+
+`draw_brush_test` is one file per subject: the sampler's spacing across
+uneven events and the first dab's heading; segment and spline pressure;
+the envelope, the per-stroke roll and the weighted choice; the stock
+catalogue and lookup by view; every tip, the stylus dynamics, the sprite
+batch, a stored path's zero speed and the custom tip's contract; hatches
+inside their polygon, even-odd across a collection, and the default
+angle under a pen in degrees; the wash's interior and its closed layer;
+the mass inside its surface, with holes, under the engine's clip; the
+polygon's edges derived from its vertices; relative plots placed and
+scaled by the caller; the cursor through its field and inside its
+bounds; and the engine — selection and state, the pen's units and clock,
+one clip over every interior and the outline, a closed shape's outline
+on its bent interior, plots placed where they were drawn, live input
+across event batches, the first live dab's heading, and cancel.
+`draw_brush_bench` measures sampling, a field-traced watercolor mark,
+hatching, a curved dry mass and a pigment wash.

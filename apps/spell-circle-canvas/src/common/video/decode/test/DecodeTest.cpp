@@ -14,7 +14,7 @@
 namespace {
 
 std::vector<std::byte> readAsset(const char* name) {
-  std::ifstream input(std::filesystem::path(SIGILVIDEO_TEST_ASSET_DIR) / name,
+  std::ifstream input(std::filesystem::path(SIGIL_TEST_ASSET_DIR) / name,
                       std::ios::binary | std::ios::ate);
   if (!input) return {};
   const std::streamsize size = input.tellg();

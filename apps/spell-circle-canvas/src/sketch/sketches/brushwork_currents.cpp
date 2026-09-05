@@ -3,14 +3,14 @@
 // Long watercolor fibers ride a wave, charcoal turns around a vortex, pencil
 // splines pin the composition together and a light spray settles at crossings.
 // The sketch chooses paths, colours and fields; the pressure, dry gaps, bristle
-// bundles and pigment deposition belong to SigilDrawKit.
+// bundles and pigment deposition belong to SigilDrawBrush.
 //
 // EDIT THESE FIRST
 //   kStreams      how many long wet strokes cross the paper
 //   kOrbitMarks   how many charcoal gestures turn around the centre
 //   kPalette      the pigments assigned to successive strokes
 
-#include <sigildraw/kit/Brushwork.h>
+#include <sigildraw/brush/Brush.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <array>
@@ -50,12 +50,12 @@ struct BrushworkCurrents final : sketch::DrawSketch {
       pen.point(pen.random(pen.width), pen.random(pen.height));
     }
 
-    brush::fields::Wave current{.direction = 0.0f,
+    brush::Wave current{.direction = 0.0f,
                                 .amplitude = 0.48f,
                                 .wavelength = 118.0f,
                                 .speed = 0.0f};
     for (int stream = 0; stream < kStreams; ++stream) {
-      brush::Brush wet = brush::watercolor(
+      brush::Tool wet = brush::watercolor(
           kPalette[(size_t)stream % kPalette.size()], pen.random(15, 29));
       wet.opacity *= pen.random(0.72f, 1.16f);
       wet.pressure = {pen.random(0.16f, 0.48f), pen.random(0.75f, 1.18f),
@@ -66,12 +66,12 @@ struct BrushworkCurrents final : sketch::DrawSketch {
                       current);
     }
 
-    const brush::fields::Vortex orbit{
+    const brush::Vortex orbit{
         .center = {pen.width * 0.58f, pen.height * 0.52f},
         .direction = -1.0f,
         .pull = 0.12f};
     for (int mark = 0; mark < kOrbitMarks; ++mark) {
-      brush::Brush dry = brush::charcoal(
+      brush::Tool dry = brush::charcoal(
           kPalette[(size_t)(mark + 2) % kPalette.size()], pen.random(6, 13));
       dry.opacity *= pen.random(0.65f, 1.1f);
       const SkPoint start{pen.width * 0.58f + pen.random(100, 310),
@@ -79,7 +79,7 @@ struct BrushworkCurrents final : sketch::DrawSketch {
       brush::flowLine(pen, dry, start, pen.random(180, 490), 0, orbit);
     }
 
-    brush::Brush lead = brush::pencil({0.12f, 0.10f, 0.13f, 1}, 2.1f);
+    brush::Tool lead = brush::pencil({0.12f, 0.10f, 0.13f, 1}, 2.1f);
     lead.opacity = 0.55f;
     for (int ribbon = 0; ribbon < 6; ++ribbon) {
       const float y = 116.0f + (float)ribbon * 104.0f;
@@ -93,7 +93,7 @@ struct BrushworkCurrents final : sketch::DrawSketch {
       brush::spline(pen, lead, controls, 0.74f);
     }
 
-    brush::Brush mist = brush::spray({0.72f, 0.18f, 0.12f, 1}, 34.0f);
+    brush::Tool mist = brush::spray({0.72f, 0.18f, 0.12f, 1}, 34.0f);
     mist.opacity = 0.15f;
     for (int cloud = 0; cloud < 18; ++cloud) {
       const SkPoint center{pen.random(90, pen.width - 90),

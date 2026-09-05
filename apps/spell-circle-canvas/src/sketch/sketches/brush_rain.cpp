@@ -3,7 +3,7 @@
 // Each gesture keeps its own field direction and phase. The field bends the
 // centreline while the selected tool supplies edge character, grain and taper.
 
-#include <sigildraw/kit/Brushwork.h>
+#include <sigildraw/brush/Brush.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <array>
@@ -47,7 +47,7 @@ struct BrushRain final : sketch::DrawSketch {
 
     for (int stroke = 0; stroke < 112; ++stroke) {
       const SkColor4f color = kPigments[(size_t)pen.random(kPigments.size())];
-      brush::Brush tool;
+      brush::Tool tool;
       switch (stroke % 7) {
         case 0:
           tool = brush::spray(color, pen.random(18, 34));

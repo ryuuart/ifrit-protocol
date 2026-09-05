@@ -60,7 +60,6 @@
 sigil_library_root(SigilCompose
   BRIEF "Immutable value-typed descriptions of a 2D scene, laid out with flexbox and drawn to an SkCanvas"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/TYPOGRAPHY.md)
-set(SIGIL_COMPOSE_INCLUDE_DIR ${SIGIL_INCLUDE_DIR})
 
 # Dependencies point down this list. testing/ precedes the features whose
 # test binaries link it; kit/ links the tiers above it.

@@ -4,7 +4,7 @@
 // mass share one instance-owned engine and one deterministic pigment stream.
 
 #include <include/core/SkBitmap.h>
-#include <sigildraw/kit/Brushwork.h>
+#include <sigildraw/brush/Brush.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <array>
@@ -34,7 +34,7 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
     context.pen.noiseSeed(0xB2A55u);
     brushes.scaleBrushes(3.5f);
 
-    brush::Brush diamond = brush::marker(SkColors::kBlack, 15.0f);
+    brush::Tool diamond = brush::marker(SkColors::kBlack, 15.0f);
     diamond.tip = brush::Tip::Custom;
     diamond.spacing = 5.5f;
     diamond.scatter = 1.2f;
@@ -66,7 +66,7 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
         *mask.getAddr32(x, y) = SkColorSetRGB(shade, shade, shade);
       }
     }
-    brush::Brush paperTip = brush::marker(SkColors::kBlack, 22.0f);
+    brush::Tool paperTip = brush::marker(SkColors::kBlack, 22.0f);
     paperTip.tip = brush::Tip::Image;
     paperTip.imageTip = SkImages::RasterFromBitmap(mask);
     paperTip.spacing = 4.2f;

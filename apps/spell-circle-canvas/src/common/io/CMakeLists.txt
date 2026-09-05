@@ -12,25 +12,13 @@
 # Every public header lives under one include root, include/sigilio/
 # <feature>/, so a feature adds the root and spells its own directory.
 # <sigilio/IO.h> is the umbrella header over every feature.
-
-set(SIGIL_IO_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
+sigil_library_root(SigilIO
+  BRIEF "Runtime resource hub: resources addressed by URI, cached, and reloaded when they change")
 
 # Dependencies point down this list.
 add_subdirectory(source)
 add_subdirectory(hub)
 
-add_library(SigilIO INTERFACE
-  ${SIGIL_IO_INCLUDE_DIR}/sigilio/IO.h
-)
-target_link_libraries(SigilIO INTERFACE SigilIOSource SigilIOHub)
-
-# API documentation (docs/README.md).
-sigil_add_docs(
-  NAME SigilIO
-  BRIEF "Runtime resource hub: resources addressed by URI, cached, and reloaded when they change"
-  INPUT
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  MAINPAGE ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-  STRIP
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+sigil_library(SigilIO
+  HEADERS IO.h
+  INTERFACE SigilIOSource SigilIOHub)

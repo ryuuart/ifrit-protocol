@@ -7,7 +7,7 @@
  * points move and the brush texture does not flicker in a captured sequence.
  */
 
-#include <sigildraw/kit/Brush.h>
+#include <sigildraw/brush/Brush.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/draw/Draw.h>
@@ -44,8 +44,8 @@ mskia::Paint graphPaper() {
         SkBlendMode::kSrcOver}});
 }
 
-brush::Brush liquidNib(SkColor4f colour, float width) {
-  brush::Brush tool;
+brush::Tool liquidNib(SkColor4f colour, float width) {
+  brush::Tool tool;
   tool.tip = brush::Tip::Nib;
   tool.color = colour;
   tool.width = width;
@@ -115,10 +115,10 @@ struct P5LiquidLayers final : sketch::DrawSketch {
       const std::array<brush::Sample, 6> path =
           controls(ribbon, clock, pen.width, pen.height);
 
-      brush::Brush body = liquidNib(colour, 56.0f + 8.0f * (ribbon % 3));
+      brush::Tool body = liquidNib(colour, 56.0f + 8.0f * (ribbon % 3));
       brush::spline(pen, body, path, 0.74f);
 
-      brush::Brush wet = brush::watercolor(colour, body.width * 0.74f);
+      brush::Tool wet = brush::watercolor(colour, body.width * 0.74f);
       wet.spacing = 8.0f;
       wet.bristles = 10;
       wet.opacity = 0.12f;
@@ -128,7 +128,7 @@ struct P5LiquidLayers final : sketch::DrawSketch {
       brush::spline(pen, wet, path, 0.74f);
     }
 
-    brush::Brush bloom = brush::spray({1.0f, 0.68f, 0.24f, 1.0f}, 52.0f);
+    brush::Tool bloom = brush::spray({1.0f, 0.68f, 0.24f, 1.0f}, 52.0f);
     bloom.opacity = 0.10f;
     bloom.blend = ADD;
     for (int mark = 0; mark < 14; ++mark) {

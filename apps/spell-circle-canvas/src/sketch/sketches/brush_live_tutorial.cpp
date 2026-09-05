@@ -8,7 +8,7 @@
 //   kSceneSeconds  how long each construction remains on screen
 //   kPalette       the pigments shared by all six scenes
 
-#include <sigildraw/kit/Brushwork.h>
+#include <sigildraw/brush/Brush.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <array>
@@ -77,7 +77,7 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     brushes.angleMode(DEGREES);
     brushes.scaleBrushes(3.5f);
 
-    brush::Brush watercolor = brush::marker(SkColors::kBlack, 10.0f);
+    brush::Tool watercolor = brush::marker(SkColors::kBlack, 10.0f);
     watercolor.tip = brush::Tip::Custom;
     watercolor.scatter = 1.05f;
     watercolor.opacity = 0.085f;
@@ -93,7 +93,7 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     };
     brushes.add("tutorial-watercolor", watercolor);
 
-    brush::Brush whiteCharcoal =
+    brush::Tool whiteCharcoal =
         brush::charcoal({0.95f, 0.97f, 0.94f, 1}, 1.5f);
     whiteCharcoal.scatter = 2.0f;
     whiteCharcoal.opacity = 0.52f;

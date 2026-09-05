@@ -693,8 +693,8 @@ void Pen::rect(float x, float y, float w, float h, float tl, float tr, float br,
   SkRRect rounded;
   rounded.setRectRadii(box, radii);
   if (recordShape(SkPath::RRect(rounded))) return;
-  if (const SkPaint* fill = fillPaint()) m_canvas->drawRRect(rounded, *fill);
-  if (const SkPaint* stroke = strokePaint())
+  if (const SkPaint* fill = fillPaint(&box)) m_canvas->drawRRect(rounded, *fill);
+  if (const SkPaint* stroke = strokePaint(&box))
     m_canvas->drawRRect(rounded, *stroke);
 }
 
@@ -741,9 +741,9 @@ void Pen::arc(float x, float y, float w, float h, float start, float stop,
     recordShape(wedge.detach());
     return;
   }
-  if (const SkPaint* fill = fillPaint())
+  if (const SkPaint* fill = fillPaint(&oval))
     m_canvas->drawArc(oval, startDeg, sweepDeg, mode != CHORD, *fill);
-  if (const SkPaint* stroke = strokePaint()) {
+  if (const SkPaint* stroke = strokePaint(&oval)) {
     if (mode == CHORD) {
       SkPathBuilder chord;
       chord.addArc(oval, startDeg, sweepDeg);

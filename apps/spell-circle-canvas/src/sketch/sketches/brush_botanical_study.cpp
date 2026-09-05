@@ -8,7 +8,7 @@
 //   kLeaves   the silhouettes arranged along the stem
 //   kGreens   the pigments shared by wet and dry leaves
 
-#include <sigildraw/kit/Brushwork.h>
+#include <sigildraw/brush/Brush.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <algorithm>
@@ -106,7 +106,7 @@ void paper(Pen& pen) {
 }
 
 void vein(Pen& pen, const Leaf& leaf, SkColor4f color) {
-  brush::Brush lead = brush::pencil(color, 1.25f);
+  brush::Tool lead = brush::pencil(color, 1.25f);
   lead.opacity = 0.62f;
   lead.scatter = 0.08f;
 
@@ -165,7 +165,7 @@ struct BrushBotanicalStudy final : sketch::DrawSketch {
     pen.background(247, 241, 222);
     paper(pen);
 
-    brush::Brush stem = brush::charcoal({0.27f, 0.20f, 0.12f, 1}, 6.4f);
+    brush::Tool stem = brush::charcoal({0.27f, 0.20f, 0.12f, 1}, 6.4f);
     stem.opacity = 0.48f;
     stem.bristles = 17;
     const std::array<brush::Sample, 6> branch{{
@@ -178,7 +178,7 @@ struct BrushBotanicalStudy final : sketch::DrawSketch {
     }};
     brush::spline(pen, stem, branch, 0.84f);
 
-    brush::Brush twig = brush::pencil({0.30f, 0.22f, 0.13f, 1}, 2.1f);
+    brush::Tool twig = brush::pencil({0.30f, 0.22f, 0.13f, 1}, 2.1f);
     twig.opacity = 0.66f;
     for (const LeafSpec& spec : kLeaves) {
       const SkPoint join{spec.base.fX + std::cos(spec.angle) * 24.0f,
@@ -229,7 +229,7 @@ struct BrushBotanicalStudy final : sketch::DrawSketch {
         {934, 190},
         {971, 119},
     }};
-    brush::Brush fruitStem = brush::pencil({0.30f, 0.23f, 0.13f, 1}, 1.2f);
+    brush::Tool fruitStem = brush::pencil({0.30f, 0.23f, 0.13f, 1}, 1.2f);
     fruitStem.opacity = 0.62f;
     for (SkPoint berry : fruit)
       brush::line(pen, fruitStem, {902, 111}, berry, 0.72f, 0.12f);
