@@ -13,7 +13,9 @@
 
 namespace {
 
-std::vector<std::byte> readAsset(const char* name) {
+/** The bytes of the committed clip @p name: this library opens no paths
+ *  of its own, so the test does the reading. */
+std::vector<std::byte> assetBytes(const char* name) {
   std::ifstream input(std::filesystem::path(SIGIL_TEST_ASSET_DIR) / name,
                       std::ios::binary | std::ios::ate);
   if (!input) return {};
@@ -26,7 +28,7 @@ std::vector<std::byte> readAsset(const char* name) {
 }
 
 std::shared_ptr<sigil::video::Video> bearClip(size_t cachedFrames = 4) {
-  const std::vector<std::byte> bytes = readAsset("bear-vp8a.webm");
+  const std::vector<std::byte> bytes = assetBytes("bear-vp8a.webm");
   if (bytes.empty()) return nullptr;
   sigil::video::DecodeOptions options;
   options.hardware = sigil::video::HardwarePreference::Disabled;
@@ -37,22 +39,38 @@ std::shared_ptr<sigil::video::Video> bearClip(size_t cachedFrames = 4) {
 
 }  // namespace
 
-TEST(VideoDecode, RejectsMalformedBytes) {
-  constexpr std::array<std::byte, 8> bytes = {
-      std::byte{'n'}, std::byte{'o'}, std::byte{'t'}, std::byte{'v'},
-      std::byte{'i'}, std::byte{'d'}, std::byte{'e'}, std::byte{'o'},
-  };
-  EXPECT_EQ(sigil::video::decodeVideo(bytes.data(), bytes.size()), nullptr);
-  EXPECT_FALSE(sigil::video::probeVideo(bytes.data(), bytes.size()));
+// What is handed in when the caller does not have a video: nothing at
+// all, and something that is not one.
+struct NotAVideo {
+  const std::byte* bytes;
+  size_t size;
+  const char* label;
+};
+
+class RefusedInput : public ::testing::TestWithParam<NotAVideo> {};
+
+TEST_P(RefusedInput, DecodesToNothingAndProbesToNothing) {
+  EXPECT_EQ(sigil::video::decodeVideo(GetParam().bytes, GetParam().size),
+            nullptr);
+  EXPECT_FALSE(sigil::video::probeVideo(GetParam().bytes, GetParam().size));
 }
 
-TEST(VideoDecode, EmptyInputIsNotAVideo) {
-  EXPECT_EQ(sigil::video::decodeVideo(nullptr, 0), nullptr);
-  EXPECT_FALSE(sigil::video::probeVideo(nullptr, 0));
-}
+constexpr std::array<std::byte, 8> kGarbage = {
+    std::byte{'n'}, std::byte{'o'}, std::byte{'t'}, std::byte{'v'},
+    std::byte{'i'}, std::byte{'d'}, std::byte{'e'}, std::byte{'o'},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    VideoDecode, RefusedInput,
+    ::testing::Values(NotAVideo{nullptr, 0, "NoBytesAtAll"},
+                      NotAVideo{kGarbage.data(), kGarbage.size(),
+                                "BytesOfSomethingElse"}),
+    [](const ::testing::TestParamInfo<NotAVideo>& info) {
+      return std::string(info.param.label);
+    });
 
 TEST(VideoDecode, PreservesAndPremultipliesWebMAlpha) {
-  const std::vector<std::byte> bytes = readAsset("bear-vp8a.webm");
+  const std::vector<std::byte> bytes = assetBytes("bear-vp8a.webm");
   ASSERT_FALSE(bytes.empty());
 
   const std::optional<sigil::video::VideoProbe> probe =
@@ -91,11 +109,6 @@ TEST(VideoDecode, PreservesAndPremultipliesWebMAlpha) {
   const sigil::video::VideoFrame later = video->frameAt(0.8);
   ASSERT_TRUE(later);
   EXPECT_TRUE(later.hasAlpha);
-
-  options.hardware = sigil::video::HardwarePreference::Required;
-  EXPECT_EQ(sigil::video::decodeVideo(bytes.data(), bytes.size(), options,
-                                      "bear-vp8a.webm"),
-            nullptr);
 }
 
 TEST(VideoDecode, SeekingBackwardReturnsTheCoveringFrame) {
@@ -187,12 +200,21 @@ TEST(VideoDecode, PlaybackWorkersOutliveRequestsInFlight) {
   EXPECT_EQ(playback.size(), 1u);
 }
 
-#if !defined(__APPLE__)
-TEST(VideoDecode, RequiredDeviceFailsWhereNoExecutorExists) {
-  constexpr std::array<std::byte, 4> bytes = {};
-  const sigil::video::DecodeOptions options{
-      .hardware = sigil::video::HardwarePreference::Required};
-  EXPECT_EQ(sigil::video::decodeVideo(bytes.data(), bytes.size(), options),
-            nullptr);
+TEST(VideoDecode, RequiredMeansDeviceFramesOrNoFramesAtAll) {
+  // The promise has two arms and every build takes one of them: where no
+  // hardware decoder opened for this clip, Required yields nothing rather
+  // than falling back to software; where one did, the frame that arrives
+  // came off the device.
+  const std::vector<std::byte> bytes = assetBytes("bear-vp8a.webm");
+  ASSERT_FALSE(bytes.empty());
+  sigil::video::DecodeOptions options;
+  options.hardware = sigil::video::HardwarePreference::Required;
+  std::shared_ptr<sigil::video::Video> video = sigil::video::decodeVideo(
+      bytes.data(), bytes.size(), options, "bear-vp8a.webm");
+  if (!video || !video->hardwareConfigured()) {
+    if (video) EXPECT_FALSE(video->frameAt(0.0));
+    return;
+  }
+  ASSERT_TRUE(video->frameAt(0.0));
+  EXPECT_TRUE(video->hardwareDecoding());
 }
-#endif

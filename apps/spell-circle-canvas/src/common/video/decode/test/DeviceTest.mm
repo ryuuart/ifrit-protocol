@@ -18,7 +18,6 @@
 #include <sigilvideo/decode/Decode.h>
 #include <sigilvideo/encode/Encode.h>
 
-#include <array>
 #include <cstddef>
 
 TEST(VideoDevice, VideoToolboxFrameWrapsAsGraphiteYuvaImage) {
@@ -73,15 +72,15 @@ TEST(VideoDevice, VideoToolboxFrameWrapsAsGraphiteYuvaImage) {
   const SkImageInfo info = SkImageInfo::MakeN32Premul(kWidth * 4, kHeight * 4);
   const sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(graphite->recorder(), info);
   ASSERT_NE(surface, nullptr);
-  constexpr std::array<SkRect, 6> destinations = {
-      SkRect::MakeXYWH(0, 0, 192, 128),   SkRect::MakeXYWH(128, 32, 192, 128),
-      SkRect::MakeXYWH(32, 96, 192, 128), SkRect::MakeXYWH(160, 112, 192, 128),
-      SkRect::MakeXYWH(64, 176, 144, 96), SkRect::MakeXYWH(208, 192, 144, 96),
-  };
-  for (size_t i = 0; i < destinations.size(); ++i) {
-    const sk_sp<SkImage>& image = i % 2 == 0 ? first.image : second.image;
-    surface->getCanvas()->drawImageRect(image, destinations[i], SkSamplingOptions());
-  }
+  // Both decoded frames are drawn, each scaled and offset, because a
+  // device plane that only composites at its own size and origin would
+  // still pass a single one-to-one blit.
+  surface->getCanvas()->drawImageRect(
+      first.image, SkRect::MakeXYWH(0, 0, kWidth * 3, kHeight * 2),
+      SkSamplingOptions());
+  surface->getCanvas()->drawImageRect(
+      second.image, SkRect::MakeXYWH(kWidth, kHeight, kWidth * 2, kHeight * 3),
+      SkSamplingOptions());
   std::unique_ptr<skgpu::graphite::Recording> recording = graphite->recorder()->snap();
   ASSERT_NE(recording, nullptr);
   skgpu::graphite::InsertRecordingInfo insert;
