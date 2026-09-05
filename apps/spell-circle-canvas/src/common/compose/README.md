@@ -784,12 +784,17 @@ the seamless ticker built from a clipped strip and a wrapping phase,
 `kit/Placers.h`'s `place::grid`, `place::ring` and `place::repeat`, the
 fillers of an instanced leaf's pool — the first two over the same ring
 and grid arithmetic the layout schemes use, which is SigilGeometry's —
-the two instruments for text in motion —
+the three instruments in `kit/Instruments.h` —
 `kit::trackMeter` (a cascade's schedule drawn, one cell per beat at its
 rect, filled by its local time — `MeterPlacement` stands the cells over
 the beats or under them as a rule, for a track whose own letters are
-what is being watched) and `kit::restGhost` (the same word
-undeformed under the moving one) — the furniture of a specimen sheet in
+what is being watched), `kit::restGhost` (the same word
+undeformed under the moving one) and `kit::curvePlot` (a function of one
+variable walked over its own domain, ruled at values stated in that
+domain's units and dotted at the samples a reference quotes, so a curve
+can be checked against one; its `Plot::at` is the mapping the drawing
+uses, which is how a caller's own label lands ON the curve rather than
+near it) — the furniture of a specimen sheet in
 `kit/Specimen.h` — `kit::cell`, a body with a label and a note set
 beside it as a `kit::Caption` says (`Caption::Where` puts the note under
 the body, or both lines above it, or both below, and `labelMeasure` and

@@ -249,3 +249,45 @@ TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
   test::report(ring, measure::check("bars", 41, 40), "ok", "bad");
   EXPECT_EQ(ring.rows().back().value.style, "bad");
 }
+
+TEST(ComposeInstruments, ACurvePlotDrawsTheFunctionThroughItsOwnMapping) {
+  // The mapping is the value's, and it is what a caller's own label goes
+  // through — so it is asserted before anything is drawn with it.
+  const kit::Plot plot{.fromT = 0, .toT = 2, .fromY = 0, .toY = 1, .pad = 10};
+  const SkSize area{120, 60};
+  const SkPoint origin = plot.at(0, 0, area);
+  EXPECT_NEAR(origin.fX, 10.0f, 1e-3f);
+  EXPECT_NEAR(origin.fY, 50.0f, 1e-3f);  // the range runs UP the box
+  const SkPoint far = plot.at(2, 1, area);
+  EXPECT_NEAR(far.fX, 110.0f, 1e-3f);
+  EXPECT_NEAR(far.fY, 10.0f, 1e-3f);
+  // A degenerate axis lands in the middle of that axis rather than at
+  // infinity.
+  const kit::Plot flat{.fromY = 1, .toY = 1};
+  EXPECT_NEAR(flat.at(0.5f, 7.0f, area).fY, 30.0f, 1e-3f);
+
+  // …and the curve is drawn through it: a constant at the top of the
+  // range paints there and nowhere near the bottom.
+  Host host(120, 60);
+  host.composer.render(box().child(
+      kit::curvePlot("plot",
+                     {{.f = [](float) { return 1.0f; },
+                       .colour = {1, 0, 0, 1},
+                       .width = 3.0f}},
+                     plot)));
+  host.frame();
+  EXPECT_EQ(host.pixel(60, 10), SK_ColorRED);
+  EXPECT_EQ(host.pixel(60, 50), SK_ColorBLACK);
+
+  // A rule is stated in the DOMAIN's own units, which is the arithmetic
+  // the plot exists to hold: a rule at t = 1 stands in the middle.
+  Host ruled(120, 60);
+  kit::Plot withRule = plot;
+  withRule.rulesT = {1.0f};
+  withRule.rule = {0, 1, 0, 1};
+  withRule.ruleWidth = 3.0f;
+  ruled.composer.render(box().child(kit::curvePlot("ruled", {}, withRule)));
+  ruled.frame();
+  EXPECT_EQ(ruled.pixel(60, 30), SK_ColorGREEN);
+  EXPECT_EQ(ruled.pixel(30, 30), SK_ColorBLACK);
+}
