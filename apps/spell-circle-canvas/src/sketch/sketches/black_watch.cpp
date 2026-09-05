@@ -486,45 +486,26 @@ inline Paint imageMat(const sk_sp<SkImage>& img, float px,
 // small enough to sit under a 4 px band, and one genuinely justified
 // paragraph at a real measure.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              SkFontStyle::Slant slant,
-                              const char* fallback = nullptr) {
-  auto mgr = weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(
-        fallback, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+inline sk_sp<SkTypeface> sans() {
+  return weave::ports::face({"Helvetica Neue", "Arial"},
+                            SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& sans() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kNormal_Weight,
-           SkFontStyle::kUpright_Slant, "Arial");
-  return f;
+inline sk_sp<SkTypeface> sansB() {
+  return weave::ports::face({"Helvetica Neue", "Arial"},
+                            SkFontStyle::kBold_Weight);
 }
-inline const sk_sp<SkTypeface>& sansB() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::kBold_Weight,
-                                    SkFontStyle::kUpright_Slant, "Arial");
-  return f;
+inline sk_sp<SkTypeface> mono() {
+  return weave::ports::face({"Menlo", "Courier New"},
+                            SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& mono() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::kNormal_Weight,
-                                    SkFontStyle::kUpright_Slant, "Courier New");
-  return f;
+inline sk_sp<SkTypeface> serif() {
+  return weave::ports::face({"Baskerville", "Times New Roman"},
+                            SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& serif() {
-  static sk_sp<SkTypeface> f =
-      face("Baskerville", SkFontStyle::kNormal_Weight,
-           SkFontStyle::kUpright_Slant, "Times New Roman");
-  return f;
-}
-inline const sk_sp<SkTypeface>& serifIt() {
-  static sk_sp<SkTypeface> f =
-      face("Baskerville", SkFontStyle::kNormal_Weight,
-           SkFontStyle::kItalic_Slant, "Times New Roman");
-  return f;
+inline sk_sp<SkTypeface> serifIt() {
+  return weave::ports::face({"Baskerville", "Times New Roman"},
+                            SkFontStyle::kNormal_Weight,
+                            SkFontStyle::kItalic_Slant);
 }
 
 // A positional shorthand over the library's designated-init `type()`, for

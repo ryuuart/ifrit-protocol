@@ -52,31 +52,27 @@ namespace twoadvanced {
 // The faces. Resolved once; the list is the substitution, in order.
 
 /** v3's workhorse: Akzidenz-Grotesk medium, substituted. */
-inline const sk_sp<SkTypeface>& grot() {
-  static const sk_sp<SkTypeface> f = sigil::weave::ports::pickTypeface(
+inline sk_sp<SkTypeface> grot() {
+  return sigil::weave::ports::face(
       {"Helvetica Neue", "Arial"}, SkFontStyle::kMedium_Weight);
-  return f;
 }
 /** v3's headline weight. */
-inline const sk_sp<SkTypeface>& grotBold() {
-  static const sk_sp<SkTypeface> f = sigil::weave::ports::pickTypeface(
+inline sk_sp<SkTypeface> grotBold() {
+  return sigil::weave::ports::face(
       {"Helvetica Neue", "Arial"}, SkFontStyle::kBold_Weight);
-  return f;
 }
 /** v4's chrome voice: Helvetica CondensedBlack, the face the SWF
  *  embedded and the one thing the whole interface is lettered in. */
-inline const sk_sp<SkTypeface>& condBlack() {
-  static const sk_sp<SkTypeface> f = sigil::weave::ports::pickTypeface(
+inline sk_sp<SkTypeface> condBlack() {
+  return sigil::weave::ports::face(
       {"Helvetica Neue", "Avenir Next Condensed"},
       SkFontStyle(SkFontStyle::kBlack_Weight, SkFontStyle::kCondensed_Width,
                   SkFontStyle::kUpright_Slant));
-  return f;
 }
 /** v4's heavier, wider register: Arial Black. */
-inline const sk_sp<SkTypeface>& blackFace() {
-  static const sk_sp<SkTypeface> f = sigil::weave::ports::pickTypeface(
+inline sk_sp<SkTypeface> blackFace() {
+  return sigil::weave::ports::face(
       {"Arial Black", "Helvetica Neue"}, SkFontStyle::kBlack_Weight);
-  return f;
 }
 /** The body face both Flash-era pages set their prose in. */
 inline const sk_sp<SkTypeface>& arial() {

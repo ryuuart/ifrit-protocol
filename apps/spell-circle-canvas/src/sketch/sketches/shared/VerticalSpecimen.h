@@ -60,9 +60,8 @@ constexpr SkColor4f kAka{0.847f, 0.294f, 0.216f, 1};    // vermilion
  *  offers. Resolved once: the fallback chain walks the system font list,
  *  which is not a per-frame cost anyone should pay. */
 inline sk_sp<SkTypeface> mincho() {
-  static const sk_sp<SkTypeface> face = sigil::weave::ports::pickTypeface(
+  return sigil::weave::ports::face(
       {"Hiragino Mincho ProN", "Yu Mincho", "Songti SC", "Noto Serif CJK JP"});
-  return face;
 }
 
 /** THE BODY REGISTER: the passage itself, in the mincho face, tagged `ja`

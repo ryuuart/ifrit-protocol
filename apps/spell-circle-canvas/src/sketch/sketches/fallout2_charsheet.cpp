@@ -273,17 +273,12 @@ constexpr float kRowPitch11 = 11;  // fontGetLineHeight(101) + 1
 // because the whole reason the game's fixed value columns work is that its
 // small font is near-monospaced.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              SkFontStyle::Width width,
-                              const char* fb1 = nullptr,
-                              const char* fb2 = nullptr) {
-  auto mgr = weave::ports::systemFontManager();
-  const SkFontStyle style(weight, width, SkFontStyle::kUpright_Slant);
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(family, style);
-  if (!f && fb1) f = mgr->matchFamilyStyle(fb1, style);
-  if (!f && fb2) f = mgr->matchFamilyStyle(fb2, style);
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+/** The one shape this sheet asks a face in: a family list at a weight and
+ *  a width, held for the process by the port that answers it. */
+inline sk_sp<SkTypeface> sheetFace(std::initializer_list<const char*> families,
+                                   int weight, SkFontStyle::Width width) {
+  return weave::ports::face(
+      families, SkFontStyle(weight, width, SkFontStyle::kUpright_Slant));
 }
 /** font 101 substitute — a squarish PROPORTIONAL face.
  *
@@ -296,38 +291,33 @@ inline sk_sp<SkTypeface> face(const char* family, int weight,
  *  reconstruction of a LAYOUT cannot afford. It costs nothing in geometry:
  *  every value column is at an absolute x, so a shorter label simply ends
  *  sooner. */
-inline const sk_sp<SkTypeface>& bodyFace() {
-  static sk_sp<SkTypeface> f =
-      face("Verdana", SkFontStyle::kNormal_Weight, SkFontStyle::kNormal_Width,
-           "DejaVu Sans", "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> bodyFace() {
+  return sheetFace({"Verdana", "DejaVu Sans", "Helvetica"},
+                   SkFontStyle::kNormal_Weight,
+                   SkFontStyle::kNormal_Width);
 }
-inline const sk_sp<SkTypeface>& bodyBold() {
-  static sk_sp<SkTypeface> f =
-      face("Verdana", SkFontStyle::kBold_Weight, SkFontStyle::kNormal_Width,
-           "DejaVu Sans", "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> bodyBold() {
+  return sheetFace({"Verdana", "DejaVu Sans", "Helvetica"},
+                   SkFontStyle::kBold_Weight,
+                   SkFontStyle::kNormal_Width);
 }
 /** The engraved gold: plaques, tabs, buttons, S.P.E.C.I.A.L. caps. */
-inline const sk_sp<SkTypeface>& engraved() {
-  static sk_sp<SkTypeface> f =
-      face("Impact", SkFontStyle::kNormal_Weight, SkFontStyle::kCondensed_Width,
-           "Haettenschweiler", "Copperplate");
-  return f;
+inline sk_sp<SkTypeface> engraved() {
+  return sheetFace({"Impact", "Haettenschweiler", "Copperplate"},
+                   SkFontStyle::kNormal_Weight,
+                   SkFontStyle::kCondensed_Width);
 }
 /** font 102 substitute — the card title, a condensed heavy grotesque. */
-inline const sk_sp<SkTypeface>& titleFace() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kBlack_Weight,
-           SkFontStyle::kCondensed_Width, "Impact", "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> titleFace() {
+  return sheetFace({"Helvetica Neue", "Impact", "Helvetica"},
+                   SkFontStyle::kBlack_Weight,
+                   SkFontStyle::kCondensed_Width);
 }
 /** The odometer digits — tabular figures on a hard 14 px cell. */
-inline const sk_sp<SkTypeface>& digitFace() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kBold_Weight,
-           SkFontStyle::kCondensed_Width, "Menlo", "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> digitFace() {
+  return sheetFace({"Helvetica Neue", "Menlo", "Helvetica"},
+                   SkFontStyle::kBold_Weight,
+                   SkFontStyle::kCondensed_Width);
 }
 
 // A positional shorthand over weave's designated-init `textStyle()`: the

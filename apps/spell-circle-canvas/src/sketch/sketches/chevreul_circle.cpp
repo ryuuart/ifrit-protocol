@@ -359,29 +359,20 @@ inline SkColor4f predicted(SkColor4f self, int neighbourSector,
 // ---------------------------------------------------------------------------
 // typography
 
-inline sk_sp<SkTypeface> face(const char* family, SkFontStyle style,
-                              const char* fallback) {
-  return weave::ports::face({family, fallback}, style);
+inline sk_sp<SkTypeface> serif() {
+  return weave::ports::face({"Baskerville", "Times New Roman"},
+                            SkFontStyle::Normal());
 }
-inline const sk_sp<SkTypeface>& serif() {
-  static sk_sp<SkTypeface> f =
-      face("Baskerville", SkFontStyle::Normal(), "Times New Roman");
-  return f;
+inline sk_sp<SkTypeface> serifIt() {
+  return weave::ports::face({"Baskerville", "Times New Roman"},
+                            SkFontStyle::Italic());
 }
-inline const sk_sp<SkTypeface>& serifIt() {
-  static sk_sp<SkTypeface> f =
-      face("Baskerville", SkFontStyle::Italic(), "Times New Roman");
-  return f;
+inline sk_sp<SkTypeface> serifBold() {
+  return weave::ports::face({"Baskerville", "Times New Roman"},
+                            SkFontStyle::Bold());
 }
-inline const sk_sp<SkTypeface>& serifBold() {
-  static sk_sp<SkTypeface> f =
-      face("Baskerville", SkFontStyle::Bold(), "Times New Roman");
-  return f;
-}
-inline const sk_sp<SkTypeface>& mono() {
-  static sk_sp<SkTypeface> f =
-      face("Menlo", SkFontStyle::Normal(), "Courier New");
-  return f;
+inline sk_sp<SkTypeface> mono() {
+  return weave::ports::face({"Menlo", "Courier New"}, SkFontStyle::Normal());
 }
 
 // The plate's four registers, each one library `type()` call: the roman it

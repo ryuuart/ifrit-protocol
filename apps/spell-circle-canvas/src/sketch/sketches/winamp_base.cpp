@@ -179,33 +179,14 @@ constexpr std::array<SkColor4f, 16> kVis = {
 // the thing to preserve, and everything else is a deliberate monospace
 // approximation at the real cell size.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              const char* fallback = nullptr) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                          SkFontStyle::kUpright_Slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(fallback,
-                              SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                                          SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+inline sk_sp<SkTypeface> mono() {
+  return weave::ports::face({"Menlo", "Monaco"}, SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& mono() {
-  static sk_sp<SkTypeface> f =
-      face("Menlo", SkFontStyle::kNormal_Weight, "Monaco");
-  return f;
+inline sk_sp<SkTypeface> monoBold() {
+  return weave::ports::face({"Menlo", "Monaco"}, SkFontStyle::kBold_Weight);
 }
-inline const sk_sp<SkTypeface>& monoBold() {
-  static sk_sp<SkTypeface> f =
-      face("Menlo", SkFontStyle::kBold_Weight, "Monaco");
-  return f;
-}
-inline const sk_sp<SkTypeface>& arial() {
-  static sk_sp<SkTypeface> f =
-      face("Arial", SkFontStyle::kNormal_Weight, "Helvetica");
-  return f;
+inline sk_sp<SkTypeface> arial() {
+  return weave::ports::face({"Arial", "Helvetica"}, SkFontStyle::kNormal_Weight);
 }
 
 inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,

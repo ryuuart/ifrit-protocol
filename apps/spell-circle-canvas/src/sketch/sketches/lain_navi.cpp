@@ -515,56 +515,39 @@ inline SkPath ellipsePath(SkPoint c, float a, float b, float tiltDeg,
 // ---------------------------------------------------------------------------
 // TYPE.
 
-inline sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
-                              int weight, SkFontStyle::Slant slant) {
-  auto mgr = weave::ports::systemFontManager();
-  for (const char* f : families)
-    if (sk_sp<SkTypeface> t = mgr->matchFamilyStyle(
-            f, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant)))
-      return t;
-  return mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-}
-
-inline const sk_sp<SkTypeface>& monoFace() {
+inline sk_sp<SkTypeface> monoFace() {
   // A light-weight Latin mono stands in for the frame's face; the console
   // block is pure ASCII, so nothing wider is needed. ExtraLight (200) is the
   // closest match to the frame's hairline stems.
-  static sk_sp<SkTypeface> f =
-      face({"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono", "Menlo",
-            "Courier New"},
+  return weave::ports::face(
+      {"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono", "Menlo",
+       "Courier New"},
            // LIGHT, not ExtraLight. At 22 px under a mask-filter blur an
            // ExtraLight stem never reaches full coverage, which reads as
            // #70BDE8 (blue) where the plate is #72F9F5 (cyan) — the
            // colour is right and the STEM is too thin to show it.
-           300, SkFontStyle::kUpright_Slant);
-  return f;
+      300);
 }
-inline const sk_sp<SkTypeface>& minchoFace() {
-  static sk_sp<SkTypeface> f =
-      face({"Hiragino Mincho ProN", "YuMincho", "Shippori Mincho",
-            "Noto Serif JP", "Hiragino Sans"},
-           400, SkFontStyle::kUpright_Slant);
-  return f;
+inline sk_sp<SkTypeface> minchoFace() {
+  return weave::ports::face({"Hiragino Mincho ProN", "YuMincho",
+                             "Shippori Mincho", "Noto Serif JP",
+                             "Hiragino Sans"},
+                            400);
 }
-inline const sk_sp<SkTypeface>& serifFace() {
-  static sk_sp<SkTypeface> f = face({"Times New Roman", "Times", "Georgia"},
-                                    400, SkFontStyle::kUpright_Slant);
-  return f;
+inline sk_sp<SkTypeface> serifFace() {
+  return weave::ports::face({"Times New Roman", "Times", "Georgia"}, 400);
 }
-inline const sk_sp<SkTypeface>& serifItalicFace() {
-  static sk_sp<SkTypeface> f = face({"Times New Roman", "Times", "Georgia"},
-                                    700, SkFontStyle::kItalic_Slant);
-  return f;
+inline sk_sp<SkTypeface> serifItalicFace() {
+  return weave::ports::face({"Times New Roman", "Times", "Georgia"}, 700,
+                            SkFontStyle::kItalic_Slant);
 }
 /** THE ENGLISH PHRASES ARE TITLES. Layer 07 sets them upright, at large
  *  size, in a plain grotesque — they read as cards over the picture, not
  *  as handwriting on it. A casual script leaned nine degrees is a
  *  different register and it made the one warm thing in the frame read as
  *  a scribble. */
-inline const sk_sp<SkTypeface>& phraseFace() {
-  static sk_sp<SkTypeface> f = face({"Helvetica Neue", "Helvetica", "Arial"},
-                                    500, SkFontStyle::kUpright_Slant);
-  return f;
+inline sk_sp<SkTypeface> phraseFace() {
+  return weave::ports::face({"Helvetica Neue", "Helvetica", "Arial"}, 500);
 }
 
 /** THE ONE TEXT STYLE IN THE FILE, and it is the focal plane.

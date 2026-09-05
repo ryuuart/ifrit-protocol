@@ -287,31 +287,18 @@ constexpr double kFrontCrossSeconds = (kStageW - kX0) / kSpread;  // 5.762 s
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return weave::ports::face({family}, style);
-}
 sk_sp<SkTypeface> monoFace() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal());
-  return f;
+  return weave::ports::face({"Menlo"}, SkFontStyle::Normal());
 }
 sk_sp<SkTypeface> monoBoldFace() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Bold());
-  return f;
+  return weave::ports::face({"Menlo"}, SkFontStyle::Bold());
 }
 sk_sp<SkTypeface> uiFace() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Normal());
-  return f;
+  return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Normal());
 }
 sk_sp<SkTypeface> heavyFace() {
-  static sk_sp<SkTypeface> f = [] {
-    auto mgr = sigil::weave::ports::systemFontManager();
-    sk_sp<SkTypeface> t = mgr->matchFamilyStyle(
-        "Helvetica Neue",
-        SkFontStyle(SkFontStyle::kBlack_Weight, SkFontStyle::kNormal_Width,
-                    SkFontStyle::kUpright_Slant));
-    return t ? t : face("Helvetica", SkFontStyle::Bold());
-  }();
-  return f;
+  return weave::ports::face({"Helvetica Neue", "Helvetica"},
+                            SkFontStyle::kBlack_Weight);
 }
 
 // A positional shorthand over the library's designated-init `textStyle()`,

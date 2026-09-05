@@ -121,7 +121,7 @@ float4 fsCover(VSOut input) : SV_Target { return surface(input.uv); }
 )SLANG";
 
 weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face =
+  const sk_sp<SkTypeface> face =
       weave::ports::face({"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
   return weave::textStyle({.face = face, .size = size, .color = color});
 }

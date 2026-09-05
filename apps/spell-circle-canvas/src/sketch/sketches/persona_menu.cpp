@@ -185,18 +185,12 @@ inline std::function<SkPath(SkSize)> sliverWedge() {
  *  sets at 84px, 0.82 condensed and italic. Avenir Next Condensed Heavy
  *  Italic is the closest face macOS ships. */
 inline sk_sp<SkTypeface> menuFace(bool italic = true) {
-  auto mgr = sigil::weave::ports::systemFontManager();
   const auto slant =
       italic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant;
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      "Avenir Next Condensed", SkFontStyle(SkFontStyle::kBlack_Weight,
-                                           SkFontStyle::kNormal_Width, slant));
-  if (!f)
-    f = mgr->matchFamilyStyle(
-        "Helvetica Neue", SkFontStyle(SkFontStyle::kBlack_Weight,
-                                      SkFontStyle::kCondensed_Width, slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::BoldItalic());
-  return f;
+  return sigil::weave::ports::face(
+      {"Avenir Next Condensed", "Helvetica Neue"},
+      SkFontStyle(SkFontStyle::kBlack_Weight, SkFontStyle::kNormal_Width,
+                  slant));
 }
 
 /** Menu voice: heavy condensed italic, negative tracking, with an optional
@@ -204,10 +198,8 @@ inline sk_sp<SkTypeface> menuFace(bool italic = true) {
  *  shadows produce. */
 inline sigil::weave::TextStyle menuType(float size, SkColor4f fill, float ringW,
                                         bool italic = true) {
-  static sk_sp<SkTypeface> faceI = menuFace(true);
-  static sk_sp<SkTypeface> faceU = menuFace(false);
   sigil::weave::TextStyle s;
-  s.shaping.typeface = italic ? faceI : faceU;
+  s.shaping.typeface = menuFace(italic);
   s.shaping.fontSize = size;
   // The original tracks around -0.14em on Rodin; Avenir Condensed is
   // already tighter, so it needs less taken out.

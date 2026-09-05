@@ -216,33 +216,29 @@ struct MagiVoteLayout {
   }
 };
 
-inline const sk_sp<SkTypeface>& groteskBold() {
-  static const sk_sp<SkTypeface> face = sigil::weave::ports::pickTypeface(
+inline sk_sp<SkTypeface> groteskBold() {
+  return sigil::weave::ports::face(
       {"Helvetica", "Arial"}, SkFontStyle::kBold_Weight);
-  return face;
 }
 
-inline const sk_sp<SkTypeface>& condensedBold() {
-  static const sk_sp<SkTypeface> face = sigil::weave::ports::pickTypeface(
+inline sk_sp<SkTypeface> condensedBold() {
+  return sigil::weave::ports::face(
       {"Helvetica Neue", "Arial Narrow", "DIN Condensed"},
       SkFontStyle(SkFontStyle::kBold_Weight, SkFontStyle::kCondensed_Width,
                   SkFontStyle::kUpright_Slant));
-  return face;
 }
 
-inline const sk_sp<SkTypeface>& condensedRegular() {
-  static const sk_sp<SkTypeface> face = sigil::weave::ports::pickTypeface(
+inline sk_sp<SkTypeface> condensedRegular() {
+  return sigil::weave::ports::face(
       {"Helvetica Neue", "Arial Narrow", "DIN Condensed"},
       SkFontStyle(SkFontStyle::kNormal_Weight, SkFontStyle::kCondensed_Width,
                   SkFontStyle::kUpright_Slant));
-  return face;
 }
 
-inline const sk_sp<SkTypeface>& minchoHeavy() {
-  static const sk_sp<SkTypeface> face = sigil::weave::ports::pickTypeface(
+inline sk_sp<SkTypeface> minchoHeavy() {
+  return sigil::weave::ports::face(
       {"Hiragino Mincho ProN", "Songti SC", "Noto Serif CJK JP"},
       SkFontStyle::kBold_Weight);
-  return face;
 }
 
 inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& face, float size,

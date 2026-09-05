@@ -69,7 +69,7 @@ sketch::kit::Theme sheetTheme() {
 /** The wordmark's own face: as heavy as the machine has, so the fill has
  *  letterforms to be seen inside. */
 weave::TextStyle display() {
-  static const sk_sp<SkTypeface> face =
+  const sk_sp<SkTypeface> face =
       weave::ports::face({"Avenir Next Heavy", "Helvetica Neue Bold",
                           "Arial Black", "Impact", "sans-serif"});
   return weave::textStyle(

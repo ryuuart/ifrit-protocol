@@ -188,28 +188,11 @@ const SkColor4f kLabelInk = C5(0x080800);
 // Type. Two live pieces of text on this page (the © line, and nothing else);
 // twelve pieces of BAKED lettering, approximated with Impact.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              const char* fallback = nullptr) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                          SkFontStyle::kUpright_Slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(fallback,
-                              SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                                          SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+inline sk_sp<SkTypeface> display() {
+  return weave::ports::face({"Impact", "Arial Black"}, SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& display() {  // the baked-label approximation
-  static sk_sp<SkTypeface> f =
-      face("Impact", SkFontStyle::kNormal_Weight, "Arial Black");
-  return f;
-}
-inline const sk_sp<SkTypeface>& serif() {  // the browser default, Times
-  static sk_sp<SkTypeface> f =
-      face("Times New Roman", SkFontStyle::kNormal_Weight, "Times");
-  return f;
+inline sk_sp<SkTypeface> serif() {
+  return weave::ports::face({"Times New Roman", "Times"}, SkFontStyle::kNormal_Weight);
 }
 
 inline sigil::weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,

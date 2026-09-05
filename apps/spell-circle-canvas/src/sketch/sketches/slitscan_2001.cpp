@@ -343,24 +343,17 @@ constexpr float kPanelStripW = 432;  // 144 in at 3.0 px/in, exact
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return weave::ports::face({family}, style);
-}
 sk_sp<SkTypeface> uiFace() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Normal());
-  return f;
+  return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Normal());
 }
 sk_sp<SkTypeface> uiBoldFace() {
-  static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Bold());
-  return f;
+  return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Bold());
 }
 sk_sp<SkTypeface> monoFace() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Normal());
-  return f;
+  return weave::ports::face({"Menlo"}, SkFontStyle::Normal());
 }
 sk_sp<SkTypeface> monoBoldFace() {
-  static sk_sp<SkTypeface> f = face("Menlo", SkFontStyle::Bold());
-  return f;
+  return weave::ports::face({"Menlo"}, SkFontStyle::Bold());
 }
 
 weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,

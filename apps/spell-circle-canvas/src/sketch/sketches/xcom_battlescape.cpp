@@ -1843,16 +1843,9 @@ struct XcomBattlescape : sketch::Sketch {
     latticePattern.sampling(SkSamplingOptions(SkFilterMode::kNearest));
 
     // Type. FONT_BIG substitute at 1x, quantised into block 8 by coverage.
-    auto mgr = weave::ports::systemFontManager();
-    const auto face = [&](const char* fam, int weight) {
-      sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-          fam, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                           SkFontStyle::kUpright_Slant));
-      if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Bold());
-      return f;
-    };
     weave::TextStyle big;
-    big.shaping.typeface = face("Arial Narrow", SkFontStyle::kBold_Weight);
+    big.shaping.typeface =
+        weave::ports::face({"Arial Narrow"}, SkFontStyle::kBold_Weight);
     big.shaping.fontSize = 12.0f;
     big.shaping.letterSpacing = 0.6f;
     if (ctx.fonts) {

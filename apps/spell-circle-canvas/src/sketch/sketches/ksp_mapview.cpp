@@ -192,33 +192,14 @@ constexpr SkColor4f kDvArc = hex(0x7FE33F);  // the bright burn arc
 // Type — two families, both plain. KSP1 shipped Unity's humanist grotesque;
 // the LCD readouts are a distinctly different, monospaced numeral set.
 
-inline sk_sp<SkTypeface> face(const char* family, int weight,
-                              const char* fallback = nullptr) {
-  auto mgr = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> f = mgr->matchFamilyStyle(
-      family, SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                          SkFontStyle::kUpright_Slant));
-  if (!f && fallback)
-    f = mgr->matchFamilyStyle(fallback,
-                              SkFontStyle(weight, SkFontStyle::kNormal_Width,
-                                          SkFontStyle::kUpright_Slant));
-  if (!f) f = mgr->matchFamilyStyle(nullptr, SkFontStyle::Normal());
-  return f;
+inline sk_sp<SkTypeface> sans() {
+  return weave::ports::face({"Helvetica Neue", "Arial"}, SkFontStyle::kNormal_Weight);
 }
-inline const sk_sp<SkTypeface>& sans() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kNormal_Weight, "Arial");
-  return f;
+inline sk_sp<SkTypeface> sansB() {
+  return weave::ports::face({"Helvetica Neue", "Arial"}, SkFontStyle::kBold_Weight);
 }
-inline const sk_sp<SkTypeface>& sansB() {
-  static sk_sp<SkTypeface> f =
-      face("Helvetica Neue", SkFontStyle::kBold_Weight, "Arial");
-  return f;
-}
-inline const sk_sp<SkTypeface>& mono() {
-  static sk_sp<SkTypeface> f =
-      face("Menlo", SkFontStyle::kNormal_Weight, "Courier New");
-  return f;
+inline sk_sp<SkTypeface> mono() {
+  return weave::ports::face({"Menlo", "Courier New"}, SkFontStyle::kNormal_Weight);
 }
 
 inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
