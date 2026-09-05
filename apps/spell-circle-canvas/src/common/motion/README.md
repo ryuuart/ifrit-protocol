@@ -15,8 +15,8 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all seven | `Transition`, `ease::`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()` and `decay()`; `Spring`, `spring()` and `springMoving()` |
+| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/Curve.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all four | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; `ease::Curve`, the shaped curve as a comparable value; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all seven | `Transition`, `ease::`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()` |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 | `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
 
@@ -268,7 +268,11 @@ turns out to be (`amountMs`), an irregular table of start times cut
 against a recording (`cueMs`, which replaces the ladder, the order and
 the distribution outright, and which `Spread::cues()` sets on a spread
 already in hand), and a second spread nested inside every beat
-of the first (`then()`, exactly one level deep). `loopMs` turns any of
+of the first (`then()`, exactly one level deep). `rankBy` is the ORDER
+said the same way: one number per unit — a radius, a role, a depth from a
+root — and the ladder is dealt smallest first, ties opening together. It
+replaces `from` and `seed` and yields to a cue table, and everything else
+the spread says still applies. `loopMs` turns any of
 them into a wrapping beat: each unit re-opens on its own cycle, phase-
 offset by its start, and one sweep of the master 0→1 is one cycle.
 
@@ -342,7 +346,7 @@ under a field pin that fails the build when that value gains a member:
 
 | comparator | rule |
 |---|---|
-| `easeEqual` | two curves are equal when both are the same plain function pointer; a capturing lambda is unequal to everything |
+| `easeEqual` | two curves are equal when both are the same plain function pointer, or both are the same `ease::Curve` shape at the same settings; a capturing lambda is unequal to everything |
 | `transitionEqual` | same duration, same delay, same curve — the curve read through `easing()`, so `{360ms, {}, 220ms}` compares as the default it behaves as |
 | `boundMapEqual` | every one of `BoundFloat`'s fields, by hand, under the pin |
 | `propEqual` | same form, then that form's contents; a bare binding by the Output's IDENTITY, never by the number behind it |

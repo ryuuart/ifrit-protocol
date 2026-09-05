@@ -9,7 +9,7 @@
 # library, to a header-only leaf over the standard library and Boost.PFR.
 sigil_library(SigilMotionBind
   SOURCES Bound.cpp BoundFloat.cpp WiggleNoise.cpp
-  HEADERS Bind.h Bound.h BoundFloat.h WiggleNoise.h
+  HEADERS Bind.h Bound.h BoundFloat.h Curve.h WiggleNoise.h
   PUBLIC SigilCoreComparable choreograph::choreograph)
 
 # Links only the library it exercises, so a link edge that pulled a

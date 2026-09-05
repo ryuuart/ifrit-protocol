@@ -212,9 +212,9 @@ void perturb(std::shared_ptr<const Spread>& v) {
 }  // namespace
 
 TEST(Spread, EveryFieldParticipatesInEquality) {
-  static const char* const kNames[] = {"eachMs",     "amountMs",     "cueMs",
-                                       "durationMs", "loopMs",       "from",
-                                       "seed",       "distribution", "inner"};
+  static const char* const kNames[] = {
+      "eachMs",     "amountMs", "cueMs",        "rankBy", "durationMs",
+      "loopMs",     "from",     "seed",         "distribution", "inner"};
   static_assert(sigil::core::kFieldCount<Spread> == std::size(kNames),
                 "name a new field here as well as in operator==");
   const Spread base;
@@ -226,6 +226,49 @@ TEST(Spread, EveryFieldParticipatesInEquality) {
      }()),
      ...);
   }(std::make_index_sequence<sigil::core::kFieldCount<Spread>>{});
+}
+
+TEST(Cascade, RankByDealsTheLadderInTheOrderTheCallerStates) {
+  // A bloom that spreads outward is ordered by radius, not by index. The
+  // spacing, the shape and the duration all still apply — only the
+  // running order changes.
+  Cascade dealt;
+  dealt.build({.eachMs = 100,
+               .rankBy = {30.0f, 10.0f, 20.0f, 40.0f},
+               .durationMs = 200},
+              4, 1);
+  EXPECT_FLOAT_EQ(dealt.startMs(1, 0), 0.0f);    // nearest opens first
+  EXPECT_FLOAT_EQ(dealt.startMs(2, 0), 100.0f);
+  EXPECT_FLOAT_EQ(dealt.startMs(0, 0), 200.0f);
+  EXPECT_FLOAT_EQ(dealt.startMs(3, 0), 300.0f);
+
+  // TIES OPEN TOGETHER, and the slot after them is the next one up: a
+  // ring of equal radii is one beat, not a dealt-out run.
+  Cascade tied;
+  tied.build({.eachMs = 100,
+              .rankBy = {5.0f, 5.0f, 9.0f, 5.0f},
+              .durationMs = 200},
+             4, 1);
+  EXPECT_FLOAT_EQ(tied.startMs(0, 0), 0.0f);
+  EXPECT_FLOAT_EQ(tied.startMs(1, 0), 0.0f);
+  EXPECT_FLOAT_EQ(tied.startMs(3, 0), 0.0f);
+  EXPECT_FLOAT_EQ(tied.startMs(2, 0), 100.0f);
+
+  // A cue table already states the whole order, so it wins.
+  Cascade cued;
+  cued.build({.eachMs = 100,
+              .cueMs = {0, 50, 500, 90},
+              .rankBy = {9.0f, 8.0f, 7.0f, 6.0f},
+              .durationMs = 200},
+             4, 1);
+  EXPECT_FLOAT_EQ(cued.startMs(2, 0), 500.0f);
+}
+
+TEST(Spread, RankByIsReadByEquality) {
+  // Two different orders must never compare equal: the node that holds
+  // one prunes, and it would keep beating to the old ladder forever.
+  EXPECT_NE((Spread{.rankBy = {1.0f, 2.0f}}), (Spread{.rankBy = {2.0f, 1.0f}}));
+  EXPECT_EQ((Spread{.rankBy = {1.0f, 2.0f}}), (Spread{.rankBy = {1.0f, 2.0f}}));
 }
 
 TEST(Spread, CuesSetsTheTableOnASpreadAlreadyInHand) {

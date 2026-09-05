@@ -52,11 +52,29 @@ Element connector(std::string_view fromKey, std::string_view toKey,
  *  bounds ((0,0)=top-left, (1,1)=bottom-right — the binding form tldraw and
  *  Excalidraw both converged on; never absolute coordinates, so rails
  *  survive layout, drag, and reflow). `gap` pulls a TERMINAL anchor back
- *  along its segment (breathing room at the ends; ignored on waypoints). */
+ *  along its segment (breathing room at the ends; ignored on waypoints).
+ *
+ *  A FREE POINT is the other half: leave `nodeKey` empty and the anchor is
+ *  `point`, in the RAIL'S OWN coordinates, bound to nothing. A route
+ *  through a place rather than through a thing — the bend that clears a
+ *  corner, the fan-out a diagram's own drawing puts at a fixed offset —
+ *  is a real waypoint and not a node, and standing invisible boxes up to
+ *  carry those coordinates mounts, lays out and reconciles a node per
+ *  bend for a number the caller already had.
+ *
+ *  A rail whose anchors are ALL free points is a polyline the router
+ *  draws and nothing binds; one that mixes them is the ordinary case —
+ *  a wire that leaves a port, turns in the gutter, and arrives at
+ *  another. */
 struct Anchor {
   std::string nodeKey;
   SkPoint norm = {0.5f, 0.5f};
   float gap = 0.0f;
+  /** Read only when `nodeKey` is empty: the point, in the rail's own
+   *  coordinates (the rail is normally `absolute().inset(0)` over the
+   *  nodes it threads, so those are the coordinates the nodes are placed
+   *  in). Last, so the positional `{key, norm, gap}` spelling stands. */
+  SkPoint point = {0.0f, 0.0f};
   bool operator==(const Anchor&) const = default;
 };
 

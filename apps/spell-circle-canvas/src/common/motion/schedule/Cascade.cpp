@@ -62,7 +62,10 @@ void Cascade::build(const Spread& spec, uint32_t outerCount,
                     uint32_t innerCount) {
   duration = std::max(spec.durationMs, 1.0f);
   const uint32_t outer = std::max(outerCount, 1u);
-  cascadeOrder(spec.from, outer, spec.seed, outerOrder);
+  if (!spec.rankBy.empty() && spec.cueMs.empty())
+    cascadeRanks(spec.rankBy, outer, outerOrder);
+  else
+    cascadeOrder(spec.from, outer, spec.seed, outerOrder);
   outerEach = spacingMs(spec, outer);
   outerCue = spec.cueMs;
   if (!outerCue.empty() && outerCue.size() != outer)
@@ -70,7 +73,10 @@ void Cascade::build(const Spread& spec, uint32_t outerCount,
 
   if (spec.inner) {
     const uint32_t inner = std::max(innerCount, 1u);
-    cascadeOrder(spec.inner->from, inner, spec.inner->seed, innerOrder);
+    if (!spec.inner->rankBy.empty() && spec.inner->cueMs.empty())
+      cascadeRanks(spec.inner->rankBy, inner, innerOrder);
+    else
+      cascadeOrder(spec.inner->from, inner, spec.inner->seed, innerOrder);
     innerEach = spacingMs(*spec.inner, inner);
     innerCue = spec.inner->cueMs;
     if (!innerCue.empty() && innerCue.size() != inner)

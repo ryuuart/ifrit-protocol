@@ -442,8 +442,12 @@ sound model; nothing below them changes kernel semantics.
   `ComponentProps` / `ComponentFn` concepts.
 - `core/Element.h` — `Element` and its builders, the class alone.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
-  `positioned`, `text`, `frame`, `image`, `custom`, `slot`, `layout`,
-  `memo`, with `toU8` for a call site holding a `std::string`.
+  `positioned`, `text`, `frame`, `image`, `picture` (a recorded
+  `SkPicture` as a leaf, sized at what it was recorded at — the door out
+  of a `snapshot()` that keeps the pruning and the caching the bake was
+  taken for), `pathFigure` (a path already in canvas coordinates,
+  re-based into its own bounds), `custom`, `slot`, `layout`, `memo`,
+  with `toU8` for a call site holding a `std::string`.
 - `core/Measure.h` — the one-shot verbs that take a tree without a live
   composer: `snapshot`, `intrinsicSize`, `metrics`, `measureRun`, `runPens`.
 - `core/Tiles.h` — `tiles::`, the slicing of one baked picture into a run
@@ -472,8 +476,11 @@ sound model; nothing below them changes kernel semantics.
   caller's — a per-frame shiver, a gate that fades a whole field at once,
   anything whose value depends on something besides this instance's own
   progress — and steps after `fly()`, over the lanes it wrote.
-- `core/Derive.h` — `connector`, `rail`, `Anchor`, `band`, `bandPointAt`,
-  and the `derive::` namespace that gathers the family.
+- `core/Derive.h` — `connector`, `rail`, `Anchor` (a normalised point on
+  a keyed node's bounds, or — with an empty `nodeKey` — a free waypoint
+  at a point in the rail's own coordinates, so a bend that clears a
+  corner costs no node), `band`, `bandPointAt`, and the `derive::`
+  namespace that gathers the family.
 - `core/Composer.h` — `Composer`, and `TextSettling`, what
   `Composer::settling` reports about a live passage's last layout.
 - `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`

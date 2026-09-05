@@ -25,7 +25,7 @@ float Spread::spanMs(uint32_t count, uint32_t innerCount) const {
   return cascade.totalMs;
 }
 
-static_assert(core::kFieldCount<Spread> == 9,
+static_assert(core::kFieldCount<Spread> == 10,
               "Spread gained or lost a field — rule on it in "
               "Spread::operator== below, then bump this count. A field left "
               "out makes two different cascades compare equal, the node that "
@@ -34,7 +34,8 @@ static_assert(core::kFieldCount<Spread> == 9,
 bool Spread::operator==(const Spread& other) const {
   if (eachMs != other.eachMs || amountMs != other.amountMs ||
       durationMs != other.durationMs || loopMs != other.loopMs ||
-      from != other.from || seed != other.seed || cueMs != other.cueMs)
+      from != other.from || seed != other.seed || cueMs != other.cueMs ||
+      rankBy != other.rankBy)
     return false;
   if (!easeEqual(distribution, other.distribution)) return false;
   if (inner == other.inner) return true;  // both absent, or one shared value

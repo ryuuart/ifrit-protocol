@@ -6,9 +6,12 @@
  */
 
 #include <include/core/SkMatrix.h>
+#include <include/core/SkPicture.h>
+#include <include/core/SkCanvas.h>
 #include <sigilcore/reconcile/Env.h>
 
 #include <any>
+#include <string>
 #include <functional>
 
 #include "ComposeInternal.h"
@@ -105,6 +108,24 @@ Element custom(std::string_view key, PaintProgram program) {
   Element e = custom(std::move(program));
   e.node()->customData->key = std::string(key);
   return e;
+}
+
+Element picture(sk_sp<SkPicture> recorded, SkSize native) {
+  if (!recorded) return box();
+  const SkSize recordedAt = native;
+  // The picture's own id is the identity: a recording cannot change, so
+  // two describes handing over the same one are the same drawing.
+  Element e = custom(
+      "picture:" + std::to_string(recorded->uniqueID()),
+      [pic = std::move(recorded), recordedAt](SkCanvas& canvas,
+                                              const PaintContext& ctx) {
+        SkAutoCanvasRestore restore(&canvas, true);
+        if (recordedAt.width() > 0 && recordedAt.height() > 0)
+          canvas.scale(ctx.size.width() / recordedAt.width(),
+                       ctx.size.height() / recordedAt.height());
+        canvas.drawPicture(pic.get());
+      });
+  return e.width(Dim(native.width())).height(Dim(native.height()));
 }
 
 Element pathFigure(SkPath absolute, float bleed) {

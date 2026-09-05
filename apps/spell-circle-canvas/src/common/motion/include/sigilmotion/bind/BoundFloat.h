@@ -101,9 +101,11 @@ struct BoundFloat {
 };
 
 /** Equal only when PROVABLY identical: two easing curves compare equal
- *  when both are the same plain function pointer. A lambda-valued curve
- *  compares unequal, conservatively, because a std::function holding one
- *  cannot be inspected.
+ *  when both are the same plain function pointer, or both are the same
+ *  `ease::Curve` shape at the same settings — the two forms a
+ *  std::function can be read back as. A lambda-valued curve compares
+ *  unequal, conservatively, because a std::function holding one cannot be
+ *  inspected.
  *
  *  ONE BODY for every curve slot in the library — the two on the record
  *  above, a Transition's, a Spread's distribution — because a second

@@ -366,6 +366,10 @@ void Composer::Impl::deriveRoute(Instance& inst) {
     const SkRect own = absoluteRect(inst);
     bool resolvedAll = true;
     for (const Anchor& anchor : derive->railAnchors) {
+      if (anchor.nodeKey.empty()) {  // a free waypoint, bound to nothing
+        pts.push_back(anchor.point);
+        continue;
+      }
       auto it = byKey.find(anchor.nodeKey);
       if (it == byKey.end()) {
         resolvedAll = false;

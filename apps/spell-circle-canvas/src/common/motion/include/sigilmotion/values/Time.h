@@ -3,7 +3,8 @@
 /** @file
  * The arithmetic over a clock reading: seconds posterised at a declared
  * rate, the step INDEX that rate is on, seconds folded into a wrapping
- * [0, 1) loop, and the open-ended settle a time constant describes.
+ * [0, 1) loop, the open-ended settle a time constant describes, and the
+ * one-shot flash built on it.
  */
 
 #include <cmath>
@@ -77,6 +78,37 @@ inline float phase(double t, double period) {
  *  by zero. */
 inline float decay(float age, float tau) {
   return tau > 0.0f ? std::exp(-age / tau) : 0.0f;
+}
+
+/** A ONE-SHOT FLASH: up over @p attack seconds, then down towards @p rest
+ *  on a time constant — the strike, the muzzle flare, the hit that lands
+ *  and cools, the lamp that comes on hot and settles to its burn.
+ *
+ *  Three numbers, and each one is a different half of the shape. @p
+ *  attack is how long the rise takes, and it is LINEAR: the thing that
+ *  makes a flash read as hot is that it arrives in a frame or two and
+ *  leaves over half a second, so an eased rise only softens what should
+ *  be the sharpest edge in the envelope. @p tau is the fall's time
+ *  constant, in the same unit as @p age. @p rest is where the fall is
+ *  headed — 0 for a flare that goes out, above 0 for a thing that stays
+ *  lit at a lower level once it has flared.
+ *
+ *  Exactly 1 at the crest whatever `rest` is, so the crest is the same
+ *  height for a flare and for a lamp and the two can be mixed without
+ *  rescaling. Before the event (`age < 0`) it is 0, not `rest`: nothing
+ *  has happened yet. A non-positive @p attack is the instantaneous rise
+ *  — 1 at age 0 — and a non-positive @p tau holds the crest rather than
+ *  dividing by zero.
+ *
+ *  `decay` is this envelope's fall alone, and the two agree: `flash(age,
+ *  0, tau, 0)` and `decay(age, tau)` are the same number for a
+ *  non-negative age. Reach for `decay` when there is no attack to
+ *  describe. */
+inline float flash(float age, float attack, float tau, float rest = 0.0f) {
+  if (age < 0.0f) return 0.0f;
+  if (age < attack) return age / attack;
+  if (!(tau > 0.0f)) return 1.0f;
+  return rest + (1.0f - rest) * std::exp(-(age - attack) / tau);
 }
 
 }  // namespace sigil::motion

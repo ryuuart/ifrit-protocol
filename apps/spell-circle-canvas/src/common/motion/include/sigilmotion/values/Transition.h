@@ -8,6 +8,7 @@
  */
 
 #include <choreograph/Choreograph.h>
+#include <sigilmotion/bind/Curve.h>
 
 #include <chrono>
 #include <tuple>
@@ -76,30 +77,52 @@ inline float smoothstep(float t) { return t * t * (3.0f - 2.0f * t); }
  *  x is solved by bisection rather than Newton: the curve is monotonic in
  *  x for control points in [0,1], so a fixed number of halvings is exact
  *  to well under a pixel and cannot fail to converge on a degenerate
- *  curve the way a derivative-based solve can. */
-choreograph::EaseFn cubicBezier(float x1, float y1, float x2, float y2);
+ *  curve the way a derivative-based solve can.
+ *
+ *  The four control numbers ARE the identity: two curves compare equal
+ *  when they were asked for at the same numbers, so a transition or a
+ *  binding built on a CSS curve prunes like one built on a house curve. */
+Curve cubicBezier(float x1, float y1, float x2, float y2);
 
 /** Overshoot and settle. `s` is the overshoot amount (Penner's 1.70158
- *  overshoots by ~10%); larger exaggerates the anticipation. */
-inline choreograph::EaseFn outBack(float s = 1.70158f) {
-  return [s](float t) { return choreograph::easeOutBack(t, s); };
+ *  overshoots by ~10%); larger exaggerates the anticipation.
+ *
+ *  Every shaped curve below hands back an `ease::Curve` — the shape and
+ *  its numbers side by side — so two calls with the same argument compare
+ *  EQUAL and the value holding one prunes. A curve written as a
+ *  capturing lambda cannot, which is why these exist as factories rather
+ *  than as an example to copy. */
+inline Curve outBack(float s = 1.70158f) {
+  return {[](float t, const float* p) { return choreograph::easeOutBack(t, p[0]); },
+          {s}};
 }
-inline choreograph::EaseFn inBack(float s = 1.70158f) {
-  return [s](float t) { return choreograph::easeInBack(t, s); };
+inline Curve inBack(float s = 1.70158f) {
+  return {[](float t, const float* p) { return choreograph::easeInBack(t, p[0]); },
+          {s}};
 }
-inline choreograph::EaseFn inOutBack(float s = 1.70158f) {
-  return [s](float t) { return choreograph::easeInOutBack(t, s); };
+inline Curve inOutBack(float s = 1.70158f) {
+  return {
+      [](float t, const float* p) { return choreograph::easeInOutBack(t, p[0]); },
+      {s}};
 }
 /** Ring down to rest. `a` is amplitude, `p` the period. */
-inline choreograph::EaseFn outElastic(float a = 1.0f, float p = 0.3f) {
-  return [a, p](float t) { return choreograph::easeOutElastic(t, a, p); };
+inline Curve outElastic(float a = 1.0f, float p = 0.3f) {
+  return {[](float t, const float* q) {
+            return choreograph::easeOutElastic(t, q[0], q[1]);
+          },
+          {a, p}};
 }
-inline choreograph::EaseFn inElastic(float a = 1.0f, float p = 0.3f) {
-  return [a, p](float t) { return choreograph::easeInElastic(t, a, p); };
+inline Curve inElastic(float a = 1.0f, float p = 0.3f) {
+  return {[](float t, const float* q) {
+            return choreograph::easeInElastic(t, q[0], q[1]);
+          },
+          {a, p}};
 }
 /** Land and bounce. */
-inline choreograph::EaseFn outBounce(float a = 1.70158f) {
-  return [a](float t) { return choreograph::easeOutBounce(t, a); };
+inline Curve outBounce(float a = 1.70158f) {
+  return {
+      [](float t, const float* p) { return choreograph::easeOutBounce(t, p[0]); },
+      {a}};
 }
 }  // namespace ease
 

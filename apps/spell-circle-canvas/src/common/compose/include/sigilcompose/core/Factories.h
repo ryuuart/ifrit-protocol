@@ -3,10 +3,12 @@
 /** @file
  * SigilCompose factories — the functions that start an Element: `box`,
  * `stack`, `positioned`, `text` in its three content forms and `frame`
- * over a story, `image`, `custom`, `layout`, `slot` and `memo`.
+ * over a story, `image`, `picture`, `pathFigure`, `custom`, `layout`,
+ * `slot` and `memo`.
  */
 
 #include <include/core/SkColor.h>
+#include <include/core/SkPicture.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
@@ -116,6 +118,28 @@ Element custom(PaintProgram program);
  *  replays. Two describes with equal keys compare EQUAL and the node
  *  prunes; the unkeyed form above re-records every render(). */
 Element custom(std::string_view key, PaintProgram program);
+
+/** A RECORDED PICTURE AS A LEAF — the door out of a bake.
+ *
+ *  `snapshot()` hands back an `SkPicture` and `image()` takes an
+ *  `ImageAsset`, so a caller who has baked a subtree has, until now, had
+ *  to draw it back through `custom()`. That forfeits exactly what the
+ *  bake was taken for: an unkeyed program is incomparable, so its node
+ *  re-records every describe, and a caller who reaches for
+ *  `Cache::None` to be safe gives up the caching too.
+ *
+ *  This is that leaf, and it prunes: a picture's identity is its own,
+ *  and two describes handing over the same picture compare equal. A
+ *  recorded picture cannot change, so the node is static by
+ *  construction and caches like any other static subtree.
+ *
+ *  @p native is the size the picture was recorded at, and it becomes the
+ *  node's own size, so a snapshot drops into a layout without being
+ *  measured again. Give the node other dims and the picture is SCALED to
+ *  them — stretched, both axes independently, since a picture has no
+ *  aspect to preserve on the caller's behalf. A null picture is an empty
+ *  box. */
+Element picture(sk_sp<SkPicture> recorded, SkSize native);
 
 /** A LEAF THE SHAPE OF A PATH ALREADY IN CANVAS COORDINATES.
  *

@@ -1,13 +1,17 @@
 /** @file
  * The five orderings, including the seeded permutation the scattered one
- * deals.
+ * deals, and the dense ranking a caller-stated order is dealt in.
  */
 
 #include <sigilcore/compute/Noise.h>
 #include <sigilmotion/schedule/Order.h>
 
+#include <boost/unordered/unordered_flat_set.hpp>
+
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <limits>
 #include <numeric>
 
 namespace sigil::motion {
@@ -63,6 +67,58 @@ void cascadeOrder(Spread::From from, uint32_t count, uint32_t seed,
       break;
     }
   }
+}
+
+namespace {
+/** Once per distinct shape, like the cue table's warning: a cascade is
+ *  rebuilt every frame, and one mistyped table would otherwise scroll the
+ *  same line past its author forever. */
+void warnRankTableMismatch(size_t keyCount, size_t unitCount) {
+  static thread_local boost::unordered_flat_set<uint64_t> seen;
+  const uint64_t key = ((uint64_t)keyCount << 32u) | (uint32_t)unitCount;
+  if (!seen.insert(key).second) return;
+  std::fprintf(stderr,
+               "SigilMotion: an order of %zu numbers against %zu units — "
+               "%s\n",
+               keyCount, unitCount,
+               keyCount < unitCount
+                   ? "every unit past the table's end opens last"
+                   : "the numbers past the last unit are never read");
+}
+}  // namespace
+
+void cascadeRanks(const std::vector<float>& keys, uint32_t count,
+                  std::vector<float>& out) {
+  out.assign(count, 0.0f);
+  if (count == 0) return;
+  if (keys.size() != count) warnRankTableMismatch(keys.size(), count);
+
+  std::vector<uint32_t> indices;
+  indices.reserve(count);
+  for (uint32_t i = 0; i < count && i < keys.size(); ++i) indices.push_back(i);
+  // A non-finite key has no place in an order, so it goes to the end
+  // rather than poisoning the comparison it takes part in.
+  const auto keyOf = [&keys](uint32_t i) {
+    const float k = keys[i];
+    return std::isfinite(k) ? k : std::numeric_limits<float>::max();
+  };
+  std::stable_sort(indices.begin(), indices.end(),
+                   [&keyOf](uint32_t a, uint32_t b) {
+                     return keyOf(a) < keyOf(b);
+                   });
+
+  // DENSE: a slot is how many distinct smaller keys there are, so equal
+  // keys open together and the next distinct key is the next slot.
+  float slot = 0.0f;
+  for (size_t rank = 0; rank < indices.size(); ++rank) {
+    if (rank > 0 && keyOf(indices[rank]) != keyOf(indices[rank - 1]))
+      slot += 1.0f;
+    out[indices[rank]] = slot;
+  }
+  // Units the table did not reach open last, as they do under a short cue
+  // table.
+  const float last = indices.empty() ? 0.0f : slot;
+  for (uint32_t i = (uint32_t)keys.size(); i < count; ++i) out[i] = last;
 }
 
 }  // namespace sigil::motion

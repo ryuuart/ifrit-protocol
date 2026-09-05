@@ -18,6 +18,7 @@
 #include <concepts>
 #include <functional>
 #include <utility>
+#include <vector>
 
 namespace sigil::geometry::path {
 
@@ -129,9 +130,11 @@ class Profile {
   std::function<bool(const std::any&, const std::any&)> m_equals;
 };
 
-/** The core profile presets: the two every other profile is defined
- *  against. Richer families — an oscillating wave, a braid built on it —
- *  are a kit's, since this leaf only holds the seam. */
+/** The core profile presets: the laws that read nothing but their own
+ *  numbers — the boundary itself, the parallel, the linear run between
+ *  two widths, and the stepped table. Richer families — an oscillating
+ *  wave, a braid built on it — are a kit's, since this leaf only holds
+ *  the seam. */
 namespace profile {
 /** across ≡ 0: the boundary itself. */
 struct Self {
@@ -149,8 +152,72 @@ struct Offset {
   float max() const { return std::abs(px); }
   bool operator==(const Offset&) const = default;
 };
+/** across runs LINEARLY from `startPx` to `endPx` along the spine — the
+ *  brush that lifts, the ribbon that closes, the leader that narrows to
+ *  its point.
+ *
+ *  The two ends are signed, and the sign is the side (positive is LEFT of
+ *  travel), so a taper from +8 to −8 crosses the spine at the middle
+ *  rather than narrowing: that is a strand trading sides, not a taper. A
+ *  taper to 0 is the point.
+ *
+ *  Keyed in the FRACTION of arc length, so it stretches to whatever spine
+ *  it is handed. A taper that must keep its px shape under a reveal wants
+ *  its own px-keyed law — see PxKeyedProfileScheme. */
+struct Taper {
+  float startPx = 0.0f;
+  float endPx = 0.0f;
+  float across(float along) const {
+    const float t = along < 0.0f ? 0.0f : (along > 1.0f ? 1.0f : along);
+    return startPx + (endPx - startPx) * t;
+  }
+  float max() const { return std::max(std::abs(startPx), std::abs(endPx)); }
+  bool operator==(const Taper&) const = default;
+};
+
+/** A STEPPED width: a run of spans, each holding one width for its share
+ *  of the spine — the flow that thins at every junction it passes, the
+ *  rule that changes weight at a stated station, the bar whose thickness
+ *  is a measurement rather than a curve.
+ *
+ *  `widthsPx` is read against `upTo`, the span boundaries in the profile's
+ *  own key, ASCENDING. Width `i` holds from boundary `i−1` (or the start)
+ *  to boundary `i`, and the LAST width holds from the last boundary to
+ *  the end — so `widthsPx` carries one more entry than `upTo`. Fewer and
+ *  the tail reads the last width there is; more and the extra widths are
+ *  never read. Empty is a width of zero everywhere.
+ *
+ *  A STEP IS A STEP. The width does not interpolate across a boundary,
+ *  because the thing this describes is a measurement that changes at a
+ *  place, not a curve sampled at one — a law that eased between its
+ *  stations would draw a shape nobody measured. `Taper` is the
+ *  interpolating one, and two of them beside each other is the ramp
+ *  between two stated widths. */
+struct Spans {
+  std::vector<float> upTo;
+  std::vector<float> widthsPx;
+  float across(float along) const {
+    if (widthsPx.empty()) return 0.0f;
+    size_t i = 0;
+    while (i < upTo.size() && along >= upTo[i]) ++i;
+    return widthsPx[i < widthsPx.size() ? i : widthsPx.size() - 1];
+  }
+  float max() const {
+    float widest = 0.0f;
+    for (float w : widthsPx) widest = std::max(widest, std::abs(w));
+    return widest;
+  }
+  bool operator==(const Spans&) const = default;
+};
+
 inline Profile self() { return Profile(Self{}); }
 inline Profile offset(float px) { return Profile(Offset{px}); }
+inline Profile taper(float startPx, float endPx) {
+  return Profile(Taper{startPx, endPx});
+}
+inline Profile spans(std::vector<float> upTo, std::vector<float> widthsPx) {
+  return Profile(Spans{std::move(upTo), std::move(widthsPx)});
+}
 }  // namespace profile
 
 }  // namespace sigil::geometry::path

@@ -1,8 +1,9 @@
 #pragma once
 
 /** @file
- * The five orderings a cascade deals its delays in, and the seeded
- * permutation behind the scattered one.
+ * The five orderings a cascade deals its delays in, the seeded
+ * permutation behind the scattered one, and the ranking that deals them
+ * in an order the caller states.
  */
 
 #include <sigilmotion/schedule/Spread.h>
@@ -27,6 +28,24 @@ namespace sigil::motion {
  *  Writes @p out in place — it is called once per cascade build per frame
  *  and keeps its caller's allocation. */
 void cascadeOrder(Spread::From from, uint32_t count, uint32_t seed,
+                  std::vector<float>& out);
+
+/** WHERE INDEX `i` OF `count` SITS when the caller has stated the order
+ *  themselves — `Spread::rankBy`, one number per unit, opened smallest
+ *  first.
+ *
+ *  DENSE RANKING: the slot is how many DISTINCT smaller numbers there
+ *  are, so units sharing a number share a slot and the slot above them is
+ *  the next one up. A stagger dealt by radius should open a whole ring at
+ *  once and the next ring one step later, not deal the ring out in
+ *  whatever order its members happened to be described in.
+ *
+ *  A @p keys shorter than @p count leaves the units past its end at the
+ *  LAST slot, and keys past the last unit are not read; either mismatch
+ *  warns once, as a cue table does. A non-finite key sorts to the end.
+ *
+ *  Writes @p out in place, like `cascadeOrder`. */
+void cascadeRanks(const std::vector<float>& keys, uint32_t count,
                   std::vector<float>& out);
 
 }  // namespace sigil::motion

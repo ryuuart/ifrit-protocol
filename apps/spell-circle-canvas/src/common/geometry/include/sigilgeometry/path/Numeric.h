@@ -22,6 +22,17 @@ inline constexpr float kDegToRad = 0.017453293f;
 /** Radians to degrees, rounded independently for the same reason. */
 inline constexpr float kRadToDeg = 57.29578f;
 
+/** Degrees → radians, and back — the constants above as the verb that
+ *  reads at a call site: `std::cos(radians(bearingDeg))`.
+ *
+ *  A pair of one-line functions rather than a note telling every caller
+ *  to multiply, because the multiply IS the thing that gets respelled: a
+ *  hand-written `deg * 3.14159f / 180.0f` rounds twice, and a hand-written
+ *  `deg / 57.29578f` is a divide by a rounded reciprocal, which is a third
+ *  answer again. These are the one rounding. */
+inline constexpr float radians(float deg) { return deg * kDegToRad; }
+inline constexpr float degrees(float rad) { return rad * kRadToDeg; }
+
 /** Locates the boundary in [lo, hi] where a predicate stops holding, by
  *  bisection: `stillNear(x)` is true on the `lo` side and false on the
  *  `hi` side. Returns the first `hi` the search could not push any

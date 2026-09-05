@@ -414,8 +414,10 @@ seeded mixers the value-noise field is built on.
   `hash(seed, i)` and the PCG family — are SigilCoreCompute's, included
   from `<sigilcore/compute/Noise.h>` and spelled `core::noise::`; a
   resource key and a text cache fold with the same arithmetic.
-- **`path/Numeric.h`** — `kPi`, `kTau`, the degree/radian factors,
-  `bisect()` over a predicate and `wrap()` into a period.
+- **`path/Numeric.h`** — `kPi`, `kTau`, the degree/radian factors and
+  `radians()`/`degrees()` over them (one rounding, where a hand-written
+  `deg * 3.14159f / 180.0f` rounds twice), `bisect()` over a predicate
+  and `wrap()` into a period.
 - **`path/Arrange.h`** — namespace `arrange`. Where item i of n goes when
   a run of things is spread out: `Turn` (`Open` occupies both ends of an
   extent in n−1 steps, `Closed` takes n steps so the last stops short of
@@ -464,9 +466,14 @@ seeded mixers the value-noise field is built on.
   `alongIsPx` for a law keyed in px of arc length rather than in a
   fraction of it — which is what keeps a calligraphic pressure law from
   sliding along a mark as a reveal grows — and `acrossAt(along, lengthPx)`
-  is the one call that converts. `profile::self()` and
-  `profile::offset(px)` are the two presets every other profile is
-  defined against.
+  is the one call that converts. `profile::self()`,
+  `profile::offset(px)`, `profile::taper(startPx, endPx)` and
+  `profile::spans(upTo, widthsPx)` are the presets that read nothing but
+  their own numbers — the boundary, the parallel, the linear run between
+  two widths, and the stepped table, which does not interpolate across a
+  boundary because what it describes is a measurement that changes at a
+  place. Richer families (an oscillating width, a braid built on it) are
+  the kit's.
 - **`path/Band.h`** — `profileOffset()` walks one rail of a width law;
   `bandRegion()` walks both and closes them per contour, on
   `Formation::Centered`, `Outward` or `Inward`. A constant profile
@@ -481,7 +488,11 @@ seeded mixers the value-noise field is built on.
   `turned` derive a frame that keeps the convention it came from. `Grid`
   is the unit map: artefact units to canvas px through one scale, an
   origin and an optional snap, `constexpr` so a canvas constant can be
-  declared in the artefact's units. `centred` is the rect both are read
+  declared in the artefact's units. `yScale` is the y axis as a multiple
+  of that scale — −1 is the MATH FRAME, y counting up the page, which is
+  what a plotted function or a surveyed elevation is measured in, and
+  anything else is an anisotropic map; a rect comes back sorted either
+  way. `centred` is the rect both are read
   through.
 - **`path/Crossings.h`** — where a set of paths cross each other and who
   is on top there. `discoverCrossings()` finds every PROPER crossing —

@@ -2456,6 +2456,39 @@ TEST(ComposeContent, AKeyedShapeSettlesOnTheValueItClosesOver) {
   EXPECT_GE(raw.composer.stats().patchedNodes, 1u);
 }
 
+TEST(ComposeContent, APictureLeafReplaysABakeAndStillPrunes) {
+  // snapshot() hands back a picture and image() takes an asset, so a
+  // caller who has baked a subtree had only custom() to draw it back
+  // through — forfeiting the pruning and the caching the bake was taken
+  // for. The picture leaf keeps both.
+  Host host;
+  sk_sp<SkPicture> baked = snapshot(
+      box().child(box().width(40).height(40).fill(red())), fonts());
+  ASSERT_NE(baked, nullptr);
+  auto tree = [&baked] {
+    return box().child(picture(baked, SkSize::Make(40, 40)).key("bake"));
+  };
+  host.composer.render(tree());
+  host.frame();
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
+  // It sizes itself from what it was recorded at, so a snapshot drops
+  // into a layout without being measured again.
+  const auto placed = host.composer.bounds("bake");
+  ASSERT_TRUE(placed.has_value());
+  EXPECT_EQ(placed->width(), 40.0f);
+  EXPECT_EQ(placed->height(), 40.0f);
+  // The same picture is the same drawing: the node settles.
+  host.composer.render(tree());
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  // Given other dims the picture is scaled to them.
+  host.composer.render(box().child(
+      picture(baked, SkSize::Make(40, 40)).key("bake").width(80).height(80)));
+  host.frame();
+  EXPECT_EQ(host.pixel(70, 70), SK_ColorRED);
+}
+
 TEST(ComposeContent, APathFigureCarriesItsOwnBox) {
   // An absolute path re-based into its own bounds: the node's rect is the
   // path's bounds grown by the bleed, and the shape is the path moved to

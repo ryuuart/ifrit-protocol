@@ -5,6 +5,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Values.h>
@@ -66,6 +67,63 @@ TEST(Values, AnimateBuildersDescribeEntranceChangeAndPath) {
   // whatever was on the stack.
   const Transitioned<float> empty = animate(through({}));
   EXPECT_FLOAT_EQ(empty.value, 0.0f);
+}
+
+TEST(Values, AShapedCurveComparesEqualAtTheSameSettings) {
+  // A curve built by binding a shape parameter into a lambda compares
+  // equal to nothing, so every value holding one re-patches forever.
+  // ease::Curve keeps the shape and the numbers where they can be read
+  // back, so two calls at the same argument are the same curve.
+  EXPECT_TRUE(easeEqual(ease::outBack(), ease::outBack()));
+  EXPECT_FALSE(easeEqual(ease::outBack(1.7f), ease::outBack(2.4f)));
+  EXPECT_TRUE(easeEqual(ease::outElastic(1.0f, 0.3f),
+                        ease::outElastic(1.0f, 0.3f)));
+  EXPECT_FALSE(easeEqual(ease::outElastic(1.0f, 0.3f),
+                         ease::outElastic(1.0f, 0.5f)));
+  // A CSS curve is its four control numbers.
+  EXPECT_TRUE(easeEqual(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f),
+                        ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)));
+  EXPECT_FALSE(easeEqual(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f),
+                         ease::cubicBezier(0.4f, 0.0f, 0.2f, 1.0f)));
+  // Two DIFFERENT shapes at the same numbers are different curves.
+  EXPECT_FALSE(easeEqual(ease::outBack(1.7f), ease::inBack(1.7f)));
+  // A plain function pointer still compares as it always did, and a
+  // capturing lambda still compares to nothing.
+  EXPECT_TRUE(easeEqual(&ease::smoothstep, &ease::smoothstep));
+  const float k = 2.0f;
+  choreograph::EaseFn captured = [k](float t) { return t * k; };
+  EXPECT_FALSE(easeEqual(captured, captured));
+  // …and it still evaluates the curve it says it is.
+  EXPECT_FLOAT_EQ(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)(0.0f), 0.0f);
+  EXPECT_FLOAT_EQ(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)(1.0f), 1.0f);
+  EXPECT_GT(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)(0.5f), 0.5f);
+  // A transition that only differs by a curve's SETTING must not prune.
+  EXPECT_TRUE(transitionEqual({.ease = ease::outBack(1.7f)},
+                              {.ease = ease::outBack(1.7f)}));
+  EXPECT_FALSE(transitionEqual({.ease = ease::outBack(1.7f)},
+                               {.ease = ease::outBack(3.0f)}));
+}
+
+TEST(Values, TheFlashEnvelopeRisesThenFallsToItsFloor) {
+  // Nothing before the event, a linear rise to exactly 1 at the crest,
+  // and an exponential fall towards the resting floor.
+  EXPECT_FLOAT_EQ(flash(-0.1f, 0.04f, 0.34f), 0.0f);
+  EXPECT_FLOAT_EQ(flash(0.0f, 0.04f, 0.34f), 0.0f);
+  EXPECT_FLOAT_EQ(flash(0.02f, 0.04f, 0.34f), 0.5f);
+  EXPECT_FLOAT_EQ(flash(0.04f, 0.04f, 0.34f), 1.0f);
+  EXPECT_LT(flash(0.4f, 0.04f, 0.34f), 1.0f);
+  EXPECT_GT(flash(0.4f, 0.04f, 0.34f), 0.0f);
+  // The floor is where the fall is headed, and the crest is 1 whatever it
+  // is — so a flare and a lamp can be mixed without rescaling.
+  EXPECT_FLOAT_EQ(flash(0.04f, 0.04f, 0.34f, 0.3f), 1.0f);
+  EXPECT_GT(flash(4.0f, 0.04f, 0.34f, 0.3f), 0.29f);
+  EXPECT_LT(flash(4.0f, 0.04f, 0.34f, 0.3f), 0.31f);
+  EXPECT_LT(flash(4.0f, 0.04f, 0.34f), 0.001f);
+  // Its fall alone IS decay, which is what makes the two one vocabulary.
+  EXPECT_FLOAT_EQ(flash(0.5f, 0.0f, 0.34f), decay(0.5f, 0.34f));
+  // The degenerate settings answer rather than dividing by zero.
+  EXPECT_FLOAT_EQ(flash(0.0f, 0.0f, 0.34f), 1.0f);
+  EXPECT_FLOAT_EQ(flash(1.0f, 0.0f, 0.0f), 1.0f);
 }
 
 TEST(Values, QuantizeTimeIsTheCanonicalFloorArithmetic) {

@@ -47,6 +47,32 @@ struct Spread {
    *  table piles its tail on one beat rather than inventing times; entries
    *  past the last unit are ignored. Either mismatch warns once. */
   std::vector<float> cueMs;
+  /** DEAL THE LADDER IN THE ORDER OF THESE NUMBERS — one per unit, in
+   *  unit order, and the cascade opens them from the smallest to the
+   *  largest.
+   *
+   *  `From` names an order over the INDEX, which is the only thing a
+   *  cascade knows about a unit. Plenty of cascades are ordered by
+   *  something the caller knows and the cascade cannot: a bloom that
+   *  spreads outward is ordered by RADIUS, a lattice that fills in is
+   *  ordered by ROLE, a graph that lights up is ordered by DEPTH from its
+   *  root. Hand the numbers over and the spacing, the shape and the
+   *  duration all still apply — only the running order changes.
+   *
+   *  Non-empty, it REPLACES `from` and `seed`, and it is read only when
+   *  there is no `cueMs` table (a table already states the whole order).
+   *  TIES OPEN TOGETHER: units sharing a number take the same slot, which
+   *  is what a ring of equal radii means, and the slot after them is the
+   *  next one up rather than a gap. Descending is the caller negating
+   *  their own numbers. A table of the wrong length warns once and the
+   *  unit order stands.
+   *
+   *  `spanMs` still counts one slot per unit, so a run with ties answers
+   *  a span longer than the cascade takes — the same over-statement the
+   *  symmetric origins already make, and safe in the direction that
+   *  matters: a progress transition sized from it closes after the last
+   *  beat rather than before. */
+  std::vector<float> rankBy;
   /** How long one unit's own motion lasts. */
   float durationMs = 450;
   /** THE PER-UNIT WRAPPING BEAT: set above 0 and the cascade LOOPS — every

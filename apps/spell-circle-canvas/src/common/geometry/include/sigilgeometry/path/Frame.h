@@ -240,6 +240,19 @@ struct Frame {
 struct Grid {
   /** Canvas px per artefact unit. */
   float scale = 1.0f;
+  /** THE Y AXIS, AS A MULTIPLE OF `scale` — its direction and its
+   *  relative size in one number.
+   *
+   *  −1 is the MATH FRAME: y counts UP from the origin, which is what a
+   *  plotted function, a projected sky and a surveyed elevation are drawn
+   *  in, and it is the difference between reading an artefact's own
+   *  numbers off the page and negating every one of them at the call
+   *  site. Anything else is an anisotropic map: 0.5 draws a unit half as
+   *  tall as it is wide, which a chart whose two axes are different
+   *  quantities wants.
+   *
+   *  1, the default, is the canvas's own frame — y down, square units. */
+  float yScale = 1.0f;
   /** Where artefact (0, 0) lands on the canvas. */
   SkPoint origin{0, 0};
   /** Snap the RESULT to a multiple of this many canvas px (0 = off). This
@@ -259,31 +272,40 @@ struct Grid {
     const float q = v / snap;
     return snap * (float)(long long)(q + (q < 0 ? -0.5f : 0.5f));
   }
-  /** A LENGTH in artefact units → px. */
+  /** A LENGTH in artefact units → px, along x. */
   constexpr float s(float units) const { return snapped(units * scale); }
+  /** A LENGTH along y, which a flipped or anisotropic frame measures
+   *  differently — and which comes back SIGNED under a flip, because a
+   *  length up the page IS negative in canvas px. */
+  constexpr float sy(float units) const {
+    return snapped(units * scale * yScale);
+  }
   /** An X position. */
   constexpr float x(float units) const {
     return snapped(origin.fX + units * scale);
   }
   /** A Y position. */
   constexpr float y(float units) const {
-    return snapped(origin.fY + units * scale);
+    return snapped(origin.fY + units * scale * yScale);
   }
   constexpr SkPoint at(SkPoint units) const {
     return {x(units.fX), y(units.fY)};
   }
+  /** SORTED, so a flipped frame answers a rect and not an inside-out one:
+   *  under `yScale` < 0 the unit-space top is the canvas-space bottom, and
+   *  every consumer of an SkRect reads left ≤ right and top ≤ bottom. */
   SkRect rect(float ux, float uy, float uw, float uh) const {
-    return SkRect::MakeXYWH(x(ux), y(uy), s(uw), s(uh));
+    return SkRect::MakeLTRB(x(ux), y(uy), x(ux + uw), y(uy + uh)).makeSorted();
   }
   /** The artefact-unit rect as canvas px, corner-by-corner — so a snapped
-   *  grid keeps both edges on the grid rather than only the near one. */
+   *  grid keeps both edges on the grid rather than only the near one, and
+   *  sorted for the same reason the other overload is. */
   SkRect rect(const SkRect& units) const {
     return SkRect::MakeLTRB(x(units.fLeft), y(units.fTop), x(units.fRight),
-                            y(units.fBottom));
+                            y(units.fBottom))
+        .makeSorted();
   }
-  /** A polyline in artefact units → canvas px. One scale for both axes:
-   *  for the anisotropic case build two Grids and read `x` from one and
-   *  `y` from the other. */
+  /** A polyline in artefact units → canvas px. */
   std::vector<SkPoint> map(const std::vector<SkPoint>& units) const {
     std::vector<SkPoint> out;
     out.reserve(units.size());
@@ -294,11 +316,15 @@ struct Grid {
    *  snapped — a matrix cannot round per-point, and pretending otherwise
    *  is how a "snapped" plate ends up half on the grid. */
   SkMatrix matrix() const {
-    return SkMatrix::Translate(origin.fX, origin.fY).preScale(scale, scale);
+    return SkMatrix::Translate(origin.fX, origin.fY)
+        .preScale(scale, scale * yScale);
   }
-  /** A grid at @p k of this one's scale, same origin and snap — the nested
-   *  unit system (a plate at 4 px/unit carrying a readout at 2.5). */
-  constexpr Grid scaled(float k) const { return {scale * k, origin, snap}; }
+  /** A grid at @p k of this one's scale, same origin, y axis and snap —
+   *  the nested unit system (a plate at 4 px/unit carrying a readout at
+   *  2.5). */
+  constexpr Grid scaled(float k) const {
+    return {scale * k, yScale, origin, snap};
+  }
 };
 
 }  // namespace sigil::geometry::path

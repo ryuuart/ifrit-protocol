@@ -77,7 +77,7 @@ struct PxTaper {
 };
 }  // namespace
 
-TEST(Profile, TheTwoPresetsAreTheLawsEveryOtherIsDefinedAgainst) {
+TEST(Profile, ThePresetsAreTheLawsEveryOtherIsDefinedAgainst) {
   EXPECT_FLOAT_EQ(profile::self().across(0.5f), 0.0f);
   EXPECT_FLOAT_EQ(profile::self().max(), 0.0f);
   EXPECT_FLOAT_EQ(profile::offset(-7.0f).across(0.5f), -7.0f);
@@ -88,6 +88,40 @@ TEST(Profile, TheTwoPresetsAreTheLawsEveryOtherIsDefinedAgainst) {
   EXPECT_FALSE(profile::offset(0) == profile::self());
   EXPECT_TRUE(Profile() == Profile());
   EXPECT_FALSE(Profile() == profile::self());
+}
+
+TEST(Profile, ATaperRunsLinearlyBetweenTwoSignedEnds) {
+  const Profile p = profile::taper(10.0f, 2.0f);
+  EXPECT_FLOAT_EQ(p.across(0.0f), 10.0f);
+  EXPECT_FLOAT_EQ(p.across(0.5f), 6.0f);
+  EXPECT_FLOAT_EQ(p.across(1.0f), 2.0f);
+  // Clamped past its own ends, so a caller off [0,1] cannot widen it.
+  EXPECT_FLOAT_EQ(p.across(-1.0f), 10.0f);
+  EXPECT_FLOAT_EQ(p.across(2.0f), 2.0f);
+  // max() is the widest reach, which is what every cull is sized from —
+  // and a signed taper reaches on BOTH sides.
+  EXPECT_FLOAT_EQ(p.max(), 10.0f);
+  EXPECT_FLOAT_EQ(profile::taper(-8.0f, 3.0f).max(), 8.0f);
+  EXPECT_TRUE(profile::taper(4, 0) == profile::taper(4, 0));
+  EXPECT_FALSE(profile::taper(4, 0) == profile::taper(4, 1));
+  EXPECT_FALSE(profile::taper(6, 6) == profile::offset(6));
+}
+
+TEST(Profile, StepsHoldOneWidthPerSpanAndDoNotInterpolate) {
+  // Three widths against two boundaries: the last width holds to the end.
+  const Profile p = profile::spans({0.25f, 0.75f}, {3.0f, 9.0f, 5.0f});
+  EXPECT_FLOAT_EQ(p.across(0.0f), 3.0f);
+  EXPECT_FLOAT_EQ(p.across(0.2f), 3.0f);
+  EXPECT_FLOAT_EQ(p.across(0.25f), 9.0f);  // the boundary opens the next span
+  EXPECT_FLOAT_EQ(p.across(0.5f), 9.0f);
+  EXPECT_FLOAT_EQ(p.across(0.9f), 5.0f);
+  EXPECT_FLOAT_EQ(p.across(1.0f), 5.0f);
+  EXPECT_FLOAT_EQ(p.max(), 9.0f);
+  // A short table reads the last width there is rather than running off.
+  EXPECT_FLOAT_EQ(profile::spans({0.5f}, {2.0f}).across(0.9f), 2.0f);
+  EXPECT_FLOAT_EQ(profile::spans({}, {}).across(0.5f), 0.0f);
+  EXPECT_TRUE(profile::spans({0.5f}, {1, 2}) == profile::spans({0.5f}, {1, 2}));
+  EXPECT_FALSE(profile::spans({0.5f}, {1, 2}) == profile::spans({0.6f}, {1, 2}));
 }
 
 TEST(Profile, APxKeyedLawIsConvertedOnceByTheSeam) {

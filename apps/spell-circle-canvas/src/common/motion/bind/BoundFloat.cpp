@@ -11,6 +11,7 @@
 
 #include <cmath>
 
+#include "sigilmotion/bind/Curve.h"
 #include "sigilmotion/bind/WiggleNoise.h"
 
 namespace sigil::motion {
@@ -107,9 +108,17 @@ bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b) {
   if (aSet != bSet) return false;
   if (!aSet) return true;
   using Ptr = float (*)(float);
-  const Ptr* pa = a.target<Ptr>();
-  const Ptr* pb = b.target<Ptr>();
-  return pa && pb && *pa == *pb;  // lambdas: unequal (conservative)
+  if (const Ptr* pa = a.target<Ptr>(); pa) {
+    const Ptr* pb = b.target<Ptr>();
+    return pb && *pa == *pb;
+  }
+  // A shaped curve keeps its shape and its numbers where they can be read
+  // back (see ease::Curve); anything else is a lambda and stays unequal.
+  if (const ease::Curve* ca = a.target<ease::Curve>(); ca) {
+    const ease::Curve* cb = b.target<ease::Curve>();
+    return cb && *ca == *cb;
+  }
+  return false;
 }
 
 static_assert(core::kFieldCount<BoundFloat> == 24,
