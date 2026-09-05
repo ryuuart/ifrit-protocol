@@ -10,19 +10,19 @@
 # SigilMotion, for the animatable a live uniform and a bound pan hold.
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 sigil_library(SigilMaterialSkia
-  SOURCES Draw.cpp Effect.cpp Paint.cpp ShaderSources.cpp ShaderSources.h
-          SkiaCompiler.cpp
-          ${_shaders}/PhosphorBloom.sksl ${_shaders}/ParamBlurMix.sksl
-          ${_shaders}/Mix.sksl ${_shaders}/UnitRamp.sksl
+  SOURCES Draw.cpp Effect.cpp Paint.cpp SkiaCompiler.cpp
   HEADERS Color.h Draw.h Effect.h Paint.h SkiaCompiler.h
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
-         unofficial::skia::skia
-  PRIVATE SigilIOHub)
-target_compile_definitions(SigilMaterialSkia
-  PRIVATE SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}")
+         unofficial::skia::skia)
+sigil_shader_sources(SigilMaterialSkia
+  DIR ${_shaders} NAMESPACE sigil::material::skia)
 
+# The shader directory is named for the case that asks whether the
+# embedded table holds every file in it.
 sigil_test(material_skia_test
   SOURCES test/SkiaTest.cpp
+  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
+  DEFINITIONS SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}"
   LIBRARIES SigilMaterialSkia)
 
 sigil_bench(material_skia_bench

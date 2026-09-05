@@ -7,10 +7,10 @@
 
 #include "sigilmaterial/kit/Grained.h"
 
+#include <sigilshaders/MaterialKit.h>
+
 #include <string>
 #include <string_view>
-
-#include "ShaderSources.h"
 
 namespace sigil::material::kit {
 
@@ -22,11 +22,11 @@ std::shared_ptr<const Recipe> define(const char* name,
   return std::make_shared<const Recipe>(
       Recipe::of<P>(name)
           .body(Target::SkSL,
-                shaderSource("GrainedPrelude.sksl") +
-                    shaderSource(std::string(shaderName) + ".sksl"))
+                std::string(shaderSource("GrainedPrelude.sksl"))
+                    .append(shaderSource(std::string(shaderName) + ".sksl")))
           .body(Target::Slang,
-                shaderSource("GrainedPrelude.slang") +
-                    shaderSource(std::string(shaderName) + ".slang")));
+                std::string(shaderSource("GrainedPrelude.slang"))
+                    .append(shaderSource(std::string(shaderName) + ".slang"))));
 }
 
 }  // namespace

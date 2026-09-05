@@ -2,11 +2,12 @@
 
 /** @file
  * One directory of text resources mounted at one URI prefix — the shape
- * of every shader catalogue: a library keeps its authored `.sksl` or
- * `.slang` files beside its code, asks for each by name, and may warm
+ * a directory of AUTHORED shaders takes: a consumer keeps its `.sksl` or
+ * `.slang` files wherever it likes, asks for each by name, and may warm
  * the whole directory before the first ask. A stock value over the hub,
  * so a catalogue is a declaration rather than a hub, a mount and a
- * lookup written out again.
+ * lookup written out again. A shader a library SHIPS is not this: it is
+ * compiled into that library's archive, and reading one costs no hub.
  */
 
 #include <cstddef>

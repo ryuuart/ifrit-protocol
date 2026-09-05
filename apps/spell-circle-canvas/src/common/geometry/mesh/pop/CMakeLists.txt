@@ -19,7 +19,6 @@ include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 sigil_slang_module(NAME Pop
   SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang
   ENTRIES sigilPopKernel
-  OUT_VAR SIGIL_POP_KERNEL_H
   CPP_VAR SIGIL_POP_KERNEL_CPP
   SPIRV_VAR SIGIL_POP_KERNEL_SPV_H)
 sigil_slang_kernel_flags(${SIGIL_POP_KERNEL_CPP})
@@ -28,7 +27,6 @@ sigil_slang_kernel_flags(${SIGIL_POP_KERNEL_CPP})
 sigil_slang_module(NAME Sweep
   SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/Sweep.slang
   ENTRIES sigilSweepKernel
-  OUT_VAR SIGIL_SWEEP_KERNEL_H
   CPP_VAR SIGIL_SWEEP_KERNEL_CPP
   SPIRV_VAR SIGIL_SWEEP_KERNEL_SPV_H)
 sigil_slang_kernel_flags(${SIGIL_SWEEP_KERNEL_CPP})
@@ -39,7 +37,6 @@ sigil_slang_kernel_flags(${SIGIL_SWEEP_KERNEL_CPP})
 sigil_slang_module(NAME Stamp
   SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/Stamp.slang
   ENTRIES sigilStampKernel
-  OUT_VAR SIGIL_STAMP_KERNEL_H
   CPP_VAR SIGIL_STAMP_KERNEL_CPP
   SPIRV_VAR SIGIL_STAMP_KERNEL_SPV_H)
 sigil_slang_kernel_flags(${SIGIL_STAMP_KERNEL_CPP})
@@ -57,12 +54,9 @@ sigil_library(SigilGeometryMeshPop
           Billboards.cpp Cloud.cpp Cook.cpp Fields.cpp Generators.cpp
           Kernel.cpp Modifiers.cpp Parallel.h Sinks.cpp Spirv.cpp Stamp.cpp
           Sweep.cpp
-          ${SIGIL_POP_KERNEL_CPP} ${SIGIL_POP_KERNEL_H}
-          ${SIGIL_POP_KERNEL_SPV_H}
-          ${SIGIL_STAMP_KERNEL_CPP} ${SIGIL_STAMP_KERNEL_H}
-          ${SIGIL_STAMP_KERNEL_SPV_H}
-          ${SIGIL_SWEEP_KERNEL_CPP} ${SIGIL_SWEEP_KERNEL_H}
-          ${SIGIL_SWEEP_KERNEL_SPV_H}
+          ${SIGIL_POP_KERNEL_CPP} ${SIGIL_POP_KERNEL_SPV_H}
+          ${SIGIL_STAMP_KERNEL_CPP} ${SIGIL_STAMP_KERNEL_SPV_H}
+          ${SIGIL_SWEEP_KERNEL_CPP} ${SIGIL_SWEEP_KERNEL_SPV_H}
           kernels/Pop.slang kernels/Stamp.slang kernels/Sweep.slang
   HEADERS Kernel.h Points.h Pop.h Spirv.h Stamp.h Sweep.h
   PUBLIC SigilGeometryMeshCurve SigilGeometryDevice SigilCoreComparable

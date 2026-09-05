@@ -42,6 +42,13 @@
 #   is guaranteed: on Apple the binary links SigilSkia and is compiled with
 #   SIGIL_BENCH_GPU.
 #
+# sigil_shader_sources(<target> DIR <dir> NAMESPACE <ns> [NAME <stem>]
+#                      [PATTERNS <glob>...])
+#   Defined in ShaderSources.cmake. A library whose stock shaders live in
+#   one directory adopts it once per target: the bytes are compiled into
+#   the archive and reached through the accessor the generated header
+#   declares, so a binary carries every shader it can draw with.
+#
 # sigil_header_self_test(<target> HEADERS <file>... [LIBRARIES <item>...])
 #   Defined in HeaderSelfTest.cmake. A library that claims every public
 #   header stands alone adopts it once, in its root CMakeLists.txt after
@@ -209,3 +216,4 @@ function(sigil_bench name)
 endfunction()
 
 include(HeaderSelfTest)
+include(ShaderSources)

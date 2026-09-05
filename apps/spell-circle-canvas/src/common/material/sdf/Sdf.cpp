@@ -5,7 +5,7 @@
 
 #include "sigilmaterial/sdf/Sdf.h"
 
-#include <sigilio/hub/TextCatalog.h>
+#include <sigilshaders/MaterialSdf.h>
 
 #include <algorithm>
 #include <cmath>
@@ -25,24 +25,13 @@ Shape star(int points, float pointiness) {
 
 namespace {
 
-constexpr char kShaderPrefix[] = "shader://material/sdf/";
-
-io::TextCatalog& shaders() {
-  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_SDF_SHADER_DIR);
-  return catalog;
-}
-
-std::string shaderSource(std::string_view name) {
-  return shaders().text(name).value_or("");
-}
-
 std::shared_ptr<const Recipe> make(const char* name,
                                    std::string_view distanceFile) {
   return std::make_shared<const Recipe>(
       Recipe::of<SdfParams>(name)
           .frame(FrameInput::Resolution)
-          .body(Target::SkSL,
-                shaderSource(distanceFile) + shaderSource("Style.sksl")));
+          .body(Target::SkSL, std::string(shaderSource(distanceFile))
+                                  .append(shaderSource("Style.sksl"))));
 }
 
 }  // namespace
@@ -85,7 +74,6 @@ Material material(const Shape& shape, const Style& style) {
 }
 
 std::vector<Material> everyRecipe() {
-  shaders().preload();
   Style dressed;
   dressed.fill = {0.2f, 0.5f, 0.9f, 1};
   dressed.borderWidth = 2;

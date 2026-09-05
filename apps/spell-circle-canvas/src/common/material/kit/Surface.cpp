@@ -9,12 +9,12 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
+#include <sigilshaders/MaterialKit.h>
 
 #include <string>
 #include <string_view>
 #include <utility>
 
-#include "ShaderSources.h"
 #include "sigilmaterial/kit/Terms.h"
 
 namespace sigil::material::kit {
@@ -26,7 +26,7 @@ namespace {
  *  the split sum — the surface's own reflectance and its Fresnel decide
  *  — and a weight at or above zero is that much environment, added. */
 std::string slangSurface(Reflection reflection) {
-  std::string body = shaderSource("Surface.slang");
+  std::string body(shaderSource("Surface.slang"));
   const std::string_view mark = "REFLECTION_WEIGHT";
   const size_t at = body.find(mark);
   body.replace(at, mark.size(),
@@ -46,13 +46,15 @@ Recipe define(std::string name, std::string_view bodyFile,
       .child(std::string(kOcclusionSlot))
       .child(std::string(kEmissiveSlot))
       .child(std::string(kOpacitySlot))
-      .body(Target::SkSL,
-            shaderSource("SurfacePrelude.sksl") + shaderSource(bodyFile))
+      .body(Target::SkSL, std::string(shaderSource("SurfacePrelude.sksl"))
+                              .append(shaderSource(bodyFile)))
       // THE TERMS ARE NOT PREPENDED HERE. A Slang renderer loads them
       // once as the module `Shading` and imports it beside the body, so
       // the renderer's own shading and every material compiled with it
       // call one definition of each term rather than a copy apiece.
-      .body(Target::Slang, shaderSource("SurfacePrelude.slang") + slangBody);
+      .body(
+          Target::Slang,
+          std::string(shaderSource("SurfacePrelude.slang")).append(slangBody));
 }
 
 /** What every neutral fill's producer key starts with, so a reader can
@@ -102,8 +104,8 @@ const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection) {
 
 const std::shared_ptr<const Recipe>& unlitRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
-      std::make_shared<const Recipe>(
-          define("unlit", "Unlit.sksl", shaderSource("Unlit.slang")));
+      std::make_shared<const Recipe>(define(
+          "unlit", "Unlit.sksl", std::string(shaderSource("Unlit.slang"))));
   return recipe;
 }
 

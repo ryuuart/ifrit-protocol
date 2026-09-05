@@ -20,6 +20,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
+#include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
 #include <array>
@@ -28,8 +29,6 @@
 #include <mutex>
 #include <string>
 #include <string_view>
-
-#include "ShaderSources.h"
 
 namespace sigil::material::skia {
 
@@ -797,7 +796,7 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial) {
                  previous + ") / max(uS" + current + " - uS" + previous +
                  ", 1e-6), 0.0, 1.0));\n";
       }
-      std::string source = shaderSource("UnitRamp.sksl");
+      std::string source(shaderSource("UnitRamp.sksl"));
       const auto insert = [&](std::string_view marker,
                               std::string_view replacement) {
         const size_t at = source.find(marker);

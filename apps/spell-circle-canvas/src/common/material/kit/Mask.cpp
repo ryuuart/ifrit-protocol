@@ -11,12 +11,11 @@
 #include "sigilmaterial/kit/Mask.h"
 
 #include <sigilmaterial/core/Program.h>
+#include <sigilshaders/MaterialKit.h>
 
 #include <string>
 #include <string_view>
 #include <utility>
-
-#include "ShaderSources.h"
 
 namespace sigil::material::kit {
 
@@ -34,10 +33,12 @@ const std::shared_ptr<const Recipe>& constantMaskRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.constant")
-              .body(Target::SkSL, shaderSource("MaskFit.sksl") +
-                                      shaderSource("MaskConstant.sksl"))
-              .body(Target::Slang, shaderSource("MaskFit.slang") +
-                                       shaderSource("MaskConstant.slang")));
+              .body(Target::SkSL,
+                    std::string(shaderSource("MaskFit.sksl"))
+                        .append(shaderSource("MaskConstant.sksl")))
+              .body(Target::Slang,
+                    std::string(shaderSource("MaskFit.slang"))
+                        .append(shaderSource("MaskConstant.slang"))));
   return recipe;
 }
 
@@ -46,10 +47,11 @@ const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.sampled")
               .child(std::string(kMaskSourceSlot))
-              .body(Target::SkSL, shaderSource("MaskFit.sksl") +
-                                      shaderSource("MaskSampled.sksl"))
-              .body(Target::Slang, shaderSource("MaskFit.slang") +
-                                       shaderSource("MaskSampled.slang")));
+              .body(Target::SkSL, std::string(shaderSource("MaskFit.sksl"))
+                                      .append(shaderSource("MaskSampled.sksl")))
+              .body(Target::Slang,
+                    std::string(shaderSource("MaskFit.slang"))
+                        .append(shaderSource("MaskSampled.slang"))));
   return recipe;
 }
 

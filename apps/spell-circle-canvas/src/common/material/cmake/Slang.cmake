@@ -5,15 +5,16 @@
 # and again, with a material's body appended to it, when the library
 # runs: a material exists only as a value in memory, so the source it is
 # prepended to cannot be finished ahead of time. What the build compiles
-# is therefore the module ALONE, and what it produces is two things:
+# is therefore the module ALONE, and what it produces is the SPIR-V, in
+# the build tree, which nothing reads — compiling it is the point,
+# because it makes a mistake in a shader a build failure rather than a
+# first-frame surprise. A module with no entry point has no SPIR-V to
+# emit and is compiled to a Slang module instead, which asks the same
+# question of it.
 #
-#   the SPIR-V, in the build tree, which nothing reads — compiling it is
-#   the point, because it makes a mistake in a shader a build failure
-#   rather than a first-frame surprise. A module with no entry point has
-#   no SPIR-V to emit and is compiled to a Slang module instead, which
-#   asks the same question of it;
-#   a header carrying the module's TEXT, which is what the run-time
-#   compile prepends.
+# The module's TEXT reaches the run-time compile by the one embed lane
+# every stock shader takes, `sigil_shader_sources`, which carries a whole
+# directory rather than a module at a time.
 #
 # The float model is set downstream of `slangc`, not by it: `-fp-mode` is
 # a no-op for these targets, and the model is pinned where the code is
@@ -28,19 +29,22 @@
 
 find_package(slang CONFIG REQUIRED)
 
-# Where the generated headers land. A consumer adds this to its include
-# path and reaches a module as <sigilslang/<name>.h>.
+# Where the compiled artifacts land. A consumer of the embedded SPIR-V
+# adds this to its include path and reaches a module's words as
+# <sigilslang/<name>.spv.h>.
 set(SIGIL_SLANG_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated/slang"
     CACHE INTERNAL "generated Slang module headers")
 
 # sigil_slang_module(
-#   NAME    <stem>              the header is <stem>.h in sigilslang/
+#   NAME    <stem>              names the artifacts this emits
 #   SOURCE  <file.slang>
 #   [ENTRIES <e1> <e2> ...]     entry points to compile, one call each
 #   [PROFILE <p>]               default spirv_1_5
 #   [INCLUDE <dir> ...]         module search paths for `import`
 #   [DEPENDS <file> ...]        extra files the compile depends on
-#   [OUT_VAR <var>]             receives the generated header's path
+#   [PROOF_VAR <var>]           receives the compiled artifacts' paths,
+#                               which a target lists among its SOURCES so
+#                               that building it compiles the module
 #   [CPP_VAR <var>]             also emit C++ for the host, path returned
 #   [SPIRV_VAR <var>]           also emit a header carrying the entry's
 #                               SPIR-V words, path returned
@@ -60,7 +64,7 @@ set(SIGIL_SLANG_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated/slang"
 # therefore a Debug build and a Release one, produce the same bits;
 # `sigil_slang_kernel_flags` sets it on a source file.
 function(sigil_slang_module)
-  cmake_parse_arguments(ARG "" "NAME;SOURCE;PROFILE;OUT_VAR;CPP_VAR;SPIRV_VAR"
+  cmake_parse_arguments(ARG "" "NAME;SOURCE;PROFILE;PROOF_VAR;CPP_VAR;SPIRV_VAR"
                         "ENTRIES;INCLUDE;DEPENDS" ${ARGN})
   if(NOT ARG_NAME OR NOT ARG_SOURCE)
     message(FATAL_ERROR "sigil_slang_module needs NAME and SOURCE")
@@ -69,7 +73,6 @@ function(sigil_slang_module)
     set(ARG_PROFILE spirv_1_5)
   endif()
   get_filename_component(_source "${ARG_SOURCE}" ABSOLUTE)
-  set(_header "${SIGIL_SLANG_GENERATED_DIR}/sigilslang/${ARG_NAME}.h")
 
   set(_includeFlags "")
   foreach(_dir IN LISTS ARG_INCLUDE)
@@ -139,21 +142,15 @@ function(sigil_slang_module)
   endif()
 
   add_custom_command(
-    OUTPUT "${_header}" ${_spvFiles}
+    OUTPUT ${_spvFiles}
     COMMAND ${CMAKE_COMMAND} -E make_directory
             "${SIGIL_SLANG_GENERATED_DIR}/sigilslang"
     ${_spvCommands}
-    COMMAND ${CMAKE_COMMAND}
-            -DNAME=${ARG_NAME}
-            -DSOURCE=${_source}
-            -DHEADER=${_header}
-            -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/SlangEmbed.cmake"
     DEPENDS "${_source}" ${ARG_DEPENDS}
-            "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/SlangEmbed.cmake"
     COMMENT "slangc ${ARG_NAME}.slang"
     VERBATIM)
-  if(ARG_OUT_VAR)
-    set(${ARG_OUT_VAR} "${_header}" PARENT_SCOPE)
+  if(ARG_PROOF_VAR)
+    set(${ARG_PROOF_VAR} "${_spvFiles}" PARENT_SCOPE)
   endif()
   if(ARG_CPP_VAR)
     set(${ARG_CPP_VAR} "${_cpp}" PARENT_SCOPE)

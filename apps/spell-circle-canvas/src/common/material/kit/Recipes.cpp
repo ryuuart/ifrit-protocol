@@ -19,8 +19,6 @@
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 
-#include "ShaderSources.h"
-
 namespace sigil::material::kit {
 
 namespace {
@@ -36,7 +34,6 @@ Texture stand(SkColor color) {
 }  // namespace
 
 std::vector<Material> everyRecipe() {
-  preloadShaderSources();
   const SkPath shape = SkPath::Circle(20, 20, 16);
   const Texture normals = bevelNormals(shape, 5);
   const EnvironmentMap env = EnvironmentMap::studio(64);

@@ -3,13 +3,15 @@
 // two modules every session carries are importable, and the kit's grained
 // recipes compile as the surface a device renderer asks them for.
 
+#include <gtest/gtest.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
+#include <sigilshaders/MaterialSlang.h>
 
 #include <cstring>
 #include <string>
 
-#include <gtest/gtest.h>
+#include "ShaderTable.h"
 
 using namespace sigil::material::slang;
 
@@ -45,8 +47,8 @@ float4 fsTest(VSOut input) : SV_Target {
 TEST(MaterialSlang, AModuleCompilesToTwoStagesAndALayout) {
   Compiled built;
   std::string error;
-  ASSERT_TRUE(compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built,
-                            &error))
+  ASSERT_TRUE(
+      compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
   EXPECT_FALSE(built.empty());
   EXPECT_FALSE(built.fragment.empty());
@@ -83,8 +85,8 @@ TEST(MaterialSlang, AModuleCompilesToTwoStagesAndALayout) {
 TEST(MaterialSlang, AUniformNoBodyReadsIsNotInTheLayout) {
   Compiled built;
   std::string error;
-  ASSERT_TRUE(compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built,
-                            &error))
+  ASSERT_TRUE(
+      compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
   // Nothing declared it, so nothing can be written for it — and writing
   // to a name the program does not carry is a no-op rather than a fault.
@@ -97,8 +99,8 @@ TEST(MaterialSlang, AUniformNoBodyReadsIsNotInTheLayout) {
 TEST(MaterialSlang, ADrawsBytesLandAtTheReportedOffsets) {
   Compiled built;
   std::string error;
-  ASSERT_TRUE(compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built,
-                            &error))
+  ASSERT_TRUE(
+      compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
 
   Uniforms values(built);
@@ -127,8 +129,8 @@ TEST(MaterialSlang, ADrawsBytesLandAtTheReportedOffsets) {
 TEST(MaterialSlang, AMatrixIsWrittenRowByRow) {
   Compiled built;
   std::string error;
-  ASSERT_TRUE(compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built,
-                            &error))
+  ASSERT_TRUE(
+      compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
   glm::mat4 m(1.0f);
   m[3][0] = 5.0f;  // the translation in x, column-major as glm holds it
@@ -165,8 +167,8 @@ float4 fsTest(VSOut input) : SV_Target {
 )SLANG");
   Compiled built;
   std::string error;
-  EXPECT_TRUE(compileModule(source, "vsTest", "fsTest", /*lit=*/false, &built,
-                            &error))
+  EXPECT_TRUE(
+      compileModule(source, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
 }
 
@@ -219,10 +221,17 @@ float4 fsTest(VSOut input) : SV_Target {
     Compiled built;
     std::string error;
     const std::string source = recipe->source(Target::Slang) + kScaffold;
-    EXPECT_TRUE(compileModule(source, "vsTest", "fsTest", /*lit=*/false,
-                              &built, &error))
+    EXPECT_TRUE(compileModule(source, "vsTest", "fsTest", /*lit=*/false, &built,
+                              &error))
         << recipe->name() << ": " << error;
     // Every parameter the body reads is in the layout.
     EXPECT_NE(built.uniform("seed"), nullptr) << recipe->name();
   }
+}
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(MaterialSlang, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(
+      shaderSources(), SIGIL_MATERIAL_SLANG_SHADER_DIR);
 }

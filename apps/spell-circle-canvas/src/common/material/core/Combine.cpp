@@ -6,8 +6,8 @@
 
 #include "sigilmaterial/core/Combine.h"
 
-#include <sigilio/hub/TextCatalog.h>
 #include <sigilmaterial/core/Program.h>
+#include <sigilshaders/MaterialCore.h>
 
 #include <boost/container/flat_map.hpp>
 #include <mutex>
@@ -34,17 +34,6 @@ constexpr Operand kOperands[3] = {
     {"top", "top_", "overTop"},
     {"mask", "mask_", "overMask"},
 };
-
-constexpr char kShaderPrefix[] = "shader://material/core/";
-
-io::TextCatalog& shaders() {
-  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_CORE_SHADER_DIR);
-  return catalog;
-}
-
-std::string shaderSource(std::string_view name) {
-  return shaders().text(name).value_or("");
-}
 
 std::string_view skslFile(Blend blend) {
   switch (blend) {
@@ -76,7 +65,7 @@ std::shared_ptr<const Recipe> make(Blend blend) {
           .child("base")
           .child("top")
           .child("mask")
-          .body(Target::SkSL, shaderSource(skslFile(blend))));
+          .body(Target::SkSL, std::string(shaderSource(skslFile(blend)))));
 }
 
 /** The names one operand's body spells that the composed recipe declares
@@ -131,7 +120,7 @@ std::string inlined(const Recipe& recipe, const Operand& operand) {
  *  under their own names, and the surface that asks all three and
  *  combines what they said. */
 std::string composedSlang(Blend blend, const Recipe* operands[3]) {
-  std::string out = shaderSource("OverPrelude.slang");
+  std::string out(shaderSource("OverPrelude.slang"));
   for (int i = 0; i < 3; ++i) out += inlined(*operands[i], kOperands[i]);
   out += shaderSource(slangFile(blend));
   return out;
@@ -165,7 +154,7 @@ std::shared_ptr<const Recipe> composeRecipe(Blend blend,
           FrameInput::WorldTransform})
       if (operands[i]->reads(input)) recipe.frame(input);
   }
-  recipe.body(Target::SkSL, shaderSource(skslFile(blend)));
+  recipe.body(Target::SkSL, std::string(shaderSource(skslFile(blend))));
   recipe.body(Target::Slang, composedSlang(blend, operands));
   return std::make_shared<const Recipe>(std::move(recipe));
 }

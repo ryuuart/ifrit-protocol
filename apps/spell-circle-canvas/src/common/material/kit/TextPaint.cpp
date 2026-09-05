@@ -5,12 +5,12 @@
 
 #include "sigilmaterial/kit/TextPaint.h"
 
+#include <sigilshaders/MaterialKit.h>
+
 #include <algorithm>
 #include <cmath>
 #include <string>
 #include <string_view>
-
-#include "ShaderSources.h"
 
 namespace sigil::material::kit {
 
@@ -19,7 +19,7 @@ namespace {
 std::shared_ptr<const Recipe> make(const char* name,
                                    std::string_view shaderName) {
   return std::make_shared<const Recipe>(Recipe::of<TextPaintParams>(name).body(
-      Target::SkSL, shaderSource(shaderName)));
+      Target::SkSL, std::string(shaderSource(shaderName))));
 }
 
 }  // namespace

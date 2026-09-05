@@ -1019,9 +1019,12 @@ and a rim term that nothing scales. So:
 The shader modules under `diligent/shaders/` are compiled TWICE. `slangc`
 compiles each when this library is built — which is what makes a mistake
 in one a build failure rather than a first-frame surprise — and the build
-also generates a header carrying each module's text, because the source a
-material's body is appended to cannot be finished until the material
-exists. At run time the scaffold's text, a recipe's generated
+also embeds each module's text in this library's archive, because the
+source a material's body is appended to cannot be finished until the
+material exists, and a shader that had to be found on disk at run time
+would be a second way for a build to be incomplete.
+`<sigilshaders/WorldDiligent.h>` is how this backend reads its own text
+back. At run time the scaffold's text, a recipe's generated
 declarations, its body and one fragment entry point are assembled into
 one module and compiled through `material::slang::compileModule`, which
 is also what reports every uniform's offset. `Programs.h` is where this
@@ -1037,11 +1040,11 @@ twice from and still answer once: arithmetic plus the operations IEEE 754
 pins exactly, with `sqrt`, `dot`, `length`, `mix`, `smoothstep` and the
 trigonometric functions written out, because a library intrinsic is two
 different pieces of code on two targets. `Shading` is the material kit's
-shading TERMS. Both are loaded into every compiler session by name, so
-the scaffold's shading and every material body compiled beside it call
-one definition of a term rather than a copy apiece; the build-time
-compile finds the same files on disk, which is why `slangc` is pointed at
-both directories. Slang emits no contraction decoration in its SPIR-V, so
+shading TERMS. Both are loaded into every compiler session by name — out of the
+archives that own them, never out of a directory — so the scaffold's
+shading and every material body compiled beside it call one definition of
+a term rather than a copy apiece; the build-time compile reads the same
+files on disk, which is why `slangc` is pointed at both directories. Slang emits no contraction decoration in its SPIR-V, so
 a driver is free to fuse a multiply-add inside a module compiled here; a
 kernel that needs the unfused answer has to reach the same result without
 depending on it.

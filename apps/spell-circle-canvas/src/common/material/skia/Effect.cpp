@@ -250,7 +250,8 @@ std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maxSigma) {
   if (!(maxSigma > 0)) return nullptr;
   auto levels = std::make_shared<Effect::BlurLevels>();
   levels->maxSigma = maxSigma;
-  levels->half = SkImageFilters::Blur(maxSigma * 0.5f, maxSigma * 0.5f, nullptr);
+  levels->half =
+      SkImageFilters::Blur(maxSigma * 0.5f, maxSigma * 0.5f, nullptr);
   levels->full = SkImageFilters::Blur(maxSigma, maxSigma, nullptr);
   return levels;
 }

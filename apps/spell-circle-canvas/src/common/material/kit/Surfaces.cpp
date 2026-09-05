@@ -6,11 +6,11 @@
 
 #include "sigilmaterial/kit/Surfaces.h"
 
+#include <sigilshaders/MaterialKit.h>
+
 #include <algorithm>
 #include <string>
 #include <string_view>
-
-#include "ShaderSources.h"
 
 namespace sigil::material::kit {
 
@@ -26,16 +26,16 @@ glm::vec2 sizeOf(const EnvironmentMap& env) {
 const std::shared_ptr<const Recipe>& goldRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<GoldParams>("gold").child("normals").child("env").body(
-          Target::SkSL, shaderSource("ReflectivePrelude.sksl") +
-                            shaderSource("ReflectiveGold.sksl")));
+          Target::SkSL, std::string(shaderSource("ReflectivePrelude.sksl"))
+                            .append(shaderSource("ReflectiveGold.sksl"))));
   return recipe;
 }
 
 const std::shared_ptr<const Recipe>& chromeRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<ChromeParams>("chrome").child("normals").child("env").body(
-          Target::SkSL, shaderSource("ReflectivePrelude.sksl") +
-                            shaderSource("ReflectiveChrome.sksl")));
+          Target::SkSL, std::string(shaderSource("ReflectivePrelude.sksl"))
+                            .append(shaderSource("ReflectiveChrome.sksl"))));
   return recipe;
 }
 
@@ -45,8 +45,9 @@ const std::shared_ptr<const Recipe>& glassRecipe() {
           .child("normals")
           .child("env")
           .child("backdrop")
-          .body(Target::SkSL, shaderSource("ReflectivePrelude.sksl") +
-                                  shaderSource("ReflectiveGlass.sksl")));
+          .body(Target::SkSL,
+                std::string(shaderSource("ReflectivePrelude.sksl"))
+                    .append(shaderSource("ReflectiveGlass.sksl"))));
   return recipe;
 }
 

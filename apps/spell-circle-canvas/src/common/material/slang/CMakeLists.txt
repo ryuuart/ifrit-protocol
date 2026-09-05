@@ -7,11 +7,10 @@
 # nothing that knows a pass, a target or a device.
 #
 # Portable.slang is the subset whose transcendentals a host and a device
-# answer alike. It is compiled by slangc when this library is built, which
-# makes a mistake in it a build failure. At run time SigilIO loads that same
-# authored file into every session by name; the generated header remains the
-# build's validation artifact. Compilers of importing shaders search this
-# directory.
+# answer alike. Its text is compiled into the archive and loaded into
+# every session by name, and slangc compiles it when this library is
+# built, which makes a mistake in it a build failure. Compilers of
+# importing shaders search this directory.
 #
 # The kit is linked for one thing: its shading terms are loaded into every
 # session by name, so a renderer's shading and every material body
@@ -22,20 +21,22 @@ set(SIGIL_MATERIAL_SLANG_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material Slang backend's shader modules")
 sigil_slang_module(NAME Portable
   SOURCE ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang
-  OUT_VAR SIGIL_MATERIAL_PORTABLE_H)
+  PROOF_VAR SIGIL_MATERIAL_PORTABLE_PROOF)
 
 sigil_library(SigilMaterialSlang
-  SOURCES SlangCompiler.cpp ${SIGIL_MATERIAL_PORTABLE_H}
-          ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang
+  SOURCES SlangCompiler.cpp ${SIGIL_MATERIAL_PORTABLE_PROOF}
   HEADERS SlangCompiler.h
-  INCLUDE_PRIVATE ${SIGIL_SLANG_GENERATED_DIR}
   PUBLIC SigilMaterialCore Boost::container
-  PRIVATE SigilMaterialKit SigilIOHub slang::slang)
-target_compile_definitions(SigilMaterialSlang
-  PRIVATE SIGIL_MATERIAL_SLANG_SHADER_DIR="${SIGIL_MATERIAL_SLANG_SHADER_DIR}")
+  PRIVATE SigilMaterialKit slang::slang)
+sigil_shader_sources(SigilMaterialSlang
+  DIR ${SIGIL_MATERIAL_SLANG_SHADER_DIR} NAMESPACE sigil::material::slang)
 
+# The shader directory is named for the case that asks whether the
+# embedded table holds every file in it.
 sigil_test(material_slang_test
   SOURCES test/SlangTest.cpp
+  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
+  DEFINITIONS SIGIL_MATERIAL_SLANG_SHADER_DIR="${SIGIL_MATERIAL_SLANG_SHADER_DIR}"
   LIBRARIES SigilMaterialSlang SigilMaterialKit)
 
 sigil_bench(material_slang_bench

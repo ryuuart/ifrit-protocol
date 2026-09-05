@@ -8,10 +8,14 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilshaders/MaterialSdf.h>
 
 #include <cmath>
+
+#include "ShaderTable.h"
 
 using namespace sigil::material;
 
@@ -107,4 +111,19 @@ TEST(Sdf, StyleIsTheRecipeAndAGlowBindingIsLive) {
   EXPECT_TRUE(bound.isAnimated());
   // Star's pointiness clamps into [2, points].
   EXPECT_EQ(sdf::star(5, 9.0f), sdf::star(5, 5.0f));
+}
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(Sdf, EveryStockBodyCompiles) {
+  skia::install();
+  for (const Material& m : sdf::everyRecipe()) {
+    if (!m.recipe().has(Target::SkSL)) continue;
+    EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();
+  }
+}
+
+TEST(Sdf, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(sdf::shaderSources(),
+                                                 SIGIL_MATERIAL_SDF_SHADER_DIR);
 }

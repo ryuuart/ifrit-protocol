@@ -8,9 +8,13 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilshaders/MaterialField.h>
+
+#include "ShaderTable.h"
 
 using namespace sigil::material;
 
@@ -128,4 +132,19 @@ TEST(Field, CrtOverlayScanStrengthAndVignetteAreTheCallersNumbers) {
       render(field::crtOverlay(4.0f, 0.5f, 1.45f, 2.15f, 0.0f), 64, 64);
   EXPECT_GT(SkColorGetA(strong.getColor(32, 0)), 100u);
   EXPECT_EQ(SkColorGetA(strong.getColor(32, 2)), 0u);
+}
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(Field, EveryStockBodyCompiles) {
+  skia::install();
+  for (const Material& m : field::everyRecipe()) {
+    if (!m.recipe().has(Target::SkSL)) continue;
+    EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();
+  }
+}
+
+TEST(Field, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(
+      field::shaderSources(), SIGIL_MATERIAL_FIELD_SHADER_DIR);
 }

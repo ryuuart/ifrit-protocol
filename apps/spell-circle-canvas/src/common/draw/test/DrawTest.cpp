@@ -10,12 +10,14 @@
 #include <include/core/SkVertices.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Draw.h>
-
-#include "support/Paper.h"
+#include <sigilshaders/Draw.h>
 
 #include <cmath>
 #include <memory>
 #include <vector>
+
+#include "ShaderTable.h"
+#include "support/Paper.h"
 
 namespace {
 
@@ -412,9 +414,9 @@ TEST(Pen, ClipLastsUntilTheMatchingPop) {
   paper.pen.fill(0, 0, 255);
   paper.pen.rect(60, 0, 40, 100);
   paper.end();
-  EXPECT_EQ(paper.pixel(25, 50), SK_ColorRED);   // inside the mask
+  EXPECT_EQ(paper.pixel(25, 50), SK_ColorRED);      // inside the mask
   EXPECT_EQ(SkColorGetA(paper.pixel(55, 50)), 0u);  // outside it
-  EXPECT_EQ(paper.pixel(70, 50), SK_ColorBLUE);  // after the pop
+  EXPECT_EQ(paper.pixel(70, 50), SK_ColorBLUE);     // after the pop
 }
 
 TEST(Pen, TheMaskCarriesTheTransformItWasDrawnUnder) {
@@ -986,3 +988,10 @@ TEST(Pen, TheContentScaleIsWhatTheFrameBeganOn) {
 }
 
 }  // namespace
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(Pen, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(shaderSources(),
+                                                 SIGIL_DRAW_SHADER_DIR);
+}

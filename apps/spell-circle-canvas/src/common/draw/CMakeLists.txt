@@ -22,15 +22,12 @@ set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 # force-loads the pen into a hot-reloaded dylib.
 sigil_library(SigilDraw PIC
   SOURCES Color.cpp Graphics.cpp Noise.cpp Pen.cpp Text.cpp
-          ${_shaders}/Subtract.sksl
   HEADERS Color.h Constants.h Draw.h Graphics.h Math.h Noise.h Pen.h
           Retained.h
   PUBLIC SigilMaterialSkia SigilCoreCompute
          SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
-         SigilWeaveFonts Boost::container_hash Boost::unordered
-  PRIVATE SigilIOHub)
-target_compile_definitions(SigilDraw
-  PRIVATE SIGIL_DRAW_SHADER_DIR="${_shaders}")
+         SigilWeaveFonts Boost::container_hash Boost::unordered)
+sigil_shader_sources(SigilDraw DIR ${_shaders} NAMESPACE sigil::draw)
 
 add_subdirectory(brush)
 
@@ -39,6 +36,8 @@ add_subdirectory(brush)
 # label, since what they measure depends on the machine's default face.
 sigil_test(draw_test
   SOURCES test/DrawTest.cpp
+  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
+  DEFINITIONS SIGIL_DRAW_SHADER_DIR="${_shaders}"
   LIBRARIES SigilDraw SigilWeavePorts)
 sigil_test(draw_text_test
   SOURCES test/DrawTextTest.cpp

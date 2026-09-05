@@ -6,7 +6,7 @@
 
 #include "Programs.h"
 
-#include <sigilio/hub/TextCatalog.h>
+#include <sigilshaders/WorldDiligent.h>
 #include <sigilworld/diligent/Runtime.h>
 
 #include <mutex>
@@ -18,17 +18,6 @@ namespace sigil::world::diligent {
 namespace {
 
 using material::slang::Compiled;
-
-constexpr char kShaderPrefix[] = "shader://world/diligent/";
-
-io::TextCatalog& shaders() {
-  static io::TextCatalog catalog(kShaderPrefix, SIGIL_WORLD_SHADER_DIR);
-  return catalog;
-}
-
-std::string shaderSource(std::string_view name) {
-  return shaders().text(name).value_or("");
-}
 
 }  // namespace
 
@@ -114,7 +103,7 @@ void installSlangCompiler() {
           // before the recipe's text; the recipe's declarations and body
           // next; the fragment entry that calls the body last, because
           // `surface` is not visible until the body has defined it.
-          std::string source = shaderSource("Surface.slang");
+          std::string source(shaderSource("Surface.slang"));
           source += '\n';
           source += recipe->source(material::Target::Slang);
           source += shaderSource("MaterialEntry.slang");

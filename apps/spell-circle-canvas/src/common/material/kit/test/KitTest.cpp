@@ -19,6 +19,7 @@
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Patterns.h>
+#include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/kit/Terms.h>
@@ -27,9 +28,12 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
+#include <sigilshaders/MaterialKit.h>
 
 #include <cmath>
 #include <string>
+
+#include "ShaderTable.h"
 
 using namespace sigil::material;
 
@@ -636,4 +640,19 @@ TEST(Bank, FoldsSeedsIntoBucketsAndKeysOnTheRecipeAndParams) {
                            [](uint32_t) { return kit::board(); })
                       .get<float>("seed"),
                   7.0f);
+}
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(ShaderTable, EveryStockBodyCompiles) {
+  skia::install();
+  for (const Material& m : kit::everyRecipe()) {
+    if (!m.recipe().has(Target::SkSL)) continue;
+    EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();
+  }
+}
+
+TEST(ShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(kit::shaderSources(),
+                                                 SIGIL_MATERIAL_KIT_SHADER_DIR);
 }

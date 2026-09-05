@@ -21,6 +21,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -30,6 +31,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "ShaderTable.h"
 
 using namespace sigil::material;
 
@@ -454,9 +457,9 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   // sigma with no binding paints.
   sigma = 4.0f;
   const SkBitmap ridden = squareThrough(blur.resolvedImageFilter(nullptr));
-  const SkBitmap declared = squareThrough(
-      skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 4.0f)
-          .resolvedImageFilter(nullptr));
+  const SkBitmap declared =
+      squareThrough(skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 4.0f)
+                        .resolvedImageFilter(nullptr));
   for (int y = 0; y < 32; ++y)
     for (int x = 0; x < 32; ++x)
       EXPECT_NEAR((int)SkColorGetR(ridden.getColor(x, y)),
@@ -470,9 +473,9 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   // pyramid is the widest the effect ever paints.
   sigma = 40.0f;
   const SkBitmap clamped = squareThrough(blur.resolvedImageFilter(nullptr));
-  const SkBitmap top = squareThrough(
-      skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 8.0f)
-          .resolvedImageFilter(nullptr));
+  const SkBitmap top =
+      squareThrough(skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 8.0f)
+                        .resolvedImageFilter(nullptr));
   for (int y = 0; y < 32; ++y)
     for (int x = 0; x < 32; ++x)
       EXPECT_NEAR((int)SkColorGetR(clamped.getColor(x, y)),
@@ -496,8 +499,8 @@ namespace {
  *  onto an F32 surface so a sum above one survives the read-back. */
 std::vector<float> bloomThrough(const sk_sp<SkImageFilter>& filter,
                                 SkColor4f color) {
-  const SkImageInfo info = SkImageInfo::Make(
-      64, 64, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  const SkImageInfo info =
+      SkImageInfo::Make(64, 64, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
   sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorBLACK);
@@ -571,11 +574,14 @@ TEST(SkiaEffect, PhosphorBloomDefaultsAreThePlainFalloffToTheBit) {
   // without them: every texel of a bloomed source through the defaults
   // equals the plain three-kernel program, so no picture made before
   // either parameter existed moves.
-  auto [plain, error] = SkRuntimeEffect::MakeForShader(SkString(kPlainPhosphor));
+  auto [plain, error] =
+      SkRuntimeEffect::MakeForShader(SkString(kPlainPhosphor));
   ASSERT_NE(plain, nullptr) << error.c_str();
-  const skia::Effect oracle = skia::Effect::shader(
-      plain, {{"uRadius", 9.0f}, {"uThreshold", 0.52f},
-              {"uIntensity", 0.46f}, {"uChroma", 0.80f}});
+  const skia::Effect oracle =
+      skia::Effect::shader(plain, {{"uRadius", 9.0f},
+                                   {"uThreshold", 0.52f},
+                                   {"uIntensity", 0.46f},
+                                   {"uChroma", 0.80f}});
   const SkColor4f amber{1.0f, 0.72f, 0.1f, 1.0f};
   const std::vector<float> want =
       bloomThrough(oracle.resolvedImageFilter(nullptr), amber);
@@ -594,17 +600,17 @@ TEST(SkiaEffect, PhosphorHueDriftTurnsTheHaloAndNotTheSource) {
   // of the square — lit by its own source — is the same texel with or
   // without the drift.
   const SkColor4f amber{1.0f, 0.72f, 0.1f, 1.0f};
-  const std::vector<float> still = bloomThrough(
-      skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0)
-          .resolvedImageFilter(nullptr),
-      amber);
+  const std::vector<float> still =
+      bloomThrough(skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0)
+                       .resolvedImageFilter(nullptr),
+                   amber);
   const std::vector<float> drifted = bloomThrough(
       skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f, 0)
           .resolvedImageFilter(nullptr),
       amber);
   for (int c = 0; c < 4; ++c)
     EXPECT_EQ(texel(still, 32, 32)[c], texel(drifted, 32, 32)[c]) << c;
-  const float* edgeStill = texel(still, 49, 32);   // 5 px past the square
+  const float* edgeStill = texel(still, 49, 32);  // 5 px past the square
   const float* edgeDrift = texel(drifted, 49, 32);
   ASSERT_GT(edgeStill[0], 0.0f);
   ASSERT_GT(edgeDrift[0], 0.0f);
@@ -613,10 +619,10 @@ TEST(SkiaEffect, PhosphorHueDriftTurnsTheHaloAndNotTheSource) {
   // A cool source drifts the other way round the wheel by the same
   // rule: blue's halo gains green against blue.
   const SkColor4f blue{0.2f, 0.3f, 1.0f, 1.0f};
-  const std::vector<float> coolStill = bloomThrough(
-      skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0)
-          .resolvedImageFilter(nullptr),
-      blue);
+  const std::vector<float> coolStill =
+      bloomThrough(skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0)
+                       .resolvedImageFilter(nullptr),
+                   blue);
   const std::vector<float> coolDrift = bloomThrough(
       skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f, 0)
           .resolvedImageFilter(nullptr),
@@ -628,10 +634,10 @@ TEST(SkiaEffect, PhosphorHueDriftTurnsTheHaloAndNotTheSource) {
 
   // The tail adds reach: the far field is brighter with it, the source
   // centre unchanged in hue.
-  const std::vector<float> tailed = bloomThrough(
-      skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0.5f)
-          .resolvedImageFilter(nullptr),
-      amber);
+  const std::vector<float> tailed =
+      bloomThrough(skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0.5f)
+                       .resolvedImageFilter(nullptr),
+                   amber);
   EXPECT_GT(texel(tailed, 52, 32)[0], texel(still, 52, 32)[0]);
   // Comparable by recipe, as any shader effect: the new parameters are
   // constant uniforms and take part in equality.
@@ -735,4 +741,11 @@ TEST(SkiaPaint, APaletteReachesAnEffectAsOneUniformArray) {
   partial.uniform("uPalette", std::vector<float>(8, 1.0f));
   const SkBitmap same = render(partial.staticShader());
   EXPECT_TRUE(identical(bm, same));
+}
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(ShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(
+      sigil::material::skia::shaderSources(), SIGIL_MATERIAL_SKIA_SHADER_DIR);
 }

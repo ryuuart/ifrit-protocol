@@ -17,7 +17,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way; and `TextCatalog`, the stock value over the hub that a shader catalogue is |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
 
 `SigilIO` is the umbrella target over both, and
 `<sigilio/IO.h>` the umbrella header. The hub is a `ByteSource`;
@@ -68,9 +68,10 @@ auto sksl = hub.select("shader://**/*.sksl"); // sorted URI snapshot
 hub.preload("shader://**/*.sksl"); // discover, then fetch concurrently
 hub.preload("shader://"); // a directory selector recursively fetches everything
 
-// A library that keeps its shader files beside its code needs exactly one
-// directory at one prefix: the catalogue is that declaration, its own hub
-// inside.
+// A consumer whose own shader files live in one directory needs exactly one
+// prefix over it: the catalogue is that declaration, its own hub inside. A
+// shader a library SHIPS is compiled into that library instead and needs no
+// hub at all.
 sigil::io::TextCatalog glowShaders("shader://glow/", shaderDirectory);
 glowShaders.preload();
 auto body = glowShaders.text("Glow.sksl");            // std::optional<std::string>
@@ -156,9 +157,8 @@ their matches are one duplicate-free union, and overlapping leases retain a URI
 independently. Selectors are snapshots until `refresh()` reruns them, admitting
 new files and releasing vanished ones. `discardUnretained()` removes every
 unprotected cache entry; values already held through a `shared_ptr` survive that
-removal for their holders. Nothing in this repository evicts: the shader
-catalogues hold their files through a `TextCatalog` and never discard, so a
-lease is for a host that clears a hub between scenes.
+removal for their holders. Nothing in this repository evicts, so a lease is
+for a host that clears a hub between scenes.
 
 Every decode is a registered decoder. The constructor registers
 SigilImage's two — `ImageAsset` and `ChannelData` — and

@@ -28,6 +28,7 @@
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilshaders/WorldDiligent.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -43,6 +44,7 @@
 #include "Gpu.h"
 #include "OnDevice.h"
 #include "Programs.h"
+#include "ShaderTable.h"
 #include "TestMaterial.h"
 
 using namespace sigil;
@@ -630,3 +632,10 @@ TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
 
 INSTANTIATE_TEST_SUITE_P(Tiers, EitherTier,
                          testing::Values(Tier::Host, Tier::Device), tierName);
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(Programs, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(diligent::shaderSources(),
+                                                 SIGIL_WORLD_SHADER_DIR);
+}

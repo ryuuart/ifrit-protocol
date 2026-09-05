@@ -18,22 +18,24 @@ find_package(TBB CONFIG REQUIRED)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 sigil_library(SigilMaterialCore
   SOURCES Combine.cpp Material.cpp Params.cpp Program.cpp Recipe.cpp
-          ${_shaders}/OverAdd.sksl ${_shaders}/OverAdd.slang
-          ${_shaders}/OverMix.sksl ${_shaders}/OverMix.slang
-          ${_shaders}/OverMultiply.sksl ${_shaders}/OverMultiply.slang
-          ${_shaders}/OverPrelude.slang
   HEADERS ../Material.h Combine.h FrameData.h Leaf.h Material.h Params.h
           Program.h Recipe.h Target.h UniformBlock.h
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr
          Boost::container
-  PRIVATE SigilIOHub Boost::unordered TBB::tbb)
-target_compile_definitions(SigilMaterialCore
-  PRIVATE SIGIL_MATERIAL_CORE_SHADER_DIR="${_shaders}")
+  PRIVATE Boost::unordered TBB::tbb)
+# The three stacking bodies are compiled into the archive, so the value
+# model carries them with no way to read a file.
+sigil_shader_sources(SigilMaterialCore
+  DIR ${_shaders} NAMESPACE sigil::material)
 
 # Links only the library it exercises, so a link edge that pulled a
-# renderer in would show up as a build failure here.
+# renderer in would show up as a build failure here. The shader
+# directory is named for the case that asks whether the embedded table
+# holds every file in it.
 sigil_test(material_core_test
   SOURCES test/CoreTest.cpp
+  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
+  DEFINITIONS SIGIL_MATERIAL_CORE_SHADER_DIR="${_shaders}"
   LIBRARIES SigilMaterialCore)
 
 sigil_bench(material_core_bench

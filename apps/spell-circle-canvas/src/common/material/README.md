@@ -93,9 +93,11 @@ struct Glow {
   std::array<float, 8> uBars;
 };
 
-// Authored shader text remains a shader file, so editors and shader tools see
-// the language. The Hub caches it, while the lease makes its residency promise
-// explicit for as long as this material catalogue lives.
+// A shader YOU authored stays a shader file, so editors and shader tools see
+// the language, and reaches the program through SigilIO from wherever you
+// keep it. The Hub caches it; the lease makes its residency promise explicit
+// for as long as this material catalogue lives. The shaders this library
+// SHIPS are not read at run time at all — see "Where the stock shaders live".
 sigil::io::Hub shaders;
 shaders.mount("shader://", shaderDirectory);
 auto retainedShaders = shaders.retain("shader://");
@@ -425,9 +427,9 @@ of the linked program: linking them apart would let an unused uniform be
 dropped from one and not the other, and the two would then read one
 buffer at two sets of offsets.
 
-Every session carries two modules by name, loaded once from their authored
-`.slang` files through SigilIO, so a shader's `import` resolves against the
-session rather than opening files during compilation. `Portable` is the subset
+Every session carries two modules by name, from the text the build embedded
+in the library each belongs to, so a shader's `import` resolves against the
+session rather than opening a file during compilation. `Portable` is the subset
 whose transcendentals a host and a device answer alike — a kernel compiled for
 both cannot afford two spellings of a square root. `Shading` is
 `kit::termsSource`'s own text, so a renderer's shading and every material body
@@ -851,9 +853,8 @@ the library can ask a backend for without knowing what it holds: a
 device renderer warming its pipeline cache, and the device sweep below.
 A recipe added to one of those features belongs in its list.
 
-Each catalogue preloads its authored shader directory through SigilIO before
-constructing the list, so adding a `.sksl` or `.slang` file does not require a
-second preload manifest. `material::warmup(requests)` folds identical recipe,
+Every body those instances carry is already in the archive, so building the
+list opens nothing. `material::warmup(requests)` folds identical recipe,
 target and variant keys and compiles distinct keys concurrently;
 `material::warmup(materials, target, variant)` is the catalogue-shaped
 spelling. A request arriving while the same key is compiling shares that
@@ -862,6 +863,28 @@ detail. A registered compiler can therefore receive concurrent calls for
 different keys; a backend with thread-affine work must marshal that work at
 its own executor seam.
 
+## Where the stock shaders live
+
+Every body this library ships is a `.sksl` or `.slang` file in the
+`shaders/` directory beside the feature that owns it, so an editor and a
+shader tool see the language, and `sigil_shader_sources()` compiles that
+whole directory into the feature's archive as a table of
+`std::string_view` keyed by file name. A feature reaches its own text
+through the accessor the generated header declares —
+`<sigilshaders/MaterialKit.h>` spells `kit::shaderSource("Stone.sksl")`
+and `kit::shaderSources()`, the whole table — and no feature reaches
+another's: text that two of them need is asked for by name from the one
+that owns it, which is what `kit::termsSource` is.
+
+Adding a file to a `shaders/` directory is the whole of adding a body:
+the glob picks it up on the next build, and a per-feature case fails if
+the table and the directory ever disagree.
+
+Nothing here reads a shader from disk at run time, so a binary carries
+every body it can draw with wherever it is run from. A shader a CONSUMER
+authored is the other thing entirely and arrives by URI through SigilIO,
+from wherever that consumer keeps it.
+
 ## Boundaries
 
 The core links no renderer; the texture feature links Skia because a
@@ -869,8 +892,9 @@ texture IS a Skia image with its sampling, and SigilImage because an
 asset is a source. SigilIO owns resource access and SigilImage owns
 image meaning, so this library decodes no pixels and opens no consumer asset
 file — every door that needs pixels takes them or takes a decoder. Its own
-authored shader files are loaded through SigilIO behind private target links;
-the resource cache and its synchronization do not enter material APIs.
+shader files are compiled into its archives rather than read through SigilIO,
+so no feature here links a resource hub and none of them can be run from a
+directory that has no shaders in it.
 SigilGeometry draws
 the normals passes and outlines a surface is shaded over, and links
 nothing here but the colour leaf, privately, for the OKLab interpolation

@@ -4,17 +4,17 @@
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 sigil_library(SigilMaterialField
   SOURCES Field.cpp
-          ${_shaders}/CrtOverlay.sksl ${_shaders}/Grain.sksl
-          ${_shaders}/HalftoneRamp.sksl ${_shaders}/Noise.sksl
-          ${_shaders}/Ripple.sksl
   HEADERS Field.h
-  PUBLIC SigilMaterialTexture SigilMaterialColor
-  PRIVATE SigilIOHub)
-target_compile_definitions(SigilMaterialField
-  PRIVATE SIGIL_MATERIAL_FIELD_SHADER_DIR="${_shaders}")
+  PUBLIC SigilMaterialTexture SigilMaterialColor)
+sigil_shader_sources(SigilMaterialField
+  DIR ${_shaders} NAMESPACE sigil::material::field)
 
+# The shader directory is named for the case that asks whether the
+# embedded table holds every file in it.
 sigil_test(material_field_test
   SOURCES test/FieldTest.cpp
+  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
+  DEFINITIONS SIGIL_MATERIAL_FIELD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilMaterialField SigilMaterialSkia)
 
 sigil_bench(material_field_bench

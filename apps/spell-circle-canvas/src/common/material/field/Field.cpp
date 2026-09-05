@@ -9,9 +9,9 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkPerlinNoiseShader.h>
-#include <sigilio/hub/TextCatalog.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilshaders/MaterialField.h>
 
 #include <algorithm>
 #include <array>
@@ -21,17 +21,6 @@
 namespace sigil::material::field {
 
 namespace {
-
-constexpr char kShaderPrefix[] = "shader://material/field/";
-
-io::TextCatalog& shaders() {
-  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_FIELD_SHADER_DIR);
-  return catalog;
-}
-
-std::string shaderSource(std::string_view name) {
-  return shaders().text(name).value_or("");
-}
 
 void replace(std::string& text, std::string_view token,
              std::string_view value) {
@@ -45,7 +34,7 @@ const std::shared_ptr<const Recipe>& halftoneRampRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<HalftoneRampParams>("field.halftoneRamp")
           .frame(FrameInput::Resolution)
-          .body(Target::SkSL, shaderSource("HalftoneRamp.sksl")));
+          .body(Target::SkSL, std::string(shaderSource("HalftoneRamp.sksl"))));
   return recipe;
 }
 
@@ -61,7 +50,7 @@ const std::shared_ptr<const Recipe>& crtOverlayRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<CrtOverlayParams>("field.crtOverlay")
           .frame(FrameInput::Resolution)
-          .body(Target::SkSL, shaderSource("CrtOverlay.sksl")));
+          .body(Target::SkSL, std::string(shaderSource("CrtOverlay.sksl"))));
   return recipe;
 }
 
@@ -112,7 +101,7 @@ const std::shared_ptr<const Recipe>& passThroughRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<NoParams>("field.noise")
           .child("uSource")
-          .body(Target::SkSL, shaderSource("Noise.sksl")));
+          .body(Target::SkSL, std::string(shaderSource("Noise.sksl"))));
   return recipe;
 }
 
@@ -129,7 +118,7 @@ const std::shared_ptr<const Recipe>& grainRecipe(int octaves) {
   const int n = std::clamp(octaves, 1, 8);
   static std::array<std::shared_ptr<const Recipe>, 9> cache{};
   if (cache[(size_t)n]) return cache[(size_t)n];
-  std::string src = shaderSource("Grain.sksl");
+  std::string src(shaderSource("Grain.sksl"));
   replace(src, "const int kOctaves = 1;",
           "const int kOctaves = " + std::to_string(n) + ";");
   cache[(size_t)n] = std::make_shared<const Recipe>(
@@ -149,7 +138,7 @@ const std::shared_ptr<const Recipe>& rippleRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<RippleParams>("field.ripple")
           .child("content")
-          .body(Target::SkSL, shaderSource("Ripple.sksl")));
+          .body(Target::SkSL, std::string(shaderSource("Ripple.sksl"))));
   return recipe;
 }
 
@@ -162,7 +151,6 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase,
 }
 
 std::vector<Material> everyRecipe() {
-  shaders().preload();
   std::vector<Material> all;
   all.push_back(halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f));
   all.push_back(noise(0.03f));

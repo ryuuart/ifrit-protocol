@@ -6,31 +6,31 @@
 # consumer of one — which is SigilGeometryDevice, and this links it.
 find_package(unofficial-diligent-engine CONFIG REQUIRED)
 
-# The shader modules. Each is compiled by slangc when this library is built,
-# which makes a mistake in one a build failure. At run time SigilIO loads the
-# same authored files before a material body is appended; the generated headers
-# remain the build's validation artifacts.
+# The shader modules. Each one's text is compiled into the archive, and
+# each is compiled by slangc when this library is built, which makes a
+# mistake in one a build failure rather than a first-frame surprise.
 include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 # Every module here imports the portable subset, and Surface.slang and
 # Painter.slang the material kit's shading terms as well, so slangc is
-# pointed at the two directories those files live in. At run time the same
-# texts are loaded into the compiler session by name through SigilIO.
+# pointed at the two directories those files live in. At run time the
+# same texts, embedded in the libraries they belong to, are loaded into
+# the compiler session by name.
 set(_imports ${_shaders} ${SIGIL_MATERIAL_SLANG_SHADER_DIR}
              ${SIGIL_MATERIAL_SHADER_DIR})
 set(_portable ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang)
 sigil_slang_module(NAME Surface SOURCE ${_shaders}/Surface.slang
   ENTRIES vsMain fsFlat INCLUDE ${_imports}
   DEPENDS ${_portable} ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
-  OUT_VAR SIGIL_WORLD_SURFACE_H)
+  PROOF_VAR SIGIL_WORLD_SURFACE_PROOF)
 sigil_slang_module(NAME Painter SOURCE ${_shaders}/Painter.slang
   ENTRIES vsPaint fsPaint INCLUDE ${_imports}
   DEPENDS ${_portable} ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
-  OUT_VAR SIGIL_WORLD_PAINTER_H)
+  PROOF_VAR SIGIL_WORLD_PAINTER_PROOF)
 sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
   ENTRIES vsFullscreen fsCopy fsBlur fsLevels fsMasked INCLUDE ${_imports}
   DEPENDS ${_portable}
-  OUT_VAR SIGIL_WORLD_POST_H)
+  PROOF_VAR SIGIL_WORLD_POST_PROOF)
 
 # SigilGeometryDevice is PUBLIC because every entry point here takes the
 # device it creates, and Gpu.h holds the resources it made;
@@ -51,17 +51,15 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 sigil_library(SigilWorldDiligent
   SOURCES Geometry.cpp Gpu.cpp Gpu.h Import.cpp PainterGpu.cpp Post.cpp
           Programs.cpp Programs.h Runtime.cpp
-          ${SIGIL_WORLD_SURFACE_H} ${SIGIL_WORLD_PAINTER_H}
-          ${SIGIL_WORLD_POST_H}
-          ${_shaders}/Surface.slang ${_shaders}/Painter.slang
-          ${_shaders}/Post.slang ${_shaders}/MaterialEntry.slang
+          ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_PAINTER_PROOF}
+          ${SIGIL_WORLD_POST_PROOF}
   HEADERS Import.h Painter.h Runtime.h
-  INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_SLANG_GENERATED_DIR}
+  INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
-  PRIVATE SigilMaterialKit SigilSkiaGraphite SigilIOHub Boost::container)
-target_compile_definitions(SigilWorldDiligent
-  PRIVATE SIGIL_WORLD_SHADER_DIR="${_shaders}")
+  PRIVATE SigilMaterialKit SigilSkiaGraphite Boost::container)
+sigil_shader_sources(SigilWorldDiligent
+  DIR ${_shaders} NAMESPACE sigil::world::diligent)
 
 # The runtime test reads the compiled program the compiler registration
 # produced, which is this feature's own header rather than a public one.
@@ -73,7 +71,8 @@ target_compile_definitions(SigilWorldDiligent
 sigil_test(world_diligent_test
   SOURCES test/PainterTest.cpp test/RuntimeTest.cpp test/StackTest.cpp
           test/SurfaceTest.cpp test/Distance.h test/OnDevice.h
-  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_SHADER_GENERATED_DIR}
+  DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilWorldDiligent SigilMaterialKit SigilGeometryKit
   LABELS gpu)
 

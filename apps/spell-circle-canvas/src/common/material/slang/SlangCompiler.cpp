@@ -7,9 +7,9 @@
  * name of theirs is spelled `::slang::` here.
  */
 
-#include <sigilio/hub/TextCatalog.h>
 #include <sigilmaterial/kit/Terms.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
+#include <sigilshaders/MaterialSlang.h>
 #include <slang-com-ptr.h>
 #include <slang.h>
 
@@ -20,17 +20,6 @@
 namespace sigil::material::slang {
 
 namespace {
-
-constexpr char kShaderPrefix[] = "shader://material/slang/";
-
-io::TextCatalog& shaders() {
-  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_SLANG_SHADER_DIR);
-  return catalog;
-}
-
-std::string portableSource() {
-  return shaders().text("Portable.slang").value_or("");
-}
 
 /** The compiler's diagnostics, or an empty string when it produced
  *  none. */
@@ -77,13 +66,14 @@ class Compiler {
       if (error) *error = "the Slang session could not be created";
       return nullptr;
     }
-    // The portable subset and shading terms have been fetched through the
-    // source libraries and are loaded into the session by name, so every
-    // module's `import` resolves without another resource lookup. The terms
-    // are the material kit's own text: a renderer's shading and every material
-    // body compiled beside it call one definition rather than a copy apiece.
+    // The portable subset and the shading terms are compiled into the
+    // archives they belong to and are loaded into the session by name, so
+    // every module's `import` resolves with nothing to look up. The terms
+    // are the material kit's own text: a renderer's shading and every
+    // material body compiled beside it call one definition rather than a
+    // copy apiece.
     Slang::ComPtr<::slang::IBlob> diagnostics;
-    const std::string portable = portableSource();
+    const std::string portable(shaderSource("Portable.slang"));
     slot->loadModuleFromSourceString("Portable", "Portable.slang",
                                      portable.c_str(), diagnostics.writeRef());
     slot->loadModuleFromSourceString("Shading", "Shading.slang",

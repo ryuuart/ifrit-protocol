@@ -9,6 +9,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilmaterial/Material.h>
+#include <sigilshaders/MaterialCore.h>
 #include <unistd.h>
 
 #include <array>
@@ -23,6 +24,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include "ShaderTable.h"
 
 using namespace sigil::material;
 
@@ -620,4 +623,11 @@ TEST(Combine, StacksMaterialsThroughAMask) {
   // One step down, so walking it repeatedly reaches the bottom.
   EXPECT_EQ(*under(deeper), stack);
   EXPECT_EQ(*under(*under(deeper)), base);
+}
+
+// ---- the embedded shader table --------------------------------------------
+
+TEST(ShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(
+      shaderSources(), SIGIL_MATERIAL_CORE_SHADER_DIR);
 }
