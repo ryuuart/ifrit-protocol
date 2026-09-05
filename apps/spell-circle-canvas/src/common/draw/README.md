@@ -347,7 +347,7 @@ words are reset before the next.
 | --- | --- |
 | `Input` | one device observation: position, pressure, tilt (0 upright, 1 flat), barrel rotation, seconds on the host's clock, tilt direction |
 | `Dab` | one deposition event: position, pressure, tilt, barrel, direction, speed, distance, unit progress, tilt direction |
-| `Sampler` | live input resampled one spacing apart, the unspent part of an interval carried across events; speed through a first-order filter of `kSpeedFilterSeconds`; the first dab is held until the first movement gives it a heading, and a stroke that never moves is one dab at direction zero |
+| `Sampler` | live input resampled one spacing apart on `geometry::path::Stride`, which carries the unspent part of an interval across events; speed through a first-order filter of `kSpeedFilterSeconds`; the first dab is held until the first movement gives it a heading, and a stroke that never moves is one dab at direction zero |
 | `dabs(input, spacing)` | a whole recorded path resampled, with progress assigned |
 | `deposit(pen, tool, dabs, options)` | THE EXECUTOR SEAM: a stored path, a live stylus and generated geometry all reach it. Grain, nib and scatter dabs go down as one sprite batch per stroke; fibres, image and custom tips and the SUBTRACT blend draw through the pen's verbs dab by dab. `markerTip` pools pigment at the ends the options name |
 | `paint(pen, tool, stroke)` | rolls the tool's randomness once, then deposits along a stroke. The dabs carry no speed: a stored path has no clock, so `speedSize` and `speedOpacity` act on live input only |
@@ -362,9 +362,9 @@ kept in the pen's `Retained` store.
 
 | word | what it is |
 | --- | --- |
-| `Sample`, `Stroke` | `{position, pressure}` and a vector of them: reusable geometry, painted by any tool |
-| `segment(from, to, spacing, p0, p1)` | a straight centreline with a linear pressure ramp |
-| `spline(controls, spacing, curvature)` | Catmull-Rom through the controls, blended toward the chord by `1 − curvature`, pressure interpolated |
+| `Sample`, `Stroke` | `{position, pressure}` and a vector of them: reusable geometry, painted by any tool. The pressure is the LANE a `geometry::path::Polyline` carries, which is why every resampling below interpolates it without being told to |
+| `segment(from, to, spacing, p0, p1)` | a straight centreline with a linear pressure ramp: `path::subdivide`, so no step is longer than the spacing |
+| `spline(controls, spacing, curvature)` | `path::catmullRom` through the controls, blended toward the chord by `1 − curvature`, pressure interpolated |
 | `Direction`, `DirectionField` | the field seam: anything answering a heading in radians for `(SkPoint, float seconds)` |
 | `trace(start, length, spacing, seconds, field)` | integrates a start through a field |
 | `warp(polygon, spacing, amount, seconds, field)` | a polygon subdivided and displaced along the field, closed |
@@ -543,6 +543,12 @@ src/common/draw/
   strokes are plain data, and its fields are callable values; the sprite
   batch a round tip goes down as is `sigilskia/draw/Direct.h`'s. A
   consumer with its own tools links `SigilDraw` without `SigilDrawBrush`.
+* **The geometry under a mark is SigilGeometryPath's.** The walk that
+  spaces dabs along a stroke is `path::Stride`, the centrelines are
+  `path::subdivide` and `path::catmullRom` over a `path::Polyline` whose
+  lane is the pressure. What stays
+  here is what a device and a tool know and geometry does not: pressure,
+  tilt and speed, the pen's random stream, the grain and the pigment.
 * **Never reads the wall.** Every number a pen answers about time comes
   from the frame it was given.
 

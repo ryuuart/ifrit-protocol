@@ -3,9 +3,11 @@
 # the pressure-bearing stroke, the direction-field seam and its stock
 # fields, the deposition executors, the hatch, wash and mass interiors, the
 # stored polygon, plot and cursor, and the engine that holds a selection
-# of all of them. Reaches down to the pen, and to SigilSkia's direct
-# drawing for the sprite batch a round tip goes down as; a caller with its
-# own tools links SigilDraw alone.
+# of all of them. Reaches down to the pen, to SigilGeometryPath for the
+# geometry every mark stands on — the walk that spaces dabs, the smooth
+# centreline, the even-odd containment tests and the scanline lattice —
+# and to SigilSkia's direct drawing for the sprite batch a round tip goes
+# down as; a caller with its own tools links SigilDraw alone.
 sigil_library(SigilDrawBrush PIC
   SOURCES Catalogue.cpp Choice.cpp Deposit.cpp Engine.cpp EngineStrokes.cpp
           EngineSurfaces.cpp Fibres.cpp Fields.cpp Hatch.cpp Mass.cpp
@@ -15,7 +17,7 @@ sigil_library(SigilDrawBrush PIC
   HEADERS Brush.h Catalogue.h Choice.h Dab.h Deposit.h Engine.h Field.h
           Fields.h Hatch.h Mass.h Plot.h Polygon.h Position.h Pressure.h
           Sampler.h Stroke.h Tool.h Wash.h
-  PUBLIC SigilDraw Boost::unordered
+  PUBLIC SigilDraw SigilGeometryPath Boost::unordered
   PRIVATE SigilSkiaDraw)
 
 sigil_test(draw_brush_test

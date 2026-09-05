@@ -1,5 +1,9 @@
 /** @file
- * Rate-independent sampling of pointer and stylus input.
+ * Rate-independent sampling of pointer and stylus input: the spacing is
+ * walked by SigilGeometryPath, and what is added here is everything the
+ * device reports and the walk cannot know — the speed filter, the tilt
+ * and rotation carried between events, and the heading a first mark
+ * waits for.
  */
 
 #include <sigildraw/Math.h>
@@ -45,8 +49,7 @@ Sampler::Sampler(float speedFilterSeconds)
 std::vector<Dab> Sampler::begin(Input input) {
   m_previous = input;
   m_filteredSpeed = 0.0f;
-  m_distance = 0.0f;
-  m_nextDistance = 0.0f;
+  m_walk.restart();
   m_lastDabPosition = input.position;
   m_active = true;
   m_beginPending = true;
@@ -77,15 +80,11 @@ std::vector<Dab> Sampler::move(Input input, float spacing) {
       result.push_back(makeDab(m_previous, direction, 0.0f, 0.0f));
       m_beginPending = false;
     }
-    if (m_nextDistance <= m_distance) m_nextDistance = m_distance + spacing;
-    while (m_nextDistance <= m_distance + length) {
-      const float t = (m_nextDistance - m_distance) / length;
-      const Input at = interpolate(m_previous, input, t);
-      result.push_back(makeDab(at, direction, m_filteredSpeed, m_nextDistance));
+    m_walk.advance(length, spacing, [&](geometry::path::Stride::Step step) {
+      const Input at = interpolate(m_previous, input, step.fraction);
+      result.push_back(makeDab(at, direction, m_filteredSpeed, step.distance));
       m_lastDabPosition = at.position;
-      m_nextDistance += spacing;
-    }
-    m_distance += length;
+    });
   }
   m_previous = input;
   return result;
@@ -102,7 +101,8 @@ std::vector<Dab> Sampler::end(Input input, float spacing) {
     const float direction =
         std::atan2(input.position.fY - m_lastDabPosition.fY,
                    input.position.fX - m_lastDabPosition.fX);
-    result.push_back(makeDab(input, direction, m_filteredSpeed, m_distance));
+    result.push_back(
+        makeDab(input, direction, m_filteredSpeed, m_walk.travelled()));
   }
   m_active = false;
   return result;

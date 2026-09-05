@@ -4,6 +4,7 @@
  * Device input resampled at a spacing, whatever rate the device reports at.
  */
 
+#include <sigilgeometry/path/Stride.h>
 #include <sigildraw/brush/Dab.h>
 
 #include <span>
@@ -16,9 +17,9 @@ namespace sigil::draw::brush {
  *  device reports uneven intervals. */
 inline constexpr float kSpeedFilterSeconds = 0.04f;
 
-/** Resamples live device input into dabs one spacing apart, carrying the
- *  unspent fraction of a spacing interval across input events so event
- *  rate cannot change the density of pigment.
+/** Resamples live device input into dabs one spacing apart, on
+ *  SigilGeometryPath's even-spacing walk, so the event rate cannot
+ *  change the density of pigment.
  *
  *  The dab at the beginning of a stroke is held until the first movement
  *  supplies its direction, so a tip that follows the heading never stamps
@@ -36,14 +37,16 @@ class Sampler {
   void cancel();
 
   [[nodiscard]] bool active() const { return m_active; }
-  [[nodiscard]] float distance() const { return m_distance; }
+  [[nodiscard]] float distance() const { return m_walk.travelled(); }
 
  private:
   Input m_previous;
+  /** The even-spacing walk itself, which owns how far the stroke has run
+   *  and how much of a spacing it still owes; what this class adds is
+   *  what a device reports and the walk cannot know. */
+  geometry::path::Stride m_walk;
   float m_speedFilterSeconds = kSpeedFilterSeconds;
   float m_filteredSpeed = 0.0f;
-  float m_distance = 0.0f;
-  float m_nextDistance = 0.0f;
   SkPoint m_lastDabPosition{0, 0};
   bool m_active = false;
   bool m_beginPending = false;
