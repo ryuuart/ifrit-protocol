@@ -1,3 +1,7 @@
+// The composer's queries and the kit's instruments over them: what
+// bounds, hit tests, slots, units and the feed answer for a laid-out
+// tree, and what a query that names nothing answers.
+
 #include "support/StudioTestSupport.h"
 
 namespace {
@@ -204,10 +208,10 @@ TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
   Host host(200, 200);
   host.composer.render(box().child(
       box().key("cell").absolute().left(10).top(10).width(50).height(50)));
-  // No frame() yet: nothing has been laid out.
-  const auto before = host.composer.bounds("cell");
-  if (before)
-    EXPECT_TRUE(before->isFinite());  // if it answers, the answer is real
+  // No frame() yet: nothing has been laid out, so the answer is ABSENCE.
+  // An answer here at all would be a rect built out of an unlaid node.
+  EXPECT_FALSE(host.composer.bounds("cell").has_value())
+      << "a query before layout answered with a rect";
 
   host.frame();
   const auto after = host.composer.bounds("cell");
@@ -435,13 +439,11 @@ TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
 }
 
-TEST(ComposeLayout, AbsoluteBeforeAnEdgeSetterIsDeadButAloneItIsNot) {
-  // The corpus-wide subtraction rests on one claim: every edge setter sets
-  // layout.absolute itself (Element.cpp), so `.absolute()` before or
-  // after one writes a bool that is already written. 1,316 calls across both
-  // populations depend on this being exactly true — and on its NOT being
-  // true for a node that pins no edge, which is the shape a blind sweep
-  // would silently un-absolute.
+TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
+  // Every edge setter sets layout.absolute itself, so `.absolute()` before
+  // or after one writes a bool that is already written and can be left
+  // out. It cannot be left out of a node that pins no edge, though, which
+  // is the shape a blind removal would silently un-absolute.
   Host host(200, 200);
 
   auto withRedundant = [] {
@@ -497,7 +499,7 @@ TEST(ComposeLayout, AbsoluteBeforeAnEdgeSetterIsDeadButAloneItIsNot) {
          "is exactly right";
 }
 
-TEST(ComposeStudio, TheColourOpsAreTheBodiesTheCorpusWroteTwentyFourTimes) {
+TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
   // hex() is defined 24 times across 64 files under three names with
   // byte-identical bodies and no shared brief between the groups.
   constexpr SkColor4f rubric = hex(0x8C2F22);
@@ -535,7 +537,7 @@ TEST(ComposeStudio, TheColourOpsAreTheBodiesTheCorpusWroteTwentyFourTimes) {
   EXPECT_FLOAT_EQ(motion::phase(1.0, 0.0), 0.0f);
 }
 
-TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
+TEST(ComposeStudio, ATypedOptionsValueCarriesWhatPositionalArgumentsCannot) {
   // GalleryCore.h:35 already ships styleAt(size, SkColor) and sixteen
   // gallery scene headers wrote their own type() anyway — because they
   // needed a face, or tracking, or condensation, or a wght variation
@@ -586,7 +588,7 @@ TEST(ComposeStudio, TypeCarriesWhatTheShippedPositionalHelperCouldNot) {
   EXPECT_GT(measured.height(), 10.0f);
 }
 
-TEST(ComposeFeed, PlateIsTheBorderedStripSevenStudiesBuiltByHand) {
+TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   // A bordered plate holding N feeds with dividers between them. The plate
   // does NOT place itself: it takes the rect, following the same rule every
   // layout scheme does.
@@ -888,7 +890,7 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   EXPECT_GT(inked, 50) << "the reported checks drew nothing";
 }
 
-TEST(ComposeUtil, CentredBuildsTheRectFifteenSitesComputeByHand) {
+TEST(ComposeLayout, CentredBuildsTheRectAroundAPoint) {
   const SkRect r = geometry::path::centred({100, 50}, 40, 20);
   EXPECT_EQ(r, SkRect::MakeXYWH(80, 40, 40, 20));
   EXPECT_EQ(geometry::path::centred({100, 50}, SkSize{40, 20}), r);

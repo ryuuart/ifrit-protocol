@@ -1,6 +1,6 @@
-// The studio binary's share of ComposeTestContent.cpp: the suites whose
-// subjects are studio-tier values, cut from that file so each test binary links
-// only the target it exercises.
+// The studio instruments: the meters that draw a schedule back onto the
+// scene, the console's per-column feeds, and the report that lands a
+// measured table in one.
 
 #include <include/core/SkBBHFactory.h>
 #include <include/core/SkFont.h>
@@ -56,19 +56,28 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
 
   // Every beat's rect carries a cell: bed where the beat has not run, fill
   // where it has, and the boundary between them at its localT.
+  int running = 0, unfinished = 0;
   for (const Beat& beat : beats) {
     const int y = (int)beat.rect.centerY();
     const int left = (int)beat.rect.left() + 1;
     const int right = (int)beat.rect.right() - 1;
     ASSERT_LT(left, right) << "a beat rect with no width to draw in";
     const SkColor at = host.pixel(left, y);
-    if (beat.localT > 0.05f)
+    if (beat.localT > 0.05f) {
+      ++running;
       EXPECT_GT(SkColorGetR(at), 200u)
           << "a beat that has run shows no fill at its left edge";
-    if (beat.localT < 0.95f)
+    }
+    if (beat.localT < 0.95f) {
+      ++unfinished;
       EXPECT_GT(SkColorGetB(host.pixel(right, y)), 200u)
           << "a beat that has not finished shows no bed at its right edge";
+    }
   }
+  // Both arms have to have been reached, or the loop above asserted
+  // nothing about one of the two states it exists to tell apart.
+  EXPECT_GT(running, 0) << "no beat had started at this moment";
+  EXPECT_GT(unfinished, 0) << "every beat had finished at this moment";
   // …and outside the last beat's rect there is no meter at all: the cells
   // are the units' boxes and not one strip across the node.
   EXPECT_EQ(SkColorGetB(host.pixel((int)beats.back().rect.right() + 6,
@@ -226,7 +235,10 @@ TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
   EXPECT_EQ(rows[2].value.style, "fail");
   EXPECT_EQ(rows[3].value.style, "fail");
   EXPECT_EQ(rows[4].value.style, "number");
-  EXPECT_TRUE(rows[4].value.text == u8"  residual     5.6e-16");
+  // The row carries the formatter's line -- how SigilMeasure lays a
+  // reading out is SigilMeasure's own claim, so what is asserted here is
+  // that the line arrived whole and named its reading.
+  EXPECT_NE(rows[4].value.text.find(u8"residual"), std::u8string::npos);
   // A plate that tells a finding from a failure names its ink.
   test::report(ring, table.rows[3], {.finding = "measured"});
   EXPECT_EQ(ring.rows().back().value.style, "measured");

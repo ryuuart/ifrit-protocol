@@ -1,6 +1,6 @@
-// The shape binary's share of ComposeTestKernel.cpp: the suites whose subjects
-// are shape-tier values, cut from that file so each test binary links only the
-// target it exercises.
+// Travel along a path, and the shape seam a node's silhouette plugs: what
+// a rider reads at a fraction of the way round, and what a kit silhouette
+// is when the kernel asks for one.
 
 #include "support/ShapeTestSupport.h"
 

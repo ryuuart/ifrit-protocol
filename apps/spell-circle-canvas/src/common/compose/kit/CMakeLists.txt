@@ -35,31 +35,23 @@ sigil_library(SigilComposeKit
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
          SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave)
 
-# The kit tier's tests. Separate binary rather than more cases in the
-# kernel binaries: the kit changes nothing in the kernel, so a kit failure
-# must never look like a kernel failure on the dashboard. Links the kit
-# ALONE — the stroke-grammar cases, which need the Brush tier, are the
-# brush binary's.
+# The kit tier's tests. Separate from the kernel binaries because the kit
+# changes nothing in the kernel, so a kit failure must never look like a
+# kernel failure on the dashboard. One binary for the tier rather than
+# three: the kit PUBLIC-links Brush, so a binary over Kit and a binary
+# over Kit+Brush have the same closure and the split states no boundary a
+# consumer could read. SigilMeasure is here for the checks a feed plate
+# reports, which is the one target the kit's own link line does not carry.
+#
+# Shapes text through the machine's own faces, so the label says so.
 sigil_test(compose_kit_test
-  SOURCES test/ComposeKitTest.cpp
-  LIBRARIES SigilComposeKit SigilComposeTesting SigilWeavePorts)
-
-# Composer queries, the studio, the feed plate and the instruments that
-# read a cascade back — the kit's instruments over the kernel's queries,
-# with Brush for the plate and SigilMeasure for the checks a plate reports.
-sigil_test(compose_studio_test
-  SOURCES test/ComposeTestQueriesStudio.cpp test/ComposeTestContentStudio.cpp
-  LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush SigilMeasure
-            SigilComposeTesting SigilWeavePorts)
-
-# Silhouettes over the kernel's shape seam, the layout schemes, the
-# routers, the placers that fill an instanced leaf's pool, rails and
-# travel along a path — the shelves this tier adds.
-sigil_test(compose_shape_test
-  SOURCES test/ComposeTestContentShape.cpp test/ComposeTestKernelShape.cpp
-          test/ComposeTestLinesShape.cpp test/ComposeTestPlacers.cpp
-  LIBRARIES SigilComposeKit SigilComposeBrush SigilComposeTesting
-            SigilWeavePorts)
+  SOURCES test/ComposeTestKitValues.cpp test/ComposeTestLayoutsAndShapes.cpp
+          test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
+          test/ComposeTestPlacers.cpp test/ComposeTestQueries.cpp
+          test/ComposeTestStudio.cpp
+  LIBRARIES SigilComposeKit SigilComposeBrush SigilMeasure
+            SigilComposeTesting SigilWeavePorts
+  LABELS fonts)
 
 # Comparable silhouettes, hit testing and blended shaped leaves.
 sigil_bench(compose_shape_bench

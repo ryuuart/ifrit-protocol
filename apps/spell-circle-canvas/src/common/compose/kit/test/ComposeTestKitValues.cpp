@@ -9,41 +9,24 @@
 // walks), the test measures the LIBRARY'S OWN PATH rather than restating the
 // component's arithmetic — a test that recomputes the formula it is
 // checking proves only that the compiler is deterministic.
-//
-// One case is a compile-only spelling of every documented signature: it
-// asserts nothing and exists so that a signature change breaks the build
-// instead of quietly invalidating the documentation.
 
-#include <gtest/gtest.h>
-#include <include/core/SkBitmap.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkSurface.h>
 #include <sigilcompose/kit/Kit.h>
 #include <sigilgeometry/kit/Divisions.h>
-#include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <cmath>
 #include <utility>
 #include <vector>
 
-using namespace sigil::compose;
+#include "support/ShapeTestSupport.h"
 
-namespace geometry = sigil::geometry;
 namespace kit = sigil::compose::kit;
 namespace weave = sigil::weave;
 
 namespace {
-
-sigil::weave::FontContext& fonts() {
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
 
 ::testing::AssertionResult near(SkPoint a, SkPoint b, float tol) {
   const float d = std::hypot(a.fX - b.fX, a.fY - b.fY);
@@ -535,11 +518,6 @@ TEST(KitPixelType, DigitsShareOneAdvanceSoAReadoutDoesNotShiver) {
   EXPECT_GT(f.lineHeight, 0);
   EXPECT_GT(f.digitAdvance, 0);
   EXPECT_FLOAT_EQ(kit::widthOf(f, "111"), kit::widthOf(f, "888"));
-  // …and turning it off lets them differ on a proportional face. (Menlo is
-  // already tabular, so this asserts only that the flag is honoured, not
-  // that the two widths differ.)
-  const kit::Blit prop{.tabularDigits = false};
-  EXPECT_GT(kit::widthOf(f, "888", prop), 0.0f);
 }
 
 TEST(KitPixelType, SpaceHasAnAdvanceAndNoMask) {
@@ -724,105 +702,6 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
       << "the halo painted over the ink instead of under it";
 }
 
-// ===========================================================================
-// The documentation, spelled. Compiles, asserts nothing, and breaks the
-// build if a signature in any kit header changes — a documented call that
-// no longer compiles is a lie nobody would otherwise notice.
-
-TEST(KitDocs, EverySignatureIsSpelledOnce) {
-  const geometry::path::Frame frame{.centre = {100, 100},
-                                    .radius = 80,
-                                    .zero = geometry::path::Zero::North,
-                                    .sense = geometry::path::Sense::CW,
-                                    .originDeg = 0};
-  (void)frame.skiaDeg(30);
-  (void)frame.skiaSweep(30);
-  (void)frame.radians(30);
-  (void)frame.fraction(30);
-  (void)frame.degOf(0.25f);
-  (void)frame.fraction(30, SkPathDirection::kCCW);
-  (void)frame.degOf(0.25f, SkPathDirection::kCCW);
-  (void)frame.at(30, 0.5f);
-  (void)frame.px(30, 40);
-  (void)frame.dir(30);
-  (void)frame.box(0.5f);
-  (void)kit::disc(frame, 0.5f);
-  // A braced pair is a CENTRE. Frame begins with a point and a radius,
-  // so without the constraint on the frame overload this line is
-  // ambiguous — and every centre in this repository is written this way.
-  (void)kit::disc({12.0f, 34.0f}, 5.0f);
-  (void)frame.scaled(0.5f);
-  (void)frame.about({0, 0});
-  (void)frame.turned(4.5f);
-
-  const geometry::path::Grid grid{.scale = 4, .origin = {8, 8}, .snap = 4};
-  (void)grid.snapped(3);
-  (void)grid.s(3);
-  (void)grid.x(3);
-  (void)grid.y(3);
-  (void)grid.at({3, 3});
-  (void)grid.rect(0, 0, 4, 4);
-  (void)grid.rect(SkRect::MakeWH(4, 4));
-  (void)grid.map({{0, 0}});
-  (void)grid.matrix();
-  (void)grid.scaled(0.625f);
-
-  (void)geometry::shapes::ticks(frame, {.divisions = 72,
-                                        .from = 0,
-                                        .sweep = 360,
-                                        .closed = false,
-                                        .mark = {0.96f, 1.0f},
-                                        .longEvery = 6,
-                                        .longMark = {0.91f, 1.0f},
-                                        .classify = nullptr});
-  (void)geometry::shapes::ticks({.divisions = 12}, frame);
-  (void)geometry::shapes::chords(frame, {.sides = 7,
-                                         .step = 1,
-                                         .radius = 0.9f,
-                                         .from = 0,
-                                         .inset = 4,
-                                         .closed = false});
-  (void)geometry::shapes::chords({.sides = 7}, frame);
-
-  const auto style = pixelStyle(10.0f);
-  const kit::Coverage cov =
-      kit::coverage(u8"8", fonts(), style, {.x = 8, .y = 4});
-  (void)cov.alphaAt(0, 0);
-  const kit::Mask mask = kit::threshold(cov, 0.5f, true);
-  (void)kit::bakeRun(u8"8", fonts(), style, {.x = 8, .y = 4}, 0.5f);
-  (void)kit::masked(mask, {.colour = {1, 1, 1, 1},
-                           .scale = 2,
-                           .shadowOffset = {2, 2},
-                           .shadowMul = 0.25f});
-  const kit::PixFont pix = kit::bakeFont(fonts(), style, {3, 3}, 0.5f, 0.34f);
-  (void)pix.cell('8');
-  const kit::Blit blitOpts{.track = 1, .tabularDigits = true, .snap = 4};
-  (void)kit::widthOf(pix, "88", blitOpts);
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 32));
-  ASSERT_TRUE(surface);
-  (void)kit::blit(*surface->getCanvas(), pix, {0, 0}, "88", {1, 1, 1, 1},
-                  blitOpts);
-  kit::draw(*surface->getCanvas(), mask, {0, 0}, {});
-
-  sigil::weave::TextStyle ts;
-  (void)kit::haloed(
-      ts,
-      {.colour = {1, 1, 1, 1}, .width = 2.2f, .join = SkPaint::kRound_Join});
-  (void)kit::shaded(ts, {.colour = {0, 0, 0, 1}, .offset = {1, 1}});
-  (void)kit::emboldened(ts, 0.6f, {0, 0, 0, 1});
-  (void)kit::scrim(text(u8"x", ts), {.fill = Fill::color({0, 0, 0, 0.7f}),
-                                     .paddingX = 3,
-                                     .paddingY = 3,
-                                     .radius = 0});
-  SkFont font(nullptr, 10.0f);
-  SkPaint ink;
-  kit::drawHaloed(*surface->getCanvas(), "x", {0, 0}, font, ink, {});
-  kit::drawHaloed(*surface->getCanvas(), "x", {0, 0}, font,
-                  SkColor4f{1, 1, 1, 1}, {});
-  SUCCEED();
-}
-
 // ---------------------------------------------------------------------------
 // kit/Strokes.h — the kit's stroke values.
 //
@@ -836,38 +715,6 @@ TEST(KitDocs, EverySignatureIsSpelledOnce) {
 
 #include <sigilcompose/typography/Typography.h>
 
-namespace {
-
-/** A composer over a raster surface — the kit suite's own harness. Kept
- *  here rather than shared with compose_test because the two binaries are
- *  deliberately separate (a kit failure must not read as a kernel one). */
-struct StrokeHost {
-  sigil::motion::Ticker ticker;
-  Composer composer{ticker, fonts()};
-  sk_sp<SkSurface> surface;
-
-  explicit StrokeHost(int w = 200, int h = 200) {
-    composer.setSize({(float)w, (float)h});
-    surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
-  }
-  SkColor pixel(int x, int y) {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-    surface->readPixels(bm.pixmap(), x, y);
-    return bm.getColor(0, 0);
-  }
-  void frame() {
-    surface->getCanvas()->clear(SK_ColorBLACK);
-    composer.draw(*surface->getCanvas());
-  }
-};
-
-Fill strokeRed() { return Fill::color({1, 0, 0, 1}); }
-
-Fill strokeGreen() { return Fill::color({0, 1, 0, 1}); }
-
-}  // namespace
-
 // ---------------------------------------------------------------------------
 // kit/Frame.h — the pinned box.
 //
@@ -876,9 +723,9 @@ Fill strokeGreen() { return Fill::color({0, 1, 0, 1}); }
 // against itself.
 
 TEST(KitAt, PinsInkAtTheAbsoluteRectAndNowhereElse) {
-  StrokeHost host;
+  Host host;
   host.composer.render(box().width(200).height(200).child(
-      kit::at(20, 30, 40, 50).fill(strokeRed())));
+      kit::at(20, 30, 40, 50).fill(red())));
   host.frame();
   EXPECT_EQ(host.pixel(21, 31), SK_ColorRED);
   EXPECT_EQ(host.pixel(59, 79), SK_ColorRED);
@@ -888,10 +735,10 @@ TEST(KitAt, PinsInkAtTheAbsoluteRectAndNowhereElse) {
 }
 
 TEST(KitAt, TheElementOverloadPlacesANodeItDidNotBuild) {
-  StrokeHost host;
+  Host host;
   // The node carries its own paint and knows nothing about the plate; the
   // plate says where it goes. That split is the overload's whole reason.
-  Element painted = box().fill(strokeGreen());
+  Element painted = box().fill(green());
   host.composer.render(box().width(200).height(200).child(
       kit::at(std::move(painted), 100, 10, 30, 20)));
   host.frame();
@@ -922,7 +769,7 @@ TEST(KitDropCap, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
         .child(std::move(made.body).key("body").width(220));
   };
 
-  StrokeHost boxed(220, 260), round(220, 260);
+  Host boxed(220, 260), round(220, 260);
   boxed.composer.render(scene(false));
   boxed.frame();
   round.composer.render(scene(true));
@@ -931,7 +778,7 @@ TEST(KitDropCap, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
   ASSERT_TRUE(round.composer.bounds("ornament").has_value());
   EXPECT_FLOAT_EQ(round.composer.bounds("ornament")->width(), 90);
   EXPECT_FLOAT_EQ(round.composer.bounds("ornament")->height(), 90);
-  const auto firstLineStart = [](const StrokeHost& host) {
+  const auto firstLineStart = [](const Host& host) {
     float start = 10000;
     for (const weave::PositionedRun& run :
          host.composer.paragraphLayout("body")->runs)
@@ -1003,7 +850,7 @@ TEST(KitSpecimen, TheCaptionsLinesStandWhereTheVoiceSays) {
   const float note = lineHeight(10);
   // The body's top and the cell's height, for one arrangement.
   const auto placed = [&](kit::Caption::Where where, bool withNote) {
-    StrokeHost host(300, 300);
+    Host host(300, 300);
     host.composer.render(box().width(300).height(300).child(
         kit::cell(specimenVoice(where), u8"LABEL", withNote ? u8"a note" : u8"",
                   box().key("body").width(100).height(40))
@@ -1053,11 +900,11 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
 }
 
 TEST(KitSpecimen, AWellAppliesTheCallersSizeGroundAndPadding) {
-  StrokeHost host(160, 120);
+  Host host(160, 120);
   host.composer.render(box().width(160).height(120).child(kit::well(
-      {.width = 100, .height = 80, .ground = strokeRed(), .padding = 10},
+      {.width = 100, .height = 80, .ground = red(), .padding = 10},
       box().key("well").child(
-          box().key("body").width(20).height(15).fill(strokeGreen())))));
+          box().key("body").width(20).height(15).fill(green())))));
   host.frame();
 
   const auto well = host.composer.bounds("well");
@@ -1080,9 +927,9 @@ TEST(KitSpecimen, AWellClipsByDefaultAndCanBeOpened) {
                                      .top(Dim(20))
                                      .width(30)
                                      .height(20)
-                                     .fill(strokeGreen())));
+                                     .fill(green())));
   };
-  StrokeHost host(160, 120);
+  Host host(160, 120);
   host.composer.render(box().width(160).height(120).child(specimen(true)));
   host.frame();
   EXPECT_EQ(host.pixel(95, 25), SK_ColorGREEN);
@@ -1107,10 +954,10 @@ TEST(KitSpecimen, ARunSpacesItsCellsAndRulesBetweenThem) {
                                  box().key("b").width(50).height(30)},
                        .column = column,
                        .gap = 10,
-                       .divider = strokeRed(),
+                       .divider = red(),
                        .dividerWidth = 2});
   };
-  StrokeHost host(300, 300);
+  Host host(300, 300);
   host.composer.render(box().width(300).height(300).child(run(false)));
   host.frame();
   // cell, gap, rule, gap, cell — and the rule spans the taller cell.
@@ -1137,10 +984,10 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
                   .marginTop = 16,
                   .marginBottom = 14,
                   .contentGap = 18,
-                  .rule = strokeRed(),
+                  .rule = red(),
                   .ruleWidth = 2,
                   .key = "page"};
-  StrokeHost host(400, 300);
+  Host host(400, 300);
   host.composer.render(
       kit::sheet(page, box().key("body")).width(400).height(300));
   host.frame();

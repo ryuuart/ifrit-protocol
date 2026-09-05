@@ -1,6 +1,6 @@
-// The shape binary's share of ComposeTestContent.cpp: the suites whose subjects
-// are shape-tier values, cut from that file so each test binary links only the
-// target it exercises.
+// The layout schemes and the shape values a node is cut against: where a
+// scheme puts its children, what a silhouette is as a value, and the
+// derived routes that read a laid-out box back.
 
 #include <include/core/SkBBHFactory.h>
 #include <include/core/SkFont.h>
@@ -154,7 +154,7 @@ TEST(ComposeDerive, FlowAroundSilhouetteTracksAMovingTarget) {
   EXPECT_TRUE(anyWhiteIn(host, SkIRect::MakeLTRB(165, 105, 195, 135)));
 }
 
-TEST(Shape, CustomOutlineShapesFillAndClip) {
+TEST(ComposeShapeValues, CustomOutlineShapesFillAndClip) {
   Host host;
   // A diamond outline over a 100x100 box: the box's corner pixels sit
   // outside the shape, so fill and clipped children must not reach them.
@@ -175,7 +175,7 @@ TEST(Shape, CustomOutlineShapesFillAndClip) {
   EXPECT_EQ(host.pixel(3, 3), SK_ColorBLACK);    // box corner outside shape
 }
 
-TEST(Shape, RoundedOutlineCutsSharpCorners) {
+TEST(ComposeShapeValues, RoundedOutlineCutsSharpCorners) {
   Host host;
   auto diamond = [](SkSize s) {
     SkPathBuilder b;
@@ -210,7 +210,7 @@ TEST(Shape, RoundedOutlineCutsSharpCorners) {
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK);  // gap between arms
 }
 
-TEST(Shape, PerCornerRadiiIndependent) {
+TEST(ComposeShapeValues, PerCornerRadiiIndependent) {
   Host host;
   // Sharp top-left, heavily rounded top-right.
   host.composer.render(box().child(
@@ -224,7 +224,7 @@ TEST(Shape, PerCornerRadiiIndependent) {
 // ---------------------------------------------------------------------------
 // Shape kit (Shapes.h): organic generators, per-edge extraction.
 
-TEST(Shape, PolygonAndSquircleSilhouettes) {
+TEST(ComposeShapeValues, PolygonAndSquircleSilhouettes) {
   Host host;
   host.composer.render(box()
                            .row()
@@ -363,10 +363,10 @@ TEST(ComposeShapeValues, WrappersAreComparableWhenTheirInnerIs) {
                Shape(geometry::shapes::rounded(lambda, 8)));
 }
 
-TEST(ComposeShapeValues, SvgShapesAreValuesNow) {
-  // svg() parses its d-string once into an SkPath, and SkPath has structural
-  // equality — so an svg() silhouette compares by geometry and prunes,
-  // unlike the raw-callable hatch above.
+TEST(ComposeShapeValues, AnSvgSilhouetteComparesByItsGeometry) {
+  // svg() parses its d-string once into an SkPath, and SkPath has
+  // structural equality, so an svg() silhouette compares by geometry and
+  // prunes where the raw-callable hatch above cannot.
   EXPECT_TRUE(Shape(geometry::shapes::svg("M0 0L10 0L10 10Z")) ==
               Shape(geometry::shapes::svg("M0 0L10 0L10 10Z")));
   EXPECT_FALSE(Shape(geometry::shapes::svg("M0 0L10 0L10 10Z")) ==
@@ -400,7 +400,7 @@ TEST(ComposeShapeValues, KeyedParametricIsAValueUnkeyedIsNot) {
                Shape(geometry::shapes::spiral(4.0f)));
 }
 
-TEST(ComposeShapeValues, TheChevreulScenarioKeepsItsBake) {
+TEST(ComposeShapeValues, AGeneratedSilhouetteReDescribedEveryFrameKeepsItsBake) {
   // The steady state the prune exists for: a texture-cached node whose shape
   // is a generator, re-described every frame. If the shape does not compare,
   // the node patches, the patch drops the bake, and the node re-rasterizes

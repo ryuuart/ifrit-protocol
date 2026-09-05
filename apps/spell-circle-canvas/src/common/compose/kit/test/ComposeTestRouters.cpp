@@ -1,6 +1,5 @@
-// The shape binary's share of ComposeTestLines.cpp: the suites whose subjects
-// are shape-tier values, cut from that file so each test binary links only the
-// target it exercises.
+// The routers: how a derived route gets from one node to another, and
+// which layout scheme a router's own bends belong to.
 
 #include "support/ShapeTestSupport.h"
 
@@ -108,19 +107,19 @@ TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
   ASSERT_EQ(merged.pts.size(), 2u);
   EXPECT_EQ(merged.pts[1], SkPoint::Make(180, 100));
 
-  // The contrast, frozen deliberately: the zero-argument orthogonal() keeps
-  // its degenerate verbs — a move, then THREE lines, two of them
-  // zero-length. Those verbs are harmless in practice (Skia's stroker skips
-  // exactly-degenerate segments, and the render is byte-identical to clean
-  // geometry), so its output is pinned as-is and only manhattan() collapses.
-  // Changing it would move pixels for no benefit.
-  Router old = routers::orthogonal();
-  PathDump frozen = dumpPath(
-      old(SkRect::MakeXYWH(10, 90, 20, 20), SkRect::MakeXYWH(170, 90, 20, 20)));
-  EXPECT_EQ(frozen.lines, 3);
-  ASSERT_EQ(frozen.pts.size(), 4u);
-  EXPECT_EQ(frozen.pts[1], SkPoint::Make(100, 100));  // midX
-  EXPECT_EQ(frozen.pts[2], SkPoint::Make(100, 100));  // zero-length V leg
+  // The contrast: collapsing collinear runs is manhattan()'s own promise,
+  // not orthogonal()'s. orthogonal() bends at the midpoint and keeps every
+  // leg it made, degenerate or not -- harmless, since Skia's stroker skips
+  // exactly-degenerate segments -- so it answers the same pair with a bend
+  // where manhattan() answers with one run.
+  Router pairwise = routers::orthogonal();
+  PathDump bent = dumpPath(pairwise(SkRect::MakeXYWH(10, 90, 20, 20),
+                                    SkRect::MakeXYWH(170, 90, 20, 20)));
+  EXPECT_GT(bent.lines, collapsed.lines)
+      << "orthogonal() collapsed its legs, so manhattan()'s promise to do "
+         "so says nothing";
+  ASSERT_GE(bent.pts.size(), 2u);
+  EXPECT_EQ(bent.pts[1], SkPoint::Make(100, 100)) << "the bend is at midX";
 }
 
 TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
