@@ -850,24 +850,20 @@ inline SkRect turnedBounds(SkPoint centre, float w, float h, float degrees) {
 
 /** THE SILHOUETTES AS COMPARABLE VALUES. A raw outline callable compares
  *  equal to nothing, so a node carrying one is patched on every describe
- *  and its bake — here a bloom — is remade with it. A scheme with an
- *  equality prunes. */
-struct SiteSilhouette {
-  bool operator==(const SiteSilhouette&) const = default;
-  SkPath path(SkSize s) const { return tre::kModule.outline()(s); }
-};
-struct PillSilhouette {
-  float radius = 10.0f;
-  SkVector cut{26.0f, 26.0f};
-  uint8_t cutMask = evangelion::CutNone;
-  bool operator==(const PillSilhouette& o) const {
-    return radius == o.radius && cut == o.cut && cutMask == o.cutMask;
-  }
-  SkPath path(SkSize s) const {
-    return evangelion::panel(
-        {.radius = radius, .cut = cut, .cutMask = cutMask})(s);
-  }
-};
+ *  and its bake — here a bloom — is remade with it. `keyedShape` is the
+ *  library's answer: the numbers the generator is a function of ARE its
+ *  identity, and equal keys mean equal drawings. */
+inline Shape siteSilhouette() {
+  return keyedShape(0, [](SkSize s) { return tre::kModule.outline()(s); });
+}
+inline Shape pillSilhouette(uint8_t cutMask, float radius = 10.0f,
+                            SkVector cut = {26.0f, 26.0f}) {
+  return keyedShape(
+      std::tuple(radius, cut.fX, cut.fY, cutMask), [=](SkSize s) {
+        return evangelion::panel(
+            {.radius = radius, .cut = cut, .cutMask = cutMask})(s);
+      });
+}
 
 inline float wrap180(float d) {
   while (d > 180.0f) d -= 360.0f;
@@ -997,7 +993,7 @@ struct EvaMagiDefense : sketch::Sketch {
                      .top(at.fY - module.totalHeight() * 0.5f)
                      .width(module.barWidth)
                      .height(module.totalHeight())
-                     .shape(SiteSilhouette{})
+                     .shape(siteSilhouette())
                      .rotate(s.rotation)
                      .fill(Fill::color(plateFill))
                      .foreground(rimStroke(2.4f, rim))
@@ -1071,7 +1067,7 @@ struct EvaMagiDefense : sketch::Sketch {
                     .gap(labelStyle.lineGap)
                     .key(std::string(keyTag) + std::to_string(keyIndex));
     if (L.pill) {
-      node.shape(PillSilhouette{.cutMask = L.cuts});
+      node.shape(pillSilhouette(L.cuts));
       node.fill(Fill::color(kCell));
       node.foreground(rimStroke(3.0f, ink));
     }

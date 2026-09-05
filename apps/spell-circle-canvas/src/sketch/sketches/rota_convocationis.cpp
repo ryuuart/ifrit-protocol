@@ -571,16 +571,6 @@ enum : int {
   kGlowCount,
 };
 
-/** A path baked once at setup, wrapped as a comparable silhouette: the
- *  ADDRESS is the identity, so the node prunes and its recording caches
- *  exactly as a `shapes::` generator's would. The sketch owns the storage
- *  and fills it before the first describe; nothing moves it afterwards. */
-struct Baked {
-  const SkPath* held = nullptr;
-  bool operator==(const Baked&) const = default;
-  SkPath path(SkSize) const { return held ? *held : SkPath(); }
-};
-
 /** THE EMISSIVE OUTLINE of one lighting group, as four nested regions.
  *  Every line of the group is expanded to a region and the regions are
  *  UNIONED, so a place where two lines cross is covered ONCE; the four
@@ -977,7 +967,7 @@ struct RotaConvocationis : sketch::Sketch {
         .absolute()
         .inset(0)
         .hitTestable(false)
-        .shape(Baked{&chalk[(size_t)chalkIndex]})
+        .shape(heldPath(chalk[(size_t)chalkIndex]))
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
                 stroke(width, Fill::color(color)));
@@ -993,7 +983,7 @@ struct RotaConvocationis : sketch::Sketch {
         .absolute()
         .inset(0)
         .hitTestable(false)
-        .shape(Baked{&path})
+        .shape(heldPath(path))
         .fill(Fill::none())
         .stroke(spans::upTo(beat(from, from + dur)),
                 stroke(width, Fill::color(color)));
@@ -1013,7 +1003,7 @@ struct RotaConvocationis : sketch::Sketch {
         .absolute()
         .inset(0)
         .hitTestable(false)
-        .shape(Baked{&region})
+        .shape(heldPath(region))
         .fill(Fill::color({ink.fR, ink.fG, ink.fB, alpha}))
         .blend(SkBlendMode::kPlus)
         .opacity(gain);
@@ -1351,7 +1341,7 @@ struct RotaConvocationis : sketch::Sketch {
                      .absolute()
                      .inset(0)
                      .hitTestable(false)
-                     .shape(Baked{&starSteps[(size_t)i]})
+                     .shape(heldPath(starSteps[(size_t)i]))
                      .fill(Fill::none())
                      .stroke(stroke(1.6f, Fill::color(kCore)))
                      .blend(SkBlendMode::kPlus)
