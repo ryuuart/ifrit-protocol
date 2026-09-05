@@ -95,6 +95,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <numbers>
 #include <string>
 #include <vector>
 
@@ -281,6 +282,54 @@ Element discBox(SkPoint c, float r) {
   return box().rect(path::Frame{.centre = c, .radius = r}.box());
 }
 
+/** THE BOX A SECTOR NEEDS, not the box its disc needs. A wedge on its own
+ *  bake costs its box's pixels every frame its entrance scales it — the
+ *  blit is resampled through the transform — and a 30 degree sector
+ *  inscribed in its whole disc is a bake that is nine parts transparent.
+ *  So a wedge stands in the sector's own bounds: the centre, the arc's two
+ *  ends and whichever axis extremes the arc crosses, grown by a pixel for
+ *  the outline. Angles are Skia's canvas angles, 0 = +x, clockwise. */
+SkRect sectorBounds(SkPoint c, float r, float startDeg, float sweepDeg) {
+  const auto at = [&](float deg) {
+    const float a = deg * (float)std::numbers::pi / 180.0f;
+    return SkPoint{c.fX + r * std::cos(a), c.fY + r * std::sin(a)};
+  };
+  SkRect b = SkRect::MakeXYWH(c.fX, c.fY, 0, 0);
+  const auto grow = [&](SkPoint p) {
+    b.fLeft = std::min(b.fLeft, p.fX);
+    b.fTop = std::min(b.fTop, p.fY);
+    b.fRight = std::max(b.fRight, p.fX);
+    b.fBottom = std::max(b.fBottom, p.fY);
+  };
+  grow(at(startDeg));
+  grow(at(startDeg + sweepDeg));
+  const float lo = std::min(startDeg, startDeg + sweepDeg);
+  const float hi = std::max(startDeg, startDeg + sweepDeg);
+  for (float axis = std::ceil(lo / 90.0f) * 90.0f; axis <= hi; axis += 90.0f)
+    grow(at(axis));
+  b.outset(1.0f, 1.0f);
+  return b;
+}
+
+/** The sector itself, drawn in a box that is its bounds rather than its
+ *  disc: the same arc `shapes::sector` draws, about a centre that lies
+ *  outside the box. */
+Element sectorBox(SkPoint c, float r, float startDeg, float sweepDeg) {
+  const SkRect bounds = sectorBounds(c, r, startDeg, sweepDeg);
+  const SkPoint centre{c.fX - bounds.left(), c.fY - bounds.top()};
+  return box()
+      .rect(bounds)
+      .shape([=](SkSize) {
+        SkPathBuilder b;
+        b.moveTo(centre);
+        b.arcTo(SkRect::MakeXYWH(centre.fX - r, centre.fY - r, 2 * r, 2 * r),
+                startDeg, sweepDeg, false);
+        b.close();
+        return b.detach();
+      })
+      .transformOriginPx(centre);
+}
+
 /** A straight spoke from the box centre out to radiusFraction. One tick of
  *  a one-division ladder: kit::ticks resolves the centre and radius from
  *  the node's own laid-out box, so the caller never computes them. The
@@ -437,14 +486,14 @@ struct NightingaleCoxcomb : sketch::Sketch {
         const bool outer = band.mat == &blueMat;
         const float gap = outer ? kBlueGapDeg : 0.0f;
         Element wedge =
-            discBox(local, r)
+            sectorBox(local, r, skia0 + gap * 0.5f, 30.0f - gap)
                 .key(std::string(tag) + band.name + std::to_string(m))
-                .shape(shapes::sector(skia0 + gap * 0.5f, 30.0f - gap))
                 .fill(*band.mat);
         if (!outer) wedge.stroke(stroke(1.0f, Fill::color(kInk)));
+        // The entrance scales the wedge about the WHEEL's centre, which
+        // sectorBox set as the pivot: the sector grows out of the hub.
         wheelBox.child(
             std::move(wedge)
-                .transformOrigin(0.5f, 0.5f)
                 .scale(animate(from(0.002f).to(1.0f),
                                ramp(delay, 620.0f, ch::easeOutExpo)))
                 // Each band's litho fill is a Paint::blend of four
