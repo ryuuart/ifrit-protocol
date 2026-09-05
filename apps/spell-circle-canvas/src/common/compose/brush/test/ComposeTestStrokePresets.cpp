@@ -447,9 +447,19 @@ TEST(ComposeKitStrokes, TheGrooveIsDarkOnTheInnerWallAndLitOnTheOuter) {
   EXPECT_NEAR((int)SkColorGetG(innerEast), 26, 3);
   EXPECT_NEAR((int)SkColorGetR(outerEast), 255, 3);
   EXPECT_NEAR((int)SkColorGetG(outerEast), 230, 3);
-  // Constant ALONG the groove: the north reads exactly as the east.
-  EXPECT_EQ(pixel(50, 22), innerEast);
-  EXPECT_EQ(pixel(50, 17), outerEast);
+  // Constant ALONG the groove: the north reads as the east does. Within an
+  // anti-aliased level, because the two samples sit on different sides of
+  // the same circular stroke and the coverage a curve leaves at a pixel
+  // centre is not a function of the tone alone.
+  const auto near = [](SkColor a, SkColor b) {
+    return std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)) <= 2 &&
+           std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)) <= 2 &&
+           std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b)) <= 2;
+  };
+  EXPECT_TRUE(near(pixel(50, 22), innerEast)) << "the inner wall changes tone "
+                                                 "along the groove";
+  EXPECT_TRUE(near(pixel(50, 17), outerEast)) << "the outer wall changes tone "
+                                                 "along the groove";
   // Nothing beyond the cut's width, either side.
   EXPECT_EQ(pixel(50, 50), SK_ColorBLACK);
   EXPECT_EQ(pixel(95, 50), SK_ColorBLACK);

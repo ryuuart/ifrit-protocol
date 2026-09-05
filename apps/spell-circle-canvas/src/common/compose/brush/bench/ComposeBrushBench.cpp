@@ -628,4 +628,26 @@ static void BM_Draw_SlowAccent_Plain(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_SlowAccent_Plain)->Apply(accentLadder);
 
+// Band construction against the spine's length. The shape of the curve is
+// the claim: asking bandPointAt for each sample re-walks the whole path
+// every call, which makes construction quadratic in the spine length --
+// invisible at r=50 and ruinous at r=550. One radius can only ever be a
+// wall-clock ceiling; the ladder is what shows the rate.
+static void BM_Band_Construct(benchmark::State& state) {
+  const float radius = (float)state.range(0);
+  auto ring = [radius](SkSize s) {
+    SkPathBuilder b;
+    b.addCircle(s.width() * 0.5f, s.height() * 0.5f, radius);
+    return b.detach();
+  };
+  Host host(1400, 1400);
+  for ([[maybe_unused]] auto iteration : state) {
+    host.composer.render(
+        stack().child(band(ring, across(14)).inset(0).fill(Fill::color({1, 0, 0, 1}))));
+    host.draw();
+  }
+  state.SetItemsProcessed(state.iterations());
+}
+BENCHMARK(BM_Band_Construct)->Arg(50)->Arg(150)->Arg(300)->Arg(550);
+
 BENCHMARK_MAIN();

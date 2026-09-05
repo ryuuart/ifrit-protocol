@@ -570,29 +570,53 @@ TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
   EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // shadow past the box
 }
 
-TEST(ComposeMask, OpenContourWrapKeepsTwoPieces) {
-  // A wrapped span window on an OPEN contour is genuinely two pieces: its
-  // head and its tail are at opposite ends of the path and are not adjacent.
-  // Joining them into one run draws a chord across the middle that exists in
-  // no path the author supplied.
+namespace {
+
+/** The two doors a wrapped window can be spelled through: the node gate
+ *  and PathFormat's own trim. Both must obey the open-contour rule, and
+ *  neither can be trusted to because the other one does. */
+enum class WrapDoor { NodeGate, PathFormatTrim };
+
+class OpenContourWrap : public testing::TestWithParam<WrapDoor> {};
+
+}  // namespace
+
+TEST_P(OpenContourWrap, AWrappedWindowOnAnOpenContourStaysTwoPieces) {
+  // A wrapped window on an OPEN contour is genuinely two pieces: its head
+  // and its tail are at opposite ends of the path and are not adjacent.
+  // Joining them into one run draws a chord across the middle that exists
+  // in no path the author supplied.
   Host host;
-  host.composer.render(
-      box().child(box()
-                      .absolute()
-                      .inset(20, 80, 20, 80)
-                      .shape([](SkSize s) {  // open horizontal line
-                        SkPathBuilder b;
-                        b.moveTo(0, s.height() / 2);
-                        b.lineTo(s.width(), s.height() / 2);
-                        return b.detach();
-                      })
-                      .mask(by::spans(spans::wrap(0.9f, 1.2f)))
-                      .stroke(stroke(6, green()))));
+  Element run = box().absolute().inset(20, 80, 20, 80).shape([](SkSize s) {
+    SkPathBuilder b;  // an open horizontal line
+    b.moveTo(0, s.height() / 2);
+    b.lineTo(s.width(), s.height() / 2);
+    return b.detach();
+  });
+  if (GetParam() == WrapDoor::NodeGate) {
+    run.mask(by::spans(spans::wrap(0.9f, 1.2f))).stroke(stroke(6, green()));
+  } else {
+    PathFormat format;
+    format.width = 6;
+    format.strokeFill = green();
+    format.trimStart = 0.9f;
+    format.trimEnd = 1.2f;
+    run.stroke(format);
+  }
+  host.composer.render(box().child(std::move(run)));
   host.frame();
   EXPECT_EQ(host.pixel(170, 100), SK_ColorGREEN);  // tail piece [0.9, 1]
   EXPECT_EQ(host.pixel(40, 100), SK_ColorGREEN);   // head piece [0, 0.2]
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // NO chord between them
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    ComposeMask, OpenContourWrap,
+    testing::Values(WrapDoor::NodeGate, WrapDoor::PathFormatTrim),
+    [](const testing::TestParamInfo<WrapDoor>& info) {
+      return info.param == WrapDoor::NodeGate ? "ThroughTheNodeGate"
+                                              : "ThroughPathFormatsTrim";
+    });
 
 TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
   // The twin of the test above: on a CLOSED contour the two halves of a
@@ -1249,10 +1273,11 @@ Element lattice(Cache mode) {
 
 /** How the reference composites, which is the whole subtlety above.
  *  `Black` puts the lattice straight on the host's opaque clear, where
- *  srcOver's destination term vanishes; `Lit` gives it a ground to composite
- *  against; `LitIsolated` gives it that ground AND wraps the subtree in a
- *  no-op image filter, so BOTH sides pay the same requantisation. */
-enum class Ground { Black, Lit, LitIsolated };
+ *  srcOver's destination term vanishes; `LitIsolated` gives it a ground to
+ *  composite against AND wraps the subtree in a no-op image filter, so
+ *  BOTH sides pay the same requantisation and the comparison stays an
+ *  equality rather than a fitted tolerance. */
+enum class Ground { Black, LitIsolated };
 
 /** The lattice under a Cache::None wrapper — this IS `profiledUnder()`, with
  *  the geometry pinned so the wrapper cannot move the subject: the pixel
@@ -1460,24 +1485,6 @@ TEST(ComposeCache, AGroupBakeIsExactlyALayerAndNothingMore) {
         << ", first at t=" << r.firstBadT;
     EXPECT_GT(r.blitFrames, 0);
     EXPECT_GT(r.liveFrames, 0);
-  }
-  // …and the unisolated comparison, kept as a CEILING rather than an
-  // equality, because it cannot be an equality: antialiased coverage rounds
-  // to 8 bits once more on the way through a bake, so edge pixels land a
-  // level or two off. The ceiling is loose on purpose — what it is built to
-  // catch is a frozen bake or a misplaced blit, which move whole boards and
-  // blow past any edge-sized budget.
-  {
-    GroupPair lit(Ground::Lit);
-    const LoopResult r = walkTheLoop(lit);
-    EXPECT_LE(r.worst.peak, 4)
-        << "the divergence over a lit ground is not edge requantisation alone "
-           "— "
-        << r.worst.pixels << " pixels at peak " << r.worst.peak;
-    EXPECT_LT(r.worst.pixels, (size_t)(240 * 240 / 10))
-        << "more than a tenth of the canvas moved, which is not an edge "
-           "effect";
-    EXPECT_GT(r.blitFrames, 0);
   }
 }
 

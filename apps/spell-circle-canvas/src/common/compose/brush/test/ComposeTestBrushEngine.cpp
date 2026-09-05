@@ -229,31 +229,6 @@ TEST(ComposeDecorations, ContourWalkCopyRebakesChangedStamp) {
   EXPECT_EQ(changed.pixel(20, 100), SK_ColorBLUE);
 }
 
-TEST(ComposeTrim, PathFormatOpenContourWrapKeepsTwoPieces) {
-  // PathFormat owns a separate wrapping trim window. It must apply the same
-  // open-contour rule as node-level trim instead of connecting both pieces.
-  Host host;
-  PathFormat format;
-  format.width = 6;
-  format.strokeFill = green();
-  format.trimStart = 0.9f;
-  format.trimEnd = 1.2f;
-  host.composer.render(box().child(box()
-                                       .absolute()
-                                       .inset(20, 80, 20, 80)
-                                       .shape([](SkSize s) {
-                                         SkPathBuilder b;
-                                         b.moveTo(0, s.height() / 2);
-                                         b.lineTo(s.width(), s.height() / 2);
-                                         return b.detach();
-                                       })
-                                       .stroke(format)));
-  host.frame();
-  EXPECT_EQ(host.pixel(170, 100), SK_ColorGREEN);  // tail piece [0.9, 1]
-  EXPECT_EQ(host.pixel(40, 100), SK_ColorGREEN);   // head piece [0, 0.2]
-  EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // NO invented chord
-}
-
 TEST(ComposeBrushTail, BrushArtWarpsArtAlongTheOutline) {
   Host host;
   // A straight horizontal outline through the node's middle: the warped
@@ -509,31 +484,6 @@ TEST(ComposeBrushes, OutgoingCornerAlignmentFacesTheNextEdge) {
   EXPECT_GT(gc.y() - rc.y(), 6.0f);
 }
 
-TEST(ComposeBrushTail, GlossContourBandsInsideTheShape) {
-  Host plain, glossed;
-  auto shape = [] {
-    return box()
-        .absolute()
-        .inset(50, 50, 50, 50)
-        .corners({24})
-        .fill(Fill::color({0.2f, 0.3f, 0.5f, 1}));
-  };
-  plain.composer.render(box().child(shape()));
-  plain.frame();
-  glossed.composer.render(
-      box().child(shape().foreground(kit::gloss({1, 1, 1, 1}, 8, {0, -4}))));
-  glossed.frame();
-  // The band brightens SOME interior pixels but not the deep center
-  // (table peaks at mid-coverage, so the middle of the shape stays fill).
-  int changed = 0;
-  for (int y = 52; y < 148; y += 2)
-    for (int x = 52; x < 148; x += 2)
-      if (plain.pixel(x, y) != glossed.pixel(x, y)) ++changed;
-  EXPECT_GT(changed, 40);  // a real band appeared
-  EXPECT_EQ(plain.pixel(100, 100), glossed.pixel(100, 100));  // center: fill
-  EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));      // outside: clip
-}
-
 TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
   // A translucent gloss whose alpha equals the ring's centre must still
   // leave the deep interior at the fill: the ring reads coverage, and the
@@ -557,4 +507,5 @@ TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
       if (plain.pixel(x, y) != glossed.pixel(x, y)) ++changed;
   EXPECT_GT(changed, 40);                                     // a band
   EXPECT_EQ(plain.pixel(100, 100), glossed.pixel(100, 100));  // not a wash
+  EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));  // and clipped out
 }

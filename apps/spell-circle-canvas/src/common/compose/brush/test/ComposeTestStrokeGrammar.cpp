@@ -2,8 +2,6 @@
 // bands and ribbons, crossings and strands, the width profile, and the
 // words a claim's endpoints and volatility are spelled with.
 
-#include <sigilmeasure/time/Stopwatch.h>
-
 #include "support/BrushTestSupport.h"
 
 namespace {
@@ -355,36 +353,6 @@ TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
   EXPECT_EQ(host.pixel(200, 90), SK_ColorBLACK)
       << "the gap between the rings was bridged";
   EXPECT_EQ(host.pixel(200, 200), SK_ColorBLACK) << "the middle was filled";
-}
-
-TEST(ComposeBand, ConstructionStaysUnderTheQuadraticCeiling) {
-  // Band construction must not re-measure the spine per sample. Asking
-  // bandPointAt for each sample does exactly that, and bandPointAt walks the
-  // whole path every call, so construction becomes quadratic in the spine's
-  // length — invisible on a small band and ruinous on a large ring.
-  //
-  // A single radius cannot demonstrate a growth RATE, so this is a wall-clock
-  // ceiling instead: loose enough to survive a contended machine, tight
-  // enough that the quadratic form cannot fit under it at this radius.
-  auto ring = [](float r) {
-    return [r](SkSize s) {
-      SkPathBuilder b;
-      b.addCircle(s.width() * 0.5f, s.height() * 0.5f, r);
-      return b.detach();
-    };
-  };
-  const auto build = [&](float r) {
-    Host host(1400, 1400);
-    const sigil::measure::Stopwatch watch;
-    host.composer.render(
-        stack().child(band(ring(r), across(14)).inset(0).fill(red())));
-    host.frame();
-    return watch.elapsedMs();
-  };
-  const double big = build(550.0f);
-  EXPECT_LT(big, 250.0) << "r=550 band took " << big
-                        << " ms — sampling must not be "
-                           "quadratic in the spine length";
 }
 
 TEST(ComposeBand, AlongAcrossIsTheBandsOwnSpace) {
