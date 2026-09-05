@@ -1489,9 +1489,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // default, a rasterized image under Cache::Texture (the raster-target pixel
   // win — replaying a picture re-rasterizes, blitting doesn't).
   // COMPOSE_PROF=<ms> prints any draw above the threshold — cached-texture
-  // blits, picture replays (which re-EXECUTE recorded ops on raster), and
-  // live paints. Nested lines overlap (inclusive of children); any
-  // unparsable value means 4ms.
+  // blits, picture replays (which re-EXECUTE recorded ops on raster), live
+  // paints, and the bakes themselves, which are the cost a blit is bought
+  // with. Nested lines overlap (inclusive of children); any unparsable
+  // value means 4ms.
   static const double kProfMs = [] {
     const char* env = getenv("COMPOSE_PROF");
     if (!env) return -1.0;
@@ -1723,10 +1724,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)device.left(), -(float)device.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
-          {
+          profDraw("promote bake", [&] {
             const BakeLayerScope bakeLayer(this);
             paintContent(inst, *lc, hostScale, leafBlend, leafOpacity);
-          }
+          });
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = SkRect::Make(device);
@@ -2157,10 +2158,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)deviceR.left(), -(float)deviceR.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
-          {
+          profDraw("bake", [&] {
             const BakeLayerScope bakeLayer(this);
             paintContent(inst, *lc, hostScale);  // no leaf blend: bakes isolate
-          }
+          });
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = bakeRect;
@@ -2243,10 +2244,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         layer = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pw, ph));
       layer->getCanvas()->scale(scale, scale);
       layer->getCanvas()->translate(-bake.left(), -bake.top());
-      {
+      profDraw("bake", [&] {  // no leaf blend: bakes isolate
         const BakeLayerScope bakeLayer(this);
-        paintContent(inst, *layer->getCanvas(), scale);  // no leaf blend:
-      }                                                  // bakes isolate
+        paintContent(inst, *layer->getCanvas(), scale);
+      });
       inst.textureImage = layer->makeImageSnapshot();
       inst.textureScale = scale;
       inst.textureDeviceSpace = false;
