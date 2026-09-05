@@ -16,7 +16,6 @@ __pycache__
 build
 
 # Generated demo renders
-textflow_demo_out/
-ifritweb_demo_out/
+*_demo_out/
 --help/
 .skilltree-export.json
