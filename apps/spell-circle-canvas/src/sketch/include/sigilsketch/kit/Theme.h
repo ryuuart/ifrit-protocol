@@ -35,6 +35,11 @@ struct Palette {
   SkColor4f ash{0.55f, 0.56f, 0.62f, 1};
   /** The hairline under the header and over the footer. */
   SkColor4f rule{0.20f, 0.21f, 0.25f, 1};
+  /** A MEASURED FIGURE: the number a readout answers with, the filled
+   *  part of a meter, the ground of a chip. It is the one colour on the
+   *  sheet that is not type or furniture, so it is the one a reader's eye
+   *  is meant to find. */
+  SkColor4f figure{0.90f, 0.83f, 0.68f, 1};
   bool operator==(const Palette&) const = default;
 };
 
@@ -76,12 +81,20 @@ struct TypeScale {
   Register captionLabel{10.5f, 0, true};
   /** The remark read after the picture. */
   Register captionNote{10, 0.2f};
+  /** The small line that stands OVER a title, and the word inside a chip:
+   *  the shortest thing on the sheet, so it is tracked wide enough to
+   *  read as a label rather than as a word. */
+  Register eyebrow{9.5f, 1.6f, true};
+  /** The line that names a section INSIDE the content, one step under the
+   *  page's own subtitle. */
+  Register section{11.5f, 1.4f, true};
   sk_sp<SkTypeface> sans;
   sk_sp<SkTypeface> mono;
   bool operator==(const TypeScale&) const = default;
 };
 
-/** THE DISTANCES BETWEEN THINGS, px. */
+/** THE DISTANCES A SHEET IS SET BY, px — the air between things, and the
+ *  few extents the look rather than the caller fixes. */
 struct Spacing {
   /** The page margins: the two sides, the top and the bottom. */
   float marginX = 24, marginTop = 20, marginBottom = 16;
@@ -98,6 +111,19 @@ struct Spacing {
   float cellGap = 20;
   /** Inside a well, around its specimen. */
   float wellPadding = 0;
+  /** Between the rows of a readout, a legend or a key-and-figure table. */
+  float rowGap = 5;
+  /** Between a name and the figure that answers it, where the two stand
+   *  side by side rather than ranged to opposite edges. */
+  float labelGap = 10;
+  /** Inside a chip, around its word. */
+  float chipPaddingX = 6, chipPaddingY = 2;
+  /** Inside a panel or a device's shell, around what it holds. */
+  float panelPadding = 12;
+  /** The side of a legend's swatch. */
+  float swatch = 10;
+  /** The thickness of a meter's bar and of a timeline's rail. */
+  float barHeight = 6;
   bool operator==(const Spacing&) const = default;
 };
 

@@ -36,9 +36,9 @@ struct BorderWeave final : sketch::Sketch {
 
 ## The theme, and why it is inherited rather than passed
 
-`Theme` holds three values and one choice: a `Palette` of five colours, a
-`TypeScale` of five `Register`s and two faces, a `Spacing` of the
-distances between things, and where a cell's caption lines stand.
+`Theme` holds three values and one choice: a `Palette` of six colours, a
+`TypeScale` of seven `Register`s and two faces, a `Spacing` of the
+distances a sheet is set by, and where a cell's caption lines stand.
 
 It arrives at a component through **`sigil::core::env`**, the
 reconciler's inherited value, aliased here as `sketch::kit::Provide`:
@@ -84,8 +84,14 @@ still stands.
 
 ## The components
 
-Each takes a props struct, reads the theme, and delegates to
-`compose::kit`. Props are the caller's facts; the theme is the look.
+Each takes a props struct, reads the theme, and returns an Element built
+by plain composition over `compose::kit`. Props are the caller's facts;
+the theme is the look. Children arrive as Elements and slots as props, so
+a component nests inside another the way a box does — which is the point:
+a sketch is meant to read as its algorithm plus a run of these calls, not
+as a thousand lines of furniture.
+
+### The surface — `Page.h`, `Cells.h`
 
 | | |
 | --- | --- |
@@ -93,13 +99,109 @@ Each takes a props struct, reads the theme, and delegates to
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the theme's three registers, its margins, its ground and its hairline |
 | `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground |
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice; `measure` is the cell's own width, the one distance a caption cannot inherit |
+| `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
+| `columns(Columns)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is |
+| `panelGrid(PanelGrid)` | the same, wrapped every N, with a short last row keeping its share |
 | `passage(ctx, name)` | the prose at `res://passages/<name>`, minus the newlines a file ends with — the two thousand words a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
+
+```cpp
+sketch::kit::page({.title = toU8("THE STROKE ATLAS")},
+                  sketch::kit::panelGrid({.cells = panels, .columns = 4}));
+```
 
 `Page::ruled` is `false` for a sheet that rules neither header nor
 footer, and `Page::ground` names a fill for a sheet whose ground is not a
 flat colour, because a palette holds colours and a gradient is not one. A
 well that must paint nothing passes `Fill::none()`; a well that must
 paint something else passes that.
+
+### What announces something — `Heading.h`
+
+| | |
+| --- | --- |
+| `titleCard(TitleCard)` | an eyebrow over a title over a subtitle, optionally ruled — the header half of a page, standing on its own |
+| `sectionHeader(SectionHeader)` | a name at the left, a remark at the right, and the rule that fills what the two leave between them |
+
+```cpp
+sketch::kit::titleCard({.eyebrow = toU8("SIGIL · COMPOSE"),
+                        .title = toU8("THE STROKE ATLAS"),
+                        .subtitle = toU8("every rail, at one width")});
+```
+
+### A name and the figure that answers it — `Rows.h`
+
+| | |
+| --- | --- |
+| `labelRow(Reading, measure)` | the name at the left in the quiet register, the figure at the right in the figure colour and the face a call is set in |
+| `readout(Readout)` | a table of those, at the theme's row gap, optionally ruled between |
+
+```cpp
+sketch::kit::readout({.rows = {{u8"nodes", nodes}, {u8"instances", live}},
+                      .measure = 220});
+```
+
+A figure a sketch measured about its own execution goes through
+`ctx.measured` **before** it reaches here. These components arrange a
+row; what the number is, and whether it is pinned, is the sketch's.
+
+### Colour, named — `Legend.h`
+
+| | |
+| --- | --- |
+| `legend(Legend)` | swatch-and-label rows, stacked or run along a line |
+| `swatchStrip(SwatchStrip)` | a ramp's steps in order at one size, with words under the ones that have them |
+| `chip(Chip)` | one word on its own ground, in the theme's eyebrow register |
+
+```cpp
+sketch::kit::legend({.entries = {{Fill::color(kWarm), u8"lit"},
+                                 {Fill::color(kCool), u8"shaded"}}});
+```
+
+### A fraction drawn — `Meter.h`
+
+| | |
+| --- | --- |
+| `meter(Meter)` | a fraction along a bar, with a label over it at the left and its reading at the right |
+| `gauge(Gauge)` | the same reading around a dial, over `geometry::shapes::sector` |
+
+```cpp
+sketch::kit::meter({.fraction = load, .label = toU8("cache"),
+                    .reading = toU8("74%"), .width = Dim(220)});
+```
+
+A live fraction is a re-describe rather than a binding: the filled part
+is a width, and a width is layout.
+
+### What stands behind and around — `Panel.h`
+
+| | |
+| --- | --- |
+| `backdrop(Backdrop)` | the theme's ground over the whole surface, shaded toward the corners and grained, over `compose::kit::vignette` and `grained` |
+| `frame(Frame, screen)` | a device's chrome: an outer shell, a screen inset into it by the bezel on every side, and the plate its word is engraved on |
+
+```cpp
+sketch::kit::frame({.width = Dim(275), .height = Dim(116), .bezel = 6,
+                    .plate = toU8("MAIN WINDOW")}, tape);
+```
+
+`Backdrop::over` is the canvas — a vignette is a fact about an extent,
+which is the one thing here a theme cannot carry.
+
+### A log, and things along an axis — `Console.h`, `Ticker.h`
+
+| | |
+| --- | --- |
+| `console(Console)` | N feeds of one monospaced voice on one bordered plate, over `compose::kit::console` |
+| `ticker(Ticker)` | a strip crawling past a window, over `compose::kit::marquee` |
+| `timeline(Timeline)` | a rail marked off with ticks and the words that name them |
+
+```cpp
+sketch::kit::console({.feeds = {&checks}, .levels = {{"fail", kAlarm}}})
+    .rect({64, 1420, kW - 64, 1576});
+```
+
+A console does not place itself: a component that decides where it goes
+cannot be reused.
 
 ## What is NOT here, and where it is
 
@@ -108,6 +210,9 @@ A leaf may not invent what an ancestor should own.
 * The run of cells, the captioned cell's arrangement and the sheet's own
   layout — `compose::kit::cells`, `cell`, `well`, `sheet`. This library
   puts values into those; it does not restate them.
+* A ground's vignette and its grain as fills — `compose::kit::vignette`
+  and `compose::kit::grained` (`kit/Ground.h`). `backdrop` puts the
+  theme's values into those; it does not build a shader.
 * Ring and grid arithmetic — `geometry::arrange`. Do not respell it with
   `std::cos` and `std::sin`; the two round differently.
 * Entrances, loops and the stagger cascade — `compose::kit::fx`, spelled
