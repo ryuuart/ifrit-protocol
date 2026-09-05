@@ -80,7 +80,7 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
   if (!canvas || polygon.size() < 3 || !(pigment.opacity > 0.0f) ||
       pigment.layers <= 0)
     return;
-  const SkRect bounds = polygonBounds(polygon);
+  const SkRect bounds = ring(polygon).bounds();
   const SkPoint center = polygonCenter(polygon);
   const float scale = std::max(1.0f, std::min(bounds.width(), bounds.height()));
   const float bleed = std::clamp(pigment.bleed, 0.0f, 1.0f);

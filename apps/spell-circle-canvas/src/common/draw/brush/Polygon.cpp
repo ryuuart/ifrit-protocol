@@ -4,6 +4,8 @@
 
 #include "PolygonMath.h"
 
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Engine.h>
 #include <sigildraw/brush/Hatch.h>
@@ -12,38 +14,17 @@
 #include <sigildraw/brush/Wash.h>
 
 #include <algorithm>
-#include <cmath>
 
 namespace sigil::draw::brush {
 
-namespace {
-
-float cross(SkPoint a, SkPoint b) { return a.fX * b.fY - a.fY * b.fX; }
-
-SkPoint subtract(SkPoint a, SkPoint b) { return {a.fX - b.fX, a.fY - b.fY}; }
-
-}  // namespace
-
 std::vector<SkPoint> Polygon::intersect(const Line& line) const {
+  const std::vector<glm::vec2> hits = geometry::path::edgeCrossings(
+      ring(vertices), geometry::path::fromSk(line.from),
+      geometry::path::fromSk(line.to));
   std::vector<SkPoint> result;
-  const SkPoint ray = subtract(line.to, line.from);
-  for (size_t i = 0; i < vertices.size(); ++i) {
-    const SkPoint from = vertices[i];
-    const SkPoint edge = subtract(vertices[(i + 1) % vertices.size()], from);
-    const float denominator = cross(ray, edge);
-    if (std::abs(denominator) < 0.000001f) continue;
-    const SkPoint between = subtract(from, line.from);
-    const float alongRay = cross(between, edge) / denominator;
-    const float alongEdge = cross(between, ray) / denominator;
-    if (alongRay >= 0.0f && alongRay <= 1.0f && alongEdge >= 0.0f &&
-        alongEdge <= 1.0f)
-      result.push_back(
-          {line.from.fX + ray.fX * alongRay, line.from.fY + ray.fY * alongRay});
-  }
-  std::ranges::sort(result, [&](SkPoint a, SkPoint b) {
-    return std::hypot(a.fX - line.from.fX, a.fY - line.from.fY) <
-           std::hypot(b.fX - line.from.fX, b.fY - line.from.fY);
-  });
+  result.reserve(hits.size());
+  for (const glm::vec2 hit : hits)
+    result.push_back(geometry::path::toSk(hit));
   return result;
 }
 

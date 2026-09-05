@@ -375,7 +375,7 @@ kept in the pen's `Retained` store.
 
 | word | what it is |
 | --- | --- |
-| `Hatch`, `hatch(pen, tool, polygon, style)` | parallel marks at `angle` radians and `spacing`, cut at the polygon's edges with crossings paired across every contour, so holes are skipped; `jitter` moves each mark's ends after the cut, by up to twice that fraction of the spacing, so a jittered mark may cross the edge; `gradient` grows or shrinks the spacing by a tenth per lane; `continuous` joins the marks into one serpentine line. Every mark is thinned at both ends |
+| `Hatch`, `hatch(pen, tool, polygon, style)` | `path::lattice` at `angle` radians and `spacing`, cut to the even-odd interior so holes are skipped; `jitter` moves each mark's ends after the cut, by up to twice that fraction of the spacing, so a jittered mark may cross the edge; `gradient` opens or crowds the lattice's gaps by a tenth per lane; `continuous` joins the marks into one serpentine line. Every mark is thinned at both ends |
 | `Wash`, `wash(pen, pigment, polygon)` | a wet interior: `layers` translucent deposits, each the polygon's edge pushed out by a gaussian of the `bleed` and rippled by noise, blooms lifted out and grains settled in by `texture`, pigment gathered at the edge by `border`, the whole composited once with `blend`. It is built in one layer on the pen's canvas, so its pixels are wherever the pen's are |
 | `Mass`, `mass(pen, tool, polygon, style)` | chords across the shape at the tool's scatter, each bent into an arc around a pivot outside it and painted only where the arc stays inside; `strength` sets one to three passes, later passes displaced by up to twice the scatter; `precision` steadies the hand — narrower lane jitter, less wobble on each arc; `outline` finishes the boundary |
 
@@ -383,7 +383,7 @@ kept in the pen's `Retained` store.
 
 | word | what it is |
 | --- | --- |
-| `Polygon` | vertices, the whole of its state; `intersect(line)`, `translated`, and `draw`/`fill`/`wash`/`hatch`/`mass` with a tool or through an engine; `show` is every active interior in the engine's order |
+| `Polygon` | vertices, the whole of its state; `intersect(line)` (`path::edgeCrossings`, nearest the line's start first), `translated`, and `draw`/`fill`/`wash`/`hatch`/`mass` with a tool or through an engine; `show` is every active interior in the engine's order |
 | `Plot` | a path by turns: `addSegment(angle, length, pressure)`, `endPlot`, `rotate`; `angle(distance)` and `pressure(distance)`; `path(origin, spacing, curvature, scale)` and `polygon(x, y, …)` place it anywhere at any scale. `fromStroke` records a stroke's turns relative to its first sample. A plot is always relative |
 | `PlacedPlot` | a plot and the origin it was first drawn at — what the engine's `circle`, `arc`, `spline` and `endShape` answer |
 | `Position` | a cursor: `moveTo(direction, length, step)` walks with its field's answer added to the direction, `plotTo(plot, length, step, scale)` walks a plot's headings; `plotted()` accumulates; with bounds it stops once it has left them by half their size |
@@ -546,7 +546,8 @@ src/common/draw/
 * **The geometry under a mark is SigilGeometryPath's.** The walk that
   spaces dabs along a stroke is `path::Stride`, the centrelines are
   `path::subdivide` and `path::catmullRom` over a `path::Polyline` whose
-  lane is the pressure. What stays
+  lane is the pressure, and what a surface's interior is filled and
+  tested with is `path::lattice` and `path::containsEvenOdd`. What stays
   here is what a device and a tool know and geometry does not: pressure,
   tilt and speed, the pen's random stream, the grain and the pigment.
 * **Never reads the wall.** Every number a pen answers about time comes

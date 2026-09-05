@@ -6,6 +6,8 @@
 #include "HatchLines.h"
 #include "PolygonMath.h"
 
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
@@ -28,14 +30,14 @@ float positiveSweep(float start, float stop) {
   return sweep;
 }
 
-/** Whether the arc's interior samples all lie inside the contours. */
-bool arcFits(std::span<const std::span<const SkPoint>> contours, SkPoint center,
+/** Whether the arc's interior samples all lie inside the rings. */
+bool arcFits(std::span<const geometry::path::Polyline> rings, SkPoint center,
              float radius, float start, float stop) {
   const float sweep = positiveSweep(start, stop);
   for (int sample = 1; sample < 8; ++sample) {
     const float angle = start + sweep * (float)sample / 8.0f;
-    if (!pointInContours(contours, {center.fX + radius * std::cos(angle),
-                                    center.fY + radius * std::sin(angle)}))
+    if (!containsEvenOdd(rings, {center.fX + radius * std::cos(angle),
+                                 center.fY + radius * std::sin(angle)}))
       return false;
   }
   return true;
@@ -44,15 +46,13 @@ bool arcFits(std::span<const std::span<const SkPoint>> contours, SkPoint center,
 /** The shorter arc between two chord ends, or the other way round,
  *  whichever stays inside; neither answers nothing. */
 std::optional<std::pair<float, float>> massArc(
-    std::span<const std::span<const SkPoint>> contours, SkPoint center,
+    std::span<const geometry::path::Polyline> rings, SkPoint center,
     float radius, SkPoint from, SkPoint to) {
   float start = std::atan2(from.fY - center.fY, from.fX - center.fX);
   float stop = std::atan2(to.fY - center.fY, to.fX - center.fX);
   if (positiveSweep(start, stop) > PI) std::swap(start, stop);
-  if (arcFits(contours, center, radius, start, stop))
-    return std::pair{start, stop};
-  if (arcFits(contours, center, radius, stop, start))
-    return std::pair{stop, start};
+  if (arcFits(rings, center, radius, start, stop)) return std::pair{start, stop};
+  if (arcFits(rings, center, radius, stop, start)) return std::pair{stop, start};
   return std::nullopt;
 }
 
@@ -134,18 +134,15 @@ void mass(Pen& pen, const Tool& tool,
         pass == 0 ? SkPoint{0, 0}
                   : SkPoint{pen.random(-maximumJitter, maximumJitter),
                             pen.random(-maximumJitter, maximumJitter)};
-    std::vector<std::vector<SkPoint>> storage;
-    std::vector<std::span<const SkPoint>> layer;
-    storage.reserve(contours.size());
+    // The pass's own rings, formed once: the lattice, the extent and
+    // every containment test below read these.
+    std::vector<geometry::path::Polyline> layer;
     layer.reserve(contours.size());
     for (const std::span<const SkPoint> contour : contours) {
-      std::vector<SkPoint>& moved = storage.emplace_back();
-      moved.reserve(contour.size());
-      for (const SkPoint point : contour)
-        moved.push_back({point.fX + translation.fX, point.fY + translation.fY});
+      geometry::path::Polyline& moved = layer.emplace_back(ring(contour));
+      for (glm::vec2& point : moved.points)
+        point += glm::vec2(translation.fX, translation.fY);
     }
-    for (const std::vector<SkPoint>& contour : storage)
-      layer.push_back(contour);
 
     const float angleJitter = pass == 1 ? 20.0f : 15.0f;
     const float angle =
@@ -161,11 +158,11 @@ void mass(Pen& pen, const Tool& tool,
                            .continuous = layer.size() == 1};
     const std::vector<HatchSegment> segments =
         hatchLines(pen, layer, hatchStyle);
-    const SkRect bounds = contourBounds(layer);
-    const float size = std::hypot(bounds.width(), bounds.height());
+    const SkRect extent = geometry::path::bounds(layer);
+    const float size = std::hypot(extent.width(), extent.height());
     const float anchorDistance = size * pen.random(0.6f, 1.4f);
-    const SkPoint anchor{bounds.centerX() + pivotBias.fX * anchorDistance,
-                         bounds.centerY() + pivotBias.fY * anchorDistance};
+    const SkPoint anchor{extent.centerX() + pivotBias.fX * anchorDistance,
+                         extent.centerY() + pivotBias.fY * anchorDistance};
 
     for (const HatchSegment& segment : segments) {
       const bool shouldSplit = !segment.connector && pen.random() < 0.35f;

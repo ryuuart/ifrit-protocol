@@ -3,15 +3,16 @@
  */
 
 #include "HatchLines.h"
+#include "PolygonMath.h"
 
+#include <sigilgeometry/path/Lattice.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Hatch.h>
 
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <limits>
 #include <utility>
 
 namespace sigil::draw::brush {
@@ -28,70 +29,24 @@ const Pressure kMarkPressure{0.16f, 1.0f, 0.16f};
 }  // namespace
 
 std::vector<HatchSegment> hatchLines(
-    Pen& pen, std::span<const std::span<const SkPoint>> contours,
+    Pen& pen, std::span<const geometry::path::Polyline> rings,
     const Hatch& style) {
-  struct Edge {
-    float x1;
-    float y1;
-    float x2;
-    float y2;
-  };
-
-  // Rotate the contours so the scanlines are horizontal, scan, then
-  // rotate the marks back.
-  const float cosine = std::cos(style.angle);
-  const float sine = std::sin(style.angle);
-  float minimumY = std::numeric_limits<float>::infinity();
-  float maximumY = -std::numeric_limits<float>::infinity();
-  std::vector<Edge> edges;
-  for (const std::span<const SkPoint> contour : contours) {
-    if (contour.size() < 3) continue;
-    std::vector<SkPoint> rotated;
-    rotated.reserve(contour.size());
-    for (const SkPoint point : contour) {
-      const SkPoint transformed{point.fX * cosine - point.fY * sine,
-                                point.fX * sine + point.fY * cosine};
-      rotated.push_back(transformed);
-      minimumY = std::min(minimumY, transformed.fY);
-      maximumY = std::max(maximumY, transformed.fY);
-    }
-    for (size_t index = 0; index < rotated.size(); ++index) {
-      const SkPoint from = rotated[index];
-      const SkPoint to = rotated[(index + 1) % rotated.size()];
-      if (from.fY != to.fY) edges.push_back({from.fX, from.fY, to.fX, to.fY});
-    }
-  }
-  if (edges.empty() || !std::isfinite(minimumY) || !std::isfinite(maximumY))
-    return {};
+  const float gradient = std::clamp(style.gradient, -1.0f, 1.0f);
+  const geometry::path::LatticeOptions options{
+      .spacing = style.spacing,
+      .angle = style.angle,
+      // The dial is a share of one step per lane either way, so its two
+      // signs are each other's inverse rather than one added and one
+      // subtracted.
+      .taper = gradient >= 0.0f ? 1.0f + gradient * kGradientStep
+                                : 1.0f / (1.0f - gradient * kGradientStep),
+      .maxLines = kLaneCap};
 
   std::vector<HatchSegment> segments;
-  std::vector<float> crossings;
-  float scanY = minimumY + style.spacing * 0.5f;
-  float step = style.spacing;
-  const float gradient = std::clamp(style.gradient, -1.0f, 1.0f);
-  const float stepScale = gradient >= 0.0f
-                              ? 1.0f + gradient * kGradientStep
-                              : 1.0f / (1.0f - gradient * kGradientStep);
-  int lanes = 0;
-  while (scanY < maximumY && lanes++ < kLaneCap) {
-    crossings.clear();
-    for (const Edge& edge : edges) {
-      if ((edge.y1 <= scanY) == (edge.y2 <= scanY)) continue;
-      crossings.push_back(edge.x1 + (scanY - edge.y1) / (edge.y2 - edge.y1) *
-                                        (edge.x2 - edge.x1));
-    }
-    std::ranges::sort(crossings);
-    for (size_t index = 0; index + 1 < crossings.size(); index += 2) {
-      const float fromX = crossings[index];
-      const float toX = crossings[index + 1];
-      segments.push_back({
-          {fromX * cosine + scanY * sine, -fromX * sine + scanY * cosine},
-          {toX * cosine + scanY * sine, -toX * sine + scanY * cosine},
-      });
-    }
-    scanY += step;
-    step = std::max(0.125f, step * stepScale);
-  }
+  for (const geometry::path::LatticeMark& mark :
+       geometry::path::lattice(rings, options))
+    segments.push_back(
+        {geometry::path::toSk(mark.from), geometry::path::toSk(mark.to)});
 
   const float jitter = std::max(0.0f, style.jitter) * style.spacing * 2.0f;
   if (jitter > 0.0f) {
@@ -126,7 +81,8 @@ void hatch(Pen& pen, const Tool& tool,
            std::span<const std::span<const SkPoint>> contours,
            const Hatch& style) {
   if (contours.empty() || !(style.spacing > 0.0f)) return;
-  const std::vector<HatchSegment> segments = hatchLines(pen, contours, style);
+  const std::vector<HatchSegment> segments =
+      hatchLines(pen, rings(contours), style);
   Tool mark = tool;
   mark.pressure = kMarkPressure;
   Stroke continuous;
