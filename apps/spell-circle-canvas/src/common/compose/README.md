@@ -789,7 +789,13 @@ captions use, `kit::cells`, a run of
 them along one axis with a hairline between neighbours, and
 `kit::sheet`, the titled and footed page that rules its header and
 footer off from the content between them; every face, size and distance
-is the `Caption`'s and the `Sheet`'s, so the kit decides no look — and,
+is the `Caption`'s and the `Sheet`'s, so the kit decides no look;
+`kit/Ground.h`'s two dressings for a flat ground — `kit::vignette`, a
+radial ramp measured to the CORNER so it meets all four at one value on
+a surface that is not square, and `kit::grained`, value noise collapsed
+to one channel and soft-lit so a coloured ground takes a grain as light
+rather than as speckled hue, with mid grey soft light's identity and so
+the strength linear and zero exact — and,
 shipped with the tiers whose
 types they are spelled in, `kit/Strokes.h`'s finished lines, braid,
 bracket spans, brush presets and `kit::groove` — the engraved cut across a disc's stroke, a
