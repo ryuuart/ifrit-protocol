@@ -507,7 +507,7 @@ inline LayerStyle doubleBorder(Border outer, Border inner) {
  *  signal) can wear all of it:
  *
  *      custom([&](SkCanvas &c, const PaintContext &ctx) {
- *        decorations::paintOn(c, ctx, ropePath(), lines::cased(...));
+ *        decorations::paintOn(c, ctx, ropePath(), lines::presets::cased(...));
  *      }).cache(Cache::None)
  *
  *  What live geometry inside `custom()` gives up is PRUNING, not the

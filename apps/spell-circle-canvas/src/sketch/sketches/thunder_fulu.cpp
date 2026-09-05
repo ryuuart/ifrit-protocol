@@ -910,9 +910,9 @@ struct ThunderFulu : sketch::Sketch {
                                             {0.46f, kIronMid},
                                             {0.78f, hex(0x201e1d)},
                                             {1.0f, hex(0x161514)}}))
-                .foreground(lines::hatch(Fill::color(hex(0xa79a83, 0.075f)),
+                .foreground(lines::presets::hatch(Fill::color(hex(0xa79a83, 0.075f)),
                                          13.0f, 1.6f, -18.0f))
-                .foreground(lines::hatch(Fill::color(hex(0x000000, 0.13f)),
+                .foreground(lines::presets::hatch(Fill::color(hex(0x000000, 0.13f)),
                                          31.0f, 3.4f, 24.0f))
                 .foreground(Wash{.material = ironGrain,
                                  .blend = SkBlendMode::kOverlay,
@@ -1206,7 +1206,7 @@ struct ThunderFulu : sketch::Sketch {
                     return p;
                   })
                   .fill(Fill::none())
-                  .stroke(brush::taper(3.6f, 1.0f, Fill::color(cols[k])))
+                  .stroke(brush::presets::taper(3.6f, 1.0f, Fill::color(cols[k])))
                   .foreground(PathFormat{
                       .width = 7.0f,
                       .strokeFill = Fill::color(
@@ -1257,7 +1257,7 @@ struct ThunderFulu : sketch::Sketch {
             .inset(0)
             .shape(shapes::chamfered(6.0f))
             .fill(Fill::color(hex(0xb52a17, 0.90f)))
-            .foreground(lines::crosshatch(Fill::color(hex(0x6d1409, 0.25f)),
+            .foreground(lines::presets::crosshatch(Fill::color(hex(0x6d1409, 0.25f)),
                                           5.0f, 0.8f, 18.0f))
             .stroke(PathFormat{.width = 5.0f,
                                .strokeFill = Fill::color(hex(0xc23520, 1.0f)),
@@ -1537,7 +1537,7 @@ struct ThunderFulu : sketch::Sketch {
                    .inset(0)
                    .shape([p = b.detach()](SkSize) { return p; })
                    .fill(Fill::none())
-                   .stroke(brush::taper(3.6f, 1.4f, Fill::color(kCinnaWet))));
+                   .stroke(brush::presets::taper(3.6f, 1.4f, Fill::color(kCinnaWet))));
       if (i < 9) {
         mp.child(text(toU8(kOthers[i].pinyin),
                       type(faceMono, 8.0f, hex(0xa89264, 0.95f)))

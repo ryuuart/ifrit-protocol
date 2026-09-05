@@ -415,6 +415,7 @@ TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
 
 #include <include/core/SkPicture.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Strokes.h>
 
 TEST(ComposeKitStrokes, TheGrooveIsDarkOnTheInnerWallAndLitOnTheOuter) {
   const SkColor4f dark{0.2f, 0.1f, 0.0f, 1};

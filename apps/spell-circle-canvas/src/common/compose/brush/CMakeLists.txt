@@ -6,7 +6,8 @@
 # stack, the geometry ops and the `brush::` kinds) and the layer styles
 # (`styles::` — inner shadows, glows, bevels and the gel and chrome
 # bundles over SigilMaterial's kit tables), with the kit's stroke grammar
-# (`kit/Strokes.h`), the bordered feed plate (`kit/Plate.h`) and the
+# and finished lines, rails and hatches (`kit/Strokes.h`), the bordered
+# feed plate (`kit/Plate.h`) and the
 # ornament and flourish pieces (`kit/Ornament.h`, `kit/Flourish.h`) that are
 # spelled in this tier's types. And the engine behind the kernel's stroke
 # grammar and mask gates — span claims, the span normal form, bands, the

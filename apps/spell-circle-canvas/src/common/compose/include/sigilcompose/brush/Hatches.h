@@ -55,12 +55,6 @@ struct Hatch {
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
 
-Hatch hatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
-            float angleDeg = 45.0f);
-
-Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
-                 float angleDeg = 45.0f);
-
 /** RADIAL hatching: rules that fan out of a centre, rings concentric with
  *  it, or both, clipped to the node's outline.
  *
@@ -99,19 +93,5 @@ struct RadialHatch {
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
-
-RadialHatch radialHatch(Fill fill, int spokes = 48, float width = 1.2f,
-                        SkPoint centre = {0.5f, 0.5f});
-
-/** The other half of the pair: rings only, no spokes. */
-RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
-                       SkPoint centre = {0.5f, 0.5f});
-
-/** Rings at STATED radii, px from the centre — `concentric(ink, {60, 64})`
- *  is a two-circle band exactly where it says. The evenly-spaced form
- *  above runs out to the bounding box's half-diagonal, which on a circular
- *  node clips its outermost ring away. */
-RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
-                       float width = 1.2f, SkPoint centre = {0.5f, 0.5f});
 
 }  // namespace sigil::compose::lines

@@ -1728,7 +1728,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   return b.detach();
                 })
                 .stroke(spans::upTo(gate(tArch + 0.75f, tArch + 1.15f)),
-                        lines::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
+                        lines::presets::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
     g.child(text(toU8("a bowman in traditional dress, captioned THE GOD OF"),
                  type(faceMono, 8.4f, hex(0x4a3b28, 0.85f)))
                 .left(-18)
@@ -2190,7 +2190,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .width(Dim(ov))
                   .height(Dim(9))
                   .fill(Fill::color(hex(0xb4531f, 0.16f)))
-                  .background(lines::hatch(Fill::color(hex(0xb4531f, 0.75f)),
+                  .background(lines::presets::hatch(Fill::color(hex(0xb4531f, 0.75f)),
                                            3.6f, 0.7f, 45.0f)));
     }
     return g;

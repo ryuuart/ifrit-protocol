@@ -401,6 +401,7 @@ TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
 }
 
 #include <type_traits>
+#include <sigilcompose/kit/Strokes.h>
 
 namespace {
 
@@ -2124,7 +2125,7 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   // Material in the unit square and once as a node-local Fill.
   Host host;
   brush::Ribbon painted =
-      brush::taper(24, 24, material::skia::Paint::solid({0, 1, 0, 1}));
+      brush::presets::taper(24, 24, material::skia::Paint::solid({0, 1, 0, 1}));
   ASSERT_TRUE(painted.fillMaterial.has_value());
   host.composer.render(straightRun(std::move(painted)));
   host.frame();
@@ -2136,7 +2137,7 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   const auto paintedPerFrame = [](bool live) {
     Host again;
     again.composer.render(straightRun(
-        brush::taper(24, 24, material::skia::Paint::sksl(heavyEffect(live)))));
+        brush::presets::taper(24, 24, material::skia::Paint::sksl(heavyEffect(live)))));
     again.frame();
     again.frame();
     return again.composer.stats().nodesPainted;
@@ -2333,7 +2334,7 @@ TEST(ComposeRibbon, WidthAlongSkipsTheCapsAndSeesTheCorner) {
 TEST(ComposeBrushKinds, EveryKindAnswersToOneNameUnderOneNamespace) {
   // Every brush kind answers to exactly one name, under `brush::`, with no
   // suffix and no second namespace.
-  const brush::Ribbon taught = brush::taper(10, 2, red());
+  const brush::Ribbon taught = brush::presets::taper(10, 2, red());
   EXPECT_FLOAT_EQ(taught.widthStart, 10.0f);
   // The taught constructor is the PROFILE one.
   const brush::Ribbon profiled =

@@ -611,15 +611,19 @@ hands that geometry back, so a study that MEASURES what was drawn does
 not have to transcribe how it is built. `Ribbon::fillMaterial` paints the
 band with a recipe instead of a `Fill` — the door `strokeMaterial` opens
 on a stroke, mirrored here, so a ribbon beside a stroked outline does not
-have to have the same paint written twice; `brush::taper` and
-`brush::calligraphic` each take a `material::skia::Paint` beside a
+have to have the same paint written twice; `brush::presets::taper` and
+`brush::presets::calligraphic` each take a `material::skia::Paint` beside a
 `Fill`, and a live material declares the ribbon animated. The line vocabulary is three
 more:
 `brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
 parallel casings, terminal caps, ties, waves); `brush/Rails.h`, N-rail
 strokes where every rail is its own line; and `brush/Hatches.h`, the
-parallel, radial and concentric hatches. `kit/Strokes.h` and
-`kit/Plate.h` ship with this tier because they are spelled in its types.
+parallel, radial and concentric hatches — each of the three a MECHANISM
+with every field open. The finished ones over them, whose constants are
+chosen (`cased`, `triple`, `arrow`, `railway`, `wavy`, `rails(n, …)`,
+`quad`, `hatch`, `crosshatch`, `radialHatch`, `concentric`), stand a
+namespace apart as `lines::presets::` in `kit/Strokes.h`, which — with
+`kit/Plate.h` — ships with this tier because it is spelled in its types.
 
 **Fills.** The paint vocabulary is SigilMaterial's and is spelled there:
 `material::skia::Paint` is what `Element::fill` takes, and
@@ -783,8 +787,8 @@ them along one axis with a hairline between neighbours, and
 footer off from the content between them; every face, size and distance
 is the `Caption`'s and the `Sheet`'s, so the kit decides no look — and,
 shipped with the tiers whose
-types they are spelled in, `kit/Strokes.h`'s braid, bracket spans, brush
-presets and `kit::groove` — the engraved cut across a disc's stroke, a
+types they are spelled in, `kit/Strokes.h`'s finished lines, braid,
+bracket spans, brush presets and `kit::groove` — the engraved cut across a disc's stroke, a
 radial ramp concentric with the circle so it is dark on the inner wall
 and lit on the outer, as the comparable `kit::grooveRamp` paint or the
 `PathFormat` that wears it — and `kit/Plate.h`'s bordered feed plate

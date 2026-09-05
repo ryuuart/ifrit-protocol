@@ -80,7 +80,7 @@
 //                        written as maths, not as a path-builder loop
 //   shapes::circle()     the twelve rims and the bow's contact track
 //   shapes::sector()     the 120 sub-wedges the engraved fan is built from
-//   lines::hatch()       their tone, rotated per sub-wedge into a fan
+//   lines::presets::hatch()       their tone, rotated per sub-wedge into a fan
 //   kit::disc()         placement for every circle on the plate
 //   instancing::Pool     9,580 sand grains, ONE atlas stamp, Mode::Live;
 //                        Pool::fly() flies every grain from its scatter to
@@ -110,6 +110,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
@@ -614,7 +615,7 @@ struct ChladniTab1 : sketch::Sketch {
       // The hole is the star's own trough radius, which is where the
       // blank channel these two figures are measured by begins.
       {
-        lines::RadialHatch fan = lines::radialHatch(
+        lines::RadialHatch fan = lines::presets::radialHatch(
             Fill::color(hex(0x211c14, 0.62f)), (int)f.points * 60, 0.85f);
         fan.holeFraction = f.inner;
         root.child(

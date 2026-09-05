@@ -307,9 +307,9 @@ std::vector<Style> railStyles() {
   quad.parallels = 4;
   quad.gap = 4.0f;
 
-  lines::Line heavyHair = lines::triple(1.0f, ink(), 5.0f, 4.0f);
+  lines::Line heavyHair = lines::presets::triple(1.0f, ink(), 5.0f, 4.0f);
 
-  lines::Line dashedPair = lines::cased(2.0f, red(), 7.0f);
+  lines::Line dashedPair = lines::presets::cased(2.0f, red(), 7.0f);
   dashedPair.dashIntervals = {9, 7};
 
   lines::Line offsetLine;
@@ -343,14 +343,14 @@ std::vector<Style> railStyles() {
 
   return {
       {"lines::Line{.width=2}", lines::Line{.width = 2, .fill = ink()}},
-      {"lines::cased(2, ink, 6)", lines::cased(2.0f, ink(), 6.0f)},
-      {"lines::triple(1.6, ink, 5, 1.8)",
-       lines::triple(1.6f, ink(), 5.0f, 1.8f)},
+      {"lines::presets::cased(2, ink, 6)", lines::presets::cased(2.0f, ink(), 6.0f)},
+      {"lines::presets::triple(1.6, ink, 5, 1.8)",
+       lines::presets::triple(1.6f, ink(), 5.0f, 1.8f)},
       {"{.parallels=4, .gap=4}", quad},
       {"triple(1, ink, 5, coreFactor=4)  heavy/hair/heavy", heavyHair},
       {"cased(2,red,7) + dash{9,7}  rails stay in phase", dashedPair},
       {"{.across=-7}  positive across is LEFT of travel", offsetLine},
-      {"lines::quad(1.4, ink, 5)", lines::quad(1.4f, ink(), 5.0f)},
+      {"lines::presets::quad(1.4, ink, 5)", lines::presets::quad(1.4f, ink(), 5.0f)},
       {"brush::presets::heavyHairHeavy(3, 0.6, ink, 6)",
        brush::presets::heavyHairHeavy(3.0f, 0.6f, ink(), 6.0f)},
       {"brush::presets::dottedCore(2, 1.4, ink, 7, 6)",
@@ -363,7 +363,7 @@ std::vector<Style> railStyles() {
 
 /** THE DISPLACED — the run itself is bent before it is stroked. */
 std::vector<Style> displacedStyles() {
-  lines::Line zig = lines::wavy(1.8f, ink(), 5.0f, 20.0f);
+  lines::Line zig = lines::presets::wavy(1.8f, ink(), 5.0f, 20.0f);
   zig.zigzag = true;
 
   Brush square;
@@ -382,10 +382,10 @@ std::vector<Style> displacedStyles() {
   Brush waveOnCased;
   waveOnCased
       .shaped(sigil::geometry::shapers::Wave{.amplitude = 3.5f, .wavelength = 30})
-      .layer(lines::cased(1.6f, red(), 5.0f));
+      .layer(lines::presets::cased(1.6f, red(), 5.0f));
 
   return {
-      {"lines::wavy(1.8, ink, 4, 18)", lines::wavy(1.8f, ink(), 4.0f, 18.0f)},
+      {"lines::presets::wavy(1.8, ink, 4, 18)", lines::presets::wavy(1.8f, ink(), 4.0f, 18.0f)},
       {"wavy(...) then .zigzag = true", zig},
       {"Brush{}.shaped(sigil::geometry::shapers::Square{5,26})  battlement", square},
       {"two shapers::Jitter layers, seeds 7 + 41  (rough.js)", sketch2},
@@ -423,9 +423,9 @@ std::vector<Style> furnishedStyles() {
   morse.dashIntervals = {14, 5, 3, 5, 3, 12};
 
   return {
-      {"lines::railway(1.6, ink, 12, 10)",
-       lines::railway(1.6f, ink(), 12.0f, 10.0f)},
-      {"lines::arrow(1.8, ink, 12)", lines::arrow(1.8f, ink(), 12.0f)},
+      {"lines::presets::railway(1.6, ink, 12, 10)",
+       lines::presets::railway(1.6f, ink(), 12.0f, 10.0f)},
+      {"lines::presets::arrow(1.8, ink, 12)", lines::presets::arrow(1.8f, ink(), 12.0f)},
       {"{.midCap=Arrow, .midSpacing=26}", chevrons},
       {"{.startCap=Dot, .endCap=Bar, .capSize=11}", terminals},
       {"{.alongStops={red, gold, blue}}  arc gradient", gradient},
@@ -453,11 +453,11 @@ std::vector<Style> stackStyles() {
 /** THE BANDS — a filled band whose width varies along the run. */
 std::vector<Style> bandStyles() {
   return {
-      {"brush::taper(9, 0.6, ink)", brush::taper(9.0f, 0.6f, ink())},
-      {"brush::calligraphic(38, 11, ink, 0.10)",
-       brush::calligraphic(38.0f, 11.0f, ink(), 0.10f)},
-      {"brush::calligraphic(-15, 9, red, 0.22)",
-       brush::calligraphic(-15.0f, 9.0f, red(), 0.22f)},
+      {"brush::presets::taper(9, 0.6, ink)", brush::presets::taper(9.0f, 0.6f, ink())},
+      {"brush::presets::calligraphic(38, 11, ink, 0.10)",
+       brush::presets::calligraphic(38.0f, 11.0f, ink(), 0.10f)},
+      {"brush::presets::calligraphic(-15, 9, red, 0.22)",
+       brush::presets::calligraphic(-15.0f, 9.0f, red(), 0.22f)},
   };
 }
 
@@ -698,11 +698,11 @@ struct StrokeAtlasSketch : sketch::Sketch {
       const std::vector<Ring> rings = {
           {160, -1.20f, "Rails{-5,+5, dash{10,8}} in register", registered},
           {130, -1.00f, "shaped(shapers::Wave{4,26}).layer(1.4 red)", wavyRing},
-          {100, -0.80f, "lines::railway(1.4, ink, 13, 9)",
-           lines::railway(1.4f, ink(), 13.0f, 9.0f)},
+          {100, -0.80f, "lines::presets::railway(1.4, ink, 13, 9)",
+           lines::presets::railway(1.4f, ink(), 13.0f, 9.0f)},
           {70, -0.60f, "{.midCap=Arrow, .midSpacing=30}", chev},
-          {42, -0.40f, "lines::triple(1.4, ink, 4.5, 2)",
-           lines::triple(1.4f, ink(), 4.5f, 2.0f)},
+          {42, -0.40f, "lines::presets::triple(1.4, ink, 4.5, 2)",
+           lines::presets::triple(1.4f, ink(), 4.5f, 2.0f)},
       };
       const float span = 380;
       for (const Ring& r : rings) {
@@ -778,11 +778,11 @@ struct StrokeAtlasSketch : sketch::Sketch {
     {
       plate.child(specimen(56, 926, 180, 180,
                            shapes::spiral(3.2f, false, 0.10f),
-                           lines::cased(1.6f, ink(), 5.0f),
+                           lines::presets::cased(1.6f, ink(), 5.0f),
                            "cased(1.6,ink,5) on shapes::spiral(3.2)"));
       plate.child(specimen(258, 926, 180, 180,
                            shapes::spiral(3.2f, false, 0.10f),
-                           lines::railway(1.2f, red(), 11.0f, 8.0f),
+                           lines::presets::railway(1.2f, red(), 11.0f, 8.0f),
                            "railway(1.2,red,11,8), same spiral"));
       plate.child(specimen(460, 926, 150, 74, hairpin(),
                            brush::presets::heavyHairHeavy(2.2f, 0.6f, ink(), 5.0f),
@@ -817,18 +817,18 @@ struct StrokeAtlasSketch : sketch::Sketch {
             .child(call(label, 8.0f, kInkSoft).absolute().left(0).top(130));
       };
       // Staggered, not ruled: the shapes differ, so their baselines should.
-      plate.child(field(640, 0, "lines::hatch(ink, 5, 0.9, 45)",
+      plate.child(field(640, 0, "lines::presets::hatch(ink, 5, 0.9, 45)",
                         shapes::star(6, 0.52f),
-                        lines::hatch(ink(), 5.0f, 0.9f, 45.0f)));
-      plate.child(field(786, 18, "lines::crosshatch(ink, 7, 0.8, 20)",
+                        lines::presets::hatch(ink(), 5.0f, 0.9f, 45.0f)));
+      plate.child(field(786, 18, "lines::presets::crosshatch(ink, 7, 0.8, 20)",
                         shapes::blob(4, 0.16f, 7),
-                        lines::crosshatch(ink(), 7.0f, 0.8f, 20.0f)));
-      plate.child(field(932, -8, "lines::radialHatch(ink, 72, 0.8)",
+                        lines::presets::crosshatch(ink(), 7.0f, 0.8f, 20.0f)));
+      plate.child(field(932, -8, "lines::presets::radialHatch(ink, 72, 0.8)",
                         shapes::polygon(6, 90.0f),
-                        lines::radialHatch(ink(), 72, 0.8f)));
-      plate.child(field(1078, 22, "lines::concentric(red, 14, 0.8)",
+                        lines::presets::radialHatch(ink(), 72, 0.8f)));
+      plate.child(field(1078, 22, "lines::presets::concentric(red, 14, 0.8)",
                         shapes::squircle(4.0f),
-                        lines::concentric(red(), 14, 0.8f)));
+                        lines::presets::concentric(red(), 14, 0.8f)));
       plate.child(
           field(1224, 2, "decorations::wash(halftoneRamp)", shapes::circle(),
                 decorations::wash(mskia::Paint::recipe(field::halftoneRamp(
@@ -836,7 +836,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
                                   SkBlendMode::kSrcOver, 0.95f)));
       plate.child(field(1370, 26, "hatch on shapes::chamfered(22)",
                         shapes::chamfered(22.0f),
-                        lines::hatch(soft(), 6.0f, 0.8f, -45.0f)));
+                        lines::presets::hatch(soft(), 6.0f, 0.8f, -45.0f)));
     }
 
     // ---- VII. THE FRAMES -------------------------------------------------
@@ -1117,7 +1117,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
     }
 
     // ---- colophon --------------------------------------------------------
-    plate.child(rule(56, 1940, 1488, lines::cased(0.8f, soft(), 3.0f)));
+    plate.child(rule(56, 1940, 1488, lines::presets::cased(0.8f, soft(), 3.0f)));
     plate.child(
         call("SigilCompose \xc2\xb7 stroke_atlas.cpp \xc2\xb7 render it "
              "yourself: Sketchbook stroke_atlas.cpp --frame out.png",

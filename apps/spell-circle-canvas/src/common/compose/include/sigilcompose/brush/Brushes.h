@@ -221,7 +221,7 @@ Weave weave(
  *    element.stroke(Brush{}
  *        .shaped(geometry::shapers::Rounded{6})
  *        .shaped(geometry::shapers::Wave{.amplitude = 3, .wavelength = 30})
- *        .layer(lines::cased(3, ink, 5))
+ *        .layer(lines::presets::cased(3, ink, 5))
  *        .layer(brush::Scatter{.art = spark(), .spacing = 40}));
  *
  *  A Brush of comparable shapers and layers is itself comparable, so the
@@ -675,19 +675,6 @@ struct Ribbon {
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
-
-/** Linear taper (comet body, ink pull-away). */
-Ribbon taper(float widthStart, float widthEnd, Fill fill);
-/** …painted by a recipe, which is the same taper with `fillMaterial`
- *  set: a band is a surface, and a surface a material can dress. */
-Ribbon taper(float widthStart, float widthEnd, material::skia::Paint paint);
-
-/** The calligraphic nib: full width perpendicular to `nibAngleDeg`,
- *  `contrast` fraction when the path runs along the nib. */
-Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
-                    float contrast = 0.15f);
-Ribbon calligraphic(float nibAngleDeg, float width,
-                    material::skia::Paint paint, float contrast = 0.15f);
 
 /** The ART brush: ONE art cell stretched and continuously BENT along each
  *  contour. This is what the stamp and tile brushes cannot do — they break

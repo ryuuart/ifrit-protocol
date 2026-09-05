@@ -63,6 +63,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -924,7 +925,7 @@ struct Ds2Bench : sketch::Sketch {
                                              {},
                                              0,
                                              SkBlendMode::kPlus}}})
-                      .stroke(lines::cased(
+                      .stroke(lines::presets::cased(
                           1.2f, Fill::color(alpha(kCyan, c.traceAlpha)),
                           c.typedDia > 24 ? 4.2f : 3.4f)));
     }

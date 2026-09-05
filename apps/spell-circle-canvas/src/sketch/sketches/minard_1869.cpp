@@ -135,6 +135,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -1034,7 +1035,7 @@ struct Minard1869 : sketch::Sketch {
                 .inset(0)
                 .shape(segFn({846, 486}, {900, 424}))
                 .stroke(spans::upTo(beat(tHann + 1.5f, tHann + 1.75f)),
-                        lines::arrow(1.2f, Fill::color(kInk), 9.0f))
+                        lines::presets::arrow(1.2f, Fill::color(kInk), 9.0f))
                 .key("compass"));
     return g;
   }

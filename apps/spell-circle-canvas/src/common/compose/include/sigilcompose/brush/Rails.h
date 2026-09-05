@@ -104,16 +104,7 @@ struct Rails {
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 };
 
-/** N identical rails, symmetric about the route — the general form of
- *  `Line::parallels`, where 2 is `cased` and 3 is `triple` with a flat
- *  spine. `gap` is centre-to-centre between neighbours. */
-Rails rails(int count, float width, const Fill& fill, float gap = 5.0f);
-
 /** Explicit rails, displacements and all. */
 Rails rails(std::vector<Rail> set);
-
-/** The four-rail rule, symmetric — `rails(4, …)` under a name that shows
- *  up in a completion list. */
-Rails quad(float width, const Fill& fill, float gap = 4.0f);
 
 }  // namespace sigil::compose::lines

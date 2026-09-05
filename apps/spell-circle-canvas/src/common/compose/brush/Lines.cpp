@@ -320,52 +320,6 @@ void Line::drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
   }
 }
 
-Line cased(float width, Fill fill, float gap) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.parallels = 2;
-  l.gap = gap;
-  return l;
-}
-
-Line triple(float width, Fill fill, float gap, float coreFactor) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.parallels = 3;
-  l.gap = gap;
-  l.coreWidthFactor = coreFactor;
-  return l;
-}
-
-Line arrow(float width, Fill fill, float headSize) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.endCap = Cap::Arrow;
-  l.capSize = headSize;
-  return l;
-}
-
-Line railway(float width, Fill fill, float tieSpacing, float tieLength) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.tickSpacing = tieSpacing;
-  l.tickLength = tieLength;
-  return l;
-}
-
-Line wavy(float width, Fill fill, float amplitude, float wavelength) {
-  Line l;
-  l.width = width;
-  l.fill = std::move(fill);
-  l.waveAmplitude = amplitude;
-  l.waveLength = wavelength;
-  return l;
-}
-
 float Rails::bleed() const {
   float worst = 0.0f;
   for (const Rail& r : rails)
@@ -418,24 +372,10 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   }
 }
 
-Rails rails(int count, float width, const Fill& fill, float gap) {
-  Rails r;
-  const int n = std::max(count, 1);
-  for (int i = 0; i < n; ++i)
-    r.rails.push_back(Rail{.across = gap * ((float)i - (float)(n - 1) * 0.5f),
-                           .width = width,
-                           .fill = fill});
-  return r;
-}
-
 Rails rails(std::vector<Rail> set) {
   Rails r;
   r.rails = std::move(set);
   return r;
-}
-
-Rails quad(float width, const Fill& fill, float gap) {
-  return rails(4, width, fill, gap);
 }
 
 void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
@@ -459,21 +399,6 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   pass(baseDeg);
   if (cross) pass(baseDeg + 90.0f);
   c.restore();
-}
-
-Hatch hatch(Fill fill, float spacing, float width, float angleDeg) {
-  Hatch h;
-  h.strokeFill = std::move(fill);
-  h.spacing = spacing;
-  h.width = width;
-  h.angleDeg = angleDeg;
-  return h;
-}
-
-Hatch crosshatch(Fill fill, float spacing, float width, float angleDeg) {
-  Hatch h = hatch(std::move(fill), spacing, width, angleDeg);
-  h.cross = true;
-  return h;
 }
 
 void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
@@ -525,37 +450,6 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
     c.drawPath(b.detach(), p);
   }
   c.restore();
-}
-
-RadialHatch radialHatch(Fill fill, int spokes, float width, SkPoint centre) {
-  RadialHatch h;
-  h.strokeFill = std::move(fill);
-  h.spokes = spokes;
-  h.width = width;
-  h.centre = centre;
-  return h;
-}
-
-RadialHatch concentric(Fill fill, int rings, float width, SkPoint centre) {
-  RadialHatch h;
-  h.strokeFill = std::move(fill);
-  h.spokes = 0;
-  h.rings = rings;
-  h.width = width;
-  h.centre = centre;
-  return h;
-}
-
-RadialHatch concentric(Fill fill, std::vector<float> radiiPx, float width,
-                       SkPoint centre) {
-  RadialHatch h;
-  h.strokeFill = std::move(fill);
-  h.spokes = 0;
-  h.rings = 0;
-  h.radiiPx = std::move(radiiPx);
-  h.width = width;
-  h.centre = centre;
-  return h;
 }
 
 }  // namespace sigil::compose::lines

@@ -1430,7 +1430,7 @@ struct KspMapView : sketch::Sketch {
                   .inset(0)
                   .corners({2})
                   .fill(Paint::solid(kStageTab))
-                  .foreground(lines::hatch(Fill::color(hex(0x101010, 0.45f)),
+                  .foreground(lines::presets::hatch(Fill::color(hex(0x101010, 0.45f)),
                                            8.0f, 3.4f, -45.0f))
                   .stroke(PathFormat{.width = 1.0f,
                                      .strokeFill = Fill::color(hex(0x7A3703)),
@@ -1509,7 +1509,7 @@ struct KspMapView : sketch::Sketch {
     stage.child(box()
                     .height(Dim(9))
                     .fill(Paint::solid(hex(0xE0B720)))
-                    .foreground(lines::hatch(Fill::color(hex(0x141414, 0.9f)),
+                    .foreground(lines::presets::hatch(Fill::color(hex(0x141414, 0.9f)),
                                              8.0f, 4.0f, -45.0f)));
     stage.child(
         box()
@@ -1609,7 +1609,7 @@ struct KspMapView : sketch::Sketch {
 
     g.child(at(box()
                    .fill(Paint::solid(hex(0xE0B720)))
-                   .foreground(lines::hatch(Fill::color(hex(0x141414, 0.9f)),
+                   .foreground(lines::presets::hatch(Fill::color(hex(0x141414, 0.9f)),
                                             8.0f, 4.0f, -45.0f)),
                0, 0, 11, H));
 

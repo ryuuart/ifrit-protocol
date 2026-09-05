@@ -783,7 +783,7 @@ struct Bg3DiceRoll : sketch::Sketch {
         // OVERLAY, not background: `background()` paints BENEATH the fill
         // (the CSS box-shadow slot), so turned rings put there vanish under
         // any opaque surface. `overlay()` is over the fill, under children.
-        .overlay(lines::concentric(bg3::giltDark(0.42f), 5, 0.8f))
+        .overlay(lines::presets::concentric(bg3::giltDark(0.42f), 5, 0.8f))
         // No drop shadow here: `background()` is UNDER the fill, and this
         // fill is 14% alpha — so the blurred silhouette showed straight
         // through and turned a gilt band into a mud-olive ring.
@@ -803,7 +803,7 @@ struct Bg3DiceRoll : sketch::Sketch {
         // Opaque, so it masks the band's concentric rules down to the band.
         .fill(radialGradient({r, r}, r,
                              {bg3::kVellum, alpha(bg3::kVellumDeep, 1.0f)}))
-        .overlay(lines::radialHatch(bg3::giltDark(0.34f), 60, 0.6f))
+        .overlay(lines::presets::radialHatch(bg3::giltDark(0.34f), 60, 0.6f))
         .rotate(&rosetteSpin)
         .transformOrigin(0.5f, 0.5f)
         .cache(Cache::Texture);
@@ -916,7 +916,7 @@ struct Bg3DiceRoll : sketch::Sketch {
     Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
     const float yLast = yOf(17);
     g.child(rule(kX, kTop - 12.0f, 1.2f,
-                 lines::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
+                 lines::presets::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
                  yLast - kTop + 26.0f));
 
     for (const auto& blk : bg3::kBlocks) {
@@ -1078,8 +1078,8 @@ struct Bg3DiceRoll : sketch::Sketch {
                    .fill(radialGradient({r, r * 0.8f}, r * 1.25f,
                                         {alpha(bg3::kVellum, 1.0f),
                                          alpha(bg3::kGiltDark, 0.55f)}))
-                   .overlay(lines::concentric(bg3::giltDark(0.45f), 4, 0.6f))
-                   .overlay(lines::radialHatch(bg3::giltDark(0.3f), 20, 0.5f))
+                   .overlay(lines::presets::concentric(bg3::giltDark(0.45f), 4, 0.6f))
+                   .overlay(lines::presets::radialHatch(bg3::giltDark(0.3f), 20, 0.5f))
                    .stroke(spans::corners(10.0f, bg3::kCornerAngle),
                            brush::solid(2.0f, bg3::ink(0.8f))))
         .cache(Cache::Texture);
@@ -1097,7 +1097,7 @@ struct Bg3DiceRoll : sketch::Sketch {
 
     Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
     g.child(rule(kX, yOf(30.0f) - 14.0f, 1.2f,
-                 lines::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
+                 lines::presets::hatch(bg3::ink(0.42f), 4.0f, 1.2f, 90.0f),
                  kBottom - yOf(30.0f) + 28.0f));
     g.child(label("DC LADDER", kX - 30.0f, yOf(30.0f) - 34.0f, 9.0f,
                   alpha(bg3::kInk, 0.5f), 2.2f, true));
@@ -1227,7 +1227,7 @@ struct Bg3DiceRoll : sketch::Sketch {
         .style(decorations::doubleBorder(
             decorations::border(2.6f, bg3::giltDark(0.42f)),
             decorations::border(0.9f, bg3::ink(0.3f), 16.0f)))
-        .background(lines::concentric(bg3::giltDark(0.10f), 3, 1.0f))
+        .background(lines::presets::concentric(bg3::giltDark(0.10f), 3, 1.0f))
         .cache(Cache::Texture);
   }
 

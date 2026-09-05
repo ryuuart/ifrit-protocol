@@ -1235,7 +1235,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
                    .shape([local](SkSize) { return local; })
                    .fill(Fill::none());
       if (p.kind == Part::Thorn)
-        n.foreground(brush::taper(w, 3.0f, dark));
+        n.foreground(brush::presets::taper(w, 3.0f, dark));
       else
         n.foreground(PathFormat{.width = w, .strokeFill = dark});
       inner.child(std::move(n));
@@ -1428,10 +1428,10 @@ struct ChaucerAstrolabe : sketch::Sketch {
           // a Gothic thorn: springs tangentially off its host and tapers to a
           // point. THE TIP IS THE STAR'S POSITION — the thorn is drawn so its
           // point lands on the computed (r, α), not so its centroid does.
-          node.foreground(brush::taper(0.032f * kR + 2.0f, 2.4f,
+          node.foreground(brush::presets::taper(0.032f * kR + 2.0f, 2.4f,
                                        Fill::color(hex(0x3d2b0c, 0.85f))))
               .foreground(
-                  brush::taper(0.032f * kR, 1.0f, brassStroke(bb, 0.66f)))
+                  brush::presets::taper(0.032f * kR, 1.0f, brassStroke(bb, 0.66f)))
               .opacity(animate(from(0.0f).to(1.0f),
                                ramp(delay, 420, ease::outBack())));
         } else {
@@ -1685,7 +1685,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
                 .key("turning")
                 .shape(shapes::circle())
                 .cache(Cache::Texture)
-                .background(lines::concentric(
+                .background(lines::presets::concentric(
                     Fill::color(hex(0x6b4d18, 0.055f)), 120, 0.9f))
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tMater * 1000 + 300, 600))));

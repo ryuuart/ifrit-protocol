@@ -205,6 +205,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Legibility.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -510,7 +511,7 @@ Element artOpArt() {
                 .width(340)
                 .height(340)
                 .shape(shapes::circle())
-                .foreground(lines::concentric(Fill::color(kWhite),
+                .foreground(lines::presets::concentric(Fill::color(kWhite),
                                               9 + (i % 5) * 4, 6.0f)));
   }
   return g;
@@ -521,7 +522,7 @@ Element artOpArt() {
 Element artArch() {
   Element g = box().width(Dim(kCellW)).height(Dim(kCellH));
   g.child(box().inset(0).foreground(
-      lines::hatch(Fill::color(kWhite), 9.0f, 2.6f, 58.0f)));
+      lines::presets::hatch(Fill::color(kWhite), 9.0f, 2.6f, 58.0f)));
   for (int i = 0; i < 8; ++i) {
     const float x = 20.0f + (float)i * 182.0f;
     g.child(box()
@@ -1626,7 +1627,7 @@ void SlitScan2001::drawRig(SkCanvas& c, const PaintContext& ctx) {
   c.drawPath(benchPath, p);
   decorations::paintOn(
       c, ctx, benchPath,
-      lines::hatch(Fill::color(al(kAmber, 0.20f)), 6.0f, 1.0f, 45.0f));
+      lines::presets::hatch(Fill::color(al(kAmber, 0.20f)), 6.0f, 1.0f, 45.0f));
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(1.0f);
   p.setColor4f(al(kAmber, 0.55f));
@@ -1893,7 +1894,7 @@ void SlitScan2001::drawArtworkPanel(SkCanvas& c, const PaintContext& ctx) {
   lb.lineTo(sx, top + ph + 16);
   lb.lineTo(-38, top + ph + 16);
   decorations::paintOn(c, ctx, lb.detach(),
-                       lines::cased(1.2f, Fill::color(al(kCold, 0.5f)), 3.0f));
+                       lines::presets::cased(1.2f, Fill::color(al(kCold, 0.5f)), 3.0f));
 
   SkFont f76(monoFace(), 7.6f);
   SkPaint tp;

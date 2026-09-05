@@ -14,6 +14,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
 #include <cmath>
@@ -437,7 +438,7 @@ static void BM_Draw_Hatch_Live(benchmark::State& state) {
           .height(400)
           .centerAt({450, 320})
           .shape(geometry::shapes::blob(5, 0.2f))
-          .background(lines::hatch(Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
+          .background(lines::presets::hatch(Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
           .cache(Cache::None)));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();

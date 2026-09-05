@@ -447,19 +447,19 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
 
 TEST(ComposeLines, TripleRailStrokesThreeBands) {
   Host host;
-  host.composer.render(straightRun(lines::triple(2, green(), 8, 1.0f)));
+  host.composer.render(straightRun(lines::presets::triple(2, green(), 8, 1.0f)));
   host.frame();
   EXPECT_EQ(verticalRuns(host, 100, 70, 130, SK_ColorGREEN), 3);
   // And the pair variant gives exactly two.
   Host pair;
-  pair.composer.render(straightRun(lines::cased(2, green(), 8)));
+  pair.composer.render(straightRun(lines::presets::cased(2, green(), 8)));
   pair.frame();
   EXPECT_EQ(verticalRuns(pair, 100, 70, 130, SK_ColorGREEN), 2);
 }
 
 TEST(ComposeLines, ArrowheadFillsBeyondTheBodyWidth) {
   Host host, plain;
-  host.composer.render(straightRun(lines::arrow(2, green(), 14)));
+  host.composer.render(straightRun(lines::presets::arrow(2, green(), 14)));
   plain.composer.render(straightRun(lines::Line{.width = 2, .fill = green()}));
   host.frame();
   plain.frame();
@@ -476,7 +476,7 @@ TEST(ComposeLines, ArrowheadFillsBeyondTheBodyWidth) {
 
 TEST(ComposeLines, RailwayTiesCrossTheLine) {
   Host host;
-  host.composer.render(straightRun(lines::railway(2, green(), 20, 12)));
+  host.composer.render(straightRun(lines::presets::railway(2, green(), 20, 12)));
   host.frame();
   // A tie arm ~5px above the rail at the first sample (x = 20+10)…
   EXPECT_EQ(host.pixel(30, 95), SK_ColorGREEN);
@@ -487,7 +487,7 @@ TEST(ComposeLines, RailwayTiesCrossTheLine) {
 
 TEST(ComposeLines, WavyRunLeavesTheAxis) {
   Host host, straight;
-  host.composer.render(straightRun(lines::wavy(2, green(), 8, 24)));
+  host.composer.render(straightRun(lines::presets::wavy(2, green(), 8, 24)));
   straight.composer.render(
       straightRun(lines::Line{.width = 2, .fill = green()}));
   host.frame();
@@ -572,8 +572,8 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
   };
   Host stated, spaced;
   stated.composer.render(
-      ringNode(lines::concentric(green(), std::vector<float>{60.0f}, 2.0f)));
-  spaced.composer.render(ringNode(lines::concentric(green(), /*rings=*/1,
+      ringNode(lines::presets::concentric(green(), std::vector<float>{60.0f}, 2.0f)));
+  spaced.composer.render(ringNode(lines::presets::concentric(green(), /*rings=*/1,
                                                     /*width=*/2.0f)));
   stated.frame();
   spaced.frame();
@@ -593,13 +593,14 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
          "node — if this now draws, that limitation is gone and "
          "this control needs a rethink";
   // And the stated form is a comparable value: radii join the equality.
-  EXPECT_TRUE(lines::concentric(green(), std::vector<float>{60.0f}) ==
-              lines::concentric(green(), std::vector<float>{60.0f}));
-  EXPECT_FALSE(lines::concentric(green(), std::vector<float>{60.0f}) ==
-               lines::concentric(green(), std::vector<float>{61.0f}));
+  EXPECT_TRUE(lines::presets::concentric(green(), std::vector<float>{60.0f}) ==
+              lines::presets::concentric(green(), std::vector<float>{60.0f}));
+  EXPECT_FALSE(lines::presets::concentric(green(), std::vector<float>{60.0f}) ==
+               lines::presets::concentric(green(), std::vector<float>{61.0f}));
 }
 
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilcompose/kit/Strokes.h>
 
 // ---------------------------------------------------------------------------
 // lines::Rails — the parallel rule where every rail is its own line.
@@ -796,11 +797,11 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
 TEST(ComposeLines, DashedParallelsOnLineActuallyDash) {
   // `Line`'s dashed-parallel branch must not build its dash geometry with a
   // FILL stroke rec: Skia's dash effect refuses one outright, and the
-  // failure mode is silent: `lines::cased(...)` with a dash pattern paints
+  // failure mode is silent: `lines::presets::cased(...)` with a dash pattern paints
   // two SOLID rails, which reads as a design choice rather than as a
   // dropped dash.
   Host host;
-  lines::Line pair = lines::cased(3, green(), 10);
+  lines::Line pair = lines::presets::cased(3, green(), 10);
   pair.dashIntervals = {8, 8};
   host.composer.render(straightRun(pair));
   host.frame();
@@ -843,11 +844,11 @@ TEST(ComposeLines, RailsCountIsArbitrary) {
   // Quad — one of the three counts asked for by name, and already
   // reachable through Line::parallels; nothing ever spelled it.
   Host host;
-  host.composer.render(straightRun(lines::quad(2, green(), 9)));
+  host.composer.render(straightRun(lines::presets::quad(2, green(), 9)));
   host.frame();
   EXPECT_EQ(verticalRuns(host, 100, 70, 130, SK_ColorGREEN), 4);
   Host six;
-  six.composer.render(straightRun(lines::rails(6, 1.5f, green(), 7)));
+  six.composer.render(straightRun(lines::presets::rails(6, 1.5f, green(), 7)));
   six.frame();
   EXPECT_EQ(verticalRuns(six, 100, 60, 140, SK_ColorGREEN), 6);
 }
@@ -1841,7 +1842,7 @@ TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {
                    .fill(green()))
         .child(std::move(route));
   };
-  Decoration wire = lines::cased(3, Fill::color({1, 1, 1, 1}), 10);
+  Decoration wire = lines::presets::cased(3, Fill::color({1, 1, 1, 1}), 10);
   Host railed, clean;
   railed.composer.render(
       boxes(rail({{"a"}, {"b"}}, routers::manhattan()).inset(0).stroke(wire)));

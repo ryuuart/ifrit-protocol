@@ -19,7 +19,7 @@
  *   rail(stops, routers::octilinear())
  *       .stroke(lines::Line{.width = 3, .fill = ink,
  *                           .parallels = 2, .gap = 5});      // transit pair
- *   connector("a", "b").stroke(lines::arrow(2, wire, 12));   // directed edge
+ *   connector("a", "b").stroke(lines::presets::arrow(2, wire, 12));   // directed edge
  */
 
 #include <include/core/SkCanvas.h>
@@ -200,24 +200,5 @@ struct Line {
   void drawCap(SkCanvas& canvas, const SkPaint& head, Cap cap, SkPoint pos,
                SkVector tan) const;
 };
-
-// ---- factory sugar ---------------------------------------------------------
-
-/** The transit pair: two rails following the route. */
-Line cased(float width, Fill fill, float gap = 5.0f);
-
-/** Triple rail with a weighted spine (bold center, light outriders). */
-Line triple(float width, Fill fill, float gap = 5.0f, float coreFactor = 1.8f);
-
-/** Directed edge: plain body, filled arrowhead at the end. */
-Line arrow(float width, Fill fill, float headSize = 10.0f);
-
-/** Railway: body + perpendicular ties. */
-Line railway(float width, Fill fill, float tieSpacing = 12.0f,
-             float tieLength = 10.0f);
-
-/** The squiggle (sine) — set `zigzag` on the returned value for vertices. */
-Line wavy(float width, Fill fill, float amplitude = 4.0f,
-          float wavelength = 18.0f);
 
 }  // namespace sigil::compose::lines

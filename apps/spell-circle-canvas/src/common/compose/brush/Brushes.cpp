@@ -751,41 +751,6 @@ void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.drawPath(region, p);
 }
 
-Ribbon taper(float widthStart, float widthEnd, Fill fill) {
-  Ribbon r;
-  r.widthStart = widthStart;
-  r.widthEnd = widthEnd;
-  r.fill = std::move(fill);
-  return r;
-}
-
-Ribbon taper(float widthStart, float widthEnd, material::skia::Paint paint) {
-  Ribbon r;
-  r.widthStart = widthStart;
-  r.widthEnd = widthEnd;
-  r.fillMaterial = std::move(paint);
-  return r;
-}
-
-Ribbon calligraphic(float nibAngleDeg, float width, Fill fill, float contrast) {
-  Ribbon r;
-  r.widthStart = width;
-  r.nibAngleDeg = nibAngleDeg;
-  r.nibContrast = contrast;
-  r.fill = std::move(fill);
-  return r;
-}
-
-Ribbon calligraphic(float nibAngleDeg, float width,
-                    material::skia::Paint paint, float contrast) {
-  Ribbon r;
-  r.widthStart = width;
-  r.nibAngleDeg = nibAngleDeg;
-  r.nibContrast = contrast;
-  r.fillMaterial = std::move(paint);
-  return r;
-}
-
 void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (!ctx.fonts) return;
   if (!cache->image || cache->bakedFor != art.node().get()) {

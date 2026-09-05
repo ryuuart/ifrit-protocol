@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "support/BrushTestSupport.h"
+#include <sigilcompose/kit/Strokes.h>
 
 namespace {
 
@@ -229,7 +230,7 @@ TEST(ComposeBrushes, ScatterModSkipsAndLifts) {
 
 TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
   Host taperHost;
-  taperHost.composer.render(straightRun(brush::taper(16, 2, green())));
+  taperHost.composer.render(straightRun(brush::presets::taper(16, 2, green())));
   taperHost.frame();
   auto bandHeight = [](Host& h, int x) {
     int lit = 0;
@@ -241,7 +242,7 @@ TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
 
   // Calligraphic nib at 0°: a horizontal run lies ALONG the nib → thin.
   Host nib;
-  nib.composer.render(straightRun(brush::calligraphic(0, 16, green(), 0.2f)));
+  nib.composer.render(straightRun(brush::presets::calligraphic(0, 16, green(), 0.2f)));
   nib.frame();
   EXPECT_LT(bandHeight(nib, 100), 6);
 }

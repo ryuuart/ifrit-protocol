@@ -214,6 +214,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Curves.h>
@@ -1122,7 +1123,7 @@ struct EvaMagiInterior : sketch::Sketch {
                   {{0.0f, magi::kPBodyHi},
                    {0.55f, magi::kPBody},
                    {1.0f, scaleRgb(hex(0x3A0E06), magi::kBack)}}))
-              .foreground(lines::concentric(
+              .foreground(lines::presets::concentric(
                   Fill::color(scaleRgb(hex(0xC03C18), magi::kBack)), 4, 1.2f)));
     }
 

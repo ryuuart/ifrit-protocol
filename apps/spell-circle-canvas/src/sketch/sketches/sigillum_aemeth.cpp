@@ -695,7 +695,7 @@ struct SigillumAemeth : sketch::Sketch {
                       SkBlendMode::kSrcOver},
                      {waxGrain, SkBlendMode::kOverlay},
                      {waxSpeck.material(), SkBlendMode::kMultiply}}))
-                .foreground(lines::hatch(Fill::color(hex(0x6d5228, 0.10f)),
+                .foreground(lines::presets::hatch(Fill::color(hex(0x6d5228, 0.10f)),
                                          11.0f, 0.9f, -24.0f))
                 .foreground(PathFormat{
                     .width = 9.0f,
@@ -995,7 +995,7 @@ struct SigillumAemeth : sketch::Sketch {
                 .shape(wobbled(heptChords(rHept, 0.0f), 30, 30.0f, 0.45f))
                 .fill(Fill::none())
                 .stroke(Brush{}
-                            .layer(brush::calligraphic(
+                            .layer(brush::presets::calligraphic(
                                 34.0f, 6.8f, Fill::color(hex(0x291a05, 0.95f)),
                                 0.22f))
                             .layer(PathFormat{
@@ -1161,7 +1161,7 @@ struct SigillumAemeth : sketch::Sketch {
                   return b.detach();
                 })
                 .fill(Fill::color(hex(0x7d5f2c, 0.10f)))
-                .foreground(lines::crosshatch(Fill::color(hex(0x5a4218, 0.16f)),
+                .foreground(lines::presets::crosshatch(Fill::color(hex(0x5a4218, 0.16f)),
                                               8.0f, 0.8f, 22.0f))
                 .key("recess"));
 
@@ -1220,7 +1220,7 @@ struct SigillumAemeth : sketch::Sketch {
                 .height(Dim(em))
                 .centerAt(at)
                 .fill(Fill::color(kTabletFace[o]))
-                .foreground(lines::hatch(Fill::color(hex(0x4a3418, 0.30f)),
+                .foreground(lines::presets::hatch(Fill::color(hex(0x4a3418, 0.30f)),
                                          3.6f, 0.7f, 20.0f + (float)o * 40.0f))
                 .stroke(PathFormat{.width = 1.7f,
                                    .strokeFill = Fill::color(ord.rule)})

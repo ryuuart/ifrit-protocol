@@ -209,7 +209,7 @@ struct NightNetwork final : sketch::Sketch {
     //    dashes/params share one centerline (Lines.h keeps them in phase).
     Brush emberBrush;
     emberBrush.shaped(shapers::Rounded{12.0f});
-    emberBrush.layer(lines::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
+    emberBrush.layer(lines::presets::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
 
     // -- 3. CURRENT LINE: the decorator pattern -- repeated
     //    mid-path chevrons + terminal arrow, tip AT the endpoint, body
@@ -301,7 +301,7 @@ struct NightNetwork final : sketch::Sketch {
     //    grammar per the Thames rule.
     Brush creek;
     creek.layer(
-        brush::taper(2.2f, 9.0f, Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
+        brush::presets::taper(2.2f, 9.0f, Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
 
     // -- 10. THE PIPELINE TRIO: three runs over IDENTICAL path points --
     //    only the geometry op differs (squiggly / zigzag / boxy). The
@@ -425,7 +425,7 @@ struct NightNetwork final : sketch::Sketch {
                    .centerAt({760, 524})
                    .shape(shapes::blob(7, 0.16f))
                    .fill(Fill::color({0.10f, 0.20f, 0.20f, 0.55f}))
-                   .background(lines::hatch(
+                   .background(lines::presets::hatch(
                        Fill::color({0.36f, 0.72f, 0.62f, 0.5f}), 7, 1.1f, -32))
                    .zIndex(1))
         // ---- the pipeline trio: identical points, different ops ----

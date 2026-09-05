@@ -3,6 +3,7 @@
 // look is built from, and the pattern art a copy rebakes.
 
 #include <sigilcompose/brush/Hatches.h>
+#include <sigilcompose/kit/Strokes.h>
 
 #include "support/BrushTestSupport.h"
 
@@ -35,7 +36,7 @@ TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
     Brush b;
     b.shaped(geometry::shapers::Rounded{6})
         .shaped(geometry::shapers::Wave{.amplitude = 3, .wavelength = 30})
-        .layer(lines::cased(3, Fill::color({0, 1, 0, 1}), 5));
+        .layer(lines::presets::cased(3, Fill::color({0, 1, 0, 1}), 5));
     return box().child(
         box().absolute().inset(40, 40, 40, 40).stroke(std::move(b)));
   };
@@ -245,7 +246,7 @@ TEST(ComposeBrushTail, HatchFillsInteriorSparsely) {
       box()
           .absolute()
           .inset(50, 50, 50, 50)
-          .background(lines::hatch(Fill::color({1, 1, 1, 1}), 8, 1.5f, 45))));
+          .background(lines::presets::hatch(Fill::color({1, 1, 1, 1}), 8, 1.5f, 45))));
   host.frame();
   // Count lit pixels in the hatched interior: strictly between "empty"
   // and "solid fill" — the lattice is present but sparse.

@@ -2,7 +2,8 @@
 
 /** @file
  * The KIT's stroke-grammar values, each under the catalog it is a member
- * of: `kit::braid`, a strand set; `spans::brackets`, a span composition
+ * of: `lines::presets::`, finished lines, rails and hatches;
+ * `kit::braid`, a strand set; `spans::brackets`, a span composition
  * standing beside the kernel's own span terms; and `brush::presets::`,
  * finished brushes with craft names.
  *
@@ -26,6 +27,7 @@
 #include <include/core/SkColor.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Stroke.h>
@@ -36,6 +38,154 @@
 #include <vector>
 
 namespace sigil::compose {
+
+// ---------------------------------------------------------------------------
+// lines::presets — FINISHED LINES, RAILS AND HATCHES
+//
+// Each is a value of the line tier with its constants chosen: a casing
+// pair, a weighted triple, an arrowhead, a railway's ties, a squiggle,
+// four parallel rules, a lattice at forty-five degrees, a fan out of a
+// point. Everything they set, a caller could set on the same value, which
+// is what makes them stock and puts them a namespace apart from the
+// vocabulary they are written in.
+
+namespace lines::presets {
+
+/** The transit pair: two rails following the route. */
+inline Line cased(float width, Fill fill, float gap = 5.0f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.parallels = 2;
+  l.gap = gap;
+  return l;
+}
+
+/** Triple rail with a weighted spine (bold center, light outriders). */
+inline Line triple(float width, Fill fill, float gap = 5.0f,
+                   float coreFactor = 1.8f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.parallels = 3;
+  l.gap = gap;
+  l.coreWidthFactor = coreFactor;
+  return l;
+}
+
+/** Directed edge: plain body, filled arrowhead at the end. */
+inline Line arrow(float width, Fill fill, float headSize = 10.0f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.endCap = Cap::Arrow;
+  l.capSize = headSize;
+  return l;
+}
+
+/** Railway: body + perpendicular ties. */
+inline Line railway(float width, Fill fill, float tieSpacing = 12.0f,
+                    float tieLength = 10.0f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.tickSpacing = tieSpacing;
+  l.tickLength = tieLength;
+  return l;
+}
+
+/** The squiggle (sine) — set `zigzag` on the returned value for vertices. */
+inline Line wavy(float width, Fill fill, float amplitude = 4.0f,
+                 float wavelength = 18.0f) {
+  Line l;
+  l.width = width;
+  l.fill = std::move(fill);
+  l.waveAmplitude = amplitude;
+  l.waveLength = wavelength;
+  return l;
+}
+
+/** N identical rails, symmetric about the route — the general form of
+ *  `Line::parallels`, where 2 is `cased` and 3 is `triple` with a flat
+ *  spine. `gap` is centre-to-centre between neighbours. */
+inline lines::Rails rails(int count, float width, const Fill& fill,
+                          float gap = 5.0f) {
+  lines::Rails r;
+  const int n = std::max(count, 1);
+  for (int i = 0; i < n; ++i)
+    r.rails.push_back(lines::Rail{
+        .across = gap * ((float)i - (float)(n - 1) * 0.5f),
+        .width = width,
+        .fill = fill});
+  return r;
+}
+
+/** The four-rail rule, symmetric — `rails(4, …)` under a name that shows
+ *  up in a completion list. */
+inline lines::Rails quad(float width, const Fill& fill, float gap = 4.0f) {
+  return rails(4, width, fill, gap);
+}
+
+/** A parallel lattice at one fixed angle. */
+inline Hatch hatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
+                   float angleDeg = 45.0f) {
+  Hatch h;
+  h.strokeFill = std::move(fill);
+  h.spacing = spacing;
+  h.width = width;
+  h.angleDeg = angleDeg;
+  return h;
+}
+
+/** …and the same lattice crossed with its perpendicular. */
+inline Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
+                        float angleDeg = 45.0f) {
+  Hatch h = hatch(std::move(fill), spacing, width, angleDeg);
+  h.cross = true;
+  return h;
+}
+
+/** Rules that fan out of a point, `spokes` of them. */
+inline RadialHatch radialHatch(Fill fill, int spokes = 48, float width = 1.2f,
+                               SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = spokes;
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
+/** The other half of the pair: rings only, no spokes. */
+inline RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
+                              SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = 0;
+  h.rings = rings;
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
+/** Rings at STATED radii, px from the centre — `concentric(ink, {60, 64})`
+ *  is a two-circle band exactly where it says. The evenly-spaced form
+ *  above runs out to the bounding box's half-diagonal, which on a circular
+ *  node clips its outermost ring away. */
+inline RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
+                              float width = 1.2f,
+                              SkPoint centre = {0.5f, 0.5f}) {
+  RadialHatch h;
+  h.strokeFill = std::move(fill);
+  h.spokes = 0;
+  h.rings = 0;
+  h.radiiPx = std::move(radiiPx);
+  h.width = width;
+  h.centre = centre;
+  return h;
+}
+
+}  // namespace lines::presets
 
 // ---------------------------------------------------------------------------
 // kit::braid — a strand SET
@@ -264,6 +414,49 @@ inline lines::Rails dottedCore(float outer, float core, const Fill& fill,
                         .dash = {0.01f, dotGap},
                         .cap = SkPaint::kRound_Cap},
                        {.across = gap, .width = outer, .fill = fill}});
+}
+
+/** Linear taper (comet body, ink pull-away). */
+inline brush::Ribbon taper(float widthStart, float widthEnd, Fill fill) {
+  brush::Ribbon r;
+  r.widthStart = widthStart;
+  r.widthEnd = widthEnd;
+  r.fill = std::move(fill);
+  return r;
+}
+
+/** …painted by a recipe, which is the same taper with `fillMaterial`
+ *  set: a band is a surface, and a surface a material can dress. */
+inline brush::Ribbon taper(float widthStart, float widthEnd,
+                           material::skia::Paint paint) {
+  brush::Ribbon r;
+  r.widthStart = widthStart;
+  r.widthEnd = widthEnd;
+  r.fillMaterial = std::move(paint);
+  return r;
+}
+
+/** The calligraphic nib: full width perpendicular to `nibAngleDeg`,
+ *  `contrast` fraction when the path runs along the nib. */
+inline brush::Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
+                                  float contrast = 0.15f) {
+  brush::Ribbon r;
+  r.widthStart = width;
+  r.nibAngleDeg = nibAngleDeg;
+  r.nibContrast = contrast;
+  r.fill = std::move(fill);
+  return r;
+}
+
+inline brush::Ribbon calligraphic(float nibAngleDeg, float width,
+                                  material::skia::Paint paint,
+                                  float contrast = 0.15f) {
+  brush::Ribbon r;
+  r.widthStart = width;
+  r.nibAngleDeg = nibAngleDeg;
+  r.nibContrast = contrast;
+  r.fillMaterial = std::move(paint);
+  return r;
 }
 
 }  // namespace brush::presets

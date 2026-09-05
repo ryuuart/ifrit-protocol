@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "support/BrushTestSupport.h"
+#include <sigilcompose/kit/Strokes.h>
 
 TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
   Host host;
