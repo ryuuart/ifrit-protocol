@@ -93,6 +93,7 @@ Each takes a props struct, reads the theme, and delegates to
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the theme's three registers, its margins, its ground and its hairline |
 | `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground |
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice; `measure` is the cell's own width, the one distance a caption cannot inherit |
+| `passage(ctx, name)` | the prose at `res://passages/<name>`, minus the newlines a file ends with — the two thousand words a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
 
 `Page::ruled` is `false` for a sheet that rules neither header nor
 footer, and `Page::ground` names a fill for a sheet whose ground is not a
@@ -113,6 +114,9 @@ A leaf may not invent what an ancestor should own.
   in compose's own types.
 * A memoised typeface — `weave::ports::face()`. This library holds no
   font cache; it holds the one face its own theme is set in.
+* A resource that is not prose — an image, a video, a blob, a probe —
+  `ctx.assets`. `passage` is the one reader here, and it is here because
+  a passage is the only resource whose exact bytes decide a plate.
 * Numbers a sketch measured about its own execution — `ctx.measured`,
   before they reach any component here. A sketch that draws its own
   timings into its own plate differs from itself between runs.

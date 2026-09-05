@@ -13,11 +13,11 @@
 # CanvasSpec, and links no device, no runtime and no sketch. PIC, because
 # a hot-reloaded sketch's dylib force-loads it out of the host.
 sigil_library(SigilSketchKit PIC
-  SOURCES Cells.cpp Page.cpp Theme.cpp
-  HEADERS Cells.h Kit.h Page.h Theme.h
+  SOURCES Cells.cpp Page.cpp Passage.cpp Theme.cpp
+  HEADERS Cells.h Kit.h Page.h Passage.h Theme.h
   PUBLIC SigilSketchCanvas SigilComposeCore SigilComposeKit SigilCoreReconcile
          SigilWeave
-  PRIVATE SigilWeavePorts)
+  PRIVATE SigilWeavePorts SigilIO)
 
 # The kit's own claim: the theme is a comparable value a scope binds, and
 # every component draws exactly what the compose kit spelled by hand with

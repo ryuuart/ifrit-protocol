@@ -56,9 +56,11 @@
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Passage.h>
+#include <sigilweave/kit/Features.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/kit/Features.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -121,87 +123,11 @@ constexpr float px(float mm) { return mm * kMm; }
 /** THE TWO PAGES the codex is opened at. Each is written to run the
  *  block to its foot: a page that stops two thirds of the way down is a
  *  setting abandoned, not a mise-en-page. */
-constexpr const char8_t* kPages[2] = {
-    u8"Here begins the book of the ember gate, set down in the year of the "
-    u8"long tide by the wardens of the flooded causeway. Let every reader "
-    u8"carry the coal with a steady hand, for the water remembers what the "
-    u8"fire forgets, and the reeds keep time against the slow current where "
-    u8"the ferry rope hums. The old paths bend around the salt gardens and "
-    u8"meet again beneath the bell, where the keepers pour the last light "
-    u8"into copper bowls and wait for the morning wind to carry the ash "
-    u8"home. Twelve nights the vine was fed, twelve nights the lanterns "
-    u8"answered, and on the last the gate stood open wide enough for one "
-    u8"small boat, one warden, and the weight of everything they chose to "
-    u8"leave behind on the far shore of the salt gardens. Of the twelve, "
-    u8"four were kept by the ferry and four by the bell, and the last four "
-    u8"were carried down to the water line and set in the reeds, where the "
-    u8"tide could read them. It is written that the wardens did not speak "
-    u8"on the crossing, and that the rope was warm under their hands from "
-    u8"the hands before them. They counted the pilings twice, once going "
-    u8"out and once coming back, and both counts agreed, which the older "
-    u8"warden took for a good omen and the younger for nothing at all. "
-    u8"Beyond the third piling the water runs black even at noon, and the "
-    u8"keepers have never agreed whether that is the depth of it or the "
-    u8"weed. On the far bank the reeds stand higher than a man and the "
-    u8"path through them is kept open by walking it, which is the only "
-    u8"upkeep the causeway has ever had. In the third year a warden of the "
-    u8"bell set down the order of the crossing, and it is copied here as she "
-    u8"wrote it: the coal first, then the rope, then the count, then the "
-    u8"name of whoever is going over, spoken once and not written. She notes "
-    u8"that the order matters less than the keeping of it, and that a "
-    u8"crossing made out of order has never yet drowned anyone, which she "
-    u8"offers as an argument for the order rather than against it. Below "
-    u8"the bell the water is shallow enough to stand in and the reeds come "
-    u8"up through the stones of the old road, and it is there that the "
-    u8"lanterns are lit, out of the wind, before they are carried down. "
-    u8"Twice in living memory the tide has come over the causeway at noon, "
-    u8"and both times the wardens were on the far bank and both times they "
-    u8"waited, which is the whole of what the office asks of anyone. "
-    u8"The bell itself was cast inland and carried out on the causeway in "
-    u8"pieces, which is why it hangs a little out of true and why the note "
-    u8"it gives is the note the wardens listen for and no other bell makes. "
-    u8"Whoever comes after, let them find the margin kept, the coal banked, "
-    u8"and the gate answering to a steady hand alone.",
-    u8"In the second season the wardens counted the lanterns twice, once "
-    u8"for the living channel and once for the drowned road beneath it. "
-    u8"The gate takes no coin but memory, says the rubric, and gives back "
-    u8"the shape of every hand that held the rope. Draw the circle wide, "
-    u8"feed the vine its silver hour, and the causeway will hold one "
-    u8"crossing more. So it is written at the water line, and so the tide "
-    u8"reads it back to us each night. Keep the margin wide for the vine, "
-    u8"keep the corner free for the fox, and let no page close on a coal "
-    u8"still warm; the book is a causeway too, and every reader crosses it "
-    u8"holding somebody's light. What the second season took, the third "
-    u8"gave back doubled, and the keepers wrote it down twice for fear of "
-    u8"the tide. The first copy went into the chest under the bell and the "
-    u8"second was carried inland, which is why the inland copy is the one "
-    u8"that survives and why it is the one that is wrong about the "
-    u8"lanterns. Read slowly, and keep the lantern low; the ink is young "
-    u8"and the water is patient, and a page turned in haste is a crossing "
-    u8"missed. The inland copy gives the lantern count as forty and the "
-    u8"drowned copy as thirty-six, and the difference is the four the bell "
-    u8"keeps, which the inland scribe had never seen and could not have "
-    u8"known to add. That is the whole of the error, and it has stood for "
-    u8"three seasons because nobody with both copies has ever been in the "
-    u8"same room as anybody who could read them. The wardens themselves "
-    u8"count by hand each night and write nothing down, which is why the "
-    u8"count in the chest is a copy of a copy and the count in the reeds is "
-    u8"the tide's. Let the reader take the larger number and light the four "
-    u8"anyway; a lantern lit for nothing is a lantern, and the causeway has "
-    u8"never once complained of too much light. As for the fox in the "
-    u8"corner: no warden has ever seen it and every warden leaves the corner "
-    u8"free, which is either a courtesy to an animal or a courtesy to the "
-    u8"wardens who came before, and the wardens do not distinguish. The "
-    u8"margin is kept for the vine on the same terms. What a page gives up "
-    u8"at its edges it keeps at its centre, says the rubric, and the "
-    u8"causeway is a page in that respect as in most others. Here ends the "
-    u8"second verse "
-    u8"of the ember gate, and the water keeps the rest, as it keeps the "
-    u8"road, the rope and the names of every warden who ever walked out "
-    u8"over it in the dark.",
-};
 
 struct Manuscript final : sketch::Sketch {
+  /** The two leaves the book turns between, read from beside the sketch:
+   *  the prose is what the page SETS and not what sets it. */
+  std::u8string pages[2];
   int page = 0;
   double nextTurn = 0.0;
   sk_sp<SkTypeface> book;
@@ -295,8 +221,8 @@ struct Manuscript final : sketch::Sketch {
     // around the box that type occupies. The nested run carries the
     // paragraph out of the initial in the rubricator's small capitals,
     // stated as a delimiter so an edit moves it.
-    const std::u8string letter(1, kPages[page][0]);
-    const std::u8string rest(kPages[page] + 1);
+    const std::u8string letter(1, pages[page][0]);
+    const std::u8string rest = pages[page].substr(1);
     weave::TextStyle capitals = body(kBodySize * 0.92f, rubric.stem);
     capitals.shaping.fontFeatures = {weave::features::smallCaps,
                                      weave::features::capitalsToSmallCaps};
@@ -409,10 +335,12 @@ struct Manuscript final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({0.11f, 0.09f, 0.075f, 1});
-    ctx.captureAt(3.5);
-    book = weave::ports::pickTypeface(kBookFaces, 400);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 3.5,
+                             .background = SkColor4f{0.11f, 0.09f, 0.075f, 1}});
+    book = weave::ports::face(kBookFaces, 400);
+    pages[0] = sketch::kit::passage(ctx, "manuscript_1.txt");
+    pages[1] = sketch::kit::passage(ctx, "manuscript_2.txt");
     page = 0;
     nextTurn = kTurnSecs;
     ctx.composer.render(describe());

@@ -7,4 +7,5 @@
 
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Passage.h>
 #include <sigilsketch/kit/Theme.h>
