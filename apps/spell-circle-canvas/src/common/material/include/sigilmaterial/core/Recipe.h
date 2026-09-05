@@ -85,6 +85,9 @@ class Recipe {
    *  a different name; a recipe with no body at all answers yes, having
    *  nothing to say. */
   bool readsField(std::string_view name) const;
+  /** `readsField(name)` for a field of `params()`, answered without
+   *  looking the name up again. */
+  bool readsField(const Field& field) const;
   bool has(Target target) const { return body(target) != nullptr; }
   /** The targets that have a body, in Target order. */
   std::vector<Target> targets() const;
@@ -114,12 +117,18 @@ class Recipe {
  private:
   Recipe(std::string name, const Schema& params);
   void relayout();
+  void rescan();
+  bool spelled(std::string_view name) const;
 
   std::string m_name;
   Schema m_params;
   Schema m_layout;
   boost::container::map<Target, std::string> m_bodies;
   std::vector<std::string> m_children;
+  /** Per params field, whether a body spells it — settled once when a
+   *  body is set, because a material writes every field of every
+   *  instance it builds and each write asks. */
+  std::vector<uint8_t> m_read;
   uint8_t m_frame = 0;
 };
 

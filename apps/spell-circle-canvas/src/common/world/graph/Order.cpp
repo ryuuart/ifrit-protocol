@@ -9,8 +9,8 @@
  */
 
 #include <algorithm>
-#include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
+#include <boost/container/map.hpp>
 #include <string>
 #include <vector>
 
@@ -29,9 +29,9 @@ struct Touchers {
   std::vector<size_t> readers;
 };
 
-boost::container::flat_map<std::string, Touchers> touchersOf(
+boost::container::map<std::string, Touchers> touchersOf(
     std::span<const Pass> passes) {
-  boost::container::flat_map<std::string, Touchers> byName;
+  boost::container::map<std::string, Touchers> byName;
   for (size_t i = 0; i < passes.size(); ++i) {
     for (const std::string& name : passes[i].writes())
       byName[name].writers.push_back(i);
@@ -76,7 +76,7 @@ std::string nameCycle(
 
 std::string order(std::span<const Pass> passes, std::vector<size_t>& into) {
   into.clear();
-  const boost::container::flat_map<std::string, Touchers> byName =
+  const boost::container::map<std::string, Touchers> byName =
       touchersOf(passes);
 
   std::vector<boost::container::flat_set<size_t>> after(passes.size());

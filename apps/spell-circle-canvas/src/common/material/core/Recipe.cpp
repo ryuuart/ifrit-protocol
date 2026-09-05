@@ -54,6 +54,7 @@ Recipe Recipe::of(std::string name, const Schema& params) {
 
 Recipe& Recipe::body(Target target, std::string source) {
   m_bodies[target] = std::move(source);
+  rescan();
   return *this;
 }
 
@@ -88,6 +89,29 @@ const std::string* Recipe::body(Target target) const {
 
 bool Recipe::readsField(std::string_view name) const {
   if (m_bodies.empty() || name.empty()) return true;
+  const std::vector<Field>& fields = m_params.fields;
+  for (size_t i = 0; i < fields.size() && i < m_read.size(); ++i)
+    if (fields[i].name == name) return m_read[i] != 0;
+  return spelled(name);
+}
+
+bool Recipe::readsField(const Field& field) const {
+  const std::vector<Field>& fields = m_params.fields;
+  if (m_bodies.empty()) return true;
+  if (&field >= fields.data() && &field < fields.data() + fields.size()) {
+    const size_t index = size_t(&field - fields.data());
+    if (index < m_read.size()) return m_read[index] != 0;
+  }
+  return readsField(field.name);
+}
+
+void Recipe::rescan() {
+  m_read.resize(m_params.fields.size());
+  for (size_t i = 0; i < m_params.fields.size(); ++i)
+    m_read[i] = spelled(m_params.fields[i].name) ? 1 : 0;
+}
+
+bool Recipe::spelled(std::string_view name) const {
   const auto part = [](char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
            (c >= '0' && c <= '9') || c == '_';

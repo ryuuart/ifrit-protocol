@@ -2,7 +2,7 @@
  "config": "Release",
  "host": "MacBookPro.control",
  "machine": "arm64",
- "taken": "2026-09-01T14:47:59+00:00",
+ "taken": "2026-09-05T03:03:24+00:00",
  "benches": {
   "compose_brush_bench": {
    "BM_Draw_Mask_Spans_Live/16": {
@@ -740,6 +740,20 @@
     "repetitions": 4
    }
   },
+  "compose_draw_bench": {
+   "DrawNode": {
+    "real_ns": 333219.2440582351,
+    "cpu_ns": 333219.1943127962,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "RetainedCard": {
+    "real_ns": 38045.44898059935,
+    "cpu_ns": 38045.86160108541,
+    "unit": "us",
+    "repetitions": 4
+   }
+  },
   "compose_paint_bench": {
    "BM_Bake_Pattern_Halftone/4": {
     "real_ns": 3988.6740503014344,
@@ -1069,6 +1083,316 @@
     "real_ns": 23.990040274196424,
     "cpu_ns": 23.98214227323265,
     "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "core_hardware_bench": {
+   "BM_HandleAllocateRelease": {
+    "real_ns": 4.9716472011297785,
+    "cpu_ns": 4.971520134497851,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_HandleBatch/64": {
+    "real_ns": 156.9929867293443,
+    "cpu_ns": 156.9881262996547,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_HandleBatch/1024": {
+    "real_ns": 2605.235505107608,
+    "cpu_ns": 2604.976224087969,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_ImportExportRetire": {
+    "real_ns": 43.97151605482596,
+    "cpu_ns": 43.971019086790434,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_CreateDestroyTexture": {
+    "real_ns": 4387.47234571884,
+    "cpu_ns": 4387.456556082112,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_FenceRoundTrip": {
+    "real_ns": 83504.32920269668,
+    "cpu_ns": 7284.700000000077,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "draw_bench": {
+   "Circles/10000": {
+    "real_ns": 7850980.305293988,
+    "cpu_ns": 7850944.4444444515,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "CirclesStroked/10000": {
+    "real_ns": 36938697.87457515,
+    "cpu_ns": 36938750.000000015,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "Rects/10000": {
+    "real_ns": 2614707.9432739015,
+    "cpu_ns": 2614698.1132075433,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "Text/100": {
+    "real_ns": 456403.8766067272,
+    "cpu_ns": 456401.8987341765,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "Background": {
+    "real_ns": 285718.7711399711,
+    "cpu_ns": 285719.5876288655,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "Noise": {
+    "real_ns": 63487.08192970586,
+    "cpu_ns": 63478.892419428084,
+    "unit": "us",
+    "repetitions": 4
+   }
+  },
+  "draw_kit_bench": {
+   "BrushStroke": {
+    "real_ns": 5078075.611015299,
+    "cpu_ns": 5078055.555555554,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "DabSampling": {
+    "real_ns": 23883.5173964113,
+    "cpu_ns": 23879.49855023026,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BrushHatch": {
+    "real_ns": 5721368.9166625645,
+    "cpu_ns": 5721416.6666666735,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BrushMass": {
+    "real_ns": 59517208.50134734,
+    "cpu_ns": 59513499.99999978,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BrushWash": {
+    "real_ns": 10952604.153806955,
+    "cpu_ns": 10952653.84615384,
+    "unit": "ms",
+    "repetitions": 4
+   }
+  },
+  "geometry_device_bench": {
+   "BM_DeviceAdopt": {
+    "real_ns": 289270.2964605098,
+    "cpu_ns": 288069.7674418503,
+    "unit": "ms",
+    "repetitions": 4
+   },
+   "BM_Adopted_CreateDestroyTexture": {
+    "real_ns": 6374.424752861896,
+    "cpu_ns": 6365.12135133881,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Adopted_ImportExportRetire": {
+    "real_ns": 44.01048861259626,
+    "cpu_ns": 43.99782571288513,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Adopted_FenceRoundTrip": {
+    "real_ns": 37314.16526623146,
+    "cpu_ns": 19387.48137108785,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Adopted_Wrap_Handle": {
+    "real_ns": 10366.533069117657,
+    "cpu_ns": 10358.669678221864,
+    "unit": "ns",
+    "repetitions": 4
+   }
+  },
+  "geometry_kit_bench": {
+   "BM_GenerateAnalytic": {
+    "real_ns": 200.4166059369256,
+    "cpu_ns": 200.4172649668472,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_GenerateSampled/180": {
+    "real_ns": 3020.1598460386504,
+    "cpu_ns": 3019.4542102555242,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_GenerateSampled/720": {
+    "real_ns": 11706.015233758748,
+    "cpu_ns": 11706.010016694461,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_GenerateSampled/2880": {
+    "real_ns": 43895.6239372765,
+    "cpu_ns": 43894.88547223088,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_GenerateBlob/8": {
+    "real_ns": 147.69375895337083,
+    "cpu_ns": 147.6912116067041,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_GenerateBlob/64": {
+    "real_ns": 1048.8426354385851,
+    "cpu_ns": 1048.8228338796357,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_GenerateWrapped": {
+    "real_ns": 543.1679179137449,
+    "cpu_ns": 543.144178258729,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Compare": {
+    "real_ns": 0.3148094120272216,
+    "cpu_ns": 0.3146828347372403,
+    "unit": "ns",
+    "repetitions": 4
+   },
+   "BM_Extrude/8": {
+    "real_ns": 135232.48655321976,
+    "cpu_ns": 135232.56972111642,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Extrude/16": {
+    "real_ns": 141563.21256395767,
+    "cpu_ns": 141563.31658291526,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Extrude/64": {
+    "real_ns": 225306.98782708432,
+    "cpu_ns": 225306.81818181684,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Extrude/256": {
+    "real_ns": 471961.7931957562,
+    "cpu_ns": 471962.7118644017,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Extrude/512": {
+    "real_ns": 548826.3359154644,
+    "cpu_ns": 548833.9843750002,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ExtrudeWallsOnly/8": {
+    "real_ns": 16716.70469356303,
+    "cpu_ns": 16716.274603936665,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ExtrudeWallsOnly/16": {
+    "real_ns": 20531.708614053372,
+    "cpu_ns": 20531.699442324672,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ExtrudeWallsOnly/64": {
+    "real_ns": 40309.610139194236,
+    "cpu_ns": 40307.151062607474,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ExtrudeWallsOnly/256": {
+    "real_ns": 75613.3659154427,
+    "cpu_ns": 75610.93161012317,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_ExtrudeWallsOnly/512": {
+    "real_ns": 82602.88980341383,
+    "cpu_ns": 82601.06069534578,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Revolve/profile:8/segments:16": {
+    "real_ns": 4697.2372827114905,
+    "cpu_ns": 4697.025585996435,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Revolve/profile:64/segments:16": {
+    "real_ns": 48452.73345973373,
+    "cpu_ns": 48451.85313474205,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Revolve/profile:512/segments:16": {
+    "real_ns": 290493.99272933375,
+    "cpu_ns": 290493.77593360894,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Revolve/profile:8/segments:128": {
+    "real_ns": 35948.067523933816,
+    "cpu_ns": 35913.7543684465,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Revolve/profile:64/segments:128": {
+    "real_ns": 280513.07288162044,
+    "cpu_ns": 280509.1093117361,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Revolve/profile:512/segments:128": {
+    "real_ns": 2903113.708271121,
+    "cpu_ns": 2903114.583333292,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Torus/16": {
+    "real_ns": 5745.931049493149,
+    "cpu_ns": 5745.9053497942095,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Torus/64": {
+    "real_ns": 86907.98056471017,
+    "cpu_ns": 86899.3730407532,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Torus/256": {
+    "real_ns": 1637272.5529329139,
+    "cpu_ns": 1637270.5882352702,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Torus/1024": {
+    "real_ns": 23062621.5840554,
+    "cpu_ns": 23060333.33333346,
+    "unit": "us",
     "repetitions": 4
    }
   },
@@ -1690,6 +2014,120 @@
    "BM_PopRuntime_Direct/1000": {
     "real_ns": 120046.30610519765,
     "cpu_ns": 120042.56233877953,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Circle/segments:32/sides:6": {
+    "real_ns": 7285.8770569073695,
+    "cpu_ns": 7285.838607594906,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Circle/segments:256/sides:6": {
+    "real_ns": 54282.08927207772,
+    "cpu_ns": 54281.95197521273,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Circle/segments:1024/sides:6": {
+    "real_ns": 216369.97681487873,
+    "cpu_ns": 216370.1700154543,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Circle/segments:32/sides:24": {
+    "real_ns": 12065.082406166355,
+    "cpu_ns": 12064.994397034838,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Circle/segments:256/sides:24": {
+    "real_ns": 94689.91361874083,
+    "cpu_ns": 94683.26558265593,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Circle/segments:1024/sides:24": {
+    "real_ns": 377337.3091560212,
+    "cpu_ns": 375409.9462365698,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Rings/32": {
+    "real_ns": 2073.62245703502,
+    "cpu_ns": 2071.252600056061,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Rings/256": {
+    "real_ns": 17217.099862994546,
+    "cpu_ns": 17203.719885157952,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Rings/1024": {
+    "real_ns": 23446.93569362063,
+    "cpu_ns": 23110.762331838763,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Line/32": {
+    "real_ns": 5965.546967612733,
+    "cpu_ns": 5965.575451942329,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Line/64": {
+    "real_ns": 11291.255040334598,
+    "cpu_ns": 11291.290322580826,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Line/256": {
+    "real_ns": 43118.54741326404,
+    "cpu_ns": 43118.688423645304,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Line/1024": {
+    "real_ns": 174270.16624209087,
+    "cpu_ns": 174243.22660098295,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Line/2048": {
+    "real_ns": 345388.14977375045,
+    "cpu_ns": 345387.37623763736,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Hang/32": {
+    "real_ns": 2111.641804297651,
+    "cpu_ns": 2111.6433809106975,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Hang/64": {
+    "real_ns": 3798.54284117462,
+    "cpu_ns": 3798.4672461884375,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Hang/256": {
+    "real_ns": 13816.949003702186,
+    "cpu_ns": 13816.877096074004,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Hang/1024": {
+    "real_ns": 54567.23852749714,
+    "cpu_ns": 54565.90202177163,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Sweep_Hang/2048": {
+    "real_ns": 109286.96250402936,
+    "cpu_ns": 109286.71874999852,
     "unit": "us",
     "repetitions": 4
    }
@@ -3114,44 +3552,6 @@
     "repetitions": 4
    }
   },
-  "core_hardware_bench": {
-   "BM_HandleAllocateRelease": {
-    "real_ns": 4.9716472011297785,
-    "cpu_ns": 4.971520134497851,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_HandleBatch/64": {
-    "real_ns": 156.9929867293443,
-    "cpu_ns": 156.9881262996547,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_HandleBatch/1024": {
-    "real_ns": 2605.235505107608,
-    "cpu_ns": 2604.976224087969,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_ImportExportRetire": {
-    "real_ns": 43.97151605482596,
-    "cpu_ns": 43.971019086790434,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_CreateDestroyTexture": {
-    "real_ns": 4387.47234571884,
-    "cpu_ns": 4387.456556082112,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_FenceRoundTrip": {
-    "real_ns": 83504.32920269668,
-    "cpu_ns": 7284.700000000077,
-    "unit": "ns",
-    "repetitions": 4
-   }
-  },
   "sigilskia_graphite_bench": {
    "BM_Wrap_Native": {
     "real_ns": 10299.042051588069,
@@ -3508,6 +3908,66 @@
    "BM_Layout_Vertical_ClampedEllipsis_500w": {
     "real_ns": 11580.255149325541,
     "cpu_ns": 11580.277502477576,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_Overflowed_30000w/0": {
+    "real_ns": 37111.04141329246,
+    "cpu_ns": 37111.00820322821,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_Overflowed_30000w/1": {
+    "real_ns": 83365.62075443647,
+    "cpu_ns": 83365.23553965426,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Update_PaintRestyle_Overflowed_30000w": {
+    "real_ns": 37331.4439854448,
+    "cpu_ns": 37331.421712456926,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Live_Composer_AnimatingMeasure_600w": {
+    "real_ns": 31752.7792828644,
+    "cpu_ns": 31752.75735294154,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Live_Composer_SeenMeasure_600w": {
+    "real_ns": 28987.47668956849,
+    "cpu_ns": 28987.567343556097,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Live_Composer_ContentChurn_600w": {
+    "real_ns": 383116.13627193565,
+    "cpu_ns": 383097.05882353557,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Live_Story_Refill_600w_SixFrames": {
+    "real_ns": 27771.727444544555,
+    "cpu_ns": 27771.556886227205,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_ParagraphStyles_600w": {
+    "real_ns": 36830.883595760635,
+    "cpu_ns": 36830.97112860845,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_JustificationRanges_600w": {
+    "real_ns": 131586.3294081296,
+    "cpu_ns": 131580.82706766832,
+    "unit": "us",
+    "repetitions": 4
+   },
+   "BM_Layout_ReservedBand_600w": {
+    "real_ns": 32379.55662439407,
+    "cpu_ns": 32338.48089681971,
     "unit": "us",
     "repetitions": 4
    }
@@ -4074,38 +4534,6 @@
    "DrawFrame/512": {
     "real_ns": 480918.31533846376,
     "cpu_ns": 480871.1340206176,
-    "unit": "ns",
-    "repetitions": 4
-   }
-  },
-  "geometry_device_bench": {
-   "BM_DeviceAdopt": {
-    "real_ns": 289270.2964605098,
-    "cpu_ns": 288069.7674418503,
-    "unit": "ms",
-    "repetitions": 4
-   },
-   "BM_Adopted_CreateDestroyTexture": {
-    "real_ns": 6374.424752861896,
-    "cpu_ns": 6365.12135133881,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Adopted_ImportExportRetire": {
-    "real_ns": 44.01048861259626,
-    "cpu_ns": 43.99782571288513,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Adopted_FenceRoundTrip": {
-    "real_ns": 37314.16526623146,
-    "cpu_ns": 19387.48137108785,
-    "unit": "ns",
-    "repetitions": 4
-   },
-   "BM_Adopted_Wrap_Handle": {
-    "real_ns": 10366.533069117657,
-    "cpu_ns": 10358.669678221864,
     "unit": "ns",
     "repetitions": 4
    }

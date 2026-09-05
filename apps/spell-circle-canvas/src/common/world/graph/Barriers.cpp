@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <boost/container/flat_map.hpp>
+#include <boost/container/map.hpp>
 #include <string>
 #include <vector>
 
@@ -29,7 +30,7 @@ struct Touch {
 void barriers(std::span<const PassWork> steps,
               std::span<const Resource> resources, std::vector<Barrier>& into) {
   into.clear();
-  boost::container::flat_map<std::string, std::vector<Touch>> byName;
+  boost::container::map<std::string, std::vector<Touch>> byName;
   for (size_t step = 0; step < steps.size(); ++step) {
     const Touches touches = touchesOf(steps[step]);
     for (const std::string& name : touches.writes)

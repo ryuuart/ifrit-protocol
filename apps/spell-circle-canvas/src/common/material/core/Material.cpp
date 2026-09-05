@@ -78,7 +78,7 @@ void Material::write(std::string_view name, Kind kind, const void* floats,
   // is compiled because here is where somebody wrote to it — a params
   // struct that carries a field this recipe's kind has no use for is a
   // shared ABI and not a mistake, and poured in whole it says nothing.
-  if (!m_recipe->readsField(name))
+  if (!m_recipe->readsField(*f))
     reportOnce(key(), "recipe \"" + m_recipe->name() + "\" field \"" +
                           std::string(name) +
                           "\" is read by no body of it; writing to it has no "

@@ -7,7 +7,7 @@
  * plan is being read rather than discovered by looking at the result.
  */
 
-#include <boost/container/flat_map.hpp>
+#include <boost/container/map.hpp>
 #include <string>
 #include <vector>
 
@@ -17,7 +17,7 @@ namespace sigil::world::graph::detail {
 
 std::string claims(std::span<const Pass> passes,
                    std::span<const size_t> order) {
-  boost::container::flat_map<std::string, size_t> writtenBy;
+  boost::container::map<std::string, size_t> writtenBy;
   for (size_t index : order) {
     const Pass& pass = passes[index];
     for (const std::string& name : pass.writes()) {
