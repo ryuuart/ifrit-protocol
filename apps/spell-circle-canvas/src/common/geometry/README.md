@@ -983,11 +983,18 @@ beneath, in `sigil::geometry::shapes`.
   through the sweep's own `profile::fromPath()`.
 - **`kit/Divisions.h`** — a figure's divisions as ONE multi-contour path:
   `ticks()` walks a division count around a `Frame` (with a longer mark
-  every N), `chords()` walks a polygon's sides. One path rather than N
+  every N), `arcs()` walks the same count as CLOSED segments of the ring
+  itself, `chords()` walks a polygon's sides. One path rather than N
   drawn things, because a divider ladder is static geometry with one
   style — the exception is per-mark animation, which needs its own
   keyed items. Each has a comparable `Silhouette` form (`TicksShape`,
-  `ChordsShape`) for a consumer that shapes a box with it.
+  `ArcsShape`, `ChordsShape`) for a consumer that shapes a box with it.
+  A `Ticks` carrying a `markPx` turns its ladder from open lines into
+  CLOSED marks — the node, the lozenge, the bar — which is geometry
+  rather than a weight the paint decides, so it fills, takes a gradient
+  across its own width and unions with its neighbours; `arcs()` is the
+  curved sibling of that, whose marks follow the ring and fatten with
+  radius the way a segment of a dial does.
 - **`kit/Solids.h`** — the 3D shelf, in `sigil::geometry::mesh` because
   what it makes is a `Mesh`. Two of them LIFT another currency:
   `extrude()` raises a filled path into a solid (caps earcut-triangulated

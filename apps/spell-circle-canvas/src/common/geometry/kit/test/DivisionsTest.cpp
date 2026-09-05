@@ -302,3 +302,66 @@ TEST(Divisions, AChordFanIsAComparableSilhouette) {
 }
 
 }  // namespace
+
+TEST(Divisions, AMarkWidthTurnsTheLadderIntoClosedNodes) {
+  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const shapes::Ticks node{
+      .divisions = 12, .mark = {0.9f, 1.0f}, .markPx = 4.0f};
+  const SkPath p = shapes::ticks(f, node);
+  const Contours c = walk(p);
+  ASSERT_EQ(c.pieces.size(), 12u);
+  // Each mark is now a closed rectangle standing on the same radius: the
+  // 10 px run twice and the 4 px width twice. The perimeter is what says
+  // it closed — three sides of it would measure 24.
+  for (float len : c.lengths) EXPECT_NEAR(len, 28.0f, 1e-2f);
+  // A closed mark is geometry rather than a paint decision, so it fills;
+  // the open ladder encloses nothing at all.
+  const SkPath line = shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}});
+  EXPECT_FALSE(line.contains(f.at(0, 0.95f).fX, f.at(0, 0.95f).fY));
+  EXPECT_TRUE(p.contains(f.at(0, 0.95f).fX, f.at(0, 0.95f).fY));
+  // …and it stands square to its own radius: the mark on the frame's zero
+  // reaches its full 4 px ACROSS that radius and no further along it.
+  // The default frame counts from twelve o'clock, so mark 0 stands
+  // upright: 10 px of radius tall and its 4 px of width across.
+  const SkRect first = c.pieces[0].computeTightBounds();
+  EXPECT_NEAR(first.height(), 10.0f, 1e-2f);
+  EXPECT_NEAR(first.width(), 4.0f, 1e-2f);
+
+  // The width is part of the value, so a node ring does not prune onto a
+  // line ring.
+  EXPECT_FALSE(node == (shapes::Ticks{.divisions = 12, .mark = {0.9f, 1.0f}}));
+}
+
+TEST(Divisions, ArcSegmentsFollowTheRingWhereANodeStandsAcrossIt) {
+  const path::Frame f{.centre = {0, 0}, .radius = 100};
+  const shapes::Arcs ring{
+      .divisions = 8, .mark = {0.8f, 1.0f}, .spanDeg = 30.0f};
+  const SkPath p = shapes::arcs(f, ring);
+  const Contours c = walk(p);
+  ASSERT_EQ(c.pieces.size(), 8u);
+  // A segment fattens with radius, which is the whole difference from a
+  // node: its far edge is longer than its near one, and both are arcs of
+  // the ring rather than chords across it.
+  const float outerArc = 100.0f * 30.0f * 3.14159265f / 180.0f;
+  const float innerArc = 80.0f * 30.0f * 3.14159265f / 180.0f;
+  EXPECT_NEAR(c.lengths[0], outerArc + innerArc + 2.0f * 20.0f, 0.5f);
+  EXPECT_TRUE(f.box().makeOutset(0.05f, 0.05f).contains(p.computeTightBounds()));
+
+  // It is dealt round the frame the way ticks() deals marks: the first
+  // segment is CENTRED on `from`, so its middle sits where a tick would.
+  const SkPoint mid = f.at(0.0f, 0.9f);
+  EXPECT_TRUE(p.contains(mid.fX, mid.fY));
+  const SkPoint between = f.at(180.0f / 8.0f, 0.9f);  // half a pitch on
+  EXPECT_FALSE(p.contains(between.fX, between.fY));
+
+  // Nothing to enclose is nothing drawn, rather than a degenerate contour
+  // that fills as nothing and strokes as a doubled arc.
+  EXPECT_TRUE(shapes::arcs(f, {.divisions = 8, .mark = {0.9f, 0.9f}}).isEmpty());
+  EXPECT_TRUE(shapes::arcs(f, {.divisions = 0}).isEmpty());
+
+  // The shape form takes half the shorter side, like its two neighbours.
+  const shapes::ArcsShape shape = shapes::arcs(ring);
+  EXPECT_EQ(shape, shapes::arcs(ring));
+  const SkRect bounds = shape.path({240, 120}).computeTightBounds();
+  EXPECT_LE(bounds.width(), 120.5f);
+}

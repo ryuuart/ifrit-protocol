@@ -3,9 +3,10 @@
 /** @file
  * A figure's divisions as ONE path with N contours.
  *
- * Two generators, one idea: emit N marks into a single `SkPathBuilder`
+ * Three generators, one idea: emit N marks into a single `SkPathBuilder`
  * rather than N drawn things. `ticks()` walks a division count around a
- * `Frame`; `chords()` walks a polygon's sides.
+ * `Frame`; `arcs()` walks the same count as CLOSED segments of the ring
+ * itself; `chords()` walks a polygon's sides.
  *
  * ## Why one path and not N of them
  *
@@ -99,13 +100,28 @@ struct Ticks {
    *  never prunes and re-records on every describe. */
   std::function<Span(int i, Span fromFields)> classify;
 
+  /** HOW WIDE ONE MARK IS, in px across the radius. Zero — the default —
+   *  emits the open radial LINE a ladder is stroked from; anything else
+   *  emits a CLOSED rectangle standing on the same radius, which is the
+   *  node, the lozenge and the bar of a ring that is filled rather than
+   *  stroked.
+   *
+   *  The difference is not a stroke width by another name. A stroked line
+   *  is a mark the paint decides the weight of; a closed mark is
+   *  GEOMETRY, so it fills, it takes a gradient across its own width, it
+   *  unions with its neighbours, and the ring it belongs to can be
+   *  clipped, offset or measured as the shape it is. Px rather than
+   *  degrees because a node ring reads as marks of one size, not as
+   *  wedges that fatten with radius — the wedge is `arcs()`. */
+  float markPx = 0.0f;
+
   /** Field-wise, with the classifier conservative: any classify present
    *  means "not provably the same ladder". */
   bool operator==(const Ticks& o) const {
     if (classify || o.classify) return false;
     return divisions == o.divisions && from == o.from && sweep == o.sweep &&
            closed == o.closed && mark == o.mark && longEvery == o.longEvery &&
-           longMark == o.longMark;
+           longMark == o.longMark && markPx == o.markPx;
   }
 };
 
@@ -122,8 +138,24 @@ inline SkPath ticks(const path::Frame& frame, const Ticks& t) {
     if (t.classify) s = t.classify(i, s);
     if (s.inner == s.outer) continue;
     const float deg = t.from + step * (float)i;
-    b.moveTo(frame.at(deg, s.inner));
-    b.lineTo(frame.at(deg, s.outer));
+    const SkPoint inner = frame.at(deg, s.inner);
+    const SkPoint outer = frame.at(deg, s.outer);
+    if (t.markPx <= 0.0f) {
+      b.moveTo(inner);
+      b.lineTo(outer);
+      continue;
+    }
+    // A closed mark: the same radial run, given a width across it. The
+    // offset is perpendicular to the frame's own outward direction, so a
+    // mark stands square to its radius whatever the frame's conventions
+    // are.
+    const SkVector out = frame.dir(deg);
+    const SkVector across{-out.fY * t.markPx * 0.5f, out.fX * t.markPx * 0.5f};
+    b.moveTo(inner.fX + across.fX, inner.fY + across.fY);
+    b.lineTo(outer.fX + across.fX, outer.fY + across.fY);
+    b.lineTo(outer.fX - across.fX, outer.fY - across.fY);
+    b.lineTo(inner.fX - across.fX, inner.fY - across.fY);
+    b.close();
   }
   return b.detach();
 }
@@ -158,6 +190,95 @@ struct TicksShape {
 
 inline TicksShape ticks(const Ticks& t, path::Frame conventions = {}) {
   return TicksShape{t, conventions};
+}
+
+// ---------------------------------------------------------------------------
+// arcs — the ring's own divisions as N closed segments.
+
+/** A ring of CLOSED ARC SEGMENTS: N wedges of the annulus between two
+ *  radii, each `spanDeg` wide, dealt round the frame the way `ticks()`
+ *  deals its marks.
+ *
+ *  This is the curved sibling of a `Ticks` carrying a `markPx`, and the
+ *  two answer different pictures. A tick's mark is a straight bar of one
+ *  width — a node, dealt round a ring, reading as marks of one size. An
+ *  arc's mark follows the ring, so its edges are the ring's own arcs and
+ *  it fattens with radius the way a segment of a dial does. A segmented
+ *  progress ring, a fan of sectors, a broken annulus: each is one path
+ *  here rather than N drawn things.
+ *
+ *  Every angle is in the FRAME's units, exactly as `ticks()` reads them,
+ *  and `spanDeg` is a WIDTH, so it takes the frame's sign but not its
+ *  origin. A span wider than the pitch makes neighbours overlap, which
+ *  a fill with a non-zero winding closes into a solid ring — say the
+ *  pitch, not more, unless that is the drawing. */
+struct Arcs {
+  /** How many segments, dealt as `ticks()` deals marks: with a full
+   *  sweep and `closed = false`, segment N would coincide with segment 0
+   *  and is not emitted. */
+  int divisions = 12;
+  /** Frame degrees of the first segment's CENTRE. */
+  float from = 0.0f;
+  /** Total span in frame degrees the divisions are dealt over. */
+  float sweep = 360.0f;
+  /** Emit `divisions + 1` segments — the closed ladder a scale wants and
+   *  a full ring does not. */
+  bool closed = false;
+  /** How far in and out one segment reaches, in normalised radius. Equal
+   *  radii emit nothing: a segment with no thickness is not a figure, and
+   *  the degenerate contour would fill as nothing and stroke as a
+   *  doubled arc. */
+  Span mark{0.88f, 1.0f};
+  /** Each segment's angular width, in frame degrees. */
+  float spanDeg = 20.0f;
+
+  bool operator==(const Arcs&) const = default;
+};
+
+/** The segments as a path in the FRAME's parent space. */
+inline SkPath arcs(const path::Frame& frame, const Arcs& a) {
+  SkPathBuilder b;
+  const int n = std::max(0, a.divisions);
+  if (n == 0 || a.spanDeg == 0.0f || a.mark.inner == a.mark.outer)
+    return b.detach();
+  const int count = a.closed ? n + 1 : n;
+  const float step = a.sweep / (float)n;
+  const SkRect outer = frame.box(a.mark.outer);
+  const SkRect inner = frame.box(a.mark.inner);
+  for (int i = 0; i < count; ++i) {
+    const float centre = a.from + step * (float)i;
+    const float start = centre - a.spanDeg * 0.5f;
+    const float end = centre + a.spanDeg * 0.5f;
+    // Out along the far edge, in across the end, back along the near one:
+    // one contour whose two curved sides are the ring's own arcs rather
+    // than a polyline that would show its facets under a stroke.
+    b.arcTo(outer, frame.skiaDeg(start), frame.skiaSweep(a.spanDeg), true);
+    b.lineTo(frame.at(end, a.mark.inner));
+    b.arcTo(inner, frame.skiaDeg(end), frame.skiaSweep(-a.spanDeg), false);
+    b.close();
+  }
+  return b.detach();
+}
+
+/** `arcs` as a SHAPE VALUE, frame from the laid-out box — the same rule
+ *  as `ticks` and `chords`: centre at the box centre, radius half the
+ *  shorter side, and the `conventions` frame's own centre and radius
+ *  ignored. Fully comparable, since `Arcs` has no callable member. */
+struct ArcsShape {
+  Arcs a;
+  path::Frame conventions;
+  bool operator==(const ArcsShape&) const = default;
+  SkPath path(SkSize size) const {
+    path::Frame f = conventions;
+    f.centre = {size.width() * 0.5f, size.height() * 0.5f};
+    f.radius = std::min(size.width(), size.height()) * 0.5f;
+    return arcs(f, a);
+  }
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline ArcsShape arcs(const Arcs& a, path::Frame conventions = {}) {
+  return ArcsShape{a, conventions};
 }
 
 // ---------------------------------------------------------------------------
