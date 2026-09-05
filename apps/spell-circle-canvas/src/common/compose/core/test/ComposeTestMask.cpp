@@ -175,19 +175,6 @@ TEST(ComposePositioned, TogglingPositionedRemountsCleanly) {
   EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
 }
 
-namespace {
-
-/** The profile row for the node keyed `key`, from the last draw (labels
- *  are "<key> (<kind> WxH)"). */
-const Composer::NodeCost* rowOf(Host& host, const char* key) {
-  const std::string prefix = std::string(key) + " (";
-  for (const Composer::NodeCost& row : host.composer.profile())
-    if (row.label.rfind(prefix, 0) == 0) return &row;
-  return nullptr;
-}
-
-}  // namespace
-
 // ---- the memo carve-outs and the lanes they must not forget ---------------
 //
 // The content-volatility terms are enumerated in several places: once for

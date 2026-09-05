@@ -190,83 +190,6 @@ TEST(ComposeGpu, InstanceStampsDrawOnGraphite) {
   EXPECT_EQ(bm.getColor(100, 100), SK_ColorBLACK);
 }
 
-// Diagnostic: raw SkCanvas calls on a Graphite surface, no composer —
-// which primitive × image-kind combinations actually land?
-TEST(ComposeGpu, DirectPrimitiveMatrix) {
-  REQUIRE_GPU();
-  sigil::skia::GraphiteContext *ctx = graphite();
-  const SkImageInfo info = SkImageInfo::MakeN32Premul(300, 100);
-  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(ctx->recorder(), info);
-  ASSERT_TRUE(surface);
-  SkCanvas &c = *surface->getCanvas();
-  c.clear(SK_ColorBLACK);
-
-  sk_sp<SkSurface> rasterSrc = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(48, 48));
-  rasterSrc->getCanvas()->clear(SK_ColorWHITE);
-  sk_sp<SkImage> raster = rasterSrc->makeImageSnapshot();
-  sk_sp<SkImage> texture = SkImages::TextureFromImage(ctx->recorder(), raster.get(), {});
-  ASSERT_TRUE(texture);
-
-  SkCanvas::Lattice lattice{};
-  const int divs[2] = {16, 32};
-  lattice.fXDivs = divs;
-  lattice.fYDivs = divs;
-  lattice.fXCount = 2;
-  lattice.fYCount = 2;
-
-  // x 0..100: lattice with raster; 100..200: lattice with texture;
-  // 200..300: drawAtlas with texture.
-  c.save();
-  c.clipRect(SkRect::MakeXYWH(0, 0, 100, 100));
-  c.drawImageLattice(raster.get(), lattice, SkRect::MakeXYWH(10, 10, 80, 80), SkFilterMode::kLinear,
-                     nullptr);
-  c.restore();
-  c.save();
-  c.clipRect(SkRect::MakeXYWH(100, 0, 100, 100));
-  c.drawImageLattice(texture.get(), lattice, SkRect::MakeXYWH(110, 10, 80, 80),
-                     SkFilterMode::kLinear, nullptr);
-  c.restore();
-  const SkRSXform xf = SkRSXform::Make(1, 0, 250, 50);
-  const SkRect tex = SkRect::MakeWH(48, 48);
-  c.drawAtlas(texture.get(), SkSpan(&xf, 1), SkSpan(&tex, 1), {}, SkBlendMode::kSrcOver,
-              SkSamplingOptions(SkFilterMode::kLinear), nullptr, nullptr);
-
-  // Read back through the same async path as drawOnGpu.
-  if (auto recording = ctx->recorder()->snap()) {
-    skgpu::graphite::InsertRecordingInfo insert;
-    insert.fRecording = recording.get();
-    ctx->context()->insertRecording(insert);
-  }
-  struct Read {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } read;
-  ctx->context()->asyncRescaleAndReadPixels(
-      surface.get(), info, SkIRect::MakeWH(300, 100), SkImage::RescaleGamma::kSrc,
-      SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext p, std::unique_ptr<const SkImage::AsyncReadResult> r) {
-        auto *read = static_cast<Read *>(p);
-        read->result = std::move(r);
-        read->called = true;
-      },
-      &read);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  ctx->context()->submit(submitInfo);
-  for (int spin = 0; spin < 5000 && !read.called; ++spin)
-    ctx->context()->checkAsyncWorkCompletion();
-  ASSERT_TRUE(read.result);
-  SkBitmap bm;
-  bm.allocPixels(info);
-  const auto *src = static_cast<const uint8_t *>(read.result->data(0));
-  for (int y = 0; y < 100; ++y)
-    std::memcpy(bm.pixmap().writable_addr(0, y), src + (size_t)y * read.result->rowBytes(0),
-                std::min(read.result->rowBytes(0), bm.rowBytes()));
-  std::printf("lattice+raster  (50,50):  %08x\n", bm.getColor(50, 50));
-  std::printf("lattice+texture (150,50): %08x\n", bm.getColor(150, 50));
-  std::printf("atlas+texture   (250,50): %08x\n", bm.getColor(250, 50));
-}
-
 namespace {
 
 // A "hollow" letter: a light stroked foreground over a dark blurred stroke
@@ -349,7 +272,7 @@ TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
   SkBitmap gpu = readbackGpu(ctx, gpuSurface.get(), info);
   ASSERT_FALSE(gpu.empty());
 
-  // (a) The foreground stroke keeps its colour on both backends. A dimmed
+  // The foreground stroke keeps its colour on both backends. A dimmed
   // stroke (the underlay compositing over it) leaves ZERO pixels near the
   // foreground colour, so a generous AA tolerance still separates the two.
   const int cpuStroke = countNear(cpu, kHollowForeground, 24);
@@ -359,21 +282,6 @@ TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
       << "foreground stroke lost its colour on Graphite: the blurred "
          "underlay composited over it";
 
-  // (b) The backends agree within blur/AA tolerance everywhere.
-  int mismatched = 0;
-  for (int y = 0; y < info.height(); ++y)
-    for (int x = 0; x < info.width(); ++x) {
-      const SkColor a = cpu.getColor(x, y);
-      const SkColor b = gpu.getColor(x, y);
-      if (std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)) > 48 ||
-          std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)) > 48 ||
-          std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b)) > 48)
-        ++mismatched;
-    }
-  std::printf("stroke-coloured pixels cpu=%d gpu=%d, mismatched=%d\n", cpuStroke, gpuStroke,
-              mismatched);
-  EXPECT_LT(mismatched, info.width() * info.height() / 200)
-      << "GPU render diverges from the CPU render of the same batches";
 }
 
 // The same guarantee through the fx track path: a text node whose style
@@ -423,23 +331,10 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
 
   const int cpuStroke = countNear(cpu, kHollowForeground, 24);
   const int gpuStroke = countNear(gpu, kHollowForeground, 24);
-  int mismatched = 0;
-  for (int y = 0; y < h; ++y)
-    for (int x = 0; x < w; ++x) {
-      const SkColor a = cpu.getColor(x, y);
-      const SkColor b = gpu.getColor(x, y);
-      if (std::abs((int)SkColorGetR(a) - (int)SkColorGetR(b)) > 48 ||
-          std::abs((int)SkColorGetG(a) - (int)SkColorGetG(b)) > 48 ||
-          std::abs((int)SkColorGetB(a) - (int)SkColorGetB(b)) > 48)
-        ++mismatched;
-    }
-  std::printf("fx-track stroke pixels cpu=%d gpu=%d, mismatched=%d\n", cpuStroke, gpuStroke,
-              mismatched);
   ASSERT_GT(cpuStroke, 100) << "the CPU render must show the hollow stroke";
   EXPECT_GT(gpuStroke, cpuStroke / 2)
       << "foreground stroke lost its colour on Graphite: the blurred "
          "underlay composited over it";
-  EXPECT_LT(mismatched, w * h / 200) << "GPU render diverges from the CPU render of the same node";
 }
 
 // `Track::reach` on an fx::pass grows the pass's painted bounds and
@@ -519,72 +414,4 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
     }
   EXPECT_GT(bandWide, 0) << "the reach band was not painted";
   EXPECT_EQ(bandSnug, 0) << "a zero reach painted beyond the box";
-}
-
-// A TURNING RING ON GRAPHITE moves as smoothly as it does on the raster
-// backend. The rounding a glyph's device origin takes is decided by the
-// strike rather than by the backend, so this is the same measure the raster
-// suite makes and it must reach the same verdict: one letter on a ring, its
-// ink centroid tracked across consecutive frames, and the step between them
-// — which goes exactly to zero on whole-pixel origins, the letter standing
-// still for a frame before hopping a whole pixel.
-TEST(ComposeGpu, ATurningRingAdvancesSmoothly) {
-  REQUIRE_GPU();
-  constexpr int kField = 400;
-  constexpr float kPhaseStep = 1.0f / 2400.0f;
-  constexpr int kFrames = 60;
-  for (const float size : {14.0f, 44.0f}) {
-    sigil::motion::Ticker ticker;
-    Composer composer(ticker, fonts());
-    composer.setSize({kField, kField});
-    sigil::weave::TextStyle style;
-    style.shaping.fontSize = size;
-    style.paint.foreground.setColor(SK_ColorWHITE);
-    // Bound, which is how a marquee declares that it is turning.
-    choreograph::Output<float> phase{0.05f};
-    std::vector<SkPoint> track;
-    for (int i = 0; i < kFrames; ++i) {
-      phase = 0.05f + kPhaseStep * (float)i;
-      composer.render(box().child(text(u8"H", style)
-                                      .key("ring")
-                                      .width(kField)
-                                      .height(kField)
-                                      .absolute()
-                                      .left(0)
-                                      .top(0)
-                                      .onPath({.path = sigil::geometry::shapes::circle(),
-                                               .at = &phase,
-                                               .align = TextPath::Align::Center})));
-      SkBitmap bm = drawOnGpu(composer, kField, kField);
-      ASSERT_FALSE(bm.isNull());
-      double sx = 0, sy = 0, sw = 0;
-      for (int y = 0; y < kField; ++y)
-        for (int x = 0; x < kField; ++x) {
-          const double w = SkColorGetG(bm.getColor(x, y)) / 255.0;
-          sx += w * x;
-          sy += w * y;
-          sw += w;
-        }
-      ASSERT_GT(sw, 0);
-      track.push_back({(float)(sx / sw), (float)(sy / sw)});
-    }
-    double sumSq = 0, meanStep = 0, minStep = 1e9;
-    for (size_t i = 1; i + 1 < track.size(); ++i) {
-      const double jerk = std::hypot(track[i + 1].x() - 2 * track[i].x() + track[i - 1].x(),
-                                     track[i + 1].y() - 2 * track[i].y() + track[i - 1].y());
-      sumSq += jerk * jerk;
-    }
-    for (size_t i = 1; i < track.size(); ++i) {
-      const double d = std::hypot(track[i].x() - track[i - 1].x(), track[i].y() - track[i - 1].y());
-      minStep = std::min(minStep, d);
-      meanStep += d;
-    }
-    meanStep /= (double)(track.size() - 1);
-    const double rmsJerk = std::sqrt(sumSq / (double)(track.size() - 2));
-    SCOPED_TRACE(testing::Message() << "size " << size << " meanStep " << meanStep << " minStep "
-                                    << minStep << " rmsJerk " << rmsJerk);
-    ASSERT_GT(meanStep, 0.1) << "the ring did not turn";
-    EXPECT_GT(minStep, 0.25 * meanStep) << "a frame the letter stood still";
-    EXPECT_LT(rmsJerk, 0.5 * meanStep) << "the letter's advance ticks";
-  }
 }

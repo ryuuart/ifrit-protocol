@@ -870,42 +870,6 @@ TEST(ComposeCache, TheVOLATILECHILDIsWhatCausesTheSplit) {
   EXPECT_FALSE(row->refused(Composer::Promotion::Volatile));
 }
 
-namespace {
-
-constexpr int kBoards = 24;
-
-std::vector<choreograph::Output<float>>& boardPop() {
-  static std::vector<choreograph::Output<float>> v(kBoards);
-  return v;
-}
-
-sk_sp<SkRuntimeEffect> boardGrain() {
-  // Real per-pixel work with real local coordinates. A shader reads its
-  // local space by INVERTING the CTM, so a bake that lands at a different
-  // device offset than live paint would sample the grain differently — a
-  // flat colour would hide that entirely. Kept cheap on purpose: the loop
-  // below draws this once per piece per frame on two hosts, for hundreds of
-  // frames.
-  static sk_sp<SkRuntimeEffect> effect = [] {
-    auto [e, err] = SkRuntimeEffect::MakeForShader(
-        SkString("half4 main(float2 p) {"
-                 "  float g = 0.5 + 0.5 * sin(p.x * 0.71) * cos(p.y * 1.37);"
-                 "  float h = 0.5 + 0.5 * sin(p.x * 0.13 + p.y * 0.09);"
-                 "  return half4(half(0.20 + 0.62 * g), half(0.16 + 0.52 * h),"
-                 "               half(0.10 + 0.34 * g), 1.0);"
-                 "}"));
-    if (!e) ADD_FAILURE() << err.c_str();
-    return e;
-  }();
-  return effect;
-}
-
-Element plainExtra() {
-  return box().absolute().left(100).top(100).width(30).height(30).fill(red());
-}
-
-}  // namespace
-
 TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
   // `promotion` is a FIRST-MATCH verdict, so a node that is both volatile
   // and clipped reports only Volatile — and an author who removes the

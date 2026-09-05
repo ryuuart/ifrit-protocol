@@ -140,7 +140,7 @@ add_test(NAME compose_api_doc_probes_self_test
           --self-test)
 
 sigil_test(compose_docs_test
-  SOURCES ${COMPOSE_API_DOC_PROBES} test/ComposeTestEngineDocs.cpp
+  SOURCES ${COMPOSE_API_DOC_PROBES} test/ComposeTestDocs.cpp
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
             SigilComposeTypography SigilComposeVideo SigilComposeDraw
             SigilComposeTesting SigilWeavePorts)

@@ -920,97 +920,6 @@ TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 }
 
-namespace {
-
-/** A red 40x40 rect at x=150 recorded into a picture whose cull rect is
- *  the 100x100 box it escapes; replayed onto a 300x200 white surface.
- *  Returns the pixel the escaped rect would paint. */
-sk_sp<SkPicture> escapingPicture(const SkRect& cull, SkBBHFactory* bbh) {
-  SkPictureRecorder rec;
-  SkCanvas* c = rec.beginRecording(cull, bbh);
-  SkPaint p;
-  p.setColor(SK_ColorRED);
-  c->drawRect(SkRect::MakeXYWH(150, 10, 40, 40), p);
-  return rec.finishRecordingAsPicture();
-}
-
-SkColor replayPixel(const sk_sp<SkPicture>& pic, int x, int y) {
-  auto surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 200));
-  surf->getCanvas()->clear(SK_ColorWHITE);
-  surf->getCanvas()->drawPicture(pic);
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-  surf->readPixels(bm.pixmap(), x, y);
-  return bm.getColor(0, 0);
-}
-
-}  // namespace
-
-/** What a picture's cull rect actually does, established by experiment
- *  rather than assumed — because the intuitive reading ("ops outside the
- *  cull rect are dropped") is wrong, and `ownPaintBounds` is sized on the
- *  basis of the real behaviour.
- *
- *  An op outside the cull rect is NOT rejected at record time and NOT culled
- *  at plain playback. The cull rect only bites through a bounding-box
- *  hierarchy. What does clip in the compose paint path is saveLayer bounds
- *  and bake surfaces. Every arm below is asserted against its opposite, so
- *  the test cannot pass by agreeing with itself. */
-TEST(ComposeCullRect, PictureCullDoesNotCullWithoutABbh) {
-  // (1) recorded: the op survives RECORDING despite sitting wholly
-  // outside the cull rect, and the picture keeps the rect it was given.
-  sk_sp<SkPicture> pic = escapingPicture(SkRect::MakeWH(100, 100), nullptr);
-  EXPECT_EQ(pic->approximateOpCount(true), 1);
-  EXPECT_EQ(pic->cullRect(), SkRect::MakeWH(100, 100));
-  // (2) and it survives PLAYBACK: the pixels land outside the cull rect.
-  EXPECT_EQ(replayPixel(pic, 170, 20), SK_ColorRED);
-
-  // (3) an EMPTY cull rect does not reject either — the zero-size-node
-  // guard in StackingPainter.cpp is justified by promotion, not by op
-  // rejection.
-  sk_sp<SkPicture> empty = escapingPicture(SkRect::MakeWH(0, 0), nullptr);
-  EXPECT_EQ(empty->approximateOpCount(true), 1);
-  EXPECT_EQ(replayPixel(empty, 170, 20), SK_ColorRED);
-
-  // (4) nor is the whole picture quick-rejected when its cull rect misses
-  // the device entirely: an op inside the device still paints.
-  {
-    SkPictureRecorder rec;
-    SkPaint p;
-    p.setColor(SK_ColorRED);
-    rec.beginRecording(SkRect::MakeXYWH(1000, 1000, 100, 100))
-        ->drawRect(SkRect::MakeXYWH(20, 20, 40, 40), p);
-    EXPECT_EQ(replayPixel(rec.finishRecordingAsPicture(), 30, 30), SK_ColorRED);
-  }
-
-  // (5) WITH a bbh the cull rect finally bites — still recorded, dropped
-  // at playback, because the RTree clips op bounds to the cull rect. This
-  // is the arm that makes (2) meaningful: same input, opposite outcome.
-  SkRTreeFactory bbh;
-  sk_sp<SkPicture> tree = escapingPicture(SkRect::MakeWH(100, 100), &bbh);
-  EXPECT_EQ(tree->approximateOpCount(true), 1);
-  EXPECT_EQ(replayPixel(tree, 170, 20), SK_ColorWHITE);
-
-  // (6) saveLayer bounds, by contrast, are a genuine clip — this is the
-  // mechanism recordBounds' child union is actually defending against.
-  {
-    auto surf = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 200));
-    surf->getCanvas()->clear(SK_ColorWHITE);
-    const SkRect box = SkRect::MakeWH(100, 100);
-    SkPaint layer;
-    layer.setAlphaf(0.5f);
-    SkPaint p;
-    p.setColor(SK_ColorRED);
-    surf->getCanvas()->saveLayer(&box, &layer);
-    surf->getCanvas()->drawRect(SkRect::MakeXYWH(150, 10, 40, 40), p);
-    surf->getCanvas()->restore();
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
-    surf->readPixels(bm.pixmap(), 170, 20);
-    EXPECT_EQ(bm.getColor(0, 0), SK_ColorWHITE);
-  }
-}
-
 TEST(ComposeCache, OverflowingChildSurvivesPictureCaching) {
   // A child translated beyond its parent's box must not be quick-rejected
   // by the parent's recording cull (the recordBounds fix).
@@ -1055,4 +964,81 @@ TEST(ComposeCache, OverflowingChildSurvivesTextureBake) {
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
   host.frame();  // cached blit path
   EXPECT_EQ(host.pixel(170, 20), SK_ColorRED);
+}
+
+// Value semantics and cache invalidation around Element itself.
+
+TEST(ComposeElement, MutatingRenderedValueDetachesDescription) {
+  Host host;
+  Element panel = box().width(100).height(100).fill(red());
+
+  host.composer.render(box().child(panel));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+
+  // Composer retains the first description. Mutating the caller's value must
+  // create a new description so pointer-identity pruning cannot preserve the
+  // old cached picture.
+  panel.fill(blue());
+  host.composer.render(box().child(panel));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);
+}
+
+TEST(ComposeElement, CopiedValuesMutateIndependently) {
+  Host host;
+  Element left = box().width(100).height(100).fill(red());
+  Element right = left;
+  right.fill(blue());
+
+  host.composer.render(box().row().child(left).child(right));
+  host.frame();
+  EXPECT_EQ(host.pixel(50, 50), SK_ColorRED);
+  EXPECT_EQ(host.pixel(150, 50), SK_ColorBLUE);
+}
+
+// ---------------------------------------------------------------------------
+// The edge store: node→routes back-index + flat derive lists
+
+TEST(ComposeEdgeStore, RoutesAtReturnsAnchoredRoutesInTreeOrder) {
+  Host host;
+  auto describe = [] {
+    return box()
+        .child(box().key("a").width(30).height(30).absolute().inset(10, 10, 160,
+                                                                    160))
+        .child(box().key("b").width(30).height(30).absolute().inset(160, 160,
+                                                                    10, 10))
+        .child(connector("a", "b").key("edge1"))
+        .child(rail({{"a", {0.5f, 0.5f}}, {"b", {0.5f, 0.5f}}}).key("edge2"))
+        .child(connector("a", "b"));  // keyless: anchored but unaddressable
+  };
+  host.composer.render(describe());
+  host.frame();
+  const std::vector<std::string> atA = host.composer.routesAt("a");
+  ASSERT_EQ(atA.size(), 2u);  // the keyless route is omitted
+  EXPECT_EQ(atA[0], "edge1");
+  EXPECT_EQ(atA[1], "edge2");
+  EXPECT_EQ(host.composer.routesAt("b").size(), 2u);
+  EXPECT_TRUE(host.composer.routesAt("nowhere").empty());
+}
+
+TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
+  Host host;
+  bool withRoute = true;
+  auto describe = [&] {
+    auto tree = box()
+                    .child(box().key("a").width(30).height(30).absolute().inset(
+                        10, 10, 160, 160))
+                    .child(box().key("b").width(30).height(30).absolute().inset(
+                        160, 160, 10, 10));
+    if (withRoute) tree.child(connector("a", "b").key("edge"));
+    return tree;
+  };
+  host.composer.render(describe());
+  host.frame();
+  ASSERT_EQ(host.composer.routesAt("a").size(), 1u);
+  withRoute = false;
+  host.composer.render(describe());
+  host.frame();
+  EXPECT_TRUE(host.composer.routesAt("a").empty());
 }

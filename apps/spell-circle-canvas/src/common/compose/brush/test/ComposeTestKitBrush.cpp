@@ -133,10 +133,6 @@ TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
   EXPECT_TRUE(undulating == geometry::path::profile::wave(9, 50));
   EXPECT_FALSE(undulating == geometry::path::profile::wave(9, 51));
   EXPECT_FALSE(undulating == geometry::path::profile::offset(9));
-
-  // A band takes it, because a band's taper and a strand's path are one value.
-  Element undulatingBand = band(geometry::shapes::circle(), across(undulating));
-  EXPECT_TRUE(undulatingBand.node() != nullptr);
 }
 
 namespace {

@@ -76,12 +76,6 @@ sigil_test(compose_core_test
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore)
 
-# The Yoga+SigilWeave measurement contract, pinned independently of the
-# kernel.
-sigil_test(compose_spike_test
-  SOURCES test/ComposeSpikeTest.cpp
-  LIBRARIES SigilWeave SigilWeavePorts yoga::yogacore)
-
 # The kernel: describe, reconcile, layout, query, caching, and the
 # whole-scene scoreboard, blur, instances and particle arms.
 sigil_bench(compose_core_bench

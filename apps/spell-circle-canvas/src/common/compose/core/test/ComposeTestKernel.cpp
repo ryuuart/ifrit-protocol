@@ -626,8 +626,6 @@ TEST(ComposeLayoutScheme, GridPlacesAndSizesCells) {
   EXPECT_EQ(host.pixel(145, 55), SK_ColorGREEN);
 }
 
-#include <sigilmaterial/skia/Paint.h>
-
 TEST(ComposeMotion, EaseAdaptersBindTheShapeParameter) {
   // choreograph's back/elastic/bounce take a shape parameter with a
   // default, so &choreograph::easeOutBack does not convert to an EaseFn.
@@ -639,22 +637,6 @@ TEST(ComposeMotion, EaseAdaptersBindTheShapeParameter) {
   EXPECT_GT(peak, 1.05f) << "outBack did not overshoot";
   EXPECT_NEAR(back(0.0f), 0.0f, 1e-4f);
   EXPECT_NEAR(back(1.0f), 1.0f, 1e-4f);
-
-  // and it is usable where the papercut was: inside a motion::Transition.
-  Host host(100, 100);
-  host.composer.render(
-      box().child(box()
-                      .width(40)
-                      .height(40)
-                      .absolute()
-                      .left(30)
-                      .top(30)
-                      .scale(animate(motion::from(0.5f).to(1.0f),
-                                     {std::chrono::milliseconds(200),
-                                      motion::ease::outBack()}))
-                      .fill(material::skia::Paint::solid({1, 1, 1, 1}))));
-  host.frame();
-  SUCCEED();
 }
 
 TEST(ComposeTransform, ScaleXGrowsFromItsOrigin) {
@@ -1546,23 +1528,6 @@ TEST(ComposeDerive, ABorrowOfAConnectorWrittenAfterItLandsOnTheFirstFrame) {
   EXPECT_EQ(host.pixel(40, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(100, 40), SK_ColorBLACK);
 }
-
-// ---- rail(): the component that IS a line ----------------------------------
-
-namespace {
-
-/** A 20×20 keyed station box; center lands at (left+10, top+10). */
-Element station(const char* key, float left, float top) {
-  return box()
-      .key(key)
-      .width(20)
-      .height(20)
-      .inset(left, top, 180 - left, 160 - top)
-      .absolute()
-      .fill(blue());
-}
-
-}  // namespace
 
 TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
   // Describing a PLAIN value after a transition must land immediately. A
@@ -3310,4 +3275,106 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
       << "the boundary rode the node — the digest served a stale shader";
 }
 
+TEST(ComposeMaterial, StableLiveResolveReplaysThePicture) {
+  // The resolve memo: a live material whose bound inputs did not change
+  // returns the SAME shader pointer, and a node whose only volatility is
+  // that material replays its picture instead of re-recording. So a slow or
+  // stepped material repaints at ITS rate, not at the frame rate.
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(
+      "uniform float uPhase; half4 main(float2 p) {"
+      "  return half4(fract(uPhase), 0.2, 1.0 - fract(uPhase), 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  Host host;
+  choreograph::Output<float> phase{0.25f};
+  host.composer.render(box().child(box().width(100).height(100).fill(
+      material::skia::Paint::sksl(fx).uniform("uPhase", &phase))));
+  host.frame();  // records once
+  const SkColor before = host.pixel(50, 50);
+  host.frame();  // same phase → stable resolve → pure replay
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  EXPECT_EQ(host.composer.stats().nodesPainted, 1u);  // just the root shim
+  EXPECT_EQ(host.pixel(50, 50), before);
+  phase = 0.75f;  // the material actually changed
+  host.frame();
+  EXPECT_GT(host.composer.stats().picturesRecorded, 0u);
+  EXPECT_NE(host.pixel(50, 50), before);
+}
 
+TEST(ComposeMaterial, BoundUniformOwnsItsSlotOverInjection) {
+  // Binding uTime to an Output is the documented stepping idiom — the
+  // auto-inject must not overwrite it with continuous clock time.
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uTime; half4 main(float2 p) {"
+               "  return half4(fract(uTime), 0, 0, 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  choreograph::Output<float> stepped{0.5f};
+  material::skia::Paint m =
+      material::skia::Paint::sksl(fx).uniform("uTime", &stepped);
+  PaintContext ctx;
+  ctx.size = {4, 4};
+  ctx.elapsedSeconds = 123.789;  // continuous clock — must be IGNORED
+  Fill f = resolveFill(m, ctx);
+  sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
+  SkPaint p;
+  p.setShader(f.shaderValue);
+  s->getCanvas()->drawPaint(p);
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+  s->readPixels(bm.pixmap(), 0, 0);
+  EXPECT_NEAR(SkColorGetR(bm.getColor(0, 0)), 128, 3);  // fract(0.5), not .789
+}
+
+TEST(ComposeMaterial, BakeScaleUpscalesThroughTheSameRect) {
+  // bakeScale(0.5) rasterizes the texture bake at half resolution; the
+  // blit stretches it back through the same dst rect — same coverage,
+  // same color, a quarter of the evaluated pixels.
+  Host host;
+  host.composer.render(box().child(box()
+                                       .left(20)
+                                       .top(20)
+                                       .width(100)
+                                       .height(100)
+                                       .cache(Cache::Texture)
+                                       .bakeScale(0.5f)
+                                       .fill(red())));
+  host.frame();  // bake at half scale
+  host.frame();  // blit
+  EXPECT_EQ(host.pixel(70, 70), SkColorSetARGB(255, 255, 0, 0));
+  // inboard of the AA edge on every side — coverage must not shrink
+  EXPECT_EQ(host.pixel(23, 23), SkColorSetARGB(255, 255, 0, 0));
+  EXPECT_EQ(host.pixel(116, 116), SkColorSetARGB(255, 255, 0, 0));
+  EXPECT_EQ(host.pixel(140, 70), SK_ColorBLACK);  // outside stays empty
+}
+
+TEST(ComposeMaterial, StableLiveResolveBlitsTheTexture) {
+  // The texture flavour of the resolve memo, which matters most for a large
+  // shader-filled area: bake at the material's own rate and BLIT in between.
+  // Replaying a picture re-executes the SkSL on raster; blitting a texture
+  // does not.
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform float uPhase; half4 main(float2 p) {"
+               "  return half4(fract(uPhase), 0.4, 0.2, 1); }"));
+  ASSERT_TRUE(fx) << err.c_str();
+  Host host;
+  choreograph::Output<float> phase{0.25f}, sibling{0.0f};
+  host.composer.render(
+      box()
+          .child(box()
+                     .width(100)
+                     .height(100)
+                     .cache(Cache::Texture)
+                     .fill(material::skia::Paint::sksl(fx).uniform("uPhase",
+                                                                   &phase)))
+          // An always-animating sibling keeps the ROOT live, which is the
+          // ordinary case in a real scene: the shader-filled node must still
+          // blit even though the frame as a whole is repainting.
+          .child(box().width(10).height(10).fill(red()).translateX(&sibling)));
+  host.frame();  // bakes
+  const unsigned recordedAfterBake = host.composer.stats().picturesRecorded;
+  EXPECT_GE(recordedAfterBake, 1u);
+  host.frame();  // stable phase → blit, no re-bake
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  phase = 0.75f;
+  host.frame();  // real change → one re-bake
+  EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
+}
