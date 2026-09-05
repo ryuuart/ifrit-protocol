@@ -34,10 +34,10 @@ sigil_library(SigilWeaveUnicode
 
 # The leaf shapes nothing, so its test links neither fonts nor a font port
 # and asks nothing of the machine it runs on.
-sigil_test(weave_unicode_test
+sigil_test(weave_test
   SOURCES test/UnicodeTest.cpp
   LIBRARIES SigilWeaveUnicode)
 
-sigil_bench(weave_unicode_bench
+sigil_bench(weave_bench
   SOURCES bench/UnicodeBench.cpp
   LIBRARIES SigilWeaveUnicode)

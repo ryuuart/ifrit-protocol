@@ -227,5 +227,3 @@ BENCHMARK(BM_Draw_DropShadow_Cached)
     ->Arg(16)
     ->Arg(64)
     ->Unit(benchmark::kMicrosecond);
-
-BENCHMARK_MAIN();

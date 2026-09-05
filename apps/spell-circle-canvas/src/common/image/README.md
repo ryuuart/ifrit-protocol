@@ -233,8 +233,7 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Release
-cmake --build build --config Release --target image_asset_test \
-  image_decode_test image_encode_test
+cmake --build build --config Release --target image_test
 ctest --test-dir build -C Release -R image_ --output-on-failure
 ```
 
@@ -243,8 +242,8 @@ Targets: `SigilImageAsset`, `SigilImageDecode` and `SigilImageEncode`
 `encode/` — each holding its sources, its `test/` and its `bench/`; the
 decode and encode backends are one translation unit each behind the
 private `Backends.h` beside them), `SigilImage` (the umbrella), one test
-per library — `image_asset_test`, `image_decode_test` and
-`image_encode_test`, the last also linking `SigilImageDecode` because the
+per library — one binary, `image_test`, with `asset/test/`,
+`decode/test/` and `encode/test/`, the last also reaching the decoder because the
 claim a round trip makes is that what came back out is what went in — and
 two benchmarks (Google Benchmark, built by the `benches` target and run
 from a Release build through `scripts/bench_ledger.py`).
@@ -253,7 +252,7 @@ from a Release build through `scripts/bench_ledger.py`).
 where a committed file stands, one pixel out of a decoded frame
 unpremultiplied, and a per-channel comparison a lossy format can pass. A
 test target adds `test/` to its include path and spells `"Pixels.h"`.
-`image_encode_test` asks the round trip as one parameterised case over
+The encode cases ask the round trip as one parameterised case over
 `{format, quality, lossless}`, because what separates PNG from WebP at 80
 is those three values and not the shape of the question: a lossless
 subject is compared for equality on all four quadrants of the fixture, a
@@ -262,7 +261,7 @@ smears.
 
 The optional decode backends are a build-time fact, so a case that wants
 one is compiled whatever this build has and skips naming the backend it
-wanted rather than vanishing from the run: `image_decode_test` carries
+wanted rather than vanishing from the run: the decode suites carry
 the `svg` and `oiio` labels for the SVG document cases and the DDS cube
 map. A case here asserts one thing a header promises and is named that
 promise as a sentence, and it pins only what editing this library could
@@ -270,9 +269,9 @@ falsify — a routed format, a frame count, a channel value, a round trip —
 never an exact byte a codec chose.
 
 The benchmarks:
-`image_decode_bench` times `decodeImage` per megapixel over PNG and JPEG
+`image_bench`'s decode arms time `decodeImage` per megapixel over PNG and JPEG
 fixtures encoded in memory at several sizes, the committed 4x4 stills for
-the per-call floor, and `probeImage`; `image_encode_bench` times each
+the per-call floor, and `probeImage`; its encode arms time each
 format per megapixel over a generated gradient, and the SkImage door
 against the pixmap one so the readback's share is visible. The fixtures are
 committed 4x4 px files under `test/assets/` at the library root — one

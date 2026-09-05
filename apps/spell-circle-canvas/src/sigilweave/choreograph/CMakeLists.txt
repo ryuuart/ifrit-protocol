@@ -13,6 +13,6 @@ sigil_library(SigilWeaveChoreograph
 # glyph on a contour it re-places from its pen, and the batches a paint-
 # complete draw collapses into. The one case that needs a second face uses
 # the committed instrument, so nothing here skips on what a machine has.
-sigil_test(weave_choreograph_test
+sigil_test(weave_test
   SOURCES test/ChoreographTest.cpp test/GlyphBatchesTest.cpp
   LIBRARIES SigilWeaveChoreograph SigilWeavePorts SigilWeaveKit)

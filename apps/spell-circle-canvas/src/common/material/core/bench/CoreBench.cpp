@@ -114,5 +114,3 @@ BENCHMARK(BM_Declare<P4>)->Name("BM_Declare/4");
 BENCHMARK(BM_Declare<P16>)->Name("BM_Declare/16");
 BENCHMARK(BM_Over_Build)->Arg(1)->Arg(4);
 BENCHMARK(BM_Over_Under)->Arg(1)->Arg(4);
-
-BENCHMARK_MAIN();

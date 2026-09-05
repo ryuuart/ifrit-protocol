@@ -157,12 +157,20 @@ https://github.com/ryuuart/sigil-vcpkg-registry (checked out at
 `version>=` on `skia` that the sanitizer pin names. The overlay triplet
 builds oneTBB shared because USD's dylibs deadlock on a static one.
 
+Each library has ONE test binary and ONE benchmark binary — `<lib>_test`
+under `build/bin/<config>/tests/`, `<lib>_bench` under `.../benches/` —
+built from every feature directory's `test/` and `bench/`. ctest
+discovers one entry per CASE, so `ctest -R '^Suite\.'` selects a suite
+and `-R 'Suite.Case'` one case with no target behind either, and a case
+that needs something a machine may not have carries a label (`gpu`,
+`fonts`, `usd`, …) on its suite.
+
 Qt's moc runs only where Qt is: `CMAKE_AUTOMOC` is off, and a target
 that declares Qt types calls `sigil_qt_target()` right after it is
 created, before any `qt_add_qml_module()`. Use a Release build for any
 performance work. Some targets are conditional: Ultralight-dependent
-ones disable themselves without the SDK, GPU tests need Metal, and
-`world_diligent_test` skips without a Vulkan runtime (`brew install
+ones disable themselves without the SDK, GPU cases need Metal, and the
+world's device suites skip without a Vulkan runtime (`brew install
 molten-vk vulkan-loader`). Demo assets come from `mise run assets`.
 
 The checks and ledgers — `check.py`, `plate_ledger.py`,
@@ -171,8 +179,9 @@ are documented in `apps/spell-circle-canvas/scripts/README.md`. A
 library's own build module lives with the library
 (`src/common/material/cmake/Slang.cmake`,
 `src/sketch/cmake/SketchLinkSurface.cmake`); `cmake/` at the app root
-holds only what the whole tree shares, `cmake/Sigil.cmake` first — the
-four calls a Sigil library is built from.
+holds only what the whole tree shares: `cmake/Sigil.cmake`, the calls
+every Sigil library is built from, the overlay triplet and the Skia
+sanitizer pin.
 
 ### Visual work
 

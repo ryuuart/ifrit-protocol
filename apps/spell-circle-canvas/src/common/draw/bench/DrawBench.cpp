@@ -127,5 +127,3 @@ void Noise(benchmark::State& state) {
 BENCHMARK(Noise)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

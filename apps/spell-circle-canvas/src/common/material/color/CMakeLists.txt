@@ -8,6 +8,6 @@ sigil_library(SigilMaterialColor
 
 # test/ColorTest.cpp is compiled into material_test, at the library root.
 
-sigil_bench(material_color_bench
+sigil_bench(material_bench
   SOURCES bench/ColorBench.cpp
   LIBRARIES SigilMaterialColor)

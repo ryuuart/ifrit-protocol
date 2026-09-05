@@ -786,7 +786,7 @@ TEST(SkiaPaint, APaletteReachesAnEffectAsOneUniformArray) {
 
 // ---- the embedded shader table --------------------------------------------
 
-TEST(ShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
+TEST(SkiaShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(
       sigil::material::skia::shaderSources(), SIGIL_MATERIAL_SKIA_SHADER_DIR);
 }

@@ -150,11 +150,26 @@ add_test(NAME compose_api_doc_probes_self_test
           ${CMAKE_CURRENT_SOURCE_DIR}/test/docs/api_doc_probes.py
           --self-test)
 
-sigil_test(compose_docs_test
-  SOURCES ${COMPOSE_API_DOC_PROBES} test/ComposeTestDocs.cpp
-  LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
-            SigilComposeTypography SigilComposeVideo SigilComposeDraw
-            SigilComposeTesting SigilWeavePorts)
+# The probes are their own object library because a generated source is
+# compiled by a target in the directory that generates it, and the
+# library's one test binary stands in core/, where the first cases are.
+add_library(compose_api_doc_probes OBJECT ${COMPOSE_API_DOC_PROBES})
+target_link_libraries(compose_api_doc_probes PRIVATE
+  SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
+  SigilComposeVideo SigilComposeDraw SigilComposeTesting SigilWeavePorts)
+# The probe TU includes the test support headers, so it reads the same
+# fixture and instrument directories every case in the binary does.
+target_include_directories(compose_api_doc_probes PRIVATE
+  ${SIGIL_TEST_DIR} ${SIGIL_TEST_SUPPORT_DIR})
+target_compile_definitions(compose_api_doc_probes PRIVATE
+  SIGIL_TEST_ASSET_DIR="${SIGIL_TEST_DIR}/assets"
+  SIGIL_TEST_INSTRUMENT_DIR="${SIGIL_TEST_SUPPORT_DIR}/assets")
+
+sigil_test(compose_test
+  SOURCES test/ComposeTestDocs.cpp
+  LIBRARIES compose_api_doc_probes SigilComposeCore SigilComposeKit
+            SigilComposeBrush SigilComposeTypography SigilComposeVideo
+            SigilComposeDraw SigilComposeTesting SigilWeavePorts)
 
 # Every public header compiles first and alone. Compose.h says each
 # header stands on its own; this is what makes that a build fact rather
@@ -182,9 +197,9 @@ sigil_header_self_test(compose_header_self_test
 # exists for the direct-image draw gaps (lattice/atlas) the raster suites
 # cannot see.
 if(APPLE)
-  sigil_test(compose_gpu_test
+  sigil_test(compose_test
     SOURCES test/ComposeGpuTest.mm
     LIBRARIES SigilComposeKit SigilComposeBrush SigilComposeTypography
               SigilWeavePorts SigilSkia
-    LABELS gpu)
+    SUITES ComposeGpu DirectImageDraw LABELS gpu)
 endif()

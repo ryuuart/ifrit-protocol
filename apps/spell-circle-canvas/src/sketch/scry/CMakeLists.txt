@@ -10,16 +10,12 @@ sigil_library(SigilSketchScry PIC
   HEADERS SettledPage.h SharedEngine.h
   PUBLIC SigilScry)
 
-sigil_test(sketch_scry_test
-  SOURCES test/SharedEngineTest.cpp
+# The engine allows one renderer per process, and the shared-engine case
+# ends by shutting its one down for good, so these two cases must not meet
+# in one process. ctest runs every discovered case in a process of its own,
+# which is what keeps them apart now that the library has one binary.
+sigil_test(sketch_test
+  SOURCES test/SharedEngineTest.cpp test/SettledPageTest.cpp
   LIBRARIES SigilSketchScry
-  LABELS ultralight)
-ultralight_copy_resources(sketch_scry_test)
-
-# A binary of its own because the engine allows one renderer per process
-# and the shared-engine case above ends by shutting its one down for good.
-sigil_test(sketch_settled_test
-  SOURCES test/SettledPageTest.cpp
-  LIBRARIES SigilSketchScry
-  LABELS ultralight)
-ultralight_copy_resources(sketch_settled_test)
+  SUITES SketchSharedWebEngine SketchSettledPage LABELS ultralight)
+ultralight_copy_resources(sketch_test)

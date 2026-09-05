@@ -18,6 +18,6 @@ sigil_library(SigilDrawBrushFormat PIC
 # The cases build every fixture in memory — a generated tip encoded to
 # PNG, a zip written by hand, an .abr written by hand — so the binary
 # needs the encoder half of SigilImage that the library itself does not.
-sigil_test(draw_brush_format_test
+sigil_test(draw_test
   SOURCES test/FormatTest.cpp
   LIBRARIES SigilDrawBrushFormat SigilIOHub SigilImageEncode SigilWeavePorts)

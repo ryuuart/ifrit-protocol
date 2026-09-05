@@ -19,10 +19,10 @@ sigil_library(SigilWorldFrame
 
 # Links only the library it exercises, so a link edge that pulled the
 # retained side or a device in would show up as a build failure here.
-sigil_test(world_frame_test
+sigil_test(world_test
   SOURCES test/FrameTest.cpp
   LIBRARIES SigilWorldFrame)
 
-sigil_bench(world_frame_bench
+sigil_bench(world_bench
   SOURCES bench/FrameBench.cpp
   LIBRARIES SigilWorldFrame)

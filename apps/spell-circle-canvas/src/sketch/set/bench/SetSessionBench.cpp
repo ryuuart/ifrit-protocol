@@ -58,7 +58,7 @@ struct Ring : Set {
   }
 };
 
-void Frame(benchmark::State& state) {
+void SetFrame(benchmark::State& state) {
   std::unique_ptr<Session> session = kindOf<Ring>()->open(fonts(), assets());
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(480, 320));
@@ -66,8 +66,6 @@ void Frame(benchmark::State& state) {
   for (int i = 0; i < 8; ++i) session->frame(canvas, 1.0 / 60.0);
   for (auto&& _ : state) session->frame(canvas, 1.0 / 60.0);
 }
-BENCHMARK(Frame)->Unit(benchmark::kMicrosecond);
+BENCHMARK(SetFrame)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

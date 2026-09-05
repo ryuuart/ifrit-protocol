@@ -46,5 +46,3 @@ void BM_Compare(benchmark::State& state) {
 BENCHMARK(BM_Compare);
 
 }  // namespace
-
-BENCHMARK_MAIN();

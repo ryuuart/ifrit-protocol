@@ -72,5 +72,3 @@ BENCHMARK(BM_EncodePng)->Arg(64)->Arg(256)->Arg(1024);
 BENCHMARK(BM_EncodeJpeg)->Arg(64)->Arg(256)->Arg(1024);
 BENCHMARK(BM_EncodeWebp)->Arg(64)->Arg(256);
 BENCHMARK(BM_EncodePngFromImage)->Arg(256);
-
-BENCHMARK_MAIN();

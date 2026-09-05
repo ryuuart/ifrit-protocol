@@ -19,16 +19,17 @@ sigil_library(SigilScryEngine
          unofficial::skia::skia
   PRIVATE Ultralight::Ultralight Ultralight::AppCore Boost::unordered)
 
-# Ultralight allows one Renderer per process, so the CPU-mode and the
-# GPU-mode engines are tested in separate binaries. Each links the
-# library it exercises.
-sigil_test(scry_engine_test
+# Ultralight allows one Renderer per process, and the CPU-mode and the
+# GPU-mode engines each want one. ctest runs every discovered case in a
+# process of its own, which is what keeps them apart in the library's one
+# binary.
+sigil_test(scry_test
   SOURCES test/EngineTest.cpp
   LIBRARIES SigilScryEngine)
-ultralight_copy_resources(scry_engine_test)
+ultralight_copy_resources(scry_test)
 
-# The integration benchmark; run `scry_engine_bench` for the CPU engine
-# and `scry_engine_bench --gpu` for the GPU engine (one renderer per
+# The integration benchmark; run `scry_bench` for the CPU engine
+# and `scry_bench --gpu` for the GPU engine (one renderer per
 # process, so the two modes are separate runs; the ledger runs the CPU
 # mode).
 if(APPLE)
@@ -36,12 +37,12 @@ if(APPLE)
 else()
   set(SIGIL_SCRY_ENGINE_BENCH_GPU_SOURCES bench/BenchGpuStub.cpp)
 endif()
-sigil_bench(scry_engine_bench
+sigil_bench(scry_bench
   SOURCES bench/EngineBench.cpp bench/BenchGpu.h
           ${SIGIL_SCRY_ENGINE_BENCH_GPU_SOURCES}
   LIBRARIES SigilScryEngine $<$<BOOL:${APPLE}>:${METAL_FRAMEWORK}>
   ARC)
-ultralight_copy_resources(scry_engine_bench)
+ultralight_copy_resources(scry_bench)
 
 # GPU-mode engine: Ultralight's Metal driver feeding texture-backed
 # SkImages into the Graphite context the test shares with the engine.
@@ -49,9 +50,9 @@ ultralight_copy_resources(scry_engine_bench)
 # checks nothing; the label makes that visible as a lane not run rather
 # than as a lane that passed.
 if(APPLE)
-  sigil_test(scry_engine_gpu_test
+  sigil_test(scry_test
     SOURCES test/EngineGpuTest.mm
     LIBRARIES SigilScryEngine ${METAL_FRAMEWORK}
-    LABELS gpu)
-  ultralight_copy_resources(scry_engine_gpu_test)
+    SUITES SlotFillingTest WebViewGpuTest LABELS gpu)
+  ultralight_copy_resources(scry_test)
 endif()

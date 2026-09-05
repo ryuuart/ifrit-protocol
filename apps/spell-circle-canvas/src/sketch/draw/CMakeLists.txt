@@ -16,10 +16,10 @@ sigil_library(SigilSketchDraw PIC
   PUBLIC SigilSketchCore SigilDraw SigilMotionClock
   PRIVATE SigilMeasure SigilImage)
 
-sigil_test(sketch_draw_test
+sigil_test(sketch_test
   SOURCES test/DrawSessionTest.cpp
   LIBRARIES SigilSketchDraw SigilWeavePorts)
 
-sigil_bench(sketch_draw_bench
+sigil_bench(sketch_bench
   SOURCES bench/DrawSessionBench.cpp
   LIBRARIES SigilSketchDraw SigilWeavePorts)

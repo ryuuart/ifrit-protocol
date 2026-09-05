@@ -603,7 +603,7 @@ src/common/draw/
   brush/format/   the native reader and writer (Native), the two importers
                   (Photoshop, Procreate), and the private Zip and Images;
                   test/
-  test/           draw_test, draw_text_test and the Paper fixture in support/
+  test/           the pen's cases and the Paper fixture in support/
   bench/          draw_bench
 ```
 
@@ -653,11 +653,9 @@ src/common/draw/
 From `apps/spell-circle-canvas`:
 
 ```sh
-cmake --build build --config Release --target draw_test draw_text_test \
-  draw_brush_test draw_brush_format_test draw_bench draw_brush_bench
+cmake --build build --config Release --target draw_test draw_bench
 ctest --test-dir build -C Release -R '^draw_' --output-on-failure
-./build/bin/Release/draw_bench
-./build/bin/Release/draw_brush_bench
+./build/bin/Release/benches/draw_bench
 ```
 
 `draw_test` holds p5's semantics to the pen — a rect at `rectMode(CENTER)`
@@ -673,7 +671,7 @@ density and put down in canvas units, a unit-space material ramping
 across the frame under `CANVAS` and across each box under `SHAPE`, a
 built `SkVertices` drawn with the pen's fill and moved by the pen's
 transform, and both paints answering null where the style says there is
-nothing to draw with. `draw_text_test`, under the ctest label `fonts`,
+nothing to draw with. The text cases, under the ctest label `fonts`,
 holds text shaped and centred by its alignment and seated by its box; it
 shapes against the machine's system fonts, so it pins relations rather
 than pixels. `draw_bench` times ten thousand circles filled and stroked,
@@ -681,7 +679,7 @@ ten thousand rects, a screen of text, a translucent background and a
 thousand noise samples per frame; it builds through the `benches` target
 and runs through `scripts/bench_ledger.py`.
 
-`draw_brush_test` is one file per subject: the sampler's spacing across
+The brush cases are one file per subject: the sampler's spacing across
 uneven events and the first dab's heading; segment and spline pressure;
 the envelope, the per-stroke roll and the weighted choice; the stock
 catalogue and lookup by view; every tip, the stylus dynamics, the sprite
@@ -697,7 +695,7 @@ bounds; and the engine — selection and state, the pen's units and clock,
 one clip over every interior and the outline, a closed shape's outline
 on its bent interior, plots placed where they were drawn, live input
 across event batches, the first live dab's heading, and cancel.
-`draw_brush_format_test` builds every fixture in memory — a tip drawn
+The brush-format cases build every fixture in memory — a tip drawn
 and encoded to PNG, a zip written entry by entry, an `.abr` written
 field by field — so no case reads a file this repository ships: a native
 directory through a table and through a hub, the packed archive, the
@@ -713,7 +711,7 @@ named that promise as a sentence; it pins only what editing this library
 could falsify, and the one binary whose claims depend on the machine's
 faces carries the `fonts` label.
 
-`draw_brush_bench` measures sampling, a field-traced watercolor mark,
+The brush arms of `draw_bench` measure sampling, a field-traced watercolor mark,
 hatching, a curved dry mass, a pigment wash, and one stroke of an
 imported brush — the shape stamped per dab, alone and under each of the
 two grain spaces.

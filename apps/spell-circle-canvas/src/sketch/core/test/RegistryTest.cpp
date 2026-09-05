@@ -7,6 +7,10 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 
+#include <string>
+#include <string_view>
+#include <vector>
+
 namespace {
 
 using namespace sigil::sketch;
@@ -47,47 +51,77 @@ const bool kRegistered =
     add("gated_thing", nullptr, "Test \xc2\xb7 Zed", "g", &stillKind,
         &probeOf<GatedSketch>);
 
+/** The registry is the process's, and every file registered into it is in
+ *  there together, so these cases name their own entries by key rather
+ *  than by position. */
+const Entry& entry(std::string_view key) {
+  for (const Entry& candidate : registry())
+    if (candidate.key == key) return candidate;
+  ADD_FAILURE() << "no entry registered under " << key;
+  static const Entry kNone;
+  return kNone;
+}
+
+/** Where an entry sits in the registry's own order. */
+int index(std::string_view key) {
+  int at = 0;
+  for (const Entry& candidate : registry()) {
+    if (candidate.key == key) return at;
+    ++at;
+  }
+  return -1;
+}
+
+/** The four entries this file registered, in registry order. */
+std::vector<std::string_view> ours() {
+  std::vector<std::string_view> keys;
+  for (const Entry& candidate : registry())
+    if (std::string_view(candidate.category).starts_with("Test \xc2\xb7"))
+      keys.emplace_back(candidate.key);
+  return keys;
+}
+
 TEST(SketchRegistry, RecordsEveryEntry) {
   EXPECT_TRUE(kRegistered);
-  EXPECT_EQ(registry().size(), 4u);
+  EXPECT_EQ(ours().size(), 4u);
 }
 
 TEST(SketchRegistry, OrdersByCategoryThenName) {
   // Not registration order, which is link order and depends on nothing a
   // reader can see.
-  ASSERT_EQ(registry().size(), 4u);
-  EXPECT_STREQ(registry()[0].key, "alpha_wave");
-  EXPECT_STREQ(registry()[1].key, "beta_decay");
-  EXPECT_STREQ(registry()[2].key, "zebra_stripe");
-  EXPECT_STREQ(registry()[3].key, "gated_thing");
+  EXPECT_EQ(ours(), (std::vector<std::string_view>{"alpha_wave", "beta_decay",
+                                                   "zebra_stripe",
+                                                   "gated_thing"}));
 }
 
 TEST(SketchRegistry, FilesUnderItsStemUnlessToldOtherwise) {
-  EXPECT_STREQ(registry()[1].name, "beta_decay");
-  EXPECT_STREQ(registry()[0].name, "alpha wave");
+  EXPECT_STREQ(entry("beta_decay").name, "beta_decay");
+  EXPECT_STREQ(entry("alpha_wave").name, "alpha wave");
 }
 
 TEST(SketchRegistry, FindsByIndexNameStemAndSubstring) {
-  EXPECT_EQ(find("1"), 1);
-  EXPECT_EQ(find("alpha wave"), 0);
-  EXPECT_EQ(find("alpha_wave"), 0);  // the stem answers too
-  EXPECT_EQ(find("ZEBRA"), 2);
-  EXPECT_EQ(find("decay"), 1);
+  const int beta = index("beta_decay");
+  EXPECT_EQ(find(std::to_string(beta)), beta);
+  EXPECT_EQ(find("alpha wave"), index("alpha_wave"));
+  EXPECT_EQ(find("alpha_wave"), index("alpha_wave"));  // the stem answers too
+  EXPECT_EQ(find("ZEBRA"), index("zebra_stripe"));
+  EXPECT_EQ(find("decay"), beta);
   EXPECT_EQ(find("nothing here"), -1);
   EXPECT_EQ(find(""), -1);
-  EXPECT_EQ(find("99"), -1);
+  EXPECT_EQ(find("9999"), -1);
 }
 
 TEST(SketchRegistry, ExactMatchBeatsASubstringLaterInTheList) {
   // A name that is also a substring of another must not be captured by
   // whichever entry the sweep reaches first.
-  EXPECT_EQ(find("beta_decay"), 1);
+  EXPECT_EQ(find("beta_decay"), index("beta_decay"));
 }
 
 TEST(SketchRegistry, RefusesAnEntryWithNothingBehindIt) {
+  const size_t before = registry().size();
   EXPECT_FALSE(add(nullptr, nullptr, "c", "b", &stillKind));
   EXPECT_FALSE(add("key", nullptr, "c", "b", nullptr));
-  EXPECT_EQ(registry().size(), 4u);
+  EXPECT_EQ(registry().size(), before);
 }
 
 TEST(SketchAvailability, ReadsTheProbeOffTheSketchType) {
@@ -106,10 +140,10 @@ TEST(SketchAvailability, AnEntryAnswersForTheSketchBehindIt) {
   // An entry with no probe is available and leaves the reason alone; one
   // with a probe answers what the sketch says and names what is missing.
   std::string why = "untouched";
-  EXPECT_TRUE(registry()[0].available(&why));
+  EXPECT_TRUE(entry("alpha_wave").available(&why));
   EXPECT_EQ(why, "untouched");
 
-  const Entry& gated = registry()[3];
+  const Entry& gated = entry("gated_thing");
   GatedSketch::missing = true;
   why.clear();
   EXPECT_FALSE(gated.available(&why));
@@ -124,12 +158,12 @@ TEST(SketchTitle, OpensUnderscoresIntoSpaces) {
 }
 
 TEST(SketchKind, NamesTheRuntimeItDrawsThrough) {
-  const Kind kind = registry()[0].kind();
+  const Kind kind = entry("alpha_wave").kind();
   ASSERT_TRUE(kind);
   EXPECT_EQ(kind->runtime(), "still");
   // Two values built from one model compare equal, which is what lets a
   // kind be a comparable seam value rather than an identity.
-  EXPECT_EQ(kind, registry()[1].kind());
+  EXPECT_EQ(kind, entry("beta_decay").kind());
 }
 
 }  // namespace

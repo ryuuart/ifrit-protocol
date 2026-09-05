@@ -83,9 +83,11 @@ add_custom_target(benches)
 
 add_subdirectory(src)
 
-# Every library root has registered by now, which is what lets each
-# library's Doxyfile name all the others in TAGFILES.
+# Every library root and every test binary has registered by now, which is
+# what lets each library's Doxyfile name all the others in TAGFILES and
+# each test binary's ctest entries be written over its whole set of cases.
 sigil_finalize_docs()
+sigil_finalize_tests()
 
 include(GNUInstallDirs)
 install(TARGETS SpellCircle

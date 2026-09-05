@@ -26,6 +26,6 @@ endif()
 # test/OcioTest.cpp is compiled into material_test, at the library root,
 # which carries the `ocio` label for it.
 
-sigil_bench(material_ocio_bench
+sigil_bench(material_bench
   SOURCES bench/OcioBench.cpp
   LIBRARIES SigilMaterialOcio SigilMaterialSkia)

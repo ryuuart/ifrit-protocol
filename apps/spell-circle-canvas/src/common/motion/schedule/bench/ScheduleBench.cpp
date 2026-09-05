@@ -60,5 +60,3 @@ BENCHMARK_CAPTURE(BM_CascadeBuild, scattered, scattered())->Arg(32)->Arg(512);
 BENCHMARK_CAPTURE(BM_CascadeBuild, nested, nested())->Arg(32)->Arg(512);
 BENCHMARK_CAPTURE(BM_LocalTime, flat, flat())->Arg(32)->Arg(512);
 BENCHMARK_CAPTURE(BM_LocalTime, nested, nested())->Arg(32)->Arg(512);
-
-BENCHMARK_MAIN();

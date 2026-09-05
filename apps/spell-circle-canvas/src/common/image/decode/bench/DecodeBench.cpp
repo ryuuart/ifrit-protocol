@@ -128,5 +128,3 @@ void BM_ProbeImage(benchmark::State& state) {
 BENCHMARK(BM_ProbeImage)->Arg(kPng)->Arg(kJpeg)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

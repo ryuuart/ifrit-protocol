@@ -81,5 +81,3 @@ BENCHMARK(BM_BakePrimColor)
     ->Complexity(benchmark::oN);
 
 }  // namespace
-
-BENCHMARK_MAIN();

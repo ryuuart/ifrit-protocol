@@ -8,6 +8,6 @@ sigil_library(SigilImageAsset
   HEADERS ImageAsset.h
   PUBLIC unofficial::skia::skia)
 
-sigil_test(image_asset_test
+sigil_test(image_test
   SOURCES test/AssetTest.cpp
   LIBRARIES SigilImageAsset)

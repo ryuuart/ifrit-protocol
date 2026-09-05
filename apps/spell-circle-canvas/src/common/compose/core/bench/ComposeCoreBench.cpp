@@ -548,5 +548,3 @@ static void BM_Bake_TiledStrip_SurfacesOnly(benchmark::State& state) {
   state.counters["tiles"] = (double)bake.tiles;
 }
 BENCHMARK(BM_Bake_TiledStrip_SurfacesOnly)->Apply(tileLadder);
-
-BENCHMARK_MAIN();

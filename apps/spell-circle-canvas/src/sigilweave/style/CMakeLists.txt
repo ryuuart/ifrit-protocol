@@ -13,6 +13,6 @@ sigil_library(SigilWeaveStyle
 
 # Styles are plain values, so their test shapes nothing, links no fonts and
 # needs nothing of the machine it runs on.
-sigil_test(weave_style_test
+sigil_test(weave_test
   SOURCES test/StyleTest.cpp
   LIBRARIES SigilWeaveStyle SigilWeaveKit)

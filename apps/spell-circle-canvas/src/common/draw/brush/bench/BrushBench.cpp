@@ -207,5 +207,3 @@ void BrushWash(benchmark::State& state) {
 BENCHMARK(BrushWash)->Unit(benchmark::kMillisecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

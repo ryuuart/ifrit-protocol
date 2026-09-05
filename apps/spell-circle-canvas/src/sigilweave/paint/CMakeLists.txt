@@ -17,13 +17,13 @@ sigil_library(SigilWeavePaint
 # ink arrives is asked here. A pass carrying a material shades through a
 # resolver the host installs, so the kit paints and the Skia backend that
 # shades them are both linked.
-sigil_test(weave_paint_test
+sigil_test(weave_test
   SOURCES test/PaintTest.cpp test/DecorationPaintTest.cpp
   LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialKit
             SigilMaterialSkia)
 
 # draw and drawBatched per glyph on a raster surface.
-sigil_bench(weave_paint_bench
+sigil_bench(weave_bench
   SOURCES bench/PaintBench.cpp
   LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialKit
             SigilMaterialSkia)

@@ -41,7 +41,7 @@ sigil_test(draw_test
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_DRAW_SHADER_DIR="${_shaders}"
   LIBRARIES SigilDraw SigilWeavePorts)
-sigil_test(draw_text_test
+sigil_test(draw_test
   SOURCES test/DrawTextTest.cpp
   LIBRARIES SigilDraw SigilWeavePorts
   LABELS fonts)

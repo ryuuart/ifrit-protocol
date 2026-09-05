@@ -224,5 +224,3 @@ BENCHMARK(BM_DrawBatched_Wall_2000w)
     ->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

@@ -28,13 +28,13 @@ sigil_library(SigilGeometryMeshCodec
 # also cook a pop chain over an imported cloud.
 # One file per format, plus the Model operations over whatever reader made
 # it and the writers' return leg.
-sigil_test(geometry_mesh_codec_test
+sigil_test(geometry_test
   SOURCES test/ObjTest.cpp test/GltfTest.cpp test/StlTest.cpp
           test/PlyTest.cpp test/AlembicTest.cpp test/GeoTest.cpp
           test/ModelTest.cpp test/EncodeTest.cpp
   LIBRARIES SigilGeometryMeshCodec SigilGeometryMeshPop SigilGeometryKit
             Alembic::Alembic)
 
-sigil_bench(geometry_mesh_codec_bench
+sigil_bench(geometry_bench
   SOURCES bench/CodecBench.cpp
   LIBRARIES SigilGeometryMeshCodec)

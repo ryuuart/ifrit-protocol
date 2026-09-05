@@ -25,12 +25,12 @@ endif()
 # that what came back out is what went in.
 # The library-wide test directory is already on the include path, so the
 # round trip is judged by the same pixel comparison a decode is.
-sigil_test(image_encode_test
+sigil_test(image_test
   SOURCES test/EncodeTest.cpp
   LIBRARIES SigilImageEncode SigilImageDecode
   DEFINITIONS $<$<BOOL:${OpenImageIO_FOUND}>:SIGILIMAGE_HAS_OIIO_ENCODE>)
 
 # A generated bitmap through each format per megapixel.
-sigil_bench(image_encode_bench
+sigil_bench(image_bench
   SOURCES bench/EncodeBench.cpp
   LIBRARIES SigilImageEncode)

@@ -120,5 +120,3 @@ void BM_FenceRoundTrip(benchmark::State &state) {
 BENCHMARK(BM_FenceRoundTrip);
 
 }  // namespace
-
-BENCHMARK_MAIN();

@@ -65,5 +65,3 @@ void BM_Shader_ByHand2(benchmark::State& state) {
 BENCHMARK_CAPTURE(BM_Shader_Live<P2>, 2, kBody2)->Name("BM_Shader_Live/2");
 BENCHMARK_CAPTURE(BM_Shader_Live<P16>, 16, kBody16)->Name("BM_Shader_Live/16");
 BENCHMARK(BM_Shader_ByHand2);
-
-BENCHMARK_MAIN();

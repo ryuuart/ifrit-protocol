@@ -39,12 +39,25 @@ sigil::skia::GraphiteContext &graphite() {
   return *instance;
 }
 
-MetalDriver &driver() {
-  static std::unique_ptr<MetalDriver> instance = MetalDriver::create(*device(), graphite());
-  return *instance;
+MetalDriver *driverOrNull() {
+  static std::unique_ptr<MetalDriver> instance =
+      device() ? MetalDriver::create(*device(), graphite()) : nullptr;
+  return instance.get();
+}
+
+MetalDriver &driver() { return *driverOrNull(); }
+
+/** Every arm here queues work on a Metal device. The binary holds the
+ *  whole library's benchmarks, so a machine without one reports the
+ *  reason on these arms and still runs the rest. */
+bool skipWithoutDevice(benchmark::State &state) {
+  if (driverOrNull()) return false;
+  state.SkipWithError("no Metal device or driver on this machine");
+  return true;
 }
 
 void BM_Upload(benchmark::State &state) {
+  if (skipWithoutDevice(state)) return;
   const int size = (int)state.range(0);
   const sigil::core::hardware::TextureHandle slot = driver().createImageTexture(size, size);
   const std::vector<uint32_t> pixels((size_t)size * size, 0xff2266aau);
@@ -56,6 +69,7 @@ void BM_Upload(benchmark::State &state) {
 BENCHMARK(BM_Upload)->Arg(256)->Arg(1024);
 
 void BM_Copy(benchmark::State &state) {
+  if (skipWithoutDevice(state)) return;
   const int size = (int)state.range(0);
   const sigil::core::hardware::TextureHandle src = driver().createImageTexture(size, size);
   const sigil::core::hardware::TextureHandle dst = driver().createPublishTexture(size, size);
@@ -68,6 +82,7 @@ void BM_Copy(benchmark::State &state) {
 BENCHMARK(BM_Copy)->Arg(256)->Arg(1024);
 
 void BM_Paint(benchmark::State &state) {
+  if (skipWithoutDevice(state)) return;
   const int size = (int)state.range(0);
   const sigil::core::hardware::TextureHandle slot = driver().createImageTexture(size, size);
   for ([[maybe_unused]] auto _ : state)
@@ -87,6 +102,7 @@ BENCHMARK(BM_Paint)->Arg(256)->Arg(1024);
  *  which is what a frame acquisition costs before the engine's
  *  per-version cache. */
 void BM_Wrap(benchmark::State &state) {
+  if (skipWithoutDevice(state)) return;
   const sigil::core::hardware::TextureHandle slot = driver().createPublishTexture(1280, 720);
   skgpu::graphite::Recorder *recorder = graphite().recorder();
   for ([[maybe_unused]] auto _ : state)
@@ -97,14 +113,3 @@ BENCHMARK(BM_Wrap);
 
 }  // namespace
 
-int main(int argc, char **argv) {  // NOLINT(bugprone-exception-escape): an
-                                   // uncaught error ends the run
-  if (!device() || !MetalDriver::create(*device(), graphite())) {
-    std::fprintf(stderr, "scry_gpu_bench: no Metal device or driver on this machine\n");
-    return 1;
-  }
-  benchmark::Initialize(&argc, argv);
-  benchmark::RunSpecifiedBenchmarks();
-  benchmark::Shutdown();
-  return 0;
-}

@@ -767,5 +767,3 @@ void BM_Layout_ReservedBand_600w(benchmark::State& state) {
 BENCHMARK(BM_Layout_ReservedBand_600w)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

@@ -198,5 +198,3 @@ void BM_Adopted_Wrap_Handle(benchmark::State &state) {
 BENCHMARK(BM_Adopted_Wrap_Handle);
 
 }  // namespace
-
-BENCHMARK_MAIN();

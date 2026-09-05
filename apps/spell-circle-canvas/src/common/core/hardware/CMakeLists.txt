@@ -41,7 +41,7 @@ endif()
 # they link. This one needs no GPU: a handle table is arithmetic over
 # indices and the mip depth is a closed form, so both stand on any
 # machine and run everywhere with no label.
-sigil_test(core_hardware_test
+sigil_test(core_test
   SOURCES test/HandleTest.cpp test/MipChainTest.cpp
   LIBRARIES SigilCoreHardware)
 
@@ -49,15 +49,15 @@ sigil_test(core_hardware_test
 # skips where there is none and the entry carries the `gpu` label. It
 # compiles without ARC: it counts retains to prove ownership, and ARC
 # would hide the counts it asserts on. The same claims on the Vulkan
-# backend are asked in `geometry_device_test`, where a Vulkan device
+# backend are asked in `geometry_test`, where a Vulkan device
 # exists to ask them of.
 if(APPLE)
-  sigil_test(core_hardware_device_test
+  sigil_test(core_test
     SOURCES test/DeviceTest.mm
     LIBRARIES SigilCoreHardware ${METAL_FRAMEWORK}
-    LABELS gpu)
+    SUITES HardwareDevice LABELS gpu)
 
-  sigil_bench(core_hardware_bench
+  sigil_bench(core_bench
     SOURCES bench/DeviceBench.mm
     LIBRARIES SigilCoreHardware ${METAL_FRAMEWORK})
 endif()

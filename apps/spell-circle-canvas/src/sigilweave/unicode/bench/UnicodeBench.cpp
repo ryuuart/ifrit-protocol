@@ -131,5 +131,3 @@ BENCHMARK(BM_ToUtf16)
     ->Complexity(benchmark::oN);
 
 }  // namespace
-
-BENCHMARK_MAIN();

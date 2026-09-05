@@ -229,10 +229,10 @@ sk_sp<SkShader> lumaCoverageShader(sk_sp<SkShader> src) {
 
 const SkPath& Composer::Impl::resolveOutline(Instance& inst,
                                              SkSize size) const {
-  if (inst.outlineCacheDescription != inst.description.get() ||
+  if (!(inst.outlineCacheShape == inst.description->shapeFn) ||
       inst.outlineCacheSize != size) {
     inst.outlineCache = inst.description->shapeFn(size);
-    inst.outlineCacheDescription = inst.description.get();
+    inst.outlineCacheShape = inst.description->shapeFn;
     inst.outlineCacheSize = size;
   }
   return inst.outlineCache;

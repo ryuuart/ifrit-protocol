@@ -87,10 +87,9 @@ void BM_ReadEmitters(benchmark::State& state) {
   state.SetItemsProcessed(state.iterations() * state.range(0));
 }
 
-}  // namespace
-
-int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
-                                   // uncaught error ends the run
+// Registered while the binary loads: without the USD plugins there is
+// nothing to time here, and the reason is printed once.
+[[maybe_unused]] const int kRegistered = [] {
   std::string why;
   if (usd::available(&why)) {
     benchmark::RegisterBenchmark("BM_ReadModel", BM_ReadModel)
@@ -101,10 +100,10 @@ int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
         ->Arg(16)
         ->Arg(256);
   } else {
-    std::fprintf(stderr, "usd_read_bench: nothing to run — %s\n", why.c_str());
+    std::fprintf(stderr, "usd read benchmarks: nothing to run — %s\n",
+                 why.c_str());
   }
-  benchmark::Initialize(&argc, argv);
-  benchmark::RunSpecifiedBenchmarks();
-  benchmark::Shutdown();
   return 0;
-}
+}();
+
+}  // namespace

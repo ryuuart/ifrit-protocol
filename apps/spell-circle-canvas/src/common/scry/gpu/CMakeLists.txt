@@ -48,14 +48,14 @@ if(APPLE)
   # Every case needs a device, so on a machine without one the binary
   # checks nothing; the label makes that visible as a lane not run rather
   # than as a lane that passed.
-  sigil_test(scry_gpu_test
+  sigil_test(scry_test
     SOURCES test/GpuDriverTest.mm
     SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
     LIBRARIES SigilScryGpu Ultralight::Ultralight ${METAL_FRAMEWORK}
-    LABELS gpu
+    SUITES ScryGpuDriver LABELS gpu
     ARC)
 
-  sigil_bench(scry_gpu_bench
+  sigil_bench(scry_bench
     SOURCES bench/GpuDriverBench.mm
     SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
     LIBRARIES SigilScryGpu Ultralight::Ultralight ${METAL_FRAMEWORK}

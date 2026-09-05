@@ -558,7 +558,7 @@ belongs to the one thread that counts frames. A device from
 | loading | the framework | every entry point resolved from the host's own `vkGetInstanceProcAddr` at run time; nothing links Vulkan |
 
 The Vulkan arms of this feature are therefore exercised where a Vulkan
-device is made: `geometry_device_test`, beside the feature that creates
+device is made: SigilGeometry's `Device` suite, beside the feature that creates
 one. They skip, naming why, on a machine with no Vulkan runtime (on
 macOS: `brew install molten-vk vulkan-loader`).
 
@@ -632,31 +632,28 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release
-ctest --test-dir build -C Release -R '^core_' --output-on-failure
+ctest --test-dir build -C Release --output-on-failure -R '^(Comparable|Compute|Schedule|Reconcile|Cache|Hardware)'
 ```
 
-A binary here exists where it links a **strictly smaller** set of targets
-than its neighbours, or where a runner has to supply something the others
-do not; two binaries over one closure with nothing to tell a runner are
-one binary. Every one of them links only the feature it exercises, so an
-edge that pulled a drawing, layout or animation library in would show up
-as a build failure rather than as a test that still passed:
+The library has one test binary, `core_test`, built from every feature's
+`test/` directory; ctest discovers one entry per CASE out of it, so a
+suite or a case is selected by name with no target behind it:
 
-| binary | what it proves | label |
+| suites | what they prove | label |
 |---|---|---|
-| `core_comparable_test` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes | — |
-| `core_compute_test` | the mixers and folds, pinned to the exact words and floats they produce | — |
-| `core_schedule_test` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once, two at a time, and joining every thread even when one item fails | — |
-| `core_reconcile_test` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering | — |
-| `core_cache_test` | the settled-subtree proof, the stability release and the bake seam over a fake host | — |
-| `core_hardware_test` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows | — |
-| `core_hardware_device_test` | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, and the levels a texture is built with | `gpu` |
+| `comparable/test/` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes | — |
+| `compute/test/` | the mixers and folds, pinned to the exact words and floats they produce | — |
+| `schedule/test/` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once, two at a time, and joining every thread even when one item fails | — |
+| `reconcile/test/` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering | — |
+| `cache/test/` | the settled-subtree proof, the stability release and the bake seam over a fake host | — |
+| `hardware/test/HardwareTest` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows | — |
+| `hardware/test/DeviceTest` (`HardwareDevice`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, and the levels a texture is built with | `gpu` |
 
-`core_hardware_device_test` exists on Apple alone and every case in it
+The `HardwareDevice` suite exists on Apple alone and every case in it
 skips where there is no GPU, which is why it carries a label: a case that
 skips is not coverage on the machine it skipped on, and the label is how
 a runner is told. The same questions on the Vulkan backend are asked in
-`geometry_device_test`, since that is where a Vulkan device exists to ask
+SigilGeometry's `Device` suite, since that is where a Vulkan device exists to ask
 them of.
 
 One file per subject, named for what it asserts: `HashTest` and
@@ -698,14 +695,15 @@ every one of them spell the plainest name for what it is — `FakeHost`,
 `FakeNode` — with no feature's test reaching into another's directory to
 find out.
 
-The benchmarks are executables, not tests: `core_comparable_bench` times
+The benchmarks are executables, not tests, and all of them are arms of
+one binary, `core_bench`. The comparable arms time
 each erased comparison against the same question asked of the model
 directly, so what erasure costs is the difference between two arms;
-`core_compute_bench` times each mixer one call at a time, which is how
-they are spent; `core_schedule_bench` times a divided range over a body
+the compute arms time each mixer one call at a time, which is how
+they are spent; the schedule arms time a divided range over a body
 that does nothing but touch its item, at three sizes, so what is measured
-is the split rather than any consumer's arithmetic; `core_reconcile_bench`
-and `core_cache_bench` time the reconciler and the proof over the fake
-hosts at several node counts; and `core_hardware_bench` times the device.
+is the split rather than any consumer's arithmetic; the reconcile and
+cache arms time the reconciler and the proof over the fake
+hosts at several node counts; and the hardware arms time the device.
 They build through the `benches` target and run through
 `scripts/bench_ledger.py`, which is where any number about them belongs.

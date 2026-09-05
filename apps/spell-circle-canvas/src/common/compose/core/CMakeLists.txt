@@ -73,7 +73,7 @@ sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)
 # Core, so its headers are not on this target's path by inheritance — and
 # ComposeRuntime.h includes <yoga/Yoga.h>. Listed for the INCLUDE PATH;
 # the archive itself was already in the link closure.
-sigil_test(compose_core_test
+sigil_test(compose_test
   SOURCES test/ComposeTestKernel.cpp test/ComposeTestMask.cpp
           test/ComposeTestFieldPins.cpp test/ComposeTestContentCore.cpp
           test/ComposeTestDepth.cpp test/ComposeTestInstances.cpp
@@ -83,7 +83,7 @@ sigil_test(compose_core_test
 
 # The kernel: describe, reconcile, layout, query, caching, and the
 # whole-scene scoreboard, blur, instances and particle arms.
-sigil_bench(compose_core_bench
+sigil_bench(compose_bench
   SOURCES bench/ComposeCoreBench.cpp bench/ComposeCoreSceneBench.cpp
   LIBRARIES SigilComposeCore EnTT::EnTT SigilWeavePorts
   GPU)

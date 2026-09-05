@@ -252,11 +252,11 @@ it out of the host.
 ## Build and test
 
 ```sh
-cmake --build build --config Release --target sketch_kit_test
-ctest --test-dir build -C Release -R sketch_kit_test --output-on-failure
+cmake --build build --config Release --target sketch_test
+ctest --test-dir build -C Release -R '^SketchKit' --output-on-failure
 ```
 
-`sketch_kit_test` asserts the claim a migrated sketch's plate rests on:
+`kit/test/` asserts the claim a migrated sketch's plate rests on:
 that the theme is a comparable value a scope binds and shadows, and that
 every component here draws — **in pixels** — exactly what the compose kit
 spelled by hand with the same values draws.

@@ -34,12 +34,12 @@ sigil_shader_sources(SigilMaterialSlang
 
 # The shader directory is named for the case that asks whether the
 # embedded table holds every file in it.
-sigil_test(material_slang_test
+sigil_test(material_test
   SOURCES test/SlangTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SLANG_SHADER_DIR="${SIGIL_MATERIAL_SLANG_SHADER_DIR}"
   LIBRARIES SigilMaterialSlang SigilMaterialKit)
 
-sigil_bench(material_slang_bench
+sigil_bench(material_bench
   SOURCES bench/SlangBench.cpp
   LIBRARIES SigilMaterialSlang)

@@ -22,11 +22,11 @@ sigil_library(SigilMaterialTexture
 
 # The cube-container cases decode a DDS and a KTX the test writes itself,
 # through SigilImage's routing surface and its fixture builders.
-sigil_test(material_texture_test
+sigil_test(material_test
   SOURCES test/TextureTest.cpp
   LIBRARIES SigilMaterialTexture SigilImageDecode
   SUPPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../image/test)
 
-sigil_bench(material_texture_bench
+sigil_bench(material_bench
   SOURCES bench/TextureBench.cpp
   LIBRARIES SigilMaterialTexture)

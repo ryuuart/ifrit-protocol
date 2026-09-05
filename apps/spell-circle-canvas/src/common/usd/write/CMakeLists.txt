@@ -18,12 +18,12 @@ sigil_library(SigilUsdWrite
 
 # Links the library it exercises, the runtime probe it skips on, and USD
 # itself to inspect the authored stage.
-sigil_test(usd_write_test
+sigil_test(usd_test
   SOURCES test/WriteTest.cpp
   LABELS usd
   LIBRARIES SigilUsdWrite SigilUsdRuntime SigilGeometryKit usd usdGeom
             usdShade sdf tf vt)
 
-sigil_bench(usd_write_bench
+sigil_bench(usd_bench
   SOURCES bench/WriteBench.cpp
   LIBRARIES SigilUsdWrite SigilUsdRuntime SigilGeometryKit)

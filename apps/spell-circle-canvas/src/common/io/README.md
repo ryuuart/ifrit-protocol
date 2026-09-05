@@ -273,18 +273,18 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Release
-cmake --build build --config Release --target io_source_test io_hub_test
+cmake --build build --config Release --target io_test
 ctest --test-dir build -C Release -R '^io_' --output-on-failure
 ```
 
 Targets: `SigilIOSource` (`source/` — headers plus the one call that
 asks the platform where the running binary stands) with
-`io_source_test`, which checks the concepts against a fixture source,
+`source/test/`, which checks the concepts against a fixture source,
 a fixture decoder and a fixture sink with no hub in the binary, and
 `writeBytes` against a real scratch directory; `SigilIOHub` (static
 library, `hub/` — mounts, selection, cache, network and the decoder registry
 split behind the private `hub/Fetch.h`) with
-`io_hub_test`, which also checks `TextCatalog`, and `io_hub_bench` (Google Benchmark, built by the
+`hub/test/`, which also checks `TextCatalog`, and `io_bench` (Google Benchmark, built by the
 `benches` target and run from a Release build through
 `scripts/bench_ledger.py`: `Hub::blob` on a cache hit and `load<T>` on a
 decoded view per call, `resolve` per URI against the mount table, and
@@ -294,13 +294,13 @@ decoded view per call, `resolve` per URI against the mount table, and
 Both binaries take their scratch directory from `src/test/ScratchDir.h`,
 the repository-level test support header: a directory named after the
 case and the process, emptied on the way in and removed on the way out.
-`io_hub_test` opens most of its cases from a `MountedHub` fixture —
+The hub cases open most of themselves from a `MountedHub` fixture —
 one such directory mounted at `res://`, which is the whole of what a hub
 needs before it can be asked anything — and forces a distinct mtime
 through one `touchForward()` helper rather than by sleeping, since a
 filesystem's timestamp granularity is not this test's running time.
 
-Two parts of `io_hub_test` are conditional, and a ctest label says so in
+Two parts of the hub's cases are conditional, and a ctest label says so in
 both cases. The EXR cases compile only when OpenImageIO is found at
 configure time — the test uses it to *write* its fixtures, while the
 library itself never calls it — so a build without it carries the `oiio`

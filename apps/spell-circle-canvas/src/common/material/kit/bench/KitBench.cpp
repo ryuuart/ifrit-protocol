@@ -90,5 +90,3 @@ void StackShader(benchmark::State& state) {
 BENCHMARK(StackShader)->Arg(0)->Arg(2);
 
 }  // namespace
-
-BENCHMARK_MAIN();

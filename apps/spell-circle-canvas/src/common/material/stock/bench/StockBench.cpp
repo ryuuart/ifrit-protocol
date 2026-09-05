@@ -87,5 +87,3 @@ void WarmStockFromCold(benchmark::State& state) {
 BENCHMARK(WarmStockFromCold);
 
 }  // namespace
-
-BENCHMARK_MAIN();

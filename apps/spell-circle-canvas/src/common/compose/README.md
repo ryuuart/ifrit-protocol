@@ -1162,40 +1162,41 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Registered tests. A binary exists where it links a **strictly smaller**
-set of targets than its neighbours and that boundary is a promise
-somebody could read; two binaries over one closure are one binary. Each
-links only what it exercises, so a test reaching past its tier fails to
-link rather than passing on a dependency it was not meant to have:
-`compose_core_test` (the kernel — elements, the reconciler, layout, paint,
-transitions, text, the feed, the instanced leaf, masks and the field
-walks; links `SigilComposeCore` alone, which is what proves the kernel
-stands without its catalogs), `compose_text_test` (text data, the text
-pass, vertical writing, motion along paths, the text-fx presets, rich
-spans, the variation drive), `compose_brush_test` (decorations, lines,
-brushes, the stroke grammar, the mask gates, the paint values this tier
-spells over SigilMaterial, the pixel styles and the kit's stroke
-presets), `compose_kit_test` (the kit tier: silhouettes, layout schemes,
-routers, placers, travel, and the queries, studio and instruments over
-them), `compose_texture_test` (textures as element content),
-`compose_draw_test` (a pen program hosted in a node),
-`compose_video_test` (video frames as element content), and the
-library's own: `compose_docs_test` (the generated probes over this page
-and `TYPOGRAPHY.md`, with the one claim the generator cannot make) and
-`compose_api_doc_probes_self_test`, plus `compose_gpu_test` (Apple only,
-needs the Graphite plumbing) and `compose_web_test` (needs the Ultralight
-SDK).
+Registered tests. The library has ONE test binary, `compose_test`, built
+from every feature's `test/` directory; ctest discovers one entry per
+CASE out of it, so `ctest -R 'ComposeKinetic\.'` selects a suite and
+`ctest -R 'ComposeContent.AKeyedShapeSettles'` one case, with no target
+behind either. Feature tiers were once separate binaries so that a test
+reaching past its tier failed to link; that proof is deliberately gone —
+what remains is that a suite is named for the feature it covers and its
+file sits in that feature's directory. The kernel's suites are in
+`core/test/` (elements, the reconciler, layout, paint, transitions, text,
+the feed, the instanced leaf, masks and the field walks), the text
+engine's in `typography/test/` (text data, the text pass, vertical
+writing, motion along paths, the text-fx presets, rich spans, the
+variation drive), the stroke and decoration engine's in `brush/test/`
+(decorations, lines, brushes, the stroke grammar, the mask gates, the
+paint values this tier spells over SigilMaterial, the pixel styles and
+the kit's stroke presets), the kit's in `kit/test/` (silhouettes, layout
+schemes, routers, placers, travel, and the queries, studio and
+instruments over them), and one apiece in `texture/test/` (textures as
+element content), `draw/test/` (a pen program hosted in a node),
+`video/test/` (video frames as element content) and `web/test/` (the
+Ultralight leaf, present only where the SDK was found). The library's own
+sit at the root: the generated probes over this page and `TYPOGRAPHY.md`,
+the GPU read-backs, and `compose_api_doc_probes_self_test`, which is a
+Python run rather than a case.
 
 One file per subject, named for what it asserts — a case is found by
 opening the file its subject names, not by searching for its case name.
-Each binary's translation units share `test/support/Host.h` — the
+The translation units share `test/support/Host.h` — the
 composer-in-a-raster-surface harness — through a support header of their
 own that includes only what they use, and the font context that harness
-holds is the tree-wide `src/test/Fonts.h`. A binary that skips or
-vanishes without something says so with a ctest label: `gpu` on
-`compose_gpu_test` and `compose_texture_test`, `fonts` on
-`compose_text_test`, `compose_kit_test` and `compose_draw_test`,
-`ultralight` on `compose_web_test`.
+holds is the tree-wide `src/test/Fonts.h`. A case that skips or vanishes
+without something says so with a ctest label, and the label is attached
+to the suites that need it rather than to the binary: `gpu` on
+`ComposeGpu`, `DirectImageDraw` and `ComposeTexture`, `ultralight` on
+`ComposeWeb`, and `fonts` on everything else.
 
 A case here asserts one thing a header promises and is named that
 promise as a sentence. It pins only what editing this library could
@@ -1211,16 +1212,13 @@ advance-holding one, zero-advance combining marks — in the tree's own
 its siblings, so a claim about a face is a claim about a face this
 repository ships. The benchmarks are
 executables, not tests.
-There is one benchmark binary per tier — `compose_core_bench`,
-`compose_shape_bench`, `compose_brush_bench`, `compose_paint_bench`,
-`compose_text_bench`, `compose_texture_bench`, `compose_draw_bench` —
-and a claim about how a cost GROWS lives in one of them rather than in a
-ctest wall-clock ceiling, because a single size cannot show a rate —
-each in its feature's `bench/` over the shared
-`bench/BenchSupport.h`, linking only the library it measures, all built
-by the `benches` target and run by `scripts/bench_ledger.py`; anything
-resembling a performance claim belongs to them and to the plate ledger,
-never to prose.
+There is one benchmark binary, `compose_bench`, and a claim about how a
+cost GROWS lives in it rather than in a ctest wall-clock ceiling, because
+a single size cannot show a rate. Its arms sit in each feature's `bench/`
+over the shared `bench/BenchSupport.h`; it is built by the `benches`
+target, lands in `bin/<config>/benches/` and is run by
+`scripts/bench_ledger.py`. Anything resembling a performance claim
+belongs to it and to the plate ledger, never to prose.
 
 **Looking at any of it** goes through SigilSketch, which is where every
 renderable thing in this repository lives: one file per scene, one
@@ -1232,7 +1230,8 @@ its own.
 
 ### The generated doc-probe translation unit
 
-`compose_docs_test` builds a C++ file that does not exist in the source tree.
+The doc-probe translation unit is a C++ file that does not exist in the
+source tree.
 `test/docs/api_doc_probes.py` reads this document AND `TYPOGRAPHY.md` —
 both are the library's canon, and prose nobody compiles is prose that goes
 stale — extracts every qualified name an author could copy out of them — from fenced code blocks **and** from

@@ -249,9 +249,9 @@ def self_test():
         "a snake_case token outside a sketch paragraph is not a stem",
     )
 
-    c = fixture_check("The `compose_core_test` case covers the sketch.\n")
+    c = fixture_check("The `compose_test` case covers the sketch.\n")
     check(
-        any(t == "compose_core_test" for _, _, t, _ in c.excluded)
+        any(t == "compose_test" for _, _, t, _ in c.excluded)
         and not c.unresolved,
         "a test target is exempted with a recorded reason",
     )

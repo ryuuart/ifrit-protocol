@@ -94,17 +94,22 @@ if(Ultralight_FOUND AND NOT TARGET Ultralight::Ultralight)
   )
 endif()
 
+# The engine reads its resources from a `resources` directory beside the
+# binary. A custom target rather than a POST_BUILD step, because the
+# binary is a library's whole test or bench binary and the directory
+# asking for the staging is not the one that created it.
 function(ultralight_copy_resources target)
-  if(NOT Ultralight_RESOURCE_DIR)
+  if(NOT Ultralight_RESOURCE_DIR OR TARGET ${target}_ultralight_resources)
     return()
   endif()
-  add_custom_command(TARGET ${target} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
+  add_custom_target(${target}_ultralight_resources
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
             "${Ultralight_RESOURCE_DIR}"
             "$<TARGET_FILE_DIR:${target}>/resources"
     COMMENT "Staging Ultralight resources next to ${target}"
     VERBATIM
   )
+  add_dependencies(${target} ${target}_ultralight_resources)
 endfunction()
 
 mark_as_advanced(

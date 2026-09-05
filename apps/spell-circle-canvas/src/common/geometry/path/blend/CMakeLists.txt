@@ -8,6 +8,6 @@ sigil_library(SigilGeometryPathBlend
   PUBLIC SigilGeometryPath
   PRIVATE SigilMaterialColor)
 
-sigil_bench(geometry_path_blend_bench
+sigil_bench(geometry_bench
   SOURCES bench/BlendBench.cpp
   LIBRARIES SigilGeometryPathBlend)

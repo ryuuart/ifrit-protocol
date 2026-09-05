@@ -145,5 +145,3 @@ void DrawFrame(benchmark::State& state) {
 BENCHMARK(DrawFrame)->Arg(64)->Arg(512);
 
 }  // namespace
-
-BENCHMARK_MAIN();

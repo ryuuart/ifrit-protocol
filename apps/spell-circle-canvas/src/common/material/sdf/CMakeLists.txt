@@ -15,6 +15,6 @@ sigil_shader_sources(SigilMaterialSdf
 # through the Skia backend, so a binary per feature would be five
 # binaries over one link closure.
 
-sigil_bench(material_sdf_bench
+sigil_bench(material_bench
   SOURCES bench/SdfBench.cpp
   LIBRARIES SigilMaterialSdf SigilMaterialSkia)

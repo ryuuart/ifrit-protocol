@@ -650,5 +650,3 @@ static void BM_Band_Construct(benchmark::State& state) {
   state.SetItemsProcessed(state.iterations());
 }
 BENCHMARK(BM_Band_Construct)->Arg(50)->Arg(150)->Arg(300)->Arg(550);
-
-BENCHMARK_MAIN();

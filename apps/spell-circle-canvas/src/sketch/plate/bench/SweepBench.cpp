@@ -57,5 +57,3 @@ BENCHMARK(Ledger)->Unit(benchmark::kMillisecond);
 }  // namespace
 
 SIGIL_SKETCH(Probe, "Bench", "the sweep bench's own fixture")
-
-BENCHMARK_MAIN();

@@ -18,7 +18,7 @@ sigil_library(SigilWeaveFonts
 # pair a shaper sets by measuring outlines. Every face here is an instrument
 # committed under src/test/assets/, so a runner needs no font of its own and
 # the answers are the same on every machine — which is why there is no label.
-sigil_test(weave_fonts_test
+sigil_test(weave_test
   SOURCES test/FontContextTest.cpp
   LIBRARIES SigilWeaveFonts SigilWeavePorts)
 
@@ -26,11 +26,11 @@ sigil_test(weave_fonts_test
 # test/assets/ rather than of this machine's. Its own binary because it is
 # its own promise about what a runner needs: nothing. A label here would
 # say a face is required that is already in the tree.
-sigil_test(weave_vertical_features_test
+sigil_test(weave_test
   SOURCES test/VerticalFeaturesTest.cpp
   LIBRARIES SigilWeaveFonts SigilWeavePorts)
 
 # The shaper per word, cold and warm.
-sigil_bench(weave_fonts_bench
+sigil_bench(weave_bench
   SOURCES bench/ShaperBench.cpp
   LIBRARIES SigilWeaveFonts SigilWeavePorts SigilWeaveUnicode)

@@ -8,8 +8,8 @@ sigil_library(SigilUsdRuntime
   PRIVATE usd sdf tf)
 
 # The probe's own claim — it answers, and answers the same way twice —
-# is asserted in usd_read_test, where a case that skips on it stands
+# is asserted in usd_test, where a case that skips on it stands
 # beside it. This leaf carries no test binary of its own.
-sigil_bench(usd_runtime_bench
+sigil_bench(usd_bench
   SOURCES bench/RuntimeBench.cpp
   LIBRARIES SigilUsdRuntime)

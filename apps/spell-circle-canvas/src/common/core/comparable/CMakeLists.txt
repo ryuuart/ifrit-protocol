@@ -17,10 +17,10 @@ sigil_library(SigilCoreComparable
 # consumer takes both or neither. It links only the library it exercises,
 # so a link edge that pulled a kernel or a motion library in would show up
 # as a build failure here.
-sigil_test(core_comparable_test
+sigil_test(core_test
   SOURCES test/ErasedTest.cpp
   LIBRARIES SigilCoreComparable)
 
-sigil_bench(core_comparable_bench
+sigil_bench(core_bench
   SOURCES bench/ComparableBench.cpp
   LIBRARIES SigilCoreComparable)

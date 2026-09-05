@@ -2,7 +2,8 @@
 """The bench ledger, as ONE command: timing sweeps over the benchmark
 binaries, compared against a committed baseline.
 
-Runs every `*_bench` binary the build produced (or the subset named with
+Runs every `*_bench` binary the build produced — one per library, under
+bin/<config>/benches — (or the subset named with
 --benches), each with Google Benchmark's JSON reporter and a fixed number
 of repetitions, takes the MEDIAN real time of every benchmark, and
 compares it against the baseline stored for the build configuration —
@@ -12,7 +13,7 @@ ledger does this for bytes; this does it for time.
 Usage (from apps/spell-circle-canvas):
   scripts/bench_ledger.py --rebase              # bake the baseline
   scripts/bench_ledger.py                       # sweep + compare + verdict
-  scripts/bench_ledger.py --benches weave_layout_bench geometry_pop_bench
+  scripts/bench_ledger.py --benches weave_bench geometry_bench
   scripts/bench_ledger.py --config Release --repetitions 7 --min-time 0.2
 
 HOW A NUMBER IS TAKEN. Each benchmark runs --repetitions times (default
@@ -79,18 +80,18 @@ TOLERANCES = {
     r"ReplaceWholeParagraph_Cold": 0.15,
     # Raster painting through Skia's CPU backend has thread-pool warm-up
     # inside it that the warm-up period does not fully settle.
-    r"^weave_paint_bench:": 0.15,
+    r"^weave_bench:BM_Draw": 0.15,
     # A latency, not a cost: the arm waits for the web thread's own
     # repaint, which is paced at a fixed cadence, so the figure moves by a
     # whole frame interval from one run to the next.
-    r"^scry_engine_bench:BM_Page_ChangeLatency": 0.75,
+    r"^scry_bench:BM_Page_ChangeLatency": 0.75,
     # The smallest device cook is mostly the fixed cost of putting work on
     # the device and taking the answer back, and the driver pays that in
     # one of two states — the arm's median lands in one or the other, a
     # quarter apart, on a machine doing nothing else. Its own band, not
     # the benchmark's: the arms with ten and fifty times the points hold
     # to a percent, and they are where a change to the cook shows.
-    r"^world_diligent_bench:BM_ChainOnDevice/20000/": 0.35,
+    r"^world_bench:BM_ChainOnDevice/20000/": 0.35,
 }
 
 TIME_UNITS = {"ns": 1.0, "us": 1e3, "ms": 1e6, "s": 1e9}
@@ -101,7 +102,7 @@ def to_ns(value, unit):
 
 
 def discover(bin_dir):
-    """Every *_bench executable in the build's bin directory, by name."""
+    """Every *_bench executable in the build's benches directory, by name."""
     found = {}
     if not os.path.isdir(bin_dir):
         return found
@@ -265,7 +266,7 @@ def main():
     args = ap.parse_args()
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    bin_dir = os.path.join(root, "build", "bin", args.config)
+    bin_dir = os.path.join(root, "build", "bin", args.config, "benches")
     baseline_path = os.path.join(root, "bench", f"baseline_{args.config}.json")
 
     available = discover(bin_dir)

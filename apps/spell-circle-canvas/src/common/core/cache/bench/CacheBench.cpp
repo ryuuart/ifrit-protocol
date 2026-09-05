@@ -92,5 +92,3 @@ BENCHMARK(EveryNodeDriven)->Arg(64)->Arg(512)->Arg(4096);
 BENCHMARK(SettledRelease)->Arg(64)->Arg(512)->Arg(4096);
 
 }  // namespace
-
-BENCHMARK_MAIN();

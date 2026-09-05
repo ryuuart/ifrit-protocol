@@ -27,12 +27,12 @@ sigil_library(SigilSketchCanvas PIC
 # The test walks through both doors, so it includes and links what a
 # sketch doing the same would: the compose leaf that keeps the scene, and
 # the world it bakes.
-sigil_test(sketch_canvas_test
+sigil_test(sketch_test
   SOURCES test/CanvasSessionTest.cpp
   LIBRARIES SigilSketchCanvas SigilComposeTexture SigilWorldElement
             SigilWorldFrame SigilGeometryKit SigilMaterialKit
             SigilWeavePorts)
 
-sigil_bench(sketch_canvas_bench
+sigil_bench(sketch_bench
   SOURCES bench/CanvasSessionBench.cpp
   LIBRARIES SigilSketchCanvas)

@@ -325,5 +325,3 @@ BENCHMARK(BM_Sweep_Hang)
     ->Complexity(benchmark::oN);
 
 }  // namespace
-
-BENCHMARK_MAIN();

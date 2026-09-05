@@ -277,7 +277,7 @@ add_test(NAME sketch_reload_directory
 # SketchCatalog's header is beside its source rather than under
 # include/, because it names Qt types the library keeps to itself, so the
 # support directory is this one.
-sigil_test(sketch_book_test
+sigil_test(sketch_test
   SOURCES test/CatalogTest.cpp
   LIBRARIES SigilSketchBook SigilSketchCanvas Qt6::Core
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR})

@@ -36,5 +36,3 @@ static void BM_SamplesMean(benchmark::State& state) {
   for ([[maybe_unused]] auto _ : state) benchmark::DoNotOptimize(w.mean());
 }
 BENCHMARK(BM_SamplesMean)->Arg(60)->Arg(120)->Arg(1000);
-
-BENCHMARK_MAIN();

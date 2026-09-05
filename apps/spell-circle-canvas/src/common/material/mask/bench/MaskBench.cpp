@@ -36,5 +36,3 @@ void SampledMaskShader(benchmark::State& state) {
 BENCHMARK(SampledMaskShader);
 
 }  // namespace
-
-BENCHMARK_MAIN();

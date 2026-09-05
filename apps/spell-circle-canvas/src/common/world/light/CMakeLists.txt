@@ -8,10 +8,10 @@ sigil_library(SigilWorldLight
   HEADERS Light.h
   PUBLIC glm::glm)
 
-# The emitter values are asserted in world_element_test, beside the
+# The emitter values are asserted in world_test, beside the
 # description that carries them: the description links this feature, so a
 # binary over the emitters alone would link a subset of nothing — every
 # target that reaches Light reaches Element too.
-sigil_bench(world_light_bench
+sigil_bench(world_bench
   SOURCES bench/LightBench.cpp
   LIBRARIES SigilWorldLight)

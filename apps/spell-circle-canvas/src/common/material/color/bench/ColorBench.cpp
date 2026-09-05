@@ -19,5 +19,3 @@ void OklabRoundTrip(benchmark::State& state) {
 BENCHMARK(OklabRoundTrip);
 
 }  // namespace
-
-BENCHMARK_MAIN();

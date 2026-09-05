@@ -110,5 +110,3 @@ void BM_DrawPanel(benchmark::State& state) {
 BENCHMARK(BM_DrawPanel)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

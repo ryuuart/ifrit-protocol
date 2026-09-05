@@ -45,6 +45,17 @@ QVariantMap rowAt(const SketchCatalog& catalog, int index) {
   return rows[index].toMap();
 }
 
+/** Where the row under @p key sits. The registry is the process's, and
+ *  every file that registered a sketch into it is in this binary, so a
+ *  row is found by its key rather than by counting from the front. */
+int rowOf(const SketchCatalog& catalog, const QString& key) {
+  const QVariantList rows = catalog.sketches();
+  for (int index = 0; index < rows.size(); ++index)
+    if (rows[index].toMap().value(QStringLiteral("key")).toString() == key)
+      return index;
+  return -1;
+}
+
 TEST(SketchCatalog, RowNamesTheRuntimeAndAnUnbuiltFileLearnsIt) {
   int argc = 1;
   char arg0[] = "sketch_book_test";
@@ -57,15 +68,16 @@ TEST(SketchCatalog, RowNamesTheRuntimeAndAnUnbuiltFileLearnsIt) {
                               "book_probe_draft.cpp"};
 
   SketchCatalog catalog;
-  const QVariantList rows = catalog.sketches();
-  ASSERT_EQ(rows.size(), 2);  // the compiled-in probe, then the external
+  const int probe = rowOf(catalog, QStringLiteral("book_probe"));
+  ASSERT_GE(probe, 0);
 
   // A COMPILED-IN SKETCH'S ROW NAMES ITS RUNTIME, read off the kind.
-  EXPECT_EQ(rowAt(catalog, 0).value(QStringLiteral("kind")).toString(),
+  EXPECT_EQ(rowAt(catalog, probe).value(QStringLiteral("kind")).toString(),
             QStringLiteral("canvas"));
 
-  // A FILE OPENED BY PATH has no runtime until it is built.
-  constexpr int kExternal = 1;
+  // A FILE OPENED BY PATH has no runtime until it is built. The externals
+  // are appended after every compiled-in entry, so it is the last row.
+  const int kExternal = (int)catalog.sketches().size() - 1;
   EXPECT_TRUE(rowAt(catalog, kExternal)
                   .value(QStringLiteral("kind"))
                   .toString()

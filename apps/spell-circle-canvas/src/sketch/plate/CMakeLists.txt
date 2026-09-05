@@ -17,10 +17,10 @@ sigil_library(SigilSketchPlate PIC
   PRIVATE SigilGeometryDevice SigilSkiaGraphite SigilIOSource
           SigilImageDecode SigilVideoEncode SigilWeaveFonts)
 
-sigil_test(sketch_plate_test
+sigil_test(sketch_test
   SOURCES test/CompareTest.cpp test/SweepTest.cpp
   LIBRARIES SigilSketchPlate SigilSketchCanvas SigilWeavePorts)
 
-sigil_bench(sketch_plate_bench
+sigil_bench(sketch_bench
   SOURCES bench/SweepBench.cpp
   LIBRARIES SigilSketchPlate SigilSketchCanvas SigilWeavePorts)

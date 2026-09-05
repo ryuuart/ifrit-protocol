@@ -334,31 +334,32 @@ or a scene.
 ## Building
 
 `SigilSkiaDraw`, `SigilSkiaGraphite`, `SigilSkiaQt` and the `SigilSkia`
-umbrella are always built, with `skia_draw_test` and `skia_pixels_test`
-everywhere and on Apple `skia_graphite_test` (ctest) plus
-`skia_graphite_bench` (Google Benchmark, through the `benches` target and
-`scripts/bench_ledger.py`). `skia_pixels_test` is arithmetic over an
-`SkImage` — no device, no context, no bring-up — which is why it is its
-own binary and runs on every machine. `skia_graphite_test` takes the
-Metal path end to end on
+umbrella are always built, with one test binary `skia_test` over
+`draw/test/` and `graphite/test/` and one benchmark binary `skia_bench`
+(Google Benchmark, through the `benches` target and
+`scripts/bench_ledger.py`). The pixel cases are arithmetic over an
+`SkImage` — no device, no context, no bring-up — which is why they carry
+no label and run on every machine. The `SigilSkiaGraphite` suite takes
+the Metal path end to end on
 the system device: a context, a wrapped texture, a clear, and the pixels
 read back through the queue the context shares. It then takes the same
 wrap through a device — a texture the device made, the surface built
 from its handle, a stale handle that wraps nothing, a fence the submit
 signals, and the factory that reads a device the host adopted — on
-Metal. The same wrap on a Vulkan device is `geometry_device_test`'s,
+Metal. The same wrap on a Vulkan device is SigilGeometry's `Device` suite's,
 since that is where a Vulkan device is made. The half-float read is
 checked in the pixel binary, since its whole reason is a sampler that
 refuses F32.
-Every case in it that needs a device says so — `skia_graphite_test`
-carries the ctest label `gpu` and each such case skips, naming what it
+Every case in it that needs a device says so — the `SigilSkiaGraphite`
+suite carries the ctest label `gpu` and each such case skips, naming what it
 wanted, rather than failing on a machine with no Metal device. A case
 here asserts one thing a header promises and is named that promise as a
 sentence; it pins only what editing this library could falsify — a band
 split's arithmetic, a clear read back, a stale handle refused — never a
 size a rasteriser chose. The benchmark weighs the handle wrap against
 the native one on the same texture. The Qt adapters and the products are exercised
-through `compose_gpu_test`, `scry_gpu_test` and the applications.
+through SigilCompose's `ComposeGpu` suite, SigilScry's GPU suites and
+the applications.
 
 At run time the Metal path needs a Metal device — on macOS, everything.
 The Vulkan path needs a Skia built with its Vulkan backend (the `vulkan`

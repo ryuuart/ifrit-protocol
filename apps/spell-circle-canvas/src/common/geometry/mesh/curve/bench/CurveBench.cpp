@@ -112,5 +112,3 @@ BENCHMARK(BM_PoseAlong_Spline)
     ->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

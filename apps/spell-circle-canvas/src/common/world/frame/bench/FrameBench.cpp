@@ -136,5 +136,3 @@ void PostComposite(benchmark::State& state) {
 BENCHMARK(PostComposite);
 
 }  // namespace
-
-BENCHMARK_MAIN();

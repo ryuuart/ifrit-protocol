@@ -63,5 +63,3 @@ void OrderFan(benchmark::State& state) {
 BENCHMARK(OrderFan)->Arg(4)->Arg(16)->Arg(64)->Arg(256);
 
 }  // namespace
-
-BENCHMARK_MAIN();

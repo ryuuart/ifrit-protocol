@@ -47,5 +47,3 @@ BENCHMARK(ParallelForOverItems)->Arg(1024)->Arg(32768)->Arg(1048576);
 BENCHMARK(ParallelForEachElement)->Arg(1024)->Arg(32768)->Arg(1048576);
 
 }  // namespace
-
-BENCHMARK_MAIN();

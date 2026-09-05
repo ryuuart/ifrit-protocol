@@ -49,7 +49,7 @@ sigil_library(SigilComposeBrush
 # presets. One binary rather than two over the same two targets, because a
 # second one states no boundary a consumer could read -- it only decides
 # which half of a shared fixture a case can reach.
-sigil_test(compose_brush_test
+sigil_test(compose_test
   SOURCES test/ComposeTestLines.cpp test/ComposeTestBrushes.cpp
           test/ComposeTestBrushEngine.cpp test/ComposeTestStrokeGrammar.cpp
           test/ComposeTestDecorations.cpp test/ComposeTestTextDecorations.cpp
@@ -61,11 +61,11 @@ sigil_test(compose_brush_test
 
 # Masks, brushes, profiled and span strokes, stamps, warps, hatches and
 # the binding cost under stroked cells.
-sigil_bench(compose_brush_bench
+sigil_bench(compose_bench
   SOURCES bench/ComposeBrushBench.cpp
   LIBRARIES SigilComposeBrush SigilComposeKit SigilWeavePorts)
 
 # Pattern bakes and fills, SDF materials against paths, layer-style shadows.
-sigil_bench(compose_paint_bench
+sigil_bench(compose_bench
   SOURCES bench/ComposePaintBench.cpp
   LIBRARIES SigilComposeBrush SigilWeavePorts)

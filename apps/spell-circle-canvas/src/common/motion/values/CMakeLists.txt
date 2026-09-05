@@ -24,11 +24,11 @@ sigil_library(SigilMotionValues
 # Links the values and the clock that drives them, and nothing that
 # draws, so a link edge that pulled a drawing library in would show up
 # as a build failure here.
-sigil_test(motion_values_test
+sigil_test(motion_test
   SOURCES test/ValuesTest.cpp test/AnimatedTest.cpp test/LanesTest.cpp
           test/SpringTest.cpp
   LIBRARIES SigilMotionValues SigilMotionClock)
 
-sigil_bench(motion_values_bench
+sigil_bench(motion_bench
   SOURCES bench/ValuesBench.cpp
   LIBRARIES SigilMotionValues)

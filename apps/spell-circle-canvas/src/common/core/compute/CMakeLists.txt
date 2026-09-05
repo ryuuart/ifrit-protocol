@@ -12,10 +12,10 @@ sigil_library(SigilCoreCompute)
 # bodies is correct only when it answers the same numbers — so the test
 # pins them: exact words, and floats compared as bits. Links only the
 # library it exercises.
-sigil_test(core_compute_test
+sigil_test(core_test
   SOURCES test/HashTest.cpp test/IntervalsTest.cpp test/NoiseTest.cpp
   LIBRARIES SigilCoreCompute)
 
-sigil_bench(core_compute_bench
+sigil_bench(core_bench
   SOURCES bench/ComputeBench.cpp
   LIBRARIES SigilCoreCompute)

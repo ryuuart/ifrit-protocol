@@ -12,7 +12,7 @@ sigil_library(SigilMaterialStock
 
 # The test draws nothing; it compiles, so it links the Skia backend for a
 # compiler to warm against.
-sigil_test(material_stock_test
+sigil_test(material_test
   SOURCES test/StockTest.cpp
   LIBRARIES SigilMaterialStock SigilMaterialField SigilMaterialSdf
             SigilMaterialKit SigilMaterialSkia)
@@ -23,7 +23,7 @@ sigil_test(material_stock_test
 # stock, so a recipe added to one family is attributable to that family.
 # It links the three catalogues by name for the same reason the test
 # does — an arm per family is an arm that calls that family's own list.
-sigil_bench(material_stock_bench
+sigil_bench(material_bench
   SOURCES bench/StockBench.cpp
   LIBRARIES SigilMaterialStock SigilMaterialField SigilMaterialSdf
             SigilMaterialKit SigilMaterialSkia)

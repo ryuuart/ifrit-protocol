@@ -20,6 +20,6 @@ sigil_library(SigilWeaveKit
   PRIVATE SigilWeaveUnicode Boost::unordered)
 
 # The invalidation semantics the kit exists to make explicit.
-sigil_test(weave_kit_test
+sigil_test(weave_test
   SOURCES test/KitTest.cpp
   LIBRARIES SigilWeaveKit SigilWeavePorts)

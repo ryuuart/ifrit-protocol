@@ -27,22 +27,19 @@ if(APPLE)
     SigilSkiaGraphite "-framework CoreVideo" ${METAL_FRAMEWORK})
 endif()
 
-# The committed clips sit beside this feature's test rather than at the
-# library root.
-sigil_test(video_decode_test
+sigil_test(video_test
   SOURCES test/DecodeTest.cpp
-  LIBRARIES SigilVideoDecode
-  ASSET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/assets)
+  LIBRARIES SigilVideoDecode)
 
 if(APPLE)
-  sigil_test(video_device_test
+  sigil_test(video_test
     SOURCES test/DeviceTest.mm
     LIBRARIES SigilVideoDecode SigilVideoEncode SigilSkiaGraphite
               ${METAL_FRAMEWORK}
-    LABELS gpu
+    SUITES VideoDevice LABELS gpu
     ARC)
 
-  sigil_bench(video_device_bench
+  sigil_bench(video_bench
     SOURCES bench/DeviceBench.mm
     LIBRARIES SigilVideoDecode SigilVideoEncode SigilSkiaGraphite
               ${METAL_FRAMEWORK}

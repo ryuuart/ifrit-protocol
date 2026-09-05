@@ -21,12 +21,12 @@ target_compile_definitions(SigilComposeTexture PUBLIC
   SIGILCOMPOSE_TEXTURE_DEVICE=1)
 
 # The raster half runs anywhere; the device half skips without a GPU, so
-# the whole binary carries the label rather than pretending to cover it.
-sigil_test(compose_texture_test
+# the whole suite carries the label rather than pretending to cover it.
+sigil_test(compose_test
   SOURCES test/ComposeTextureTest.cpp
   LIBRARIES SigilComposeTexture SigilComposeTesting SigilWeavePorts
-  LABELS gpu)
+  SUITES ComposeTexture LABELS gpu)
 
-sigil_bench(compose_texture_bench
+sigil_bench(compose_bench
   SOURCES bench/TextureBench.cpp
   LIBRARIES SigilComposeTexture SigilWeavePorts)

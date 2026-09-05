@@ -68,5 +68,3 @@ void MakeKind(benchmark::State& state) {
 BENCHMARK(MakeKind);
 
 }  // namespace
-
-BENCHMARK_MAIN();

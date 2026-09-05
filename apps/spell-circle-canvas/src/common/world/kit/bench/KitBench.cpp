@@ -63,5 +63,3 @@ BENCHMARK(WaveRail)->Arg(6)->Arg(24);
 BENCHMARK(WindingRail)->Arg(72)->Arg(288);
 
 }  // namespace
-
-BENCHMARK_MAIN();

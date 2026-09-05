@@ -50,8 +50,8 @@ sigil_shader_sources(SigilGeometryMeshRenderDevice
 # reason when the machine has none. The device itself is
 # SigilGeometryDevice's, whose test/support/OnDevice.h brings up ONE for
 # the process, because that is where a device can be created at all.
-sigil_test(geometry_mesh_render_device_test
+sigil_test(geometry_test
   SOURCES test/PainterTest.cpp
   LIBRARIES SigilGeometryMeshRenderDevice SigilGeometryKit
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
-  LABELS gpu)
+  SUITES Painter LABELS gpu)

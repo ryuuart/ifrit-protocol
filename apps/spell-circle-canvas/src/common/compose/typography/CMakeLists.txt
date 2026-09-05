@@ -55,7 +55,7 @@ sigil_library(SigilComposeTypography
 # silhouettes. A case about an axis or a cluster shapes an instrument from
 # src/test/assets/; the label is for the rest, which set unstyled type in
 # whatever face the machine calls its default.
-sigil_test(compose_text_test
+sigil_test(compose_test
   SOURCES test/ComposeTestTextData.cpp test/ComposeTestTextPass.cpp
           test/ComposeTestVertical.cpp test/ComposeTestPathMotion.cpp
           test/ComposeTestContentText.cpp test/ComposeTestParagraphs.cpp
@@ -66,7 +66,7 @@ sigil_test(compose_text_test
 
 # Dense text replayed, baked and projected; kinetic text every frame. The
 # kit is here for the stock effect the kinetic arms drive.
-sigil_bench(compose_text_bench
+sigil_bench(compose_bench
   SOURCES bench/ComposeTextBench.cpp
   LIBRARIES SigilComposeTypography SigilComposeKit SigilWeavePorts
   GPU)

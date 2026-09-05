@@ -1116,24 +1116,24 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Release
-cmake --build build --config Release --target sketch_core_test \
-  sketch_canvas_test sketch_set_test sketch_draw_test sketch_kit_test \
-  sketch_live_test sketch_plate_test sketch_book_test
+cmake --build build --config Release --target sketch_test
 ctest --test-dir build -C Release -R sketch_ --output-on-failure
 ```
 
 A binary exists only where it links a **strictly smaller** set of
 targets than its neighbours, or where what a runner must supply to run it
 differs — one per feature, each linking that feature alone.
-`sketch_core_test` covers the registry, the kind seam, the crash reporter
-and where a sketch stands on disk; `sketch_canvas_test`,
-`sketch_set_test` and `sketch_draw_test` the three sessions;
-`sketch_kit_test` the sheet a specimen stands on; `sketch_live_test` the
-host and the resident set; `sketch_plate_test` the sweep, the comparison
+The library has one test binary, `sketch_test`, built from every
+feature's `test/` directory; ctest discovers one entry per CASE out of
+it. `core/test/` covers the registry, the kind seam, the crash reporter
+and where a sketch stands on disk; `canvas/test/`,
+`set/test/` and `draw/test/` the three sessions;
+`kit/test/` the sheet a specimen stands on; `live/test/` the
+host and the resident set; `plate/test/` the sweep, the comparison
 of two directories of plates and the montage MP4 exporter;
-`sketch_book_test` the catalog and the thumbnail store with no window;
-and `sketch_scry_test` the shared web engine beside
-`sketch_settled_test`, which takes a page's still — two binaries because
+`book/test/` the catalog and the thumbnail store with no window;
+and `scry/test/` the shared web engine beside the case that
+takes a page's still — two cases that must not meet in one process because
 the engine allows one renderer per process and the shared-engine case
 ends by shutting its one down for good. Both are labelled `ultralight`
 and are absent altogether without that SDK. The `sketch_*_bench` binaries
@@ -1193,12 +1193,12 @@ readings off a picture: what a surface or an image holds, whether two
 plates are one picture, the box the drawn pixels stand in, and where that
 box stands as a fraction of the plate so two plates of different sizes
 can be compared. `Sessions.h` is the contract above. `live/test/Fixture.h`
-holds what both halves of `sketch_live_test` need beyond them: the
+holds what both halves of the live feature's cases need beyond them: the
 compiled-in square, its registry entry, and a `Watched` file standing in
 a scratch directory of its own — bare, or in a directory named for it,
 which is the other shape a sketch takes — which the shared
 `src/test/ScratchDir.h` empties on the way in and removes on the way out.
-`sketch_plate_test` registers its fixture sketches the way a sketch file
+The plate cases register their fixture sketches the way a sketch file
 does, so the sweep it drives walks a real registry — including one whose
 `available()` probe says no, which the sweep passes over rather than
 failing on and writes no plate for.
@@ -1221,7 +1221,7 @@ The `sketch_reload_*` entries in `book/CMakeLists.txt` run
 `Sketchbook <file.cpp> --frame out.png`, which compiles the file with the
 captured response file, dlopens the result and runs it — the DYNAMIC
 path, and the only one that can see a missing archive in the force-load
-list. `sketch_plate_test` calls `sweep()` IN PROCESS against fixture
+list. The plate cases call `sweep()` IN PROCESS against fixture
 sketches its own binary registered. `scripts/plate_ledger.py` runs
 `Sketchbook --headless --ledger` over the COMPILED-IN registry and judges
 plate hashes. Three different things, and none of them stands in for

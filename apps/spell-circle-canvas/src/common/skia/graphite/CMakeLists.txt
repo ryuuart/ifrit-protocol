@@ -53,7 +53,7 @@ set(SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/support
 # THE PIXEL READS ARE ARITHMETIC over an SkImage — no device, no context,
 # no bring-up — so they are their own binary, built and run everywhere,
 # where the device cases below are Apple-only and labelled.
-sigil_test(skia_pixels_test
+sigil_test(skia_test
   SOURCES test/PixelsTest.cpp
   LIBRARIES SigilSkiaGraphite)
 
@@ -61,14 +61,14 @@ sigil_test(skia_pixels_test
 # reached through a device's handles: needs a GPU, so both exist only
 # where one is guaranteed.
 if(APPLE)
-  sigil_test(skia_graphite_test
+  sigil_test(skia_test
     SOURCES test/GraphiteTest.mm
     LIBRARIES SigilSkiaGraphite ${METAL_FRAMEWORK}
     SUPPORT_DIRS ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
-    LABELS gpu
+    SUITES SigilSkiaGraphite LABELS gpu
     ARC)
 
-  sigil_bench(skia_graphite_bench
+  sigil_bench(skia_bench
     SOURCES bench/GraphiteBench.mm
     LIBRARIES SigilSkiaGraphite ${METAL_FRAMEWORK}
     ARC)

@@ -10,6 +10,6 @@ sigil_library(SigilMaterialPattern
 
 # test/PatternTest.cpp is compiled into material_test, at the library root.
 
-sigil_bench(material_pattern_bench
+sigil_bench(material_bench
   SOURCES bench/PatternBench.cpp
   LIBRARIES SigilMaterialPattern)

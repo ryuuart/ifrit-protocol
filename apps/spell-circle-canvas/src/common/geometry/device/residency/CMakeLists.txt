@@ -48,8 +48,8 @@ set(SIGIL_GEOMETRY_DEVICE_RESIDENCY_PRIVATE_DIR ${CMAKE_CURRENT_LIST_DIR}
 # LABELLED `gpu`: every case here brings a Vulkan device up and skips with
 # the reason when the machine has none, so a machine without one runs
 # `ctest -LE gpu` and checks nothing it cannot judge.
-sigil_test(geometry_device_residency_test
+sigil_test(geometry_test
   SOURCES test/ResidencyTest.cpp
   LIBRARIES SigilGeometryDeviceResidency
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
-  LABELS gpu)
+  SUITES MapUpload MeshResidency TextureResidency LABELS gpu)

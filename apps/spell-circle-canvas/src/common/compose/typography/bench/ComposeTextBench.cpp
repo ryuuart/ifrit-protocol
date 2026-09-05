@@ -314,5 +314,3 @@ BENCHMARK(BM_Draw_DenseText_Persp_Perspective_Graphite)
     ->Unit(benchmark::kMillisecond);
 
 #endif  // SIGIL_BENCH_GPU
-
-BENCHMARK_MAIN();

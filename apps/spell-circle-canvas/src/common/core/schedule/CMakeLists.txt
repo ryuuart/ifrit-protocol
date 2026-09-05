@@ -19,10 +19,10 @@ sigil_library(SigilCoreSchedule
 # the range exactly once, that the grain alone decides when a range stays
 # on its caller, and that the blocking fan-out really is concurrent and
 # joins everything it starts.
-sigil_test(core_schedule_test
+sigil_test(core_test
   SOURCES test/ConcurrentIoTest.cpp test/ParallelTest.cpp
   LIBRARIES SigilCoreSchedule)
 
-sigil_bench(core_schedule_bench
+sigil_bench(core_bench
   SOURCES bench/ScheduleBench.cpp
   LIBRARIES SigilCoreSchedule)

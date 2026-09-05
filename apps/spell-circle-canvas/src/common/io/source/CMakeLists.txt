@@ -13,6 +13,6 @@ sigil_library(SigilIOSource
 
 # The concepts checked against a fixture source and a fixture decoder,
 # with no hub, codec or disk in the binary.
-sigil_test(io_source_test
+sigil_test(io_test
   SOURCES test/SourceTest.cpp
   LIBRARIES SigilIOSource Boost::container)

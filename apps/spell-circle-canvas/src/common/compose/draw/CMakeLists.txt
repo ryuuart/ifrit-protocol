@@ -11,11 +11,11 @@ sigil_library(SigilComposeDraw PIC
   PRIVATE SigilMotionClock)
 
 # Shapes text through the machine's own faces, so the label says so.
-sigil_test(compose_draw_test
+sigil_test(compose_test
   SOURCES test/ComposeTestDraw.cpp
   LIBRARIES SigilComposeDraw SigilComposeTesting SigilWeavePorts
   LABELS fonts)
 
-sigil_bench(compose_draw_bench
+sigil_bench(compose_bench
   SOURCES bench/DrawBench.cpp
   LIBRARIES SigilComposeDraw SigilWeavePorts)

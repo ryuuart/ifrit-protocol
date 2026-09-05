@@ -6,6 +6,6 @@ sigil_library(SigilVideoEncode
   PUBLIC SigilVideoCore unofficial::skia::skia
   PRIVATE sigil_video_ffmpeg)
 
-sigil_test(video_encode_test
+sigil_test(video_test
   SOURCES test/EncodeTest.cpp
   LIBRARIES SigilVideoEncode SigilVideoDecode)

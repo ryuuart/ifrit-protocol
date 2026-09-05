@@ -13,6 +13,6 @@ sigil_library(SigilWeaveQuery
 
 # The query tests place through the layout to check that a paint-only
 # restyle skips re-analysis, so the binary links the layout as well.
-sigil_test(weave_query_test
+sigil_test(weave_test
   SOURCES test/QueryTest.cpp test/SelectorTest.cpp
   LIBRARIES SigilWeaveQuery SigilWeaveLayout SigilWeavePorts)

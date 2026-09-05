@@ -19,11 +19,11 @@ sigil_library(SigilSketchSet PIC
 # The test walks through the door, so it includes and links what a set
 # doing the same would: the compose tree it paints and the leaf that
 # keeps the scene.
-sigil_test(sketch_set_test
+sigil_test(sketch_test
   SOURCES test/SetSessionTest.cpp
   LIBRARIES SigilSketchSet SigilWeavePorts SigilWeaveFonts SigilGeometryKit
             SigilCompose SigilComposeTexture)
 
-sigil_bench(sketch_set_bench
+sigil_bench(sketch_bench
   SOURCES bench/SetSessionBench.cpp
   LIBRARIES SigilSketchSet SigilWeavePorts SigilWeaveFonts SigilGeometryKit)

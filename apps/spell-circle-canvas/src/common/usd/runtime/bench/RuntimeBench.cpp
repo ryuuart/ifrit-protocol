@@ -17,18 +17,16 @@ void BM_Available(benchmark::State& state) {
     benchmark::DoNotOptimize(sigil::usd::available());
 }
 
-}  // namespace
-
-int main(int argc, char** argv) {  // NOLINT(bugprone-exception-escape): an
-                                   // uncaught error ends the run
+// Registered while the binary loads: without the USD plugins there is
+// nothing to time here, and the reason is printed once.
+[[maybe_unused]] const int kRegistered = [] {
   std::string why;
   if (sigil::usd::available(&why))
     benchmark::RegisterBenchmark("BM_Available", BM_Available);
   else
-    std::fprintf(stderr, "usd_runtime_bench: nothing to run — %s\n",
+    std::fprintf(stderr, "usd runtime benchmarks: nothing to run — %s\n",
                  why.c_str());
-  benchmark::Initialize(&argc, argv);
-  benchmark::RunSpecifiedBenchmarks();
-  benchmark::Shutdown();
   return 0;
-}
+}();
+
+}  // namespace

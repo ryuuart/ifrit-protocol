@@ -328,5 +328,3 @@ void BM_PoseAlongManyContours(benchmark::State& state) {
 BENCHMARK(BM_PoseAlongManyContours);
 
 }  // namespace
-
-BENCHMARK_MAIN();

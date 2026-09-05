@@ -27,13 +27,13 @@ sigil_library(SigilGeometryPath
 # and its every claim is about the contours this leaf resamples. One file
 # per subject inside it — contours, polylines, marks, operators, seams,
 # crossings, frames, blend.
-sigil_test(geometry_path_test
+sigil_test(geometry_test
   SOURCES test/ContoursTest.cpp test/PolylinesTest.cpp test/MarksTest.cpp
           test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/BlendTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
-sigil_bench(geometry_path_bench
+sigil_bench(geometry_bench
   SOURCES bench/PathBench.cpp
   LIBRARIES SigilGeometryPath)
 

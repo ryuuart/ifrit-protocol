@@ -84,5 +84,3 @@ void BM_SurfaceResize(benchmark::State& state) {
 BENCHMARK(BM_SurfaceResize)->Arg(256)->Arg(1280);
 
 }  // namespace
-
-BENCHMARK_MAIN();

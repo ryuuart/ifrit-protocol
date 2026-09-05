@@ -25,6 +25,6 @@ sigil_library(SigilSketchKit PIC
 # every component draws exactly what the compose kit spelled by hand with
 # the same values draws — asserted in pixels, because that is the claim a
 # migrated sketch's plate rests on.
-sigil_test(sketch_kit_test
+sigil_test(sketch_test
   SOURCES test/SketchKitTest.cpp
   LIBRARIES SigilSketchKit SigilMotionClock)

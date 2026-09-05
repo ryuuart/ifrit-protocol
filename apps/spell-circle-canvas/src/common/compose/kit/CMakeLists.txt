@@ -44,7 +44,7 @@ sigil_library(SigilComposeKit
 # reports, which is the one target the kit's own link line does not carry.
 #
 # Shapes text through the machine's own faces, so the label says so.
-sigil_test(compose_kit_test
+sigil_test(compose_test
   SOURCES test/ComposeTestKitValues.cpp test/ComposeTestLayoutsAndShapes.cpp
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
           test/ComposeTestPlacers.cpp test/ComposeTestQueries.cpp
@@ -54,6 +54,6 @@ sigil_test(compose_kit_test
   LABELS fonts)
 
 # Comparable silhouettes, hit testing and blended shaped leaves.
-sigil_bench(compose_shape_bench
+sigil_bench(compose_bench
   SOURCES bench/ComposeShapeBench.cpp
   LIBRARIES SigilComposeKit SigilWeavePorts)

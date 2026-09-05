@@ -22,7 +22,7 @@ sigil_library(SigilDrawBrush PIC
   PUBLIC SigilDraw SigilGeometryPath Boost::unordered
   PRIVATE SigilSkiaDraw)
 
-sigil_test(draw_brush_test
+sigil_test(draw_test
   SOURCES test/CatalogueTest.cpp test/DepositTest.cpp test/DynamicsTest.cpp
           test/EngineTest.cpp test/FieldsTest.cpp test/GrainTest.cpp
           test/HatchTest.cpp test/MassTest.cpp test/PlotTest.cpp
@@ -31,7 +31,7 @@ sigil_test(draw_brush_test
           test/WashTest.cpp
   LIBRARIES SigilDrawBrush SigilWeavePorts)
 
-sigil_bench(draw_brush_bench
+sigil_bench(draw_bench
   SOURCES bench/BrushBench.cpp
   LIBRARIES SigilDrawBrush)
 

@@ -607,9 +607,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkPath coverageOutline;
   SkSize coverageOutlineSize = {-1.0f, -1.0f};
   float coverageOutlineScale = -1.0f;  ///< the device scale it was traced at
+  // The silhouette a custom shape resolved to, and the shape VALUE it came
+  // from. The description it was read off is not an identity: a
+  // description freed and rebuilt can land on the address the old one
+  // had, and the drawing behind it is a different one. A shape that
+  // prunes compares equal to itself and hits; a lambda compares equal to
+  // nothing and re-resolves, which is what a lambda already costs.
   SkPath outlineCache;
   SkSize outlineCacheSize = {-1.0f, -1.0f};
-  const ElementNode* outlineCacheDescription = nullptr;
+  Shape outlineCacheShape;
 
   // Stamped-brush bakes live with the NODE (handed to decorations via
   // PaintContext::stamps), so a brush value rebuilt every describe reuses

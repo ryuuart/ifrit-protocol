@@ -92,8 +92,9 @@ window at a stated size and device pixel ratio through Sketchbook's
 `bench/app_fps_<config>.json`, keyed by the sketch's stem; the host's
 own overhead is in the number, which a raster `--bench` cannot see.
 Two window sweeps cannot share one display, so it runs alone.
-`bench_ledger.py` (`mise run bench`) runs every `*_bench` binary (the
-`benches` target builds them) on a quiet machine and compares medians
+`bench_ledger.py` (`mise run bench`) runs every `*_bench` binary — one
+per library, under `build/bin/<config>/benches/`, which the `benches`
+target builds — on a quiet machine and compares medians
 against `bench/baseline_<config>.json`. Both read, merge and write
 their baseline and judge their rows through `ledger.py`: a narrowed
 sweep merges on `--rebase`, a SLOWER row beyond its band fails the run,

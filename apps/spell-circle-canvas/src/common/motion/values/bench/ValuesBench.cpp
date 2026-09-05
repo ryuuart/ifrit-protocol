@@ -136,5 +136,3 @@ BENCHMARK(BM_Construct)
     ->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

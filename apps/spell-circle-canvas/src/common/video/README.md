@@ -177,23 +177,22 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Release
-cmake --build build --config Release --target video_decode_test \
-  video_encode_test video_device_test
+cmake --build build --config Release --target video_test
 ctest --test-dir build -C Release -R '^video_' --output-on-failure
 ```
 
-`video_encode_test` creates a short MP4 in memory, decodes it through
+The encode cases create a short MP4 in memory, decode it through
 `SigilVideoDecode`, and checks its timing and that the colours it was given
-read back through the CPU executor. `video_decode_test` covers input that is not a video (one parameterised
+read back through the CPU executor. The decode cases cover input that is not a video (one parameterised
 case over no bytes at all and bytes of something else), alpha, seeking,
 the cache's capacity, `Playback` in its synchronous mode
 (`workerThreads = 0`, so a request is decoded before it returns and
 nothing here waits on a clock), and what
 `HardwarePreference::Required` means — device frames or no frames,
-asserted on whichever arm this build takes rather than on one platform. `video_device_test`
+asserted on whichever arm this build takes rather than on one platform. The `VideoDevice` suite
 exercises the native device path on a Graphite Metal surface where the
 platform makes VideoToolbox available; it carries the `gpu` ctest label.
-`video_device_bench` measures independent mixed-resolution clocks through
+`video_bench` measures independent mixed-resolution clocks through
 the device path in two arms: `BM_RenderThread` pulls every stream with
 `frameAt` on the thread that presents, and `BM_WorkerPool` drives the same
 streams through `Playback` paced at the presentation rate, timing the render

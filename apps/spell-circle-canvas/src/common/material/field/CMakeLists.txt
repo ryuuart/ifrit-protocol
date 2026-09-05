@@ -13,6 +13,6 @@ sigil_shader_sources(SigilMaterialField
 
 # test/FieldTest.cpp is compiled into material_test, at the library root.
 
-sigil_bench(material_field_bench
+sigil_bench(material_bench
   SOURCES bench/FieldBench.cpp
   LIBRARIES SigilMaterialField SigilMaterialSkia)

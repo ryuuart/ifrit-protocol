@@ -67,7 +67,7 @@ sigil_test(material_test
               SIGIL_MATERIAL_FIELD_SHADER_DIR="${SIGIL_MATERIAL_FIELD_SHADER_DIR}"
   LIBRARIES SigilMaterialColor SigilMaterialField SigilMaterialOcio
             SigilMaterialPattern SigilMaterialSdf SigilMaterialSkia
-  LABELS ocio)
+  SUITES Ocio LABELS ocio)
 
 # THE DEVICE SWEEP, over the whole library rather than one feature: a body
 # is validated one way as its own runtime effect and another once a GPU
@@ -76,8 +76,8 @@ sigil_test(material_test
 # links the umbrella and Graphite, which is why it stands here and not
 # under a feature.
 if(APPLE)
-  sigil_test(material_gpu_test
+  sigil_test(material_test
     SOURCES test/MaterialGpuTest.mm
     LIBRARIES SigilMaterial SigilSkia
-    LABELS gpu)
+    SUITES MaterialGpu LABELS gpu)
 endif()

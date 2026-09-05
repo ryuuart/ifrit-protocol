@@ -59,5 +59,3 @@ BENCHMARK_CAPTURE(ExponentOverACanvas, program, true, kUnknown_SkColorType);
 BENCHMARK_CAPTURE(ExponentOverACanvas, table, true, kN32_SkColorType);
 
 }  // namespace
-
-BENCHMARK_MAIN();

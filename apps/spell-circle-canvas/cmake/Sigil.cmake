@@ -4,8 +4,12 @@
 #                            and bench directories, its documentation site
 #   sigil_library()          one feature target: its sources, its public
 #                            headers and the links the call names
-#   sigil_test()             a GoogleTest binary registered with ctest
-#   sigil_bench()            a Google Benchmark binary, never a test
+#   sigil_test()             this directory's cases, in its library's one
+#                            GoogleTest binary, one ctest entry per case
+#   sigil_bench()            this directory's benchmarks, in its library's
+#                            one Google Benchmark binary, never a test
+#   sigil_finalize_tests()   the ctest entries, once every directory has
+#                            contributed
 #   sigil_qt_target()        turns Qt's source scanning on for one target
 #   sigil_header_self_test() compiles every public header first and alone
 #   sigil_shader_sources()   compiles a directory of shader text into a
@@ -15,6 +19,9 @@
 # PRIVATE, adds a link a call did not name, or globs a source. Each
 # function's contract is stated above it. A build module only ONE library
 # needs lives in that library's own cmake/ directory instead.
+
+# Where gtest_discover_tests() comes from.
+include(GoogleTest)
 
 # sigil_library_root(<Name> BRIEF "<one line>" [DOCS <file>...])
 #   Once, in a library's root CMakeLists.txt. For that directory and every
@@ -120,10 +127,11 @@ endfunction()
 
 # What a test and a bench binary share: the support directories, the
 # fixture directory, the caller's definitions, and ARC on the
-# Objective-C++ sources.
+# Objective-C++ sources. Called once per contributing directory, so every
+# value here is added to a target another directory may have created;
+# CMake keeps one copy of a repeated include directory or definition.
 function(_sigil_binary_support target kind)
-  cmake_parse_arguments(ARG "ARC" "ASSET_DIR"
-    "SOURCES;DEFINITIONS;SUPPORT_DIRS" ${ARGN})
+  cmake_parse_arguments(ARG "ARC" "" "SOURCES;DEFINITIONS;SUPPORT_DIRS" ${ARGN})
   set(dirs)
   if(kind STREQUAL test)
     list(APPEND dirs ${SIGIL_TEST_DIR} ${SIGIL_TEST_SUPPORT_DIR})
@@ -136,12 +144,9 @@ function(_sigil_binary_support target kind)
   if(dirs)
     target_include_directories(${target} PRIVATE ${dirs})
   endif()
-  if(NOT ARG_ASSET_DIR AND SIGIL_TEST_DIR)
-    set(ARG_ASSET_DIR ${SIGIL_TEST_DIR}/assets)
-  endif()
-  if(ARG_ASSET_DIR)
+  if(SIGIL_TEST_DIR)
     target_compile_definitions(${target} PRIVATE
-      SIGIL_TEST_ASSET_DIR="${ARG_ASSET_DIR}")
+      SIGIL_TEST_ASSET_DIR="${SIGIL_TEST_DIR}/assets")
   endif()
   # The instrument faces are the whole tree's, not one library's, so they
   # are named separately from the fixtures a single library commits: a
@@ -156,31 +161,120 @@ function(_sigil_binary_support target kind)
   if(ARG_ARC)
     foreach(source IN LISTS ARG_SOURCES)
       if(source MATCHES "\\.mm$")
-        set_source_files_properties(${source} PROPERTIES
-          COMPILE_OPTIONS -fobjc-arc)
+        get_filename_component(source ${source} ABSOLUTE)
+        set_source_files_properties(${source} TARGET_DIRECTORY ${target}
+          PROPERTIES COMPILE_OPTIONS -fobjc-arc)
       endif()
     endforeach()
   endif()
 endfunction()
 
-# sigil_test(<name> SOURCES <file>... [LIBRARIES <item>...] [LABELS <label>...]
-#            [DEFINITIONS <define>...] [SUPPORT_DIRS <dir>...]
-#            [ASSET_DIR <dir>] [ARC])
-#   A GoogleTest binary registered with ctest. It sees SIGIL_TEST_DIR, the
-#   tree-wide test support directory and SUPPORT_DIRS, and reads its
-#   committed fixtures through SIGIL_TEST_ASSET_DIR — <root>/test/assets
-#   unless ASSET_DIR says otherwise — and the tree's instrument faces
-#   through SIGIL_TEST_INSTRUMENT_DIR. ARC compiles the Objective-C++
-#   sources with automatic reference counting.
-function(sigil_test name)
-  cmake_parse_arguments(ARG "ARC" "ASSET_DIR"
-    "SOURCES;LIBRARIES;LABELS;DEFINITIONS;SUPPORT_DIRS" ${ARGN})
-  # The framework every test binary links, found by the call that links it.
-  if(NOT TARGET GTest::gtest_main)
-    find_package(GTest CONFIG REQUIRED)
+# One binary per library, in bin/<config>/tests and bin/<config>/benches.
+# The first call creates it; every later call adds sources and links to the
+# one that stands, which is how a directory keeps declaring its own cases
+# beside the code they cover without a target per file.
+function(_sigil_binary target kind)
+  if(TARGET ${target})
+    return()
   endif()
-  add_executable(${name} ${ARG_SOURCES})
-  target_link_libraries(${name} PRIVATE ${ARG_LIBRARIES} GTest::gtest_main)
+  add_executable(${target})
+  set(home benches)
+  if(kind STREQUAL test)
+    set(home tests)
+    if(NOT TARGET GTest::gtest_main)
+      find_package(GTest CONFIG REQUIRED)
+    endif()
+    target_link_libraries(${target} PRIVATE GTest::gtest_main)
+    set_property(TARGET ${target} PROPERTY SIGIL_TEST_LABEL_GROUPS "")
+    set_property(TARGET ${target} PROPERTY SIGIL_TEST_LABELS "")
+    # sigil_finalize_tests() writes the ctest entries, once every
+    # directory has contributed its cases.
+    set_property(GLOBAL APPEND PROPERTY SIGIL_TEST_BINARIES ${target})
+  else()
+    if(NOT TARGET benchmark::benchmark)
+      find_package(benchmark CONFIG REQUIRED)
+    endif()
+    # benchmark_main supplies main() for the binary; a bench source that
+    # needs its own defines it and the linker leaves this one out.
+    target_link_libraries(${target} PRIVATE benchmark::benchmark_main)
+    add_dependencies(benches ${target})
+  endif()
+  set_target_properties(${target} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/$<CONFIG>/${home})
+endfunction()
+
+# sigil_finalize_tests()
+#   Once, after every subdirectory has been added. One ctest entry per
+#   CASE, discovered from each binary when ctest runs, so a suite or a
+#   case is selected by name with no target behind it. A group of cases
+#   that carries labels is discovered by itself with those labels on it;
+#   everything the groups do not name is discovered with the binary's own.
+function(sigil_finalize_tests)
+  get_property(binaries GLOBAL PROPERTY SIGIL_TEST_BINARIES)
+  foreach(target IN LISTS binaries)
+    _sigil_discover_tests(${target})
+  endforeach()
+endfunction()
+
+function(_sigil_discover_tests target)
+  get_property(groups TARGET ${target} PROPERTY SIGIL_TEST_LABEL_GROUPS)
+  set(labelled)
+  foreach(group IN LISTS groups)
+    string(REGEX MATCH "^([^|]*)\\|(.*)$" matched "${group}")
+    string(REPLACE "," ";" labels "${CMAKE_MATCH_1}")
+    string(REPLACE "," ";" patterns "${CMAKE_MATCH_2}")
+    set(filter)
+    foreach(pattern IN LISTS patterns)
+      # A bare name is a whole suite; a name with a dot is one case.
+      if(NOT pattern MATCHES "\\.")
+        string(APPEND pattern ".*")
+      endif()
+      list(APPEND filter ${pattern})
+      list(APPEND labelled ${pattern})
+    endforeach()
+    list(JOIN filter ":" filter)
+    gtest_discover_tests(${target}
+      TEST_FILTER "${filter}"
+      PROPERTIES LABELS "${labels}"
+      DISCOVERY_MODE PRE_TEST)
+  endforeach()
+  set(rest)
+  if(labelled)
+    list(JOIN labelled ":" rest)
+    set(rest "-${rest}")
+  endif()
+  get_property(labels TARGET ${target} PROPERTY SIGIL_TEST_LABELS)
+  list(REMOVE_DUPLICATES labels)
+  gtest_discover_tests(${target}
+    TEST_FILTER "${rest}"
+    PROPERTIES LABELS "${labels}"
+    DISCOVERY_MODE PRE_TEST)
+endfunction()
+
+# sigil_test(<library>_test SOURCES <file>... [LIBRARIES <item>...]
+#            [SUITES <pattern>... LABELS <label>...]
+#            [DEFINITIONS <define>...] [SUPPORT_DIRS <dir>...] [ARC])
+#   Adds this directory's cases to its library's one GoogleTest binary. It
+#   sees SIGIL_TEST_DIR, the tree-wide test support directory and
+#   SUPPORT_DIRS, and reads the library's committed fixtures through
+#   SIGIL_TEST_ASSET_DIR and the tree's instrument faces through
+#   SIGIL_TEST_INSTRUMENT_DIR. LABELS are the ctest labels — what a runner
+#   has to supply, so a run can leave those cases out; alone they go on
+#   every case the binary holds that no SUITES group claims, and with
+#   SUITES (GoogleTest suite names, or Suite.Case entries) on those cases
+#   only. A call may carry SUITES and LABELS and no SOURCES, which labels
+#   cases another call in the same library contributed. ARC compiles the
+#   Objective-C++ sources with automatic reference counting.
+function(sigil_test name)
+  cmake_parse_arguments(ARG "ARC" ""
+    "SOURCES;LIBRARIES;LABELS;SUITES;DEFINITIONS;SUPPORT_DIRS" ${ARGN})
+  _sigil_binary(${name} test)
+  if(ARG_SOURCES)
+    target_sources(${name} PRIVATE ${ARG_SOURCES})
+  endif()
+  if(ARG_LIBRARIES)
+    target_link_libraries(${name} PRIVATE ${ARG_LIBRARIES})
+  endif()
   set(arc)
   if(ARG_ARC)
     set(arc ARC)
@@ -188,30 +282,39 @@ function(sigil_test name)
   _sigil_binary_support(${name} test ${arc}
     SOURCES ${ARG_SOURCES}
     DEFINITIONS ${ARG_DEFINITIONS}
-    SUPPORT_DIRS ${ARG_SUPPORT_DIRS}
-    ASSET_DIR ${ARG_ASSET_DIR})
-  add_test(NAME ${name} COMMAND ${name})
-  if(ARG_LABELS)
-    set_tests_properties(${name} PROPERTIES LABELS "${ARG_LABELS}")
+    SUPPORT_DIRS ${ARG_SUPPORT_DIRS})
+  if(ARG_SUITES)
+    if(NOT ARG_LABELS)
+      message(FATAL_ERROR
+        "sigil_test(${name}): SUITES names the cases a LABELS carries; "
+        "without labels it says nothing")
+    endif()
+    list(JOIN ARG_LABELS "," labels)
+    list(JOIN ARG_SUITES "," suites)
+    set_property(TARGET ${name} APPEND PROPERTY
+      SIGIL_TEST_LABEL_GROUPS "${labels}|${suites}")
+  elseif(ARG_LABELS)
+    set_property(TARGET ${name} APPEND PROPERTY SIGIL_TEST_LABELS ${ARG_LABELS})
   endif()
 endfunction()
 
-# sigil_bench(<name> SOURCES <file>... [LIBRARIES <item>...]
+# sigil_bench(<library>_bench SOURCES <file>... [LIBRARIES <item>...]
 #             [DEFINITIONS <define>...] [SUPPORT_DIRS <dir>...] [GPU] [ARC])
-#   A Google Benchmark binary hung off the `benches` target and never a
-#   test. It sees SIGIL_BENCH_DIR and SUPPORT_DIRS and reads fixtures
-#   through SIGIL_TEST_ASSET_DIR and instrument faces through
-#   SIGIL_TEST_INSTRUMENT_DIR. GPU adds the Graphite arm where a device
-#   is guaranteed: on Apple the binary links SigilSkia and is compiled with
+#   Adds this directory's benchmarks to its library's one Google Benchmark
+#   binary, which hangs off the `benches` target and is never a test. It
+#   sees SIGIL_BENCH_DIR and SUPPORT_DIRS and reads fixtures through
+#   SIGIL_TEST_ASSET_DIR and instrument faces through
+#   SIGIL_TEST_INSTRUMENT_DIR. GPU adds the Graphite arm where a device is
+#   guaranteed: on Apple the binary links SigilSkia and is compiled with
 #   SIGIL_BENCH_GPU.
 function(sigil_bench name)
   cmake_parse_arguments(ARG "GPU;ARC" ""
     "SOURCES;LIBRARIES;DEFINITIONS;SUPPORT_DIRS" ${ARGN})
-  if(NOT TARGET benchmark::benchmark)
-    find_package(benchmark CONFIG REQUIRED)
+  _sigil_binary(${name} bench)
+  target_sources(${name} PRIVATE ${ARG_SOURCES})
+  if(ARG_LIBRARIES)
+    target_link_libraries(${name} PRIVATE ${ARG_LIBRARIES})
   endif()
-  add_executable(${name} ${ARG_SOURCES})
-  target_link_libraries(${name} PRIVATE ${ARG_LIBRARIES} benchmark::benchmark)
   if(ARG_GPU AND APPLE)
     target_link_libraries(${name} PRIVATE SigilSkia)
     target_compile_definitions(${name} PRIVATE SIGIL_BENCH_GPU)
@@ -224,7 +327,6 @@ function(sigil_bench name)
     SOURCES ${ARG_SOURCES}
     DEFINITIONS ${ARG_DEFINITIONS}
     SUPPORT_DIRS ${ARG_SUPPORT_DIRS})
-  add_dependencies(benches ${name})
 endfunction()
 
 # sigil_qt_target(<target>...)

@@ -183,8 +183,8 @@ package is not found the top-level configure warns and
 leaves every target here out.
 
 Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
-`SigilUsd` umbrella; `usd_write_test` and `usd_read_test` (ctest);
-`usd_runtime_bench`, `usd_write_bench` and `usd_read_bench` (Google
+`SigilUsd` umbrella; `usd_test` (ctest, one binary over `write/test/` and
+`read/test/`); `usd_bench` (Google
 Benchmark, through the `benches` target and `scripts/bench_ledger.py`).
 
 ```sh
@@ -199,7 +199,7 @@ skip every case opens with, and the two-slot ring both doors are
 exercised over. Both binaries carry the `usd` ctest label, because
 without the plugin registry every case in them skips. The runtime leaf carries no test binary of its own; its
 claim, that the probe answers and answers the same way twice, is
-asserted in `usd_read_test` beside the cases that skip on it.
+asserted in `read/test/` beside the cases that skip on it.
 
 The write test authors stages into that scratch directory and inspects
 them through USD's own API, one case per subject: the crate bytes and

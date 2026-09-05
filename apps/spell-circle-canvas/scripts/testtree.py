@@ -34,15 +34,18 @@ def tests(preset: str, configuration: str, test_filter: str | None) -> list:
 
 
 def build_targets(preset: str, configuration: str, test_filter: str) -> list:
-    """The targets a test filter needs built. A test in this repository
-    is registered under its executable's target name, so an unbuilt test
-    names its target and a built one names its binary; a test driven by
-    something outside the tree — a build tool, an interpreter — needs no
-    target of its own and is left out."""
+    """The targets a test filter needs built. A built GoogleTest case
+    names its binary in its command; an unbuilt binary registers one
+    `<target>_NOT_BUILT` entry in place of its cases, and a test the
+    build itself runs — a header self-test — is registered under its own
+    target name. A test driven by something outside the tree — a build
+    tool, an interpreter — needs no target of its own and is left out."""
     binaries = str(PROJECT_DIR / f"build-{preset}" / "bin" / configuration)
     targets = set()
     for name, command in tests(preset, configuration, test_filter):
-        if command is None:
+        if name.endswith("_NOT_BUILT"):
+            targets.add(name.removesuffix("_NOT_BUILT"))
+        elif command is None:
             targets.add(name)
         elif command[0].startswith(binaries + os.sep):
             targets.add(Path(command[0]).name)

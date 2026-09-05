@@ -91,5 +91,3 @@ BENCHMARK(TextureValue);
 }  // namespace
 
 }  // namespace sigil::compose::bench
-
-BENCHMARK_MAIN();

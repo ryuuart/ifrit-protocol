@@ -83,16 +83,18 @@ sigil_shader_sources(SigilWorldDiligent
 # rather than fails. The label is what makes that visible from outside:
 # `ctest -L gpu` is the run that needs a device, and a run that excludes
 # it is a run nobody should read a device verdict out of.
-sigil_test(world_diligent_test
+sigil_test(world_test
   SOURCES test/RuntimeTest.cpp test/StackTest.cpp
           test/SurfaceTest.cpp test/DeviceSeams.h
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilWorldDiligent SigilMaterialKit SigilGeometryKit
+  SUITES EitherTier Environment GpuRuntime Programs Stack SurfaceProgram
+         SurfaceSlots
   LABELS gpu)
 
-sigil_bench(world_diligent_bench
+sigil_bench(world_bench
   SOURCES bench/DeviceBench.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilWorldDiligent SigilMaterialKit SigilGeometryKit SigilMeasure)

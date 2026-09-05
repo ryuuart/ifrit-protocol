@@ -25,10 +25,10 @@ sigil_library(SigilMotionSchedule
 
 # Links only the library it exercises — no clock, so a schedule that
 # started reading time for itself would show up as a build failure here.
-sigil_test(motion_schedule_test
+sigil_test(motion_test
   SOURCES test/ScheduleTest.cpp
   LIBRARIES SigilMotionSchedule)
 
-sigil_bench(motion_schedule_bench
+sigil_bench(motion_bench
   SOURCES bench/ScheduleBench.cpp
   LIBRARIES SigilMotionSchedule)

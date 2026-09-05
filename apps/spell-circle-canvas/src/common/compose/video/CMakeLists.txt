@@ -4,6 +4,6 @@ sigil_library(SigilComposeVideo
   HEADERS Video.h
   INTERFACE SigilComposeCore SigilVideoDecode)
 
-sigil_test(compose_video_test
+sigil_test(compose_test
   SOURCES test/ComposeVideoTest.cpp
   LIBRARIES SigilComposeVideo SigilVideoEncode SigilWeavePorts)

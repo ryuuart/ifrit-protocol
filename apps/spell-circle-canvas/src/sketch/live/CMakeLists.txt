@@ -13,10 +13,10 @@ sigil_library(SigilSketchLive PIC
          Boost::container
   PRIVATE SigilIOSource SigilCoreSchedule)
 
-sigil_test(sketch_live_test
+sigil_test(sketch_test
   SOURCES test/HostTest.cpp test/ResidencyTest.cpp
   LIBRARIES SigilSketchLive SigilSketchCanvas)
 
-sigil_bench(sketch_live_bench
+sigil_bench(sketch_bench
   SOURCES bench/HostBench.cpp
   LIBRARIES SigilSketchLive SigilSketchCanvas)

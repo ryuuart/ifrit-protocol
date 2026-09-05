@@ -19,10 +19,10 @@ sigil_library(SigilWorldElement
 # The emitter values are here too: this target links the light feature,
 # so a binary over the emitters alone would draw no boundary — the
 # description and the emitters it carries are one closure.
-sigil_test(world_element_test
+sigil_test(world_test
   SOURCES test/ElementTest.cpp test/LightTest.cpp test/SelectorTest.cpp
   LIBRARIES SigilWorldElement)
 
-sigil_bench(world_element_bench
+sigil_bench(world_bench
   SOURCES bench/ElementBench.cpp
   LIBRARIES SigilWorldElement)

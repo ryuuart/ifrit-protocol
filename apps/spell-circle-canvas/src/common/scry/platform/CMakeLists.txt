@@ -30,14 +30,14 @@ target_compile_definitions(SigilScryPlatform PRIVATE
 # Ultralight types, so they cannot be public. A test that could reach
 # only LogLevel.h and Runtime.h could assert nothing about the surface,
 # the file system or the logger.
-sigil_test(scry_platform_test
+sigil_test(scry_test
   SOURCES test/PlatformTest.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilScryPlatform Ultralight::Ultralight)
-ultralight_copy_resources(scry_platform_test)
+ultralight_copy_resources(scry_test)
 
-sigil_bench(scry_platform_bench
+sigil_bench(scry_bench
   SOURCES bench/PlatformBench.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilScryPlatform Ultralight::Ultralight)
-ultralight_copy_resources(scry_platform_bench)
+ultralight_copy_resources(scry_bench)

@@ -40,5 +40,3 @@ void CrtOverlayPaint(benchmark::State& state) {
 BENCHMARK(CrtOverlayPaint)->Arg(64)->Arg(256);
 
 }  // namespace
-
-BENCHMARK_MAIN();

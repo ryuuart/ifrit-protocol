@@ -1100,16 +1100,20 @@ shape takes SigilGeometry's `quad()` rather than building one, and the
 one hand-built mesh left is a single TRIANGLE, kept because a stamp
 standing at every point of a cloud is counted in triangles.
 
-| binary | what it proves | label |
-|---|---|---|
-| `world_element_test` | the description and the emitters it carries | — |
-| `world_frame_test` | the declarations and the CPU executor | — |
-| `world_graph_test` | the ordering derived from the declarations | — |
-| `world_scene_test` | the retained side | — |
-| `world_kit_test` | the presets | — |
-| `world_diligent_test` | the device executor | `gpu` |
+The library has one test binary, `world_test`, built from every feature's
+`test/` directory; ctest discovers one entry per CASE out of it, so a
+suite or a case is selected by name with no target behind it.
 
-`world_element_test` covers the description: copy-on-write, the
+| suites | what they prove | label |
+|---|---|---|
+| `element/test/` | the description and the emitters it carries | — |
+| `frame/test/` | the declarations and the CPU executor | — |
+| `graph/test/` | the ordering derived from the declarations | — |
+| `scene/test/` | the retained side | — |
+| `kit/test/` | the presets | — |
+| `diligent/test/` | the device executor | `gpu` |
+
+The element suites cover the description: copy-on-write, the
 structural prune **field by field as one `TEST_P` whose parameter is the
 field**, each said two ways, so every row shows a field to tell two
 values apart as well as to be in the comparison at all — the geometry
@@ -1122,7 +1126,7 @@ target links the light feature — every target that reaches the emitters
 reaches the description too, so there is no boundary for a second binary
 to draw.
 
-`world_kit_test` covers the presets: what tree each returns, that the rig
+The kit suites cover the presets: what tree each returns, that the rig
 is stated in the subject's own extents and puts every lamp at the subject
 when there are none, that a whole turn of the turntable is where it
 started and a rail asked for fewer than three stations is still a closed
@@ -1131,7 +1135,7 @@ round its centre and the winding stays on its shell while crossing its
 own plane twice a wrap and turning the laps it was asked for, and that
 the one colour this library states is the ground's.
 
-`world_scene_test` covers the retained side, every case over one fixture
+The scene suites cover the retained side, every case over one fixture
 holding a clock and a scene reading it: an emitter dial reaching the
 light it scales while the tree stands still, identity across a keyed
 reorder, the three lifetimes pulling apart under a geometry-slot change,
@@ -1142,7 +1146,7 @@ pixels, since which realisation the ordering DERIVED is the graph
 binary's claim rather than this one's — and a draw that is a function of
 the description alone.
 
-`world_frame_test` covers the declarations and the CPU executor without
+The frame suites cover the declarations and the CPU executor without
 anything retained: a pass compares field by field, a mask realisation
 writes the coverage and a variant realisation redraws the selection in
 its surface, a post pass reads what stands and what stood last frame, a
@@ -1151,7 +1155,7 @@ draw it, two names on one slot share the surface, and a declared body is
 handed the extracted view. It is handed the realisation rather than
 deriving one.
 
-`world_graph_test` covers the ordering: the order from the declarations
+The graph suites cover the ordering: the order from the declarations
 and its independence from the order they were written in, a cycle named,
 `previous()` breaking one, the surfaces counted and shared, the hazards
 stated, and **every selection realisation as one `TEST_P` whose parameter
@@ -1161,12 +1165,12 @@ narrowed pass carrying a surface redrawn in it, and a pass that says how
 it wants to be realised overriding the rule. The coverage a masked pass
 reads and the pass ahead of it writes is its own case beside them.
 
-`world_diligent_test` covers the device side. Every case reads this
+The device suites cover the device side. Every case reads this
 feature through its public headers alone — the source directory is not on
 the binary's include path — so a claim about a compiled program or a
 sampled map is a claim somebody outside can make. What it takes to put a
 mesh or a map on the device at all is judged where that code lives, in
-`geometry_device_test`. `diligent/test/DeviceSeams.h` holds the two
+SigilGeometry's `Device` suite. `diligent/test/DeviceSeams.h` holds the two
 seam values that stand on a device, the two cameras every case looks
 through, the card it photographs, the texture the 2D path paints on the
 device, and the worst channel two plates differ by; **the device itself
@@ -1202,8 +1206,8 @@ at its base colour while a lit one of the same colour under a sun aimed
 away stands darker.
 
 That every recipe this repository ships compiles is not asked here:
-`material_slang_test` compiles the kit's own surfaces through the same
-backend and `material_gpu_test` draws every recipe the material library
+SigilMaterial's Slang suite compiles the kit's own surfaces through the same
+backend and its `MaterialGpu` suite draws every recipe the material library
 ships on a device, so a sweep here would be a third reading of one fact.
 
 **How far the two tiers stand apart is asked nowhere in these binaries.**
@@ -1215,11 +1219,11 @@ device`, and the only
 distance a test here reads is the worst channel, as an INEQUALITY saying
 an operation reached the pixels at all. The conformance of the chain cook
 and the swept rings is not here either: those executors are
-SigilGeometry's, and `geometry_mesh_pop_test` is where every chain and
+SigilGeometry's, and its point-operator suites are where every chain and
 every sweep the device says it can do is done both ways and compared bit
 for bit.
 
-**What `world_diligent_test` checks on a machine with no Vulkan runtime**,
+**What the device suites check on a machine with no Vulkan runtime**,
 which is why it carries the ctest label `gpu`: the Slang compile of a
 recipe's own body, the mip rule, and the host half of every claim written
 over the tier parameter. Every other case skips, and a skip is not
@@ -1233,9 +1237,8 @@ retained side's own header is unreachable from kit code — which is what
 makes "the kit sees public headers only" a property of the build rather
 than a convention.
 
-`world_element_bench`, `world_frame_bench`, `world_graph_bench`,
-`world_scene_bench`, `world_light_bench`, `world_kit_bench` and
-`world_diligent_bench` build through the `benches` target and run through `scripts/bench_ledger.py`;
+`world_bench` — every feature's `bench/` in one binary — builds through
+the `benches` target and runs through `scripts/bench_ledger.py`;
 use a Release build. The device bench measures the four costs a device
 has that the host does not: turning the device Diligent made into a
 device both APIs draw on, turning a recipe's Slang body into a program, a

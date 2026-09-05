@@ -940,11 +940,7 @@ a node's fill and routes it, and holds no paint model of its own.
 
 ```sh
 ctest --test-dir build -C Release -R material
-python3 scripts/bench_ledger.py --benches material_color_bench \
-    material_core_bench material_texture_bench material_mask_bench \
-    material_ocio_bench material_sdf_bench material_pattern_bench \
-    material_field_bench material_skia_bench material_kit_bench \
-    material_stock_bench material_slang_bench
+python3 scripts/bench_ledger.py --benches material_bench
 ```
 
 A case here asserts one thing this library promises through its public
@@ -959,30 +955,24 @@ is the bench ledger's. A claim made N times with one thing varying is one
 terms against their closed forms, the reserved parameter names a body may
 not redeclare, and the file names the texture tools write.
 
-**A binary exists where it links a strictly smaller set of targets than
-its neighbours and that boundary is a promise somebody could read**; two
-binaries over one closure are one binary. That is why there are eight
-here and not twelve: the colour leaf, the signed-distance surfaces, the
-tiles, the fields and the baked view transforms are five features, and a
-test of any of them shades through the Skia backend, so `material_test`
-is one binary over the five. The features themselves are still five archives —
-a consumer of the colour leaf links the colour leaf alone, and that is
-what the library promises.
+**The library has one test binary, `material_test`**, built from every
+feature's `test/` directory; ctest discovers one entry per CASE out of
+it, so a suite or a case is selected by name with no target behind it.
+Each feature's cases are named for the feature they cover:
 
-| binary | what it proves | label |
+| suites | what they prove | label |
 |---|---|---|
-| `material_core_test` | the value model, with no renderer in reach | — |
-| `material_test` | the primitives, the colour leaf, the view transforms | `ocio` |
-| `material_texture_test` | the image side | — |
-| `material_mask_test` | that a mask shapes what it reads, and that reshaping something that is not a mask changes nothing | — |
-| `material_kit_test` | the presets and the shading terms | — |
-| `material_skia_test` | the SkSL backend | — |
-| `material_slang_test` | the Slang backend, with no device | — |
-| `material_stock_test` | that the catalogue holds every feature catalogue, and that the warm-up compiles every program it gathered | — |
-| `material_gpu_test` | every body this library ships, on a device | `gpu` |
+| `core/test/` | the value model, with no renderer in reach | — |
+| `color/`, `sdf/`, `pattern/`, `field/`, `ocio/` | the primitives, the colour leaf, the view transforms | `ocio` on `Ocio` |
+| `texture/test/` | the image side | — |
+| `mask/test/` | that a mask shapes what it reads, and that reshaping something that is not a mask changes nothing | — |
+| `kit/test/` | the presets and the shading terms | — |
+| `skia/test/` | the SkSL backend | — |
+| `slang/test/` | the Slang backend, with no device | — |
+| `stock/test/` | that the catalogue holds every feature catalogue, and that the warm-up compiles every program it gathered | — |
+| `MaterialGpu` | every body this library ships, on a device | `gpu` |
 
-`material_core_test` links the core alone, so a link edge that pulled a
-renderer into the model would fail there. It covers params reflection —
+The core's cases cover params reflection —
 including that the schema IS the params struct's own layout, read off
 `offsetof` rather than off the numbers this compiler happened to choose —
 recipe identity against definition equality, the program cache's keys, a
@@ -991,7 +981,7 @@ is asked without a clock, the field it names once when a compiled body
 never reads it, material equality, bindings, children and tiers, what
 `over()` stacks, and `UniformBlock` revisioning.
 
-`material_test` covers the primitives and the leaf beneath them: the
+The primitive suites cover the leaf beneath them: the
 colour value's transfer function and OKLab round trips and its
 perceptual midpoint, the SDF surfaces, the tile mechanism and the stock
 generators over it, the fields, and the OpenColorIO bake — an exponent
@@ -1003,20 +993,20 @@ unavailable, which is what the `ocio` label says; a config that cannot
 be read failing soft is asked unconditionally, because that needs no
 OpenColorIO to ask.
 
-`material_texture_test` covers the image side: the sources and their
+The texture suites cover the image side: the sources and their
 identity across the erasure, the sampling dials, the environment map, the
 bevel producer, the atlas readers and packer, and the tools' file names —
 one row per name, so a failure says which tool's spelling moved rather
-than that a list changed. `material_skia_test` compiles a two-uniform
+than that a list changed. The Skia backend's suite compiles a two-uniform
 recipe through the cache and checks the raster it shades is byte
 identical to the same SkSL compiled and filled by hand, and states the
 four parameter names a body may not redeclare together with the three
-spellings that must still compile. `material_kit_test` compiles every
+spellings that must still compile. The kit's suite compiles every
 preset and checks a fill stays inside its path, dresses a surface from a
 decoded set, shades a stack at both ends of its mask, and holds every
 shading term to its closed form.
 
-`material_gpu_test` belongs to the whole library rather than to a
+The `MaterialGpu` suite belongs to the whole library rather than to a
 feature: every other suite shades on a raster surface, where a body is
 compiled as its own SkSL program, and a body can pass that and fail once
 a GPU backend has inlined it into a pipeline. It stands Graphite up,
@@ -1032,7 +1022,7 @@ effect so it reaches the device, must be reported — which is what proves
 the handler is wired to anything at all. Run it with
 
 ```sh
-ctest --test-dir build -C Release -R material_gpu_test
+ctest --test-dir build -C Release -R '^MaterialGpu\.'
 ```
 
 One file per subject, named for what it asserts. **The fixtures more than

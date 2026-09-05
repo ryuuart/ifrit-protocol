@@ -205,5 +205,3 @@ BENCHMARK(BM_ImportGeo_Points)
     ->Complexity(benchmark::oN);
 
 }  // namespace
-
-BENCHMARK_MAIN();

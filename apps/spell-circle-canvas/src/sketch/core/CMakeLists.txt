@@ -19,11 +19,11 @@ sigil_library(SigilSketchCore PIC
   PUBLIC SigilCoreComparable SigilGeometryMeshCamera SigilImageAsset
          SigilIO SigilVideoDecode Boost::container)
 
-sigil_test(sketch_core_test
+sigil_test(sketch_test
   SOURCES test/AssetsTest.cpp test/CrashTest.cpp test/DeviceTest.cpp
           test/RegistryTest.cpp test/SourcesTest.cpp
   LIBRARIES SigilSketchCore SigilVideoEncode)
 
-sigil_bench(sketch_core_bench
+sigil_bench(sketch_bench
   SOURCES bench/RegistryBench.cpp
   LIBRARIES SigilSketchCore)

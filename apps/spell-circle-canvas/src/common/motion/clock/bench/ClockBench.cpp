@@ -93,5 +93,3 @@ BENCHMARK(BM_Tick_Derivations)
     ->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

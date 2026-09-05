@@ -445,10 +445,9 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 python3 scripts/setup.py --config Release
-cmake --build build --config Release \
-  --target motion_clock_test motion_values_test motion_bind_test \
-           motion_schedule_test
-ctest --test-dir build -C Release -R '^motion_' --output-on-failure
+cmake --build build --config Release --target motion_test
+ctest --test-dir build -C Release --output-on-failure \
+  -R '^(Bind|Clock|Ticker|Transition|Animatable|Cascade)'
 ```
 
 Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock` and
@@ -456,16 +455,16 @@ Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock` and
 (`bind/`, `values/`, `clock/`, `schedule/`), each holding its sources, its
 `test/` and its `bench/` — plus `SigilMotion`, the umbrella.
 
-Four test binaries, one per feature. Each links a **strictly smaller** set
-of targets than its neighbours and that boundary is a promise somebody can
-read, which is why none of them merges into another:
+One test binary, `motion_test`, built from every feature's `test/`
+directory; ctest discovers one entry per CASE out of it, so a suite or a
+case is selected by name with no target behind it:
 
-| binary | what it proves | what it must not be able to link |
+| suites | what they prove | what the feature must not be able to link |
 |---|---|---|
-| `motion_bind_test` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, and the wiggle field | anything above the leaf — the record that carries a curve is the lowest thing here |
-| `motion_clock_test` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
-| `motion_values_test` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
-| `motion_schedule_test` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
+| `bind/test/` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, and the wiggle field | anything above the leaf — the record that carries a curve is the lowest thing here |
+| `clock/test/` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
+| `values/test/` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
+| `schedule/test/` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
 
 No binary needs a GPU, a font, an asset or a network, so none of them
 carries a ctest label and none of them skips. No test in any of them reads
@@ -505,13 +504,14 @@ evaluating a curve. Otherwise each test links only the library it
 exercises, plus the clock where a value is driven by the ticker, and
 GoogleTest.
 
-Four Google Benchmark binaries are built by the `benches` target and run
-from a Release build through `scripts/bench_ledger.py`, which is where any
-number about this library belongs: `motion_bind_bench` (`BoundFloat::apply`
+One Google Benchmark binary, `motion_bench`, is built by the `benches`
+target and run from a Release build through `scripts/bench_ledger.py`,
+which is where any number about this library belongs. Its arms:
+`bind/bench/` (`BoundFloat::apply`
 per call under each envelope and the full chain, and the wiggle field by
-octave), `motion_values_bench` (the consumer's read of an `Animatable`
+octave), `values/bench/` (the consumer's read of an `Animatable`
 lane per slot for each kind it can hold, and copying and constructing such
-a lane), `motion_clock_bench` (the frame clock's own step, the timeline
+a lane), `clock/bench/` (the frame clock's own step, the timeline
 stepped with N motions on it, and the derivation pass at N derived cells)
-and `motion_schedule_bench` (resolving a cascade for a frame's counts, and
+and `schedule/bench/` (resolving a cascade for a frame's counts, and
 the per-unit local-time read).

@@ -49,13 +49,13 @@ Host::Options options() {
   return opts;
 }
 
-void Frame(benchmark::State& state) {
+void LiveFrame(benchmark::State& state) {
   Host host(options(), fonts());
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(320, 240));
   for (auto&& _ : state) host.frame(*surface->getCanvas(), 1.0 / 60.0);
 }
-BENCHMARK(Frame)->Unit(benchmark::kMicrosecond);
+BENCHMARK(LiveFrame)->Unit(benchmark::kMicrosecond);
 
 /** The watch itself: one filesystem stat per frame, which every live
  *  frame pays whether or not anything changed. */
@@ -66,5 +66,3 @@ void Poll(benchmark::State& state) {
 BENCHMARK(Poll)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

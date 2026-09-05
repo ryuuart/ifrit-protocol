@@ -28,12 +28,12 @@ sigil_shader_sources(SigilMaterialKit
 # The test draws, so it links the Skia backend beside the kit. The
 # shader directory is named for the case that asks whether the embedded
 # table holds every file in it.
-sigil_test(material_kit_test
+sigil_test(material_test
   SOURCES test/KitTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_KIT_SHADER_DIR="${SIGIL_MATERIAL_KIT_SHADER_DIR}"
   LIBRARIES SigilMaterialKit SigilMaterialSkia)
 
-sigil_bench(material_kit_bench
+sigil_bench(material_bench
   SOURCES bench/KitBench.cpp
   LIBRARIES SigilMaterialKit SigilMaterialSkia)

@@ -11,14 +11,13 @@ sigil_library(SigilUsdRead
   PRIVATE usd usdGeom usdShade usdLux ar sdf tf gf vt)
 
 # Links the library it exercises, the runtime probe it skips on, and the
-# writer whose stages it round-trips; the committed fixtures under this
-# feature's test/assets/ reach it through SIGIL_TEST_ASSET_DIR.
-sigil_test(usd_read_test
+# writer whose stages it round-trips; the committed fixtures under the
+# library's test/assets/ reach it through SIGIL_TEST_ASSET_DIR.
+sigil_test(usd_test
   SOURCES test/ReadTest.cpp
   LABELS usd
-  LIBRARIES SigilUsdRead SigilUsdWrite SigilUsdRuntime SigilGeometryKit
-  ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
+  LIBRARIES SigilUsdRead SigilUsdWrite SigilUsdRuntime SigilGeometryKit)
 
-sigil_bench(usd_read_bench
+sigil_bench(usd_bench
   SOURCES bench/ReadBench.cpp
   LIBRARIES SigilUsdRead SigilUsdWrite SigilUsdRuntime SigilGeometryKit)

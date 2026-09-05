@@ -24,10 +24,10 @@ sigil_library(SigilWorldScene
   PRIVATE EnTT::EnTT SigilMaterialKit SigilCoreCache SigilGeometryMeshCurve
           SigilMotionValues)
 
-sigil_test(world_scene_test
+sigil_test(world_test
   SOURCES test/SceneTest.cpp
   LIBRARIES SigilWorldScene)
 
-sigil_bench(world_scene_bench
+sigil_bench(world_bench
   SOURCES bench/SceneBench.cpp
   LIBRARIES SigilWorldScene)

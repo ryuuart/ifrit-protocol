@@ -72,7 +72,7 @@ target_include_directories(SigilGeometryMeshPop PUBLIC
 
 # The pop tests seed chains from an imported model and save a cooked
 # result, so this binary reaches into the codec as well.
-sigil_test(geometry_mesh_pop_test
+sigil_test(geometry_test
   SOURCES test/PointsTest.cpp test/PopChainsTest.cpp test/PopFieldsTest.cpp
           test/PopFiltersTest.cpp test/PopLanesTest.cpp
           test/PopSelectionTest.cpp test/PopSinksTest.cpp
@@ -86,13 +86,13 @@ sigil_test(geometry_mesh_pop_test
 # bit for bit, and that the backend says nothing while they do — is not
 # what the cases above judge. A machine with no device runs
 # `ctest -LE gpu` and checks the host tier alone.
-sigil_test(geometry_mesh_pop_device_test
+sigil_test(geometry_test
   SOURCES test/DeviceCookTest.cpp test/DeviceStampTest.cpp
           test/DeviceSweepTest.cpp
   LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit
   SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
-  LABELS gpu)
+  SUITES DevicePop DeviceStamp DeviceSweep LABELS gpu)
 
-sigil_bench(geometry_mesh_pop_bench
+sigil_bench(geometry_bench
   SOURCES bench/PopBench.cpp
   LIBRARIES SigilGeometryMeshPop SigilGeometryKit)

@@ -70,7 +70,7 @@ TEST(Mask, ReshapingSomethingThatIsNotAMaskChangesNothing) {
   EXPECT_EQ(invertMask(painted), painted);
 }
 
-TEST(ShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
+TEST(MaskShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(
       mask::shaderSources(), SIGIL_MATERIAL_MASK_SHADER_DIR);
 }

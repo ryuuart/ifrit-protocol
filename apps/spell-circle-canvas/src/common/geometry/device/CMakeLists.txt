@@ -88,14 +88,14 @@ set(SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/suppor
 # LABELLED `gpu`: every case here brings a Vulkan device up and skips with
 # the reason when the machine has none, so a machine without one runs
 # `ctest -LE gpu` and checks nothing it cannot judge.
-sigil_test(geometry_device_test
+sigil_test(geometry_test
   SOURCES test/DeviceTest.cpp
   LIBRARIES SigilGeometryDevice
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support
                ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
-  LABELS gpu)
+  SUITES AdoptedDevice AdoptedGraphite Device LABELS gpu)
 
-sigil_bench(geometry_device_bench
+sigil_bench(geometry_bench
   SOURCES bench/DeviceBench.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilGeometryDevice SigilMeasure)

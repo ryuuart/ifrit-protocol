@@ -222,7 +222,7 @@ python3 scripts/app_fps_ledger.py
 description = "Timing sweep over the benchmark binaries (args go to bench_ledger.py)"
 dir = "apps/spell-circle-canvas"
 # Forwards like `test` does: `mise run bench -- --rebase`,
-# `mise run bench -- --benches weave_layout_bench`. The ledger runs the
+# `mise run bench -- --benches weave_bench`. The ledger runs the
 # binaries but does not build them, so the `benches` target comes first.
 run = '''
 set -e

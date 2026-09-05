@@ -125,5 +125,3 @@ void BM_NetworkCacheKey(benchmark::State& state) {
 BENCHMARK(BM_NetworkCacheKey);
 
 }  // namespace
-
-BENCHMARK_MAIN();

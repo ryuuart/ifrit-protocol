@@ -10,11 +10,11 @@ sigil_library(SigilGeometryMeshRender
   PUBLIC SigilGeometryMesh SigilGeometryMeshCamera SigilCoreComparable
   PRIVATE Boost::unordered)
 
-sigil_test(geometry_mesh_render_test
+sigil_test(geometry_test
   SOURCES test/PainterTest.cpp test/RuntimeTest.cpp test/ShadingTest.cpp
   LIBRARIES SigilGeometryMeshRender)
 
-sigil_bench(geometry_mesh_render_bench
+sigil_bench(geometry_bench
   SOURCES bench/RenderBench.cpp
   LIBRARIES SigilGeometryMeshRender SigilGeometryKit)
 

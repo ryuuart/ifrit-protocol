@@ -80,5 +80,3 @@ void BM_LookUpUniform(benchmark::State& state) {
 BENCHMARK(BM_LookUpUniform);
 
 }  // namespace
-
-BENCHMARK_MAIN();

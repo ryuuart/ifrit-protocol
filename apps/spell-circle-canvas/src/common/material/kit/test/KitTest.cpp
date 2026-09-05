@@ -579,7 +579,7 @@ TEST(Grained, BoardIsItsPaintUnderATooth) {
 
 // ---- the embedded shader table --------------------------------------------
 
-TEST(ShaderTable, EveryStockBodyCompiles) {
+TEST(KitShaderTable, EveryStockBodyCompiles) {
   skia::install();
   for (const Material& m : kit::everyRecipe()) {
     if (!m.recipe().has(Target::SkSL)) continue;
@@ -587,7 +587,7 @@ TEST(ShaderTable, EveryStockBodyCompiles) {
   }
 }
 
-TEST(ShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
+TEST(KitShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(kit::shaderSources(),
                                                  SIGIL_MATERIAL_KIT_SHADER_DIR);
 }

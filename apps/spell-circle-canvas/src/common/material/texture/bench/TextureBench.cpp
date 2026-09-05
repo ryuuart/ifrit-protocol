@@ -72,5 +72,3 @@ void ClassifyName(benchmark::State& state) {
 BENCHMARK(ClassifyName)->Arg(0)->Arg(1)->Arg(2)->Arg(3);
 
 }  // namespace
-
-BENCHMARK_MAIN();

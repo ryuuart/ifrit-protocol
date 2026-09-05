@@ -672,7 +672,7 @@ TEST(Bank, TheMakerRunsOncePerBucketAndItsAnswerIsWhatIsBanked) {
 
 // ---- the embedded shader table --------------------------------------------
 
-TEST(ShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
+TEST(CoreShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(
       shaderSources(), SIGIL_MATERIAL_CORE_SHADER_DIR);
 }

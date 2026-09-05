@@ -14,6 +14,6 @@ sigil_library(SigilWeaveCache
 # storage makes about a reference it handed out. Nothing here shapes, so
 # the port is linked only to load the committed face the typeface half of
 # the key is varied with.
-sigil_test(weave_cache_test
+sigil_test(weave_test
   SOURCES test/CacheTest.cpp
   LIBRARIES SigilWeaveCache SigilWeavePorts)

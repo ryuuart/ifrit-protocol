@@ -16,7 +16,7 @@ sigil_library(SigilWeavePorts
 # nothing here shapes, measures or lays anything out. The committed
 # instrument faces are read through the same manager, which is what makes
 # the file-loading claim answerable on a machine with no fonts at all.
-sigil_test(weave_ports_test
+sigil_test(weave_test
   SOURCES test/SystemFontManagerTest.cpp
   LIBRARIES SigilWeavePorts
   LABELS fonts)

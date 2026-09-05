@@ -11,9 +11,9 @@ if(TARGET SigilScry)
 
   # The web() leaf: the kernel never links SigilScry; the adapter is
   # header-only and this test exists only when the SDK produced the target.
-  sigil_test(compose_web_test
+  sigil_test(compose_test
     SOURCES test/ComposeWebTest.cpp
     LIBRARIES SigilComposeWeb SigilWeavePorts
-    LABELS ultralight)
-  ultralight_copy_resources(compose_web_test)
+    SUITES ComposeWeb LABELS ultralight)
+  ultralight_copy_resources(compose_test)
 endif()

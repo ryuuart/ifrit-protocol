@@ -49,5 +49,3 @@ void SdfPaint(benchmark::State& state) {
 BENCHMARK(SdfPaint)->Arg(64)->Arg(256);
 
 }  // namespace
-
-BENCHMARK_MAIN();

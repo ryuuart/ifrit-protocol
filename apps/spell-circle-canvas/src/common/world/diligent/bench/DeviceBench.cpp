@@ -218,5 +218,3 @@ BENCHMARK(BM_ChainOnDevice)
     ->Unit(benchmark::kMillisecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

@@ -25,7 +25,7 @@ sigil_library(SigilWeaveLayout
 # A claim that holds for either breaker is one TEST_P over both of them.
 # The kit is linked for the stock hyphenation and line-edge tables the
 # files that ask a table question read.
-sigil_test(weave_layout_test
+sigil_test(weave_test
   SOURCES test/LayoutTest.cpp test/KnuthPlassTest.cpp
           test/LiveComposerTest.cpp test/OverflowTest.cpp
           test/VerticalTest.cpp test/FlowTest.cpp test/PathTextTest.cpp
@@ -38,6 +38,6 @@ sigil_test(weave_layout_test
             Boost::unordered)
 
 # layoutParagraph per word over a warm shape cache.
-sigil_bench(weave_layout_bench
+sigil_bench(weave_bench
   SOURCES bench/LayoutBench.cpp
   LIBRARIES SigilWeaveLayout SigilWeavePorts)

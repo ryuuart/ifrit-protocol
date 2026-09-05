@@ -68,5 +68,3 @@ BENCHMARK(BM_ShapeParagraph_Warm)
     ->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

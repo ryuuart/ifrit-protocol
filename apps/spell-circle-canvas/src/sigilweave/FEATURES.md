@@ -671,7 +671,7 @@ frame the budget is met. A layout that reports degrades every frame is
 asking for a longer budget or a shorter block, not for a different
 breaker.
 
-**The budget the arms hold.** `weave_layout_bench` carries one arm per
+**The budget the arms hold.** `weave_bench` carries one arm per
 mechanism — the paragraph controls, hyphenation, the justification ranges,
 a reserved band, a 600-word story re-filled through a chain of six frames,
 the live composer at an animating measure, at a measure it has already

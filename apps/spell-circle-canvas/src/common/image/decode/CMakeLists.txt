@@ -40,15 +40,16 @@ endif()
 # The optional-backend cases compile whatever this build has and skip
 # with the backend they wanted named, so the labels say what a run on a
 # box without them is missing.
-sigil_test(image_decode_test
+sigil_test(image_test
   SOURCES test/DecodeTest.cpp
   LIBRARIES SigilImageDecode
-  LABELS svg oiio
   DEFINITIONS $<$<TARGET_EXISTS:unofficial::skia::modules::svg>:SIGILIMAGE_HAS_SVG>
               $<$<BOOL:${OpenImageIO_FOUND}>:SIGILIMAGE_HAS_OIIO>)
+sigil_test(image_test SUITES SvgDecode LABELS svg)
+sigil_test(image_test SUITES OiioDecode LABELS oiio)
 
 # Encodes its own fixtures in memory through the encode feature and reads
 # the committed ones for the per-call floor.
-sigil_bench(image_decode_bench
+sigil_bench(image_bench
   SOURCES bench/DecodeBench.cpp
   LIBRARIES SigilImageDecode SigilImageEncode)

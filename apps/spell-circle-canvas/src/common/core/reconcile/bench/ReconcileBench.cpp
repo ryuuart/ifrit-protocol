@@ -130,5 +130,3 @@ BENCHMARK(OneChangedLeaf)->Arg(1000)->Arg(10000);
 BENCHMARK(KeyedRotation)->Arg(1000)->Arg(10000);
 BENCHMARK(Churn)->Arg(1000)->Arg(10000);
 BENCHMARK(MemoHit)->Arg(1000)->Arg(10000);
-
-BENCHMARK_MAIN();

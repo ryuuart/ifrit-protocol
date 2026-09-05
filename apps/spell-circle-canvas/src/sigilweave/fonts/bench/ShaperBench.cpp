@@ -85,5 +85,3 @@ void BM_ShapeWord_Warm(benchmark::State& state) {
 BENCHMARK(BM_ShapeWord_Warm)->Arg(0)->Arg(1)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();

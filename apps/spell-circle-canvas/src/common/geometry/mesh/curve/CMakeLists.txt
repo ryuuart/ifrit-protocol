@@ -6,10 +6,10 @@ sigil_library(SigilGeometryMeshCurve
   HEADERS Curve.h Frame.h Pose.h
   PUBLIC SigilGeometryMesh SigilGeometryMeshCamera)
 
-sigil_test(geometry_mesh_curve_test
+sigil_test(geometry_test
   SOURCES test/CurveTest.cpp
   LIBRARIES SigilGeometryMeshCurve)
 
-sigil_bench(geometry_mesh_curve_bench
+sigil_bench(geometry_bench
   SOURCES bench/CurveBench.cpp
   LIBRARIES SigilGeometryMeshCurve)

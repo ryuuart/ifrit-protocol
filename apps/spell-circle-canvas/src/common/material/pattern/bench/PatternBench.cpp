@@ -41,5 +41,3 @@ void TileTexture(benchmark::State& state) {
 BENCHMARK(TileTexture);
 
 }  // namespace
-
-BENCHMARK_MAIN();

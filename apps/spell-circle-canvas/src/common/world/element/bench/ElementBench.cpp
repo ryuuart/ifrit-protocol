@@ -55,5 +55,3 @@ void LanesOf(benchmark::State& state) {
 BENCHMARK(LanesOf);
 
 }  // namespace
-
-BENCHMARK_MAIN();

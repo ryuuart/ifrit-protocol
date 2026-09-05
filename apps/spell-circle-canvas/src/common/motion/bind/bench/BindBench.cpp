@@ -134,5 +134,3 @@ BENCHMARK(BM_Apply_Wiggle)
     ->Complexity(benchmark::oN);
 
 }  // namespace
-
-BENCHMARK_MAIN();

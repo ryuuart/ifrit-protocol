@@ -126,5 +126,3 @@ BENCHMARK(BM_Draw_BlendField_Blobs)
     ->Arg(100)
     ->Arg(400)
     ->Unit(benchmark::kMicrosecond);
-
-BENCHMARK_MAIN();

@@ -23,7 +23,7 @@ sigil_library(SigilWeaveParagraph
 # cases whose claim is the MACHINE'S OWN fallback — that an unstyled
 # paragraph of mixed scripts and emoji resolves to real glyphs at all —
 # which cannot be asked without the machine having faces for them.
-sigil_test(weave_paragraph_test
+sigil_test(weave_test
   SOURCES test/ShapingTest.cpp test/ParagraphTest.cpp test/CorrectnessTest.cpp
           test/TypographyTest.cpp test/RichTextTest.cpp
   LIBRARIES SigilWeaveParagraph SigilWeavePorts Boost::container
@@ -31,6 +31,6 @@ sigil_test(weave_paragraph_test
   LABELS fonts)
 
 # A whole paragraph analysed and shaped, cold and warm.
-sigil_bench(weave_paragraph_bench
+sigil_bench(weave_bench
   SOURCES bench/ParagraphBench.cpp
   LIBRARIES SigilWeaveParagraph SigilWeavePorts)

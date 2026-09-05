@@ -290,24 +290,28 @@ one breaking claim, every anchor of a decoration band, every preset text
 paint. One subject to a file, named for the subject: a case is found by
 opening the file its subject names.
 
-- `weave_unicode_test` — the Unicode leaf, with no fonts at all.
-- `weave_style_test` — styles as plain values: fluent sugar, paint-layer
+The library has one test binary, `weave_test`, built from every feature's
+`test/` directory, and ctest discovers one entry per case out of it, so a
+suite or a case is selected by name with no target behind it.
+
+- `unicode/test/` — the Unicode leaf, with no fonts at all.
+- `style/test/` — styles as plain values: fluent sugar, paint-layer
   presets, the `StyleSet` registry. No fonts either, and no run-time case
   for the feature preset tags: they are `static_assert`ed beside their own
   declarations, where only editing them can falsify them.
-- `weave_fonts_test` — the font service asked about faces this machine
+- `fonts/test/` — the font service asked about faces this machine
   happens to have: the fallback memo keyed by language, the transient
   varied clone, and the pair a shaper sets by measuring outlines.
-- `weave_vertical_features_test` — which vertical OpenType features a
+- `fonts/test/VerticalFeaturesTest` — which vertical OpenType features a
   column takes by itself and which a style must name, asked of the
   constructed face committed under `test/assets/`.
-- `weave_paragraph_test` — shaping as the paragraph drives it (the shape
+- `paragraph/test/` — shaping as the paragraph drives it (the shape
   cache under edits and restyles, itemization, complex scripts), the
   document model, and typographic correctness: cluster coverage across
   scripts, ZWNJ joining control, combining-mark attachment (NFC and NFD
   must measure alike), NBSP no-break, strut metrics, and the options that
   reach shaping.
-- `weave_layout_test` — everything that places runs and reads where they
+- `layout/test/` — everything that places runs and reads where they
   landed, one subject to a file: both breakers (`LayoutTest`,
   `KnuthPlassTest`) and the live composer over them
   (`LiveComposerTest`), the flows (`FlowTest`), overflow and clamp
@@ -317,34 +321,38 @@ opening the file its subject names.
   (`JustificationTest`), and each paragraph control — `LeadingTest`,
   `TabStopTest`, `FrameTest`, `HyphenationTest`, `LineEdgesTest`,
   `BesideTest`, `MojikumiTest`, `BalanceTest`.
-- `weave_decoration_test` — bands resolved as geometry, without drawing:
+- `decoration/test/` — bands resolved as geometry, without drawing:
   what a face's metrics fill in, where each kind and side anchors its
   band, and the walk both draws run over turning a paragraph's
   decorations into rectangles.
-- `weave_cache_test` — the single-line paragraph cache: what its key
+- `cache/test/` — the single-line paragraph cache: what its key
   discriminates, the size step two nearby sizes fall inside, and the two
   promises its node-based storage makes about a reference it handed out.
-- `weave_paint_test` — what reaches the canvas: paint layers and shaders
+- `paint/test/` — what reaches the canvas: paint layers and shaders
   without a relayout, selection bands, a pass shaded through the material
   resolver a host installs, the preset text paints resolving, and the
   decoration ink. Where a band LANDS is geometry and belongs to the
   decoration feature; only whether its ink arrives is asked here.
-- `weave_choreograph_test` — the walk over a finished layout with the
+- `choreograph/test/` — the walk over a finished layout with the
   glyph on a contour it re-places from its pen (`ChoreographTest`), and
   the buckets a paint-complete batched draw collapses into
   (`GlyphBatchesTest`).
-- `weave_query_test` — the optional Query layer.
-- `weave_kit_test` — the SigilWeaveKit convenience layer, including the
+- `query/test/` — the optional Query layer.
+- `kit/test/` — the SigilWeaveKit convenience layer, including the
   pattern hyphenator every table question is asked of.
-- `weave_ports_test` — the platform port on its own: one font manager for
+- `ports/test/` — the platform port on its own: one font manager for
   the process, a fallback chain that runs out onto the default family at
   the style it was asked for, and the face the port holds once per ask so
   that everything keyed on a face by pointer keys on one value.
 
-| label | binaries | what a runner must supply |
+| label | on | what a runner must supply |
 |---|---|---|
-| `fonts` | `weave_paragraph_test`, `weave_ports_test` | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about, and the port's whole subject is the list it resolves against |
-| — | every other binary | nothing: they read the Unicode leaf, plain values, or a committed instrument |
+| `fonts` | every case in the binary | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about, and the port's whole subject is the list it resolves against |
+The label sits on the binary rather than on a suite: most of what it
+holds shapes text, and a suite that needs nothing — the Unicode leaf,
+plain values, a committed instrument — is not worth a second label to
+say so.
+
 
 A case that skips is not coverage on the machine it skipped on, so a case
 whose claim is about a script, an axis or a feature names the instrument
@@ -379,14 +387,14 @@ optical kerner, zero-advance combining marks, and the coverage for
 Arabic, Devanagari and a supplementary-plane script.
 
 The benchmarks own every performance claim about this library — one
-binary per feature, under its feature's `bench/`, so each links only what
-it measures: `weave_unicode_bench` (itemize, line breaks and bidi per code
-point, on the Unicode leaf alone), `weave_fonts_bench` (`shapeWord` per
-word cold and warm), `weave_paragraph_bench` (whole paragraphs shaped cold
-against warm), `weave_layout_bench` (`layoutParagraph` per word, greedy
-and Knuth-Plass by length, and each kind of per-frame update against the
-same warm relayout) and `weave_paint_bench` (`draw` and `drawBatched` per
-glyph on a raster surface, with arms that differ in one paint feature).
+binary, `weave_bench`, with its arms under each feature's `bench/`:
+`unicode/` (itemize, line breaks and bidi per code point, on the Unicode
+leaf alone), `fonts/` (`shapeWord` per word cold and warm), `paragraph/`
+(whole paragraphs shaped cold against warm), `layout/`
+(`layoutParagraph` per word, greedy and Knuth-Plass by length, and each
+kind of per-frame update against the same warm relayout) and `paint/`
+(`draw` and `drawBatched` per glyph on a raster surface, with arms that
+differ in one paint feature).
 The corpus they share sits in `bench/support/`, over the same font
 context and the same layout readings the tests use. Build
 them Release through the `benches` target and run them through
@@ -395,7 +403,7 @@ anywhere:
 
 ```sh
 cmake --build build --config Release --target benches weave_demo
-python3 scripts/bench_ledger.py --benches weave_layout_bench
+python3 scripts/bench_ledger.py --benches weave_bench
 ./build/bin/Release/weave_demo   # writes weave_demo_out/*.png in the cwd
 ```
 

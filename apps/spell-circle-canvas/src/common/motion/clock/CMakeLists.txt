@@ -10,10 +10,10 @@ sigil_library(SigilMotionClock
 
 # Links only the library it exercises, so a link edge that pulled a
 # drawing library in would show up as a build failure here.
-sigil_test(motion_clock_test
+sigil_test(motion_test
   SOURCES test/ClockTest.cpp
   LIBRARIES SigilMotionClock)
 
-sigil_bench(motion_clock_bench
+sigil_bench(motion_bench
   SOURCES bench/ClockBench.cpp
   LIBRARIES SigilMotionClock)

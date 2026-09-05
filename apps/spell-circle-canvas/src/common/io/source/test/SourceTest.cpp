@@ -159,8 +159,7 @@ TEST(Places, TheExecutableIsThisTestBinary) {
   EXPECT_TRUE(binary.is_absolute());
   EXPECT_TRUE(std::filesystem::is_regular_file(binary));
   // The answer is the running binary, not its directory or an argv copy.
-  EXPECT_NE(binary.filename().string().find("io_source_test"),
-            std::string::npos);
+  EXPECT_EQ(binary.filename().string(), "io_test");
 }
 
 TEST(Places, AScratchDirectoryIsNamedForThisProcessAndIsNotMade) {

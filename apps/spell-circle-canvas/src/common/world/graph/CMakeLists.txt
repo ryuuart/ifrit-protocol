@@ -11,10 +11,10 @@ sigil_library(SigilWorldGraph
   PUBLIC SigilWorldFrame
   PRIVATE Boost::container)
 
-sigil_test(world_graph_test
+sigil_test(world_test
   SOURCES test/GraphTest.cpp
   LIBRARIES SigilWorldGraph)
 
-sigil_bench(world_graph_bench
+sigil_bench(world_bench
   SOURCES bench/GraphBench.cpp
   LIBRARIES SigilWorldGraph)

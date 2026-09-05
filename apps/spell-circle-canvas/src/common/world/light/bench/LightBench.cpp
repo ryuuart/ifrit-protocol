@@ -38,5 +38,3 @@ void BM_Attenuation(benchmark::State& state) {
 BENCHMARK(BM_Attenuation)->Arg(0)->Arg(1)->Arg(2);
 
 }  // namespace
-
-BENCHMARK_MAIN();

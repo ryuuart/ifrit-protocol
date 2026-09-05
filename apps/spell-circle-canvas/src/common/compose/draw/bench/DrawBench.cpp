@@ -59,5 +59,3 @@ void RetainedCard(benchmark::State& state) {
 BENCHMARK(RetainedCard)->Unit(benchmark::kMicrosecond);
 
 }  // namespace
-
-BENCHMARK_MAIN();
