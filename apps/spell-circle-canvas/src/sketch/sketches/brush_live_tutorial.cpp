@@ -74,7 +74,7 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     context.pen.randomSeed(0x213123u);
     context.pen.noiseSeed(0x213123u);
 
-    brushes.angleMode(DEGREES);
+    context.pen.angleMode(DEGREES);
     brushes.scaleBrushes(3.5f);
 
     brush::Tool watercolor = brush::marker(SkColors::kBlack, 10.0f);
@@ -212,7 +212,7 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     }
 
     brushes.hatchStyle("HB", {0.78f, 0.38f, 0.51f, 1}, 1.3f);
-    brushes.hatch({.spacing = 15.0f, .angle = 45.0f});
+    brushes.hatch(pen, 15.0f, 45.0f);
     brushes.polygon(pen, rose);
 
     constexpr std::array<SkPoint, 3> goldBase{{
@@ -231,7 +231,7 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     }
 
     brushes.hatchStyle("marker", {0.88f, 0.71f, 0.07f, 1}, 0.18f);
-    brushes.hatch({.spacing = 10.0f, .angle = 130.0f, .jitter = 0.10f});
+    brushes.hatch(pen, 10.0f, 130.0f, 0.10f);
     brushes.polygon(pen, gold);
     brushes.noHatch();
     label(pen, "*hatch()", {0.20f, 0.18f, 0.17f, 1});
@@ -258,7 +258,7 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
       brushes.fillBleed(pen.random(0.10f, 0.55f));
       brushes.fillTexture(0.4f, 0.4f, true);
       brushes.rect(pen, pen.random(600), pen.random(600), pen.random(50, 140),
-                   pen.random(50, 140), brush::RectMode::Center);
+                   pen.random(50, 140), CENTER);
       brushes.noFill();
     }
     label(pen, "*fill()", {0.05f, 0.05f, 0.04f, 1});

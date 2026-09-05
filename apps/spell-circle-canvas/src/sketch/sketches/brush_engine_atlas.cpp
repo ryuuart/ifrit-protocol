@@ -112,7 +112,6 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
     brushes.fillBleed(0.32f, brush::BleedDirection::Out, -0.35f);
     brushes.fillTexture(0.5f, 0.45f, true);
     brushes.field("waves");
-    brushes.refreshField(0.7f);
     brushes.circle(pen, 720, 190, 122.5f, 0.8f);
     brushes.noField();
     brushes.noFill();
