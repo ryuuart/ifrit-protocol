@@ -49,6 +49,13 @@ SUBSTANCE_SEARCH_ROOTS = [
     Path("/opt/substance"),
 ]
 
+# Where vcpkg looks for a download before it fetches one, and where
+# scripts/stage_asset.py puts an archive that cannot be fetched at all —
+# an SDK behind an account. Consulted first and written back to, so a
+# port whose file is here never reaches the network and every other port
+# still downloads normally.
+ASSET_CACHE_DIR = Path.home() / ".local" / "opt" / "vcpkg-assets"
+
 # Search roots for vcpkg
 VCPKG_SEARCH_ROOTS = [
     Path.home() / ".local" / "share" / "vcpkg",
@@ -244,6 +251,7 @@ def write_user_presets(
     qt_installation: Path, vcpkg_root: Path, substance_sdk: Path | None
 ) -> None:
     """Writes the local Qt/vcpkg(/Substance) CMake preset composition."""
+    ASSET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     main_inherits = ["vcpkg", "qt"] + (
         ["substance"] if substance_sdk is not None else []
     )
@@ -257,7 +265,12 @@ def write_user_presets(
                         vcpkg_root / "scripts" / "buildsystems" / "vcpkg.cmake"
                     )
                 },
-                "environment": {"VCPKG_ROOT": str(vcpkg_root)},
+                "environment": {
+                    "VCPKG_ROOT": str(vcpkg_root),
+                    "X_VCPKG_ASSET_SOURCES": (
+                        f"clear;x-azurl,file://{ASSET_CACHE_DIR}/,,readwrite"
+                    ),
+                },
             },
             {
                 "name": "qt",

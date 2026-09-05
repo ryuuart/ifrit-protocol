@@ -259,6 +259,13 @@ sources = ["src/spellcircle/shared/schema/SpellCircle.fbs"]
 outputs = ["../python/SpellCircle/Scene.py"]
 run = "sh scripts/regen_flatbuffers.sh"
 
+[tasks."assets:sdk"]
+description = "Put a downloaded SDK archive into the vcpkg asset cache"
+dir = "apps/spell-circle-canvas"
+# Forwards to the script, which names the archives to stage and prints
+# the SHA512 the port declares for each.
+run = "python3 scripts/stage_asset.py"
+
 [tasks.assets]
 description = "Fetch the open-licensed demo assets into build/assets"
 dir = "apps/spell-circle-canvas"

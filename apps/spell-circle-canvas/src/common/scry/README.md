@@ -255,7 +255,11 @@ New executables that link `SigilScry` must also call
 
 1. Download the Free SDK 1.4.x for your architecture from
    <https://ultralig.ht> (e.g. `ultralight-free-sdk-1.4.0-mac-arm64.7z`)
-   and extract it.
+   and extract it. The download needs an account, so nothing can fetch
+   it; keep the archive. `scripts/stage_asset.py <archive>` puts it into
+   the vcpkg asset cache under the SHA-512 a port declares for it, and
+   prints that hash — which is what a port for this SDK needs to exist,
+   and until one does the steps below install it by hand.
 
 2. Install headers and dylibs to `/usr/local`, the prefix
    `src/common/scry/cmake/FindUltralight.cmake` searches:

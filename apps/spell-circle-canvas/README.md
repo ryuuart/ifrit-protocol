@@ -179,6 +179,30 @@ and imported without a CMake build in reach. Run
 
 - `apps/python/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
 
+### The SDKs that are not in vcpkg
+
+Two dependencies are downloads behind an account, so no port can fetch
+them: the Ultralight SDK (SigilScry) and the Adobe Substance 3D SDK
+(SigilSubstance). Both libraries, and everything that links them, leave
+the build when their SDK is absent.
+
+An archive that cannot be fetched is put into the vcpkg asset cache
+once per machine, and every configure after that resolves it locally:
+
+```sh
+scripts/stage_asset.py <downloaded-archive>   # or: mise run assets:sdk -- <archive>
+```
+
+The script copies the archive into `~/.local/opt/vcpkg-assets/` under
+the SHA-512 of its contents — the name vcpkg looks it up by — and prints
+that hash. `setup.py` writes the cache into the `vcpkg` preset's
+environment as the one asset source, consulted before the network and
+written back to, so every other dependency still downloads normally.
+
+Where each SDK has to go until its port exists is in
+[SigilScry's README](src/common/scry/README.md) and
+[SigilSubstance's](src/common/substance/README.md).
+
 ### Demo assets
 
 Several library examples reproduce real reference designs, and a

@@ -135,6 +135,12 @@ registry. Executables that link SigilSubstance
 carry the SDK's `bin/release` in their runtime search path, which is
 where the engine dylib lives.
 
+The download needs an Adobe account, so nothing can fetch it. Keeping
+the archive itself, rather than only the unpacked tree, is what lets a
+port install the SDK the way every other dependency is installed:
+`scripts/stage_asset.py <archive>` copies it into the vcpkg asset cache
+under the SHA-512 that a port declares for it, and prints that hash.
+
 ## Build and test
 
 Targets: `SigilSubstance`, `substance_test` (ctest) and `substance_bench`
