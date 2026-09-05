@@ -280,18 +280,24 @@ std::filesystem::file_time_type hostBinaryTime() {
 }
 
 void Host::sweepAbandonedBuildDirs() {
-  std::error_code ec;
-  const std::filesystem::path root = std::filesystem::temp_directory_path(ec);
-  if (ec) return;
-  for (auto it = std::filesystem::directory_iterator(root, ec);
-       !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
-    const std::filesystem::path dir = it->path();
-    std::error_code stat;
-    if (!std::filesystem::is_directory(dir, stat) || stat) continue;
-    const pid_t pid = pidOfBuildDir(dir.filename().string());
-    if (pid == 0 || processAlive(pid)) continue;
-    removeBuildDir(dir);
-  }
+  // ONCE PER PROCESS, wherever it is called from: the walk removes
+  // directories, and two of them walking the same tree at once would be
+  // two removals racing over one entry.
+  static std::once_flag swept;
+  std::call_once(swept, [] {
+    std::error_code ec;
+    const std::filesystem::path root = std::filesystem::temp_directory_path(ec);
+    if (ec) return;
+    for (auto it = std::filesystem::directory_iterator(root, ec);
+         !ec && it != std::filesystem::directory_iterator(); it.increment(ec)) {
+      const std::filesystem::path dir = it->path();
+      std::error_code stat;
+      if (!std::filesystem::is_directory(dir, stat) || stat) continue;
+      const pid_t pid = pidOfBuildDir(dir.filename().string());
+      if (pid == 0 || processAlive(pid)) continue;
+      removeBuildDir(dir);
+    }
+  });
 }
 
 Host::Host(Options options, weave::FontContext& fonts)
@@ -299,9 +305,9 @@ Host::Host(Options options, weave::FontContext& fonts)
       m_fonts(fonts),
       m_assets(m_options.assetsDir) {
   // Before this process claims its own: the directories of runs that were
-  // killed or that faulted are the ones nothing else will ever clear.
-  static std::once_flag swept;
-  std::call_once(swept, &Host::sweepAbandonedBuildDirs);
+  // killed or that faulted are the ones nothing else will ever clear. A
+  // host built after the owner already swept costs nothing here.
+  sweepAbandonedBuildDirs();
   m_buildDir = acquireBuildDir();
   m_hostId = ++g_nextHostId;
   // A sketch this binary already carries opens instantly, and the file is

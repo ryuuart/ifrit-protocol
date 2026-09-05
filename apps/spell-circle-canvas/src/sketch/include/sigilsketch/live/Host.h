@@ -124,9 +124,10 @@ class Host {
    *  nothing would ever clear it. The pid in the name is asked of the
    *  system directly, and only the answer that says NOBODY HOLDS IT
    *  removes anything: a directory whose process is alive — this
-   *  process's own included — is left standing. Runs once by itself
-   *  before the first host makes its directory; calling it again is
-   *  harmless. */
+   *  process's own included — is left standing. THE WALK RUNS ONCE PER
+   *  PROCESS however many times this is called, so an owner that sweeps
+   *  before it opens a window keeps the walk off the thread its first
+   *  host is built on. A host that finds it unswept sweeps first. */
   static void sweepAbandonedBuildDirs();
 
   /** Drives the reload machinery: source mtime, finished compiles, asset

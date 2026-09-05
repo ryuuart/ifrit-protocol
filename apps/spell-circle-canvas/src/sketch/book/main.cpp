@@ -1119,6 +1119,12 @@ int main(int argc, char* argv[]) {
                  "[sketchbook] sets draw on the CPU mesh executor: a "
                  "surface reaches it as the colour extract read off it\n");
   SharedWebEngineScope sharedWebEngine;
+  // The build directories of runs that were killed are the process's to
+  // clear, not the first sketch's: swept while the window is coming up,
+  // the first host built on the render thread walks no directories under
+  // the lock the live canvas draws under.
+  std::future<void> buildDirSweep =
+      std::async(std::launch::async, &sketch::Host::sweepAbandonedBuildDirs);
   SketchCatalog::sketchDir = sketchDir;
   // WHERE THE BROWSER'S THUMBNAILS COME FROM: this app's own store, filled
   // on demand by a background worker and by the `--thumbnails` warm
