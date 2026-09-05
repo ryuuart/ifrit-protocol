@@ -22,11 +22,21 @@
 
 namespace sigil::compose::kit {
 
+/** The bundle's knobs. */
+struct ChromeOptions {
+  using Palette = material::kit::ChromePalette;
+  Palette palette = Palette::Steel;
+  bool horizonSliver = true;  ///< white specular sliver straddling 50%
+  float keylineWidth = 2.0f;
+  material::Color keyline = material::rgb(0x10141A);
+  float bevelDepth = 3.0f, bevelSize = 5.0f;
+  bool operator==(const ChromeOptions&) const = default;
+};
+
 /** The chrome body: the palette's vertical ramp, with its hard stop at the
  *  horizon, drawn through the shape's outline. */
 struct ChromeBody {
-  material::kit::ChromeOptions::Palette palette =
-      material::kit::ChromeOptions::Palette::Steel;
+  ChromeOptions::Palette palette = ChromeOptions::Palette::Steel;
   bool operator==(const ChromeBody&) const = default;
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
@@ -52,6 +62,6 @@ struct ChromeSliver {
  *  chisel bevel, and a dark keyline stroked OUTSIDE the silhouette. The
  *  Silver palette skips the dark inner top band, which would fight its
  *  white top edge. */
-LayerStyle y2kChrome(material::kit::ChromeOptions opts = {});
+LayerStyle y2kChrome(ChromeOptions opts = {});
 
 }  // namespace sigil::compose::kit

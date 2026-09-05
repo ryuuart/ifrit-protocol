@@ -458,9 +458,11 @@ grows. At the 45° default the rays through an octagon are collinear, the
 panel is the classic one, and it is drawn in the closed form it has
 always had: two squares through the octagon's edge midpoints, whose union
 is the {8/2} khatam and whose outlines are the interlace. The gel and
-chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`, the
-`AquaGelOptions` and `ChromeOptions` a renderer's bundles read — are
-`RampStop` lists a renderer turns into its own gradient. The text paints
+chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`,
+`contourRing` — are `RampStop` lists and alpha ladders a renderer turns
+into its own gradient, and nothing else: which highlight a bundle shows
+and how deep its bevel cuts are knobs on that renderer's decorations, so
+its option sets are its own. The text paints
 — `water`, `meshGradient`, `sparkle`, `starNest`, `clouds`, `tunnel` —
 share the `TextPaintParams` ABI of a run's origin and extent, the clock
 and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`

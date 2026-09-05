@@ -10,9 +10,9 @@
  */
 
 #include <include/core/SkRect.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/kit/LayerStyles.h>
 
 #include <glm/vec2.hpp>
 #include <memory>

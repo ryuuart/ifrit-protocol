@@ -2155,19 +2155,19 @@ TEST(ComposeStyles, PresetBundlesRenderAndPrune) {
 TEST(ComposeStyles, AquaGelEdgesRunFromNoneToTheDeepCut) {
   // The two edges the gel's default softens, each read off a rack of
   // 90x44 pills at y 20..64 that differ in one option and nothing else.
-  const material::kit::AquaGelOptions preset;
-  auto pill = [](const char* key, material::kit::AquaGelOptions opts) {
+  const kit::AquaGelOptions preset;
+  auto pill = [](const char* key, kit::AquaGelOptions opts) {
     return box().key(key).width(90).height(44).corners({22}).style(
         kit::aquaGel({0.118f, 0.561f, 1.0f, 1.0f}, opts));
   };
   auto withTopBand = [&](const char* key, float v) {
-    material::kit::AquaGelOptions o;
+    kit::AquaGelOptions o;
     o.topBand = v;
     return pill(key, o);
   };
-  material::kit::AquaGelOptions noLens;
+  kit::AquaGelOptions noLens;
   noLens.lensAlphaTop = 0.0f;
-  material::kit::AquaGelOptions lensToItsOutline;
+  kit::AquaGelOptions lensToItsOutline;
   lensToItsOutline.lensFadeEnd = 1.0f;
 
   Host host(500, 90);

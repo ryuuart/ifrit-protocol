@@ -5,6 +5,7 @@
 
 #include "sigilmaterial/kit/TextPaint.h"
 
+#include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilshaders/MaterialKit.h>
 
 #include <algorithm>

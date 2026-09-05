@@ -26,6 +26,32 @@
 
 namespace sigil::compose::kit {
 
+/** Knobs the gel bundle exposes; the defaults dress a pill. */
+struct AquaGelOptions {
+  float lensAlphaTop = 0.72f;    ///< lens ramp: white at the top, clear below
+  float lensBottomFrac = 0.52f;  ///< lens ends this far down the box
+  float lensInsetXFrac = 0.05f;  ///< lens inset each side; ~0.16 on spheres
+  /** Where down the lens its ramp has reached its bottom value, as a
+   *  fraction of the lens's own height. Below 1 the lens's lower arc is
+   *  painted at that value and its outline never shows, so the highlight
+   *  ends in a fade; at 1 the ramp runs to the arc itself and the lens
+   *  reads as a cut-out shape laid on the surface. */
+  float lensFadeEnd = 0.82f;
+  float bottomGlow = 0.85f;  ///< strength of the light from below
+  /** How hard the recessed band under the top edge cuts, as a weight on
+   *  `aquaTopBand`'s own alpha. At 1 the recess is a dark cap that ends in
+   *  a visible line across the shape, and the lens above it reads as a
+   *  second object; the default keeps the recess as shading on one
+   *  surface. */
+  float topBand = 0.55f;
+  bool halo = true;  ///< luminous tint drop beneath the shape
+  /** The tallest the gel will be: the halo's reach beyond the box is a
+   *  fraction of it, and a renderer's cull reserve reads this before the
+   *  box has a size. Under-declaring it truncates the halo. */
+  float expectedHeight = 64.0f;
+  bool operator==(const AquaGelOptions&) const = default;
+};
+
 /** The gel pill body, everything sized as a FRACTION of the node's height:
  *  a deep→light vertical ramp, a dark band recessed from the top, a
  *  screen-blended glow rising from the bottom edge, and a luminous halo of
@@ -34,7 +60,7 @@ namespace sigil::compose::kit {
  *  static button wearing it prunes without a memo. */
 struct AquaBody {
   SkColor4f tint = hex(0x1E8FFF);
-  material::kit::AquaGelOptions opts;
+  AquaGelOptions opts;
 
   bool operator==(const AquaBody&) const = default;
   float bleed() const { return opts.halo ? opts.expectedHeight * 0.65f : 0.0f; }
@@ -64,11 +90,11 @@ struct AquaGloss {
  *  pill — `box().corners({h/2}).style(kit::aquaGel(tint))` — and give
  *  the node NO fill: the body decoration paints the surface, and a fill
  *  would cover it. Pass options to retune the lens, the glow and the
- *  recess: `material::kit::AquaGelOptions{.topBand = 1.0f}` is the deep cut,
+ *  recess: `AquaGelOptions{.topBand = 1.0f}` is the deep cut,
  * where the band under the top edge ends in a line and the lens reads as a
  * second object laid on the pill. */
 LayerStyle aquaGel(SkColor4f tint = hex(0x1E8FFF),
-                   material::kit::AquaGelOptions opts = {});
+                   AquaGelOptions opts = {});
 
 /** The sphere-tuned bundle: a domed lens inset further from the edges and
  *  confined to the upper half, over a hotter bottom glow — what reads as

@@ -83,7 +83,7 @@ void AquaGloss::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.restore();
 }
 
-LayerStyle aquaGel(SkColor4f tint, material::kit::AquaGelOptions opts) {
+LayerStyle aquaGel(SkColor4f tint, AquaGelOptions opts) {
   PathFormat hairline;
   hairline.width = 1.0f;
   hairline.strokeFill = Fill::color(material::skia::toSkColor(
@@ -97,7 +97,7 @@ LayerStyle aquaGel(SkColor4f tint, material::kit::AquaGelOptions opts) {
 }
 
 LayerStyle aquaOrb(SkColor4f tint, float expectedDiameter) {
-  material::kit::AquaGelOptions opts;
+  AquaGelOptions opts;
   opts.lensInsetXFrac = 0.16f;
   opts.lensBottomFrac = 0.50f;
   opts.bottomGlow = 0.95f;
@@ -145,7 +145,7 @@ void ChromeSliver::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.restore();
 }
 
-LayerStyle y2kChrome(material::kit::ChromeOptions opts) {
+LayerStyle y2kChrome(ChromeOptions opts) {
   PathFormat keyline;
   keyline.width = opts.keylineWidth;
   keyline.strokeFill = Fill::color(material::skia::toSkColor(opts.keyline));
@@ -157,7 +157,7 @@ LayerStyle y2kChrome(material::kit::ChromeOptions opts) {
   // would cross the node's own type, where a horizontal white band at half
   // height reads as a strikethrough instead of as a sheen on the plate.
   if (opts.horizonSliver) bundle.under.emplace_back(ChromeSliver{});
-  if (opts.palette == material::kit::ChromeOptions::Palette::Steel)
+  if (opts.palette == ChromeOptions::Palette::Steel)
     bundle.over.emplace_back(styles::InnerShadow{
         material::skia::toSkColor(material::kit::chromeSteelTopBand()),
         {0, 3},
