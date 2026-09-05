@@ -198,7 +198,7 @@ rest.
 | `SigilWeaveQuery` | range search and markers | ICU, private |
 | `SigilWeaveCache` | the label cache | Boost.Unordered, ICU — private |
 | `SigilWeave` | interface over every target above | — |
-| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — and `ports::pickTypeface()`, the first installed family of a fallback chain | Skia platform ports |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the line-edge and hyphenation tables (see `kit/README.md`) | SigilWeaveUnicode — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 

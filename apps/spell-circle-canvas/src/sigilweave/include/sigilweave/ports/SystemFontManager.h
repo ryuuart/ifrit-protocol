@@ -40,8 +40,8 @@ sk_sp<SkFontMgr> systemFontManager();
  *  `SkFontStyle::Normal()` — falling back to Normal would silently drop the
  *  weight the caller asked for.
  *
- *  `matchFamilyStyle` walks the system font list; hold the result in a
- *  `static` rather than calling this per frame. */
+ *  `matchFamilyStyle` walks the system font list, so a chain asked for
+ *  more than once goes through `face()` below, which keeps the answer. */
 inline sk_sp<SkTypeface> pickTypeface(
     std::initializer_list<const char*> families,
     SkFontStyle style = SkFontStyle::Normal()) {

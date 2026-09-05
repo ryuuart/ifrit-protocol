@@ -134,7 +134,10 @@ text (its own section below).
   weight, slant, aliasing, the 8-bit colour ladder, extra axes) and the
   `TextStyle` they build. It decides nothing — there is no type scale and
   no opinion about which face stands in for which. The face itself comes
-  from `ports::pickTypeface()`, which walks the system font manager.
+  from `ports::pickTypeface()`, which walks the system font manager, or
+  from `ports::face()`, which keeps that answer once per chain and style —
+  a face is compared by pointer, so one holder is what lets two asks for
+  one family compare equal.
 - **`kit/Features.h`** — named OpenType presets
   (`features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
   styles need not hand-spell four-cc tags, including the ones a COLUMN
