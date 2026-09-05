@@ -844,7 +844,7 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
     Host host;
     EXPECT_EQ(
         host.composer.declaredInputSpace(),
-        Composer::InputSpace::EncodedSRGB);  // the default IS today's truth
+        Composer::InputSpace::EncodedSRGB);  // the default IS the truth
     host.composer.declareInputSpace(Composer::InputSpace::EncodedSRGB);
     host.composer.render(box().fill(red()));
     host.frame();
