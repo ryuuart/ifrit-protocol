@@ -33,6 +33,16 @@ struct PictureBakeTarget {
   SkBlendMode leafBlend = SkBlendMode::kSrcOver;
   float leafOpacity = 1;
   detail::Instance::ContentScalars* scalars = nullptr;
+  /** The matrix the recording's ops reach the DEVICE through when it is
+   *  replayed this frame — the canvas's own matrix composed out through
+   *  every enclosing recording. A recording holding a device-space bake is
+   *  exact under this one matrix and is remade when it differs. */
+  SkMatrix deviceMatrix = SkMatrix::I();
+  /** Whether that matrix is the one the node was drawn under last frame.
+   *  The outermost recording hands it to every device bake inside it as
+   *  the "holding still" verdict those bakes cannot observe for themselves,
+   *  being painted only when the recording is. */
+  bool matrixStable = true;
 };
 
 /** THE RECORDED-COMMAND-LIST TIER, behind the kernel's bake seam. Taking
@@ -168,10 +178,38 @@ struct Composer::Impl {
   // win from becoming an automatic out-of-memory.
   size_t promotedBytes = 0;      // accumulated during the current paint
   size_t promotedBytesLast = 0;  // what the previous frame ended up holding
-  // >0 while painting INTO an SkPicture. Device-space bakes are pinned to
-  // a device rect and must not be recorded into a picture that can replay
-  // under a different matrix.
+  // >0 while painting INTO an SkPicture, or into the coverage trace's
+  // offscreen raster. A node painted here is painted only when the
+  // recording is taken, so nothing it observes frame over frame is a
+  // history.
   int recordingDepth = 0;
+  // …and of those, how many may be REPLAYED UNDER A DIFFERENT MATRIX than
+  // they were made under: a recording made at, or beneath, a node whose
+  // transform is declared live replays under the motion, and the coverage
+  // trace rasterizes at a scale of its own. A device-space bake is blitted
+  // with the matrix reset at an absolute device rect, so it may be taken
+  // only while this is zero — at the root, or inside recordings that are
+  // all PINNED to the matrix they were made under (Instance::pictureMatrix)
+  // and remade when it changes.
+  int unpinnedRecordingDepth = 0;
+  // The matrix the innermost open recording's ops reach the device through
+  // when it is replayed — identity outside any recording. A node inside a
+  // recording composes its canvas matrix through this to find the device
+  // grid it is drawn on; the inverse is what a device blit concatenates so
+  // the replay lands it at the device rect it was baked for.
+  SkMatrix recordingReplay = SkMatrix::I();
+  SkMatrix recordingReplayInverse = SkMatrix::I();
+  // Whether the outermost open recording's device matrix is the one it
+  // was drawn under last frame. Inside a recording this stands in for the
+  // per-frame device-rect history a device bake needs and cannot keep.
+  bool recordingMatrixStable = true;
+  // Accumulated over the recording being taken: how many device-space
+  // blits it holds — its own nodes' and those of every held picture
+  // replayed inside it — and whether a node inside was refused a device
+  // bake for matrix motion alone, so the picture is retaken once the
+  // matrix holds still. Stamped onto the instance when the recording ends.
+  uint32_t recordingDeviceBakes = 0;
+  bool recordingDeviceDeferred = false;
   // The node→root matrix accumulated by paint()'s own recursion — the same
   // walk Query.cpp inverts for hit testing, run forwards. Saved and
   // restored around each paint() frame (RAII, because paint() returns from
@@ -326,8 +364,9 @@ struct Composer::Impl {
   /** Record the node's own paint into a replayable picture, freezing the
    *  leaf blend and opacity into it and stamping the values it was
    *  recorded from. The bake half of the picture tier. */
-  void recordPicture(detail::Instance& inst, float hostScale,
-                     SkBlendMode leafBlend, float leafOpacity,
+  void recordPicture(detail::Instance& inst, const SkMatrix& deviceMatrix,
+                     bool matrixStable,
+                     float hostScale, SkBlendMode leafBlend, float leafOpacity,
                      detail::Instance::ContentScalars&& scalars);
 
   // ---- layout (Layout.cpp) ----

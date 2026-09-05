@@ -381,6 +381,160 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
   }
 }
 
+namespace {
+
+/** The largest channel difference between two hosts' canvases. */
+int maxChannelDifference(Host& a, Host& b, int w, int h) {
+  SkBitmap ba, bb;
+  ba.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  bb.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  a.surface->readPixels(ba.pixmap(), 0, 0);
+  b.surface->readPixels(bb.pixmap(), 0, 0);
+  int worst = 0;
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor p = ba.getColor(x, y), q = bb.getColor(x, y);
+      worst = std::max({worst, std::abs((int)SkColorGetR(p) - (int)SkColorGetR(q)),
+                        std::abs((int)SkColorGetG(p) - (int)SkColorGetG(q)),
+                        std::abs((int)SkColorGetB(p) - (int)SkColorGetB(q))});
+    }
+  return worst;
+}
+
+/** A pill of type turned by @p degrees, NESTED ONE LEVEL UNDER A STATIC
+ *  CONTAINER — the container carries a second child, so it takes the
+ *  automatic picture and the pill is painted into that recording. */
+Element turnedPill(float degrees, Cache mode) {
+  return box().cache(Cache::None).child(
+      box()
+          .inset(0)
+          .child(box().absolute().left(2).top(2).width(4).height(4).fill(
+              Fill::color({0, 0.3f, 0, 1})))
+          .child(box()
+                     .absolute()
+                     .left(60)
+                     .top(100)
+                     .width(140)
+                     .height(28)
+                     .key("pill")
+                     .cache(mode)
+                     .rotate(degrees)
+                     .transformOrigin(0.5f, 0.5f)
+                     .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))
+                     .child(text(u8"LEFT SIDE BARRIER", whiteStyle(15)))));
+}
+
+}  // namespace
+
+TEST(ComposeCaching, ADeviceBakeUnderAStaticContainerIsExactAtEveryAngle) {
+  // A texture bake held in local space is blitted through the node's
+  // rotation and resampled by it; at a quarter turn the texel grid lands
+  // half a texel off the device grid on the axis carrying the type's
+  // detail. The device-space bake has nothing to resample — and it is
+  // reachable under a static container, whose recording is then pinned
+  // to the matrix it was made under. So the cached pill must agree with
+  // the uncached draw to the same tolerance at every angle, the quarter
+  // turns included; a root-level pill would pass this at any angle and
+  // prove nothing.
+  const int w = 260, h = 260;
+  int worstOnAxis = 0, worstOffAxis = 0;
+  for (float degrees : {0.0f, 45.0f, 90.0f, 180.0f, -90.0f}) {
+    Host cached(w, h), plain(w, h);
+    cached.composer.render(turnedPill(degrees, Cache::Texture));
+    cached.frame();
+    cached.frame();  // the second frame replays the pinned recording
+    EXPECT_EQ(cached.composer.stats().picturesRecorded, 0u) << degrees;
+    plain.composer.render(turnedPill(degrees, Cache::None));
+    plain.frame();
+    const int worst = maxChannelDifference(cached, plain, w, h);
+    if (degrees == 0.0f || degrees == 180.0f)
+      worstOnAxis = std::max(worstOnAxis, worst);
+    else
+      worstOffAxis = std::max(worstOffAxis, worst);
+    EXPECT_LE(worst, 2) << "at " << degrees << " degrees";
+  }
+  EXPECT_LE(worstOffAxis, worstOnAxis + 1)
+      << "the turned pill was resampled where the upright one was not";
+}
+
+TEST(ComposeCaching, ARecordingHoldingADeviceBakeIsRemadeWhenItsMatrixMoves) {
+  // The pin. A device blit inside a recording is exact under the matrix
+  // the recording was made under and nowhere else, so the recording is
+  // remade — and the bake with it — the frame the host's matrix changes,
+  // and replays untouched while it holds.
+  Host host(260, 260);
+  host.composer.render(turnedPill(-90.0f, Cache::Texture));
+  auto drawAt = [&](float s) {
+    SkCanvas& canvas = *host.surface->getCanvas();
+    canvas.clear(SK_ColorBLACK);
+    canvas.save();
+    canvas.scale(s, s);
+    host.composer.draw(canvas);
+    canvas.restore();
+  };
+  drawAt(1.0f);
+  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+  drawAt(1.0f);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  drawAt(0.5f);  // the pinned recording is stale under any other matrix
+  EXPECT_GE(host.composer.stats().picturesRecorded, 1u);
+  // Under CONTINUOUS motion the pill falls back to the local bake, the
+  // recording holds no device blit, and it replays under every matrix
+  // the way any recording does.
+  drawAt(0.6f);
+  drawAt(0.7f);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  // …and once the matrix has held still for a frame the deferred device
+  // bake is taken: one remake, then replays.
+  drawAt(0.7f);
+  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+  drawAt(0.7f);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+}
+
+TEST(ComposeCaching, ANodeUnderALiveTransformKeepsTheLocalBakeInItsRecording) {
+  // The restriction that stays. A recording made under a declared motion
+  // replays under that motion, so it may hold nothing pinned to a device
+  // rect: the texture node inside it takes the quantized local bake, the
+  // recording stays matrix-independent, and neither is remade while the
+  // ancestor slides — the same guarantee the moving-ancestor case gives
+  // through a Cache::None parent, here through a recording.
+  Host host(300, 300);
+  choreograph::Output<float> slide{0.0f};
+  host.composer.render(
+      box().cache(Cache::None).child(
+          box()
+              .absolute()
+              .translateX(&slide)
+              .child(box().absolute().left(2).top(2).width(4).height(4).fill(
+                  Fill::color({0, 0.3f, 0, 1})))
+              .child(box()
+                         .absolute()
+                         .left(60)
+                         .top(100)
+                         .width(60)
+                         .height(60)
+                         .cache(Cache::Texture)
+                         .rotate(-90.0f)
+                         .transformOrigin(0.5f, 0.5f)
+                         .fill(red())
+                         .child(box().width(20).height(20).fill(green())))));
+  host.frame();
+  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+  // The still -> moving transition costs one remake, as it does through a
+  // Cache::None parent; from there the guarantee is absolute.
+  slide = 7.0f;
+  host.frame();
+  for (int i = 2; i <= 5; ++i) {
+    slide = (float)i * 7.0f;
+    host.frame();
+    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+        << "frame " << i
+        << ": a recording under a live transform was remade, or the bake "
+           "inside it was pinned to a device rect";
+  }
+}
+
 TEST(ComposeCaching, AMemoShellsCacheIsCarriedOntoItsProduce) {
   // memo(...).cache(Cache::Picture) is written on the SHELL, and the
   // reconciler retains the PRODUCE as the node's description — so the

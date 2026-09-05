@@ -82,6 +82,12 @@ struct Echo {
  *  - **Texture** rasterizes the subtree once into an image. Best for dense
  *    or effect-heavy content; wasteful for sparse regions, where the blit
  *    of a mostly-empty image costs more than the few draws it replaced.
+ *    While the node holds still the bake is taken in DEVICE space and
+ *    blitted without resampling, exact at any angle — under static
+ *    ancestors too, whose recordings are then pinned to the matrix they
+ *    were made under and remade when it changes. Under a live transform,
+ *    its own or an ancestor's, the bake is held in local space and rides
+ *    the motion through the blit.
  *  - **Group** is Texture for a subtree whose children ANIMATE — see
  *    below.
  *  - **None** opts a node out entirely. A per-frame paint program that

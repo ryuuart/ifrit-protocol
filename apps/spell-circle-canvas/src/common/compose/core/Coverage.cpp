@@ -134,8 +134,9 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   canvas.scale(scale, scale);
 
   // The trace's canvas is an offscreen raster at a scale of its own, so
-  // nothing pinned to a device rect may be baked inside it — the same
-  // reason a picture recording refuses, and the same guard.
+  // nothing pinned to a device rect may be baked inside it: it is an
+  // UNPINNED recording, the same refusal a recording under a declared
+  // motion takes, and its own canvas is the device it draws on.
   //
   // At FULL OPACITY and the plain source blend, which is what the node's
   // layer holds: its own opacity and blend mode are applied to the
@@ -144,9 +145,17 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   // do with what was drawn.
   const Instance* outerTrace = coverageTrace;
   coverageTrace = &inst;
+  const SkMatrix outerReplay = recordingReplay;
+  const SkMatrix outerReplayInverse = recordingReplayInverse;
+  recordingReplay = SkMatrix::I();
+  recordingReplayInverse = SkMatrix::I();
   ++recordingDepth;
+  ++unpinnedRecordingDepth;
   paintContent(inst, canvas, contentScale);
+  --unpinnedRecordingDepth;
   --recordingDepth;
+  recordingReplay = outerReplay;
+  recordingReplayInverse = outerReplayInverse;
   coverageTrace = outerTrace;
 
   SkPixmap alpha;

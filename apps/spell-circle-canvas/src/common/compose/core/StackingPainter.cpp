@@ -50,18 +50,26 @@ using namespace detail;
 // The picture tier, behind the bake seam
 
 void PictureBake::take(PictureBakeTarget& t) const {
-  t.painter->recordPicture(*t.inst, t.hostScale, t.leafBlend, t.leafOpacity,
+  t.painter->recordPicture(*t.inst, t.deviceMatrix, t.matrixStable,
+                           t.hostScale, t.leafBlend, t.leafOpacity,
                            std::move(*t.scalars));
 }
 void PictureBake::replay(PictureBakeTarget& t) const {
   t.canvas->drawPicture(t.inst->picture);
+  // A held picture replayed into an enclosing recording hands that
+  // recording the device blits it holds: the outer picture is now pinned
+  // to the same matrix, and remade with this one when it changes.
+  t.painter->recordingDeviceBakes += t.inst->pictureDeviceBakes;
+  t.painter->recordingDeviceDeferred |= t.inst->pictureDeviceDeferred;
 }
 void PictureBake::drop(PictureBakeTarget& t) const { t.inst->picture.reset(); }
 bool PictureBake::held(const PictureBakeTarget& t) const {
   return (bool)t.inst->picture;
 }
 
-void Composer::Impl::recordPicture(Instance& inst, float hostScale,
+void Composer::Impl::recordPicture(Instance& inst,
+                                   const SkMatrix& deviceMatrix,
+                                   bool matrixStable, float hostScale,
                                    SkBlendMode leafBlend, float leafOpacity,
                                    Instance::ContentScalars&& scalars) {
   // The same rect the layers and bakes use. Its job HERE is only to be an
@@ -71,15 +79,56 @@ void Composer::Impl::recordPicture(Instance& inst, float hostScale,
   const SkRect cull = recordBounds(inst);
   SkPictureRecorder recorder;
   SkCanvas* rec = recorder.beginRecording(cull);
-  // A picture can be replayed under a DIFFERENT matrix than it was recorded
-  // at (an ancestor with a live transform keeps its picture and replays it
-  // under the motion). Anything inside must therefore be
-  // matrix-independent — which a device-space bake, snapped to one
-  // particular device rect, is not.
+  // WHAT A RECORDING MAY HOLD. A picture is a list of draw calls and
+  // replays under whatever matrix it meets, so everything inside one must
+  // be matrix-independent — with one precise exception. A device-space
+  // bake is a blit at an absolute device rect, exact at any angle and
+  // wrong under any other matrix. It may be recorded when every recording
+  // it stands inside is PINNED: made under a matrix that is stamped on the
+  // instance, replayed only under that matrix, and remade the frame it
+  // differs. A recording is pinnable when nothing above it moves by
+  // declaration — no live transform on this node or an ancestor, no
+  // shared space whose view is live — because a pinned recording under
+  // motion would be remade every frame, which is the one cost the picture
+  // tier exists to avoid. Under a declared motion the recording stays
+  // UNPINNED and its contents keep the matrix-independent rule; the
+  // coverage trace, an offscreen raster at a scale of its own, is unpinned
+  // for the same reason.
+  //
+  // A pinned recording with no device blit inside is still
+  // matrix-independent and is never remade for the matrix alone. So the
+  // count is kept, not a flag: it is the number of device blits the
+  // recording holds, its own nodes' and those of every held picture
+  // replayed into it.
+  const bool unpinned = inst.placementUnderMotion;
+  // The outermost recording's node is painted every frame, so its verdict
+  // on the matrix is a history; a nested one inherits it.
+  if (recordingDepth == 0) recordingMatrixStable = matrixStable;
+  const SkMatrix outerReplay = recordingReplay;
+  const SkMatrix outerReplayInverse = recordingReplayInverse;
+  // The ops recorded here reach the device through this node's matrix —
+  // already composed out through every enclosing recording.
+  recordingReplay = deviceMatrix;
+  const bool invertible = recordingReplay.invert(&recordingReplayInverse);
+  const uint32_t outerBakes = recordingDeviceBakes;
+  const bool outerDeferred = recordingDeviceDeferred;
+  recordingDeviceBakes = 0;
+  recordingDeviceDeferred = false;
   ++recordingDepth;
+  // A replay matrix with no inverse has no device rect to land a blit on.
+  if (unpinned || !invertible) ++unpinnedRecordingDepth;
   paintContent(inst, *rec, hostScale, leafBlend, leafOpacity);
+  if (unpinned || !invertible) --unpinnedRecordingDepth;
   --recordingDepth;
   inst.picture = recorder.finishRecordingAsPicture();
+  inst.pictureMatrix = deviceMatrix;
+  inst.pictureDeviceBakes = recordingDeviceBakes;
+  inst.pictureDeviceDeferred = recordingDeviceDeferred;
+  // What this recording holds, the enclosing one now holds too.
+  recordingDeviceBakes = outerBakes + inst.pictureDeviceBakes;
+  recordingDeviceDeferred = outerDeferred || inst.pictureDeviceDeferred;
+  recordingReplay = outerReplay;
+  recordingReplayInverse = outerReplayInverse;
   inst.bakedLeafOpacity = leafOpacity;  // a settled transition re-bakes
   inst.bakedLeafBlend = leafBlend;      // (the recording froze them in)
   inst.bakedLiveShader =
@@ -1449,7 +1498,40 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // under which a device-aligned bake is provably the same pixels as the
   // replay; anything else keeps replaying. See
   // Composer::setAutoTexturePromotion.
-  const SkMatrix& totalM = canvas.getTotalMatrix();
+  // THE DEVICE MATRIX — what this node's draws reach the device through.
+  // Outside a recording it is the canvas's own. Inside one the canvas's
+  // matrix is in the recording's space, and the recording is replayed
+  // under a matrix of its own; the composition is the device grid the
+  // node is drawn on, which is the grid a device-space bake must sample
+  // and the rect its blit must land on. Every bake tier below reads this
+  // and never the canvas matrix alone.
+  const SkMatrix& canvasM = canvas.getTotalMatrix();
+  const SkMatrix totalM =
+      recordingDepth == 0 ? canvasM : SkMatrix::Concat(recordingReplay, canvasM);
+  // "Is the node where it was last frame?" — its own history at the root,
+  // where it is painted every frame, and the outermost open recording's
+  // inside one, where it is painted only when that recording is taken.
+  // The first sighting counts as stable, as the device rect's does.
+  bool matrixStable = recordingMatrixStable;
+  if (recordingDepth == 0) {
+    matrixStable = !inst.deviceMatrixSeen || totalM == inst.lastDeviceMatrix;
+    inst.lastDeviceMatrix = totalM;
+    inst.deviceMatrixSeen = true;
+  }
+  // A device blit: the matrix reset, so the image lands at an absolute
+  // device rect — and inside a recording, the replay's inverse concatenated,
+  // so the replay carries it back to exactly that rect. Counted, because
+  // the recording holding it is pinned to its matrix from here on.
+  const auto deviceBlit = [&](const sk_sp<SkImage>& image, const SkIRect& at,
+                              const SkPaint* paint) {
+    canvas.save();
+    canvas.resetMatrix();
+    if (recordingDepth > 0) canvas.concat(recordingReplayInverse);
+    canvas.drawImage(image, (float)at.left(), (float)at.top(),
+                     SkSamplingOptions(), paint);
+    canvas.restore();
+    if (recordingDepth > 0) ++recordingDeviceBakes;
+  };
   // Upright, unmirrored, unrotated and unskewed. It is tempting to drop
   // this: a device-space bake concatenates the full matrix into the layer
   // and blits with the matrix reset at an integer offset, so it cannot
@@ -1546,15 +1628,20 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       break;
     }
 
-  // recordingDepth == 0, for the SAME reason the Cache::Texture device path
-  // and the split bake check it: a device-space bake blits with
-  // canvas.resetMatrix() + drawImage() at an ABSOLUTE device rect, and a
-  // picture can be replayed under a different matrix than it was recorded
-  // at. Recorded into an ancestor's picture and replayed at a different
-  // capture scale, such a blit draws a texture baked for one scale at the
-  // coordinates of another — wrong size, wrong place.
-  const bool promotable =
-      why == Prom::Cheap && !liveOnly && recordingDepth == 0;
+  // THE DEVICE-BAKE RULE, which the Cache::Group, Cache::Texture and split
+  // tiers below share: a device-space bake blits with the matrix reset at
+  // an ABSOLUTE device rect, so it is exact under one matrix and wrong
+  // under every other. It may be taken at the root, or inside recordings
+  // that are all PINNED — made under a matrix stamped on the instance and
+  // remade the frame it differs — and never inside an unpinned one, which
+  // replays under a declared motion and would be remade every frame.
+  // Inside a pinned recording the node is painted only when the recording
+  // is, so the matrix must also be holding still by the recording's own
+  // history: a bake taken under a moving matrix would pin a recording that
+  // is then remade, and the bake with it, on every frame of the motion.
+  const bool deviceBakeable =
+      unpinnedRecordingDepth == 0 && (recordingDepth == 0 || matrixStable);
+  const bool promotable = why == Prom::Cheap && !liveOnly && deviceBakeable;
   if (!promotable) inst.autoTexture = false;
   const auto note = [&](Prom p) {
     if (profileScope.row != SIZE_MAX) {
@@ -1636,11 +1723,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           profileRows[profileScope.row].cacheState =
               Composer::CacheState::Promoted;
         note(Prom::Promoted);
-        canvas.save();
-        canvas.resetMatrix();
-        canvas.drawImage(inst.textureImage, (float)device.left(),
-                         (float)device.top(), SkSamplingOptions());
-        canvas.restore();
+        deviceBlit(inst.textureImage, device, nullptr);
         if (needsLayer) canvas.restore();
         canvas.restore();
         return;
@@ -1713,7 +1796,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       !inst.children.empty() && !inst.ownReadsBackdrop &&
       !layerEffectOf(node) && leafBlend == SkBlendMode::kSrcOver &&
       leafOpacity >= 1.0f && rect.width() >= 0.5f && rect.height() >= 0.5f &&
-      recordingDepth == 0 && !inst.transformLive && !spaceHost &&
+      deviceBakeable && !inst.transformLive && !spaceHost &&
       // `upright` for the same reason promotion needs it, and it is the
       // SAME construction: an integer device offset concatenated onto the
       // node's matrix. Under rotation a shader's local coordinates come
@@ -1786,13 +1869,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           profileRows[profileScope.row].cacheState =
               Composer::CacheState::SplitOwn;
         note(Prom::SplitBaked);
-        canvas.save();
-        canvas.resetMatrix();
-        profDraw("split blit", [&] {
-          canvas.drawImage(inst.ownImage, (float)device.left(),
-                           (float)device.top(), SkSamplingOptions());
-        });
-        canvas.restore();
+        profDraw("split blit",
+                 [&] { deviceBlit(inst.ownImage, device, nullptr); });
         blitted = true;
       }
     }
@@ -1863,7 +1941,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   //
   // The refusals are in computeVolatile (`groupRootOK`), because they are
   // about what the memo can SEE, not about this frame.
-  if (!liveOnly && inst.groupRootOK && recordingDepth == 0) {
+  if (!liveOnly && inst.groupRootOK && deviceBakeable) {
     // Gather, compare, and become last frame — in that order. The swap is
     // what makes a settled group allocate nothing: `groupScratch` comes back
     // holding the vector that was `groupPrev`, at the right capacity.
@@ -1894,12 +1972,18 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // device coordinates, the same space the blit's resetMatrix() draws in,
     // including inside the saveLayer an opacity/blend group opens.
     SkIRect device = deviceRectOf();
-    const SkIRect clip = canvas.getDeviceClipBounds();
+    SkIRect clip = canvas.getDeviceClipBounds();
+    if (recordingDepth > 0)  // the recording's clip, carried out to the device
+      clip = recordingReplay.mapRect(SkRect::Make(clip)).roundOut();
     if (!device.intersect(clip)) device = SkIRect::MakeEmpty();
-    const bool rectStable =
-        !inst.deviceRectSeen || device == inst.lastDeviceRect;
-    inst.lastDeviceRect = device;
-    inst.deviceRectSeen = true;
+    // The rect history is this node's own only where it is painted every
+    // frame; inside a recording the recording's matrix verdict stands in.
+    bool rectStable = matrixStable;
+    if (recordingDepth == 0) {
+      rectStable = !inst.deviceRectSeen || device == inst.lastDeviceRect;
+      inst.lastDeviceRect = device;
+      inst.deviceRectSeen = true;
+    }
 
     // THE DROP. Not "re-bake": a group whose bindings are ticking is
     // ticking for a while, and re-baking each of those frames would pay the
@@ -1953,13 +2037,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           profileRows[profileScope.row].promotion =
               Composer::Promotion::AskedFor;
         }
-        canvas.save();
-        canvas.resetMatrix();
-        profDraw("group blit", [&] {
-          canvas.drawImage(inst.textureImage, (float)device.left(),
-                           (float)device.top(), SkSamplingOptions());
-        });
-        canvas.restore();
+        profDraw("group blit",
+                 [&] { deviceBlit(inst.textureImage, device, nullptr); });
         if (needsLayer) canvas.restore();
         canvas.restore();
         return;
@@ -1983,17 +2062,18 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     //
     // Baking in DEVICE space, snapped OUT to whole device pixels and
     // blitted with the matrix reset, has nothing left to resample: the
-    // texel grid IS the device grid, at any angle. Two conditions gate it,
-    // and both are about not throwing away what the local bake is FOR:
+    // texel grid IS the device grid, at any angle. Three conditions gate
+    // it, each about not throwing away what the local bake is FOR:
     //
     //  - bakeScale must be 1. Its whole purpose is to rasterize BELOW
     //    device resolution and let the blit stretch it back.
-    //  - we must not be inside a picture recording, because a device rect
-    //    is not matrix-independent and a picture can replay elsewhere.
-    //    This condition is also what makes the next one SOUND: every node
-    //    that reaches the device path is painted every frame, so it has
-    //    the history the next condition reads. A node painted once, into
-    //    an ancestor's recording, is excluded before we get there.
+    //  - the device-bake rule above: at the root, or inside recordings
+    //    all pinned to the matrix they were made under, never inside one
+    //    that replays under a declared motion. Inside a pinned recording
+    //    the device grid is the recording's space composed out through
+    //    its replay (`totalM` here), the blit concatenates the replay's
+    //    inverse so the replay lands it back at the device rect, and the
+    //    recording is remade the frame that matrix differs.
     //  - the node must be HOLDING STILL, by both available measures, which
     //    are not the same measure:
     //      * `transformLive` — its own transform is declared as animating.
@@ -2004,23 +2084,39 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     //        a resizing window, a pinch zoom, a pan, or an uncached
     //        ancestor's live transform — none of which any per-node
     //        DECLARATION can see, and all of which would re-bake a
-    //        device-pinned texture every frame.
+    //        device-pinned texture every frame. At the root the node is
+    //        painted every frame and keeps that history itself; inside a
+    //        recording it is painted only when the recording is, so the
+    //        outermost recording's own matrix history answers instead.
     //    While either says "moving", the quantized local bake is correct
     //    and cheap: one bake per coarse scale step, reused across the rest.
+    //    A node refused for the matrix alone inside a recording marks the
+    //    recording DEFERRED, and it is retaken once the matrix holds still
+    //    so the node takes the exact bake then rather than after its next
+    //    content change.
     const SkRect localBounds = localBoundsOf();
     bool deviceRectStable = false;
     SkIRect deviceR = SkIRect::MakeEmpty();
-    if (recordingDepth == 0) {
+    if (unpinnedRecordingDepth == 0) {
       deviceR = deviceRectOf();
-      deviceRectStable = !inst.deviceRectSeen || deviceR == inst.lastDeviceRect;
-      inst.lastDeviceRect = deviceR;
-      inst.deviceRectSeen = true;
+      if (recordingDepth == 0) {
+        deviceRectStable =
+            !inst.deviceRectSeen || deviceR == inst.lastDeviceRect;
+        inst.lastDeviceRect = deviceR;
+        inst.deviceRectSeen = true;
+      } else {
+        deviceRectStable = matrixStable;
+      }
     }
     const int64_t deviceArea = (int64_t)deviceR.width() * deviceR.height();
-    if (!inst.transformLive && deviceRectStable && recordingDepth == 0 &&
+    const bool deviceEligible =
+        !inst.transformLive && unpinnedRecordingDepth == 0 &&
         node.bakeScale >= 1.0f && !totalM.hasPerspective() &&
         deviceR.width() > 0 && deviceR.height() > 0 &&
-        deviceArea <= int64_t{16} * 1024 * 1024) {
+        deviceArea <= int64_t{16} * 1024 * 1024;
+    if (deviceEligible && !deviceRectStable && recordingDepth > 0)
+      recordingDeviceDeferred = true;
+    if (deviceEligible && deviceRectStable) {
       const SkRect bakeRect = SkRect::Make(deviceR);
       if (!inst.textureImage || inst.paintDirty || !inst.textureDeviceSpace ||
           memoStale || inst.textureBakeRect != bakeRect) {
@@ -2057,8 +2153,6 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         // Identity CTM is global canvas space even inside a saveLayer (the
         // layer device carries its own origin), so an opacity/blend bake
         // still composites through the layer above.
-        canvas.save();
-        canvas.resetMatrix();
         profDraw("blit", [&] {
           if (deferBlendToBlit) {
             // The node's blend and opacity on the ONE draw it composites
@@ -2067,14 +2161,11 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
             SkPaint blit;
             blit.setAlphaf(opacity);
             blit.setBlendMode(node.paint.blendMode);
-            canvas.drawImage(inst.textureImage, (float)deviceR.left(),
-                             (float)deviceR.top(), SkSamplingOptions(), &blit);
+            deviceBlit(inst.textureImage, deviceR, &blit);
           } else {
-            canvas.drawImage(inst.textureImage, (float)deviceR.left(),
-                             (float)deviceR.top(), SkSamplingOptions());
+            deviceBlit(inst.textureImage, deviceR, nullptr);
           }
         });
-        canvas.restore();
         if (needsLayer) canvas.restore();
         canvas.restore();
         return;
@@ -2084,7 +2175,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // quantized UP to a coarse step, so a continuously changing scale (window
     // resize, pinch zoom) reuses one bake per step instead of re-rasterizing
     // every frame. Between steps the draw minifies slightly, which stays sharp.
-    SkMatrix total = canvas.getTotalMatrix();
+    // The DEVICE matrix (composed out through any recording), so a bake
+    // taken inside a replayed-at-scale recording is rasterized at the
+    // scale it will be shown at.
+    const SkMatrix& total = totalM;
     // maxScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
     // is (0, 0) and would clamp to the 0.25 floor, baking at a quarter
     // resolution to be upscaled by the blit (see maxScaleOf in
@@ -2196,12 +2290,22 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                              .hostScale = hostScale,
                              .leafBlend = leafBlend,
                              .leafOpacity = leafOpacity,
-                             .scalars = &scalarsNow};
+                             .scalars = &scalarsNow,
+                             .deviceMatrix = totalM,
+                             .matrixStable = matrixStable};
+    // …and the pin: a recording holding device blits is exact under the
+    // matrix it was made under and is remade under any other; one that
+    // deferred a device bake for matrix motion is remade once the matrix
+    // has held still for a frame.
+    const bool pinMoved =
+        inst.pictureDeviceBakes > 0 && totalM != inst.pictureMatrix;
+    const bool deferredDue = inst.pictureDeviceDeferred && matrixStable;
     if (core::decideBake({.cacheable = true,
                           .held = pictureBake->held(target),
                           .stale = inst.paintDirty || memoStale ||
                                    inst.bakedLeafOpacity != leafOpacity ||
-                                   inst.bakedLeafBlend != leafBlend}) ==
+                                   inst.bakedLeafBlend != leafBlend ||
+                                   pinMoved || deferredDue}) ==
         core::BakeAction::Take)
       pictureBake->take(target);
     if (profileScope.row != SIZE_MAX)

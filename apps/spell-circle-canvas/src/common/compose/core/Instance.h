@@ -277,6 +277,23 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
 
   // Caching
   sk_sp<SkPicture> picture;
+  // What the held recording is pinned to. A recording is a list of draw
+  // calls and replays under whatever matrix it meets — EXCEPT where it
+  // holds a device-space bake, which is a blit at an absolute device rect
+  // and is exact only under the device matrix it was recorded under. So
+  // the recording counts the device blits inside it (its own nodes' and
+  // those of every held picture replayed into it) and keeps that matrix;
+  // a count above zero and a different matrix at replay remake it. A
+  // recording holding none stays matrix-independent, which is what lets a
+  // picture under a live transform replay under the motion.
+  //
+  // `pictureDeviceDeferred`: a node inside was refused the device bake
+  // for matrix motion alone. The recording is retaken once the matrix has
+  // held still for a frame, so the node takes the device bake then rather
+  // than keeping the resampled local one until its content next changes.
+  SkMatrix pictureMatrix = SkMatrix::I();
+  uint32_t pictureDeviceBakes = 0;
+  bool pictureDeviceDeferred = false;
   sk_sp<SkImage> textureImage;
   float textureScale = 1.0f;
   SkRect textureBakeRect = SkRect::MakeEmpty();  // bake covers paint bounds
@@ -326,17 +343,17 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // one-bake-per-quantized-step reuse the local bake exists to provide.
   //
   // AN INVARIANT OF THIS PAIR, NOT OF ANY ONE CALL SITE: it is written only
-  // at recordingDepth == 0. A picture can replay under a different matrix
-  // than it records at, so a rect observed inside a recording is not this
-  // node's device rect — writing it would poison the stability compare and
-  // force a spurious re-bake on the node's next live frame. The guard is
-  // also what makes the history meaningful at all: every node that can
-  // reach a device bake is painted every frame, so it actually accumulates
-  // frame-over-frame history; a node painted once into an ancestor's
-  // recording accumulates none. The writers, each behind that guard: the
+  // at recordingDepth == 0, where the node is painted every frame and so
+  // actually accumulates frame-over-frame history. A node painted into an
+  // ancestor's recording is painted once per recording and accumulates
+  // none; a rect it observed there would poison the compare and force a
+  // spurious re-bake on its next live frame. Inside a recording the
+  // "holding still" verdict is the outermost recording's instead
+  // (`lastDeviceMatrix` below, read through the painter's
+  // recordingMatrixStable), which that recording's node keeps every frame
+  // for the same reason. The writers, each behind the guard: the
   // Cache::Group device bake and the Cache::Texture device bake, both in
-  // paint(). Automatic promotion shares the recordingDepth == 0 refusal but
-  // keeps no rect history. Any new writer must sit behind the same check.
+  // paint(). Any new writer must sit behind the same check.
   //
   // The first sighting counts as stable: a node's first frame is otherwise
   // forced down the local path and then re-bakes on its second, which is a
@@ -344,6 +361,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // pay.
   SkIRect lastDeviceRect = SkIRect::MakeEmpty();
   bool deviceRectSeen = false;
+  // The matrix this node's draws reached the device through last frame,
+  // under the same invariant: written only at recordingDepth == 0. Read by
+  // the node's own recording, to know whether the device bakes it holds
+  // are still at the rects they were baked for and whether a node inside
+  // it may take one.
+  SkMatrix lastDeviceMatrix = SkMatrix::I();
+  bool deviceMatrixSeen = false;
   float bakedLeafOpacity = 1.0f;  // frozen into the recording
   SkBlendMode bakedLeafBlend = SkBlendMode::kSrcOver;
   bool paintDirty = true;
