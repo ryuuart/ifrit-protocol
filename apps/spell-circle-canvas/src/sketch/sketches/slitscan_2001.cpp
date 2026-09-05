@@ -205,6 +205,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Legibility.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -222,7 +223,6 @@
 #include <array>
 #include <chrono>
 #include <cmath>
-#include <cstdarg>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -384,14 +384,6 @@ Element t(const std::string& s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
 
-std::string fmt(const char* f, ...) {
-  char buf[640];
-  va_list ap;
-  va_start(ap, f);
-  std::vsnprintf(buf, sizeof buf, f, ap);
-  va_end(ap);
-  return std::string(buf);
-}
 
 Element rule(float w, SkColor4f c, float h = 1.0f) {
   return box().width(Dim(w)).height(Dim(h)).shrink(0).fill(c);
@@ -1184,9 +1176,10 @@ struct SlitScan2001 : sketch::Sketch {
                    .fill(al(kCold, 0.4f))
                    .mask(by::edge(0.0f, bind(&frameAlpha))))
         .child(hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)))
-        .child(hud(fmt("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS", filmNo,
-                       kKDisplay),
-                   -1, 10, 10, -1, al(kTick, 0.9f)))
+        .child(
+            hud(kit::formatted("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS",
+                               filmNo, kKDisplay),
+                -1, 10, 10, -1, al(kTick, 0.9f)))
         // The footer is ONE bottom-anchored column, not four absolute rows.
         // Two of these lines are long enough to wrap at this measure, and a
         // row placed by its own bottom offset grows upward into the row above
@@ -1201,7 +1194,8 @@ struct SlitScan2001 : sketch::Sketch {
                    .child(box()
                               .row()
                               .justify(Justify::SpaceBetween)
-                              .child(t(fmt("MACHINE TIME %lld h %02lld m  @ "
+                              .child(t(kit::formatted(
+                                           "MACHINE TIME %lld h %02lld m  @ "
                                            "2880 : 1%s",
                                            mh, mm, everClamped ? "  *" : ""),
                                        mono(8, al(kTick, 0.95f), 0.6f)))
@@ -1303,7 +1297,7 @@ struct SlitScan2001 : sketch::Sketch {
         .fill(kPanelBg)
         .stroke(stroke(1.0f, Fill::color(kRule)))
         .clip()
-        .key(fmt("panel%d", order))
+        .key(kit::formatted("panel%d", order))
         .opacity(animate(from(0.0f).to(1.0f), {300ms, ch::easeOutQuad}))
         .translateX(animate(from(14.0f).to(0.0f), {300ms, ch::easeOutQuad}))
         .child(pl(heading, ui(9.5f, kType2, 2.2f)))
@@ -1438,7 +1432,7 @@ struct SlitScan2001 : sketch::Sketch {
                       .shrink(0)
                       .fill(kBlack)
                       .clip()
-                      .key(fmt("s4_%d", idx))
+                      .key(kit::formatted("s4_%d", idx))
                       .scaleX(animate(from(0.0f).to(1.0f),
                                       {220ms, ease::outBack(1.70158f)}))
                       .transformOrigin(0.0f, 0.5f)
@@ -1508,29 +1502,34 @@ struct SlitScan2001 : sketch::Sketch {
         .column()
         .gap(2)
         .width(Dim(262))
-        .child(box()
-                   .row()
-                   .gap(12)
-                   .child(t(fmt("z = %06.2f in", z), monoB(9, kAmber)))
-                   .child(t(fmt("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
-                            mono(9, kType2))))
-        .child(box()
-                   .row()
-                   .gap(12)
-                   .child(t(fmt("stamp %04d / %d", stampIdx, kKDisplay),
-                            mono(9, kType2)))
-                   .child(t(fmt("ω = %0.4f", omega), mono(9, al(kCold, 0.9f)))))
-        .child(t(fmt("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
-                     "texWindows()",
-                     sheetW, sheetH, deterministic_ ? 0.0 : bakeMs),
+        .child(
+            box()
+                .row()
+                .gap(12)
+                .child(t(kit::formatted("z = %06.2f in", z), monoB(9, kAmber)))
+                .child(
+                    t(kit::formatted("m = ×%0.3f", kZ0In / std::max(z, 1e-3f)),
+                      mono(9, kType2))))
+        .child(
+            box()
+                .row()
+                .gap(12)
+                .child(t(kit::formatted("stamp %04d / %d", stampIdx, kKDisplay),
+                         mono(9, kType2)))
+                .child(t(kit::formatted("ω = %0.4f", omega),
+                         mono(9, al(kCold, 0.9f)))))
+        .child(t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
+                                "texWindows()",
+                                sheetW, sheetH, deterministic_ ? 0.0 : bakeMs),
                  mono(6.8f, kTick)));
   }
   Element expoEl() {
     using namespace slit;
-    return t(fmt("SWEEP %3d%%  ·  z %06.2f in  ·  %d / %d STAMPS LAID",
-                 (int)(tau * 100.0), kZ0In * std::pow(kR, -(float)tau),
-                 (int)(tau * (double)kK), kK),
-             mono(7.2f, al(kCold, 0.8f)));
+    return t(
+        kit::formatted("SWEEP %3d%%  ·  z %06.2f in  ·  %d / %d STAMPS LAID",
+                       (int)(tau * 100.0), kZ0In * std::pow(kR, -(float)tau),
+                       (int)(tau * (double)kK), kK),
+        mono(7.2f, al(kCold, 0.8f)));
   }
   Element fitEl() {
     using namespace slit;
@@ -1540,10 +1539,12 @@ struct SlitScan2001 : sketch::Sketch {
     return box()
         .column()
         .gap(1)
-        .child(t(fmt("FIT  E(u) = C / u^p     p = %0.4f     R² = %0.5f", fitP,
-                     fitR2),
-                 monoB(8.2f, al(kCold, 0.95f))))
-        .child(t(fmt("RESIDUAL u ∈ [8, 520] px  p95 %0.2f%%  max %0.2f%%  "
+        .child(
+            t(kit::formatted("FIT  E(u) = C / u^p     p = %0.4f     R² = %0.5f",
+                             fitP, fitR2),
+              monoB(8.2f, al(kCold, 0.95f))))
+        .child(t(kit::formatted(
+                     "RESIDUAL u ∈ [8, 520] px  p95 %0.2f%%  max %0.2f%%  "
                      "(%d rays, %d pts)",
                      fitP95 * 100.0f, fitResid * 100.0f, fitRays, fitPts),
                  mono(7.2f, kType2)));
@@ -1553,11 +1554,13 @@ struct SlitScan2001 : sketch::Sketch {
     return box()
         .column()
         .gap(1)
-        .child(t(fmt("AND K_min REMOVES GAPS, NOT RIPPLE: AT K = 406 THE "
-                     "MEASURED MAX RESIDUAL IS %0.0f%%,",
-                     fitResidMin * 100.0f),
-                 mono(7.0f, al(kCold, 0.85f))))
-        .child(t(fmt("AT 4× IT IS %0.0f%% — AND p MOVES ONLY %0.4f → %0.4f. "
+        .child(t(
+            kit::formatted("AND K_min REMOVES GAPS, NOT RIPPLE: AT K = 406 THE "
+                           "MEASURED MAX RESIDUAL IS %0.0f%%,",
+                           fitResidMin * 100.0f),
+            mono(7.0f, al(kCold, 0.85f))))
+        .child(t(kit::formatted(
+                     "AT 4× IT IS %0.0f%% — AND p MOVES ONLY %0.4f → %0.4f. "
                      "THE LAW SURVIVES ITS OWN QUANTISATION.",
                      fitResid * 100.0f, fitPMin, fitP),
                  mono(7.0f, al(kCold, 0.85f))));
@@ -1694,7 +1697,7 @@ void SlitScan2001::drawRig(SkCanvas& c, const PaintContext& ctx) {
       q.setColor4f(al(kAmber, a2));
       c.drawLine(x, trackY - 8, x, trackY - 2, q);
       qt.setColor4f(al(kAmber, a2));
-      const std::string lab = fmt("%.4g", zz);
+      const std::string lab = kit::formatted("%.4g", zz);
       const float tw =
           f7.measureText(lab.c_str(), lab.size(), SkTextEncoding::kUTF8);
       const float left = x - tw * 0.5f;
@@ -1914,11 +1917,12 @@ void SlitScan2001::drawArtworkPanel(SkCanvas& c, const PaintContext& ctx) {
   c.drawString("NOT CHOSEN: MORE WOULD GAP, LESS WOULD REPEAT.", 0,
                top + ph + 66, f76, tp);
   tp.setColor4f(al(kCold, 0.8f));
-  c.drawString(fmt("ROUND TRIP OVER 96 FRAMES: %d COLUMNS BACK, r = %0.5f, "
-                   "%0.3f%% OF PIXELS WRONG",
-                   rtCols, rtCorr, rtMismatch * 100.0f)
-                   .c_str(),
-               0, top + ph + 84, f76, tp);
+  c.drawString(
+      kit::formatted("ROUND TRIP OVER 96 FRAMES: %d COLUMNS BACK, r = %0.5f, "
+                     "%0.3f%% OF PIXELS WRONG",
+                     rtCols, rtCorr, rtMismatch * 100.0f)
+          .c_str(),
+      0, top + ph + 84, f76, tp);
   if (s.cell == 2) {
     tp.setColor4f(kRed);
     c.drawString(

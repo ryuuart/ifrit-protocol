@@ -82,6 +82,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -103,7 +104,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdarg>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -522,14 +522,6 @@ inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }
-inline std::string fmt(const char* f, ...) {
-  char buf[512];
-  va_list ap;
-  va_start(ap, f);
-  vsnprintf(buf, sizeof buf, f, ap);
-  va_end(ap);
-  return std::string(buf);
-}
 
 inline Element label(const std::string& s, const weave::TextStyle& st, float x,
                      float y, float w) {
@@ -806,31 +798,34 @@ struct BlackWatch : sketch::Sketch {
     verdict = {};
     verdict
         .add(measure::check(
-            fmt("SETT CLOSES      %d + %d + %d + %d ends", v.unitA, v.unitB,
-                v.unitC, v.unitB),
+            kit::formatted("SETT CLOSES      %d + %d + %d + %d ends", v.unitA,
+                           v.unitB, v.unitC, v.unitB),
             kPublishedEnds, v.total))
         .add(measure::check(
-            fmt("REFLECTIVE       mirrors at thread %d, %d, gap",
-                !v.mirrors.empty() ? v.mirrors[0] : -1,
-                v.mirrors.size() > 1 ? v.mirrors[1] : -1),
+            kit::formatted("REFLECTIVE       mirrors at thread %d, %d, gap",
+                           !v.mirrors.empty() ? v.mirrors[0] : -1,
+                           v.mirrors.size() > 1 ? v.mirrors[1] : -1),
             v.total / 2, v.mirrorGap))
         .add(measure::check(
-            fmt("2/2 BALANCE      max warp float %d, max weft float",
-                v.maxWarpFloat),
+            kit::formatted("2/2 BALANCE      max warp float %d, max weft float",
+                           v.maxWarpFloat),
             2, v.maxWeftFloat))
         .add(measure::check(
-            fmt("THREAD RATIO     K %d : B %d : G %d, blue is the third",
+            kit::formatted(
+                "THREAD RATIO     K %d : B %d : G %d, blue is the third",
                 v.counts[K], v.counts[B], v.counts[G]),
             v.blueIsThird))
         .add(measure::check(
-            fmt("COLOUR LAW       n = %d \xe2\x86\x92 n(n+1)/2 perceived",
+            kit::formatted(
+                "COLOUR LAW       n = %d \xe2\x86\x92 n(n+1)/2 perceived",
                 v.solids),
             v.solids * (v.solids + 1) / 2, v.perceived))
         .add(measure::check("EXACT COVER      uncovered", 0, v.uncovered))
         .add(measure::check("                 doubled", 0, v.doubled))
         .add(measure::reading("                 samples", v.samples))
         .add(measure::check(
-            fmt("CAMPBELL ARGYLL  n = %d \xe2\x86\x92 %d perceived, ends",
+            kit::formatted(
+                "CAMPBELL ARGYLL  n = %d \xe2\x86\x92 %d perceived, ends",
                 v.argyllSolids, v.argyllPerceived),
             kPublishedArgyll, v.argyllTotal))
         // The two setts are the same design at two scales — a claim about
@@ -840,10 +835,9 @@ struct BlackWatch : sketch::Sketch {
             "UNIT DRIFT       max |BW \xe2\x88\x92 CA| over A B C D, %", 0.0,
             (double)(v.unitDrift * 100.0f), 1.0)))
         .add(measure::reading("TWILL ANGLE      42 epi = 42 ppi, degrees",
-                              std::atan2(1.0, 1.0) * 180.0 /
-                                  3.14159265358979))
+                              std::atan2(1.0, 1.0) * 180.0 / 3.14159265358979))
         .add(measure::reading(
-            fmt("SETT WIDTH       %d ends / 42 epi, mm", v.total),
+            kit::formatted("SETT WIDTH       %d ends / 42 epi, mm", v.total),
             (double)((float)v.total / 42.0f * 25.4f)));
   }
 
@@ -1015,7 +1009,8 @@ struct BlackWatch : sketch::Sketch {
     // the count itself, set as one mono run
     std::string count;
     static const char kCode[] = "KBGYW";
-    for (const auto& run : bwRuns) count += fmt("%c%d ", kCode[run.c], run.n);
+    for (const auto& run : bwRuns)
+      count += kit::formatted("%c%d ", kCode[run.c], run.n);
     g.child(label(count, mn(11.5f, kInk, 0.3f), kClothX, kBarY + kBarH + 27,
                   kClothW));
     g.child(
@@ -1083,11 +1078,11 @@ struct BlackWatch : sketch::Sketch {
             .foreground(
                 stroke(1, Fill::color(kInk), PathFormat::Align::Outer)));
 
-    g.child(label(fmt("ENDS %d-%d OF THE SETT (K2 B6 K18 G6), SQUARED AGAINST "
-                      "THEMSELVES  ·  %d PX / THREAD",
-                      kDrawOrigin + 1, kDrawOrigin + kDrawN, (int)c),
-                  mn(8, kInk2, 0.4f), x0, bodyY + (float)kDrawN * c + 6,
-                  kColW + 40));
+    g.child(label(
+        kit::formatted("ENDS %d-%d OF THE SETT (K2 B6 K18 G6), SQUARED AGAINST "
+                       "THEMSELVES  ·  %d PX / THREAD",
+                       kDrawOrigin + 1, kDrawOrigin + kDrawN, (int)c),
+        mn(8, kInk2, 0.4f), x0, bodyY + (float)kDrawN * c + 6, kColW + 40));
     // shaft numbers down the left of the threading block
     for (int s = 0; s < 4; ++s)
       g.child(centred(std::to_string(s + 1), mn(7, kInk2), x0 - 15,
@@ -1126,9 +1121,10 @@ struct BlackWatch : sketch::Sketch {
                   y0 - 2, 200));
     g.child(label("THE BLENDS ARE WOVEN, NOT MIXED.", mn(8, kInk2, 0.3f), tx,
                   y0 + 10, 200));
-    g.child(label(fmt("n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
-                      v.solids, v.solids, v.blends, v.perceived),
-                  mn(8.5f, kRed, 0.2f), tx, y0 + 30, 210));
+    g.child(label(
+        kit::formatted("n = %d  →  %d solid + %d blend  =  %d  =  n(n+1)/2",
+                       v.solids, v.solids, v.blends, v.perceived),
+        mn(8.5f, kRed, 0.2f), tx, y0 + 30, 210));
     g.child(
         label("A tartan has six colours from\nthree threads because the "
               "blend\nis spatial: at 42 ends per inch\nthe eye does the "
@@ -1161,8 +1157,8 @@ struct BlackWatch : sketch::Sketch {
       for (int i = 0; i < 3; ++i) {
         const float x = kColX + 150 + (float)i * 94;
         g.child(at(x, y, 86, 14).fill(hex(shade[i])));
-        g.child(label(fmt("%s #%06X", code[i], shade[i]), mn(7, kInk2, 0.2f), x,
-                      y + 16, 86));
+        g.child(label(kit::formatted("%s #%06X", code[i], shade[i]),
+                      mn(7, kInk2, 0.2f), x, y + 16, 86));
       }
       auto mark = [&](float a, float b) {
         return at(kColX, y - 2, 5, 22)
@@ -1295,11 +1291,12 @@ struct BlackWatch : sketch::Sketch {
                    2 * barH + 14)
                     .fill(hex(0x9A3324, 0.8f)));
     }
-    g.child(label(fmt("UNIT FRACTIONS AGREE TO %.2f %%  ·  IDENTICAL "
-                      "STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  "
-                      "THE OVERCHECKS ARE RINGED",
-                      v.unitDrift * 100.0f),
-                  mn(8.5f, kRed, 0.3f), x0, y0 + 2 * barH + 14, 900));
+    g.child(
+        label(kit::formatted("UNIT FRACTIONS AGREE TO %.2f %%  ·  IDENTICAL "
+                             "STRUCTURE, RUN FOR RUN  ·  DIFFERENT NUMBERS  ·  "
+                             "THE OVERCHECKS ARE RINGED",
+                             v.unitDrift * 100.0f),
+              mn(8.5f, kRed, 0.3f), x0, y0 + 2 * barH + 14, 900));
     return g;
   }
 

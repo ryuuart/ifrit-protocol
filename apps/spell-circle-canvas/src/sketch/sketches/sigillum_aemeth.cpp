@@ -197,6 +197,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Plate.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
@@ -623,16 +624,6 @@ Fill grooveFill(float rad, float w, float darkA, float liteA) {
        SkColor4f{kCutLite.fR, kCutLite.fG, kCutLite.fB, liteA},
        SkColor4f{kCutLite.fR, kCutLite.fG, kCutLite.fB, liteA}},
       {0.0f, m - e, m + e, 1.0f});
-}
-
-template <typename... A>
-std::string fmt(const char* f, A... args) {
-  char buf[512];
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wformat-security"
-  std::snprintf(buf, sizeof(buf), f, args...);
-#pragma clang diagnostic pop
-  return buf;
 }
 
 }  // namespace
@@ -1588,8 +1579,9 @@ struct SigillumAemeth : sketch::Sketch {
           unl += kRing[(size_t)i].glyph;
         }
       g.child(
-          text(toU8(fmt("%d of 40 cells consumed \xc2\xb7 %d never visited",
-                        usedCells, 40 - usedCells)),
+          text(toU8(kit::formatted(
+                   "%d of 40 cells consumed \xc2\xb7 %d never visited",
+                   usedCells, 40 - usedCells)),
                type(faceMono, 15, hex(0x8d7a58)))
               .at({0, 492})
               .opacity(animate(from(0.0f).to(1.0f), ramp(tDark * 1000, 500))));
@@ -1896,8 +1888,8 @@ struct SigillumAemeth : sketch::Sketch {
       int above = 0, below = 0, bare = 0;
       for (const Cell& c : kRing)
         (c.step > 0 ? above : c.step < 0 ? below : bare)++;
-      logA.append({toU8(fmt("    %d above  %d below  %d bare   = 40", above,
-                            below, bare)),
+      logA.append({toU8(kit::formatted("    %d above  %d below  %d bare   = 40",
+                                       above, below, bare)),
                    above + below + bare == 40 ? "pass" : "heading"});
     }
 
@@ -1911,12 +1903,12 @@ struct SigillumAemeth : sketch::Sketch {
       std::string chain;
       for (size_t i = 0; i < s.cells.size(); ++i)
         chain += (i ? "-" : "") + std::to_string(s.cells[i]);
-      logB.append({toU8(fmt("  %-9s %-9s %s", kNames[(size_t)n].name,
-                            s.raw.c_str(), chain.c_str())),
+      logB.append({toU8(kit::formatted("  %-9s %-9s %s", kNames[(size_t)n].name,
+                                       s.raw.c_str(), chain.c_str())),
                    ok ? "pass" : "heading"});
     }
-    logB.append({toU8(fmt("  cells consumed %d of 40, unvisited %d", usedCells,
-                          40 - usedCells)),
+    logB.append({toU8(kit::formatted("  cells consumed %d of 40, unvisited %d",
+                                     usedCells, 40 - usedCells)),
                  usedCells == 33 ? "pass" : "heading"});
     {
       std::string un;
@@ -1961,12 +1953,13 @@ struct SigillumAemeth : sketch::Sketch {
       const test::Coverage ref =
           test::coverage(std::span<const SkPath>(&ring, 1), reg, 320);
       logC.append({toU8("THE 40 CELLS TILE THE ANNULUS"), "heading"});
+      logC.append({toU8(kit::formatted("  doubled %d of %d samples",
+                                       cov.doubled, cov.samples)),
+                   cov.doubled == 0 ? "pass" : "heading"});
       logC.append(
-          {toU8(fmt("  doubled %d of %d samples", cov.doubled, cov.samples)),
-           cov.doubled == 0 ? "pass" : "heading"});
-      logC.append(
-          {toU8(fmt("  uncovered %d - outside-the-ring %d = %d", cov.uncovered,
-                    ref.uncovered, cov.uncovered - ref.uncovered)),
+          {toU8(kit::formatted("  uncovered %d - outside-the-ring %d = %d",
+                               cov.uncovered, ref.uncovered,
+                               cov.uncovered - ref.uncovered)),
            std::abs(cov.uncovered - ref.uncovered) <= 320 ? "pass"
                                                           : "heading"});
     }
@@ -1999,15 +1992,16 @@ struct SigillumAemeth : sketch::Sketch {
       const test::Coverage ref =
           test::coverage(std::span<const SkPath>(&ring, 1), reg, 320);
       logC.append({toU8("THE 7 ANGLE PLATES TILE THEIR BAND"), "heading"});
-      logC.append({toU8(fmt("  doubled %d, gap vs ring %d", cov.doubled,
-                            cov.uncovered - ref.uncovered)),
-                   cov.doubled == 0 ? "pass" : "heading"});
+      logC.append(
+          {toU8(kit::formatted("  doubled %d, gap vs ring %d", cov.doubled,
+                               cov.uncovered - ref.uncovered)),
+           cov.doubled == 0 ? "pass" : "heading"});
       int letters = 0;
       for (const auto& angleRow : kAngles)
         for (const auto& cell : angleRow)
           if (cell != std::string("\xe2\x80\xa0")) ++letters;
-      logC.append({toU8(fmt("  %d letters + 1 cross = %d places", letters,
-                            letters + 1)),
+      logC.append({toU8(kit::formatted("  %d letters + 1 cross = %d places",
+                                       letters, letters + 1)),
                    letters == 48 ? "pass" : "heading"});
       std::string cols;
       for (int c = 0; c < 7; ++c)
@@ -2020,22 +2014,25 @@ struct SigillumAemeth : sketch::Sketch {
 
     // --- panel D: {7/2} vs {7/3}, and the weave ---------------------------
     logD.append({toU8("{7/2} OR {7/3}? THE COORDINATES DECIDE"), "heading"});
-    logD.append({toU8(fmt("  {7/2} core = %.4f x Rhept = %.3f R",
-                          (double)kStar72, (double)(kStar72 * rHept))),
-                 "number"});
-    logD.append({toU8(fmt("  {7/3} core = %.4f x Rhept = %.3f R",
-                          (double)kStar73, (double)(kStar73 * rHept))),
-                 "number"});
     logD.append(
-        {toU8(fmt("  along a point's ray the core stops at %.3f R",
-                  (double)(kStar72 * rHept * std::cos(3.14159265f / 7)))),
-         "dim"});
+        {toU8(kit::formatted("  {7/2} core = %.4f x Rhept = %.3f R",
+                             (double)kStar72, (double)(kStar72 * rHept))),
+         "number"});
+    logD.append(
+        {toU8(kit::formatted("  {7/3} core = %.4f x Rhept = %.3f R",
+                             (double)kStar73, (double)(kStar73 * rHept))),
+         "number"});
+    logD.append({toU8(kit::formatted(
+                     "  along a point's ray the core stops at %.3f R",
+                     (double)(kStar72 * rHept * std::cos(3.14159265f / 7)))),
+                 "dim"});
     // "Filiae", not "Fili\xc3\xa6": the feed runs in the MONO face, which
     // has no ash, and a missing glyph falls back to another typeface mid-word.
     // The seal's own legend, set in the serif, keeps the ligature.
-    logD.append({toU8(fmt("  Filiae/Filii Filiorum measured %.3f / %.3f R",
-                          (double)rFiliaeFil, (double)rFiliiFil)),
-                 "dim"});
+    logD.append(
+        {toU8(kit::formatted("  Filiae/Filii Filiorum measured %.3f / %.3f R",
+                             (double)rFiliaeFil, (double)rFiliiFil)),
+         "dim"});
     logD.append(
         {toU8("  both INSIDE a {7/2} core, as the record says;"), "dim"});
     logD.append(

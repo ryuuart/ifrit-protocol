@@ -116,6 +116,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -135,7 +136,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -391,19 +391,11 @@ inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }
-inline std::string fmt(const char* f, ...) {
-  char buf[512];
-  va_list ap;
-  va_start(ap, f);
-  vsnprintf(buf, sizeof buf, f, ap);
-  va_end(ap);
-  return std::string(buf);
-}
 inline std::string hexOf(SkColor4f c) {
   auto q = [](float v) {
     return (int)std::lround(std::clamp(v, 0.f, 1.f) * 255.f);
   };
-  return fmt("#%02X%02X%02X", q(c.fR), q(c.fG), q(c.fB));
+  return kit::formatted("#%02X%02X%02X", q(c.fR), q(c.fG), q(c.fB));
 }
 
 inline Element label(const std::string& s, const weave::TextStyle& st, float x,
@@ -621,23 +613,24 @@ struct ChevreulCircle : sketch::Sketch {
     v.perNamed = 6;  // one named + five numbered intermediates
     v.closes1 = v.named * v.perNamed;
     v.closes2 = 3 + 3 * 23;  // colorants.hypotheses.org's framing
-    derivation1 =
-        fmt("120/2 = 60  ->  60/2 = 30  ->  30/5 = 6 deg;  "
-            "360/6 = %d sectors of %.1f deg",
-            360 / 6 * 1, kSectorDeg);
+    derivation1 = kit::formatted(
+        "120/2 = 60  ->  60/2 = 30  ->  30/5 = 6 deg;  "
+        "360/6 = %d sectors of %.1f deg",
+        360 / 6 * 1, kSectorDeg);
     // (the arithmetic, spelled the way §161 builds it)
-    derivation1 =
-        fmt("3 arcs of 120 -> 6 of 60 -> 12 of 30, each divided "
-            "in 5: 12 + 60 = %d",
-            v.closes1);
+    derivation1 = kit::formatted(
+        "3 arcs of 120 -> 6 of 60 -> 12 of 30, each divided "
+        "in 5: 12 + 60 = %d",
+        v.closes1);
 
     // --- 2. the system total (§163-§165) ----------------------------
     const long plane = 72L * 20L;        // the circle's own plane
     const long broken = 9L * 72L * 20L;  // nine radii broken by tenths
     const long grey = 20L;               // the tenth radius, normal grey
     v.total = plane + broken + grey;
-    derivation2 = fmt("72 x 20 = %ld  +  9 x 72 x 20 = %ld  +  20 grey  =  %ld",
-                      plane, broken, v.total);
+    derivation2 = kit::formatted(
+        "72 x 20 = %ld  +  9 x 72 x 20 = %ld  +  20 grey  =  %ld", plane,
+        broken, v.total);
 
     // --- 3. the plate's own diameter --------------------------------
     v.plateDelta = kScanVert - kScanRouge;
@@ -915,7 +908,8 @@ struct ChevreulCircle : sketch::Sketch {
           *ctx.fonts, {32, 32}, kN32_SkColorType);
       if (r.valid()) {
         const SkColor4f got = r.at(16, 16);
-        v.ocioSample = fmt("#%02X%02X%02X", (int)std::lround(got.fR * 255.0f),
+        v.ocioSample =
+            kit::formatted("#%02X%02X%02X", (int)std::lround(got.fR * 255.0f),
                            (int)std::lround(got.fG * 255.0f),
                            (int)std::lround(got.fB * 255.0f));
       }
@@ -958,9 +952,11 @@ struct ChevreulCircle : sketch::Sketch {
     verdict
         .add(measure::check("CIRCLE CLOSES     12 named \xc3\x97 6", 72,
                             v.closes1))
-        .add(measure::check("                  3 + 3\xc3\x97" "23", 72,
-                            v.closes2))
-        .add(measure::check("SYSTEM TOTAL      72\xc3\x97" "20\xc3\x97"
+        .add(measure::check("                  3 + 3\xc3\x97"
+                            "23",
+                            72, v.closes2))
+        .add(measure::check("SYSTEM TOTAL      72\xc3\x97"
+                            "20\xc3\x97"
                             "10 + 20 grey",
                             14420L, v.total))
         .add(measure::check("PLATE DIAMETER    ROUGE\xe2\x86\x92VERT, deg",
@@ -970,7 +966,7 @@ struct ChevreulCircle : sketch::Sketch {
         .add(measure::check("                  and they are HIS seventeen",
                             v.nameSetMatches))
         .add(measure::reading("  by geometry     sep==36 / sep>=30",
-                              fmt("%d / %d", v.byStrict, v.byLoose)))
+                              kit::formatted("%d / %d", v.byStrict, v.byLoose)))
         // A statement about the 161-year-old PRINT, not about this
         // reconstruction: whether the measured hue really advances at every
         // one of the seventy-two steps.
@@ -978,21 +974,22 @@ struct ChevreulCircle : sketch::Sketch {
             "HUE WINDS ONCE    steps > 0, of 72", 72, v.huePositive)))
         .add(measure::reading(
             "EQUAL SECTORS     step mean / sd",
-            fmt("%.2f / %.2f", (double)v.hueMean, (double)v.hueSd)))
-        .add(measure::reading(
-            "DIAMETERS         miss: origin / centroid",
-            fmt("%.2f / %.2f", (double)v.missOrigin, (double)v.missCentroid)))
+            kit::formatted("%.2f / %.2f", (double)v.hueMean, (double)v.hueSd)))
+        .add(
+            measure::reading("DIAMETERS         miss: origin / centroid",
+                             kit::formatted("%.2f / %.2f", (double)v.missOrigin,
+                                            (double)v.missCentroid)))
         // \xc2\xa7" "6's four complementary statements against \xc2\xa7" "161's
         // own construction. Three land on the nose; greenish-yellow/violet
         // does not, and that is Chevreul's, not the reconstruction's.
-        .add(measure::finding(measure::check(
-            "COMPLEMENTARIES   \xc2\xa7" "6 pairs exact, of 4", 4,
-            v.compExact)))
+        .add(measure::finding(measure::check("COMPLEMENTARIES   \xc2\xa7"
+                                             "6 pairs exact, of 4",
+                                             4, v.compExact)))
         // \xc2\xa7" "160: yellow lighter and blue darker than red, measured
         // off the plate's own medians.
-        .add(measure::finding(measure::check(
-            "LUMINOSITY \xc2\xa7" "160  jaune is the lightest",
-            v.jauneHighest)))
+        .add(measure::finding(measure::check("LUMINOSITY \xc2\xa7"
+                                             "160  jaune is the lightest",
+                                             v.jauneHighest)))
         .add(measure::finding(measure::check(
             "                  bleu darker than rouge", v.bleuDarker)))
         .add(measure::check("STAIRCASE         hexes exact, of 20", v.bands,
@@ -1060,7 +1057,7 @@ struct ChevreulCircle : sketch::Sketch {
                 .opacity(bind(&demo).window(0.15f, 0.19f)));
     for (float r : {kRLimbIn, kRLimbOut})
       g.child(kit::disc(kC, r)
-                  .key(fmt("limb%.0f", r))
+                  .key(kit::formatted("limb%.0f", r))
                   .shape(shapes::circle())
                   .fill(Fill::none())
                   .stroke(spans::upTo(bind(&demo).window(0.14f, 0.20f)),
@@ -1290,14 +1287,15 @@ struct ChevreulCircle : sketch::Sketch {
     {
       const std::array<std::pair<std::string, SkColor4f>, 4> lines = {{
           {"§161  " + derivation1 + ";   each scale 5.00 deg", kInk2},
-          {fmt("built at ROUGE = %.1f deg — the plate's own composition; the "
+          {kit::formatted(
+               "built at ROUGE = %.1f deg — the plate's own composition; the "
                "scan measures ROUGE %.1f, VERT %.1f, delta %.2f",
                kRougeDeg, kScanRouge, kScanVert, v.plateDelta),
            kInk2},
-          {fmt("test::coverage over an SkPath REGION: %d/%d of %d · "
-               "endpointDegrees: %zu closed contours, %zu endpoints",
-               v.covUncovered, v.covDoubled, v.covSamples, v.closedContours,
-               v.endpointPoints),
+          {kit::formatted("test::coverage over an SkPath REGION: %d/%d of %d · "
+                          "endpointDegrees: %zu closed contours, %zu endpoints",
+                          v.covUncovered, v.covDoubled, v.covSamples,
+                          v.closedContours, v.endpointPoints),
            kInk2},
           {"outer band = the same 72 values as ONE 146-stop sweep gradient · "
            "outer numerals = index n, NOT ON THE PLATE",
@@ -1348,11 +1346,12 @@ struct ChevreulCircle : sketch::Sketch {
     g.child(label(derivation2 + "   — mixed in LINEAR light, per §164's "
                                 "quantities of pigment",
                   mn(8.0f, kInk2, 0.2f), 56, kQY + gh + 6, 760));
-    g.child(label(fmt("instanced: 1 atlas cell, 200 tints, %d/%d colour-exact "
-                      "on readback (max channel dev %d)",
-                      v.tintExact, v.tintCells, v.tintMaxDev),
-                  mn(8.0f, v.tintExact == v.tintCells ? kInk2 : kRed, 0.2f), 56,
-                  kQY + gh + 20, 760));
+    g.child(label(
+        kit::formatted("instanced: 1 atlas cell, 200 tints, %d/%d colour-exact "
+                       "on readback (max channel dev %d)",
+                       v.tintExact, v.tintCells, v.tintMaxDev),
+        mn(8.0f, v.tintExact == v.tintCells ? kInk2 : kRed, 0.2f), 56,
+        kQY + gh + 20, 760));
     return g;
   }
 
@@ -1458,8 +1457,8 @@ struct ChevreulCircle : sketch::Sketch {
     Element g = box();
     g.child(
         label(counterText, mn(8.0f, kRed, 0.2f), x0 + 10, y0 + S - 32, S - 20));
-    g.child(label(fmt("centroid a* %.2f  b* %.2f   ·   mean C* %.1f", v.centA,
-                      v.centB, v.meanChroma),
+    g.child(label(kit::formatted("centroid a* %.2f  b* %.2f   ·   mean C* %.1f",
+                                 v.centA, v.centB, v.meanChroma),
                   mn(7.5f, kInk2, 0.2f), x0 + 10, y0 + S - 18, S - 20));
     return g;
   }
@@ -1499,16 +1498,16 @@ struct ChevreulCircle : sketch::Sketch {
                      .fill(Fill::color(
                          predicted(cb, kNewton[(size_t)o.a], corrected))));
       row.child(std::move(pred));
-      row.child(label(
-          fmt("%s · %s", kNewtonName[(size_t)o.a], kNewtonName[(size_t)o.b]),
-          mn(7.0f, kInk, 0.2f), 108, 3, 108));
-      row.child(label(fmt("%s / %s", o.modA, o.modB), it(8.5f, kInk2), 218,
-                      1.5f, 250));
+      row.child(label(kit::formatted("%s · %s", kNewtonName[(size_t)o.a],
+                                     kNewtonName[(size_t)o.b]),
+                      mn(7.0f, kInk, 0.2f), 108, 3, 108));
+      row.child(label(kit::formatted("%s / %s", o.modA, o.modB),
+                      it(8.5f, kInk2), 218, 1.5f, 250));
       g.child(std::move(row));
     }
-    g.child(label(fmt("C(7,2) = %d − 4 complémentaires = %d      "
-                      "(by geometry: %d, or %d — neither is 17)",
-                      v.pairs21, v.byName, v.byStrict, v.byLoose),
+    g.child(label(kit::formatted("C(7,2) = %d − 4 complémentaires = %d      "
+                                 "(by geometry: %d, or %d — neither is 17)",
+                                 v.pairs21, v.byName, v.byStrict, v.byLoose),
                   mn(8.0f, kRed, 0.2f), x0 + 10, y0 + H - 32, W - 20)
                 .opacity(bind(&demo).window(0.79f, 0.80f)));
     g.child(
@@ -1529,7 +1528,7 @@ struct ChevreulCircle : sketch::Sketch {
     Element g = box();
     for (int b = 0; b < kBandN; ++b) {
       Element band = at(kStairX + (float)b * kBandW, y, kBandW, h)
-                         .key(fmt("%s%d", keyBase, b))
+                         .key(kit::formatted("%s%d", keyBase, b))
                          .fill(Fill::color(ramp[(size_t)b]));
       if (graded)
         band.effect(Effect::recipe(ocio::exponent(2.2f)))
@@ -1573,10 +1572,11 @@ struct ChevreulCircle : sketch::Sketch {
     // the OCIO strip
     if (v.ocioAvailable) {
       g.child(aStaircase(gamme, kStairYC, 28.0f, "sc", false, true));
-      g.child(label(fmt("§164 ramp under ocio::exponent(2.2) — an OCIO-baked "
-                        "LUT Effect: tone 10 %s measures %s through it",
-                        hexOf(gamme[9]).c_str(), v.ocioSample.c_str()),
-                    mn(7.0f, kInk2, 0.2f), kStairX, kStairYC + 32, 760));
+      g.child(label(
+          kit::formatted("§164 ramp under ocio::exponent(2.2) — an OCIO-baked "
+                         "LUT Effect: tone 10 %s measures %s through it",
+                         hexOf(gamme[9]).c_str(), v.ocioSample.c_str()),
+          mn(7.0f, kInk2, 0.2f), kStairX, kStairYC + 32, 760));
     } else {
       g.child(label("OCIO: not compiled in", mn(9.0f, kRed, 0.4f), kStairX,
                     kStairYC + 10, 400));
@@ -1592,10 +1592,11 @@ struct ChevreulCircle : sketch::Sketch {
         label("“the light tone will appear lighter, and the deep tone "
               "deeper, commencing at the line of contact” — Introduction",
               it(9.5f, kInk), 852, 774, 600));
-    g.child(rightAt(fmt("%d bands · per-band σ = %.2f · %d/%d hexes exact "
-                        "byte for byte",
-                        v.bands, v.bandSigmaMax, v.bandsExact, v.bands),
-                    mn(8.5f, kRed, 0.2f), 1300, 776, 444));
+    g.child(rightAt(
+        kit::formatted("%d bands · per-band σ = %.2f · %d/%d hexes exact "
+                       "byte for byte",
+                       v.bands, v.bandSigmaMax, v.bandsExact, v.bands),
+        mn(8.5f, kRed, 0.2f), 1300, 776, 444));
     return g;
   }
 
@@ -1634,9 +1635,10 @@ struct ChevreulCircle : sketch::Sketch {
     for (int i = 0; i < 12; ++i)
       g.child(
           at(gx + (float)i * 27.0f, ry, 24, 24).fill(Fill::color(gamme[14])));
-    g.child(label(fmt("all twelve patches are %s — Chevreul's grey, tone 15",
-                      hexOf(gamme[14]).c_str()),
-                  mn(8.0f, kRed, 0.2f), x0, ry + 28, W));
+    g.child(label(
+        kit::formatted("all twelve patches are %s — Chevreul's grey, tone 15",
+                       hexOf(gamme[14]).c_str()),
+        mn(8.0f, kRed, 0.2f), x0, ry + 28, W));
     g.child(label("§16: “they will appear as dissimilar as possible”",
                   it(8.5f, kInk2), x0, ry + 42, W));
     return g;
@@ -1813,10 +1815,10 @@ struct ChevreulCircle : sketch::Sketch {
     // than by re-describing the plate, so every other cache stays valid.
     const float d = demo.value();
     const float u = std::clamp((d - 0.20f) / 0.09f, 0.0f, 1.0f);
-    const std::string next =
-        fmt("36 chords miss the ORIGIN by %.2f · the CENTROID by %.2f  "
-            "(%.1f%%)",
-            v.missOrigin * u, v.missCentroid * u, v.missPercent * u);
+    const std::string next = kit::formatted(
+        "36 chords miss the ORIGIN by %.2f · the CENTROID by %.2f  "
+        "(%.1f%%)",
+        v.missOrigin * u, v.missCentroid * u, v.missPercent * u);
     if (next != counterText) {
       counterText = next;
       ctx.composer.renderSlot("chordcount", chordCounter());
