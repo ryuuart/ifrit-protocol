@@ -9,7 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkPerlinNoiseShader.h>
-#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextCatalog.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -24,25 +24,13 @@ namespace {
 
 constexpr char kShaderPrefix[] = "shader://material/field/";
 
-struct ShaderResources {
-  ShaderResources() {
-    hub.mount(kShaderPrefix, SIGIL_MATERIAL_FIELD_SHADER_DIR);
-    retained = hub.retain(kShaderPrefix);
-  }
-
-  io::Hub hub;
-  io::ResourceLease retained;
-};
-
-ShaderResources& shaders() {
-  static ShaderResources resources;
-  return resources;
+io::TextCatalog& shaders() {
+  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_FIELD_SHADER_DIR);
+  return catalog;
 }
 
 std::string shaderSource(std::string_view name) {
-  return shaders()
-      .hub.text(std::string(kShaderPrefix) + std::string(name))
-      .value_or("");
+  return shaders().text(name).value_or("");
 }
 
 void replace(std::string& text, std::string_view token,
@@ -174,9 +162,7 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase,
 }
 
 std::vector<Material> everyRecipe() {
-  ShaderResources& resources = shaders();
-  resources.retained.refresh();
-  resources.retained.preload();
+  shaders().preload();
   std::vector<Material> all;
   all.push_back(halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f));
   all.push_back(noise(0.03f));

@@ -37,11 +37,14 @@ struct Playback::Impl {
 
   explicit Impl(const Options& options)
       : deviceContext(device::makeContext(options.metalDevice)) {
-    size_t workers = options.workerThreads;
-    if (workers == 0) {
+    size_t workers = 0;
+    if (options.workerThreads) {
+      workers = *options.workerThreads;
+    } else {
       const unsigned concurrency = std::thread::hardware_concurrency();
       workers = std::clamp<size_t>(concurrency ? concurrency / 2 : 2, 2, 8);
     }
+    synchronous = workers == 0;
     threads.reserve(workers);
     for (size_t i = 0; i < workers; ++i)
       threads.emplace_back([this](std::stop_token stop) { work(stop); });
@@ -51,13 +54,40 @@ struct Playback::Impl {
     for (std::jthread& thread : threads) thread.request_stop();
   }
 
-  Slot* slot(Handle handle) const {
-    return handle < slots.size() ? slots[handle].get() : nullptr;
+  /** The slot behind a handle, held alive by the caller for as long as it
+   *  works on it: workers index the table while `add()` grows it. */
+  std::shared_ptr<Slot> slot(Handle handle) const {
+    std::lock_guard lock(slotsMutex);
+    return handle < slots.size() ? slots[handle] : nullptr;
   }
 
   void pushRequest(Handle handle) {
     std::lock_guard lock(requestProducerMutex);
     if (!jobs.enqueue(requestProducer, handle)) std::terminate();
+  }
+
+  /** One dequeued job: decode the slot's newest request, publish it, and
+   *  re-queue when a newer request arrived meanwhile. */
+  bool decodeOnce(Slot& current) {
+    double seconds = 0.0;
+    size_t generation = 0;
+    {
+      std::lock_guard lock(current.decodeMutex);
+      current.queued = false;
+      current.decoding = true;
+      seconds = current.requestedSeconds;
+      generation = current.generation;
+    }
+    VideoFrame decoded = current.video->decodeAt(seconds);
+
+    std::lock_guard lock(current.decodeMutex);
+    current.latest = std::move(decoded);
+    current.decoding = false;
+    if (current.generation != generation && !current.queued) {
+      current.queued = true;
+      return true;
+    }
+    return false;
   }
 
   void work(std::stop_token stop) {
@@ -68,40 +98,21 @@ struct Playback::Impl {
       if (!jobs.wait_dequeue_timed(consumer, handle,
                                    std::chrono::milliseconds(10)))
         continue;
-      Slot* current = slot(handle);
+      const std::shared_ptr<Slot> current = slot(handle);
       if (!current) continue;
-
-      double seconds = 0.0;
-      size_t generation = 0;
-      {
-        std::lock_guard lock(current->decodeMutex);
-        current->queued = false;
-        current->decoding = true;
-        seconds = current->requestedSeconds;
-        generation = current->generation;
-      }
-      VideoFrame decoded = current->video->decodeAt(seconds);
-
-      bool again = false;
-      {
-        std::lock_guard lock(current->decodeMutex);
-        current->latest = std::move(decoded);
-        current->decoding = false;
-        if (current->generation != generation && !current->queued) {
-          current->queued = true;
-          again = true;
-        }
-      }
-      if (again && !jobs.enqueue(producer, handle)) std::terminate();
+      if (decodeOnce(*current) && !jobs.enqueue(producer, handle))
+        std::terminate();
     }
   }
 
   JobQueue jobs;
   JobQueue::producer_token_t requestProducer{jobs};
   std::mutex requestProducerMutex;
-  std::vector<std::unique_ptr<Slot>> slots;
+  mutable std::mutex slotsMutex;
+  std::vector<std::shared_ptr<Slot>> slots;
   std::vector<std::jthread> threads;
   std::shared_ptr<device::Context> deviceContext;
+  bool synchronous = false;
 };
 
 Playback::Playback() : Playback(Options{}) {}
@@ -112,13 +123,16 @@ Playback::Playback(const Options& options)
 Playback::~Playback() = default;
 
 Playback::Handle Playback::add(std::shared_ptr<Video> video) {
+  std::lock_guard lock(m_impl->slotsMutex);
+  for (Handle handle = 0; handle < m_impl->slots.size(); ++handle)
+    if (m_impl->slots[handle]->video == video) return handle;
   const Handle handle = m_impl->slots.size();
-  m_impl->slots.push_back(std::make_unique<Impl::Slot>(std::move(video)));
+  m_impl->slots.push_back(std::make_shared<Impl::Slot>(std::move(video)));
   return handle;
 }
 
 void Playback::request(Handle handle, double seconds) {
-  Impl::Slot* slot = m_impl->slot(handle);
+  const std::shared_ptr<Impl::Slot> slot = m_impl->slot(handle);
   if (!slot || !slot->video) return;
   bool enqueue = false;
   {
@@ -136,18 +150,25 @@ void Playback::request(Handle handle, double seconds) {
       enqueue = true;
     }
   }
-  if (enqueue) m_impl->pushRequest(handle);
+  if (!enqueue) return;
+  if (m_impl->synchronous) {
+    // No worker exists: the request is the decode, on this thread.
+    while (m_impl->decodeOnce(*slot)) {
+    }
+    return;
+  }
+  m_impl->pushRequest(handle);
 }
 
 bool Playback::ready(Handle handle) const {
-  Impl::Slot* slot = m_impl->slot(handle);
+  const std::shared_ptr<Impl::Slot> slot = m_impl->slot(handle);
   if (!slot) return false;
   std::lock_guard lock(slot->decodeMutex);
   return static_cast<bool>(slot->latest);
 }
 
 VideoFrame Playback::frame(Handle handle, skgpu::graphite::Recorder* recorder) {
-  Impl::Slot* slot = m_impl->slot(handle);
+  const std::shared_ptr<Impl::Slot> slot = m_impl->slot(handle);
   if (!slot) return {};
   VideoFrame result;
   {
@@ -169,6 +190,9 @@ VideoFrame Playback::frame(Handle handle, skgpu::graphite::Recorder* recorder) {
   return result;
 }
 
-size_t Playback::size() const { return m_impl->slots.size(); }
+size_t Playback::size() const {
+  std::lock_guard lock(m_impl->slotsMutex);
+  return m_impl->slots.size();
+}
 
 }  // namespace sigil::video

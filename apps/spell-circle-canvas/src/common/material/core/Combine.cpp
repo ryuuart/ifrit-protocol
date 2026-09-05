@@ -6,7 +6,7 @@
 
 #include "sigilmaterial/core/Combine.h"
 
-#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextCatalog.h>
 #include <sigilmaterial/core/Program.h>
 
 #include <boost/container/flat_map.hpp>
@@ -37,25 +37,13 @@ constexpr Operand kOperands[3] = {
 
 constexpr char kShaderPrefix[] = "shader://material/core/";
 
-struct ShaderResources {
-  ShaderResources() {
-    hub.mount(kShaderPrefix, SIGIL_MATERIAL_CORE_SHADER_DIR);
-    retained = hub.retain(kShaderPrefix);
-  }
-
-  io::Hub hub;
-  io::ResourceLease retained;
-};
-
-ShaderResources& shaders() {
-  static ShaderResources resources;
-  return resources;
+io::TextCatalog& shaders() {
+  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_CORE_SHADER_DIR);
+  return catalog;
 }
 
 std::string shaderSource(std::string_view name) {
-  return shaders()
-      .hub.text(std::string(kShaderPrefix) + std::string(name))
-      .value_or("");
+  return shaders().text(name).value_or("");
 }
 
 std::string_view skslFile(Blend blend) {

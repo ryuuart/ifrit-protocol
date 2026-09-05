@@ -4,19 +4,17 @@
 #include <sigilvideo/decode/Playback.h>
 
 #include <array>
-#include <chrono>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <optional>
-#include <thread>
 #include <vector>
 
 namespace {
 
 std::vector<std::byte> readAsset(const char* name) {
-  std::ifstream input(std::filesystem::path(IFRIT_VIDEO_TEST_ASSET_DIR) / name,
+  std::ifstream input(std::filesystem::path(SIGILVIDEO_TEST_ASSET_DIR) / name,
                       std::ios::binary | std::ios::ate);
   if (!input) return {};
   const std::streamsize size = input.tellg();
@@ -25,6 +23,16 @@ std::vector<std::byte> readAsset(const char* name) {
   std::vector<std::byte> bytes(static_cast<size_t>(size));
   if (!input.read(reinterpret_cast<char*>(bytes.data()), size)) return {};
   return bytes;
+}
+
+std::shared_ptr<sigil::video::Video> bearClip(size_t cachedFrames = 4) {
+  const std::vector<std::byte> bytes = readAsset("bear-vp8a.webm");
+  if (bytes.empty()) return nullptr;
+  sigil::video::DecodeOptions options;
+  options.hardware = sigil::video::HardwarePreference::Disabled;
+  options.cachedFrames = cachedFrames;
+  return sigil::video::decodeVideo(bytes.data(), bytes.size(), options,
+                                   "bear-vp8a.webm");
 }
 
 }  // namespace
@@ -90,40 +98,93 @@ TEST(VideoDecode, PreservesAndPremultipliesWebMAlpha) {
             nullptr);
 }
 
-TEST(VideoDecode, PlaybackKeepsDecodeOffTheRenderThread) {
-  const std::vector<std::byte> bytes = readAsset("bear-vp8a.webm");
-  ASSERT_FALSE(bytes.empty());
-  sigil::video::DecodeOptions options;
-  options.hardware = sigil::video::HardwarePreference::Disabled;
-  std::shared_ptr<sigil::video::Video> video = sigil::video::decodeVideo(
-      bytes.data(), bytes.size(), options, "bear-vp8a.webm");
+TEST(VideoDecode, SeekingBackwardReturnsTheCoveringFrame) {
+  std::shared_ptr<sigil::video::Video> video = bearClip();
+  ASSERT_NE(video, nullptr);
+  const sigil::video::VideoFrame later = video->frameAt(0.8);
+  ASSERT_TRUE(later);
+  EXPECT_GT(later.index, 0);
+  EXPECT_LE(later.presentationSeconds, 0.8);
+  EXPECT_GT(later.presentationSeconds + later.durationSeconds, 0.8);
+
+  const sigil::video::VideoFrame first = video->frameAt(0.0);
+  ASSERT_TRUE(first);
+  EXPECT_EQ(first.index, 0);
+  EXPECT_EQ(first.presentationSeconds, 0.0);
+}
+
+TEST(VideoDecode, TheCacheHoldsCachedFramesAndNoMore) {
+  // Room for both: the first frame's raster is the same object on the
+  // second ask.
+  std::shared_ptr<sigil::video::Video> roomy = bearClip(4);
+  ASSERT_NE(roomy, nullptr);
+  const sigil::video::VideoFrame first = roomy->frameAt(0.0);
+  ASSERT_TRUE(first);
+  const sigil::video::VideoFrame later = roomy->frameAt(0.1);
+  ASSERT_TRUE(later);
+  EXPECT_NE(later.index, first.index);
+  EXPECT_EQ(roomy->frameAt(0.0).image.get(), first.image.get());
+
+  // Room for one: the later ask evicts the first, which decodes again
+  // into a new image.
+  std::shared_ptr<sigil::video::Video> tight = bearClip(1);
+  ASSERT_NE(tight, nullptr);
+  const sigil::video::VideoFrame only = tight->frameAt(0.0);
+  ASSERT_TRUE(only);
+  ASSERT_TRUE(tight->frameAt(0.1));
+  const sigil::video::VideoFrame again = tight->frameAt(0.0);
+  ASSERT_TRUE(again);
+  EXPECT_EQ(again.index, only.index);
+  EXPECT_NE(again.image.get(), only.image.get());
+}
+
+TEST(VideoDecode, CapacityZeroBehavesAsOne) {
+  std::shared_ptr<sigil::video::Video> video = bearClip(0);
+  ASSERT_NE(video, nullptr);
+  const sigil::video::VideoFrame first = video->frameAt(0.0);
+  ASSERT_TRUE(first);
+  EXPECT_EQ(video->frameAt(0.0).image.get(), first.image.get());
+}
+
+TEST(VideoDecode, PlaybackServesTheRequestedFrame) {
+  std::shared_ptr<sigil::video::Video> video = bearClip();
   ASSERT_NE(video, nullptr);
 
-  sigil::video::Playback playback({.workerThreads = 2});
+  // No worker: each request decodes before it returns, so the answer is
+  // readable from the next frame() with nothing to wait for.
+  sigil::video::Playback playback({.workerThreads = 0});
   const sigil::video::Playback::Handle handle = playback.add(video);
+  EXPECT_EQ(playback.add(video), handle);  // a clip registers once
+  EXPECT_EQ(playback.size(), 1u);
   EXPECT_FALSE(playback.ready(handle));
   playback.request(handle, 0.0);
-  sigil::video::VideoFrame first;
-  const auto firstDeadline =
-      std::chrono::steady_clock::now() + std::chrono::seconds(2);
-  while (!first && std::chrono::steady_clock::now() < firstDeadline) {
-    first = playback.frame(handle, nullptr);
-    std::this_thread::yield();
-  }
+  const sigil::video::VideoFrame first = playback.frame(handle, nullptr);
   ASSERT_TRUE(first);
   EXPECT_TRUE(playback.ready(handle));
   ASSERT_NE(first.image, nullptr);
+  EXPECT_EQ(first.index, 0);
 
   playback.request(handle, 0.8);
-  sigil::video::VideoFrame later = first;
-  const auto laterDeadline =
-      std::chrono::steady_clock::now() + std::chrono::seconds(2);
-  while (later.index == first.index &&
-         std::chrono::steady_clock::now() < laterDeadline) {
-    later = playback.frame(handle, nullptr);
-    std::this_thread::yield();
-  }
+  const sigil::video::VideoFrame later = playback.frame(handle, nullptr);
+  ASSERT_TRUE(later);
   EXPECT_NE(later.index, first.index);
+
+  // A request inside the frame on show is coalesced away.
+  playback.request(handle, later.presentationSeconds);
+  EXPECT_EQ(playback.frame(handle, nullptr).image.get(), later.image.get());
+}
+
+TEST(VideoDecode, PlaybackWorkersOutliveRequestsInFlight) {
+  std::shared_ptr<sigil::video::Video> video = bearClip();
+  ASSERT_NE(video, nullptr);
+  // Requests are queued and the pool is torn down with them in flight or
+  // pending; the destructor joins its workers. Nothing here waits on a
+  // clock: the assertion is that this returns.
+  sigil::video::Playback playback({.workerThreads = 2});
+  const sigil::video::Playback::Handle handle = playback.add(video);
+  playback.request(handle, 0.0);
+  playback.request(handle, 0.5);
+  EXPECT_EQ(playback.size(), 1u);
 }
 
 #if !defined(__APPLE__)

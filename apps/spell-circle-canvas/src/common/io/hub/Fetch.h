@@ -33,18 +33,25 @@ struct FetchResult {
   std::filesystem::file_time_type mtime;
 };
 
+/** The network settings one ask runs under, copied out of the hub
+ *  under its lock so the fetch itself runs outside it. */
+struct NetworkAccess {
+  std::filesystem::path cacheDir;  // empty = defaultNetworkCacheDir()
+  NetworkPolicy policy = NetworkPolicy::CacheFirst;
+  NetworkTransport transport;  // empty = libcurl
+};
+
 /** Network fetch behind the disk cache. CacheFirst: a present cache
  *  file is served without touching the network (offline-friendly).
  *  Refresh: the network goes first, the cache catches its failures.
  *  Offline: cache only. A fetch success always persists for the next
  *  run. */
-FetchResult fetchNetwork(const std::filesystem::path& cacheDir,
-                         std::string_view url, NetworkPolicy policy);
+FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url);
 
-/** The one preamble every accessor shares: network URI → NetFetcher
- *  (through the disk cache), anything else → mounted filesystem. */
-FetchResult fetchResource(const Hub& hub,
-                          const std::filesystem::path& netCacheDir,
-                          NetworkPolicy netPolicy, std::string_view uri);
+/** The one preamble every accessor shares: network URI → the network
+ *  transport through the disk cache, anything else → mounted
+ *  filesystem. */
+FetchResult fetchResource(const Hub& hub, const NetworkAccess& network,
+                          std::string_view uri);
 
 }  // namespace sigil::io::detail

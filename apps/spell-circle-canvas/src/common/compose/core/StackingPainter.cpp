@@ -22,7 +22,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextCatalog.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -114,25 +114,13 @@ namespace {
 
 constexpr char kShaderPrefix[] = "shader://compose/core/";
 
-struct ShaderResources {
-  ShaderResources() {
-    hub.mount(kShaderPrefix, SIGIL_COMPOSE_SHADER_DIR);
-    retained = hub.retain(kShaderPrefix);
-  }
-
-  sigil::io::Hub hub;
-  sigil::io::ResourceLease retained;
-};
-
-ShaderResources& shaders() {
-  static ShaderResources resources;
-  return resources;
+sigil::io::TextCatalog& shaders() {
+  static sigil::io::TextCatalog catalog(kShaderPrefix, SIGIL_COMPOSE_SHADER_DIR);
+  return catalog;
 }
 
 std::string shaderSource(std::string_view name) {
-  return shaders()
-      .hub.text(std::string(kShaderPrefix) + std::string(name))
-      .value_or("");
+  return shaders().text(name).value_or("");
 }
 
 /** Does this span set claim the whole boundary? Then the boundary is

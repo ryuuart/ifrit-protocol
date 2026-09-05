@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
 #include "sigilvideo/decode/Decode.h"
 
@@ -15,18 +16,23 @@ namespace sigil::video {
 
 /** Many independent video clocks sharing a bounded decode queue.
  *
- *  Register players before presentation begins. `request()` coalesces repeated
- *  asks that fall inside the same source frame and newer times replace queued
- *  stale work. `frame()` is called on one render thread; it maps a completed
- *  native frame into that thread's Graphite recorder and never waits for a
- *  decoder. */
+ *  A clip registers once: `add()` answers the handle a clip already holds,
+ *  since one `Video` must never be decoded by two workers at once, and a
+ *  clip may be added while presentation is running. `request()` coalesces
+ *  repeated asks that fall inside the same source frame and newer times
+ *  replace queued stale work. `frame()` is called on one render thread; it
+ *  maps a completed native frame into that thread's Graphite recorder and
+ *  never waits for a decoder. */
 class Playback {
  public:
   using Handle = size_t;
 
   struct Options {
-    /** Zero chooses a bounded count from the host's hardware concurrency. */
-    size_t workerThreads = 0;
+    /** Unset chooses a bounded count from the host's hardware concurrency.
+     *  Zero runs no worker at all: `request()` decodes on the calling
+     *  thread before it returns, so a deterministic host — a plate, a
+     *  test — reads the answer from the next `frame()`. */
+    std::optional<size_t> workerThreads;
     /** Metal device behind the recorder passed to `frame()`. */
     void* metalDevice = nullptr;
   };
@@ -37,6 +43,7 @@ class Playback {
   Playback(const Playback&) = delete;
   Playback& operator=(const Playback&) = delete;
 
+  /** Registers @p video, or answers the handle it was registered under. */
   Handle add(std::shared_ptr<Video> video);
   void request(Handle handle, double seconds);
   /** Whether @p handle has produced at least one presentation frame. */

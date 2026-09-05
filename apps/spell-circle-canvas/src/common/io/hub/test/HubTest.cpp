@@ -10,6 +10,7 @@
 #include <include/core/SkPixmap.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextCatalog.h>
 #include <sigilio/source/Sink.h>
 
 #ifdef SIGILIO_HAS_OIIO
@@ -243,11 +244,11 @@ TEST_F(IOHub, PreloadFetchesDistinctUrisIntoTheByteCache) {
   EXPECT_EQ(hub.text("res://two.slang"), "two");
 }
 
-TEST_F(IOHub, PreloadDirectoryDiscoversNestedResourcesByUri) {
+TEST_F(IOHub, PreloadingADirectoryDiscoversNestedResourcesByUri) {
   dir.write("shaders/a.sksl", "a");
   dir.write("shaders/nested/b.slang", "b");
   hub.mount("shader://", dir.path / "shaders");
-  EXPECT_EQ(hub.preloadDirectory("shader://"), 2u);
+  EXPECT_EQ(hub.preload("shader://"), 2u);
 
   dir.write("shaders/nested/b.slang", "changed after preload");
   EXPECT_EQ(hub.text("shader://a.sksl"), "a");
@@ -408,6 +409,67 @@ TEST_F(IOHub, PollReloadsFilesWhoseNamesContainHash) {
   auto reloaded = hub.image("res://tile#3.png");
   ASSERT_NE(reloaded, nullptr);
   EXPECT_EQ(reloaded->width(), 2);
+}
+
+/** A decoder that asks the same hub for a second resource while it
+ *  decodes. poll() re-runs it: were the cache lock held across that
+ *  decode, the inner ask would wait on its own caller forever. */
+struct Concatenation {
+  std::string text;
+};
+
+TEST_F(IOHub, PollRunsDecodersOutsideTheCacheLock) {
+  dir.write("head.txt", "head");
+  dir.write("tail.txt", "tail");
+  hub.registerDecoder<Concatenation>(
+      [this](const Bytes& bytes, std::string_view) {
+        auto tail = hub.text("res://tail.txt");
+        return Concatenation{std::string(bytes.asText()) + tail.value_or("")};
+      });
+  auto joined = hub.load<Concatenation>("res://head.txt");
+  ASSERT_NE(joined, nullptr);
+  EXPECT_EQ(joined->text, "headtail");
+
+  dir.write("head.txt", "HEAD");
+  touchForward(dir.path / "head.txt");
+  EXPECT_TRUE(hub.poll());
+  auto reloaded = hub.load<Concatenation>("res://head.txt");
+  ASSERT_NE(reloaded, nullptr);
+  EXPECT_EQ(reloaded->text, "HEADtail");
+  EXPECT_EQ(joined->text, "headtail");  // the old holder keeps the old
+}
+
+TEST_F(IOHub, ReRegisteringADecoderAppliesToLaterAsksOnly) {
+  dir.write("live.txt", "one two three");
+  hub.registerDecoder<WordCount>(WordCounter{});
+  auto counted = hub.load<WordCount>("res://live.txt");
+  ASSERT_NE(counted, nullptr);
+  EXPECT_EQ(counted->words, 3u);
+
+  // A decoder that counts nothing, registered after the view exists.
+  hub.registerDecoder<WordCount>(
+      [](const Bytes&, std::string_view) { return WordCount{0}; });
+  dir.write("live.txt", "one two three four");
+  touchForward(dir.path / "live.txt");
+  EXPECT_TRUE(hub.poll());
+  // The view keeps the decoder that made it.
+  EXPECT_EQ(hub.load<WordCount>("res://live.txt")->words, 4u);
+  // A fresh entry takes the new one.
+  dir.write("other.txt", "five six");
+  EXPECT_EQ(hub.load<WordCount>("res://other.txt")->words, 0u);
+}
+
+TEST(IOTextCatalog, MountsOneDirectoryAndAnswersByName) {
+  const ScratchDir shaders("sigilio_catalog");
+  shaders.write("Glow.sksl", "half4 main(float2 p) { return half4(1); }");
+  shaders.write("nested/Mask.sksl", "mask");
+  TextCatalog catalog("shader://glow/", shaders.path);
+  EXPECT_EQ(catalog.prefix(), "shader://glow/");
+  EXPECT_EQ(catalog.preload(), 2u);
+  EXPECT_EQ(catalog.text("nested/Mask.sksl"), "mask");
+  EXPECT_EQ(catalog.text("Missing.sksl"), std::nullopt);
+  // The same cache the hub's own asks use.
+  EXPECT_EQ(catalog.hub().text("shader://glow/nested/Mask.sksl"), "mask");
 }
 
 TEST_F(IOHub, ProbeReportsPlainData) {
@@ -685,8 +747,37 @@ TEST(IONetwork, RefreshPolicyFallsBackToCacheOnFetchFailure) {
   Hub hub;
   hub.setNetworkCacheDir(cache.path);
   hub.setNetworkPolicy(NetworkPolicy::Refresh);
-  // .invalid never resolves: the refetch fails, the cache answers.
+  // A transport that fails every fetch stands in for the network, so no
+  // resolver is consulted: Refresh asks it first, then the cache answers.
+  size_t asked = 0;
+  hub.setNetworkTransport([&asked](std::string_view) {
+    ++asked;
+    return std::optional<std::vector<std::byte>>{};
+  });
   EXPECT_EQ(hub.text(url), "yesterday's copy");
+  EXPECT_EQ(asked, 1u);
+}
+
+TEST(IONetwork, FetchedBytesPersistWholeOrNotAtAll) {
+  const ScratchDir cache("sigilio_net");
+  const std::string url = "https://fake.invalid/fresh.bin";
+  Hub hub;
+  hub.setNetworkCacheDir(cache.path);
+  hub.setNetworkTransport([](std::string_view) {
+    return std::optional<std::vector<std::byte>>{
+        std::vector<std::byte>{std::byte{'o'}, std::byte{'k'}}};
+  });
+  auto fetched = hub.blob(url);
+  ASSERT_NE(fetched, nullptr);
+  EXPECT_EQ(fetched->asText(), "ok");
+  // Persisted under the cache name, and nothing partial beside it.
+  EXPECT_TRUE(fs::is_regular_file(cache.path / networkCacheKey(url)));
+  EXPECT_FALSE(fs::exists(cache.path / (networkCacheKey(url) + ".part")));
+
+  Hub offline;
+  offline.setNetworkCacheDir(cache.path);
+  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  EXPECT_EQ(offline.text(url), "ok");
 }
 
 // Opt-in live-network round trip: fetch once, then read the same URL

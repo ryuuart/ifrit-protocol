@@ -685,8 +685,9 @@ the compose kernel links no codec. `VideoFit::Cover`, `VideoFit::Contain` and
 so an additive black-backed effect does not need a grouping layer.
 `video(clip, playback)` is the many-video form: share one playback scheduler
 across the scene so decode work is coalesced on a bounded worker pool and no
-leaf waits for its decoder during paint. Registering a source once and passing
-its playback handle to several video leaves fans one decoded frame out to
+leaf waits for its decoder during paint; the clip registers with the
+scheduler once, so describing the scene again reuses its handle. Passing that
+handle explicitly to several video leaves fans one decoded frame out to
 several compositions. `web/Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.

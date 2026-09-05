@@ -5,6 +5,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
+#include <include/core/SkSize.h>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -102,7 +103,6 @@ struct Encoder::Impl {
     if (!encoder && options.hardware == HardwarePreference::Required)
       return fail("the platform H.264 encoder is unavailable");
     if (!encoder) encoder = avcodec_find_encoder_by_name("libopenh264");
-    if (!encoder) encoder = avcodec_find_encoder(AV_CODEC_ID_H264);
     if (!encoder) return fail("an H.264 encoder is unavailable");
 
     stream = avformat_new_stream(formatContext, nullptr);
@@ -189,14 +189,14 @@ struct Encoder::Impl {
     if (!pixels.addr() || pixels.width() <= 0 || pixels.height() <= 0)
       return fail("the input frame has no pixels");
 
-    const SkImageInfo rgbaInfo = SkImageInfo::Make(
+    const SkImageInfo bgraInfo = SkImageInfo::Make(
         pixels.width(), pixels.height(), kBGRA_8888_SkColorType,
         kUnpremul_SkAlphaType, SkColorSpace::MakeSRGB());
-    const size_t rgbaRowBytes = rgbaInfo.minRowBytes();
-    rgba.resize(rgbaRowBytes * rgbaInfo.height());
-    const SkPixmap rgbaPixels(rgbaInfo, rgba.data(), rgbaRowBytes);
-    if (!pixels.readPixels(rgbaPixels))
-      return fail("the input frame cannot convert to RGBA");
+    const size_t bgraRowBytes = bgraInfo.minRowBytes();
+    bgra.resize(bgraRowBytes * bgraInfo.height());
+    const SkPixmap bgraPixels(bgraInfo, bgra.data(), bgraRowBytes);
+    if (!pixels.readPixels(bgraPixels))
+      return fail("the input frame cannot convert to BGRA");
 
     std::unique_ptr<AVFrame, FrameDeleter> next(av_frame_alloc());
     if (!next) return fail("could not allocate an encoder frame");
@@ -205,15 +205,32 @@ struct Encoder::Impl {
     next->height = codecContext->height;
     const int allocated = av_frame_get_buffer(next.get(), 32);
     if (allocated < 0) return fail(allocated);
-    sws = sws_getCachedContext(sws, rgbaInfo.width(), rgbaInfo.height(),
+    // The frame carries the tags the stream is declared with, and the
+    // conversion below uses that same matrix and range, so what a decoder
+    // reads off the stream is what the samples were made with.
+    next->color_primaries = codecContext->color_primaries;
+    next->color_trc = codecContext->color_trc;
+    next->colorspace = codecContext->colorspace;
+    next->color_range = codecContext->color_range;
+    sws = sws_getCachedContext(sws, bgraInfo.width(), bgraInfo.height(),
                                AV_PIX_FMT_BGRA, options.width, options.height,
                                codecContext->pix_fmt, SWS_BICUBIC, nullptr,
                                nullptr, nullptr);
     if (!sws) return fail("the video pixel converter is unavailable");
-    const uint8_t* sources[] = {rgba.data(), nullptr, nullptr, nullptr};
-    const int sourceStrides[] = {static_cast<int>(rgbaRowBytes), 0, 0, 0};
+    // The cached context is remade when the input size changes and takes
+    // libswscale's BT.601 default with it, so the BT.709 limited-range
+    // matrix the stream is tagged with is set whenever the input differs
+    // from the last frame's.
+    if (bgraInfo.dimensions() != swsInput) {
+      sws_setColorspaceDetails(sws, sws_getCoefficients(SWS_CS_DEFAULT), 1,
+                               sws_getCoefficients(SWS_CS_ITU709), 0, 0,
+                               1 << 16, 1 << 16);
+      swsInput = bgraInfo.dimensions();
+    }
+    const uint8_t* sources[] = {bgra.data(), nullptr, nullptr, nullptr};
+    const int sourceStrides[] = {static_cast<int>(bgraRowBytes), 0, 0, 0};
     const int rows = sws_scale(sws, sources, sourceStrides, 0,
-                               rgbaInfo.height(), next->data, next->linesize);
+                               bgraInfo.height(), next->data, next->linesize);
     if (rows != options.height)
       return fail("the input frame conversion failed");
     next->pts = framesWritten;
@@ -260,7 +277,8 @@ struct Encoder::Impl {
   AVStream* stream = nullptr;
   AVPacket* packet = nullptr;
   SwsContext* sws = nullptr;
-  std::vector<uint8_t> rgba;
+  SkISize swsInput = SkISize::MakeEmpty();
+  std::vector<uint8_t> bgra;
   std::string lastError;
   std::string codecName;
   int64_t framesWritten = 0;

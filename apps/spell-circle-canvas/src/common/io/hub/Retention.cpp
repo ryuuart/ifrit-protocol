@@ -129,7 +129,7 @@ ResourceLease Hub::retain(std::initializer_list<std::string_view> selectors) {
 }
 
 std::shared_ptr<detail::Residency> Hub::residency() {
-  const std::lock_guard lock(m_synchronization->mutex);
+  const std::lock_guard lock(m_mutex);
   if (!m_residency) m_residency = std::make_shared<detail::Residency>();
   return m_residency;
 }

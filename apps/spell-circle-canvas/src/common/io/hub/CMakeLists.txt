@@ -1,6 +1,7 @@
 # The hub: mounts and resolution, URI selection and retention, the entry cache
 # and its poll, network fetch behind the disk cache and the decoder registry —
-# split behind private seams.
+# split behind private seams — and TextCatalog, the stock value over it that
+# a shader catalogue is.
 add_library(SigilIOHub STATIC
   Cache.cpp
   Decoders.cpp
@@ -12,6 +13,7 @@ add_library(SigilIOHub STATIC
   Residency.h
   ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/Hub.h
   ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/Network.h
+  ${SIGIL_IO_INCLUDE_DIR}/sigilio/hub/TextCatalog.h
 )
 target_compile_features(SigilIOHub PUBLIC cxx_std_20)
 target_include_directories(SigilIOHub PUBLIC ${SIGIL_IO_INCLUDE_DIR})

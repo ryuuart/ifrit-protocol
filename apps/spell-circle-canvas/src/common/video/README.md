@@ -4,16 +4,16 @@ Video meaning for Skia applications: encoded container bytes open as a
 seekable, streaming `Video`; frames decode around the playhead and stay in a
 small presentation cache; pixels flow the other direction through an
 incremental `Encoder` and finish as container bytes. FFmpeg supplies container
-and codec support. SigilVideo owns no paths, URIs, network policy, or files —
-SigilIO fetches encoded bytes and stores the bytes an encoder returns.
+and codec support. SigilVideo opens no files and resolves no URIs —
+SigilIO fetches encoded bytes and stores the bytes an encoder returns;
+`formatForPath` is extension-to-format meaning, the way SigilImage spells it.
 
 Namespace `sigil::video`. The targets are deliberately separable:
 
 | target | holds |
 |---|---|
 | `SigilVideoCore` | shared hardware policy and native-frame vocabulary |
-| `SigilVideoDevice` | platform-native frame executor; VideoToolbox pixel buffers become Metal Y and UV textures for Graphite on Apple platforms |
-| `SigilVideoDecode` | FFmpeg demux and decode, seeking, frame cache, CPU conversion, and dispatch to the device executor |
+| `SigilVideoDecode` | FFmpeg demux and decode, seeking, frame cache, the CPU executor, and beside it the device executor — VideoToolbox pixel buffers become Metal Y and UV textures for Graphite on Apple platforms, behind a seam private to this target |
 | `SigilVideoEncode` | FFmpeg video encoding and MP4 muxing into memory |
 | `SigilVideo` | umbrella over decode and encode |
 
@@ -53,7 +53,10 @@ or CPU colour conversion. One texture cache serves every decoder on the same
 Metal device, and one wrapped image per decoded frame can feed any number of
 draws.
 A raster canvas, an unsupported native pixel format, or a disabled device
-policy transfers and converts through the CPU executor.
+policy transfers and converts through the CPU executor. Both executors read
+the stream's colour matrix and range — BT.709, BT.2020 or BT.601, limited
+or full — off the frame, and an untagged stream is BT.601 limited on both,
+so a clip composites to the same colours whichever executor answers.
 
 The native device passed in `DecodeOptions::metalDevice` must be the device
 behind the destination recorder. Null selects the system Metal device. A host
@@ -79,10 +82,16 @@ if (frame.image) canvas.drawImage(frame.image, 0, 0);
 ```
 
 Request the initial presentation time immediately after `add()` to prefetch it
-while the scene is being assembled. `ready(handle)` lets a host keep one loading
-cover visible until every source has produced a frame. Several draw leaves may
-reuse one handle when they show the same source clock; the completed native or
-raster frame is then mapped once and fanned out without another decode.
+while the scene is being assembled; a clip may be added while workers are
+busy, and adding a clip already registered answers its existing handle, since
+one `Video` is never decoded by two workers at once. `ready(handle)` lets a
+host keep one loading cover visible until every source has produced a frame.
+Several draw leaves may reuse one handle when they show the same source
+clock; the completed native or raster frame is then mapped once and fanned
+out without another decode. `Options::workerThreads = 0` runs no worker:
+`request()` decodes on the calling thread before it returns, which is what a
+plate or a test wants when the answer must be readable from the next
+`frame()` with nothing to wait for.
 
 Hardware frames cross the queue as retained native surfaces and are mapped to
 Graphite only by `frame()`. Software and alpha decode happens on a worker and
@@ -110,11 +119,12 @@ sigil::io::writeBytes("story.mp4", mp4->data(), mp4->size());
 ```
 
 MP4 output uses H.264. The encoder prefers the platform hardware encoder and
-falls back to OpenH264 unless hardware is required.
-Every input is resized and converted to the codec's YUV format. Dimensions,
-frame rate, and bit rate are fixed for the encoder's lifetime; odd dimensions
-are rejected because interoperable 4:2:0 H.264 requires complete chroma
-samples.
+falls back to OpenH264 unless hardware is required; no other H.264 encoder is
+tried. Every input is resized and converted to the codec's YUV format with
+the BT.709 limited-range matrix the stream is tagged with, so a decoder reads
+back the colour it was given. Dimensions, frame rate, and bit rate are fixed
+for the encoder's lifetime; odd dimensions are rejected because interoperable
+4:2:0 H.264 requires complete chroma samples.
 
 `finish()` flushes the delayed codec frames, writes the MP4 trailer, and hands
 back one `SkData`. The result can go through `Hub::write()` or any
@@ -127,8 +137,10 @@ copies of the whole video. Native frames retain their platform surface, raster
 frames retain their pixel data, and a Graphite wrap retains the texture planes
 until Skia releases them. Seeking flushes codec state but does not invalidate
 cached frames that still cover a later request, so repeated seek points remain
-hot while they fit the configured capacity. Cache capacity zero is normalized
-to one.
+hot while they fit the configured capacity. Every answered frame is
+materialized in the cache — the frame before a gap in presentation times
+included — so its raster or device wrap serves the next ask at the same
+time. Cache capacity zero is normalized to one.
 
 `Video` and `Encoder` are not thread-safe. A player that decodes on one thread
 and draws on another transfers `VideoFrame` values across its own queue; it
@@ -158,11 +170,12 @@ ctest --test-dir build -C Release -R video_ --output-on-failure
 ```
 
 `video_encode_test` creates a short MP4 in memory, decodes it through
-`SigilVideoDecode`, and checks its timing and changing pixels.
-`video_decode_test` covers malformed input, seeking, cache behavior, and the
-hardware-policy failure contract. `video_device_test` exercises the native
-device path on a Graphite Metal surface where the platform makes
-VideoToolbox available.
+`SigilVideoDecode`, and checks its timing and that the colours it was given
+read back through the CPU executor. `video_decode_test` covers malformed
+input, alpha, seeking, the cache's capacity, `Playback` in its synchronous
+mode, and the hardware-policy failure contract. `video_device_test`
+exercises the native device path on a Graphite Metal surface where the
+platform makes VideoToolbox available; it carries the `gpu` ctest label.
 `video_device_bench --async --streams 100 --surfaces 100 --rate 120` exercises
 independent mixed-resolution clocks through the worker pool and reports native,
 ready, and fresh frame percentages separately from render-thread frame time.

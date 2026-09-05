@@ -5,7 +5,7 @@
 
 #include "sigilmaterial/sdf/Sdf.h"
 
-#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextCatalog.h>
 
 #include <algorithm>
 #include <cmath>
@@ -27,25 +27,13 @@ namespace {
 
 constexpr char kShaderPrefix[] = "shader://material/sdf/";
 
-struct ShaderResources {
-  ShaderResources() {
-    hub.mount(kShaderPrefix, SIGIL_MATERIAL_SDF_SHADER_DIR);
-    retained = hub.retain(kShaderPrefix);
-  }
-
-  io::Hub hub;
-  io::ResourceLease retained;
-};
-
-ShaderResources& shaders() {
-  static ShaderResources resources;
-  return resources;
+io::TextCatalog& shaders() {
+  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_SDF_SHADER_DIR);
+  return catalog;
 }
 
 std::string shaderSource(std::string_view name) {
-  return shaders()
-      .hub.text(std::string(kShaderPrefix) + std::string(name))
-      .value_or("");
+  return shaders().text(name).value_or("");
 }
 
 std::shared_ptr<const Recipe> make(const char* name,
@@ -97,9 +85,7 @@ Material material(const Shape& shape, const Style& style) {
 }
 
 std::vector<Material> everyRecipe() {
-  ShaderResources& resources = shaders();
-  resources.retained.refresh();
-  resources.retained.preload();
+  shaders().preload();
   Style dressed;
   dressed.fill = {0.2f, 0.5f, 0.9f, 1};
   dressed.borderWidth = 2;

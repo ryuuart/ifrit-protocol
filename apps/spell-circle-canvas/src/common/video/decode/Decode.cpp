@@ -79,6 +79,26 @@ std::string formatHint(const std::filesystem::path& pathHint) {
   return hint;
 }
 
+/** The libswscale coefficient table for a stream's tagged matrix. An
+ *  untagged stream is treated as ITU-R BT.601, the same reading the
+ *  device executor gives an untagged native frame, so the two executors
+ *  agree on every clip. */
+int swscaleColorspace(AVColorSpace colorspace) {
+  switch (colorspace) {
+    case AVCOL_SPC_BT709:
+      return SWS_CS_ITU709;
+    case AVCOL_SPC_BT2020_NCL:
+    case AVCOL_SPC_BT2020_CL:
+      return SWS_CS_BT2020;
+    case AVCOL_SPC_SMPTE240M:
+      return SWS_CS_SMPTE240M;
+    case AVCOL_SPC_FCC:
+      return SWS_CS_FCC;
+    default:
+      return SWS_CS_ITU601;
+  }
+}
+
 const AVCodec* alphaCodec(AVCodecID id) {
   if (id == AV_CODEC_ID_VP8) return avcodec_find_decoder_by_name("libvpx");
   if (id == AV_CODEC_ID_VP9) return avcodec_find_decoder_by_name("libvpx-vp9");
@@ -443,6 +463,23 @@ struct Video::Impl {
       av_frame_free(&transferred);
       return nullptr;
     }
+    // The stream's own matrix and range drive the YUV→RGB conversion:
+    // libswscale's default is BT.601 limited range, which mis-colours an
+    // HD clip and crushes a full-range one. The details belong to one
+    // context, and the cached context is remade whenever the source's
+    // size or format changes, so they are re-applied whenever any of
+    // those or the tags differ from the last frame; a source that is not
+    // YUV ignores them.
+    const SwsSource description{source->width, source->height, source->format,
+                                swscaleColorspace(source->colorspace),
+                                source->color_range == AVCOL_RANGE_JPEG};
+    if (description != swsSource) {
+      sws_setColorspaceDetails(sws, sws_getCoefficients(description.colorspace),
+                               description.fullRange ? 1 : 0,
+                               sws_getCoefficients(SWS_CS_DEFAULT), 1, 0,
+                               1 << 16, 1 << 16);
+      swsSource = description;
+    }
 
     const int width = source->width;
     const int height = source->height;
@@ -526,7 +563,20 @@ struct Video::Impl {
       if (!seekTo(unopened && metadata.hasAlpha ? 0.0 : seconds)) return {};
     }
 
+    // The newest decoded frame at or before the asked time. When frame
+    // durations leave a gap before the next frame, it is the answer; it
+    // is materialized in the cache, never on this copy, so its raster or
+    // device wrap is there for the next ask.
     std::optional<CachedFrame> preceding;
+    const auto materializePreceding = [&]() {
+      CachedFrame* cached = cachedAt(preceding->presentationSeconds);
+      if (!cached) {
+        cache.push_back(std::move(*preceding));
+        while (cache.size() > options.cachedFrames) cache.pop_front();
+        cached = &cache.back();
+      }
+      return materialize(*cached, recorder, decodeOnly);
+    };
     for (int decoded = 0; decoded < 10000; ++decoded) {
       CachedFrame* current = decodeNext();
       if (!current) break;
@@ -534,14 +584,14 @@ struct Video::Impl {
       if (seconds < current->presentationSeconds + current->durationSeconds) {
         if (current->presentationSeconds <= seconds || !preceding)
           return materialize(*current, recorder, decodeOnly);
-        return materialize(preceding.value(), recorder, decodeOnly);
+        return materializePreceding();
       }
       if (current->presentationSeconds > seconds)
-        return materialize(preceding ? preceding.value() : *current, recorder,
-                           decodeOnly);
+        return preceding ? materializePreceding()
+                         : materialize(*current, recorder, decodeOnly);
     }
 
-    if (preceding) return materialize(preceding.value(), recorder, decodeOnly);
+    if (preceding) return materializePreceding();
     CachedFrame* last = nullptr;
     for (CachedFrame& frame : cache)
       if (!last || frame.presentationSeconds > last->presentationSeconds)
@@ -562,7 +612,17 @@ struct Video::Impl {
   AVPixelFormat hardwarePixelFormat = AV_PIX_FMT_NONE;
   AVPacket* packet = nullptr;
   AVFrame* receiveFrame = nullptr;
+  /** What the conversion context was last configured for. */
+  struct SwsSource {
+    int width = 0;
+    int height = 0;
+    int format = -1;
+    int colorspace = -1;
+    bool fullRange = false;
+    bool operator==(const SwsSource&) const = default;
+  };
   SwsContext* sws = nullptr;
+  SwsSource swsSource;
   std::shared_ptr<device::Context> deviceContext;
   VideoProbe metadata;
   std::deque<CachedFrame> cache;

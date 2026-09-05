@@ -2,7 +2,7 @@
 
 #include "ShaderSources.h"
 
-#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextCatalog.h>
 
 namespace sigil::material::skia {
 
@@ -10,27 +10,15 @@ namespace {
 
 constexpr char kShaderPrefix[] = "shader://material/skia/";
 
-struct ShaderResources {
-  ShaderResources() {
-    hub.mount(kShaderPrefix, SIGIL_MATERIAL_SKIA_SHADER_DIR);
-    retained = hub.retain(kShaderPrefix);
-  }
-
-  io::Hub hub;
-  io::ResourceLease retained;
-};
-
-ShaderResources& shaderResources() {
-  static ShaderResources resources;
-  return resources;
+io::TextCatalog& shaderResources() {
+  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_SKIA_SHADER_DIR);
+  return catalog;
 }
 
 }  // namespace
 
 std::string shaderSource(std::string_view name) {
-  return shaderResources()
-      .hub.text(std::string(kShaderPrefix) + std::string(name))
-      .value_or("");
+  return shaderResources().text(name).value_or("");
 }
 
 }  // namespace sigil::material::skia

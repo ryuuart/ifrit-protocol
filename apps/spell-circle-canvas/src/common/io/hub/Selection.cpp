@@ -332,8 +332,4 @@ size_t Hub::preload(std::string_view selector) {
   return preload(uris);
 }
 
-size_t Hub::preloadDirectory(std::string_view uriPrefix) {
-  return preload(uriPrefix);
-}
-
 }  // namespace sigil::io

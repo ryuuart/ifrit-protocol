@@ -3,7 +3,7 @@
  * is compiled whether or not the build found it.
  */
 
-#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextCatalog.h>
 
 #include "sigilmaterial/ocio/Ocio.h"
 
@@ -13,19 +13,9 @@ namespace {
 
 constexpr char kShaderPrefix[] = "shader://material/ocio/";
 
-struct ShaderResources {
-  ShaderResources() {
-    hub.mount(kShaderPrefix, SIGIL_MATERIAL_OCIO_SHADER_DIR);
-    retained = hub.retain(kShaderPrefix);
-  }
-
-  io::Hub hub;
-  io::ResourceLease retained;
-};
-
-ShaderResources& shaders() {
-  static ShaderResources resources;
-  return resources;
+io::TextCatalog& shaders() {
+  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_OCIO_SHADER_DIR);
+  return catalog;
 }
 
 }  // namespace
@@ -36,9 +26,7 @@ const std::shared_ptr<const Recipe>& lutRecipe() {
           .child("content")
           .child("lut")
           .body(Target::SkSL,
-                shaders()
-                    .hub.text(std::string(kShaderPrefix) + "Lut3d.sksl")
-                    .value_or("")));
+                shaders().text("Lut3d.sksl").value_or("")));
   return recipe;
 }
 

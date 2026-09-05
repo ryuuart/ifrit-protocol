@@ -10,6 +10,11 @@
 
 #include <boost/container/flat_set.hpp>
 
+#include <optional>
+#include <system_error>
+#include <utility>
+#include <vector>
+
 #include "Fetch.h"
 #include "Residency.h"
 #include "sigilio/hub/Hub.h"
@@ -46,21 +51,19 @@ std::string Hub::cacheKey(std::string_view uri,
 
 std::shared_ptr<const Bytes> Hub::blob(std::string_view uri) {
   const std::string key = cacheKey(uri, nullptr);
-  std::filesystem::path networkCache;
-  NetworkPolicy networkPolicy;
+  detail::NetworkAccess network;
   {
-    const std::lock_guard lock(m_synchronization->mutex);
+    const std::lock_guard lock(m_mutex);
     const auto cached = m_entries.find(key);
     if (cached != m_entries.end() && cached->second.blob)
       return cached->second.blob;
-    networkCache = m_netCacheDir;
-    networkPolicy = m_netPolicy;
+    network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
   }
 
-  FetchResult fetched = fetchResource(*this, networkCache, networkPolicy, uri);
+  FetchResult fetched = fetchResource(*this, network, uri);
   if (!fetched.blob)
     return nullptr;  // not cached: heals as soon as the file appears
-  const std::lock_guard lock(m_synchronization->mutex);
+  const std::lock_guard lock(m_mutex);
   auto it = m_entries.find(key);
   if (it != m_entries.end() && it->second.blob) return it->second.blob;
   if (it == m_entries.end()) {
@@ -89,12 +92,10 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
   boost::container::flat_set<std::string, std::less<>> seen;
   std::vector<Pending> pending;
   size_t ready = 0;
-  std::filesystem::path networkCache;
-  NetworkPolicy networkPolicy;
+  detail::NetworkAccess network;
   {
-    const std::lock_guard lock(m_synchronization->mutex);
-    networkCache = m_netCacheDir;
-    networkPolicy = m_netPolicy;
+    const std::lock_guard lock(m_mutex);
+    network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
     for (std::string_view uri : uris) {
       if (!seen.emplace(uri).second) continue;
       const std::string key = cacheKey(uri, nullptr);
@@ -109,8 +110,7 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
 
   const auto fetch = [&](size_t from, size_t to) {
     for (size_t i = from; i != to; ++i)
-      pending[i].fetched =
-          fetchResource(*this, networkCache, networkPolicy, pending[i].uri);
+      pending[i].fetched = fetchResource(*this, network, pending[i].uri);
   };
   if (pending.size() < 4) {
     fetch(0, pending.size());
@@ -123,7 +123,7 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
   }
 
   {
-    const std::lock_guard lock(m_synchronization->mutex);
+    const std::lock_guard lock(m_mutex);
     for (Pending& ask : pending) {
       Entry& entry = m_entries[ask.key];
       if (entry.blob) {
@@ -147,7 +147,7 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
 }
 
 size_t Hub::discardUnretained() {
-  const std::lock_guard cacheLock(m_synchronization->mutex);
+  const std::lock_guard cacheLock(m_mutex);
   if (!m_residency) {
     const size_t discarded = m_entries.size();
     m_entries.clear();
@@ -178,10 +178,9 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   std::shared_ptr<const Bytes> bytes;
   std::filesystem::path path;
   std::filesystem::file_time_type mtime;
-  std::filesystem::path networkCache;
-  NetworkPolicy networkPolicy;
+  detail::NetworkAccess network;
   {
-    const std::lock_guard lock(m_synchronization->mutex);
+    const std::lock_guard lock(m_mutex);
     const auto entry = m_entries.find(key);
     if (entry != m_entries.end()) {
       if (const auto view = entry->second.views.find(type);
@@ -193,13 +192,12 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
         mtime = entry->second.mtime;
       }
     }
-    networkCache = m_netCacheDir;
-    networkPolicy = m_netPolicy;
+    network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
   }
 
   FetchResult fetched;
   if (!bytes) {
-    fetched = fetchResource(*this, networkCache, networkPolicy, uri);
+    fetched = fetchResource(*this, network, uri);
     if (!fetched.blob) return nullptr;
     bytes = fetched.blob;
     path = fetched.path;
@@ -208,7 +206,7 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   auto value = decode(*bytes, path);
   if (!value) return nullptr;
 
-  const std::lock_guard lock(m_synchronization->mutex);
+  const std::lock_guard lock(m_mutex);
   auto [entry, inserted] = m_entries.try_emplace(key);
   if (!inserted) {
     if (const auto view = entry->second.views.find(type);
@@ -232,7 +230,7 @@ std::shared_ptr<const void> Hub::loadRegisteredView(const std::string& key,
                                                     std::type_index type) {
   Redecode decode;
   {
-    const std::lock_guard lock(m_synchronization->mutex);
+    const std::lock_guard lock(m_mutex);
     const auto entry = m_entries.find(key);
     if (entry != m_entries.end())
       if (const auto view = entry->second.views.find(type);
@@ -272,14 +270,12 @@ std::shared_ptr<const sigil::image::ChannelData> Hub::channels(
 }
 
 std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
-  std::filesystem::path networkCache;
-  NetworkPolicy networkPolicy;
+  detail::NetworkAccess network;
   {
-    const std::lock_guard lock(m_synchronization->mutex);
-    networkCache = m_netCacheDir;
-    networkPolicy = m_netPolicy;
+    const std::lock_guard lock(m_mutex);
+    network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
   }
-  FetchResult fetched = fetchResource(*this, networkCache, networkPolicy, uri);
+  FetchResult fetched = fetchResource(*this, network, uri);
   if (!fetched.blob) return std::nullopt;
   if (auto probe =
           sigil::image::probeImage(fetched.blob->bytes.data(),
@@ -297,49 +293,92 @@ std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
   return info;
 }
 
-/** Re-reads entry.uri from disk and re-decodes every populated view
- *  from that one read. Nothing is committed until every decode has
- *  succeeded, so a half-written file cannot leave the views
- *  disagreeing with each other. */
-bool Hub::reload(Entry& entry) {
-  const std::filesystem::path path = localPath(*this, entry.uri);
+/** Re-reads one entry's file and re-decodes every populated view from
+ *  that one read, holding no lock: a decoder may take as long as it
+ *  likes, and may even ask this hub for another resource, without
+ *  stalling anyone else's cache hit. Nothing is committed until every
+ *  decode has succeeded, so a half-written file cannot leave the views
+ *  disagreeing with each other. Null when the read or any decode
+ *  fails. */
+std::optional<Hub::Reloaded> Hub::reload(const Reload& pending) const {
+  const std::filesystem::path path = localPath(*this, pending.uri);
   auto bytes = readFile(path);
-  if (!bytes) return false;
-  std::vector<std::pair<View*, std::shared_ptr<const void>>> decoded;
-  for (auto& [type, view] : entry.views) {
-    if (!view.value) continue;
-    auto value = view.decode(*bytes, path);
-    if (!value) return false;
-    decoded.emplace_back(&view, std::move(value));
+  if (!bytes) return std::nullopt;
+  Reloaded reloaded;
+  for (const auto& [type, decode] : pending.decodes) {
+    auto value = decode(*bytes, path);
+    if (!value) return std::nullopt;
+    reloaded.views.emplace_back(type, std::move(value));
   }
-  for (auto& [view, value] : decoded) view->value = std::move(value);
-  if (entry.blob) entry.blob = std::move(bytes);
-  entry.path = path;
-  return true;
+  reloaded.path = path;
+  reloaded.mtime = pending.mtime;
+  if (pending.holdsBlob) reloaded.blob = std::move(bytes);
+  return reloaded;
 }
 
 bool Hub::poll() {
-  const std::lock_guard lock(m_synchronization->mutex);
-  bool changed = false;
-  for (auto it = m_entries.begin(); it != m_entries.end();) {
-    Entry& entry = it->second;
-    if (isNetworkUri(entry.uri)) {
-      ++it;  // no mtime to watch: network entries stay as fetched
-      continue;
+  // Three phases, so the lock is never held across a stat or a decode:
+  // snapshot what every local entry needs under the lock, stat and
+  // reload outside it, then re-lock and commit only into entries that
+  // still carry the stamp the snapshot saw. An entry that another
+  // thread replaced or dropped meanwhile keeps that thread's answer.
+  std::vector<Reload> pending;
+  {
+    const std::lock_guard lock(m_mutex);
+    pending.reserve(m_entries.size());
+    for (const auto& [key, entry] : m_entries) {
+      if (isNetworkUri(entry.uri))
+        continue;  // no mtime to watch: network entries stay as fetched
+      Reload reload{key, entry.uri, entry.mtime, entry.blob != nullptr, {}};
+      for (const auto& [type, view] : entry.views)
+        if (view.value) reload.decodes.emplace_back(type, view.decode);
+      pending.push_back(std::move(reload));
     }
-    const std::filesystem::path path = localPath(*this, entry.uri);
+  }
+
+  struct Outcome {
+    const Reload* reload;
+    bool vanished = false;
+    std::optional<Reloaded> reloaded;
+  };
+  std::vector<Outcome> outcomes;
+  for (const Reload& reload : pending) {
+    const std::filesystem::path path = localPath(*this, reload.uri);
     std::error_code ec;
     const auto mtime = std::filesystem::last_write_time(path, ec);
     if (ec) {
-      it = m_entries.erase(it);  // vanished: next ask sees the truth
+      outcomes.push_back({&reload, true, std::nullopt});
+      continue;
+    }
+    if (mtime == reload.mtime) continue;
+    Reload changed = reload;
+    changed.mtime = mtime;
+    if (auto reloaded = this->reload(changed))
+      outcomes.push_back({&reload, false, std::move(reloaded)});
+  }
+  if (outcomes.empty()) return false;
+
+  bool changed = false;
+  const std::lock_guard lock(m_mutex);
+  for (Outcome& outcome : outcomes) {
+    const auto found = m_entries.find(outcome.reload->key);
+    if (found == m_entries.end() || found->second.mtime != outcome.reload->mtime)
+      continue;  // replaced or dropped since the snapshot: not ours
+    if (outcome.vanished) {
+      m_entries.erase(found);  // vanished: next ask sees the truth
       changed = true;
       continue;
     }
-    if (mtime != entry.mtime && reload(entry)) {
-      entry.mtime = mtime;
-      changed = true;
+    Entry& entry = found->second;
+    Reloaded& reloaded = *outcome.reloaded;
+    for (auto& [type, value] : reloaded.views) {
+      const auto view = entry.views.find(type);
+      if (view != entry.views.end()) view->second.value = std::move(value);
     }
-    ++it;
+    if (entry.blob && reloaded.blob) entry.blob = std::move(reloaded.blob);
+    entry.path = std::move(reloaded.path);
+    entry.mtime = reloaded.mtime;
+    changed = true;
   }
   return changed;
 }

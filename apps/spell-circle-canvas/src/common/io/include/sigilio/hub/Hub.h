@@ -4,10 +4,8 @@
  * The resource hub: game-engine-style mounted URIs over pluggable
  * decode backends.
  *
- * A Hub maps URI prefixes to providers (filesystem directories;
- * the scheme leaves room for pack files and in-memory providers), so
- * application code asks for "res://ui/logo.png" and never touches the
- * filesystem again. Resources are cached, hot-reloadable (poll()
+ * A Hub maps URI prefixes onto directories, so application code asks
+ * for "res://ui/logo.png" and never touches the filesystem again. Resources are cached, hot-reloadable (poll()
  * re-checks everything previously loaded), and typed:
  *
  *   hub.mount("res://", assetsDir);
@@ -49,6 +47,7 @@
 #include <functional>
 #include <initializer_list>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -65,7 +64,6 @@ namespace sigil::io {
 
 namespace detail {
 struct Residency;
-struct Synchronization;
 }  // namespace detail
 
 class Hub;
@@ -171,6 +169,13 @@ class Hub {
   /** How http(s):// asks may use the network (default: CacheFirst). */
   void setNetworkPolicy(NetworkPolicy policy);
 
+  /** What answers an http(s):// URL with its body (default: libcurl). A
+   *  host with its own HTTP stack, or a test that needs a fetch to fail
+   *  without touching a resolver, hands one in; an empty function
+   *  restores libcurl. The disk cache and the policy stay in front of
+   *  whichever transport is set. */
+  void setNetworkTransport(NetworkTransport transport);
+
   /** Raw bytes; null when unresolvable/unreadable. Never decodes:
    *  bytes load and cache whether or not any decoder accepts them. */
   std::shared_ptr<const Bytes> blob(std::string_view uri);
@@ -195,9 +200,9 @@ class Hub {
 
   /** Registers how a T is decoded from bytes, so load<T>() can answer.
    *  `hint` is the resource's local path when it has one (the disk
-   *  cache file for a network URI). Replaces any decoder already
-   *  registered for T; views already decoded keep their values until
-   *  poll() reloads them through the new decoder. ImageAsset and
+   *  cache file for a network URI). Replaces the decoder later asks
+   *  use; a view already decoded keeps its value and the decoder that
+   *  made it, which is what poll() re-runs for it. ImageAsset and
    *  ChannelData are registered by the constructor. */
   template <typename T>
   void registerDecoder(
@@ -255,9 +260,6 @@ class Hub {
 
   /** Selects @p selector and concurrently fetches the resulting files. */
   size_t preload(std::string_view selector);
-
-  /** Recursively selects and preloads a directory URI. */
-  size_t preloadDirectory(std::string_view uriPrefix);
 
   /** An empty resource-retention lease bound to this Hub. */
   ResourceLease retain();
@@ -343,7 +345,27 @@ class Hub {
     std::filesystem::file_time_type mtime;
   };
 
-  bool reload(Entry& entry);
+  /** What poll() reads under the lock before it stats and decodes
+   *  outside it: enough to re-run every populated view of one entry
+   *  without touching the map. */
+  struct Reload {
+    std::string key;
+    std::string uri;
+    std::filesystem::file_time_type mtime;
+    bool holdsBlob = false;
+    std::vector<std::pair<std::type_index, Redecode>> decodes;
+  };
+
+  /** What poll() commits for one changed entry: the fresh bytes and
+   *  every view decoded from them. */
+  struct Reloaded {
+    std::shared_ptr<const Bytes> blob;
+    std::filesystem::path path;
+    std::filesystem::file_time_type mtime;
+    std::vector<std::pair<std::type_index, std::shared_ptr<const void>>> views;
+  };
+
+  std::optional<Reloaded> reload(const Reload& pending) const;
 
   /** The one decode path every typed accessor shares: the view of
    *  `type` in the entry at `key`, decoded with `decode` from cached or
@@ -377,12 +399,17 @@ class Hub {
   static std::string cacheKey(std::string_view uri,
                               const image::DecodeOptions* options);
 
-  std::unique_ptr<detail::Synchronization> m_synchronization;
+  /** Guards every member below. It is never held across a fetch, a
+   *  decode or a file write, so one slow source never stalls another
+   *  thread's cache hit; each accessor reads under it, works outside
+   *  it, and re-locks to commit. */
+  mutable std::mutex m_mutex;
   std::vector<std::pair<std::string, std::filesystem::path>> m_mounts;
   boost::container::flat_map<std::string, Entry, std::less<>> m_entries;
   boost::container::flat_map<std::type_index, Redecode> m_decoders;
-  std::filesystem::path m_netCacheDir;  // empty = the default temp dir
-  NetworkPolicy m_netPolicy = NetworkPolicy::CacheFirst;
+  std::filesystem::path m_networkCacheDir;  // empty = the default temp dir
+  NetworkPolicy m_networkPolicy = NetworkPolicy::CacheFirst;
+  NetworkTransport m_networkTransport;  // empty = libcurl
   std::shared_ptr<detail::Residency> m_residency;
 };
 

@@ -139,10 +139,12 @@ inline Element video(std::shared_ptr<sigil::video::Video> clip,
   return leaf;
 }
 
-/** The asynchronous many-video form. Every leaf registers one independent
- *  clock with @p playback; decode work is coalesced on its bounded worker pool
- *  and the leaf paints the last complete frame without blocking composition.
- *  Share one Playback across every video leaf in a scene. */
+/** The asynchronous many-video form. The clip registers one clock with
+ *  @p playback — the handle it already holds when a scene is described
+ *  again, or when another leaf shows the same clip — so decode work is
+ *  coalesced on the bounded worker pool and the leaf paints the last
+ *  complete frame without blocking composition. Share one Playback across
+ *  every video leaf in a scene. */
 inline Element video(std::shared_ptr<sigil::video::Video> clip,
                      std::shared_ptr<sigil::video::Playback> playback,
                      VideoOptions options = {}) {

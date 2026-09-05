@@ -7,9 +7,13 @@
  * directory it lands in when a hub was given no other.
  */
 
+#include <cstddef>
 #include <filesystem>
+#include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace sigil::io {
 
@@ -29,6 +33,11 @@ enum class NetworkPolicy {
    *  and guaranteed-offline hosts. */
   Offline,
 };
+
+/** A function that answers a URL with its body, or nothing when the
+ *  fetch failed. The hub's default is libcurl; a host may set its own. */
+using NetworkTransport =
+    std::function<std::optional<std::vector<std::byte>>(std::string_view url)>;
 
 /** The on-disk cache filename (no directory) a network URL maps to:
  *  hex of the URL's hash plus the URL path's extension, so decode

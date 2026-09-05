@@ -7,7 +7,7 @@
  * name of theirs is spelled `::slang::` here.
  */
 
-#include <sigilio/hub/Hub.h>
+#include <sigilio/hub/TextCatalog.h>
 #include <sigilmaterial/kit/Terms.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <slang-com-ptr.h>
@@ -23,25 +23,13 @@ namespace {
 
 constexpr char kShaderPrefix[] = "shader://material/slang/";
 
-struct ShaderResources {
-  ShaderResources() {
-    hub.mount(kShaderPrefix, SIGIL_MATERIAL_SLANG_SHADER_DIR);
-    retained = hub.retain(kShaderPrefix);
-  }
-
-  io::Hub hub;
-  io::ResourceLease retained;
-};
-
-ShaderResources& shaders() {
-  static ShaderResources resources;
-  return resources;
+io::TextCatalog& shaders() {
+  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_SLANG_SHADER_DIR);
+  return catalog;
 }
 
 std::string portableSource() {
-  return shaders()
-      .hub.text(std::string(kShaderPrefix) + "Portable.slang")
-      .value_or("");
+  return shaders().text("Portable.slang").value_or("");
 }
 
 /** The compiler's diagnostics, or an empty string when it produced

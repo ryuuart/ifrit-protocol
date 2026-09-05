@@ -17,7 +17,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Sink.h` | header only, standard library only: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), and the other direction — the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `NetworkPolicy`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way; and `TextCatalog`, the stock value over the hub that a shader catalogue is |
 
 `SigilIO` is the umbrella target over both, and
 `<sigilio/IO.h>` the umbrella header. The hub is a `ByteSource`;
@@ -52,9 +52,11 @@ sigil::io::AnyByteSource source(hub);
 auto raw = source.fetch("res://data/table.bin");
 
 // Network resources need no mount; point the disk cache somewhere durable
-// if downloads should survive a reboot.
+// if downloads should survive a reboot. A host with its own HTTP stack
+// hands in the function that answers a URL with its body.
 hub.setNetworkCacheDir("/opt/myapp/assets/.netcache");
 hub.setNetworkPolicy(sigil::io::NetworkPolicy::Offline);
+hub.setNetworkTransport(myHttpClient);
 auto remote = hub.image("https://example.com/tex.png");
 
 std::string_view shaderUris[] = {"shader://surface.slang",
@@ -65,6 +67,13 @@ hub.preload(shaderUris); // concurrent fetch, bytes only
 auto sksl = hub.select("shader://**/*.sksl"); // sorted URI snapshot
 hub.preload("shader://**/*.sksl"); // discover, then fetch concurrently
 hub.preload("shader://"); // a directory selector recursively fetches everything
+
+// A library that keeps its shader files beside its code needs exactly one
+// directory at one prefix: the catalogue is that declaration, its own hub
+// inside.
+sigil::io::TextCatalog glowShaders("shader://glow/", shaderDirectory);
+glowShaders.preload();
+auto body = glowShaders.text("Glow.sksl");            // std::optional<std::string>
 
 // Preloading controls when bytes arrive. A lease controls how long the Hub
 // promises to retain them, and may unite any number of selectors.
@@ -137,8 +146,7 @@ rule as an ordinary read decides which physical file occupies a URI.
 
 `preload()` fetches distinct URI bytes concurrently and merges them into the
 same cache ordinary reads use. Its selector overload calls `select()` first, so
-one directory or glob replaces a maintained list. `preloadDirectory()` is the
-directory-only spelling of that overload.
+one directory or glob replaces a maintained list.
 
 Preloading and retention are separate. `preload()` eagerly fills the byte cache
 but makes no residency promise. `retain()` returns a movable `ResourceLease`
@@ -148,23 +156,30 @@ their matches are one duplicate-free union, and overlapping leases retain a URI
 independently. Selectors are snapshots until `refresh()` reruns them, admitting
 new files and releasing vanished ones. `discardUnretained()` removes every
 unprotected cache entry; values already held through a `shared_ptr` survive that
-removal for their holders.
+removal for their holders. Nothing in this repository evicts: the shader
+catalogues hold their files through a `TextCatalog` and never discard, so a
+lease is for a host that clears a hub between scenes.
 
 Every decode is a registered decoder. The constructor registers
 SigilImage's two — `ImageAsset` and `ChannelData` — and
 `registerDecoder<T>()` adds any other; registering a type again replaces
-its decoder, and views already decoded keep their values until `poll()`
-reloads them. `load<T>()` with no decoder registered for `T` answers null
-without fetching. The hub never inspects bytes.
+the decoder later asks run, while a view already decoded keeps its value
+and the decoder that made it, which is what `poll()` re-runs for it.
+`load<T>()` with no decoder registered for `T` answers null without
+fetching. The hub never inspects bytes.
 
 ## Gotchas
 
 A `Hub` synchronizes its mount table, decoder registry, cache and retention
-state internally. Calls on one Hub may overlap. Fetch and decode work happens
-outside the cache lock; concurrent cold asks may do the same source work, but
-only one resulting view becomes the cached answer. A single `ResourceLease` is
-a mutable selector set and its own `include()` and `refresh()` calls must not
-overlap; independent leases coordinate their URI claims internally.
+state internally. Calls on one Hub may overlap. Fetch, decode and disk-write
+work happens outside the cache lock — `poll()` and `write()` included — so
+a decoder may ask the same hub for another resource while it runs, and a
+slow source never stalls another thread's cache hit; concurrent cold asks
+may do the same source work, but only one resulting view becomes the
+cached answer, and a `poll()` commits a reload only into an entry nobody
+replaced meanwhile. A single `ResourceLease` is a mutable selector set and
+its own `include()` and `refresh()` calls must not overlap; independent
+leases coordinate their URI claims internally.
 
 Selection is a filesystem snapshot, not a watch. A later `select()` sees files
 added since the previous call, while a returned vector does not change beneath
@@ -209,9 +224,14 @@ scratch, not as a shippable artifact.
 
 Network fetches follow redirects, time out after 20 seconds, fail on any
 HTTP status of 400 or above, and buffer the whole body in memory.
-Persisting to the cache is best-effort: a fetch that cannot be written to
-disk still returns its bytes. `curl_global_init` runs lazily on the first
-fetch and `curl_global_cleanup` is never called.
+Persisting to the cache is best-effort, and whole or not at all: the body
+goes through `writeBytes()` into a sibling file that takes the cache name
+only once every byte is there, so a fetch that cannot be written to disk
+still returns its bytes and a later run finds the whole resource or
+nothing. `curl_global_init` runs lazily on the first fetch and
+`curl_global_cleanup` is never called. `setNetworkTransport()` replaces
+libcurl with any function from a URL to its body; the cache and the
+policy stay in front of it.
 
 The policies differ in their failure behaviour, which is the part that
 matters. `CacheFirst` (the default) serves a present cache file without
@@ -257,7 +277,7 @@ a fixture decoder and a fixture sink with no hub in the binary, and
 `writeBytes` against a real scratch directory; `SigilIOHub` (static
 library, `hub/` — mounts, selection, cache, network and the decoder registry
 split behind the private `hub/Fetch.h`) with
-`io_hub_test` and `io_hub_bench` (Google Benchmark, built by the
+`io_hub_test`, which also checks `TextCatalog`, and `io_hub_bench` (Google Benchmark, built by the
 `benches` target and run from a Release build through
 `scripts/bench_ledger.py`: `Hub::blob` on a cache hit and `load<T>` on a
 decoded view per call, `resolve` per URI against the mount table, and
@@ -279,5 +299,6 @@ its fixtures, while the library itself never calls it. The live-network
 case fetches a pinned immutable URL once and reads it back through a
 fresh hub locked `Offline`, and it skips unless `SIGILIO_NET_TESTS=1`
 is set in the environment. Every other network case is a pre-seeded disk
-cache, so the fetch path itself is untested by default and the default
-run needs no connectivity at all.
+cache, with a stub transport standing in for libcurl where a fetch has to
+succeed or fail, so libcurl itself is untested by default and the default
+run needs no connectivity and no resolver at all.

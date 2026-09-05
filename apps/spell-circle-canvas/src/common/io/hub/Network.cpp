@@ -9,14 +9,14 @@
 #include <curl/curl.h>
 
 #include <cstdio>
-#include <fstream>
 #include <functional>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include "Fetch.h"
-#include "Residency.h"
+#include "sigilio/source/Sink.h"
 
 namespace sigil::io {
 
@@ -28,8 +28,9 @@ namespace {
 constexpr auto kNetworkMtime = std::filesystem::file_time_type::min();
 
 /** libcurl over the easy API: redirects followed, 20s timeout, HTTP
- *  errors (>= 400) fail, body lands in memory. */
-struct NetFetcher {
+ *  errors (>= 400) fail, body lands in memory. The transport a hub
+ *  runs when it was given no other. */
+struct CurlTransport {
   static size_t write(const char* data, size_t size, size_t nmemb, void* user) {
     auto* out = static_cast<std::vector<std::byte>*>(user);
     const auto* bytes = reinterpret_cast<const std::byte*>(data);
@@ -49,7 +50,7 @@ struct NetFetcher {
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 20L);
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "SigilIO/1.0");
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &NetFetcher::write);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &CurlTransport::write);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
     const CURLcode code = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
@@ -69,8 +70,9 @@ bool isNetworkUri(std::string_view uri) {
  *  Refresh: the network goes first, the cache catches its failures.
  *  Offline: cache only. A fetch success always persists for the next
  *  run. */
-FetchResult fetchNetwork(const std::filesystem::path& cacheDir,
-                         std::string_view url, NetworkPolicy policy) {
+FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
+  const std::filesystem::path cacheDir =
+      access.cacheDir.empty() ? defaultNetworkCacheDir() : access.cacheDir;
   std::error_code ec;
   std::filesystem::create_directories(cacheDir, ec);
   const std::filesystem::path cached = cacheDir / networkCacheKey(url);
@@ -80,14 +82,22 @@ FetchResult fetchNetwork(const std::filesystem::path& cacheDir,
         return {std::move(blob), cached, kNetworkMtime};
     return {};
   };
-  if (policy != NetworkPolicy::Refresh)
+  if (access.policy != NetworkPolicy::Refresh)
     if (FetchResult hit = fromCache(); hit.blob) return hit;
-  if (policy == NetworkPolicy::Offline) return {};
-  auto body = NetFetcher::get(url);
+  if (access.policy == NetworkPolicy::Offline) return {};
+  auto body = access.transport ? access.transport(url) : CurlTransport::get(url);
   if (!body) return fromCache();  // Refresh degrades to the cached copy
-  std::ofstream(cached, std::ios::binary)
-      .write(reinterpret_cast<const char*>(body->data()),
-             (std::streamsize)body->size());  // best-effort persist
+  // Persisting is best-effort, and never half done: the bytes land in a
+  // sibling file through writeBytes and take the cache name only once
+  // every byte is there, so a later run can find the whole resource or
+  // nothing, never a shorter one.
+  const std::filesystem::path partial = cached.string() + ".part";
+  if (writeBytes(partial, body->data(), body->size())) {
+    std::filesystem::rename(partial, cached, ec);
+    if (ec) std::filesystem::remove(partial, ec);
+  } else {
+    std::filesystem::remove(partial, ec);
+  }
   auto blob = std::make_shared<Bytes>();
   blob->bytes = std::move(*body);
   return {std::move(blob), cached, kNetworkMtime};
@@ -116,13 +126,18 @@ std::filesystem::path defaultNetworkCacheDir() {
 }
 
 void Hub::setNetworkCacheDir(std::filesystem::path dir) {
-  const std::lock_guard lock(m_synchronization->mutex);
-  m_netCacheDir = std::move(dir);
+  const std::lock_guard lock(m_mutex);
+  m_networkCacheDir = std::move(dir);
 }
 
 void Hub::setNetworkPolicy(NetworkPolicy policy) {
-  const std::lock_guard lock(m_synchronization->mutex);
-  m_netPolicy = policy;
+  const std::lock_guard lock(m_mutex);
+  m_networkPolicy = policy;
+}
+
+void Hub::setNetworkTransport(NetworkTransport transport) {
+  const std::lock_guard lock(m_mutex);
+  m_networkTransport = std::move(transport);
 }
 
 }  // namespace sigil::io
