@@ -238,11 +238,27 @@ The two GPU binaries exist only on Apple and every case in them needs a
 device, so they carry the ctest label `gpu`: a machine without one shows
 them as a lane not run rather than as a lane that passed. Both take the
 device, the shared Graphite context and the asynchronous surface read
-from `test/GraphiteReadback.h`; the two engine binaries take the page
-waits from `engine/test/Wait.h`, where a wait that expires says so and
-names what it was waiting for, rather than reporting the colour a page
-never painted. They stay two binaries because a process gets one
-renderer. Benchmarks (Google
+from `test/GraphiteReadback.h`, whose read is turned rather than timed —
+the submit before it is synchronous, so what is left is Skia handing the
+result back, and the loop is bounded by turns of
+`checkAsyncWorkCompletion` and not by a clock. The two engine binaries
+take the page waits from `engine/test/Wait.h`, where a wait that expires
+says so and names what it was waiting for, rather than reporting the
+colour a page never painted; each boots the one engine its mode needs,
+`cpuEngine()` and `gpuEngine()`. A claim that is about the engine and
+not about how a frame is carried is written once, in
+`engine/test/EngineContract.h`, and asked of each. They stay two
+binaries because a process gets one renderer.
+
+`scry_platform_test` reaches the handlers through the source directory,
+which is a stated exception: the handlers' headers name Ultralight
+types, so they cannot be public, and a test that could reach only
+`LogLevel.h` and `Runtime.h` could assert nothing about the surface, the
+file system or the logger. A case here asserts one thing a header
+promises and is named that promise as a sentence; it pins only what
+editing this library could falsify — a colour a document declares, a
+MIME type, a row stride's alignment and the bytes a buffer must hold —
+never the exact padding an allocator chose. Benchmarks (Google
 Benchmark, through the `benches` target and `scripts/bench_ledger.py`):
 `scry_platform_bench`, `scry_gpu_bench` (Apple), and `scry_engine_bench`
 — `--gpu` runs the latter's GPU-mode arms, a separate run because of the

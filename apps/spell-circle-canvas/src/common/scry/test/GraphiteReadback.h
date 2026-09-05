@@ -19,12 +19,10 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
-#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <memory>
 #include <mutex>
-#include <thread>
 
 namespace sigil::scry::test {
 
@@ -47,8 +45,8 @@ inline skia::GraphiteContext* sharedGraphite() {
 
 /** Renders the Graphite surface's pending work and reads @p rect back as
  *  premultiplied N32 pixels. A Graphite read is asynchronous, so the
- *  context is pumped until the result lands or the deadline passes; an
- *  empty bitmap says it never landed. */
+ *  context is turned until the result lands; an empty bitmap says it
+ *  never did. */
 inline SkBitmap readback(skia::GraphiteContext& graphite, SkSurface* surface,
                          const SkIRect& rect) {
   std::unique_ptr<skgpu::graphite::Recording> recording =
@@ -82,12 +80,14 @@ inline SkBitmap readback(skia::GraphiteContext& graphite, SkSurface* surface,
   submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
   graphite.context()->submit(submitInfo);
 
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (!readContext.called &&
-         std::chrono::steady_clock::now() < deadline) {
+  // The submit above was synchronous, so the device is already finished:
+  // what is left is Skia handing the result back, which happens on a
+  // turn of checkAsyncWorkCompletion. The loop is bounded by turns and
+  // not by a clock — a read that has not landed after this many turns
+  // is not a slow machine, it is a read that will never land.
+  constexpr int kTurns = 1024;
+  for (int turn = 0; turn < kTurns && !readContext.called; ++turn)
     graphite.context()->checkAsyncWorkCompletion();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
 
   SkBitmap pixels;
   if (!readContext.result) return pixels;

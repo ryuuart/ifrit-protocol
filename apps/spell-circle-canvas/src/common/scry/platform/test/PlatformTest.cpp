@@ -4,6 +4,11 @@
  * table and synthesized image-slot files, the logger's level mapping and
  * routing, the staged resource directory and the runtime probe over
  * it.
+ *
+ * The handlers' headers sit beside their sources and name Ultralight
+ * types, so they are not public and this file reaches them through the
+ * source directory: what the leaf IS could otherwise be asserted from
+ * nowhere.
  */
 
 #include <Ultralight/Buffer.h>
@@ -20,6 +25,7 @@
 #include "FileSystem.h"
 #include "Logger.h"
 #include "ResourceDir.h"
+#include "ScratchDir.h"
 #include "SkiaSurface.h"
 
 using namespace sigil::scry;
@@ -30,11 +36,11 @@ std::string utf8(const ultralight::String& s) {
   return std::string(s.utf8().data(), s.utf8().length());
 }
 
-std::filesystem::path scratch() {
-  const std::filesystem::path dir =
-      std::filesystem::temp_directory_path() / "sigilscry_platform_test";
-  std::filesystem::create_directories(dir);
-  return dir;
+/** Somewhere of this process's own to put a file the handlers read,
+ *  emptied on the way in and removed on the way out. */
+const std::filesystem::path& scratch() {
+  static const sigil::test::ScratchDir dir("sigilscry_platform_test");
+  return dir.path;
 }
 
 }  // namespace
@@ -48,8 +54,10 @@ TEST(ScryPlatform, SurfaceIsPremultipliedBgraWithAlignedRows) {
   EXPECT_TRUE(surface.bitmap().colorSpace()->isSRGB());
   EXPECT_EQ(surface.row_bytes() % 16, 0u);
   EXPECT_GE(surface.row_bytes(), 33u * 4u);
-  // Skia counts the last row without its padding.
-  EXPECT_EQ(surface.size(), surface.row_bytes() * 6u + 33u * 4u);
+  // Every row but the last is a whole stride, and the last needs only
+  // its own pixels: the buffer must hold at least that much, however
+  // much padding the allocator chose to add.
+  EXPECT_GE(surface.size(), surface.row_bytes() * 6u + 33u * 4u);
   void* pixels = surface.LockPixels();
   ASSERT_NE(pixels, nullptr);
   EXPECT_EQ(static_cast<const uint32_t*>(pixels)[0], 0u) << "transparent";
@@ -59,7 +67,8 @@ TEST(ScryPlatform, SurfaceIsPremultipliedBgraWithAlignedRows) {
   EXPECT_EQ(surface.LockPixels(), pixels);
   surface.Resize(64, 64);
   EXPECT_EQ(surface.width(), 64u);
-  EXPECT_EQ(surface.row_bytes(), 256u);
+  // A width already on the alignment needs no padding at all.
+  EXPECT_EQ(surface.row_bytes(), 64u * 4u);
 }
 
 TEST(ScryPlatform, SurfaceFactoryMakesAndDestroysSurfaces) {

@@ -23,6 +23,7 @@
 #include <thread>
 #include <vector>
 
+#include "EngineContract.h"
 #include "Wait.h"
 
 using namespace sigil::scry;
@@ -33,7 +34,9 @@ namespace {
 std::mutex g_logMutex;
 std::vector<std::string> g_logMessages;
 
-WebEngine& sharedEngine() {
+/** The one CPU-mode engine this process boots. Ultralight allows one
+ *  Renderer per process, so every case here shares it. */
+WebEngine& cpuEngine() {
   static std::shared_ptr<WebEngine> engine = [] {
     WebEngineConfig config;
     config.logCallback = [](LogLevel level, const std::string& message) {
@@ -58,7 +61,7 @@ bool logContains(const std::string& needle) {
 /** A view showing @p slot at 64 x 64 on black, so the slot's own colour
  *  is what the centre of the page reads. */
 std::shared_ptr<WebView> viewShowingSlot(const char* slot) {
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = cpuEngine().createView(64, 64, {.transparent = false});
   if (!view) return view;
   view->loadHTML(std::string("<html><body style='margin:0;background:#000'>"
                              "<img src='") +
@@ -71,7 +74,7 @@ std::shared_ptr<WebView> viewShowingSlot(const char* slot) {
 }  // namespace
 
 TEST(WebViewTest, PublishesTheColourTheDocumentDeclares) {
-  auto view = sharedEngine().createView(160, 120, {.transparent = false});
+  auto view = cpuEngine().createView(160, 120, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
   view->loadHTML(
@@ -82,7 +85,7 @@ TEST(WebViewTest, PublishesTheColourTheDocumentDeclares) {
 }
 
 TEST(WebViewTest, DrawsThePageIntoTheRectItIsGiven) {
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = cpuEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
   view->loadHTML(
@@ -109,7 +112,7 @@ TEST(WebViewTest, DrawsThePageIntoTheRectItIsGiven) {
 }
 
 TEST(WebViewTest, TheScrollDeltaIsWhatTheContentMovesBy) {
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = cpuEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
   // Two bands, each the height of the view: red standing where the view
@@ -135,7 +138,7 @@ TEST(WebViewTest, TheScrollDeltaIsWhatTheContentMovesBy) {
 }
 
 TEST(WebViewTest, AnswersTheValueAScriptEvaluatesTo) {
-  auto view = sharedEngine().createView(32, 32);
+  auto view = cpuEngine().createView(32, 32);
   ASSERT_NE(view, nullptr);
 
   std::mutex mutex;
@@ -160,7 +163,7 @@ TEST(WebViewTest, AnswersTheValueAScriptEvaluatesTo) {
 // inside the page (WebImage), then the page composited back onto an
 // SkCanvas — a full Skia -> Ultralight -> Skia round trip.
 TEST(WebViewTest, CompositesSkiaContentIntoPage) {
-  auto image = sharedEngine().createImage("cpu_swatch", 32, 32);
+  auto image = cpuEngine().createImage("cpu_swatch", 32, 32);
   ASSERT_NE(image, nullptr);
 
   SkBitmap swatch;
@@ -178,7 +181,7 @@ TEST(WebViewTest, CompositesSkiaContentIntoPage) {
 // Same round trip through the one-call paint() API, which wraps the
 // backing store, flushes, and invalidates in a single step.
 TEST(WebViewTest, PaintsSlotWithCallback) {
-  auto image = sharedEngine().createImage("cpu_paint_swatch", 32, 32);
+  auto image = cpuEngine().createImage("cpu_paint_swatch", 32, 32);
   ASSERT_NE(image, nullptr);
   ASSERT_TRUE(
       image->paint([](SkCanvas& canvas) { canvas.clear(SK_ColorYELLOW); }));
@@ -192,7 +195,7 @@ TEST(WebViewTest, PaintsSlotWithCallback) {
 // Referencing a slot no WebImage is registered under must be loud, not a
 // silent broken image.
 TEST(WebViewTest, WarnsOnUnregisteredSlot) {
-  auto view = sharedEngine().createView(32, 32);
+  auto view = cpuEngine().createView(32, 32);
   ASSERT_NE(view, nullptr);
   view->loadHTML(
       "<html><body><img src='definitely_missing.imgsrc'>"
@@ -207,7 +210,7 @@ TEST(WebViewTest, WarnsOnUnregisteredSlot) {
 }
 
 TEST(WebViewTest, CallsBackWithEachFrameItPublishes) {
-  auto view = sharedEngine().createView(48, 48, {.transparent = false});
+  auto view = cpuEngine().createView(48, 48, {.transparent = false});
   ASSERT_NE(view, nullptr);
 
   std::mutex mutex;
@@ -237,13 +240,7 @@ TEST(WebViewTest, CallsBackWithEachFrameItPublishes) {
 
 // Pages up and down while the engine renders.
 TEST(WebViewTest, PagesComeAndGoUnderTheRenderLoop) {
-  for (int round = 0; round < 12; ++round) {
-    auto view = sharedEngine().createView(64, 64, {.transparent = false});
-    ASSERT_NE(view, nullptr) << "round " << round;
-    view->loadHTML(
-        "<html><body style='background:#0000ff;margin:0'></body></html>");
-    EXPECT_TRUE(waitForFrame(*view, 0)) << "round " << round;
-  }
+  expectPagesComeAndGo(cpuEngine());
 }
 
 namespace {
@@ -275,9 +272,9 @@ struct CallbackState {
 // the pass is standing on is one that has just stopped existing.
 TEST(WebViewTest, APageReleasedFromAFrameCallbackStopsPublishing) {
   auto state = std::make_shared<CallbackState>();
-  state->held = sharedEngine().createView(48, 48, {.transparent = false});
+  state->held = cpuEngine().createView(48, 48, {.transparent = false});
   ASSERT_NE(state->held, nullptr);
-  auto driver = sharedEngine().createView(48, 48, {.transparent = false});
+  auto driver = cpuEngine().createView(48, 48, {.transparent = false});
   ASSERT_NE(driver, nullptr);
 
   driver->setFrameCallback([state](const WebView::Frame&) {
@@ -304,10 +301,10 @@ TEST(WebViewTest, APageReleasedFromAFrameCallbackStopsPublishing) {
 // callback joins the registry while the pass is walking it.
 TEST(WebViewTest, APageOpenedFromAFrameCallbackJoinsTheEngine) {
   auto state = std::make_shared<CallbackState>();
-  auto driver = sharedEngine().createView(48, 48, {.transparent = false});
+  auto driver = cpuEngine().createView(48, 48, {.transparent = false});
   ASSERT_NE(driver, nullptr);
 
-  std::shared_ptr<WebEngine> engine = sharedEngine().shared_from_this();
+  std::shared_ptr<WebEngine> engine = cpuEngine().shared_from_this();
   driver->setFrameCallback([state, engine](const WebView::Frame&) {
     std::lock_guard<std::mutex> lock(state->mutex);
     if (state->acted) return;

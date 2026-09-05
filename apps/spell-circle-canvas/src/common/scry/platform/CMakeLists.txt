@@ -23,6 +23,12 @@ target_compile_definitions(SigilScryPlatform PRIVATE
 # handlers take; no renderer is created, so it shares a process with
 # nothing. The staged resources are what the resource-directory test
 # looks for.
+#
+# The source directory is on the test's include path, which is a stated
+# exception: the handlers are what this leaf is, and their headers name
+# Ultralight types, so they cannot be public. A test that could reach
+# only LogLevel.h and Runtime.h could assert nothing about the surface,
+# the file system or the logger.
 sigil_test(scry_platform_test
   SOURCES test/PlatformTest.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}

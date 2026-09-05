@@ -37,6 +37,7 @@
 #include <vector>
 
 #include "GraphiteReadback.h"
+#include "EngineContract.h"
 #include "Wait.h"
 
 using namespace sigil::scry;
@@ -44,7 +45,10 @@ using namespace sigil::scry::test;
 
 namespace {
 
-WebEngine &sharedEngine() {
+/** The one GPU-mode engine this process boots, over the shared device
+ *  and Graphite context. Ultralight allows one Renderer per process,
+ *  which is why this binary is separate from the CPU one. */
+WebEngine &gpuEngine() {
   static std::shared_ptr<WebEngine> engine = [] {
     WebEngineConfig config;
     config.gpuDevice = sharedDevice();
@@ -145,7 +149,7 @@ TEST(WebViewGpuTest, RendersThroughMetalAndGraphite) {
   sigil::skia::GraphiteContext *graphite = sharedGraphite();
   ASSERT_NE(graphite, nullptr);
 
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = gpuEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);
   view->loadHTML("<html><body style='background:#ff0000;margin:0'>"
                  "</body></html>");
@@ -172,11 +176,11 @@ class SlotFillingTest : public ::testing::TestWithParam<SlotFilling> {};
 
 TEST_P(SlotFillingTest, ThePageShowsWhatFilledTheSlot) {
   const SlotFilling &how = GetParam();
-  auto image = sharedEngine().createImage(how.slot, how.size, how.size);
+  auto image = gpuEngine().createImage(how.slot, how.size, how.size);
   ASSERT_NE(image, nullptr);
   how.fill(*image);
 
-  auto view = sharedEngine().createView(64, 64, {.transparent = false});
+  auto view = gpuEngine().createView(64, 64, {.transparent = false});
   ASSERT_NE(view, nullptr);
   view->loadHTML(std::string("<html><body style='margin:0;background:#000'>"
                              "<img src='") +
@@ -207,13 +211,13 @@ INSTANTIATE_TEST_SUITE_P(
     [](const ::testing::TestParamInfo<SlotFilling> &info) { return std::string(info.param.slot); });
 
 TEST(WebViewGpuTest, ASlotRefusesANullTextureHandle) {
-  auto image = sharedEngine().createImage("gpu_null_handle", 8, 8);
+  auto image = gpuEngine().createImage("gpu_null_handle", 8, 8);
   ASSERT_NE(image, nullptr);
   EXPECT_FALSE(image->updateTexture(sigil::core::hardware::TextureHandle{}));
 }
 
 TEST(WebViewGpuTest, WrapsOnePublishedTextureOncePerVersion) {
-  auto view = sharedEngine().createView(32, 32, {.transparent = false});
+  auto view = gpuEngine().createView(32, 32, {.transparent = false});
   ASSERT_NE(view, nullptr);
   view->loadHTML("<html><body style='background:#00ff00'></body></html>");
   ASSERT_TRUE(waitForFrame(*view, 0));
@@ -248,10 +252,5 @@ TEST(WebViewGpuTest, WrapsOnePublishedTextureOncePerVersion) {
 // pass runs there too, so an engine that publishes through a page it has
 // already torn down faults here rather than once in a few hundred runs.
 TEST(WebViewGpuTest, PagesComeAndGoUnderTheRenderLoop) {
-  for (int round = 0; round < 12; ++round) {
-    auto view = sharedEngine().createView(64, 64, {.transparent = false});
-    ASSERT_NE(view, nullptr) << "round " << round;
-    view->loadHTML("<html><body style='background:#0000ff;margin:0'></body></html>");
-    EXPECT_TRUE(waitForFrame(*view, 0)) << "round " << round;
-  }
+  expectPagesComeAndGo(gpuEngine());
 }
