@@ -400,10 +400,16 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                          imageAssetOf(node)->animated();
   // A LIVE effect: the filter is captured by the recording, so bound
   // uniforms on it are content volatility, exactly as they are on a fill
-  // material.
-  const bool liveEffect =
-      (layerEffectOf(node) && layerEffectOf(node)->isAnimated()) ||
-      (backdropEffectOf(node) && backdropEffectOf(node)->isAnimated());
+  // material. Split by WHICH effect, because the two answer differently to
+  // the deferred-effect tier below: a layer effect is applied over what the
+  // node drew and may therefore be lifted off a bake of it, while a
+  // backdrop effect reads what is already on the canvas and can be applied
+  // nowhere else than live.
+  const material::skia::Effect* layerFx = layerEffectOf(node);
+  const material::skia::Effect* backdropFx = backdropEffectOf(node);
+  const bool liveLayerEffect = layerFx && layerFx->isAnimated();
+  const bool liveBackdropEffect = backdropFx && backdropFx->isAnimated();
+  const bool liveEffect = liveLayerEffect || liveBackdropEffect;
   // A LIVE pass material on an fx() track — uTime, a bound uniform, a
   // bound block — repaints the pass's output every frame with no float the
   // scalar lane could compare, so it is opaque volatility, exactly as a
@@ -534,9 +540,17 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // the budget degraded, can be set differently next frame with no float on
   // this node moving, which is precisely what no memo can see. Over-
   // reporting costs a re-record and nothing else.
-  const bool sharedOpaque = metricLive || cacheNone || decorLive || imageLive ||
-                            spanVolatile || maskOpaque || liveEffect ||
-                            passLive || inst.textComposing;
+  //
+  // Named in two halves: everything opaque to every memo EXCEPT a live
+  // layer effect, and then that. The split is the deferred-effect tier's
+  // whole predicate — "the layer effect is the only thing moving" is
+  // exactly `liveLayerEffect && !sharedOpaqueBesideLayerEffect && …` — and
+  // deriving it by subtraction is what keeps it from falling behind the
+  // list, the same argument the memo carve-outs below are built on.
+  const bool sharedOpaqueBesideLayerEffect =
+      metricLive || cacheNone || decorLive || imageLive || spanVolatile ||
+      maskOpaque || liveBackdropEffect || passLive || inst.textComposing;
+  const bool sharedOpaque = sharedOpaqueBesideLayerEffect || liveLayerEffect;
   // A bound fill still refuses Cache::Group, even though it rides the
   // node-level scalar lane. The group memo's currency is one flat float
   // vector gathered across the subtree (collectGroupScalars), and a Fill's
@@ -664,6 +678,34 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // which is the conservative answer and costs no more than having no memo
   // at all.
   inst.scalarMemo = scalarContent && !otherThanScalar && !childrenVolatile;
+  // THE DEFERRED-EFFECT TIER: the node's only volatility is its own layer
+  // effect's bound parameters, so the content UNDER the effect is static.
+  // Such a node is rasterized once with the effect left out and the effect
+  // is run over that one image at every blit — which is the difference
+  // between filtering a fresh layer every frame and filtering an image
+  // whose identity holds, since an effect built over held passes finds
+  // them already filtered for an image it has seen before.
+  //
+  // Neither memo above answers this: they ask whether the inputs have
+  // stopped moving, and a bound effect parameter never stops. This asks
+  // where the moving input is APPLIED — outside the content, so the
+  // content's bake is exact however hard the parameter runs.
+  //
+  // THE ONE EXCEPTION IS A BACKDROP EFFECT, which is why it is subtracted
+  // twice over: it reads what is already on the canvas, and a bake holds
+  // nothing of that, so a node carrying one stays live. `subtreeReadsBackdrop`
+  // covers a descendant's, `liveBackdropEffect` this node's own.
+  //
+  // A MASKED node is refused as well. The blit-side resolve hands the
+  // effect's child materials the node's box and clock — the contract a
+  // backdrop effect's children already have — and not the gated outline
+  // paintContent would hand them, so the tier is offered only where the
+  // two are the same path.
+  inst.effectOnly = liveLayerEffect && !sharedOpaqueBesideLayerEffect &&
+                    !boundFill && !liveMat && !patternPan && !fillLerp &&
+                    !scalarDeclared && !childrenVolatile &&
+                    !verdict.subtreeReadsBackdrop && !node.hasMasks() &&
+                    node.boundary == Boundary::Auto;
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
   if (blocked != inst.subtreeVolatile) {
     inst.subtreeVolatile = blocked;
@@ -679,7 +721,10 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     // reset: a group root never replays one, and leaving a stale recording
     // reachable is how the fall-through path would blit last frame's pixels
     // on the frame the memo just said not to.
-    if (!inst.groupRootOK) inst.textureImage.reset();
+    // …and a deferred effect's bake is kept for the same reason a group's
+    // is: the volatility this node declares is applied OUTSIDE those
+    // pixels, so they are still the pixels the filter wants.
+    if (!inst.groupRootOK && !inst.effectOnly) inst.textureImage.reset();
   }
   return verdict;
 }

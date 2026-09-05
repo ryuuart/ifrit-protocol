@@ -15,6 +15,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilshaders/MaterialSkia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -23,8 +24,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-
-#include "ShaderSources.h"
 
 namespace sigil::material::skia {
 
@@ -268,7 +267,8 @@ std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maxSigma) {
  *  the held pyramid as a scale on the mix parameter, and above it clamps
  *  to the range. */
 sk_sp<SkImageFilter> makeParamBlur(const Effect::BlurLevels* levels,
-                                   float sigma, sk_sp<SkShader> sigmaMap) {
+                                   float sigma, sk_sp<SkShader> sigmaMap,
+                                   SkSize box) {
   const sk_sp<SkRuntimeEffect> fx = paramBlurMix();
   if (!sigmaMap || !fx || !levels) {
     // No map or no SkSL: the honest fallback is the constant blur the
@@ -283,7 +283,20 @@ sk_sp<SkImageFilter> makeParamBlur(const Effect::BlurLevels* levels,
   const sk_sp<SkImageFilter> inputs[3] = {
       nullptr,  // level 0 IS the layer, unblurred
       levels->half, levels->full};
-  return SkImageFilters::RuntimeShader(b, names, inputs, 3);
+  sk_sp<SkImageFilter> mix = SkImageFilters::RuntimeShader(b, names, inputs, 3);
+  // THE REACH, DECLARED. A runtime shader may write any pixel, so Skia
+  // treats a node built from one as covering everything and gives it a
+  // layer the size of the whole clip: a small node's blur would evaluate
+  // over the entire canvas, and its cost would be the canvas's rather than
+  // its own. This blur's reach is known — the box the map is defined over,
+  // grown by the Gaussian support of the range's largest level, which is
+  // the furthest any of the three levels can carry a pixel. Stated only
+  // where the box is known; without one the filter stays as Skia found it.
+  if (box.isEmpty()) return mix;
+  const float reach = levels->maxSigma * 3.0f;
+  return SkImageFilters::Crop(
+      SkRect::MakeWH(box.width(), box.height()).makeOutset(reach, reach),
+      std::move(mix));
 }
 }  // namespace
 
@@ -546,7 +559,8 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* ctx) const {
     // the value, at every paint — the cost declaring the range avoids.
     const std::shared_ptr<const BlurLevels> levels =
         m_blurLevels ? m_blurLevels : makeBlurLevels(sigma);
-    return makeParamBlur(levels.get(), sigma, childShaderFor("sigma", ctx));
+    return makeParamBlur(levels.get(), sigma, childShaderFor("sigma", ctx),
+                         ctx ? ctx->size : SkSize::MakeEmpty());
   }
   if (m_dirBlur) {  // rebuild the sandwich from the bound parameters
     DirectionalBlur d = *m_dirBlur;

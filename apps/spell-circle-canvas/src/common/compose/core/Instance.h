@@ -389,6 +389,15 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // — a shader pointer versus a list of floats — so a node can qualify for
   // one and not the other.
   bool scalarMemo = false;
+  // Set when the node's ONLY volatility is its own LAYER effect's bound
+  // parameters: the content under the effect is static (no live child, no
+  // live material, no animated scalar, no live decoration), so it can be
+  // rasterized once and the effect run over that one image at every blit.
+  // The image's identity holds from frame to frame, which is what lets an
+  // effect built over held passes find them already filtered instead of
+  // filtering a fresh layer again. A BACKDROP effect is never this: it
+  // reads what is already on the canvas, which a bake cannot hold.
+  bool effectOnly = false;
   /** The content scalars a recording was baked with. A node that has none
    *  compares equal to itself forever.
    *

@@ -361,7 +361,8 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
 
 void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                   float contentScale, SkBlendMode leafBlend,
-                                  float leafOpacity, Phase phase) {
+                                  float leafOpacity, Phase phase,
+                                  bool deferLayerEffect) {
   const ElementNode& node = *inst.description;
   // The two halves of a node's paint, split at the children loop. A
   // split bake is only ever offered to a node with no layer effect — that
@@ -578,7 +579,14 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // effect (bound uniforms, a live child material) resolves here per paint,
   // and computeVolatile has declared such a node volatile, so this
   // recording is never cached stale.
-  const material::skia::Effect* layerFx = layerEffectOf(node);
+  //
+  // DEFERRED, the effect is left out of what is emitted and applied to the
+  // bake at its blit instead: an effect whose parameters move over content
+  // that does not is the one case where the two are not the same picture in
+  // cost, since a filter over an image whose identity holds finds any held
+  // pass of it already made.
+  const material::skia::Effect* layerFx =
+      deferLayerEffect ? nullptr : layerEffectOf(node);
   const material::skia::PaintFrame layerFrame = frameOf(paintCtx);
   const sk_sp<SkImageFilter> layerFilter =
       layerFx ? layerFx->resolvedImageFilter(&layerFrame) : nullptr;
@@ -1247,6 +1255,12 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     if (ownHidden && !spaceHost) return;
   }
 
+  // The device matrix the node's own transform is applied ON TOP OF — read
+  // before that transform is concatenated. The coarse bake ladder below
+  // needs it to ask what scale a declared scale motion is heading for,
+  // which is a question about this node's own lane and not about the
+  // matrix it currently reads as.
+  const SkMatrix parentCanvasM = canvas.getTotalMatrix();
   canvas.save();
   if (spaceHost) {
     // The canvas STAYS at the plane the space is drawn on, so the children
@@ -1337,6 +1351,38 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     const material::skia::PaintFrame backdropFrame = frameOf(backdropCtx);
     backdropFilter = backdropFx->resolvedImageFilter(&backdropFrame);
   }
+  // THE DEFERRED LAYER EFFECT. A node whose only volatility is its own
+  // layer effect's bound parameters paints static content under a moving
+  // filter, so the content is baked once with the effect left out and the
+  // effect is run over that one image at every blit. What that buys is not
+  // the content's rasterisation, which is usually the cheap half: it is the
+  // image's IDENTITY. An effect built over held passes — a pyramid whose
+  // levels are the same filter nodes every frame — finds each pass already
+  // made for an image it has filtered before, where a freshly rasterized
+  // layer is a new image every frame and every pass runs again.
+  //
+  // Resolved here rather than inside paintContent because it is needed on
+  // the frames that bake NOTHING, which are all of them but the first. Its
+  // child materials therefore resolve against the node's box and clock,
+  // exactly as a backdrop effect's do; the tier is refused to a masked node
+  // so that this is the same outline paintContent would have handed them.
+  sk_sp<SkImageFilter> deferredFilter;
+  if (inst.effectOnly) {
+    const PaintContext effectCtx{{rect.width(), rect.height()},
+                                 SkPath(),
+                                 elapsed(),
+                                 hostScale,
+                                 ticker.active(),
+                                 &fonts,
+                                 nullptr,
+                                 &inst.stampCache,
+                                 curToRoot,
+                                 rootLayoutSize};
+    const material::skia::PaintFrame effectFrame = frameOf(effectCtx);
+    deferredFilter = layerEffectOf(node)->resolvedImageFilter(&effectFrame);
+  }
+  const bool deferEffect = (bool)deferredFilter;
+
   const bool hasBackdrop = (bool)backdropFilter;
   if (hasBackdrop) {
     // The filtered backdrop composites as a CLOSED pass clipped to the
@@ -1430,7 +1476,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // "May this node keep its cached pixels?" — either nothing about it is
   // volatile, or every input it reads is memoized and provably unchanged.
   const bool memoized = inst.liveMatOnly || inst.scalarMemo;
-  const bool cacheHolds = !inst.subtreeVolatile || memoized;
+  // …or the volatility is entirely OUTSIDE the pixels the cache holds,
+  // which is the deferred effect's whole claim.
+  const bool cacheHolds = !inst.subtreeVolatile || memoized || deferEffect;
   // …and "are they still the RIGHT pixels?" — the two memos answer for
   // their own input and abstain on the other.
   const bool memoStale =
@@ -2079,7 +2127,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // scene did before this feature existed.
   }
 
-  if (!liveOnly && cacheHolds && node.cacheMode == Cache::Texture &&
+  if (!liveOnly && cacheHolds &&
+      (node.cacheMode == Cache::Texture || deferEffect) &&
       !backdropEffectOf(node)) {
     // ---- the exact bake -------------------------------------------------
     // A bake held in LOCAL space and blitted through the node's transform
@@ -2138,8 +2187,16 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       }
     }
     const int64_t deviceArea = (int64_t)deviceR.width() * deviceR.height();
+    // A DEFERRED EFFECT keeps the LOCAL bake. A device-space bake blits with
+    // the matrix reset, and an image filter's parameters are read in the
+    // space of the canvas that applies it: a sigma declared in the node's
+    // own units would become a sigma in device units, so the effect would
+    // change size with the host's scale. The local bake blits through the
+    // node's own matrix, which is the matrix the effect's saveLayer stood
+    // under, so the filter is applied in exactly the space it was declared
+    // in.
     const bool deviceEligible =
-        !inst.transformLive && unpinnedRecordingDepth == 0 &&
+        !deferEffect && !inst.transformLive && unpinnedRecordingDepth == 0 &&
         node.bakeScale >= 1.0f && !totalM.hasPerspective() &&
         deviceR.width() > 0 && deviceR.height() > 0 &&
         deviceArea <= int64_t{16} * 1024 * 1024;
@@ -2211,6 +2268,46 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // taken inside a replayed-at-scale recording is rasterized at the
     // scale it will be shown at.
     const SkMatrix& total = totalM;
+    // A SCALE MOTION THAT NAMES ITS DESTINATION IS BAKED AT THE
+    // DESTINATION, ONCE. The ladder quantizes so that a scale nobody
+    // declared — a window resize, a pinch zoom — reuses one bake per step
+    // instead of re-rasterizing per frame. An entrance is the opposite
+    // case: it is not an unknown scale drifting, it is a known scale being
+    // travelled, and quantizing it bakes the node again at every rung it
+    // passes. A `from(a).to(b)` on a scale lane names b, so the bake is
+    // taken there and the blit MINIFIES through the entrance, which is the
+    // sharp direction. A scale driven by a binding names nothing and keeps
+    // the ladder.
+    //
+    // The substitution is on the node's OWN lanes, rebuilt against the
+    // matrix its parent supplied — not a factor applied to the current
+    // reading, which is zero at the start of an entrance from nothing.
+    // Only the flat placement is rebuilt this way: a plane that has turned
+    // or stands in a shared space is placed by a 4x4 whose own producer
+    // owns that composition.
+    SkMatrix destTotal = total;
+    if (!flat && !spaceHost) {
+      NodeTransform destTf = tf;
+      bool declared = false;
+      const auto lane = [&](Instance::Slot slot,
+                            const motion::Animatable<float>& v, float& out) {
+        const AnimatedFloat* a = inst.anims[slot].get();
+        if (v.binding() || !a || !a->started || !a->value.isConnected()) return;
+        out = a->target;
+        declared = true;
+      };
+      lane(Instance::kScale, node.paint.scale, destTf.scl);
+      lane(Instance::kScaleX, node.paint.scaleX, destTf.sx);
+      lane(Instance::kScaleY, node.paint.scaleY, destTf.sy);
+      if (declared) {
+        destTotal = recordingDepth == 0
+                        ? parentCanvasM
+                        : SkMatrix::Concat(recordingReplay, parentCanvasM);
+        destTotal.preTranslate(rect.left(), rect.top());
+        destTotal.preConcat(destTf.matrix({0, 0}, node.paint, rect.width(),
+                                          rect.height()));
+      }
+    }
     // maxScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
     // is (0, 0) and would clamp to the 0.25 floor, baking at a quarter
     // resolution to be upscaled by the blit (see maxScaleOf in
@@ -2218,7 +2315,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // samples when the CTM carries a host perspective. This ladder feeds
     // the re-bake test below, so an underestimate here means a stale,
     // blurry bake rather than a wasted one.
-    const float raw = std::clamp(maxScaleOf(total, localBounds), 0.25f, 4.0f);
+    const float raw =
+        std::clamp(maxScaleOf(destTotal, localBounds), 0.25f, 4.0f);
     static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
                                            1.5f,  2.0f, 3.0f,  4.0f};
     float scale = kBakeSteps[std::size(kBakeSteps) - 1];
@@ -2246,7 +2344,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       layer->getCanvas()->translate(-bake.left(), -bake.top());
       profDraw("bake", [&] {  // no leaf blend: bakes isolate
         const BakeLayerScope bakeLayer(this);
-        paintContent(inst, *layer->getCanvas(), scale);
+        paintContent(inst, *layer->getCanvas(), scale, SkBlendMode::kSrcOver,
+                     1.0f, Phase::All, deferEffect);
       });
       inst.textureImage = layer->makeImageSnapshot();
       inst.textureScale = scale;
@@ -2272,16 +2371,26 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         (float)inst.textureImage->width() / inst.textureScale,
         (float)inst.textureImage->height() / inst.textureScale);
     profDraw("blit", [&] {
-      if (deferBlendToBlit) {
-        SkPaint blit;  // same rule as the device blit above
+      SkPaint blit;
+      bool dressed = false;
+      if (deferBlendToBlit) {  // same rule as the device blit above
         blit.setAlphaf(opacity);
         blit.setBlendMode(node.paint.blendMode);
-        canvas.drawImageRect(inst.textureImage, dst,
-                             SkSamplingOptions(SkFilterMode::kLinear), &blit);
-      } else {
-        canvas.drawImageRect(inst.textureImage, dst,
-                             SkSamplingOptions(SkFilterMode::kLinear));
+        dressed = true;
       }
+      // The deferred layer effect, applied to the bake rather than to the
+      // content: the canvas stands at the node's own matrix here, which is
+      // the matrix the effect's saveLayer stood under, so the filter reads
+      // its parameters in the units they were declared in. Skia grows the
+      // draw for the filter's own reach, so nothing the effect spreads
+      // outside the bake rect is lost.
+      if (deferEffect) {
+        blit.setImageFilter(deferredFilter);
+        dressed = true;
+      }
+      canvas.drawImageRect(inst.textureImage, dst,
+                           SkSamplingOptions(SkFilterMode::kLinear),
+                           dressed ? &blit : nullptr);
     });
   } else if (!liveOnly && cacheHolds && node.cacheMode != Cache::None &&
              // A node HOSTING A SHARED SPACE never records: its children

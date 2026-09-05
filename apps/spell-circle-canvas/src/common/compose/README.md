@@ -834,6 +834,37 @@ reads a stale value forever. The conservative fallback is built in:
 anything holding an incomparable callable compares *unequal* and never
 prunes.
 
+**A LIVE LAYER EFFECT OVER STATIC CONTENT IS APPLIED TO A BAKE.** A node
+whose only volatility is its own `effect()`'s bound parameters — nothing
+live in its children, its material, its scalars or its decorations —
+still declares itself volatile, because the pixels it composites do
+change. But the volatility is applied *outside* the content, so the
+content is rasterized ONCE with the effect left out and the effect runs
+over that one image at every blit. The image's identity holds, and the
+bake is held across every value the parameter takes. `backdrop()` is the
+exception and always paints live: it reads what is already on the canvas,
+and a bake holds none of that. A masked node is refused too, since the
+blit-side resolve hands the effect's child materials the node's box and
+clock rather than a gated outline.
+
+**AN EFFECT DECLARES ITS REACH, OR IT COSTS THE CANVAS.** A filter built
+from a runtime shader may write any pixel, so Skia gives it a layer the
+size of the whole clip and a small node's effect then evaluates over the
+entire canvas — the same node twice as expensive on a canvas twice the
+size. `Effect::blur(map, maxSigma)` declares its reach (the box the map
+is defined over, grown by the range's Gaussian support) and costs its own
+node. An author writing a runtime-shader effect of their own owes the
+same declaration.
+
+**A SCALE MOTION THAT NAMES ITS DESTINATION IS BAKED THERE, ONCE.** A
+`Cache::Texture` bake taken while the node is moving is held in local
+space at a coarse scale ladder, so a scale nobody declared — a resize, a
+pinch zoom — reuses one bake per step. An entrance is the opposite case:
+a `from(a).to(b)` on `scale`, `scaleX` or `scaleY` names where it is
+going, so the bake is taken there once and the blit minifies through the
+entrance, which is the sharp direction. A scale driven by a binding names
+nothing and keeps the ladder.
+
 ---
 
 ## Traps

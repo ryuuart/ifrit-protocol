@@ -398,6 +398,115 @@ TEST(ComposeEffects, TextureBakesEffectOnce) {
 }
 
 namespace {
+/** A sigma map: the blur's full range at the top edge, none at the bottom.
+ *  Any map will do here — what these cases are about is the PARAMETER
+ *  moving, and a map is what makes an effect carry one at all. */
+material::skia::Paint sigmaMap() {
+  return material::skia::Paint::linearUnit(
+      {0, 0}, {0, 1}, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}});
+}
+}  // namespace
+
+TEST(ComposeEffects, ALiveLayerEffectOverStaticContentFiltersOneBake) {
+  // The node's ONLY volatility is its effect's bound parameter, so the
+  // content under the effect is static: it is rasterized once with the
+  // effect left out, and the effect runs over that one image at every
+  // blit. ONCE is asserted literally through `texturesBaked` — a node
+  // re-rasterizing its content into a fresh layer every frame would look
+  // identical in any still.
+  Host host;
+  choreograph::Output<float> maxSigma{1.0f};
+  host.composer.render(profiledUnder(
+      box()
+          .key("racked")
+          .width(60)
+          .height(60)
+          .fill(green())
+          .effect(material::skia::Effect::blur(sigmaMap(), 14.0f)
+                      .uniform("maxSigma", &maxSigma))));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
+      << "the content, baked once with the effect left out of it";
+  const std::vector<SkColor> sharp = grab(host);
+
+  maxSigma = 14.0f;
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+      << "…and the parameter moving re-filters that bake rather than "
+         "re-baking it";
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+      << "…and re-records nothing either";
+  EXPECT_NE(grab(host), sharp)
+      << "the effect is live: the parameter moved and the picture did";
+
+  maxSigma = 3.0f;
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+      << "the bake is held across every value the parameter takes";
+}
+
+TEST(ComposeEffects, ALiveBackdropEffectIsNeverLiftedOffABake) {
+  // The exception, and the reason the tier is stated per effect rather
+  // than per node: a backdrop effect reads what is already on the canvas,
+  // and a bake holds none of that — filtering one would sample the bake's
+  // own transparent black. So the node stays live however static its
+  // content is.
+  Host host;
+  choreograph::Output<float> maxSigma{1.0f};
+  // A ground with an EDGE in it: blurring a flat field changes no pixel,
+  // so the parameter would look dead however live it was.
+  host.composer.render(
+      stack()
+          .child(box().inset(0).fill(red()))
+          .child(box().width(100).height(200).inset(0, 0, 0, 100).absolute().fill(
+              green()))
+          .child(box()
+                     .key("well")
+                     .width(80)
+                     .height(80)
+                     .inset(60, 60, 60, 60)
+                     .absolute()
+                     .backdrop(material::skia::Effect::blur(sigmaMap(), 14.0f)
+                                   .uniform("maxSigma", &maxSigma))));
+  host.frame();
+  const unsigned baked = host.composer.stats().texturesBaked;
+  const std::vector<SkColor> sharp = grab(host);
+  maxSigma = 14.0f;
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, baked)
+      << "a backdrop effect holds no bake to be re-filtered";
+  EXPECT_NE(grab(host), sharp) << "and it still tracks its parameter";
+}
+
+TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
+  // A `from(a).to(b)` on a scale lane NAMES b, so the coarse bake ladder
+  // takes the bake there and the blit minifies through the entrance. The
+  // ladder is for a scale nobody declared — a resize, a pinch zoom — where
+  // one bake per step is the cheap answer; an entrance is a known scale
+  // being travelled, and quantizing it bakes the node again at every rung
+  // it passes.
+  Host host;
+  host.composer.render(profiledUnder(
+      box()
+          .key("wedge")
+          .width(80)
+          .height(80)
+          .fill(green())
+          .cache(Cache::Texture)
+          .scale(animate(motion::from(0.2f).to(1.0f),
+                         {std::chrono::milliseconds(400)}))));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
+      << "the bake, taken at the scale the motion names";
+  // Inside the entrance throughout: the last tick lands at 350 ms of 400.
+  for (int step = 0; step < 7; ++step) {
+    host.frame(0.05);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "step " << step << ": the entrance passed a rung and re-baked";
+  }
+}
+
+namespace {
 
 /** A lightweight grid, ~20 lines of user code. */
 struct Grid {
@@ -1779,6 +1888,49 @@ TEST(ComposeEffects, AParameterMapVariesTheBlurAcrossTheNode) {
       << "…and no blur at all cannot make the right end soft";
 }
 
+TEST(ComposeEffects, AParameterBlurCostsItsOwnNodeAndNotTheCanvas) {
+  // A runtime shader may write any pixel, so Skia treats a filter built
+  // from one as covering everything and hands it a layer the size of the
+  // clip — which makes a small node's blur cost the WHOLE CANVAS, and the
+  // same node twice as expensive on a canvas twice the size. blur()'s
+  // reach is declared instead, so the cost is the node's.
+  //
+  // Asserted as a RATIO between two canvases, not as a duration: what is
+  // being claimed is that the cost does not depend on the canvas, and the
+  // wide margin is there so the claim survives a loaded machine while
+  // still failing the fourfold growth the undeclared reach produced.
+  const auto costOn = [](int w, int h) {
+    Host host(w, h);
+    choreograph::Output<float> maxSigma{7.0f};
+    host.composer.render(profiledUnder(
+        box()
+            .key("racked")
+            .width(120)
+            .height(120)
+            .absolute()
+            .left(10)
+            .top(10)
+            .fill(green())
+            .effect(material::skia::Effect::blur(sigmaMap(), 14.0f)
+                        .uniform("maxSigma", &maxSigma))));
+    host.frame();
+    const auto start = std::chrono::steady_clock::now();
+    for (int i = 0; i < 10; ++i) {
+      maxSigma = 1.0f + (float)(i % 8);
+      host.frame();
+    }
+    return std::chrono::duration<double, std::milli>(
+               std::chrono::steady_clock::now() - start)
+        .count();
+  };
+  const double small = costOn(300, 300);
+  const double large = costOn(1200, 1200);
+  EXPECT_LT(large, small * 3.0)
+      << "the blur grew with the canvas (" << small << " ms over 300x300, "
+      << large << " ms over 1200x1200) — its reach is not declared, so Skia "
+         "gave it a clip-sized layer";
+}
+
 TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
   // Carrying the sigma map as a Material rather than a callable is what
   // makes the effect comparable at all. The map has to be IN the equality
@@ -3087,3 +3239,5 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
   EXPECT_GT(SkColorGetB(host.pixel(136, 100)), 200u)
       << "the boundary rode the node — the digest served a stale shader";
 }
+
+
