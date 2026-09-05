@@ -95,8 +95,10 @@ Each takes a props struct, reads the theme, and delegates to
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice; `measure` is the cell's own width, the one distance a caption cannot inherit |
 
 `Page::ruled` is `false` for a sheet that rules neither header nor
-footer. A well that must paint nothing passes `Fill::none()`; a well that
-must paint something else passes that.
+footer, and `Page::ground` names a fill for a sheet whose ground is not a
+flat colour, because a palette holds colours and a gradient is not one. A
+well that must paint nothing passes `Fill::none()`; a well that must
+paint something else passes that.
 
 ## What is NOT here, and where it is
 

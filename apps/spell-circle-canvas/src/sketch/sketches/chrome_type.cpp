@@ -39,6 +39,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -58,7 +59,6 @@ constexpr SkSize kSceneSize{1180, 820};
 
 namespace chrome {
 
-constexpr float kW = kSceneSize.fWidth;
 constexpr float kH = kSceneSize.fHeight;
 constexpr float kMargin = 60;
 constexpr float kDisplay = 76;
@@ -69,48 +69,46 @@ const SkColor4f kGroundLift{0.129f, 0.137f, 0.157f, 1};
 const SkColor4f kPale{0.796f, 0.816f, 0.847f, 1};
 const SkColor4f kFaint{0.796f, 0.816f, 0.847f, 0.42f};
 
-sk_sp<SkTypeface> display() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"Helvetica Neue", "Inter", "Arial Black", "Helvetica"},
-      SkFontStyle::Bold());
-  return face;
-}
-sk_sp<SkTypeface> grotesque() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"Helvetica Neue", "Inter", "Helvetica", "Arial"});
-  return face;
-}
-
 weave::TextStyle wordmark(SkColor4f colour = {0.7f, 0.73f, 0.78f, 1}) {
-  return weave::textStyle({.face = display(),
-                           .size = kDisplay,
-                           .color = colour,
-                           .track = 1.5f,
-                           .weight = 800.0f});
-}
-weave::TextStyle label(float size = 9.0f, SkColor4f colour = kFaint,
-                       float track = 1.8f) {
   return weave::textStyle(
-      {.face = grotesque(), .size = size, .color = colour, .track = track});
+      {.face = weave::ports::face({"Helvetica Neue", "Inter", "Arial Black",
+                                   "Helvetica"},
+                                  SkFontStyle::Bold()),
+       .size = kDisplay,
+       .color = colour,
+       .track = 1.5f,
+       .weight = 800.0f});
 }
 
-/** The one voice every cell on this sheet is captioned in: the boundary
- *  named over the specimen, nothing under it — the picture is the note. */
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Above,
-          .label = label(8.5f, kPale, 1.0f),
-          .note = label(8, kFaint, 0.3f),
-          .gap = 8,
-          .noteGap = 3};
+/** This sheet's look: a grotesque throughout, the pale ink and the faint
+ *  ash it is set in, and a caption that names the boundary over the
+ *  specimen with nothing under it — the picture is the note. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look;
+  look.palette = {
+      .ground = kGround, .ink = kPale, .ash = kFaint, .rule = kFaint};
+  look.type.sans =
+      weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
+  look.type.title = {.size = 12, .track = 3.6f};
+  look.type.subtitle = {.size = 10, .track = 0.3f};
+  look.type.footer = {.size = 10, .track = 0.2f};
+  look.type.captionLabel = {.size = 8.5f, .track = 1.0f};
+  look.type.captionNote = {.size = 8, .track = 0.3f};
+  look.spacing.marginX = kMargin;
+  look.spacing.marginTop = kMargin - 16;
+  look.spacing.marginBottom = 30;
+  look.spacing.captionGap = 8;
+  look.spacing.captionNoteGap = 3;
+  look.captionWhere = kit::Caption::Where::Above;
+  return look;
 }
 
 }  // namespace chrome
 
 struct ChromeType final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background(chrome::kGround);
-    ctx.captureAt(0.4);
+    const sketch::kit::Provide look(chrome::sheetTheme());
+    sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.4});
     ctx.composer.render(describe());
   }
 
@@ -122,26 +120,27 @@ struct ChromeType final : sketch::Sketch {
     namespace c = chrome;
     // The box it used to get: the style dresses the node's own shape and
     // the word sits inside it.
-    Element onBox = kit::cell(c::voice(), toU8("Boundary::Auto"),
-                              toU8("the node's rectangle"),
-                              box()
-                                  .padding(18)
-                                  .corners({6})
-                                  .style(style)
-                                  .child(text(toU8(c::kWordmark),
-                                              c::wordmark(letterInk))));
+    Element onBox = sketch::kit::caption(
+        0, toU8("Boundary::Auto"), toU8("the node's rectangle"),
+        box()
+            .padding(18)
+            .corners({6})
+            .style(style)
+            .child(text(toU8(c::kWordmark), c::wordmark(letterInk))));
     // The letters: the same value, the other boundary.
-    Element onGlyphs =
-        kit::cell(c::voice(), toU8("Boundary::Glyphs"),
-                  toU8("the contours the placement produced"),
-                  box().padding(18).child(
-                      text(toU8(c::kWordmark), c::wordmark({0, 0, 0, 0}))
-                          .boundary(Boundary::Glyphs)
-                          .style(style)));
+    Element onGlyphs = sketch::kit::caption(
+        0, toU8("Boundary::Glyphs"),
+        toU8("the contours the placement produced"),
+        box().padding(18).child(
+            text(toU8(c::kWordmark), c::wordmark({0, 0, 0, 0}))
+                .boundary(Boundary::Glyphs)
+                .style(style)));
+    // The pair's own name stands wider and larger than a cell's call.
+    const sketch::kit::Theme& look = sketch::kit::theme();
     return kit::cell(
         {.where = kit::Caption::Where::Above,
-         .label = c::label(9.5f, c::kPale, 2.6f),
-         .note = c::label(8, c::kFaint, 0.3f),
+         .label = look.sans(9.5f, c::kPale, 2.6f),
+         .note = look.sans(8, c::kFaint, 0.3f),
          .gap = 10},
         toU8(name), u8"",
         kit::cells({.cells = {std::move(onBox), std::move(onGlyphs)},
@@ -167,27 +166,16 @@ struct ChromeType final : sketch::Sketch {
         "AQUA GEL", kit::aquaGel(hex(0x1E8FFF), {.expectedHeight = 108.0f})));
     rows.push_back(pair("BEVEL + GLOW", bevelAndGlow));
 
-    return kit::sheet(
-               {.title = u8"A DECORATION WAS NEVER ABOUT A BOX",
-                .subtitle = u8"the same style value, twice \u2014 once "
-                            u8"dressing the node's shape, once dressing its "
-                            u8"glyph outline",
-                .footer = u8"no new preset and no second code path: the style "
-                          u8"is handed a different outline, and every style "
-                          u8"already written follows",
-                .titleStyle = c::label(12, c::kPale, 3.6f),
-                .subtitleStyle = c::label(10, c::kFaint, 0.3f),
-                .footerStyle = c::label(10, c::kFaint, 0.2f),
-                .marginX = c::kMargin,
-                .marginTop = c::kMargin - 16,
-                .marginBottom = 30,
-                .ground = linearGradient({0, 0}, {0, c::kH},
-                                         {c::kGroundLift, c::kGround}),
-                .rule = Fill::color(c::kFaint)},
-               kit::cells({.cells = std::move(rows), .column = true,
-                           .gap = 30}))
-        .absolute()
-        .inset(0);
+    return sketch::kit::page(
+        {.title = u8"A DECORATION WAS NEVER ABOUT A BOX",
+         .subtitle = u8"the same style value, twice \u2014 once dressing the "
+                     u8"node's shape, once dressing its glyph outline",
+         .footer = u8"no new preset and no second code path: the style is "
+                   u8"handed a different outline, and every style already "
+                   u8"written follows",
+         .ground = linearGradient({0, 0}, {0, c::kH},
+                                  {c::kGroundLift, c::kGround})},
+        kit::cells({.cells = std::move(rows), .column = true, .gap = 30}));
   }
 };
 

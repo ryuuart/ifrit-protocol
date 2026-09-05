@@ -50,6 +50,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -103,22 +104,16 @@ struct Row {
 };
 
 sk_sp<SkTypeface> display() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"Helvetica Neue", "Inter", "Helvetica", "Arial"}, SkFontStyle::Bold());
-  return face;
+  return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"},
+                            SkFontStyle::Bold());
 }
 /** The face the axis cell is set in: San Francisco carries a GRAD axis,
  *  which is advance-invariant and therefore the one a draw-time drive is
  *  allowed to move. */
 sk_sp<SkTypeface> graded() {
-  static sk_sp<SkTypeface> face =
-      weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
-  return face;
+  return weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
 }
 
-weave::TextStyle label(float size, SkColor4f colour, float track = 0) {
-  return weave::textStyle({.size = size, .color = colour, .track = track});
-}
 weave::TextStyle specimen(SkColor4f colour, sk_sp<SkTypeface> face) {
   return weave::textStyle({.face = std::move(face),
                            .size = kSpecimen,
@@ -126,14 +121,23 @@ weave::TextStyle specimen(SkColor4f colour, sk_sp<SkTypeface> face) {
                            .track = 1.5f});
 }
 
-/** The one voice every cell is captioned in: the call over the specimen,
- *  what it deviates under it. */
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(12, kBone, 0.8f),
-          .note = label(10.5f, kAsh, 0.2f),
-          .gap = 8,
-          .noteMeasure = kCell};
+/** This card's look: bone on near-black, every line set in the font
+ *  context's own face, and one voice for every cell — the call over the
+ *  specimen, what it deviates under it. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look;
+  look.palette = {
+      .ground = kGround, .ink = kBone, .ash = kAsh, .rule = kFaint};
+  look.type.title = {.size = 13, .track = 3.6f};
+  look.type.subtitle = {.size = 10.5f, .track = 0.3f};
+  look.type.footer = {.size = 10, .track = 0.2f};
+  look.type.captionLabel = {.size = 12, .track = 0.8f};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.marginX = kMargin;
+  look.spacing.marginTop = kMargin - 12;
+  look.spacing.marginBottom = 30;
+  look.spacing.captionGap = 8;
+  return look;
 }
 
 }  // namespace
@@ -145,15 +149,14 @@ struct KineticCard final : sketch::Sketch {
   choreograph::Output<float> phase{0};
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background(kGround);
+    sketch::kit::stage(ctx,
+                       {.size = kSceneSize, .captureAt = kPeriod * 0.5});
     // MID-CASCADE. The master maps onto each track's OWN span, so one
     // fraction of the period is the same fraction of every schedule
     // however many letters a word has. At half way the head of every word
     // has landed and its tail is still in flight — the ladder a meter
     // exists to show, and late enough that each word is legible as the
     // word it is.
-    ctx.captureAt(kPeriod * 0.5);
     phase = 0;
     ctx.ticker.add([this, t = 0.0](double dt) mutable {
       t += dt;
@@ -181,8 +184,8 @@ struct KineticCard final : sketch::Sketch {
                sk_sp<SkTypeface> face) {
     track.progress = &phase;
     track.stagger = kCascade;
-    return kit::cell(
-        voice(), toU8(row.call), toU8(row.note),
+    return sketch::kit::caption(
+        kCell, toU8(row.call), toU8(row.note),
         box()
             .width(Dim(kCell))
             .height(Dim(kBodyH))
@@ -193,6 +196,7 @@ struct KineticCard final : sketch::Sketch {
   }
 
   Element describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide look(sheetTheme());
     const Composer& composer = ctx.composer;
 
     static const Row kRows[9] = {
@@ -263,7 +267,7 @@ struct KineticCard final : sketch::Sketch {
     }
 
     Element sheet =
-        kit::sheet(
+        sketch::kit::page(
             {.title = u8"THE STOCK TEXT EFFECTS",
              .subtitle = u8"nine presets, one cascade, one wrapping "
                          u8"phase \xe2\x80\x94 and each one's own "
@@ -272,19 +276,9 @@ struct KineticCard final : sketch::Sketch {
                        u8"spinIn \xc2\xb7 scatter move their glyphs; "
                        u8"typeOn \xc2\xb7 variableAxisSweep \xc2\xb7 "
                        u8"tint touch coverage, an outline and colour "
-                       u8"and leave every pen position alone",
-             .titleStyle = label(13, kBone, 3.6f),
-             .subtitleStyle = label(10.5f, kAsh, 0.3f),
-             .footerStyle = label(10, kAsh, 0.2f),
-             .marginX = kMargin,
-             .marginTop = kMargin - 12,
-             .marginBottom = 30,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kFaint)},
+                       u8"and leave every pen position alone"},
             kit::cells(
-                {.cells = std::move(shelves), .column = true, .gap = 34}))
-            .absolute()
-            .inset(0);
+                {.cells = std::move(shelves), .column = true, .gap = 34}));
 
     Element root = stack().fill(Fill::color(kGround)).child(std::move(sheet));
     // One meter per cell, over the whole composition: the rects are in the

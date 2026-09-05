@@ -39,6 +39,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -80,19 +81,14 @@ const sigil::weave::kit::PatternHyphenator& hyphenator() {
 }
 
 sk_sp<SkTypeface> serif() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  return weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
-  return face;
 }
 sk_sp<SkTypeface> grotesque() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"Helvetica Neue", "Inter", "Helvetica", "Arial"});
-  return face;
+  return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 sk_sp<SkTypeface> mono() {
-  static sk_sp<SkTypeface> face =
-      weave::ports::pickTypeface({"SF Mono", "Menlo", "Courier New"});
-  return face;
+  return weave::ports::face({"SF Mono", "Menlo", "Courier New"});
 }
 
 weave::TextStyle body(float size = 13.5f, SkColor4f colour = kInk) {
@@ -108,6 +104,22 @@ weave::TextStyle label(float size = 9.0f, float track = 1.6f,
 }
 weave::TextStyle figures(float size = 12.0f) {
   return weave::textStyle({.face = mono(), .size = size, .color = kInk});
+}
+
+/// THIS SHEET'S LOOK: paper and its ink, set in the grotesque, with the
+/// page's own generous margin.
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look;
+  look.palette = {
+      .ground = kPaper, .ink = kInk, .ash = kFaint, .rule = kFaint};
+  look.type.sans = grotesque();
+  look.type.title = {.size = 11, .track = 4.0f};
+  look.type.subtitle = {.size = 10, .track = 0.4f};
+  look.type.footer = {.size = 9.5f, .track = 0.3f};
+  look.spacing.marginX = kMargin;
+  look.spacing.marginTop = kMargin;
+  look.spacing.marginBottom = kMargin * 0.5f;
+  return look;
 }
 
 /// THE PANEL'S VOICE: the control's name, what it decides under it, and
@@ -155,9 +167,8 @@ Element leadingSpecimen(const char* caption, weave::Leading leading) {
 
 struct ParagraphSheet final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background(sheet::kPaper);
-    ctx.captureAt(0.4);
+    const sketch::kit::Provide look(sheet::sheetTheme());
+    sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = 0.4});
     ctx.composer.render(describe());
   }
 
@@ -400,27 +411,17 @@ struct ParagraphSheet final : sketch::Sketch {
     right.push_back(tabPanel());
     right.push_back(columnPanel());
 
-    return kit::sheet(
-               {.title = u8"THE BLOCK CONTROLS",
-                .subtitle = u8"one text leaf per panel, and a list of "
-                            u8"ParagraphStyles beside it",
-                .footer = u8"a block with no style of its own is set by the "
-                          u8"leaf's own alignment, justification, hyphenation "
-                          u8"and tab stops \u2014 which is what every text "
-                          u8"that never mentions a block gets",
-                .titleStyle = s::label(11, 4.0f, s::kInk),
-                .subtitleStyle = s::label(10, 0.4f),
-                .footerStyle = s::label(9.5f, 0.3f),
-                .marginX = s::kMargin,
-                .marginTop = s::kMargin,
-                .marginBottom = s::kMargin * 0.5f,
-                .ground = Fill::color(s::kPaper),
-                .rule = Fill::color(s::kFaint)},
-               kit::cells({.cells = {panels(std::move(left)),
-                                     panels(std::move(right))},
-                           .gap = 40}))
-        .absolute()
-        .inset(0);
+    return sketch::kit::page(
+        {.title = u8"THE BLOCK CONTROLS",
+         .subtitle = u8"one text leaf per panel, and a list of "
+                     u8"ParagraphStyles beside it",
+         .footer = u8"a block with no style of its own is set by the leaf's "
+                   u8"own alignment, justification, hyphenation and tab "
+                   u8"stops \u2014 which is what every text that never "
+                   u8"mentions a block gets"},
+        kit::cells({.cells = {panels(std::move(left)),
+                              panels(std::move(right))},
+                    .gap = 40}));
   }
 };
 

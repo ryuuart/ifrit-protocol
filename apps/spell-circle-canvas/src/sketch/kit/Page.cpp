@@ -29,7 +29,8 @@ compose::Element page(const Page& sheet, compose::Element content) {
       .marginBottom = look.spacing.marginBottom,
       .subtitleGap = look.spacing.subtitleGap,
       .contentGap = look.spacing.contentGap,
-      .ground = compose::Fill::color(look.palette.ground),
+      .ground =
+          sheet.ground.value_or(compose::Fill::color(look.palette.ground)),
       .rule = sheet.ruled ? compose::Fill::color(look.palette.rule)
                           : compose::Fill{},
       .key = sheet.key};

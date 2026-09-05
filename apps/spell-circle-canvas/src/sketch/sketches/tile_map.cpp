@@ -37,6 +37,7 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -79,8 +80,20 @@ constexpr SkColor4f kRule{0.16f, 0.17f, 0.24f, 1};
 /** What a re-recorded chunk is washed in. */
 constexpr SkColor4f kFlash{1.0f, 0.58f, 0.20f, 0.55f};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+/** This page's look: the map's own near-black, and a header set close
+ *  enough to the grid that the chunks keep the width they ask for. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look;
+  look.palette = {
+      .ground = kGround, .ink = kInk, .ash = kAsh, .rule = kRule};
+  look.type.title = {.size = 20, .track = 2.6f};
+  look.type.subtitle = {.size = 11.5f, .track = 0.4f};
+  look.type.footer = {.size = 11, .track = 0.6f};
+  look.spacing.marginX = kPad;
+  look.spacing.marginTop = kPad * 0.6f;
+  look.spacing.marginBottom = kPad * 0.5f;
+  look.spacing.contentGap = kGap;
+  return look;
 }
 
 /** THE TILESET: a procedural four-cell atlas — floor, brick wall, moss
@@ -188,9 +201,8 @@ struct TileMap final : sketch::Sketch {
   Composer::Stats worked;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas((int)kCanvasW, (int)kCanvasH);
-    ctx.background(kGround);
-    ctx.captureAt(6.0);
+    sketch::kit::stage(
+        ctx, {.size = {kCanvasW, kCanvasH}, .captureAt = 6.0});
     revisions.fill(0);
     edits.fill(Edit{});
     editedAt.fill(-1000.0);
@@ -212,6 +224,7 @@ struct TileMap final : sketch::Sketch {
   }
 
   Element describe(sketch::SketchContext& ctx) {
+    const sketch::kit::Provide look(sheetTheme());
     Element grid = box().row().width(Dim(kChunks * kChunkCols * kTile));
     for (int i = 0; i < kChunks; ++i) {
       Element chunk =
@@ -254,24 +267,13 @@ struct TileMap final : sketch::Sketch {
                     "reconcile %.3f ms  \xc2\xb7  paint %.3f ms",
                     worked.reconcileMs, worked.paintMs);
 
-    return kit::sheet(
-               {.title = u8"MEMO CHUNKING",
-                .subtitle = u8"one tile edited every 0.7 s \xe2\x80\x94 the "
-                            u8"chunk that holds it is described again and "
-                            u8"washed; the other three replay",
-                .footer = toU8(std::string(counts) + "   |   " + timing),
-                .titleStyle = label(20, kInk, 2.6f),
-                .subtitleStyle = label(11.5f, kAsh, 0.4f),
-                .footerStyle = label(11, kAsh, 0.6f),
-                .marginX = kPad,
-                .marginTop = kPad * 0.6f,
-                .marginBottom = kPad * 0.5f,
-                .contentGap = kGap,
-                .ground = Fill::color(kGround),
-                .rule = Fill::color(kRule)},
-               std::move(grid))
-        .absolute()
-        .inset(0);
+    return sketch::kit::page(
+        {.title = u8"MEMO CHUNKING",
+         .subtitle = u8"one tile edited every 0.7 s \xe2\x80\x94 the chunk "
+                     u8"that holds it is described again and washed; the "
+                     u8"other three replay",
+         .footer = toU8(std::string(counts) + "   |   " + timing)},
+        std::move(grid));
   }
 
   /** THE DATA PATH, and only when the data changes: one cell of one

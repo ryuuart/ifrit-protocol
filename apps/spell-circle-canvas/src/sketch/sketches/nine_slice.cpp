@@ -36,6 +36,7 @@
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -71,13 +72,25 @@ weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
 }
 
-/** THE SHEET'S ONE VOICE: the call over the panel, what it did under it. */
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(12.5f, kInk, 0.4f),
-          .note = label(11.0f, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kPanelW};
+/** THIS SHEET'S LOOK, and its one voice: the call over the panel, what
+ *  it did under it. The page's ground is a shade off the canvas's, which
+ *  is black, so the margin around the sheet reads as a border. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look;
+  look.palette = {.ground = {0.055f, 0.055f, 0.075f, 1},
+                  .ink = kInk,
+                  .ash = kAsh,
+                  .rule = kRule};
+  look.type.title = {.size = 26, .track = 3};
+  look.type.subtitle = {.size = 12, .track = 0.6f};
+  look.type.footer = {.size = 10.5f, .track = 1.2f};
+  look.type.captionLabel = {.size = 12.5f, .track = 0.4f};
+  look.type.captionNote = {.size = 11.0f, .track = 0.2f};
+  look.spacing.marginX = 44;
+  look.spacing.marginTop = 34;
+  look.spacing.marginBottom = 22;
+  look.spacing.captionGap = 7;
+  return look;
 }
 
 /** The panel every cell shows: the frame stretched over a box of one
@@ -153,17 +166,18 @@ struct NineSlice final : sketch::Sketch {
   }
 
   Element describe() {
+    const sketch::kit::Provide look(sheetTheme());
     const float breathW = kPanelW + 66 * stretch;
     const float breathH = kPanelH + 26 * stretch;
 
     Element density = kit::cells(
         {.cells =
-             {kit::cell(voice(), u8"Slice::density = 2",
+             {sketch::kit::caption(kPanelW, u8"Slice::density = 2",
                         u8"192 px at its design width \xe2\x80\x94 a 16-unit "
                         u8"band",
                         panel(carvedFrameSlice(oak, kFrameDensity),
                               u8"BEGIN QUEST", kQuest)),
-              kit::cell(voice(), u8"Slice::density = 1",
+              sketch::kit::caption(kPanelW, u8"Slice::density = 1",
                         u8"the same image at face value \xe2\x80\x94 twice "
                         u8"as heavy",
                         panel(carvedFrameSlice(oak, 1.0f), u8"BEGIN QUEST",
@@ -173,21 +187,21 @@ struct NineSlice final : sketch::Sketch {
 
     Element trap = kit::cells(
         {.cells =
-             {kit::cell(voice(), u8"Slice",
+             {sketch::kit::caption(kPanelW, u8"Slice",
                         u8"decomposed into rects \xe2\x80\x94 every backend",
                         panel(carvedFrameSlice(azurePlain, 1.0f),
                               u8"DECOMPOSED", kQuest)),
-              kit::cell(voice(), u8"canvas.drawImageLattice",
+              sketch::kit::caption(kPanelW, u8"canvas.drawImageLattice",
                         u8"the native op \xe2\x80\x94 blank on a device",
                         nativeLattice(azurePlain))},
          .gap = 34,
          .divider = Fill::color(kRule)});
 
     Element source = kit::cells(
-        {.cells = {kit::cell(voice(), u8"the source",
+        {.cells = {sketch::kit::caption(kPanelW, u8"the source",
                              u8"drawn once, offscreen, at 2\xc3\x97",
                              image(oak).width(Dim(96)).height(Dim(96))),
-                   kit::cell(voice(), u8"re-laid out every frame",
+                   sketch::kit::caption(kPanelW, u8"re-laid out every frame",
                              u8"the box changes, the corners do not",
                              panel(carvedFrameSlice(crimson, kFrameDensity),
                                    u8"stretch me", kQuest)
@@ -197,32 +211,22 @@ struct NineSlice final : sketch::Sketch {
          .divider = Fill::color(kRule),
          .align = Align::Center});
 
-    return kit::sheet(
-               {.title = u8"NINE SLICE",
-                .subtitle = u8"one generated texture over every size \xe2\x80\x94 "
-                            u8"the density it declares, and the native op "
-                            u8"it does not use",
-                .footer = u8"Sketchbook \xc2\xb7 nine_slice",
-                .titleStyle = label(26, kInk, 3),
-                .subtitleStyle = label(12, kAsh, 0.6f),
-                .footerStyle = label(10.5f, kAsh, 1.2f),
-                .marginX = 44,
-                .marginTop = 34,
-                .marginBottom = 22,
-                .ground = Fill::color({0.055f, 0.055f, 0.075f, 1}),
-                .rule = Fill::color(kRule)},
-               kit::cells({.cells = {std::move(density), std::move(trap),
-                                     std::move(source)},
-                           .column = true,
-                           .gap = 22}))
-        .absolute()
-        .inset(0);
+    return sketch::kit::page(
+        {.title = u8"NINE SLICE",
+         .subtitle = u8"one generated texture over every size \xe2\x80\x94 "
+                     u8"the density it declares, and the native op it does "
+                     u8"not use",
+         .footer = u8"Sketchbook \xc2\xb7 nine_slice"},
+        kit::cells({.cells = {std::move(density), std::move(trap),
+                              std::move(source)},
+                    .column = true,
+                    .gap = 22}));
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     oak = generate(oakPalette());
     azure = generate(azurePalette());
     crimson = generate(crimsonPalette());
