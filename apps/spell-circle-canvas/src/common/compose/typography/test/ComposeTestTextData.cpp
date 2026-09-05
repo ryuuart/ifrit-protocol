@@ -1,39 +1,5 @@
 #include "support/TextTestSupport.h"
 
-TEST(ComposeBindings, TheAffineChainComposesInCallOrder) {
-  // Reading order IS evaluation order for the affine ops, so the two
-  // spellings below are genuinely different and each does what it looks
-  // like. (An "order doesn't matter" accumulate would collapse them.)
-  EXPECT_FLOAT_EQ(
-      motion::bind(nullptr).scale(240).offset(-70).value().apply(0.5f),
-      0.5f * 240 - 70);
-  EXPECT_FLOAT_EQ(
-      motion::bind(nullptr).offset(-70).scale(240).value().apply(0.5f),
-      (0.5f - 70) * 240);
-  // to(lo,hi) is the [0,1] → range spelling…
-  EXPECT_FLOAT_EQ(motion::bind(nullptr).target(20, 60).value().apply(0.25f),
-                  30.0f);
-  // …motion::from(lo,hi) the other direction, and they compose.
-  EXPECT_FLOAT_EQ(
-      motion::bind(nullptr).source(0, 200).target(0, 1).value().apply(50.0f),
-      0.25f);
-  // invert composes with what came before rather than resetting it.
-  EXPECT_FLOAT_EQ(motion::bind(nullptr).invert().value().apply(0.25f), 0.75f);
-  EXPECT_FLOAT_EQ(
-      motion::bind(nullptr).target(0, 2).invert().value().apply(0.25f),
-      1.0f - 0.5f);
-  // the curve runs BEFORE the affine, on the normalised value…
-  EXPECT_FLOAT_EQ(motion::bind(nullptr)
-                      .map(&choreograph::easeNone)
-                      .target(0, 10)
-                      .value()
-                      .apply(0.4f),
-                  4.0f);
-  // …and the clamp always runs last, whenever it is written.
-  EXPECT_FLOAT_EQ(
-      motion::bind(nullptr).clamp(0, 1).target(0, 4).value().apply(0.5f), 1.0f);
-}
-
 TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
   // One Output, two units. A phase in [0,1] is what a reveal or an opacity
   // wants; a translation wants PIXELS. Without a shaping map on the binding,
@@ -149,12 +115,6 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
   host.frame();     // would throw here
   host.frame(0.4);  // land the entrance
   EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
-
-  // and it still prunes against an explicitly-defaulted curve
-  sigil::motion::Transition blank{200ms, {}, 0ms};
-  sigil::motion::Transition spelled{200ms, &choreograph::easeOutQuad, 0ms};
-  EXPECT_EQ(blank.easing().target<float (*)(float)>() != nullptr,
-            spelled.easing().target<float (*)(float)>() != nullptr);
 }
 
 
@@ -344,33 +304,6 @@ TEST(ComposeText, AutoFlipIsOnePerRunDecisionSampledAcrossTheRun) {
   EXPECT_EQ(differs(snap(topPlain), snap(topFlipped)), 0);
 }
 
-TEST(ComposeBindings, QuantizeSnapsBeforeTheAffineChain) {
-  // A stepped readout — a slider with N sprite frames, a gauge with N
-  // notches — is a different widget from a smooth one sampled at draw time.
-  // The quantisation is part of the design, so it belongs in the binding,
-  // where it composes with the rest of the shaping map.
-  auto q = [](float v) {
-    return motion::bind(nullptr).quantize(5).value().apply(
-        v);  // levels 0,.25,.5,.75,1
-  };
-  EXPECT_FLOAT_EQ(q(0.0f), 0.00f);
-  EXPECT_FLOAT_EQ(q(0.10f), 0.00f);
-  EXPECT_FLOAT_EQ(q(0.20f), 0.25f);
-  EXPECT_FLOAT_EQ(q(0.60f), 0.50f);
-  EXPECT_FLOAT_EQ(q(1.0f), 1.00f);
-  // It runs BEFORE the affine chain, so the steps land on round pixels.
-  EXPECT_FLOAT_EQ(
-      motion::bind(nullptr).quantize(5).target(0, 80).value().apply(0.6f),
-      40.0f);
-  // …and after the curve, so an eased value still lands on a step.
-  EXPECT_FLOAT_EQ(motion::bind(nullptr)
-                      .map(&choreograph::easeNone)
-                      .quantize(5)
-                      .value()
-                      .apply(0.9f),
-                  1.0f);
-}
-
 TEST(ComposeBindings, AFillCanBeBoundLive) {
   // A Fill can be bound, which is easy to miss and expensive to work
   // around — the alternative is rebuilding the widget on renderSlot().
@@ -421,95 +354,6 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
 
   EXPECT_GT(magnified(SkSamplingOptions(SkFilterMode::kLinear)), 3);
   EXPECT_LE(magnified(SkSamplingOptions(SkFilterMode::kNearest)), 1);
-}
-
-TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
-  // Anything simulation-shaped otherwise reinvents the accumulator and
-  // its spiral-of-death clamp — a cellular automaton at 27 Hz, particles
-  // at 24. The library declares
-  // choppiness for shaders (Material::quantizeTime) and nothing for logic.
-  auto stepsOverOneSecond = [](double fps) {
-    sigil::motion::Ticker ticker;
-    int steps = 0;
-    ticker.addFixed(27.0, [&] {
-      ++steps;
-      return true;
-    });
-    const double dt = 1.0 / fps;
-    for (int i = 0; i < (int)std::lround(fps); ++i) ticker.tick(dt);
-    return steps;
-  };
-  EXPECT_EQ(stepsOverOneSecond(60.0), 27);
-  EXPECT_EQ(stepsOverOneSecond(144.0), 27);
-  // Below the sim rate it still lands on 27 — several steps per frame.
-  EXPECT_EQ(stepsOverOneSecond(24.0), 27);
-
-  // The clamp: one enormous hitch must not run an unbounded backlog —
-  // and it must SAY it clamped, because a frame that dropped simulated
-  // time makes anything measured on it meaningless.
-  {
-    sigil::motion::Ticker ticker;
-    int steps = 0;
-    sigil::motion::Ticker::FixedStatus status;
-    ticker.addFixed(
-        60.0,
-        [&] {
-          ++steps;
-          return true;
-        },
-        /*maxCatchUp=*/4, nullptr, &status);
-    ticker.tick(10.0);  // ten seconds in one frame = 600 steps of backlog
-    EXPECT_EQ(steps, 4);
-    EXPECT_EQ(status.stepsRun, 4);
-    EXPECT_TRUE(status.clamped);
-    // …and the backlog is DISCARDED, not carried into the next frame.
-    steps = 0;
-    ticker.tick(1.0 / 60.0);
-    EXPECT_EQ(steps, 1);
-    EXPECT_FALSE(status.clamped);
-  }
-
-  // Reproducibility: the step count is derived from TOTAL elapsed time, so
-  // the same instant lands on the same step whatever the draw rate. An
-  // accumulator compared against a step size instead slips by one comparison
-  // over a long pre-roll, and only at some frame rates — which reads as a
-  // clamp bug rather than as float accumulation.
-  {
-    // Each rate advances to the SAME total time — otherwise the counts
-    // differ for the honest reason that the clocks differ.
-    auto stepsAt = [](double fps, double untilSeconds) {
-      sigil::motion::Ticker ticker;
-      int steps = 0;
-      ticker.addFixed(
-          60.0,
-          [&] {
-            ++steps;
-            return true;
-          },
-          64);
-      const int frames = (int)std::lround(untilSeconds * fps);
-      const double dt = untilSeconds / (double)frames;
-      for (int i = 0; i < frames; ++i) ticker.tick(dt);
-      return steps;
-    };
-    const int reference = stepsAt(60.0, 3.1);
-    EXPECT_EQ(stepsAt(30.0, 3.1), reference);
-    EXPECT_EQ(stepsAt(20.0, 3.1), reference);
-    EXPECT_EQ(stepsAt(15.0, 3.1), reference);
-    EXPECT_EQ(stepsAt(10.0, 3.1), reference);
-    EXPECT_EQ(stepsAt(120.0, 3.1), reference);
-  }
-
-  // Returning false drops it, like add().
-  {
-    sigil::motion::Ticker ticker;
-    int steps = 0;
-    ticker.addFixed(60.0, [&] { return ++steps < 3; });
-    ticker.tick(1.0);
-    const int after = steps;
-    ticker.tick(1.0);
-    EXPECT_EQ(steps, after);
-  }
 }
 
 TEST(ComposeMaterials, GlowUnitReachesTheInscribedCircleNotTheCorners) {
@@ -606,67 +450,6 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
   // down the radius, laying it on its side: wide.
   EXPECT_GT(t.height(), t.width());
   EXPECT_GT(r.width(), r.height());
-}
-
-TEST(ComposeMotion, AddFixedPublishesTheRenderInterpolant) {
-  // A fixed-rate sim drawn at an unrelated rate judders unless you draw
-  // lerp(previous, current, alpha). The accumulator lived inside the
-  // steppable with no way to read it — and a verlet body's state is
-  // literally the pair (x*, x), so the integrator was already holding
-  // both ends of the interpolation while the library hid the one scalar
-  // that was missing.
-  sigil::motion::Ticker ticker;
-  choreograph::Output<float> alpha{-1.0f};
-  int steps = 0;
-  ticker.addFixed(
-      10.0,
-      [&] {
-        ++steps;
-        return true;
-      },
-      8, &alpha);
-
-  // Half a step in: no step taken, and alpha says exactly how far.
-  ticker.tick(0.05);
-  EXPECT_EQ(steps, 0);
-  EXPECT_NEAR(alpha.value(), 0.5f, 1e-4f);
-
-  // Cross the step: one step, and the leftover is what remains.
-  ticker.tick(0.07);
-  EXPECT_EQ(steps, 1);
-  EXPECT_NEAR(alpha.value(), 0.2f, 1e-4f);
-
-  // Landing exactly on a boundary leaves nothing over.
-  ticker.tick(0.08);
-  EXPECT_EQ(steps, 2);
-  EXPECT_NEAR(alpha.value(), 0.0f, 1e-4f);
-}
-
-TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
-  // motion::from(lo,hi) normalises and the curve runs after it, so on a
-  // multi-beat timeline an Output outside the window feeds the easing a
-  // value outside its domain — and none of motion::ease:: is total, so
-  // every curve would otherwise have to clamp its own input first.
-  auto plain = motion::bind(nullptr).source(0.4f, 0.6f);
-  auto windowed = motion::bind(nullptr).window(0.4f, 0.6f);
-
-  // Inside the window they agree exactly.
-  EXPECT_FLOAT_EQ(plain.value().apply(0.5f), windowed.value().apply(0.5f));
-  // Outside it, motion::from() keeps running past the ends…
-  EXPECT_LT(plain.value().apply(0.0f), -1.0f);
-  EXPECT_GT(plain.value().apply(1.0f), 2.0f);
-  // …and window() holds at the ends, which is what "this beat" means.
-  EXPECT_FLOAT_EQ(windowed.value().apply(0.0f), 0.0f);
-  EXPECT_FLOAT_EQ(windowed.value().apply(1.0f), 1.0f);
-
-  // And the clamp lands BEFORE the curve: an overshoot easing evaluated
-  // at 1 returns exactly 1, rather than being run far past its domain.
-  const float overshoot = motion::bind(nullptr)
-                              .window(0.4f, 0.6f)
-                              .map(motion::ease::outBack())
-                              .value()
-                              .apply(5.0f);
-  EXPECT_NEAR(overshoot, 1.0f, 1e-4f);
 }
 
 TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {

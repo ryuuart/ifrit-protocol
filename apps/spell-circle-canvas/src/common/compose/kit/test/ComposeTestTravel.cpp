@@ -57,8 +57,8 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
 }
 
 TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
-  // Audit gap: live material × custom outline() — the resolved shader must
-  // fill the SHAPE (drawPath), not the box, and track the Output.
+  // A live material over a custom outline(): the resolved shader must
+  // fill the SHAPE, not the box that contains it, and follow the Output.
   choreograph::Output<float> k{1.0f};
   Host host;
   host.composer.render(box().child(

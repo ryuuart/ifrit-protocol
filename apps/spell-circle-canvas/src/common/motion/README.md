@@ -457,7 +457,7 @@ read, which is why none of them merges into another:
 | binary | what it proves | what it must not be able to link |
 |---|---|---|
 | `motion_bind_test` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, and the wiggle field | anything above the leaf — the record that carries a curve is the lowest thing here |
-| `motion_clock_test` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations | a renderer |
+| `motion_clock_test` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
 | `motion_values_test` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
 | `motion_schedule_test` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
 

@@ -135,6 +135,16 @@ TEST(Bind, WindowIsSourceThatAlsoClampsItsDomain) {
   EXPECT_NEAR(w.apply(0.3f), s.apply(0.3f), 1e-4f);
   EXPECT_NEAR(w.apply(0.9f), 1.0f, 1e-4f);
   EXPECT_GT(s.apply(0.9f), 1.0f);
+
+  // The clamp lands before the curve, and no curve here is total: an
+  // overshooting envelope evaluated far past the window returns exactly
+  // the end of its range rather than being run outside its domain.
+  const BoundFloat overshoot =
+      bind(&phase)
+          .window(0.2f, 0.4f)
+          .map([](float t) { return ch::easeOutBack(t); })
+          .value();
+  EXPECT_NEAR(overshoot.apply(5.0f), 1.0f, 1e-4f);
 }
 
 // ---------------------------------------------------------------------------
@@ -685,7 +695,17 @@ INSTANTIATE_TEST_SUITE_P(
                  .value()},
         Pair{"AnEnvelopeAndAClamp",
              unshaped().cosine().clamp(0.f, 0.5f).value(),
-             unshaped().clamp(0.f, 0.5f).cosine().value()}),
+             unshaped().clamp(0.f, 0.5f).cosine().value()},
+        // The stepped readout: quantise takes its place before the affine
+        // chain, so the steps land on round output units however the two
+        // are written.
+        Pair{"AQuantiseAndATargetRange",
+             unshaped().quantize(5).target(0.f, 80.f).value(),
+             unshaped().target(0.f, 80.f).quantize(5).value()},
+        // …and after the curve, so an eased value still lands on a step.
+        Pair{"AQuantiseAndACurve",
+             unshaped().quantize(5).map(&ch::easeInQuad).value(),
+             unshaped().map(&ch::easeInQuad).quantize(5).value()}),
     pairName);
 
 TEST(Bind, ABindingCarriesOneEnvelopeAndASecondReplacesTheFirst) {

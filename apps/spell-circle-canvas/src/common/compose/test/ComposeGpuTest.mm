@@ -361,7 +361,7 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
 // `Track::reach` on an fx::pass grows the pass's painted bounds and
 // nothing else, on Graphite exactly as on the CPU. The GPU backend turns
 // the pass's layer into an image through its own picture-to-image door, so
-// the CPU regression alone does not cover it: the layer's pixels must land
+// the CPU claim alone does not cover it: the layer's pixels must land
 // exactly where the glyphs were placed, and the band beyond the box must
 // hold the lifted glyph tops a zero reach clips at the box edge.
 TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {

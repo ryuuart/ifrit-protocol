@@ -245,3 +245,112 @@ TEST(Ticker, AWiggleRigMovesOnlyWhenTheTickerAdvancesTheOutputItReads) {
   ticker.tick(0.0);
   EXPECT_FLOAT_EQ(shakeX.apply(seconds.value()), held);
 }
+
+// ---------------------------------------------------------------------------
+// addFixed — a steppable that advances at its own rate whatever the host
+// draws at, which is what anything simulation-shaped needs before it will
+// look the same on two machines.
+
+namespace {
+
+/** A fixed-rate steppable that only counts, and the count. */
+struct FixedRun {
+  Ticker ticker;
+  int steps = 0;
+
+  void at(double hz, int maxCatchUp = 8, ch::Output<float>* alpha = nullptr,
+          Ticker::FixedStatus* status = nullptr) {
+    ticker.addFixed(
+        hz,
+        [this] {
+          ++steps;
+          return true;
+        },
+        maxCatchUp, alpha, status);
+  }
+
+  /** Ticks @p seconds worth of frames at @p fps and answers the count. */
+  int over(double seconds, double fps) {
+    const int frames = (int)std::lround(seconds * fps);
+    const double dt = seconds / (double)frames;
+    for (int i = 0; i < frames; ++i) ticker.tick(dt);
+    return steps;
+  }
+};
+
+}  // namespace
+
+TEST(Ticker, AFixedStepRunsAtItsOwnRateWhateverRateTheHostDrawsAt) {
+  for (double fps : {24.0, 60.0, 144.0}) {
+    FixedRun run;
+    run.at(27.0);
+    EXPECT_EQ(run.over(1.0, fps), 27) << "drawing at " << fps;
+  }
+}
+
+TEST(Ticker, AFixedStepCountsFromTotalTimeSoOneMomentIsAlwaysTheSameStep) {
+  // The count is `floor(total * hz)` and not a running sum, so the same
+  // simulated instant lands on the same side of a step boundary at every
+  // draw rate. A sum compared against a step size slips by one comparison
+  // over a long pre-roll, and only at some rates.
+  FixedRun reference;
+  reference.at(60.0, 64);
+  const int expected = reference.over(3.1, 60.0);
+  for (double fps : {10.0, 15.0, 20.0, 30.0, 120.0}) {
+    FixedRun run;
+    run.at(60.0, 64);
+    EXPECT_EQ(run.over(3.1, fps), expected) << "drawing at " << fps;
+  }
+}
+
+TEST(Ticker, AFixedStepDropsItsBacklogRatherThanRunningItAndSaysSoWhenItDid) {
+  // A hitch longer than one step would otherwise make the next frame run
+  // the backlog, which takes longer still. Dropping simulated time is the
+  // correct failure, and the flag is the only signal that anything
+  // measured on that frame is meaningless.
+  Ticker::FixedStatus status;
+  FixedRun run;
+  run.at(60.0, /*maxCatchUp=*/4, nullptr, &status);
+
+  run.ticker.tick(10.0);  // ten seconds in one frame: 600 steps of backlog
+  EXPECT_EQ(run.steps, 4);
+  EXPECT_EQ(status.stepsRun, 4);
+  EXPECT_TRUE(status.clamped);
+
+  // The dropped time is gone rather than carried into the next frame.
+  run.steps = 0;
+  run.ticker.tick(1.0 / 60.0);
+  EXPECT_EQ(run.steps, 1);
+  EXPECT_FALSE(status.clamped);
+}
+
+TEST(Ticker, AFixedStepThatReportsItIsDoneIsDroppedLikeAnyOther) {
+  Ticker ticker;
+  int steps = 0;
+  ticker.addFixed(60.0, [&steps] { return ++steps < 3; });
+  ticker.tick(1.0);
+  const int afterTheFirstSecond = steps;
+  ticker.tick(1.0);
+  EXPECT_EQ(steps, afterTheFirstSecond);
+}
+
+TEST(Ticker, AFixedStepPublishesHowFarThroughAStepTheFrameEnded) {
+  // A fixed-rate simulation drawn straight from its own state judders
+  // whenever the draw rate is not a multiple of its own; the leftover
+  // fraction is what `lerp(previous, current, alpha)` needs.
+  ch::Output<float> alpha{-1.0f};
+  FixedRun run;
+  run.at(10.0, 8, &alpha);
+
+  run.ticker.tick(0.05);  // half a step in: none taken, and alpha says so
+  EXPECT_EQ(run.steps, 0);
+  EXPECT_NEAR(alpha.value(), 0.5f, 1e-4f);
+
+  run.ticker.tick(0.07);  // across the boundary: one step, the rest left over
+  EXPECT_EQ(run.steps, 1);
+  EXPECT_NEAR(alpha.value(), 0.2f, 1e-4f);
+
+  run.ticker.tick(0.08);  // landing on a boundary leaves nothing over
+  EXPECT_EQ(run.steps, 2);
+  EXPECT_NEAR(alpha.value(), 0.0f, 1e-4f);
+}
