@@ -1068,6 +1068,22 @@ exporter, and `sketch_scry_test` over the shared web engine. The
 `sketch_*_bench` binaries beside them are Google Benchmark executables,
 not tests, built through the `benches` target.
 
+Two of the cases run no C++ at all. `sketch_readme_stems` resolves every
+sketch stem the documents in this tree name against the registry: a
+backticked snake_case token in a paragraph that is talking about
+sketches, studies or a study must name a file under `sketches/`, and one
+that does not is either exempted by name and reason in
+`test/readme_sketch_stems.py` or fails the run. It refuses a count of a
+list too — a cardinal qualifying "studies", "sketches" or "scenes"
+beside a named stem, when it claims the list's own length, is maintained
+by hand in lockstep with the list and goes stale the moment the list
+grows, so the count is deleted and the list is the count. It is the
+registry's check, which is why it is here rather than beside each
+document. `sketch_readme_stems_self_test` runs the checker's own
+fixtures, and is the only thing that would notice the extractor
+narrowing: a checker that silently resolves fewer stems still passes over
+the corpus.
+
 `test/Support.h` at the library root holds what every one of them opens a
 session with — the one font context and the one asset store a process
 holds, neither ever destroyed, because a context outlives everything

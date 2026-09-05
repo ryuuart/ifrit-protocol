@@ -55,6 +55,35 @@ add_subdirectory(sketches)
 # Sketchbook: the one live application.
 add_subdirectory(book)
 
+# Every sketch stem a document names, resolved against the registry.
+# A README points its reader at the sketches that draw the feature beside
+# it and spells their stems by hand, so a rename in the registry leaves
+# prose pointing at a file that is not there with nothing to notice. This
+# is the registry's check — it is the registry the stems are resolved
+# against — so it lives here and reads every document in the tree.
+file(GLOB_RECURSE SIGIL_SKETCH_STEM_DOCS CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_LIST_DIR}/../README.md
+     ${CMAKE_CURRENT_LIST_DIR}/../FEATURES.md
+     ${CMAKE_CURRENT_LIST_DIR}/../TYPOGRAPHY.md)
+set(SIGIL_SKETCH_STEM_DOC_ARGS)
+foreach(doc IN LISTS SIGIL_SKETCH_STEM_DOCS)
+  list(APPEND SIGIL_SKETCH_STEM_DOC_ARGS --doc ${doc})
+endforeach()
+add_test(NAME sketch_readme_stems
+  COMMAND ${Python3_EXECUTABLE}
+          ${CMAKE_CURRENT_LIST_DIR}/test/readme_sketch_stems.py
+          --sketch-dir ${SIGIL_SKETCH_DIR}
+          ${SIGIL_SKETCH_STEM_DOC_ARGS})
+
+# The checker's own fixtures: a stem must resolve, a misspelt one must
+# fail the run, a token outside a sketch paragraph must not be read as a
+# stem, and a count of a list must be refused. One Python invocation — and
+# the only check that notices the EXTRACTOR narrowing, since a checker that
+# silently resolves fewer stems still passes over the corpus.
+add_test(NAME sketch_readme_stems_self_test
+  COMMAND ${Python3_EXECUTABLE}
+          ${CMAKE_CURRENT_LIST_DIR}/test/readme_sketch_stems.py --self-test)
+
 # The umbrella, for a consumer that takes the library rather than a
 # feature of it.
 sigil_library(SigilSketch
