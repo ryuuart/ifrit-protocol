@@ -55,6 +55,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Sweep.h>
@@ -181,7 +182,7 @@ void paintRail(SkCanvas& canvas, const std::vector<curve::Frame3>& rail,
   const camera::Camera camera = view();
 
   const mesh::Mesh cloth = mesh::pop::sweep(
-      rail, mesh::pop::profile::line(),
+      rail, sections::line(),
       {.scale = kWidth, .normals = mesh::pop::SweepOptions::Normals::Frame});
   render::MeshStyle style;
   style.texture = art;

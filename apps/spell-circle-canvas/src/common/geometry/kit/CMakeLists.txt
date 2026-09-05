@@ -12,13 +12,15 @@
 # them the stock values over the leaf's other two 2D seams —
 # `kit/Shapers.h` (what bends one continuous mark, and the width laws that
 # oscillate) and `kit/Divisions.h` (a figure's tick ladder and chord fan as
-# one path). The blob's lobes are placed by the seeded mixer one library
+# one path). `kit/Sections.h` holds the two unit cross-sections a sweep
+# carries — the door from an arbitrary outline is the sweep's own. The
+# blob's lobes are placed by the seeded mixer one library
 # down, so a blob is the same blob in a stored render and in a resource
 # key.
 find_package(earcut_hpp CONFIG REQUIRED)
 sigil_library(SigilGeometryKit
-  SOURCES Silhouettes.cpp Solids.cpp
-  HEADERS Corners.h Curves.h Divisions.h Generators.h Shapers.h
+  SOURCES Sections.cpp Silhouettes.cpp Solids.cpp
+  HEADERS Corners.h Curves.h Divisions.h Generators.h Sections.h Shapers.h
           Silhouettes.h Solids.h
   PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCompute
   PRIVATE earcut_hpp::earcut_hpp)

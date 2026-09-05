@@ -55,6 +55,7 @@
 
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/mesh/pop/Sweep.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -181,7 +182,7 @@ struct MeshGenerators final : sketch::Sketch {
     pedestal = mesh::superellipsoid({420, 26, 200}, 6);
 
     rail = knot();
-    tube = mesh::pop::sweep(rail, mesh::pop::profile::circle(12),
+    tube = mesh::pop::sweep(rail, sections::circle(12),
                         {.segments = 220, .scale = 9});
 
     mesh::Cloud cloud = points::onSpline(rail, 14);

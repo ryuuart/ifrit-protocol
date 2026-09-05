@@ -18,6 +18,7 @@
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/GeometrySupport.h"
 #include "support/Loops.h"
+#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -58,7 +59,7 @@ TEST(Pop, TheFluentSpellingIsTheChainValueInOneExpression) {
   // and a terminal verb that cooks. Every parameter has a default, so a
   // chain can be written without naming any of them.
   const Mesh wobble = pop::on(loop).count(64).noise(30).sweep(
-      pop::profile::circle(8), true, {.segments = 160, .scale = 10});
+      sections::circle(8), true, {.segments = 160, .scale = 10});
   EXPECT_GT(wobble.triangleCount(), 500u);
 
   // The builder holds nothing the chain does not: it converts to a
@@ -90,7 +91,7 @@ TEST(Pop, ChainsComposeIntoEachOther) {
   EXPECT_GT(
       pop::on(spine)
           .count(80)
-          .sweep(pop::profile::circle(8), true, {.segments = 160, .scale = 6})
+          .sweep(sections::circle(8), true, {.segments = 160, .scale = 6})
           .triangleCount(),
       500u);
 }
@@ -101,7 +102,7 @@ TEST(Pop, ChainsSeedFromFormedModels) {
   // without any stage being a special case.
   const std::vector<glm::vec3> loop = flatRing(8, 200.0);
   const Mesh cable = pop::on(loop).count(64).noise(20).sweep(
-      pop::profile::circle(8), true, {.segments = 160, .scale = 9});
+      sections::circle(8), true, {.segments = 160, .scale = 9});
   const Cloud dust = pop::on(cable, 500).cloud();
   EXPECT_EQ(dust.size(), 500u);
   glm::vec3 mLo, mHi, dLo, dHi;

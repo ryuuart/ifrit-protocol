@@ -11,6 +11,7 @@
  * function of the declared moment.
  */
 
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
@@ -56,7 +57,7 @@ struct FirstLight final : sketch::Set {
     const gm::curve::Spline3 track = world::kit::rail(kTable);
 
     const gm::Mesh tube =
-        gm::pop::sweep(loop, gm::pop::profile::circle(16),
+        gm::pop::sweep(loop, sections::circle(16),
                          {.segments = 220,
                           .scale = 9.0f,
                           .normals = gm::pop::SweepOptions::Normals::Radial});

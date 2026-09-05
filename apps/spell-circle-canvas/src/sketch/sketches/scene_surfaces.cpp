@@ -42,6 +42,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/texture/Texture.h>
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
@@ -301,7 +302,7 @@ struct SceneSurfaces final : sketch::Set {
     strip.scene = ctx.textureScene({1024, 128});
     loop.scene = ctx.textureScene({kTapeWidth, kTapeHeight});
     rail =
-        gm::pop::sweep(ribbon(), gm::pop::profile::line(),
+        gm::pop::sweep(ribbon(), sections::line(),
                          {.segments = 240,
                           .scale = 46.0f,
                           .normals = gm::pop::SweepOptions::Normals::Frame});

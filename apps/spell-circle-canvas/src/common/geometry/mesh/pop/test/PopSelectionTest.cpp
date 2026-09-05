@@ -14,6 +14,7 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/Loops.h"
+#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -189,10 +190,10 @@ TEST(Pop, PointOrderIsTheSweptPathSoSortingFormsADifferentCable) {
   // only a draw-order adjustment: the swept sink threads the points in the
   // order it finds them.
   const Mesh unsorted =
-      pop::cookSweep(scattered(false, false), pop::profile::circle(), false,
+      pop::cookSweep(scattered(false, false), sections::circle(), false,
                      {.segments = 160, .scale = 4, .caps = true});
   const Mesh threaded =
-      pop::cookSweep(scattered(true, false), pop::profile::circle(), false,
+      pop::cookSweep(scattered(true, false), sections::circle(), false,
                      {.segments = 160, .scale = 4, .caps = true});
   ASSERT_EQ(unsorted.positions.size(), threaded.positions.size());
   float drift = 0;

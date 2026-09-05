@@ -38,8 +38,6 @@
 # come up on exactly the machines the shim exists for.
 enable_language(C)
 
-find_package(unofficial-diligent-engine CONFIG REQUIRED)
-find_package(VulkanHeaders CONFIG REQUIRED)
 
 sigil_library(SigilGeometryDevice
   SOURCES AdoptDevice.cpp AdoptDevice.h Device.cpp Resources.cpp VolkShim.c

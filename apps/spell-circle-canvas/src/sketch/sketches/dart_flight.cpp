@@ -22,6 +22,7 @@
  * it, and nothing about where it goes.
  */
 
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
@@ -92,7 +93,7 @@ struct DartFlight final : sketch::Set {
     const float lap = loop.length();
 
     const gm::Mesh rail =
-        gm::pop::sweep(loop, gm::pop::profile::circle(12),
+        gm::pop::sweep(loop, sections::circle(12),
                        {.segments = 260,
                         .scale = 3.4f,
                         .normals = gm::pop::SweepOptions::Normals::Radial});

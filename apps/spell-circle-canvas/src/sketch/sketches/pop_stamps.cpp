@@ -32,6 +32,7 @@
 //   .smooth(strength, iterations) — drop it and the star sweep kinks.
 
 #include <include/core/SkMatrix.h>
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -160,7 +161,7 @@ struct PopStamps final : sketch::Sketch {
     tube = pop::on(ring)
                .count(220)
                .noise(26, 0.004f)
-               .sweep(pop::profile::circle(14), true,
+               .sweep(sections::circle(14), true,
                       {.segments = 160, .scale = 11});
 
     plates = pop::on(ring)
@@ -191,7 +192,7 @@ struct PopStamps final : sketch::Sketch {
                                 .window(0.5f, 0.5f)
                                 .noise(16, 0.004f)
                                 .smooth(0.6f, 3),
-                            pop::profile::line(), false,
+                            sections::line(), false,
                             {.segments = 120,
                              .scale = 42,
                              .normals = pop::SweepOptions::Normals::Frame});

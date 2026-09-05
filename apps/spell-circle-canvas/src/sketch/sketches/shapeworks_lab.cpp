@@ -42,6 +42,7 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
@@ -235,7 +236,7 @@ struct ShapeworksLab : sketch::Sketch {
           steel.baseColor = {0.62f, 0.7f, 0.85f, 1};
           steel.specular = 0.9f;
           mesh::render::drawMesh(canvas,
-                                 pop::sweep(rail, pop::profile::circle(),
+                                 pop::sweep(rail, sections::circle(),
                                               {.segments = 180, .scale = 7}),
                                  glm::mat4(1.0f), camera, viewport, steel);
           SkPaint wire;
@@ -258,7 +259,7 @@ struct ShapeworksLab : sketch::Sketch {
           mesh::render::drawMesh(
               canvas,
               pop::sweep(closedLoop(loopAt(t, 265, 96)),
-                           pop::profile::line(),
+                           sections::line(),
                            {.segments = 220,
                             .scale = 30,
                             .normals = pop::SweepOptions::Normals::Frame}),

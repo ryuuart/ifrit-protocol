@@ -44,6 +44,7 @@ mesh/          SigilGeometryMesh          sigil::geometry::mesh
   codec/       SigilGeometryMeshCodec     sigil::geometry::mesh::codec
 device/        SigilGeometryDevice        sigil::geometry::device
 kit/           SigilGeometryKit           sigil::geometry::shapes
+                                          (and ::shapers, ::sections, ::mesh)
 ```
 
 `device/` is the GPU device itself, and it is here for one reason:
@@ -71,6 +72,7 @@ a result never spells the swizzle itself.
 
 ```cpp
 #include <sigilgeometry/path/Ops.h>
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
@@ -103,7 +105,7 @@ void paint(SkCanvas &canvas, SkSize viewport, const SkPath &star) {
           .noise(18)
           .smooth()
           .fade({1.0f, 0.3f, 0.6f, 1.0f}, {0.2f, 0.9f, 1.0f, 1.0f})
-          .sweep(pop::profile::circle(), false,
+          .sweep(sections::circle(), false,
                  {.segments = 160, .scale = 9});
 
   camera::Camera cam;
@@ -624,8 +626,10 @@ implementations of the same dispatch seams.
   role), `has()`, `describe()`, `run()` and `spirv()`. `Kernel.cpp` packs
   and calls; `Spirv.cpp` decorates the module.
 - **`mesh/pop/Sweep.h`** — the swept operator as a subject: the
-  cross-sections `pop::profile::circle()`, `pop::profile::line()` and
-  `pop::profile::fromPath()`; `SweepOptions` with `SweepNormals`; the
+  door from an arbitrary outline, `pop::profile::fromPath()` (the two
+  unit cross-sections a sweep is usually given are the kit's
+  `sections::circle()` and `sections::line()`); `SweepOptions` with
+  `SweepNormals`; the
   two swept formers `pop::sweep()`, over a rail you built and over the
   spline that builds one; and the seam a device replaces —
   `pop::SweepExecutor` (one call, `rings()`), `pop::SweepRuntime`
@@ -654,7 +658,7 @@ implementations of the same dispatch seams.
   and assumes a convex profile; the spline overload drops it for a closed
   spline, which has no ends. A CLOSED profile wraps back onto its first
   point, so only an OPEN one lets u reach 1 — which is why
-  `profile::circle()` duplicates its seam point and comes back open.
+  `sections::circle()` duplicates its seam point and comes back open.
   There are two overloads: one over a rail you built, which is where a
   GPU executor forms the same rings, and one over a `Spline3`, which
   builds a transported rail of `segments` frames first. Both run on
@@ -881,6 +885,12 @@ beneath, in `sigil::geometry::shapes`.
   the seam's OWN namespace one directory down, `path::profile::wave` —
   the oscillating width law, which is ZERO-MEAN and therefore a strand
   centreline rather than a band width.
+- **`kit/Sections.h`** — `sections::`, the two unit cross-sections a
+  sweep carries: `circle()` (open, its seam point duplicated so the swept
+  u reaches 1) and `line()` (a unit-width segment, a flat band once
+  swept). `SweepOptions::scale` sizes both, so neither takes a radius or
+  a width, and an outline that is not one of these reaches a sweep
+  through the sweep's own `profile::fromPath()`.
 - **`kit/Divisions.h`** — a figure's divisions as ONE multi-contour path:
   `ticks()` walks a division count around a `Frame` (with a longer mark
   every N), `chords()` walks a polygon's sides. One path rather than N

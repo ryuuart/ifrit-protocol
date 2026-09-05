@@ -13,6 +13,7 @@
 #include <sigilgeometry/device/Device.h>
 
 #include "OnDevice.h"
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
@@ -28,6 +29,7 @@ using namespace sigil;
 namespace gm = sigil::geometry::mesh;
 namespace curve = sigil::geometry::mesh::curve;
 namespace pop = sigil::geometry::mesh::pop;
+namespace sections = sigil::geometry::sections;
 
 namespace {
 
@@ -122,7 +124,7 @@ TEST(DeviceSweep, EveryNormalRuleIsBitIdenticalToTheHost) {
       const curve::Spline3 spline = closed ? loop() : arc();
       const std::vector<curve::Frame3> rail = curve::frames(spline, 64);
       for (const auto& contour :
-           {pop::profile::circle(12), pop::profile::line()}) {
+           {sections::circle(12), sections::line()}) {
         pop::SweepOptions options;
         options.normals = rule;
         options.scale = 14.0f;
@@ -148,7 +150,7 @@ TEST(DeviceSweep, ATaperReachesTheDeviceAsTheSizeItResolvedTo) {
   options.scale = 20.0f;
   options.taper = [](float t) { return 0.2f + 0.9f * t * t; };
   const std::vector<curve::Frame3> rail = curve::frames(loop(), 48);
-  const sigil::geometry::path::Polyline contour = pop::profile::circle(9);
+  const sigil::geometry::path::Polyline contour = sections::circle(9);
   const gm::Mesh host = pop::sweep(rail, contour, options);
   options.runtime = sweep;
   EXPECT_TRUE(identical(host, pop::sweep(rail, contour, options)));
@@ -164,8 +166,8 @@ TEST(DeviceSweep, ASplineSweepsTheSameOnEitherRuntime) {
   pop::SweepOptions options;
   options.segments = 128;
   options.scale = 9.0f;
-  const gm::Mesh host = pop::sweep(loop(), pop::profile::circle(16), options);
+  const gm::Mesh host = pop::sweep(loop(), sections::circle(16), options);
   options.runtime = sweep;
   EXPECT_TRUE(
-      identical(host, pop::sweep(loop(), pop::profile::circle(16), options)));
+      identical(host, pop::sweep(loop(), sections::circle(16), options)));
 }

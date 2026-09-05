@@ -14,6 +14,7 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Sweep.h"
+#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -23,14 +24,14 @@ namespace {
 TEST(MeshSweep, ARoundProfileFormsATubeAndAFlatOneAStrip) {
   curve::Spline3 arc;
   arc.points = {{0, 0, 0}, {60, 60, 0}, {120, 0, 0}};
-  const Mesh t = pop::sweep(arc, pop::profile::circle(8),
+  const Mesh t = pop::sweep(arc, sections::circle(8),
                             {.segments = 24, .scale = 8, .caps = true});
   EXPECT_GT(t.triangleCount(), 0u);
   EXPECT_EQ(t.normals.size(), t.vertexCount());
   for (const glm::vec3& n : t.normals) EXPECT_NEAR(glm::length(n), 1, 1e-3);
   // A line profile sweeps to a strip: `segments` cross-sections of two
   // vertices each, and two triangles per gap between consecutive sections.
-  const Mesh r = pop::sweep(arc, pop::profile::line(),
+  const Mesh r = pop::sweep(arc, sections::line(),
                             {.segments = 24,
                              .scale = 20,
                              .normals = pop::SweepOptions::Normals::Frame});
@@ -70,13 +71,13 @@ TEST(MeshSweep, ScaleAndTaperSizeTheProfile) {
   arc.type = curve::Spline3::Type::Linear;
   arc.points = {{0, 0, 0}, {0, 0, 200}};
   const Mesh even =
-      pop::sweep(arc, pop::profile::circle(16), {.segments = 32, .scale = 10});
+      pop::sweep(arc, sections::circle(16), {.segments = 32, .scale = 10});
   glm::vec3 lo, hi;
   even.bounds(&lo, &hi);
   EXPECT_NEAR(hi.x - lo.x, 20, 0.2f);
 
   const Mesh cone = pop::sweep(
-      arc, pop::profile::circle(16),
+      arc, sections::circle(16),
       {.segments = 32, .scale = 10, .taper = [](float t) { return t; }});
   // The first ring collapses onto the curve and the last is full width.
   EXPECT_NEAR(glm::length(cone.positions[0] - arc.position(0)), 0, 1e-3);
@@ -92,7 +93,7 @@ TEST(MeshSweep, AHungRailKeepsAProfileUpright) {
                              300.0f * std::sin(a));
   }
   const Mesh band =
-      pop::sweep(curve::hangFrames(loop, 120), pop::profile::line(),
+      pop::sweep(curve::hangFrames(loop, 120), sections::line(),
                  {.scale = 50, .normals = pop::SweepOptions::Normals::Frame});
   ASSERT_EQ(band.vertexCount(), 240u);
   // A hung rail hangs: its across-vector is held vertical in world space

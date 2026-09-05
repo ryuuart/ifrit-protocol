@@ -482,7 +482,7 @@ class Runtime : public core::Erased<Executor> {
  *
  *    Mesh comet = pop::on(loop).count(9000).window(0.9f, 0.3f)
  *                     .spread(40).noise(18).fade(pink, cyan)
- *                     .sweep(pop::profile::circle(), false,
+ *                     .sweep(sections::circle(), false,
  *                            {.segments = 160, .scale = 9});
  */
 class Builder {
@@ -905,7 +905,7 @@ Mesh cookMesh(const Chain& chain, const Mesh& stamp,
  *  Catmull-Rom through P in chain order, closed by @p closed, so
  *  Jitter/Noise/Math edits BEND the sweep — and pop::sweep carries
  *  @p profile along it. Any 2D cross-section works, from
- *  pop::profile::circle() to a star flattened out of an Ops.h
+ *  sections::circle() to a star flattened out of an Ops.h
  *  recipe. The same nondestructive description, a different former. */
 Mesh cookSweep(const Chain& chain, const path::Polyline& profile,
                bool closed = false,

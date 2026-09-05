@@ -22,6 +22,7 @@
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "support/Loops.h"
+#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -39,7 +40,7 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   scatter.span = 1;
   pop::Chain chain = {scatter, pop::Noise{pop::Lane::P, 40, 0.01f, 5}};
 
-  const Mesh tube = pop::cookSweep(chain, pop::profile::circle(10), true,
+  const Mesh tube = pop::cookSweep(chain, sections::circle(10), true,
                                    {.segments = 200, .scale = 12});
   EXPECT_GT(tube.triangleCount(), 1000u);
   glm::vec3 lo, hi;
@@ -50,14 +51,14 @@ TEST(Pop, SweptSinksBendWithTheChain) {
   EXPECT_NEAR(hi.x - lo.x, 624, 130);
 
   const Mesh ribbon =
-      pop::cookSweep(chain, pop::profile::line(), true,
+      pop::cookSweep(chain, sections::line(), true,
                      {.segments = 160,
                       .scale = 60,
                       .normals = pop::SweepOptions::Normals::Frame});
   EXPECT_GT(ribbon.triangleCount(), 200u);
 
   chain.emplace_back(pop::Math{pop::Lane::P, {1, 1, 1, 1}, {0, 900, 0, 0}});
-  const Mesh lifted = pop::cookSweep(chain, pop::profile::circle(10), true,
+  const Mesh lifted = pop::cookSweep(chain, sections::circle(10), true,
                                      {.segments = 160, .scale = 12});
   glm::vec3 lo2, hi2;
   lifted.bounds(&lo2, &hi2);
@@ -237,12 +238,12 @@ TEST(Pop, SweptSinkForwardsToTheSweptPrimitive) {
   // The sink is the chain's only geometric commitment: the same chain,
   // a different profile, and the model changes without the description
   // being touched.
-  const Mesh cable = pop::cookSweep(chain, pop::profile::circle(10), true,
+  const Mesh cable = pop::cookSweep(chain, sections::circle(10), true,
                                     {.segments = 120, .scale = 9});
   EXPECT_EQ(cable.vertexCount(), 120u * 11u);
   EXPECT_EQ(cable.normals.size(), cable.vertexCount());
   // A chain too short to be a path forms nothing rather than a
   // degenerate mesh.
-  EXPECT_TRUE(pop::cookSweep(pop::Chain{}, pop::profile::circle(), false)
+  EXPECT_TRUE(pop::cookSweep(pop::Chain{}, sections::circle(), false)
                   .positions.empty());
 }

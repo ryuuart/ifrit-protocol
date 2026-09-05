@@ -16,6 +16,7 @@
 #include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Sweep.h"
 #include "support/RuntimeSeam.h"
+#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -81,7 +82,7 @@ TEST(MeshSweep, TheDefaultOptionsCarryTheBuiltInRuntime) {
 
 TEST(MeshSweep, DescribePacksTheRailAndTheProfile) {
   const std::vector<Frame3> r = rail(5);
-  const path::Polyline p = pop::profile::circle(8);
+  const path::Polyline p = sections::circle(8);
   SweepOptions options;
   options.scale = 2.0f;
   options.taper = [](float t) { return 1.0f + t; };
@@ -108,7 +109,7 @@ TEST(MeshSweep, DescribePacksTheRailAndTheProfile) {
 
 TEST(MeshSweep, ASubstitutedExecutorFormsTheVertices) {
   const std::vector<Frame3> r = rail(6);
-  const path::Polyline p = pop::profile::circle(10);
+  const path::Polyline p = sections::circle(10);
 
   const Mesh built = pop::sweep(r, p);
   SweepOptions options;
@@ -126,7 +127,7 @@ TEST(MeshSweep, ASubstitutedExecutorFormsTheVertices) {
 
 TEST(MeshSweep, EveryNormalRuleIsFormedFromTheSameRings) {
   const std::vector<Frame3> r = rail(6);
-  const path::Polyline p = pop::profile::circle(10);
+  const path::Polyline p = sections::circle(10);
   for (SweepOptions::Normals rule :
        {SweepOptions::Normals::Radial, SweepOptions::Normals::Frame,
         SweepOptions::Normals::Geometric}) {

@@ -51,21 +51,10 @@ namespace sigil::geometry::mesh::pop {
  *  `path::Polyline` in Skia's y-down 2D space — x runs along the
  *  frame's binormal, y against its normal, the convention
  *  `mesh::extrude()` uses — so any outline reaches a sweep by being
- *  flattened. The two below are UNIT shapes: `SweepOptions::scale`
- *  sizes them, which is why a radius or a width is not a parameter
- *  here. */
+ *  flattened. This is the door; the unit shapes anyone would otherwise
+ *  write out are `sections::circle()` and `sections::line()` in the
+ *  kit. */
 namespace profile {
-
-/** The unit circle, one point per @p sides step around it plus the
- *  seam point DUPLICATED — the contour is open and its first and last
- *  points coincide — because the swept surface's u must run 0 to 1
- *  across the seam instead of wrapping back onto vertex zero. */
-path::Polyline circle(int sides = 12);
-
-/** The unit-width segment across the frame's binormal: two points,
- *  open. Swept, it is a flat band — pair it with
- *  `SweepOptions::Normals::Frame` so the band faces its rail. */
-path::Polyline line();
 
 /** The first contour of @p outline, flattened. The door from the 2D
  *  shape vocabulary: a star, a squircle, an `ops::PathOp` recipe's

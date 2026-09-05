@@ -17,6 +17,7 @@
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/Loops.h"
+#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -202,7 +203,7 @@ TEST(Pop, PromoteCarriesPointLanesOntoPrimitives) {
   // above are not comparing a constant against itself.
   EXPECT_GT((*color)[model.triangleCount() - 1].b, (*color)[0].b + 0.5f);
 
-  EXPECT_TRUE(pop::cookSweep(chain, pop::profile::circle(), false,
+  EXPECT_TRUE(pop::cookSweep(chain, sections::circle(), false,
                              {.segments = 160, .scale = 4, .caps = true})
                   .prims.empty());
 }

@@ -12,6 +12,7 @@
 // Release build; Debug numbers say nothing.
 
 #include <benchmark/benchmark.h>
+#include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
@@ -234,7 +235,7 @@ void countVertices(benchmark::State& state, const Mesh& m) {
 
 void BM_Sweep_Circle(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  const path::Polyline profile = pop::profile::circle((int)state.range(1));
+  const path::Polyline profile = sections::circle((int)state.range(1));
   const pop::SweepOptions options{.segments = (int)state.range(0),
                                     .scale = 6};
   Mesh last;
@@ -256,7 +257,7 @@ BENCHMARK(BM_Sweep_Circle)
  *  device executor's arm has a host number to stand beside. */
 void BM_Sweep_Rings(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  const path::Polyline profile = pop::profile::circle(24);
+  const path::Polyline profile = sections::circle(24);
   const pop::SweepOptions options{.segments = (int)state.range(0),
                                     .scale = 6};
   const std::vector<curve::Frame3> rail =
@@ -282,7 +283,7 @@ BENCHMARK(BM_Sweep_Rings)
 
 void BM_Sweep_Line(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  const path::Polyline profile = pop::profile::line();
+  const path::Polyline profile = sections::line();
   const pop::SweepOptions options{
       .segments = (int)state.range(0),
       .scale = 24,
@@ -305,7 +306,7 @@ BENCHMARK(BM_Sweep_Line)
 // from the transported rail above.
 void BM_Sweep_Hang(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
-  const path::Polyline profile = pop::profile::line();
+  const path::Polyline profile = sections::line();
   const pop::SweepOptions options{
       .scale = 24, .normals = pop::SweepOptions::Normals::Frame};
   const int sections = (int)state.range(0);
