@@ -29,6 +29,7 @@
 
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -111,12 +112,11 @@ inline Pattern girih(float edge, const mkit::GirihPalette& palette,
 
 inline std::string caption(const char* palette, float edge, float contactDeg,
                            bool rotated) {
-  char buf[96];
-  std::snprintf(buf, sizeof(buf),
-                rotated ? "\xce\xb8 = %.0f\xc2\xb0 \xc2\xb7 %s \xc2\xb7 a=%.0f "
-                          "\xc2\xb7 rotated"
-                        : "\xce\xb8 = %.0f\xc2\xb0 \xc2\xb7 %s \xc2\xb7 a=%.0f",
-                (double)contactDeg, palette, (double)edge);
+  const std::string buf = kit::formatted(
+      rotated ? "\xce\xb8 = %.0f\xc2\xb0 \xc2\xb7 %s \xc2\xb7 a=%.0f "
+                "\xc2\xb7 rotated"
+              : "\xce\xb8 = %.0f\xc2\xb0 \xc2\xb7 %s \xc2\xb7 a=%.0f",
+      (double)contactDeg, palette, (double)edge);
   return buf;
 }
 

@@ -46,6 +46,7 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -959,8 +960,7 @@ struct LootGrid final : sketch::Sketch {
 
   Element describe() {
     namespace lt = loot;
-    char goldText[32];
-    std::snprintf(goldText, sizeof(goldText), "%d", gold);
+    const std::string goldText = kit::formatted("%d", gold);
 
     auto root = stack().fill(Paint::linear(
         {0, 0}, {0, lt::kH},

@@ -67,6 +67,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Shapers.h>
@@ -590,9 +591,9 @@ struct StrokeAtlasSketch : sketch::Sketch {
         const float rad = deg * 0.0174532925f;
         const float ex = originX + std::cos(rad) * (length + 9);
         const float ey = originY + std::sin(rad) * (length + 9);
-        char numeral[8];
-        std::snprintf(numeral, sizeof numeral, "%d", i + 1);
-        plate.child(call(numeral, 8.5f, kRed).absolute().left(ex).top(ey - 6));
+        const std::string numeral = kit::formatted("%d", i + 1);
+        plate.child(
+            call(numeral.c_str(), 8.5f, kRed).absolute().left(ex).top(ey - 6));
       }
       // The pivot, drawn as a registration mark.
       plate.child(box()
@@ -623,9 +624,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
       plate.child(
           call("KEY", 8.5f, kInk).absolute().left(keyX).top(keyTop - 16));
       for (int i = 0; i < n; ++i) {
-        char numeral[8];
-        std::snprintf(numeral, sizeof numeral, "%2d", i + 1);
-        plate.child(call(numeral, 8.5f, kRed)
+        const std::string numeral = kit::formatted("%2d", i + 1);
+        plate.child(call(numeral.c_str(), 8.5f, kRed)
                         .absolute()
                         .left(keyX)
                         .top(keyTop + (float)i * 13.6f));

@@ -151,8 +151,7 @@ Element banner(float length) {
   column.child(text(u8"THE HUNG RAIL", label(60, kAccent)));
   for (int s = 0; s < kSectors; ++s) {
     column.child(box().grow());
-    char numeral[16];
-    std::snprintf(numeral, sizeof(numeral), "- %02d -", s + 1);
+    const std::string numeral = kit::formatted("- %02d -", s + 1);
     column.child(text(toU8(numeral), label(34, kNumeral)));
     column.child(text(pool[(size_t)s % 4], label(40, kInk)));
   }

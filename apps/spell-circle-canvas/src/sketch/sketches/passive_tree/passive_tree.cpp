@@ -56,6 +56,7 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/sdf/Sdf.h>
@@ -764,10 +765,8 @@ struct PassiveTree final : sketch::Sketch {
       allocated += treedata::kNodes[i].state == treedata::State::Allocated;
       matched += searched(i);
     }
-    char points[32];
-    std::snprintf(points, sizeof(points), "%d / 123", allocated);
-    char found[48];
-    std::snprintf(found, sizeof(found), "%d matched", matched);
+    const std::string points = kit::formatted("%d / 123", allocated);
+    const std::string found = kit::formatted("%d matched", matched);
 
     root.child(
         box()

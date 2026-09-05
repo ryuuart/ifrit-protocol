@@ -107,6 +107,7 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
@@ -954,11 +955,10 @@ struct PenrosePaving : sketch::Sketch {
     auto field = positioned().inset(0, 0, 0, 0);
     for (size_t i = 0; i < tiles.size(); ++i) field.child(sett(tiles[i], i));
 
-    char spec[220];
-    std::snprintf(spec, sizeof(spec),
-                  "DE BRUIJN PENTAGRID  \xce\xb3=1/5 (\xce\x93=0)  s=%.0f px  "
-                  "%d SETTS  FAT:THIN = %.3f  (\xcf\x86 = 1.618)",
-                  kModule, audit.tiles, audit.ratio);
+    const std::string spec = kit::formatted(
+        "DE BRUIJN PENTAGRID  \xce\xb3=1/5 (\xce\x93=0)  s=%.0f px  "
+        "%d SETTS  FAT:THIN = %.3f  (\xcf\x86 = 1.618)",
+        kModule, audit.tiles, audit.ratio);
 
     return stack()
         .fill(Fill::color(kJointBed))

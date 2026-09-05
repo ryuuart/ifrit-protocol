@@ -92,6 +92,7 @@
 #include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Placers.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -2363,14 +2364,15 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
   Element bootReadout() {
     using namespace tav;
-    char buf[32];
-    std::snprintf(buf, sizeof buf, "%03d", bootPct);
+    const std::string buf = kit::formatted("%03d", bootPct);
     return box()
         .row()
         .alignItems(Align::Baseline)
         .gap(6)
-        .child(t(buf, sigil::weave::kit::tracked(blackFace(), 46, kCyan, 40, 0.9f)))
-        .child(t("%", sigil::weave::kit::tracked(blackFace(), 20, alpha(kCyan, 0.6f), 40, 0.9f)));
+        .child(t(buf.c_str(),
+                 sigil::weave::kit::tracked(blackFace(), 46, kCyan, 40, 0.9f)))
+        .child(t("%", sigil::weave::kit::tracked(
+                          blackFace(), 20, alpha(kCyan, 0.6f), 40, 0.9f)));
   }
 
   // =========================================================================

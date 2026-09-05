@@ -229,16 +229,14 @@ struct WebScript final : sketch::Sketch {
     stills = {plainEvents.accepted(), scriptedEvents.accepted(),
               scrolledEvents.accepted(), pressedEvents.accepted()};
 
-    char press[96];
-    std::snprintf(press, sizeof press,
-                  "three events for one click \xe2\x80\x94 the page's own "
-                  "handler stamped (%d, %d)",
-                  kClickAt.x(), kClickAt.y());
-    char wheel[132];
-    std::snprintf(wheel, sizeof wheel,
-                  "%d px down the page \xe2\x80\x94 a delta is what the "
-                  "CONTENT moves by, so down is negative",
-                  kScrollBy);
+    const std::string press = kit::formatted(
+        "three events for one click \xe2\x80\x94 the page's own "
+        "handler stamped (%d, %d)",
+        kClickAt.x(), kClickAt.y());
+    const std::string wheel = kit::formatted(
+        "%d px down the page \xe2\x80\x94 a delta is what the "
+        "CONTENT moves by, so down is negative",
+        kScrollBy);
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("DRIVING A PAGE \xc2\xb7 setLoadCallback + "

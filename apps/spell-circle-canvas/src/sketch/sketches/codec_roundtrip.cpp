@@ -105,14 +105,12 @@ render::MeshStyle stageStyle() {
 }
 
 std::string count(size_t n, const char* unit) {
-  char buffer[64];
-  std::snprintf(buffer, sizeof buffer, "%zu %s", n, unit);
+  const std::string buffer = kit::formatted("%zu %s", n, unit);
   return buffer;
 }
 
 std::string kib(size_t bytes) {
-  char buffer[64];
-  std::snprintf(buffer, sizeof buffer, "%.1f KiB", (double)bytes / 1024.0);
+  const std::string buffer = kit::formatted("%.1f KiB", (double)bytes / 1024.0);
   return buffer;
 }
 
@@ -179,12 +177,11 @@ struct CodecRoundtrip final : sketch::Sketch {
     gm::Mesh fitted = fromAscii ? fromAscii->merged() : gm::Mesh{};
     if (fromAscii) fitted.transform(fromAscii->fitTransform(120.0f));
 
-    char boundsLine[160];
-    std::snprintf(boundsLine, sizeof boundsLine,
-                  "bounds (%.0f %.0f %.0f)-(%.0f %.0f %.0f) \xc2\xb7 "
-                  "fitTransform(120) \xe2\x86\x92 longest extent 120",
-                  (double)lo.x, (double)lo.y, (double)lo.z, (double)hi.x,
-                  (double)hi.y, (double)hi.z);
+    const std::string boundsLine = kit::formatted(
+        "bounds (%.0f %.0f %.0f)-(%.0f %.0f %.0f) \xc2\xb7 "
+        "fitTransform(120) \xe2\x86\x92 longest extent 120",
+        (double)lo.x, (double)lo.y, (double)lo.z, (double)hi.x, (double)hi.y,
+        (double)hi.z);
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("CODEC ROUND TRIP \xc2\xb7 encode::ply "

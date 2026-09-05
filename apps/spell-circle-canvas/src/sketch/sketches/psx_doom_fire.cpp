@@ -41,11 +41,13 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Cascade.h>
 #include <sigilsketch/draw/Draw.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -58,7 +60,6 @@
 #include <iterator>
 #include <string>
 #include <vector>
-#include <sigilweave/kit/PaintLayers.h>
 
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
@@ -412,9 +413,8 @@ struct PsxDoomFire final : sketch::DrawSketch {
          "3 NEAREST  \xc2\xb7  PANEL 960 \xc3\x97 504 PX",
          x + 22, y + 24, 10, kSteel, 1.0f, 0.0f, cue(ms, 820, 300));
 
-    char step[64];
-    std::snprintf(step, sizeof step, "STEP %06llu",
-                  (unsigned long long)simSteps);
+    const std::string step =
+        compose::kit::formatted("STEP %06llu", (unsigned long long)simSteps);
     mono(pen, 11, hex(0xEFEFC7), 1.2f);
     pen.textAlign(RIGHT, TOP);
     pen.text(step, x + kPanelW - 28, y + 26);
@@ -588,15 +588,15 @@ struct PsxDoomFire final : sketch::DrawSketch {
     float foot = y + h - 12;
     const float statH = 5 * (10.5f + 3.0f);
     foot -= statH;
-    char rate[32], drawn[32], ratio[32];
     // Both rates are read off this run's own execution, so a capture
     // taken for a diff carries the rates the sheet declares instead.
     const double simRate = ctx.measured(
         seconds > 0.5 ? (double)simSteps / seconds : kSimHz, kSimHz);
     const double drawRate = ctx.measured(drawHz, 60.0);
-    std::snprintf(rate, sizeof rate, "%.2f Hz", simRate);
-    std::snprintf(drawn, sizeof drawn, "%.1f Hz", drawRate);
-    std::snprintf(ratio, sizeof ratio, "%.2f\xc3\x97", drawRate / kSimHz);
+    const std::string rate = compose::kit::formatted("%.2f Hz", simRate);
+    const std::string drawn = compose::kit::formatted("%.1f Hz", drawRate);
+    const std::string ratio =
+        compose::kit::formatted("%.2f\xc3\x97", drawRate / kSimHz);
     float sy = foot;
     statRow(pen, cx, cw, sy, "SIM STEP", std::to_string(simSteps), kBone);
     sy += 13.5f;
@@ -681,11 +681,10 @@ struct PsxDoomFire final : sketch::DrawSketch {
     pen.noStroke();
     pen.pop();
 
-    char caption[96];
-    std::snprintf(caption, sizeof caption,
-                  "RAW BUFFER \xe2\x80\x94 %d\xc3\x97%d CELLS, %d\xc3\x97 NO "
-                  "FILTER",
-                  kInspectCells, kInspectRows, kInspectZoom);
+    const std::string caption = compose::kit::formatted(
+        "RAW BUFFER \xe2\x80\x94 %d\xc3\x97%d CELLS, %d\xc3\x97 NO "
+        "FILTER",
+        kInspectCells, kInspectRows, kInspectZoom);
     mono(pen, 9.5f, kSteel, 1.0f);
     pen.text(caption, bx, by + bh + 7);
   }

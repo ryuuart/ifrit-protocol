@@ -79,6 +79,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -424,16 +425,15 @@ struct WinampBase : sketch::Sketch {
   }
 
   static std::string mmss(int seconds) {
-    char buf[16];
-    std::snprintf(buf, sizeof buf, "%d:%02d", seconds / 60, seconds % 60);
+    const std::string buf =
+        kit::formatted("%d:%02d", seconds / 60, seconds % 60);
     return buf;
   }
   /** The readout is four fixed 9x13 cells, so a one-digit minute leaves the
    *  tens cell dark rather than shifting the run. */
   static std::string mmssCells(int seconds) {
-    char buf[16];
-    std::snprintf(buf, sizeof buf, "%2d:%02d", (seconds / 60) % 100,
-                  seconds % 60);
+    const std::string buf =
+        kit::formatted("%2d:%02d", (seconds / 60) % 100, seconds % 60);
     return buf;
   }
 

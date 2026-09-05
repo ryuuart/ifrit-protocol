@@ -191,6 +191,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
@@ -1533,12 +1534,11 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.text("e = ||x2\xe2\x88\x92x1|\xe2\x88\x92r| / r", x0 + w - 7, y0 + 7);
     pen.textAlign(draw::LEFT, draw::TOP);
     // the live readout: max error, contacts, step and the interpolant
-    char buf[128];
-    std::snprintf(buf, sizeof buf,
-                  "MAX e %5.2f%%  \xc2\xb7  CONTACTS %2zu  \xc2\xb7  STEP "
-                  "%llu  \xc2\xb7  \xce\xb1 %.2f",
-                  stageMaxErr * 100, contactCount, (unsigned long long)simSteps,
-                  (double)alpha.value());
+    const std::string buf = kit::formatted(
+        "MAX e %5.2f%%  \xc2\xb7  CONTACTS %2zu  \xc2\xb7  STEP "
+        "%llu  \xc2\xb7  \xce\xb1 %.2f",
+        stageMaxErr * 100, contactCount, (unsigned long long)simSteps,
+        (double)alpha.value());
     penMonoB(pen, 8.0f, errColor(stageMaxErr, a), 0.1f);
     pen.text(buf, x0 + 7, y0 + 30);
   }
@@ -1832,11 +1832,12 @@ struct HitmanVerlet final : sketch::DrawSketch {
 
     // The A/B's own numbers, and the monotonicity claim COMPUTED from the
     // three means rather than asserted beside them.
-    char a[96], b[96];
-    std::snprintf(a, sizeof a, "MEAN e   %5.2f%%    %5.2f%%    %5.2f%%",
-                  chainMean[0] * 100, chainMean[1] * 100, chainMean[2] * 100);
-    std::snprintf(b, sizeof b, "MAX  e   %5.2f%%    %5.2f%%    %5.2f%%",
-                  chainMax[0] * 100, chainMax[1] * 100, chainMax[2] * 100);
+    const std::string a = kit::formatted(
+        "MEAN e   %5.2f%%    %5.2f%%    %5.2f%%", chainMean[0] * 100,
+        chainMean[1] * 100, chainMean[2] * 100);
+    const std::string b =
+        kit::formatted("MAX  e   %5.2f%%    %5.2f%%    %5.2f%%",
+                       chainMax[0] * 100, chainMax[1] * 100, chainMax[2] * 100);
     const bool monotone =
         chainMean[0] > chainMean[1] && chainMean[1] > chainMean[2];
     penMonoB(pen, 8.5f, kBone, 0.1f);

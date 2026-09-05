@@ -43,6 +43,7 @@
 //   kSweepSecs — one pass of the reading index down the field.
 
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
@@ -291,8 +292,7 @@ struct GerstnerGrid final : sketch::Sketch {
                      .width(Dim(colW))
                      .height(Dim(1.4f))
                      .fill(Fill::color(g::kInk)));
-      char label[24];
-      std::snprintf(label, sizeof(label), "%02d", i + 1);
+      const std::string label = kit::formatted("%02d", i + 1);
       band.child(text(toU8(label), weave::textStyle({.size = 10,
                                                      .color = g::kRed,
                                                      .track = 1.6f,
@@ -310,9 +310,8 @@ struct GerstnerGrid final : sketch::Sketch {
     namespace g = gerstner;
     using namespace std::chrono_literals;
     const g::Config& c = g::kConfigs[config];
-    char count[40];
-    std::snprintf(count, sizeof(count), "%d COLUMN%s", c.columns,
-                  c.columns == 1 ? "" : "S");
+    const std::string count =
+        kit::formatted("%d COLUMN%s", c.columns, c.columns == 1 ? "" : "S");
     return box()
         .key("head")
         .column()
@@ -371,8 +370,7 @@ struct GerstnerGrid final : sketch::Sketch {
                          .top(g::kFieldY + g::kFieldH + 16);
     for (int i = 0; i < g::kConfigCount; ++i) {
       const bool live = i == config;
-      char n[4];
-      std::snprintf(n, sizeof(n), "%d", g::kConfigs[i].columns);
+      const std::string n = kit::formatted("%d", g::kConfigs[i].columns);
       ladder.child(
           box()
               .width(Dim(22.0f))

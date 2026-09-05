@@ -49,6 +49,7 @@
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -613,8 +614,7 @@ struct PersonaMenu final : sketch::Sketch {
 
     auto bar = [&](const char* label, int value, int max, SkColor4f color) {
       const float frac = max > 0 ? (float)value / (float)max : 0.0f;
-      char numbers[24];
-      std::snprintf(numbers, sizeof(numbers), "%d/%d", value, max);
+      const std::string numbers = kit::formatted("%d/%d", value, max);
       return box()
           .row()
           .alignItems(Align::Center)
@@ -649,8 +649,7 @@ struct PersonaMenu final : sketch::Sketch {
                        .zIndex(8)
                        .staggerChildren(60ms);
     for (const Member& m : kParty) {
-      char level[16];
-      std::snprintf(level, sizeof(level), "LV %d", m.level);
+      const std::string level = kit::formatted("LV %d", m.level);
       rail.child(
           box()
               .width(246)

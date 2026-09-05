@@ -22,6 +22,7 @@
 //               from the count rather than a size being chosen and the
 //               cards fitted into it.
 
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -89,9 +90,8 @@ struct Swatch {
 };
 
 Element card(const Swatch& swatch) {
-  char size[32];
-  std::snprintf(size, sizeof size, "%d \xc3\x97 %d", swatch.width,
-                swatch.height);
+  const std::string size =
+      kit::formatted("%d \xc3\x97 %d", swatch.width, swatch.height);
   return sketch::kit::caption(
              kCard, toU8(swatch.usage), toU8(size),
              image(swatch.asset)
@@ -186,11 +186,9 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
                  substance::Package::engineVersion().c_str(),
                  graph.label().c_str());
 
-    char caption[192];
-    std::snprintf(caption, sizeof caption,
-                  "%s \xc2\xb7 %zu parameters \xc2\xb7 %zu channels",
-                  graph.label().c_str(), graph.parameters().size(),
-                  swatches.size());
+    const std::string caption = kit::formatted(
+        "%s \xc2\xb7 %zu parameters \xc2\xb7 %zu channels",
+        graph.label().c_str(), graph.parameters().size(), swatches.size());
 
     std::vector<Element> cards;
     cards.reserve(swatches.size());

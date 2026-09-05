@@ -172,8 +172,7 @@ weave::TextStyle label(float size, SkColor4f color, float track = 0) {
 }
 
 std::string ms(double v) {
-  char buf[32];
-  std::snprintf(buf, sizeof(buf), "%.2f", v);
+  const std::string buf = kit::formatted("%.2f", v);
   return buf;
 }
 

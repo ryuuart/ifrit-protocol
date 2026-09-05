@@ -63,6 +63,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Divisions.h>
@@ -1003,9 +1004,8 @@ struct Ds2Bench : sketch::Sketch {
     int typedCount = 0;
     for (int i = 0; i < c.nodeCount; ++i)
       typedCount += c.nodes[i].kind != Blank;
-    char slots[24];
-    std::snprintf(slots, sizeof(slots), "%d / %d NODES", typedCount,
-                  c.nodeCount);
+    const std::string slots =
+        kit::formatted("%d / %d NODES", typedCount, c.nodeCount);
     // The rule spans the tree it heads, and the caption row spans the rule:
     // name at the left end, count at the right. Butting the count against
     // the name puts it under the weapon circuit's low-hanging DMG node,

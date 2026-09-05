@@ -248,31 +248,29 @@ struct TileMap final : sketch::Sketch {
       grid.child(std::move(chunk));
     }
 
-    char counts[160];
-    std::snprintf(counts, sizeof(counts),
-                  "described %zu  \xc2\xb7  memo hits %zu  \xc2\xb7  patched "
-                  "%zu  \xc2\xb7  recordings held %zu  \xc2\xb7  painted "
-                  "live %zu",
-                  worked.describedNodes, worked.memoHits, worked.patchedNodes,
-                  worked.picturesLive, worked.nodesPainted);
+    const std::string counts = kit::formatted(
+        "described %zu  \xc2\xb7  memo hits %zu  \xc2\xb7  patched "
+        "%zu  \xc2\xb7  recordings held %zu  \xc2\xb7  painted "
+        "live %zu",
+        worked.describedNodes, worked.memoHits, worked.patchedNodes,
+        worked.picturesLive, worked.nodesPainted);
     // The counts are a function of the description and belong on a
     // plate; the milliseconds are a function of the run and do not, so
     // a capture is told where they are read instead.
-    char timing[96];
-    if (ctx.deterministic)
-      std::snprintf(timing, sizeof(timing), "reconcile and paint: in the "
-                                            "window, not on the plate");
-    else
-      std::snprintf(timing, sizeof(timing),
-                    "reconcile %.3f ms  \xc2\xb7  paint %.3f ms",
-                    worked.reconcileMs, worked.paintMs);
+    const std::string timing =
+        ctx.deterministic
+            ? kit::formatted(
+                  "reconcile and paint: in the "
+                  "window, not on the plate")
+            : kit::formatted("reconcile %.3f ms  \xc2\xb7  paint %.3f ms",
+                             worked.reconcileMs, worked.paintMs);
 
     return sketch::kit::page(
         {.title = u8"MEMO CHUNKING",
          .subtitle = u8"one tile edited every 0.7 s \xe2\x80\x94 the chunk "
                      u8"that holds it is described again and washed; the "
                      u8"other three replay",
-         .footer = toU8(std::string(counts) + "   |   " + timing)},
+         .footer = toU8(counts + "   |   " + timing)},
         std::move(grid));
   }
 

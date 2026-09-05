@@ -74,6 +74,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -641,9 +642,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
     // Keyed per section AND per settle bucket: structurally different
     // content must REPLACE in the slot, not be patched over — a text
     // leaf patched onto a container trips the layout engine.
-    char key[32];
-    std::snprintf(key, sizeof key, "sec:%d:%d", sec,
-                  settle >= 1.0f ? 1 : (int)(settle * 14));
+    const std::string key = kit::formatted(
+        "sec:%d:%d", sec, settle >= 1.0f ? 1 : (int)(settle * 14));
     Element art = box().key(key).width(Dim(kStageW)).height(Dim(kArtH)).clip();
     const ImagePtr& bg = sec < 0 ? homeBg : sectionBg[(size_t)sec];
     if (bg)
@@ -758,8 +758,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
   Element transitionArt(int fromSec, int toSec, int step) {
     using namespace tv3;
     const float f = (float)step / 14.0f;
-    char key[32];
-    std::snprintf(key, sizeof key, "trans:%d:%d", fromSec, toSec);
+    const std::string key = kit::formatted("trans:%d:%d", fromSec, toSec);
     Element out = box().key(key).width(Dim(kStageW)).height(Dim(kArtH)).clip();
     out.child(box().inset(0).child(sectionArt(fromSec, 1.0f)));
     out.child(box().inset(0).child(sectionArt(toSec, f)).mask(by::edge(0, f)));
@@ -1111,9 +1110,9 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   Element bootReadout() {
     using namespace tv3;
-    char buf[8];
-    std::snprintf(buf, sizeof buf, "%d", bootPct);
-    return t(buf, sigil::weave::kit::tracked(grot(), 150, hex(0x7183A5), 0, 1.0f));
+    const std::string buf = kit::formatted("%d", bootPct);
+    return t(buf.c_str(),
+             sigil::weave::kit::tracked(grot(), 150, hex(0x7183A5), 0, 1.0f));
   }
 
   ch::Output<float> beaconAlpha{1.0f};

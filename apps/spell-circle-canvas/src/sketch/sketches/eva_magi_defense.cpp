@@ -175,6 +175,7 @@
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -919,7 +920,6 @@ struct EvaMagiDefense : sketch::Sketch {
       }
     audit.append({u8"ROTATION RULE  theta = snap45(bearing(site->target) - 90)",
                   "heading"});
-    char line[160];
     std::printf("\n  MAGI defense plate — rotation audit\n");
     std::printf(
         "  site   centre        target        bearing   want    "
@@ -937,16 +937,15 @@ struct EvaMagiDefense : sketch::Sketch {
       const float err = std::fabs(wrap180(stemDeg - bearing));
       const bool ok =
           std::fabs(wrap180(want - s.rotation)) < 0.5f && err < 22.5f;
-      std::snprintf(line, sizeof(line),
-                    "  MAGI %s (%4.0f,%4.0f)  (%4.0f,%4.0f)  %7.2f  %+5.0f  "
-                    "%+7.0f  %+7.1f  %5.2f  %s",
-                    s.name, (double)at.fX, (double)at.fY, (double)tgt.fX,
-                    (double)tgt.fY, (double)bearing, (double)want,
-                    (double)s.rotation, (double)stemDeg, (double)err,
-                    ok ? "PASS" : "*** FAIL ***");
-      std::printf("%s\n", line);
-      audit.append({toU8(line + 2), ok ? "pass" : "fail"});
-      if (!ok) failures.push_back(toU8(line + 2));
+      const std::string line = kit::formatted(
+          "  MAGI %s (%4.0f,%4.0f)  (%4.0f,%4.0f)  %7.2f  %+5.0f  "
+          "%+7.0f  %+7.1f  %5.2f  %s",
+          s.name, (double)at.fX, (double)at.fY, (double)tgt.fX, (double)tgt.fY,
+          (double)bearing, (double)want, (double)s.rotation, (double)stemDeg,
+          (double)err, ok ? "PASS" : "*** FAIL ***");
+      std::printf("%s\n", line.c_str());
+      audit.append({toU8(line.c_str() + 2), ok ? "pass" : "fail"});
+      if (!ok) failures.push_back(toU8(line.c_str() + 2));
     }
     // ...and the plate's other published number: the wall angle. The
     // polyline is authored pre-roll, so the check is "does the CAMERA put it
@@ -960,14 +959,14 @@ struct EvaMagiDefense : sketch::Sketch {
       const float ry = -ax * sn + ay * c;
       const float rendered = std::fabs(rx / ry);
       const bool ok = std::fabs(rendered - kDiag) < 0.01f;
-      std::snprintf(line, sizeof(line),
-                    "  WALL  authored %.4f  + roll %.2f deg -> %.4f   "
-                    "frame measures %.4f  %s",
-                    (double)(ax / ay), (double)kRoll, (double)rendered,
-                    (double)kDiag, ok ? "PASS" : "*** FAIL ***");
-      std::printf("%s\n", line);
-      audit.append({toU8(line + 2), ok ? "pass" : "fail"});
-      if (!ok) failures.push_back(toU8(line + 2));
+      const std::string line = kit::formatted(
+          "  WALL  authored %.4f  + roll %.2f deg -> %.4f   "
+          "frame measures %.4f  %s",
+          (double)(ax / ay), (double)kRoll, (double)rendered, (double)kDiag,
+          ok ? "PASS" : "*** FAIL ***");
+      std::printf("%s\n", line.c_str());
+      audit.append({toU8(line.c_str() + 2), ok ? "pass" : "fail"});
+      if (!ok) failures.push_back(toU8(line.c_str() + 2));
     }
     std::printf(
         "  %d/%d sites obey the rule; stem half-window is 22.5 deg.\n\n",

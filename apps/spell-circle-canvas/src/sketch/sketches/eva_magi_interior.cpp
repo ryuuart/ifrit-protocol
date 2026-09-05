@@ -214,6 +214,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Corners.h>
@@ -979,8 +980,7 @@ struct EvaMagiInterior : sketch::Sketch {
    *  will be executed 02 sec. after all three agree". */
   Element countdownNumeral() {
     if (countdown < 0) return box().absolute().width(0).height(0);
-    char buf[8];
-    std::snprintf(buf, sizeof buf, "%d", countdown);
+    const std::string buf = kit::formatted("%d", countdown);
     return box().left(1096).top(96).child(text(
         toU8(buf), magi::type(magi::latin(), 260.0f, magi::kRedHot, 1.2f)));
   }
