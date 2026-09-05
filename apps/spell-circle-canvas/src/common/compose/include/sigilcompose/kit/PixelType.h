@@ -60,6 +60,8 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/core/Measure.h>
 #include <sigilcompose/typography/Typography.h>
 
 #include <algorithm>

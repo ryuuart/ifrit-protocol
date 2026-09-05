@@ -145,6 +145,27 @@ sigil_test(compose_docs_test
             SigilComposeTypography SigilComposeVideo SigilComposeDraw
             SigilComposeTesting SigilWeavePorts)
 
+# Every public header compiles first and alone. Compose.h says each
+# header stands on its own; this is what makes that a build fact rather
+# than a claim — a header that leans on an earlier include's transitive
+# reach breaks here, not in the next consumer's include order. Over the
+# same glob the docs probe reads, against every feature target a header
+# can belong to: the docs test's set, the texture feature, and the web
+# leaf where the SDK produced it (its header names SigilScry, so without
+# the target it is left out rather than failed).
+set(COMPOSE_SELF_TEST_HEADERS ${COMPOSE_PUBLIC_HEADERS})
+set(COMPOSE_SELF_TEST_LIBRARIES
+    SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
+    SigilComposeVideo SigilComposeDraw SigilComposeTexture)
+if(TARGET SigilComposeWeb)
+  list(APPEND COMPOSE_SELF_TEST_LIBRARIES SigilComposeWeb)
+else()
+  list(FILTER COMPOSE_SELF_TEST_HEADERS EXCLUDE REGEX "/sigilcompose/web/")
+endif()
+sigil_header_self_test(compose_header_self_test
+  HEADERS ${COMPOSE_SELF_TEST_HEADERS}
+  LIBRARIES ${COMPOSE_SELF_TEST_LIBRARIES})
+
 # GPU-backend behavior tests (Graphite on a GPU device): the raster suites prove
 # semantics, this one proves the same pixels arrive on the GPU — it
 # exists for the direct-image draw gaps (lattice/atlas) the raster suites

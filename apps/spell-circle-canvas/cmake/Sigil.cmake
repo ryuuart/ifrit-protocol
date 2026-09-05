@@ -1,6 +1,7 @@
-# The four calls a Sigil library is built from. Link visibility is the
-# caller's: nothing here decides PUBLIC against PRIVATE, adds a link a
-# call did not name, or globs a source.
+# The four calls a Sigil library is built from, and the one a library
+# adopts to prove its headers. Link visibility is the caller's: nothing
+# here decides PUBLIC against PRIVATE, adds a link a call did not name, or
+# globs a source.
 #
 # sigil_library_root(<Name> BRIEF "<one line>" [DOCS <file>...])
 #   Once, in a library's root CMakeLists.txt. For that directory and every
@@ -40,6 +41,14 @@
 #   through SIGIL_TEST_ASSET_DIR. GPU adds the Graphite arm where a device
 #   is guaranteed: on Apple the binary links SigilSkia and is compiled with
 #   SIGIL_BENCH_GPU.
+#
+# sigil_header_self_test(<target> HEADERS <file>... [LIBRARIES <item>...])
+#   Defined in HeaderSelfTest.cmake. A library that claims every public
+#   header stands alone adopts it once, in its root CMakeLists.txt after
+#   its features: glob include/ with CONFIGURE_DEPENDS for HEADERS, name
+#   every feature target a header can belong to as LIBRARIES — filtering
+#   out the headers of an optional feature whose target is absent — and
+#   the build compiles each header first, alone and twice.
 
 function(sigil_library_root name)
   cmake_parse_arguments(ARG "" "BRIEF" "DOCS" ${ARGN})
@@ -198,3 +207,5 @@ function(sigil_bench name)
     SUPPORT_DIRS ${ARG_SUPPORT_DIRS})
   add_dependencies(benches ${name})
 endfunction()
+
+include(HeaderSelfTest)
