@@ -29,7 +29,7 @@
 # Brush, and Brush links nothing here.
 sigil_library(SigilComposeKit
   SOURCES Eras.cpp Kit.cpp Routers.cpp
-  HEADERS Chrome.h Frame.h Gel.h Gloss.h Annotations.h Typeset.h
+  HEADERS Chrome.h Frame.h Gel.h Gloss.h Ground.h Annotations.h Typeset.h
           Instruments.h Kinetic.h Kit.h Layouts.h PixelType.h Placers.h
           Routers.h Specimen.h Sprites.h
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
