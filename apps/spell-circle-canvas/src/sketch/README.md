@@ -23,6 +23,26 @@ open build/bin/Release/Sketchbook.app          # the app
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook --list
 ```
 
+## The sheet a sketch stands on
+
+Before the runtimes: most sketches here are **specimen sheets** — a
+titled, footed page over a run of captioned cells — and the look they are
+all set in is one value, `sketch::kit::Theme`, carried down the describe
+tree by the reconciler's inherited value.
+
+```cpp
+#include <sigilsketch/kit/Kit.h>
+
+sketch::kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
+ctx.composer.render(sketch::kit::page(
+    {.title = toU8("THE RULE AND THE STRANDS"),
+     .footer = toU8("a crossing is discovered, not declared")},
+    kit::cells({.cells = {a, b, c}, .gap = 10})));
+```
+
+`src/sketch/kit/README.md` is the canon for it: what the theme holds, how
+a sketch binds its own, and what deliberately is not there.
+
 ## Three runtimes, one seam
 
 A sketch declares what it draws by which header it includes, and the
@@ -122,6 +142,14 @@ sketch names nothing in it, so an unchanged module costs a reload only
 its link; saving one rebuilds the sketch that is open, which is what
 makes it live. A module a library should own is promoted out of here
 into that library.
+
+**What belongs here is one FAMILY of sibling sketches' chassis** — the
+geometric grammar, the measured palette and the type register a
+reconstruction and its siblings share, named for the artefact they serve.
+What every sketch has belongs one level up, in **SigilSketchKit**
+(`src/sketch/kit`, its own README the canon): the theme a sheet is set
+in, and the stage, the page, the well and the caption built over it. A
+new module here is the cue to ask which of the two it is.
 
 `SIGIL_SKETCH` takes the folder it files under and one line on what it
 is — both shown beside it in the app. `SIGIL_SKETCH_AS` adds a name of

@@ -12,7 +12,8 @@
 # binary shares — the one font context and the one asset store a process
 # holds — are test/Support.h.
 sigil_library_root(SigilSketch
-  BRIEF "Sketches: one file per scene, one registry, one host")
+  BRIEF "Sketches: one file per scene, one registry, one host"
+  DOCS ${CMAKE_CURRENT_LIST_DIR}/kit/README.md)
 # Where a sketch looks for what it did not generate, and where the live
 # host finds the file behind a registry entry. Neither directory need
 # exist: a missing asset yields the placeholder and heals when a file
@@ -32,6 +33,12 @@ add_subdirectory(core)
 add_subdirectory(canvas)
 add_subdirectory(set)
 add_subdirectory(draw)
+
+# The sheet a sketch stands on: one theme value bound for a scope, and
+# the furniture — the stage, the page, the well, the caption — every
+# specimen sheet would otherwise retype. It decides no look: the theme is
+# a seam and the house one is a stock value over it.
+add_subdirectory(kit)
 
 # The opt-in bridge for a host that lets several sketches borrow the one
 # WebEngine Ultralight permits in a process. SigilScry itself keeps explicit
@@ -88,4 +95,4 @@ add_test(NAME sketch_readme_stems_self_test
 # feature of it.
 sigil_library(SigilSketch
   INTERFACE SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchDraw
-            SigilSketchLive SigilSketchPlate)
+            SigilSketchKit SigilSketchLive SigilSketchPlate)

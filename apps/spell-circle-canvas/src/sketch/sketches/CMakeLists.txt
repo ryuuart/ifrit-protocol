@@ -142,7 +142,7 @@ add_library(SigilSketches OBJECT
 # first, and the pen's runtime brings SigilDraw with it. A sketch
 # reaches no library through a neighbour's link line.
 target_link_libraries(SigilSketches PUBLIC
-  SigilSketchCanvas SigilSketchSet SigilSketchDraw
+  SigilSketchCanvas SigilSketchSet SigilSketchDraw SigilSketchKit
   SigilDrawBrush
   SigilCompose SigilComposeTexture SigilComposeTesting SigilComposeDraw
   SigilComposeVideo
