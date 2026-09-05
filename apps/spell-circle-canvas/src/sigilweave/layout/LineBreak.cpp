@@ -1068,10 +1068,15 @@ namespace {
  *  its style resolved against the layout's own, its pitch resolved from its
  *  own first span, and the air before it resolved by the one spacing rule:
  *  THE GAP IS THE LARGER of the block before's `spaceAfter` and this
- *  block's `spaceBefore`, everywhere, the head of the flow included. */
+ *  block's `spaceBefore`, everywhere, the head of the flow included.
+ *
+ *  @p settings receives the resolved settings the blocks point at, one per
+ *  run of blocks that resolves alike and none at all for a text whose
+ *  blocks override nothing. It must outlive the blocks. */
 std::vector<detail::Block> resolveBlocks(
     FontContext& fontContext, const Paragraph& paragraph,
-    const ParagraphLayoutOptions& options) {
+    const ParagraphLayoutOptions& options,
+    std::deque<ParagraphLayoutOptions>& settings) {
   const std::vector<Word>& words = paragraph.words();
   std::vector<detail::Block> blocks;
   uint32_t first = 0;
@@ -1086,6 +1091,9 @@ std::vector<detail::Block> resolveBlocks(
                                    static_cast<uint32_t>(words.size())});
 
   const ParagraphStyle unstyled;
+  // The style the setting at the back of `settings` was resolved from, so a
+  // run of blocks set the same way shares one setting.
+  const ParagraphStyle* resolvedFrom = nullptr;
   float previousSpaceAfter = 0;
   for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
     detail::Block& block = blocks[blockIndex];
@@ -1093,11 +1101,30 @@ std::vector<detail::Block> resolveBlocks(
                                       ? options.blocks[blockIndex]
                                       : unstyled;
     block.style = style;
-    block.options = options;
-    if (style.alignment) block.options.alignment = *style.alignment;
-    if (style.justification) block.options.justification = *style.justification;
-    if (style.hyphenation) block.options.hyphenation = *style.hyphenation;
-    if (style.tabStops) block.options.tabStops = *style.tabStops;
+    // A style that states none of the four overridable settings is set by
+    // the layout's own, which the block reads where it stands.
+    if (!style.alignment && !style.justification && !style.hyphenation &&
+        !style.tabStops) {
+      block.options = &options;
+    } else if (resolvedFrom && resolvedFrom->alignment == style.alignment &&
+               resolvedFrom->justification == style.justification &&
+               resolvedFrom->hyphenation == style.hyphenation &&
+               resolvedFrom->tabStops == style.tabStops) {
+      block.options = &settings.back();
+    } else {
+      ParagraphLayoutOptions& setting = settings.emplace_back(options);
+      // A SETTING IS THE ANSWER, NEVER THE QUESTION: `blocks` is the list a
+      // setting was resolved from and nothing downstream of here reads it,
+      // so carrying a copy of it in every setting would cost a long styled
+      // story the square of its length.
+      setting.blocks.clear();
+      if (style.alignment) setting.alignment = *style.alignment;
+      if (style.justification) setting.justification = *style.justification;
+      if (style.hyphenation) setting.hyphenation = *style.hyphenation;
+      if (style.tabStops) setting.tabStops = *style.tabStops;
+      block.options = &setting;
+      resolvedFrom = &style;
+    }
 
     const uint32_t textOffset =
         block.firstWord < words.size() ? words[block.firstWord].textBegin : 0;
@@ -1197,7 +1224,7 @@ detail::FlatInterval withLastLineIndent(const detail::FlatInterval& flat,
 bool hyphenAllowedHere(const detail::Block& block,
                        const std::vector<Word>& words, uint32_t endWordIndex,
                        int consecutiveHyphens) {
-  const HyphenationOptions& hyphenation = block.options.hyphenation;
+  const HyphenationOptions& hyphenation = block.options->hyphenation;
   if (!hyphenation.lastWordOfBlock && endWordIndex + 1 >= block.endWord)
     return false;
   return hyphenation.consecutiveLimit <= 0 ||
@@ -1228,8 +1255,8 @@ uint32_t wholeWordStart(const std::vector<Word>& words, uint32_t endWordIndex) {
 bool zoneAllowsHyphen(const detail::Block& block,
                       const std::vector<Word>& words, uint32_t lineStart,
                       uint32_t endWordIndex, float measure) {
-  const float zone = block.options.hyphenation.zone;
-  if (zone <= 0 || block.options.alignment == TextAlignment::kJustify)
+  const float zone = block.options->hyphenation.zone;
+  if (zone <= 0 || block.options->alignment == TextAlignment::kJustify)
     return true;
   const uint32_t whole = wholeWordStart(words, endWordIndex);
   if (whole <= lineStart) return true;  // the word is the whole line
@@ -1246,7 +1273,7 @@ size_t greedyBlock(FontContext& fontContext, Paragraph& paragraph,
                    ParagraphLayout& result, uint32_t& overflowWord) {
   using namespace detail;
   const std::vector<Word>& words = paragraph.words();
-  const ParagraphLayoutOptions& options = block.options;
+  const ParagraphLayoutOptions& options = *block.options;
   const float lastLineIndent = block.style.indent.lastLine;
 
   const bool spacedByTable = !block.mojikumiAfter.empty();
@@ -1634,7 +1661,12 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   static thread_local std::vector<float> mojikumiRoom;
   resolveMojikumi(paragraph, options, mojikumiRoom);
 
-  std::vector<Block> blocks = resolveBlocks(fontContext, paragraph, options);
+  // The settings the blocks are set under, one per run of blocks that
+  // resolves alike. Declared before the blocks so that it outlives them,
+  // because every block points at one of these or at `options` itself.
+  std::deque<ParagraphLayoutOptions> blockSettings;
+  std::vector<Block> blocks =
+      resolveBlocks(fontContext, paragraph, options, blockSettings);
   for (Block& block : blocks) block.mojikumiAfter = mojikumiRoom;
   // RESUMING: the blocks are numbered from the start of the text, so a
   // frame in the middle of a chain reads the same style for the same
@@ -1684,11 +1716,16 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   size_t nextInterval = 0;
   int lastLineUsed = -1;
   std::vector<PlacedBlock> placedBlocks;
-  // The cheapened copies a degraded frame is set from — a block that
-  // degrades is set from ITS copy, and everything downstream reads the
-  // setting the lines were actually made under. A deque because a record
-  // points at one: it allocates nothing until a block degrades, and never
-  // moves what it holds.
+  // The cheapened copies a degraded frame is set from, and the settings
+  // they are set under — a block that degrades is set from ITS copy, and
+  // everything downstream reads the setting the lines were actually made
+  // under. A degraded block is the one block that does not share its
+  // setting with anything, because what it drops is decided while the frame
+  // is being set rather than when the styles were resolved; the settings
+  // stand before the blocks so that they outlive them. Deques because a
+  // record points at one: they allocate nothing until a block degrades, and
+  // never move what they hold.
+  std::deque<ParagraphLayoutOptions> cheapSettings;
   std::deque<Block> cheapBlocks;
   float lastMeasure = 0;
   for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
@@ -1748,8 +1785,11 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
       overflowWord = ~0u;
       cheapBlocks.push_back(block);
       Block& cheap = cheapBlocks.back();
-      cheap.options.hyphenation.enabled = false;
-      JustificationOptions& justification = cheap.options.justification;
+      ParagraphLayoutOptions& cheapened =
+          cheapSettings.emplace_back(*block.options);
+      cheap.options = &cheapened;
+      cheapened.hyphenation.enabled = false;
+      JustificationOptions& justification = cheapened.justification;
       justification.letterSpacingMinimum = justification.letterSpacing;
       justification.letterSpacingMaximum = justification.letterSpacing;
       justification.glyphScaleMinimum = justification.glyphScale;

@@ -34,16 +34,22 @@ struct FlatInterval {
 
 // ONE BLOCK OF A TEXT: the words between two mandatory breaks, and the
 // setting they are laid out under. The style's optionals are resolved into
-// `options` once — a copy of the layout's own with this block's overrides
-// applied — so the breakers, the glue arithmetic and the placement all read
-// one flat value and none of them resolves an optional in a loop.
+// `options` once, so the breakers, the glue arithmetic and the placement
+// all read one flat value and none of them resolves an optional in a loop.
 struct Block {
   // The block's place in the TEXT, which a frame resuming part-way through
   // a story still counts from the story's start.
   int index = 0;
   uint32_t firstWord = 0;
   uint32_t endWord = 0;
-  ParagraphLayoutOptions options;
+  // THE SETTING, BORROWED AND NEVER OWNED: the layout's own where this
+  // block's style states no override of its own, and a resolved variant of
+  // it where the style does. A setting outlives the block list it is
+  // pointed at from, and blocks that resolve alike point at one — a text is
+  // a run of paragraphs set the same way far more often than it is a
+  // thousand different settings, and a setting per block would cost a
+  // whole options value, the style list among them, for every paragraph.
+  const ParagraphLayoutOptions* options = nullptr;
   ParagraphStyle style;
   float pitch = 0;     // band depth (a vertical flow's column width)
   float ascent = 0;    // baseline offset below the band's near edge

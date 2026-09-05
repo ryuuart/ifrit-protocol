@@ -56,7 +56,7 @@ BreakStore& breakStore() {
 }
 
 uint64_t breakSetting(const Block& block) {
-  const ParagraphLayoutOptions& options = block.options;
+  const ParagraphLayoutOptions& options = *block.options;
   uint64_t hash = 0xCBF29CE484222325ull;
   foldInto(hash, options.alignment);
   foldInto(hash, options.justification.wordSpacing);
@@ -113,7 +113,7 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
                      size_t firstInterval, ParagraphLayout& result,
                      size_t& lastIntervalUsed, uint32_t& overflowWord,
                      bool& outOfBudget) {
-  const ParagraphLayoutOptions& options = block.options;
+  const ParagraphLayoutOptions& options = *block.options;
   using Clock = std::chrono::steady_clock;
   outOfBudget = false;
   // The moment this block must be composed by, when a budget was set.
@@ -695,7 +695,7 @@ void placeBreaks(FontContext& fontContext, Paragraph& paragraph,
                  IntervalSequence& intervalSequence, const Block& block,
                  const BreakList& breaks, ParagraphLayout& result,
                  size_t& lastIntervalUsed, uint32_t& overflowWord) {
-  const ParagraphLayoutOptions& options = block.options;
+  const ParagraphLayoutOptions& options = *block.options;
   const uint32_t wordCount = block.endWord;
   // Placing is the one thing that needs the glyphs, so a block placed from
   // break decisions made earlier pulls the shaping it needs and no more.
