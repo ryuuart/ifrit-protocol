@@ -33,11 +33,12 @@ set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 # the library moves its build rules with it.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-# In this order, and the order is the whole of what the top level decides:
-# the prefixes a package is searched under have to be settled before the
-# first search, every unconditional package before the optional SDKs that
-# stand on some of them, and every one of those before a target exists.
-include(Toolchain)
+# workaround: vcpkg configs name some dependencies as imported targets and
+# others as archive paths, so one archive reaches ld64 under both names.
+if(APPLE)
+  add_link_options("LINKER:-no_warn_duplicate_libraries")
+endif()
+
 include(OptionalSdks)
 
 # SPELLCIRCLE_COVERAGE and SPELLCIRCLE_SANITIZE, each for a build tree of
