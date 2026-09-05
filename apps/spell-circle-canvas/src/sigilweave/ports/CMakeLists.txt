@@ -7,3 +7,14 @@ sigil_library(SigilWeavePorts
   HEADERS SystemFontManager.h
   PUBLIC unofficial::skia::skia
   PRIVATE Boost::unordered)
+
+# The one binary in the tree whose subject IS the machine's font list, so
+# it is the one place a claim about what the system answers belongs, and
+# the label says what a runner must supply. It links this target alone:
+# nothing here shapes, measures or lays anything out. The committed
+# instrument faces are read through the same manager, which is what makes
+# the file-loading claim answerable on a machine with no fonts at all.
+sigil_test(weave_ports_test
+  SOURCES test/SystemFontManagerTest.cpp
+  LIBRARIES SigilWeavePorts
+  LABELS fonts)

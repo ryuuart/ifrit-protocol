@@ -321,10 +321,14 @@ opening the file its subject names.
 - `weave_query_test` — the optional Query layer.
 - `weave_kit_test` — the SigilWeaveKit convenience layer, including the
   pattern hyphenator every table question is asked of.
+- `weave_ports_test` — the platform port on its own: one font manager for
+  the process, a fallback chain that runs out onto the default family at
+  the style it was asked for, and the face the port holds once per ask so
+  that everything keyed on a face by pointer keys on one value.
 
 | label | binaries | what a runner must supply |
 |---|---|---|
-| `fonts` | `weave_paragraph_test` | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about |
+| `fonts` | `weave_paragraph_test`, `weave_ports_test` | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about, and the port's whole subject is the list it resolves against |
 | — | every other binary | nothing: they read the Unicode leaf, plain values, or a committed instrument |
 
 A case that skips is not coverage on the machine it skipped on, so a case
