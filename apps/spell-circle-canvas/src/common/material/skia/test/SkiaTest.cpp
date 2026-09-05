@@ -441,6 +441,37 @@ SkBitmap squareThrough(const sk_sp<SkImageFilter>& filter) {
 
 }  // namespace
 
+TEST(SkiaEffect, AParameterBlurReachesItsOwnBoxAndNotTheClip) {
+  // A runtime shader may write any pixel, so Skia treats a filter built
+  // from one as covering the whole clip and hands it a clip-sized layer.
+  // A parameter blur declares its reach instead: the box the map is
+  // defined over, grown by the support of the largest level. Asked what
+  // it touches under two clips of different sizes, the resolved filter
+  // answers the same rectangle — the box and its reach — rather than
+  // either clip.
+  // A bound sigma is what makes the resolve build against the frame; an
+  // unbound blur answers its store-time snapshot, which knows no box.
+  skia::PaintFrame frame;
+  frame.size = SkSize::Make(120, 120);
+  choreograph::Output<float> sigma(5.0f);
+  skia::Effect blur =
+      skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 8.0f);
+  blur.uniform("maxSigma", &sigma);
+  const sk_sp<SkImageFilter> filter = blur.resolvedImageFilter(&frame);
+  ASSERT_NE(filter, nullptr);
+  const SkIRect small = filter->filterBounds(
+      SkIRect::MakeWH(300, 300), SkMatrix::I(),
+      SkImageFilter::kForward_MapDirection, nullptr);
+  const SkIRect large = filter->filterBounds(
+      SkIRect::MakeWH(1200, 1200), SkMatrix::I(),
+      SkImageFilter::kForward_MapDirection, nullptr);
+  EXPECT_EQ(small, large) << "the reach depends on the clip";
+  EXPECT_NE(large, SkIRect::MakeWH(1200, 1200)) << "the reach is the clip";
+  const SkIRect declared =
+      SkRect::MakeWH(120, 120).makeOutset(24, 24).roundOut();
+  EXPECT_EQ(large, declared);
+}
+
 TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   // The declared range builds the pyramid once; a bound sigma re-wraps
   // only the mix, so two resolves at different sigmas share their blur

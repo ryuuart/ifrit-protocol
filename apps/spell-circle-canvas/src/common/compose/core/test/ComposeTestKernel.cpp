@@ -1922,50 +1922,6 @@ TEST(ComposeEffects, AParameterMapVariesTheBlurAcrossTheNode) {
   EXPECT_GT(contrastAt(unblurred, 139, y), 150)
       << "…and no blur at all cannot make the right end soft";
 }
-
-TEST(ComposeEffects, AParameterBlurCostsItsOwnNodeAndNotTheCanvas) {
-  // A runtime shader may write any pixel, so Skia treats a filter built
-  // from one as covering everything and hands it a layer the size of the
-  // clip — which makes a small node's blur cost the WHOLE CANVAS, and the
-  // same node twice as expensive on a canvas twice the size. blur()'s
-  // reach is declared instead, so the cost is the node's.
-  //
-  // Asserted as a RATIO between two canvases, not as a duration: what is
-  // being claimed is that the cost does not depend on the canvas, and the
-  // wide margin is there so the claim survives a loaded machine while
-  // still failing the fourfold growth the undeclared reach produced.
-  const auto costOn = [](int w, int h) {
-    Host host(w, h);
-    choreograph::Output<float> maxSigma{7.0f};
-    host.composer.render(profiledUnder(
-        box()
-            .key("racked")
-            .width(120)
-            .height(120)
-            .absolute()
-            .left(10)
-            .top(10)
-            .fill(green())
-            .effect(material::skia::Effect::blur(sigmaMap(), 14.0f)
-                        .uniform("maxSigma", &maxSigma))));
-    host.frame();
-    const auto start = std::chrono::steady_clock::now();
-    for (int i = 0; i < 10; ++i) {
-      maxSigma = 1.0f + (float)(i % 8);
-      host.frame();
-    }
-    return std::chrono::duration<double, std::milli>(
-               std::chrono::steady_clock::now() - start)
-        .count();
-  };
-  const double small = costOn(300, 300);
-  const double large = costOn(1200, 1200);
-  EXPECT_LT(large, small * 3.0)
-      << "the blur grew with the canvas (" << small << " ms over 300x300, "
-      << large << " ms over 1200x1200) — its reach is not declared, so Skia "
-         "gave it a clip-sized layer";
-}
-
 TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
   // Carrying the sigma map as a Material rather than a callable is what
   // makes the effect comparable at all. The map has to be IN the equality
