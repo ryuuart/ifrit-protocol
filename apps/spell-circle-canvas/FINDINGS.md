@@ -120,3 +120,24 @@ theme rather than in the house one it was written against.
 
 Assert once fixed: no sketch under `src/sketch/sketches/` declares a
 `SkColor4f` equal to a `houseTheme()` palette value.
+
+## The Release link still carries the debug prefix, through pkg-config
+
+Every binary that links the FFmpeg interface — `video_*`, `compose_video_test`,
+every `sketch_*` and Sketchbook — links `vcpkg_installed/arm64-osx/lib/libopenh264.a`
+AND `vcpkg_installed/arm64-osx/debug/lib/libopenh264.a` in the Release
+configuration, the same for `libvpx.a`, and carries
+`-Wl,-rpath,<...>/debug/lib` beside the release one. The prefix re-ordering
+in `cmake/Toolchain.cmake` fixed `find_library()`, which is why the rest of
+the tree is clean; it does not reach these, because they come in as
+pkg-config results (`pkgcfg_lib_openh264_openh264`,
+`pkgcfg_lib_vpx_vpx` in `CMakeCache.txt`, both pointing into `debug/lib`)
+and a cached FILEPATH is not re-evaluated by a reconfigure. The stray
+rpath is `FFMPEG_LIBRARY_DIRS`, which names both prefixes and is handed
+whole to `target_link_directories()` in `src/common/video/CMakeLists.txt`.
+
+Intended: a Release binary names no debug archive and carries no rpath into
+the debug prefix.
+
+Assert once fixed: no link line in `build/CMakeFiles/impl-Release.ninja`
+contains `arm64-osx/debug/`.
