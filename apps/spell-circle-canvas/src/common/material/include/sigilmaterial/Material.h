@@ -6,6 +6,7 @@
  */
 
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
@@ -14,4 +15,5 @@
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/core/Target.h>
+#include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/core/UniformBlock.h>

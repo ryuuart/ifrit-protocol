@@ -29,8 +29,8 @@ sigil_slang_module(NAME Shading SOURCE ${_shaders}/Shading.slang
 sigil_library(SigilMaterialCore
   SOURCES Combine.cpp Material.cpp Params.cpp Program.cpp Recipe.cpp Terms.cpp
           ${SIGIL_MATERIAL_SHADING_PROOF}
-  HEADERS ../Material.h Combine.h FrameData.h Leaf.h Material.h Params.h
-          Program.h Recipe.h Target.h Terms.h UniformBlock.h
+  HEADERS ../Material.h Bank.h Combine.h FrameData.h Leaf.h Material.h
+          Params.h Program.h Recipe.h Target.h Terms.h UniformBlock.h
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr
          Boost::container
   PRIVATE Boost::unordered SigilCoreSchedule)

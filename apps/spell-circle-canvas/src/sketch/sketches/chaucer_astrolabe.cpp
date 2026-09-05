@@ -88,7 +88,7 @@
 //                         canvas's coordinates with the paint anchored to
 //                         the root — one light across two hundred nodes,
 //                         with no node converting the ramp into its own box
-//   material::kit::Bank    the levels folded into 48 buckets, so the object
+//   material::Bank    the levels folded into 48 buckets, so the object
 //                         costs 48 materials however many faces are cut
 //   TextPath::Orient::Radial   the 24 hour letters and the degree numerals,
 //                         set as spokes
@@ -176,7 +176,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Bank.h>
+#include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -859,7 +859,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
   // into kLevels buckets, so the whole instrument costs at most that many
   // materials however many faces are cut into it.
   static constexpr int kLevels = 48;
-  matkit::Bank latten{kLevels};
+  material::Bank latten{kLevels};
 
   /** The ladder and the light, with the level left at the bottom: the bank
    *  keys on these bytes, so the run, the tones and the grain are the

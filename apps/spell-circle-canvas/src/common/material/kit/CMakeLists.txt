@@ -1,8 +1,7 @@
 # The kit: presets — the reflective surfaces over a normal map and an
-# environment map, the grained surfaces (stone, timber, latten, board) and
-# the bank that bounds a field's instances of them, the girih panel, the
-# gel and chrome colour tables, the text paints, and the two named skies
-# a reflective surface is lit by.
+# environment map, the grained surfaces (stone, timber, latten, board),
+# the girih panel, the gel and chrome colour tables, the text paints, and
+# the two named skies a reflective surface is lit by.
 # Bodies are shader text; the kit links the pattern feature for the tile
 # the panel bakes into and no renderer. A backend's declaration is
 # visible library-wide under the one include root, so "no renderer" is
@@ -18,8 +17,8 @@ set(SIGIL_MATERIAL_KIT_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
 sigil_library(SigilMaterialKit
   SOURCES Environments.cpp Grained.cpp LayerStyles.cpp Mask.cpp Patterns.cpp
           Recipes.cpp Surface.cpp Surfaces.cpp TextPaint.cpp
-  HEADERS Bank.h Environments.h Grained.h LayerStyles.h Mask.h Patterns.h
-          Recipes.h Surface.h Surfaces.h TextPaint.h
+  HEADERS Environments.h Grained.h LayerStyles.h Mask.h Patterns.h Recipes.h
+          Surface.h Surfaces.h TextPaint.h
   PUBLIC SigilMaterialPattern SigilMaterialColor Boost::container)
 sigil_shader_sources(SigilMaterialKit
   DIR ${SIGIL_MATERIAL_KIT_SHADER_DIR} NAMESPACE sigil::material::kit)

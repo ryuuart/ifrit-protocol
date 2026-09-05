@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-namespace sigil::material::kit {
+namespace sigil::material {
 
 /** THE BANK. `get` answers the instance for a (recipe, params, bucket)
  *  triple, building it once through the maker it is handed; the bucket
@@ -103,4 +103,4 @@ class Bank {
   boost::container::map<Key, Material> m_bank;
 };
 
-}  // namespace sigil::material::kit
+}  // namespace sigil::material

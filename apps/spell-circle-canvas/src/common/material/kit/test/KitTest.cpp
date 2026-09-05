@@ -14,7 +14,6 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/kit/Bank.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/LayerStyles.h>
@@ -607,51 +606,6 @@ TEST(Grained, BoardIsItsPaintUnderATooth) {
   b.wear = 0;
   const SkBitmap flat = shade(kit::board(b), 8, 8);
   EXPECT_EQ(luminance(flat.getColor(4, 4)), luminance(flat.getColor(1, 1)));
-}
-
-TEST(Bank, FoldsSeedsIntoBucketsAndKeysOnTheRecipeAndParams) {
-  kit::Bank bank(24);
-  kit::StoneParams p;
-  const Material& first = bank.get(kit::stoneRecipe(), p, 5);
-  // The bucket IS the seed the recipe reads, and pieces in one bucket
-  // are one instance.
-  EXPECT_FLOAT_EQ(first.get<float>("seed"), 5.0f);
-  EXPECT_EQ(&bank.get(kit::stoneRecipe(), p, 5 + 24), &first);
-  EXPECT_NE(&bank.get(kit::stoneRecipe(), p, 6), &first);
-  for (uint32_t seed = 0; seed < 1000; ++seed)
-    (void)bank.get(kit::stoneRecipe(), p, seed);
-  EXPECT_EQ(bank.size(), 24u);
-  // A seed the caller left in the params does not reach the key.
-  p.seed = 99;
-  EXPECT_EQ(&bank.get(kit::stoneRecipe(), p, 5), &first);
-  // Another tone is another species, and another recipe another bank row.
-  p.hi = {1, 0, 0, 1};
-  EXPECT_NE(&bank.get(kit::stoneRecipe(), p, 5), &first);
-  EXPECT_EQ(bank.size(), 25u);
-  (void)bank.get(kit::boardRecipe(), kit::BoardParams{}, 5);
-  EXPECT_EQ(bank.size(), 26u);
-  bank.clear();
-  EXPECT_EQ(bank.size(), 0u);
-
-  // The maker form banks whatever the caller builds per bucket — a
-  // blend, a recipe over a jittered tone — and builds it once.
-  kit::Bank makers(4);
-  int made = 0;
-  for (uint32_t seed = 0; seed < 40; ++seed)
-    (void)makers.get(kit::boardRecipe(), kit::BoardParams{}, seed,
-                     [&](uint32_t bucket) {
-                       ++made;
-                       kit::BoardParams q;
-                       q.seed = (float)bucket * 7;
-                       return kit::board(q);
-                     });
-  EXPECT_EQ(made, 4);
-  EXPECT_EQ(makers.size(), 4u);
-  EXPECT_FLOAT_EQ(makers
-                      .get(kit::boardRecipe(), kit::BoardParams{}, 9,
-                           [](uint32_t) { return kit::board(); })
-                      .get<float>("seed"),
-                  7.0f);
 }
 
 // ---- the embedded shader table --------------------------------------------

@@ -15,7 +15,7 @@
  * reading as rainbow terrazzo. The SPECKLE is a fleck in some fraction of
  * the cells of a lattice, in the material's own tones. The SEED offsets
  * every field, so two pieces at two seeds are two pieces of one quarry;
- * `kit::Bank` is what holds N of them for a field of a thousand.
+ * `material::Bank` is what holds N of them for a field of a thousand.
  *
  * Each recipe carries a body in both languages a renderer here speaks.
  * The SkSL body reads pixel coordinates; the Slang body reads the

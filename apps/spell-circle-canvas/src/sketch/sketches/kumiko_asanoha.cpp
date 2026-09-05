@@ -91,7 +91,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilmaterial/kit/Bank.h>
+#include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -211,7 +211,7 @@ inline float easeOutBack(float p) {
 //  * `along` turns the piece to run down local y, so one recipe boards the
 //    lattice's rails and its posts.
 //
-// A `kit::Bank` of 24 buckets holds them: the seed folds to 24 values, so a
+// A `material::Bank` of 24 buckets holds them: the seed folds to 24 values, so a
 // panel of hundreds of boards costs a bounded number of materials rather than
 // one per board, and because the instance is held rather than re-minted the
 // identity is stable and a re-describe prunes.
@@ -254,7 +254,7 @@ class TimberBank {
   }
 
  private:
-  matkit::Bank m_bank{24};
+  material::Bank m_bank{24};
 };
 
 // ---------------------------------------------------------------------------

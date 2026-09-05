@@ -111,7 +111,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Bank.h>
+#include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -580,7 +580,7 @@ class GraniteBank {
   }
 
  private:
-  matkit::Bank m_bank{40};
+  material::Bank m_bank{40};
 };
 
 // ---------------------------------------------------------------------------
