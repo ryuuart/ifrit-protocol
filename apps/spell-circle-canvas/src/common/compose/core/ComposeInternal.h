@@ -638,9 +638,6 @@ using ::sigil::motion::transitionEqual;
  *  Reconcile.cpp beside the comparators it is built from. */
 bool describedTransformEqual(const ElementNode& a, const ElementNode& b);
 
-/** UTF-8 to the UTF-16 the weave layer speaks. */
-std::u16string toUtf16(std::u8string_view utf8);
-
 /** The stateless splitmix64 of one key — the avalanche over the key
  *  offset by the gamma, which is the same mixer an effect's stream
  *  steps, used to

@@ -8,6 +8,7 @@
 
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/Beside.h>
+#include <sigilweave/unicode/Unicode.h>
 
 #include <algorithm>
 #include <memory>
@@ -63,7 +64,7 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
               : (index < annotation.readings.size() ? annotation.readings[index]
                                                     : std::u8string());
       if (source.empty()) continue;
-      std::u16string text = detail::toUtf16(source);
+      std::u16string text = weave::unicode::toUtf16(source);
       // A LIST OF ONE reads every unit alike, which is how a row of
       // identical emphasis marks is written; a list of many pairs off with
       // the units, and a base whose pieces continue one another shares one

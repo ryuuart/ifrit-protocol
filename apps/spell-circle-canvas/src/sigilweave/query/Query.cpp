@@ -6,6 +6,8 @@
 
 #include "sigilweave/query/Query.h"
 
+#include "sigilweave/unicode/Unicode.h"
+
 #include <unicode/uregex.h>
 #include <unicode/ustring.h>
 
@@ -14,21 +16,6 @@
 namespace sigil::weave {
 
 namespace {
-
-std::u16string toUtf16(std::u8string_view utf8) {
-  if (utf8.empty()) return {};
-  std::u16string utf16;
-  utf16.resize(utf8.size());
-  UErrorCode status = U_ZERO_ERROR;
-  int32_t codeUnitsWritten = 0;
-  u_strFromUTF8(reinterpret_cast<UChar*>(utf16.data()),
-                static_cast<int32_t>(utf16.size()), &codeUnitsWritten,
-                reinterpret_cast<const char*>(utf8.data()),
-                static_cast<int32_t>(utf8.size()), &status);
-  if (U_FAILURE(status)) return {};
-  utf16.resize(static_cast<size_t>(codeUnitsWritten));
-  return utf16;
-}
 
 // Marker-adjustment gravity for one recorded edit: positions before the
 // replaced region stay, positions after shift, positions inside snap to the
@@ -80,20 +67,20 @@ std::vector<CharRange> findAllOccurrences(const Paragraph& paragraph,
 std::vector<CharRange> findAllOccurrences(const Paragraph& paragraph,
                                           std::u8string_view utf8Needle,
                                           CharRange scope) {
-  return findAllOccurrences(paragraph, std::u16string_view(toUtf16(utf8Needle)),
+  return findAllOccurrences(paragraph, std::u16string_view(unicode::toUtf16(utf8Needle)),
                             scope);
 }
 
 std::vector<CharRange> findAllOccurrences(const Paragraph& paragraph,
                                           std::u8string_view utf8Needle) {
   return findAllOccurrences(paragraph,
-                            std::u16string_view(toUtf16(utf8Needle)));
+                            std::u16string_view(unicode::toUtf16(utf8Needle)));
 }
 
 std::optional<std::vector<CharRange>> findRegexMatches(
     const Paragraph& paragraph, std::u8string_view utf8Pattern,
     CharRange scope) {
-  const std::u16string pattern = toUtf16(utf8Pattern);
+  const std::u16string pattern = unicode::toUtf16(utf8Pattern);
   UErrorCode status = U_ZERO_ERROR;
   URegularExpression* regularExpression =
       uregex_open(reinterpret_cast<const UChar*>(pattern.data()),

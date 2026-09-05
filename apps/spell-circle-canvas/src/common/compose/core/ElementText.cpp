@@ -12,6 +12,7 @@
 #include <sigilcore/reconcile/Env.h>
 
 #include "ComposeInternal.h"
+#include <sigilweave/unicode/Unicode.h>
 
 namespace sigil::compose {
 
@@ -95,7 +96,7 @@ Element& Element::hyphenation(sigil::weave::HyphenationOptions spec) {
 
 Element& Element::ellipsis(std::u8string_view marker) {
   detail::TextOptions& options = m_node->textData.ensure().options;
-  options.ellipsis = detail::toUtf16(marker);
+  options.ellipsis = weave::unicode::toUtf16(marker);
   options.set |= detail::TextOptions::kEllipsis;
   return *this;
 }
@@ -276,58 +277,6 @@ void detail::TextOptions::applyTo(
     options.tsume = tsume;
   }
   if (set & kReserved) options.reserved = reserved;
-}
-
-std::u16string detail::toUtf16(std::u8string_view utf8) {
-  // Hand-rolled rather than borrowed from the weave layer: compose speaks
-  // UTF-8 at its surface and UTF-16 at exactly this boundary, and a full
-  // Unicode library for that is a dependency the kernel does not otherwise
-  // need. Ill-formed input yields U+FFFD, never a silent truncation.
-  std::u16string out;
-  out.reserve(utf8.size());
-  for (size_t i = 0; i < utf8.size();) {
-    const auto byte = (unsigned char)utf8[i];
-    char32_t code = 0xFFFD;
-    size_t length = 1;
-    if (byte < 0x80) {
-      code = byte;
-    } else if ((byte & 0xE0u) == 0xC0) {
-      length = 2;
-      code = byte & 0x1Fu;
-    } else if ((byte & 0xF0u) == 0xE0) {
-      length = 3;
-      code = byte & 0x0Fu;
-    } else if ((byte & 0xF8u) == 0xF0) {
-      length = 4;
-      code = byte & 0x07u;
-    }
-    if (length > 1) {
-      if (i + length > utf8.size()) {
-        code = 0xFFFD;
-        length = utf8.size() - i;
-      } else {
-        for (size_t k = 1; k < length; ++k) {
-          const auto continuation = (unsigned char)utf8[i + k];
-          if ((continuation & 0xC0u) != 0x80) {
-            code = 0xFFFD;
-            length = k;
-            break;
-          }
-          code = (code << 6u) | (continuation & 0x3Fu);
-        }
-      }
-    }
-    if (code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) code = 0xFFFD;
-    if (code >= 0x10000) {
-      const char32_t rest = code - 0x10000;
-      out.push_back((char16_t)(0xD800 + (rest >> 10u)));
-      out.push_back((char16_t)(0xDC00 + (rest & 0x3FFu)));
-    } else {
-      out.push_back((char16_t)code);
-    }
-    i += length;
-  }
-  return out;
 }
 
 }  // namespace sigil::compose
