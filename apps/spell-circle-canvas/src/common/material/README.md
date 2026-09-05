@@ -59,7 +59,7 @@ each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, `scale()` and `mixToward()`, `RampStop` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
+| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, and the OKLab and CIELAB round trips — the leaf, which the core's `Params.h` includes | nothing of this project's |
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskVertexColor`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
@@ -637,6 +637,21 @@ float4; `rgb(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
 sRGB transfer function both ways and the OKLab round trip — `toOklab`,
 `fromOklab`, `lerpOklab` — which every perceptual interpolation in the
 codebase runs through.
+
+**Three mixes, and the drawing says which one it means.** `mixToward`
+walks the numbers a file stores; `mixLinear` walks the light they stand
+for, which is the answer whenever the question is about QUANTITIES — how
+much pigment, how much exposure — and is why half way between black and
+white is near #BCBCBC there and #808080 in the other; `lerpOklab` walks
+what an eye reports. `luminance()` is what shows the difference: the
+code-value midpoint carries a fifth of white's light, the linear one
+half. **Two Lab spaces, for two jobs.** OKLab is where colour is
+INTERPOLATED, CIELAB (`toLab`, `fromLab`) is where it is MEASURED — it
+is the space a published difference is quoted in, and `deltaE` is that
+difference, with about 2.3 the point where a side-by-side pair stops
+matching. `sampleRamp` reads a `RampStop` ladder on the CPU exactly as a
+renderer's gradient draws it, for the caller that needs one colour out of
+a ramp rather than a shader.
 
 **Two ways to name a colour, for two different jobs.** `rgb()` is how an
 authored palette is typed in; `hsv(hueDegrees, saturation, value)` is how

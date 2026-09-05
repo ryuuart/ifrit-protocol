@@ -118,3 +118,81 @@ TEST(Color, TheOklabMidpointBetweenBlackAndWhiteIsPerceptual) {
   EXPECT_NEAR(lerpOklab({1, 0, 0, 1}, {0, 0, 1, 1}, 0.0f).r, 1.0f, 1e-3f);
   EXPECT_NEAR(lerpOklab({1, 0, 0, 1}, {0, 0, 1, 1}, 1.0f).b, 1.0f, 1e-3f);
 }
+
+TEST(Color, MixingInLinearLightIsADifferentAnswerFromMixingTheCodeValues) {
+  const Color black{0, 0, 0, 1}, white{1, 1, 1, 1};
+  // Half the light is not half the code value, and the gap is the whole
+  // reason the two verbs are named apart: a mix of quantities that walked
+  // the numbers a file stores comes out a fifth as bright as it claims.
+  const Color light = mixLinear(black, white, 0.5f);
+  const Color codes = mixToward(black, white, 0.5f, 1.0f);
+  EXPECT_NEAR(luminance(light), 0.5f, 1e-3f);
+  EXPECT_NEAR(luminance(codes), 0.214f, 1e-3f);
+  EXPECT_GT(light.r, codes.r);
+  EXPECT_NEAR(light.r, 0.7354f, 1e-3f);  // near #BC, not #80
+
+  // The ends are the ends, and alpha rides along without the curve.
+  EXPECT_NEAR(mixLinear(black, white, 0.0f).r, 0.0f, 1e-5f);
+  EXPECT_NEAR(mixLinear(black, white, 1.0f).r, 1.0f, 1e-5f);
+  const Color clear{1, 0, 0, 0};
+  EXPECT_NEAR(mixLinear(clear, white, 0.25f).a, 0.25f, 1e-5f);
+
+  // Luminance is what the primaries weigh, not what the channels count:
+  // full green carries three times full red's light.
+  EXPECT_NEAR(luminance(white), 1.0f, 1e-4f);
+  EXPECT_NEAR(luminance(Color{0, 1, 0, 1}), 0.7152f, 1e-4f);
+  EXPECT_NEAR(luminance(Color{1, 0, 0, 1}), 0.2126f, 1e-4f);
+}
+
+TEST(Color, CielabMeasuresWhereOklabInterpolates) {
+  // The round trip is the colour it started from.
+  for (const Color& c : {Color{0.2f, 0.6f, 0.9f, 1}, Color{0.9f, 0.1f, 0.3f, 0.5f},
+                         Color{0, 0, 0, 1}, Color{1, 1, 1, 1}}) {
+    const Color back = fromLab(toLab(c));
+    EXPECT_NEAR(back.r, c.r, 2e-3f);
+    EXPECT_NEAR(back.g, c.g, 2e-3f);
+    EXPECT_NEAR(back.b, c.b, 2e-3f);
+    EXPECT_NEAR(back.a, c.a, 1e-5f);
+  }
+
+  // The scale is the published one: black is 0, white is 100, and a
+  // neutral has no chroma on either axis.
+  EXPECT_NEAR(toLab(Color{0, 0, 0, 1}).L, 0.0f, 1e-3f);
+  EXPECT_NEAR(toLab(Color{1, 1, 1, 1}).L, 100.0f, 1e-2f);
+  const Lab grey = toLab(Color{0.5f, 0.5f, 0.5f, 1});
+  EXPECT_NEAR(grey.a, 0.0f, 1e-2f);
+  EXPECT_NEAR(grey.b, 0.0f, 1e-2f);
+
+  // A difference is quoted in this space, and a colour indistinguishable
+  // from another is a small number rather than a matching pair of codes.
+  EXPECT_NEAR(deltaE(Color{0.5f, 0.5f, 0.5f, 1}, Color{0.5f, 0.5f, 0.5f, 1}),
+              0.0f, 1e-4f);
+  EXPECT_LT(deltaE(Color{0.5f, 0.5f, 0.5f, 1}, Color{0.503f, 0.5f, 0.5f, 1}),
+            2.3f);
+  EXPECT_GT(deltaE(Color{0, 0, 0, 1}, Color{1, 1, 1, 1}), 99.0f);
+}
+
+TEST(Color, ARampReadsOnTheCpuTheWayAGradientDraws) {
+  const RampStop stops[] = {{0.0f, Color{0, 0, 0, 1}},
+                            {0.5f, Color{1, 0, 0, 1}},
+                            {1.0f, Color{1, 1, 1, 1}}};
+  EXPECT_EQ(sampleRamp(stops, 0.5f).r, 1.0f);
+  EXPECT_NEAR(sampleRamp(stops, 0.25f).r, 0.5f, 1e-5f);
+  EXPECT_NEAR(sampleRamp(stops, 0.75f).g, 0.5f, 1e-5f);
+
+  // Outside the ramp is the end stop's flat colour, never an
+  // extrapolation into a channel the ramp never named.
+  EXPECT_EQ(sampleRamp(stops, -5.0f), stops[0].color);
+  EXPECT_EQ(sampleRamp(stops, 5.0f), stops[2].color);
+
+  // Two stops at one position are a hard edge, which is how a ramp says
+  // a band boundary.
+  const RampStop banded[] = {{0.0f, Color{1, 0, 0, 1}},
+                             {0.5f, Color{1, 0, 0, 1}},
+                             {0.5f, Color{0, 0, 1, 1}},
+                             {1.0f, Color{0, 0, 1, 1}}};
+  EXPECT_EQ(sampleRamp(banded, 0.49f), (Color{1, 0, 0, 1}));
+  EXPECT_EQ(sampleRamp(banded, 0.51f), (Color{0, 0, 1, 1}));
+
+  EXPECT_EQ(sampleRamp({}, 0.5f), (Color{0, 0, 0, 0}));
+}

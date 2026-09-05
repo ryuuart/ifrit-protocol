@@ -1,9 +1,11 @@
 #pragma once
 
 /** @file
- * A straight-alpha sRGB colour that uploads as one float4, and the OKLab
- * round trip under every perceptual interpolation: sRGB to linear and
- * back, the linear-to-OKLab matrices, and `lerpOklab`.
+ * A straight-alpha sRGB colour that uploads as one float4, and the two
+ * round trips a colour is reasoned about through: OKLab, under every
+ * perceptual interpolation, and CIELAB, under every measured difference.
+ * Beside them sRGB to linear and back, the mix that happens IN linear
+ * light, relative luminance, and the ramp read on the CPU.
  */
 
 #include <algorithm>
@@ -11,6 +13,7 @@
 #include <compare>
 #include <concepts>
 #include <cstdint>
+#include <span>
 
 namespace sigil::material {
 
@@ -153,6 +156,101 @@ constexpr Color mixToward(Color c, Color target, float t, float a) {
           c.b + (target.b - c.b) * t, a};
 }
 
+/** @p a and @p b mixed a fraction @p t apart IN LINEAR LIGHT — each
+ *  channel linearised, mixed, and encoded back. Alpha mixes as it is
+ *  given, since it never went through the transfer function.
+ *
+ *  This is the mix that answers a question about QUANTITIES — how much
+ *  pigment, how much light, how much of one exposure over another — and
+ *  it is a different answer from `mixToward`'s. Half way between black
+ *  and white in code values is #808080, which carries a fifth of white's
+ *  light; half way in linear light is near #BCBCBC, which carries half.
+ *  Neither is wrong: `mixToward` walks the numbers a file stores, this
+ *  walks the light they stand for, and `lerpOklab` walks what an eye
+ *  reports. Say which one the drawing means. */
+inline Color mixLinear(const Color& a, const Color& b, float t) {
+  auto channel = [t](float x, float y) {
+    return linearToSrgb(srgbToLinear(x) + (srgbToLinear(y) - srgbToLinear(x)) * t);
+  };
+  return {channel(a.r, b.r), channel(a.g, b.g), channel(a.b, b.b),
+          a.a + (b.a - a.a) * t};
+}
+
+/** RELATIVE LUMINANCE — how much light the colour stands for, on the sRGB
+ *  primaries, in linear light and on a 0..1 scale where 1 is white. It is
+ *  the number a contrast ratio is built from and the one that shows a mix
+ *  walked in the wrong space: two colours can carry the same luminance and
+ *  look nothing alike, and two that look alike can differ by a factor of
+ *  three. Alpha does not enter it. */
+inline float luminance(const Color& c) {
+  return 0.2126f * srgbToLinear(c.r) + 0.7152f * srgbToLinear(c.g) +
+         0.0722f * srgbToLinear(c.b);
+}
+
+/** A colour in CIELAB under the D65 white point: lightness on 0..100, the
+ *  green–red axis, the blue–yellow axis, and straight alpha carried
+ *  along.
+ *
+ *  It stands beside `Oklab` and answers a different question. OKLab is
+ *  the space to INTERPOLATE in — its ramps are even and its hues hold.
+ *  CIELAB is the space to MEASURE in: it is what a published difference
+ *  is quoted in, so a drawing that claims two colours are a stated
+ *  distance apart has to be read here or it is claiming something else. */
+struct Lab {
+  float L, a, b, alpha;
+};
+
+/** sRGB to CIELAB: linearise, project onto CIE XYZ, divide by the D65
+ *  white point, and through the cube-root ladder. Alpha is untouched. */
+inline Lab toLab(const Color& c) {
+  const float r = srgbToLinear(c.r), g = srgbToLinear(c.g),
+              b = srgbToLinear(c.b);
+  const float x = 0.4124564f * r + 0.3575761f * g + 0.1804375f * b;
+  const float y = 0.2126729f * r + 0.7151522f * g + 0.0721750f * b;
+  const float z = 0.0193339f * r + 0.1191920f * g + 0.9503041f * b;
+  // The ladder is linear near black rather than a cube root all the way
+  // down: the cube root's slope runs away at zero, and a difference read
+  // through it there would be a difference in the arithmetic.
+  auto f = [](float t) {
+    return t > 216.0f / 24389.0f
+               ? std::cbrt(t)
+               : (24389.0f / 27.0f * t + 16.0f) / 116.0f;
+  };
+  const float fx = f(x / 0.95047f), fy = f(y), fz = f(z / 1.08883f);
+  return {116.0f * fy - 16.0f, 500.0f * (fx - fy), 200.0f * (fy - fz), c.a};
+}
+
+/** CIELAB back to sRGB, the inverse of `toLab` up to rounding; the result
+ *  is clamped to the unit range component-wise, so a Lab value outside
+ *  the sRGB gamut comes back as the nearest colour that is inside it
+ *  rather than as one that is not a colour. */
+inline Color fromLab(const Lab& lab) {
+  const float fy = (lab.L + 16.0f) / 116.0f;
+  const float fx = fy + lab.a / 500.0f;
+  const float fz = fy - lab.b / 200.0f;
+  auto g = [](float t) {
+    const float cube = t * t * t;
+    return cube > 216.0f / 24389.0f ? cube
+                                    : (116.0f * t - 16.0f) * 27.0f / 24389.0f;
+  };
+  const float x = g(fx) * 0.95047f, y = g(fy), z = g(fz) * 1.08883f;
+  const float r = 3.2404542f * x - 1.5371385f * y - 0.4985314f * z;
+  const float gr = -0.9692660f * x + 1.8760108f * y + 0.0415560f * z;
+  const float b = 0.0556434f * x - 0.2040259f * y + 1.0572252f * z;
+  return {linearToSrgb(r), linearToSrgb(gr), linearToSrgb(b),
+          std::clamp(lab.alpha, 0.0f, 1.0f)};
+}
+
+/** HOW FAR APART TWO COLOURS ARE, as a straight distance in CIELAB — the
+ *  1976 difference, which is the one a plain Euclidean reading of that
+ *  space is. Around 2.3 is where a side-by-side pair stops matching.
+ *  Alpha does not enter it. */
+inline float deltaE(const Color& a, const Color& b) {
+  const Lab la = toLab(a), lb = toLab(b);
+  const float dL = la.L - lb.L, da = la.a - lb.a, db = la.b - lb.b;
+  return std::sqrt(dL * dL + da * da + db * db);
+}
+
 /** ONE STOP OF A RAMP: a position in [0, 1] and its colour. A ramp is a
  *  vector of these, which every renderer turns into its own gradient. */
 struct RampStop {
@@ -160,5 +258,37 @@ struct RampStop {
   Color color;
   bool operator==(const RampStop&) const = default;
 };
+
+/** THE RAMP READ ON THE CPU — the same ladder a renderer's gradient
+ *  draws, for the caller that needs one colour out of it rather than a
+ *  shader: a seeded scatter tinted by its own parameter, a legend chip, a
+ *  measurement against the picture.
+ *
+ *  Straight sRGB between neighbouring stops, which is what the gradients
+ *  here do; a ramp that is meant to be walked perceptually is
+ *  `lerpOklab` between the two stops this finds. Stops are read in the
+ *  order given and are expected to be ordered; @p t clamps, so outside
+ *  the ramp is the end stop's flat colour rather than an extrapolation.
+ *  An empty ramp answers transparent black. */
+inline Color sampleRamp(std::span<const RampStop> stops, float t) {
+  if (stops.empty()) return {0, 0, 0, 0};
+  if (t <= stops.front().pos) return stops.front().color;
+  if (t >= stops.back().pos) return stops.back().color;
+  for (size_t i = 1; i < stops.size(); ++i) {
+    const RampStop& hi = stops[i];
+    if (t > hi.pos) continue;
+    const RampStop& lo = stops[i - 1];
+    const float span = hi.pos - lo.pos;
+    // Two stops at one position are a HARD EDGE, which is what a ramp
+    // says a band boundary with: the upper one wins, and dividing by the
+    // zero between them would not have said anything.
+    const float f = span > 0.0f ? (t - lo.pos) / span : 1.0f;
+    return {lo.color.r + (hi.color.r - lo.color.r) * f,
+            lo.color.g + (hi.color.g - lo.color.g) * f,
+            lo.color.b + (hi.color.b - lo.color.b) * f,
+            lo.color.a + (hi.color.a - lo.color.a) * f};
+  }
+  return stops.back().color;
+}
 
 }  // namespace sigil::material
