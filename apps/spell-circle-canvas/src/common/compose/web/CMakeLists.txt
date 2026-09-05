@@ -13,6 +13,7 @@ if(TARGET SigilScry)
   # header-only and this test exists only when the SDK produced the target.
   sigil_test(compose_web_test
     SOURCES test/ComposeWebTest.cpp
-    LIBRARIES SigilComposeWeb SigilWeavePorts)
+    LIBRARIES SigilComposeWeb SigilWeavePorts
+    LABELS ultralight)
   ultralight_copy_resources(compose_web_test)
 endif()

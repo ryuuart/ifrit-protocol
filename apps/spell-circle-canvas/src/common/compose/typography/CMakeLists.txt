@@ -53,7 +53,8 @@ sigil_test(compose_text_test
           test/ComposeTestContentText.cpp test/ComposeTestParagraphs.cpp
           test/ComposeTestEngineDocsText.cpp
   LIBRARIES SigilComposeTypography SigilComposeKit SigilComposeTesting
-            SigilWeavePorts)
+            SigilWeavePorts
+  LABELS fonts)
 
 # Dense text replayed, baked and projected; kinetic text every frame. The
 # kit is here for the stock effect the kinetic arms drive.

@@ -1,24 +1,16 @@
-// The paint binary's share of ComposeTestContent.cpp: the suites whose subjects
-// are paint-tier values, cut from that file so each test binary links only the
-// target it exercises.
-
-#include <include/core/SkBBHFactory.h>
-#include <include/core/SkFont.h>
-#include <include/core/SkPictureRecorder.h>
-#include <sigilcompose/core/Feed.h>
-
-#include <numeric>
+// Colour management as a paint-tier value: the view transform a composer
+// carries, end to end from the bake to the host's eight-bit surface.
 
 #include "support/PaintTestSupport.h"
 
-#ifdef SIGILMATERIAL_ENABLE_OCIO
-#include <sigilmaterial/ocio/Ocio.h>
-
 TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
-  // The OCIO output stage end-to-end: an exponent transform darkens
-  // mid-gray (0.5^2.2 ≈ 0.218); clearing the view restores pass-through.
-  // Exercises bake → response row → the lowering the host's eight-bit
-  // surface asks for → saveLayer.
+  // An exponent transform darkens mid-grey (0.5^2.2 ~ 0.218); clearing the
+  // view restores pass-through. Exercises bake, response row, the
+  // lowering the host's eight-bit surface asks for, and saveLayer.
+#ifndef SIGILMATERIAL_ENABLE_OCIO
+  GTEST_SKIP() << "built without OpenColorIO, so a view transform is a "
+                  "no-op and this proves nothing";
+#else
   ASSERT_TRUE(sigil::material::ocio::available());
   Host host;
   host.composer.setView(sigil::material::ocio::exponent(2.2f));
@@ -26,13 +18,12 @@ TEST(ComposeColor, OcioViewTransformsOutputAndClears) {
       box().width(60).height(60).fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))));
   host.frame();
   const uint32_t dark = SkColorGetR(host.pixel(30, 30));
-  EXPECT_GT(dark, 30u);  // ≈ 56
+  EXPECT_GT(dark, 30u);
   EXPECT_LT(dark, 80u);
   host.composer.setView({});  // pass-through again
   host.frame();
   const uint32_t plain = SkColorGetR(host.pixel(30, 30));
-  EXPECT_GT(plain, 118u);  // ≈ 128
+  EXPECT_GT(plain, 118u);
   EXPECT_LT(plain, 138u);
+#endif
 }
-
-#endif  // SIGILMATERIAL_ENABLE_OCIO

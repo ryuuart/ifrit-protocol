@@ -174,5 +174,6 @@ if(APPLE)
   sigil_test(compose_gpu_test
     SOURCES test/ComposeGpuTest.mm
     LIBRARIES SigilComposeKit SigilComposeBrush SigilComposeTypography
-              SigilWeavePorts SigilSkia)
+              SigilWeavePorts SigilSkia
+    LABELS gpu)
 endif()
