@@ -6,11 +6,17 @@
 # SigilGeometry, SigilMaterial and the world's light values; nothing links
 # it but its tests, its demo hooks and whoever wants a stage.
 #
-# <sigilusd/Usd.h> is the umbrella header. Added only when
-# SPELLCIRCLE_ENABLE_USD is on and vcpkg's usd port was found. The
-# fixtures every binary here shares — the scratch path, the runtime skip
-# and the scene both doors are exercised over — sit in test/.
-find_package(pxr CONFIG REQUIRED)
+# <sigilusd/Usd.h> is the umbrella header. The fixtures every binary here
+# shares — the scratch path, the runtime skip and the scene both doors are
+# exercised over — sit in test/.
+#
+# OpenUSD is an optional dependency of the manifest; without it the whole
+# library is left out of the build.
+find_package(pxr CONFIG QUIET)
+if(NOT pxr_FOUND)
+  message(STATUS "OpenUSD (pxr) not found -- SigilUsd is left out")
+  return()
+endif()
 
 sigil_library_root(SigilUsd
   BRIEF "The world's data written to and read back from USD stages")

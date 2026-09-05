@@ -39,8 +39,6 @@ if(APPLE)
   add_link_options("LINKER:-no_warn_duplicate_libraries")
 endif()
 
-include(OptionalSdks)
-
 # SPELLCIRCLE_COVERAGE and SPELLCIRCLE_SANITIZE, each for a build tree of
 # its own.
 include(Instrumentation)

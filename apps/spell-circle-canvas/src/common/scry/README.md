@@ -221,9 +221,9 @@ compositing model, in both directions.
 
 ## Building
 
-The library is gated on `SPELLCIRCLE_ENABLE_ULTRALIGHT`, which turns itself
-off with a warning when the SDK is not found (see
-`src/common/scry/cmake/FindUltralight.cmake`).
+The library's root `CMakeLists.txt` searches for the SDK through
+`src/common/scry/cmake/FindUltralight.cmake` and leaves every target here
+out of the build, with a status line, when it is not installed.
 
 Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine` and the
 `SigilScry` umbrella. Tests (ctest): `scry_platform_test` exercises the

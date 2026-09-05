@@ -14,9 +14,20 @@
 # private to the library, so those stay beside their sources and the
 # engine feature reaches them by directory rather than the include root.
 #
-# Only added when SPELLCIRCLE_ENABLE_ULTRALIGHT is ON (auto-off when the
-# SDK is missing). Textures are named on SigilCoreHardware's GpuDevice
-# and the GPU driver draws over a shared Graphite context.
+# Textures are named on SigilCoreHardware's GpuDevice and the GPU driver
+# draws over a shared Graphite context.
+#
+# The SDK is a licensed download that is never vendored, and it has no
+# vcpkg port yet, so the find module beside this file is what locates an
+# installed copy. Without one the whole library — and every target that
+# links it — is left out of the build.
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
+find_package(Ultralight)
+if(NOT Ultralight_FOUND)
+  message(STATUS "Ultralight SDK not found -- SigilScry is left out")
+  return()
+endif()
+
 sigil_library_root(SigilScry
   BRIEF "A headless web engine whose HTML, CSS and JavaScript output arrives as Skia images")
 

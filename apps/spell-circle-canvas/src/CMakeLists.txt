@@ -11,7 +11,8 @@
 #                SigilWorldScene, SigilWorldLight, SigilWorldKit,
 #                SigilWorldDiligent), compose/ (SigilCompose), and
 #                substance/ (SigilSubstance) and usd/ (SigilUsd), each
-#                only where its SDK was found. Each library carries its
+#                of which leaves itself out where its SDK is not
+#                installed. Each library carries its
 #                own features as its own archives, and a build module
 #                only one library needs stands in that library's cmake/.
 #   sketch/      SigilSketch: every renderable thing in this repository as
@@ -42,9 +43,7 @@ add_subdirectory(common/ui)
 add_subdirectory(common/image)
 add_subdirectory(common/video)
 add_subdirectory(common/io)
-if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
-  add_subdirectory(common/scry)
-endif()
+add_subdirectory(common/scry)
 add_subdirectory(common/measure)
 add_subdirectory(common/motion)
 add_subdirectory(common/geometry)
@@ -53,12 +52,8 @@ add_subdirectory(common/material)
 # mixers, and beneath compose, which hosts a pen program in a node.
 add_subdirectory(common/draw)
 add_subdirectory(common/world)
-if(SPELLCIRCLE_ENABLE_SUBSTANCE)
-  add_subdirectory(common/substance)
-endif()
-if(SPELLCIRCLE_ENABLE_USD)
-  add_subdirectory(common/usd)
-endif()
+add_subdirectory(common/substance)
+add_subdirectory(common/usd)
 add_subdirectory(common/compose)
 # Above both drawing libraries, and the only place they meet: a sketch may
 # describe a compose Element tree or a world Frame, so this links both.
