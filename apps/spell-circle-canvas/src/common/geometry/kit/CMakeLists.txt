@@ -15,15 +15,13 @@
 # one path). The blob's lobes are placed by the seeded mixer one library
 # down, so a blob is the same blob in a stored render and in a resource
 # key.
-#
-# workaround: the earcut-hpp port installs headers and exports no config.
-find_path(EARCUT_INCLUDE_DIR mapbox/earcut.hpp REQUIRED)
+find_package(earcut_hpp CONFIG REQUIRED)
 sigil_library(SigilGeometryKit
   SOURCES Silhouettes.cpp Solids.cpp
   HEADERS Corners.h Curves.h Divisions.h Generators.h Shapers.h
           Silhouettes.h Solids.h
-  INCLUDE_PRIVATE ${EARCUT_INCLUDE_DIR}
-  PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCompute)
+  PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCompute
+  PRIVATE earcut_hpp::earcut_hpp)
 
 # Links only the shelves, over Skia — a link edge that pulled a component
 # or scene library in would show up as a build failure here.

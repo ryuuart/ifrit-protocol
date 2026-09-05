@@ -87,5 +87,18 @@
     },
     "vulkan-headers",
     "yoga"
+  ],
+  "overrides": [
+    {
+      "$comment": [
+        "The baseline's earcut-hpp drops one header into include/ and",
+        "exports no package, so a consumer has to find the header by",
+        "path. This version installs the library's own CMake package",
+        "instead, and the triangulator is linked like everything else:",
+        "find_package(earcut_hpp CONFIG) and one imported target."
+      ],
+      "name": "earcut-hpp",
+      "version": "3.2.3"
+    }
   ]
 }
