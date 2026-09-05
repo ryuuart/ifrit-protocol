@@ -6,6 +6,7 @@
  */
 
 #include <string>
+#include <string_view>
 
 namespace sigil::weave {
 class FontContext;
@@ -14,6 +15,10 @@ class FontContext;
 namespace sigil::sketch {
 
 class Assets;
+
+/** How a plate file is named: this, the sketch's filed name, `.png`. The
+ *  name is what a baseline manifest holds, so it is spelled once. */
+inline constexpr std::string_view kPlatePrefix = "plate_";
 
 /** WHAT ONE HEADLESS RUN DOES.
  *

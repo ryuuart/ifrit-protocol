@@ -64,7 +64,10 @@ compares each against the CPU plate of the same run per colour channel
 — mean and p99 judged within per-sketch ceilings, max reported — because
 a device plate is not a function of the drawing code alone. It has no
 baseline and refuses `--rebase`; without a device runtime it says so and
-exits 0.
+exits 0. The two directories of plates are differenced by
+`Sketchbook --compare <dir-a> <dir-b>`, which decodes and reports the
+distances; what stays here is the judgement, because a ceiling is a
+tolerance about a machine and not a fact about two files.
 
 The manifest is machine-local by design (plates are deterministic per
 machine, not across machines), so a fresh checkout runs

@@ -132,12 +132,10 @@ import fcntl
 import hashlib
 import os
 import shutil
-import struct
 import subprocess
 import sys
 import tempfile
 import time
-import zlib
 
 # One binary renders both tiers, and one prefix names every plate.
 BINARY = "Sketchbook.app/Contents/MacOS/Sketchbook"
@@ -338,87 +336,28 @@ def render_scene(binary, scene, outdir, timeout, extra_args=()):
     return scene, sha256(plate), None, elapsed
 
 
-def read_png(path):
-    """An RGBA8 image out of a PNG, with nothing but the standard library.
+def compared(binary, first, second):
+    """Every plate in both directories, differenced by the renderer that
+    wrote them: name -> (mean, p99, max), plus the names it could not
+    compare.
 
-    The cpu tier hashes bytes and needs no decoder; the device tier
-    compares two pictures pixel by pixel, and the repository's Python
-    declares no imaging package, so the 8-bit truecolour forms the plate
-    writer emits are decoded here."""
-    with open(path, "rb") as f:
-        data = f.read()
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
-        raise ValueError(f"{path} is not a PNG")
-    at, width, height, depth, colour, idat = 8, 0, 0, 0, 0, bytearray()
-    while at + 8 <= len(data):
-        length = struct.unpack(">I", data[at : at + 4])[0]
-        kind = data[at + 4 : at + 8]
-        body = data[at + 8 : at + 8 + length]
-        if kind == b"IHDR":
-            width, height, depth, colour = struct.unpack(">IIBB", body[:10])
-        elif kind == b"IDAT":
-            idat += body
-        elif kind == b"IEND":
-            break
-        at += 12 + length
-    if depth != 8 or colour not in (2, 6):
-        raise ValueError(f"{path}: unsupported PNG ({depth}-bit, colour {colour})")
-    channels = 4 if colour == 6 else 3
-    raw = zlib.decompress(bytes(idat))
-    stride = width * channels
-    out = bytearray(height * stride)
-    previous = bytearray(stride)
-    at = 0
-    for y in range(height):
-        filter_type = raw[at]
-        at += 1
-        row = bytearray(raw[at : at + stride])
-        at += stride
-        if filter_type == 1:
-            for i in range(channels, stride):
-                row[i] = (row[i] + row[i - channels]) & 0xFF
-        elif filter_type == 2:
-            for i in range(stride):
-                row[i] = (row[i] + previous[i]) & 0xFF
-        elif filter_type == 3:
-            for i in range(stride):
-                left = row[i - channels] if i >= channels else 0
-                row[i] = (row[i] + ((left + previous[i]) >> 1)) & 0xFF
-        elif filter_type == 4:
-            for i in range(stride):
-                left = row[i - channels] if i >= channels else 0
-                up = previous[i]
-                upleft = previous[i - channels] if i >= channels else 0
-                p = left + up - upleft
-                pa, pb, pc = abs(p - left), abs(p - up), abs(p - upleft)
-                best = left if (pa <= pb and pa <= pc) else (up if pb <= pc else upleft)
-                row[i] = (row[i] + best) & 0xFF
-        out[y * stride : (y + 1) * stride] = row
-        previous = row
-    return width, height, channels, out
-
-
-def channel_distance(reference, candidate):
-    """Mean, 99th percentile and worst absolute channel difference in
-    0..255, or None when the two plates are not the same size."""
-    rw, rh, rc, rd = read_png(reference)
-    cw, ch, cc, cd = read_png(candidate)
-    if (rw, rh, rc) != (cw, ch, cc):
-        return None
-    histogram = [0] * 256
-    for value in map(abs, map(int.__sub__, rd, cd)):
-        histogram[value] += 1
-    count = len(rd)
-    total = sum(value * n for value, n in enumerate(histogram))
-    seen, p99, worst = 0, None, 0
-    cut = count * 0.99
-    for value, n in enumerate(histogram):
-        if n:
-            worst = value
-        seen += n
-        if p99 is None and seen >= cut:
-            p99 = value
-    return total / count, p99 or 0, worst
+    Decoding a PNG and differencing two pictures is what the binary
+    already does; what stays here is the judgement — which distance is
+    close enough on this machine — because that is a tolerance and not a
+    fact about two files."""
+    r = subprocess.run(
+        [binary, "--compare", first, second], capture_output=True, text=True
+    )
+    distances, unusable = {}, {}
+    for line in r.stdout.splitlines():
+        words = line.split()
+        if len(words) == 8 and words[0] == "compared":
+            distances[words[1]] = (float(words[3]), int(words[5]), int(words[7]))
+        elif words and words[0] in ("missing", "unreadable", "size"):
+            unusable[words[1]] = " ".join(words[0:1] + words[2:])
+    if not distances and not unusable:
+        unusable["--compare"] = (r.stderr or r.stdout).strip()[-300:]
+    return distances, unusable
 
 
 def discard_later(directory):
@@ -493,18 +432,16 @@ def device_sweep(binary, scenes, timeout, jobs):
 
     verdict = 0
     print()
+    distances, unusable = compared(binary, host_dir, device_dir)
     for scene in scenes:
-        reference = os.path.join(host_dir, f"{PLATE_PREFIX}{scene}.png")
-        candidate = os.path.join(device_dir, f"{PLATE_PREFIX}{scene}.png")
-        if not (os.path.exists(reference) and os.path.exists(candidate)):
+        if scene in unusable:
+            print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")
             verdict = 1
             continue
-        measured = channel_distance(reference, candidate)
-        if measured is None:
-            print(f"  MISMATCHED SIZE {scene}   <-- FINDING")
+        if scene not in distances:
             verdict = 1
             continue
-        mean, p99, worst = measured
+        mean, p99, worst = distances[scene]
         mean_cap, p99_cap = GPU_TOLERANCE.get(scene, DEFAULT_GPU_TOLERANCE)
         over = mean > mean_cap or p99 > p99_cap
         print(
