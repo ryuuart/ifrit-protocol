@@ -3,12 +3,12 @@
 A specimen sheet in this repository is a page with a title, a subtitle
 and a footer, ruled off from a run of captioned cells, each cell a
 picture in a grounded well with the call over it and the remark under.
-Every one of those sheets used to open with the same fifty lines: five
-colours, a two-line style helper, a five-line monospaced one, a
-seven-line caption value, three calls declaring the canvas, and nine
-fields of margins and rules inside the sheet literal. **This library is
-those fifty lines, stated once**, so the file someone opens to study
-`Border`'s four modes is a file about `Border`'s four modes.
+Spelled out, that sheet is fifty lines before its subject: five colours,
+a two-line style helper, a five-line monospaced one, a seven-line caption
+value, three calls declaring the canvas, and nine fields of margins and
+rules inside the sheet literal. **This library is those fifty lines,
+stated once**, so the file someone opens to study `Border`'s four modes
+is a file about `Border`'s four modes.
 
 What it is not is a place a look is decided. `Theme` is a **seam** — a
 plain comparable struct — and `houseTheme()` is one **stock value** over
