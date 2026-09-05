@@ -9,7 +9,6 @@
  * upload, memoised on the last inputs.
  */
 
-#include <choreograph/Choreograph.h>
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
 #include <sigilmaterial/core/Params.h>
