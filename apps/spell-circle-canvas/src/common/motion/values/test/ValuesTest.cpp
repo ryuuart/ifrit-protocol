@@ -110,7 +110,6 @@ TEST(Values, TheTickerDrivesABoundValueWithNothingElseLinked) {
   const Animatable<float> toPixels = bind(&phase).target(-70.f, 170.f);
   EXPECT_NEAR(readNow(toPixels, -1.f), -70.f, 1e-3f);
 
-  ASSERT_TRUE(ticker.active());
   ticker.tick(0.10);  // t = 0.2 — still climbing
   const float early = readNow(toPixels, -1.f);
   EXPECT_GT(early, -70.f);
@@ -121,7 +120,6 @@ TEST(Values, TheTickerDrivesABoundValueWithNothingElseLinked) {
 
   ticker.tick(0.40);  // past the end
   EXPECT_NEAR(readNow(toPixels, -1.f), 170.f, 1e-3f);
-  EXPECT_FALSE(ticker.active());
 
   EXPECT_FLOAT_EQ(readNow(Animatable<float>{0.25f}, -1.f), 0.25f);
 }

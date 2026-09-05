@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <boost/pfr/core.hpp>
+#include <string>
 #include <vector>
 
 using namespace sigil::motion;
@@ -25,14 +26,36 @@ std::vector<float> orderOf(Spread::From from, uint32_t count,
   return out;
 }
 
+/** One dealt ordering: which end a run opens from, and the rank the four
+ *  units are dealt in when it does. The scattered ordering is absent
+ *  because its ranks are a permutation rather than a shape — the two
+ *  cases below say what it promises instead. */
+struct Ordering {
+  const char* name;
+  Spread::From from;
+  std::vector<float> ranks;
+};
+
+std::string orderingName(const testing::TestParamInfo<Ordering>& info) {
+  return info.param.name;
+}
+
+struct CascadeOrdering : testing::TestWithParam<Ordering> {};
+
 }  // namespace
 
-TEST(Order, TheFiveShapes) {
-  EXPECT_EQ(orderOf(Spread::From::Start, 4), (std::vector<float>{0, 1, 2, 3}));
-  EXPECT_EQ(orderOf(Spread::From::End, 4), (std::vector<float>{3, 2, 1, 0}));
-  EXPECT_EQ(orderOf(Spread::From::Center, 4), (std::vector<float>{3, 1, 1, 3}));
-  EXPECT_EQ(orderOf(Spread::From::Edges, 4), (std::vector<float>{0, 2, 2, 0}));
+TEST_P(CascadeOrdering, DealsTheRanksItsNameReads) {
+  EXPECT_EQ(orderOf(GetParam().from, 4), GetParam().ranks);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    Orderings, CascadeOrdering,
+    testing::Values(
+        Ordering{"FromStart", Spread::From::Start, {0, 1, 2, 3}},
+        Ordering{"FromEnd", Spread::From::End, {3, 2, 1, 0}},
+        Ordering{"FromCenter", Spread::From::Center, {3, 1, 1, 3}},
+        Ordering{"FromEdges", Spread::From::Edges, {0, 2, 2, 0}}),
+    orderingName);
 
 TEST(Order, OneUnitNeverSpreads) {
   // Whichever end it claims to start from, the single member opens at 0.
@@ -57,7 +80,7 @@ TEST(Order, ASeedDealsAnIndependentScatter) {
             orderOf(Spread::From::Random, 8, 2));
 }
 
-TEST(Cascade, TheEvenLadder) {
+TEST(Cascade, EachUnitOpensOneStepAfterTheOneBeforeIt) {
   const Spread spec{.eachMs = 100, .durationMs = 400};
   Cascade cascade;
   cascade.build(spec, 4, 0);
@@ -78,7 +101,7 @@ TEST(Cascade, AmountModeKeepsTheTotalAndShrinksTheSpacing) {
   EXPECT_FLOAT_EQ(spec.spanMs(0), 400.0f);
 }
 
-TEST(Cascade, ACueTableReplacesTheLadder) {
+TEST(Cascade, ACueTableStatesEveryDelayAndTheStepIsIgnored) {
   Spread spec{.durationMs = 180};
   spec.cueMs = {0, 340, 720, 1180};
   spec.eachMs = 9999;  // said nothing: the table states the delays

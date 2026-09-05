@@ -13,6 +13,9 @@
 #include <chrono>
 #include <memory>
 
+#include "support/Ramps.h"
+#include "support/StandsAlone.h"
+
 using sigil::motion::Animatable;
 using sigil::motion::AnimatedFloat;
 using sigil::motion::mountEntrance;
@@ -21,16 +24,9 @@ using sigil::motion::Ticker;
 using sigil::motion::Transition;
 using sigil::motion::Transitioned;
 using sigil::motion::transitionFloatAt;
+using sigil::motion::test::ramped;
 
 namespace {
-
-Animatable<float> ramped(float to, int ms) {
-  Transitioned<float> t;
-  t.value = to;
-  t.spec.duration = std::chrono::milliseconds(ms);
-  t.spec.ease = &choreograph::easeNone;
-  return t;
-}
 
 Animatable<float> entrance(float from, float to, int ms) {
   Transitioned<float> t;

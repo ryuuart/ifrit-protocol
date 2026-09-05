@@ -11,20 +11,16 @@
 #include <chrono>
 #include <vector>
 
+#include "support/Ramps.h"
+#include "support/StandsAlone.h"
+
 using namespace sigil::motion;
+using sigil::motion::test::ramped;
 
 namespace {
 
 enum class Family : uint8_t { Slot, Span };
 using L = Lane<Family>;
-
-Animatable<float> ramped(float to, int ms) {
-  Transitioned<float> t;
-  t.value = to;
-  t.spec.duration = std::chrono::milliseconds(ms);
-  t.spec.ease = &choreograph::easeNone;
-  return t;
-}
 
 }  // namespace
 

@@ -1,7 +1,9 @@
 /** @file
- * The frame clock's pause/scale/clamp behavior and the Ticker driving
+ * The frame clock — what one reading after another means, and what pause,
+ * time scale and the stall ceiling do to it — and the Ticker that drives
  * Choreograph motions, steppables and derivations to completion with no
- * renderer under it.
+ * renderer under it. No wall clock is read anywhere in this file: every
+ * frame length is a number the test hands in.
  */
 
 #include <gtest/gtest.h>
@@ -19,23 +21,30 @@ using namespace sigil::motion;
 namespace ch = choreograph;
 using namespace std::chrono_literals;
 
-TEST(FrameClockTest, FirstTickIsZeroThenDeltas) {
+TEST(FrameClock, TheFirstTickIsAZeroLengthFrameAndEveryOneAfterItIsADelta) {
   FrameClock clock;
   EXPECT_EQ(clock.tick(10.0), 0.0);
   EXPECT_NEAR(clock.tick(10.016), 0.016, 1e-9);
   EXPECT_NEAR(clock.elapsed(), 0.016, 1e-9);
 }
 
-TEST(FrameClockTest, ClampsStallsAndScalesTime) {
+TEST(FrameClock, AStallIsClampedToTheLongestFrameItWasGiven) {
+  // A suspended app comes back to one enormous reading; the clock hands
+  // out the ceiling rather than a delta every animation would jump on.
   FrameClock clock({.maxDelta = 0.25});
   clock.tick(0.0);
-  EXPECT_NEAR(clock.tick(5.0), 0.25, 1e-9);  // suspended app: clamped
-
-  clock.setTimeScale(0.5);
-  EXPECT_NEAR(clock.tick(5.1), 0.05, 1e-9);  // half speed
+  EXPECT_NEAR(clock.tick(5.0), 0.25, 1e-9);
 }
 
-TEST(FrameClockTest, ABackwardReadingReportsNoTimeRatherThanRewinding) {
+TEST(FrameClock, TheTimeScaleMultipliesEveryDeltaAfterItIsSet) {
+  FrameClock clock;
+  clock.tick(0.0);
+  EXPECT_NEAR(clock.tick(0.1), 0.1, 1e-9);
+  clock.setTimeScale(0.5);
+  EXPECT_NEAR(clock.tick(0.2), 0.05, 1e-9);
+}
+
+TEST(FrameClock, ABackwardReadingReportsNoTimeRatherThanRewinding) {
   // Time in this library only goes forward, so a reading behind the last
   // one is a zero-length frame — never a negative delta an animation
   // would step backwards on. The clock still adopts the new reading, so
@@ -48,7 +57,7 @@ TEST(FrameClockTest, ABackwardReadingReportsNoTimeRatherThanRewinding) {
   EXPECT_NEAR(clock.tick(10.15), 0.1, 1e-9);
 }
 
-TEST(FrameClockTest, PauseFreezesElapsed) {
+TEST(FrameClock, APausedTickAddsNoElapsedTimeAndBanksNone) {
   FrameClock clock;
   clock.tick(0.0);
   clock.tick(0.1);
@@ -62,7 +71,7 @@ TEST(FrameClockTest, PauseFreezesElapsed) {
   EXPECT_NEAR(clock.tick(0.3), 0.1, 1e-9);
 }
 
-TEST(TickerTest, DrivesMotionToCompletionAndSettles) {
+TEST(Ticker, DrivesAMotionToCompletionAndThenSettles) {
   Ticker ticker;
   ch::Output<float> value = 0.0f;
   ticker.timeline().apply(&value).then<ch::RampTo>(10.0f, 1.0f);
@@ -77,7 +86,7 @@ TEST(TickerTest, DrivesMotionToCompletionAndSettles) {
   EXPECT_FALSE(ticker.active());  // finished motions self-remove
 }
 
-TEST(TickerTest, SteppablesReportAndRetire) {
+TEST(Ticker, ASteppableRunsUntilItReportsItIsDoneAndIsThenDropped) {
   Ticker ticker;
   double accumulated = 0.0;
   ticker.add([&accumulated](double dt) {
@@ -96,7 +105,7 @@ TEST(TickerTest, SteppablesReportAndRetire) {
 // bound chain, and the two-phase step that makes it current rather than
 // one frame late.
 
-TEST(TickerTest, ADerivationNeverReadsAStaleSource) {
+TEST(Ticker, ADerivationNeverReadsAStaleSource) {
   // THE STEPPING ORDER. The derivation is registered FIRST and its
   // source's writer SECOND — the arrangement that would read one frame
   // stale under any single-phase step honouring registration order. The
@@ -121,7 +130,7 @@ TEST(TickerTest, ADerivationNeverReadsAStaleSource) {
   EXPECT_FLOAT_EQ(dst.value(), 0.5f);
 }
 
-TEST(TickerTest, ATimelineDrivenSourceIsSteppedBeforeItsDerivation) {
+TEST(Ticker, ATimelineDrivenSourceIsSteppedBeforeItsDerivation) {
   // The timeline steps in phase one too, so a cell derived from a ramped
   // Output reads this frame's ramp rather than last frame's.
   Ticker ticker;
@@ -133,7 +142,7 @@ TEST(TickerTest, ATimelineDrivenSourceIsSteppedBeforeItsDerivation) {
   EXPECT_FLOAT_EQ(shadow.value(), ramped.value() * 2.0f);
 }
 
-TEST(TickerTest, ADerivedCellIsCorrectBeforeTheFirstTick) {
+TEST(Ticker, ADerivedCellIsCorrectBeforeTheFirstTick) {
   // The chain is applied once at registration, so a host that draws
   // before it ticks draws the right number.
   Ticker ticker;
@@ -142,7 +151,7 @@ TEST(TickerTest, ADerivedCellIsCorrectBeforeTheFirstTick) {
   EXPECT_FLOAT_EQ(doubled.value(), 6.0f);
 }
 
-TEST(TickerTest, DeriveEnforcesTheOneLevelRuleLoudly) {
+TEST(Ticker, DeriveEnforcesTheOneLevelRuleLoudly) {
   Ticker ticker;
   ch::Output<float> a{1.0f}, b{0.0f}, c{0.0f}, x{0.0f};
   ASSERT_TRUE(ticker.derive(&b, bind(&a).scale(2.0f)));
@@ -169,7 +178,7 @@ TEST(TickerTest, DeriveEnforcesTheOneLevelRuleLoudly) {
   EXPECT_FLOAT_EQ(x.value(), 0.0f);
 }
 
-TEST(TickerTest, DerivedOutputsComposeAndDoNotHoldTheTickerAwake) {
+TEST(Ticker, DerivedOutputsComposeAndDoNotHoldTheTickerAwake) {
   // A derived Output is an ORDINARY Output: the whole point. bind() it,
   // wiggle() off it, hand it to any Output*-typed consumer.
   Ticker ticker;
@@ -200,11 +209,15 @@ TEST(TickerTest, DerivedOutputsComposeAndDoNotHoldTheTickerAwake) {
   EXPECT_FLOAT_EQ(trail.value(), 0.25f);
 }
 
-TEST(Clock, AWiggleRigShakesOffASecondsOutputTheTickerRuns) {
+TEST(Ticker, AWiggleRigMovesOnlyWhenTheTickerAdvancesTheOutputItReads) {
   // A camera shake driven by the clock rather than by a phase the caller
   // steps: the seconds Output rides the ticker, and the rig reads it. The
   // rig sits at REST — `wiggle(&out, …)` is `bind(&out).scale(0)
-  // .wiggle(…)` named — so what moves the property is only the noise.
+  // .wiggle(…)` named — so what moves the property is only the noise, and
+  // the only thing that moves the noise is the ticker advancing seconds.
+  // What the shake is BOUNDED by is the binding's own claim and is asked
+  // of it directly in the bind tests; what is asked here is that the
+  // clock is what drives it.
   Ticker ticker;
   ch::Output<float> seconds = 0.0f;
   ticker.timeline().apply(&seconds).then<ch::RampTo>(2.0f, 2.0f);  // 1:1
@@ -213,16 +226,22 @@ TEST(Clock, AWiggleRigShakesOffASecondsOutputTheTickerRuns) {
   const BoundFloat shakeY = wiggle(&seconds, 12.f, 7.f, 2).value();
   EXPECT_EQ(shakeX.source, &seconds);
 
-  float maxX = 0, maxY = 0;
+  const float atRest = shakeX.apply(seconds.value());
+  EXPECT_FLOAT_EQ(shakeX.apply(seconds.value()), atRest)
+      << "the rig read time for itself rather than the Output it names";
+
+  std::vector<float> xs, ys;
   for (int frame = 0; frame < 120; ++frame) {
     ticker.tick(1.0 / 60.0);
-    const float x = shakeX.apply(seconds.value());
-    const float y = shakeY.apply(seconds.value());
-    EXPECT_LE(std::fabs(x), 12.0f + 1e-3f);
-    EXPECT_LE(std::fabs(y), 12.0f + 1e-3f);
-    maxX = std::max(maxX, std::fabs(x));
-    maxY = std::max(maxY, std::fabs(y));
+    xs.push_back(shakeX.apply(seconds.value()));
+    ys.push_back(shakeY.apply(seconds.value()));
   }
-  EXPECT_GT(maxX, 6.0f) << "the rig never moved";
-  EXPECT_GT(maxY, 6.0f);
+  EXPECT_NE(std::count(xs.begin(), xs.end(), atRest), (long)xs.size())
+      << "the rig never moved as the ticker ran";
+  EXPECT_NE(xs, ys) << "two seeds on one clock moved together";
+
+  // A tick of no length advances nothing, so the rig holds where it was.
+  const float held = xs.back();
+  ticker.tick(0.0);
+  EXPECT_FLOAT_EQ(shakeX.apply(seconds.value()), held);
 }

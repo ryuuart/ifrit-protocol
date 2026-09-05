@@ -176,6 +176,18 @@ where the corners are and what shape the shoulders take are separate
 decisions. `square` has no shoulders to round, and its phase 0 is ON —
 a caret born at the start of its cycle is born visible.
 
+The field behind `wiggle` is a **testable seam**: `bind/WiggleNoise.h`
+names its three pieces — one lattice cell, one quintic-smoothed octave,
+and the normalised fractal sum — in `sigil::motion::detail`, and states a
+range for each. They sit in `detail` because they are this library's own
+field and must never be swapped for a GPU hash bit-matched to a compute
+kernel: doing that would tie every wiggle already written to a shader
+ABI, and a future parity fix there would move all of them. But the ranges
+are promises rather than incidental facts about the body — `wiggle`'s
+`amount` is a peak displacement in the property's own units only because
+the sum is normalised — so a test may name the three pieces and hold each
+to its own range, which is the one thing outside this library that may.
+
 ## The spring: the one value that carries its own velocity
 
 Every other value here is a function of a progress or a clock reading.
@@ -430,33 +442,70 @@ python3 scripts/setup.py --config Release
 cmake --build build --config Release \
   --target motion_clock_test motion_values_test motion_bind_test \
            motion_schedule_test
-ctest --test-dir build -C Release -R motion_ --output-on-failure
+ctest --test-dir build -C Release -R '^motion_' --output-on-failure
 ```
 
-Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`,
-`SigilMotionSchedule` (the libraries, one per feature directory —
-`bind/`, `values/`, `clock/`, `schedule/` — each holding its sources, its
-`test/` and its `bench/`), `SigilMotion` (the umbrella), and one test per
-library: `motion_bind_test`, `motion_values_test`, `motion_clock_test`
-and `motion_schedule_test`, plus four
-Google Benchmark binaries built by the `benches` target and run from a
-Release build through `scripts/bench_ledger.py`: `motion_bind_bench`
-(`BoundFloat::apply` per call under each envelope and the full chain, and
-the wiggle field by octave), `motion_values_bench` (the consumer's read
-of an `Animatable` lane per slot for each kind it can hold, and copying
-and constructing such a lane), `motion_clock_bench` (the frame clock's
-own step, the timeline stepped with N motions on it, and the derivation
-pass at N derived cells) and `motion_schedule_bench` (resolving a cascade
-for a frame's counts, and the per-unit local-time read). No GPU, no
-assets, no runtime requirements.
+Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock` and
+`SigilMotionSchedule` — the libraries, one per feature directory
+(`bind/`, `values/`, `clock/`, `schedule/`), each holding its sources, its
+`test/` and its `bench/` — plus `SigilMotion`, the umbrella.
+
+Four test binaries, one per feature. Each links a **strictly smaller** set
+of targets than its neighbours and that boundary is a promise somebody can
+read, which is why none of them merges into another:
+
+| binary | what it proves | what it must not be able to link |
+|---|---|---|
+| `motion_bind_test` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, and the wiggle field | anything above the leaf — the record that carries a curve is the lowest thing here |
+| `motion_clock_test` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations | a renderer |
+| `motion_values_test` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
+| `motion_schedule_test` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
+
+No binary needs a GPU, a font, an asset or a network, so none of them
+carries a ctest label and none of them skips. No test in any of them reads
+a wall clock either: every frame length, every phase and every progress is
+a number the case hands in, so a slow machine changes nothing about what
+they assert.
+
+A case asserts one thing a public header promises and is named that
+promise as a sentence, so a failure line reads as the claim that broke. It
+pins only what editing this library could falsify — the numbers a stage
+computes, the order the stages take, the discriminant of a slot, the
+fields a comparator reads — never elapsed time, which is the bench
+ledger's. A claim made N times with one thing varying is one `TEST_P`
+whose parameter is that thing and whose rows are named: the chain's stages
+against the arithmetic they stand in for, the pairs of stages written
+either way round, the envelopes that stay inside [0,1] and the ones that
+repeat every period, the four forms an `Animatable<float>` holds, and the
+orderings a cascade deals its ranks in.
+
+One file per subject, named for what it asserts: `bind/test/BindTest.cpp`;
+`clock/test/ClockTest.cpp`; `schedule/test/ScheduleTest.cpp`; and, in
+`values/test/`, `ValuesTest` (the values themselves), `AnimatedTest` (the
+held motion), `LanesTest` (the lane list) and `SpringTest` (the one value
+that carries its own velocity).
 
 Fixtures more than one test binary needs live in `test/support/` at the
-library root, and a test target adds that directory and includes
-`"support/<Name>.h"`. One header sits there: `StandsAlone.h`, which fails
-the build if a drawing library's headers become reachable from a motion
-test. That is the positive control under every "SigilMotion alone" claim
-— without it those tests would pass for the wrong reason on a machine
-where a compositing header happened to be on the include path — and it is
-how the dependency boundary above stays honest. Otherwise each test links
-only the library it exercises, plus the clock where a value is driven by
-the ticker, and GoogleTest.
+library root, and every motion test includes `"support/<Name>.h"`. Two
+headers sit there. `StandsAlone.h` fails the build if a drawing library's
+headers become reachable from a motion test — the positive control under
+every "SigilMotion alone" claim, without which those tests would pass for
+the wrong reason on a machine where a compositing header happened to be on
+the include path; every motion test opens with it. `Ramps.h` is the
+transitioned value a test that drives a motion starts from: a linear ramp
+to a target over a stated number of milliseconds, linear so the
+assertions can read the value halfway through and name the number without
+evaluating a curve. Otherwise each test links only the library it
+exercises, plus the clock where a value is driven by the ticker, and
+GoogleTest.
+
+Four Google Benchmark binaries are built by the `benches` target and run
+from a Release build through `scripts/bench_ledger.py`, which is where any
+number about this library belongs: `motion_bind_bench` (`BoundFloat::apply`
+per call under each envelope and the full chain, and the wiggle field by
+octave), `motion_values_bench` (the consumer's read of an `Animatable`
+lane per slot for each kind it can hold, and copying and constructing such
+a lane), `motion_clock_bench` (the frame clock's own step, the timeline
+stepped with N motions on it, and the derivation pass at N derived cells)
+and `motion_schedule_bench` (resolving a cascade for a frame's counts, and
+the per-unit local-time read).
