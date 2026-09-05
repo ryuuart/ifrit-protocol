@@ -79,6 +79,15 @@ struct PathFormat {
    *  OFFSET CURVE rather than this stroke on the node's outline. */
   SkPaint::Cap cap = SkPaint::kButt_Cap;
   SkPaint::Join join = SkPaint::kMiter_Join;
+  /** Off puts the stroke on whole pixels — the 1 px rule of an interface
+   *  that was screen-shot rather than drawn, where a smoothed edge reads
+   *  as a blur rather than as a line. `styles::BevelPair`, `Brackets` and
+   *  `TickRail` each carry the same switch for the same reason; this is
+   *  the general stroke's, so a rule beside a bracket can be as hard as
+   *  the bracket is. It costs the smoothing on EVERY mark this format
+   *  makes, dashes and stamps included: an axis-aligned rule wants it
+   *  off, a diagonal or a curve almost never does. */
+  bool antiAlias = true;
   float dashPhase = 0.0f;
   /** Bind the dash phase to a wrapping Output and the dashes MARCH — a
    *  selected route, a live link, a cut line. Like `trimPhase`, it

@@ -499,3 +499,47 @@ TEST(ComposeBrushes, FilamentGlowsAroundItsCore) {
   const SkColor far = host.pixel(100, 140);  // well outside
   EXPECT_LT(SkColorGetB(far), 12u);
 }
+
+TEST(ComposeDecorations, AStrokeCanRefuseTheSmoothingThatBlursAHardRule) {
+  // A stroke that is not axis-aligned is where the smoothing shows: it
+  // either feathers the edge over two pixels or it does not exist.
+  auto feathered = [](Host& host) {
+    int count = 0;
+    for (int y = 5; y < 95; ++y)
+      for (int x = 5; x < 95; ++x) {
+        const int r = (int)SkColorGetR(host.pixel(x, y));
+        if (r > 8 && r < 247) ++count;
+      }
+    return count;
+  };
+  auto ring = [](const PathFormat& format) {
+    return box().child(box()
+                           .absolute()
+                           .left(10)
+                           .top(10)
+                           .width(80)
+                           .height(80)
+                           .shape([](SkSize s) {
+                             return SkPath::Oval(
+                                 SkRect::MakeWH(s.fWidth, s.fHeight));
+                           })
+                           .foreground(format));
+  };
+
+  const PathFormat smooth = stroke(3, Fill::color({1, 1, 1, 1}));
+  EXPECT_TRUE(smooth.antiAlias);  // a curve wants it, so it is the default
+  Host on(100, 100);
+  on.composer.render(ring(smooth));
+  on.frame();
+  EXPECT_GT(feathered(on), 40);
+
+  PathFormat hard = smooth;
+  hard.antiAlias = false;
+  // The switch is part of the value, so a node carrying one does not
+  // prune onto a node carrying the other.
+  EXPECT_FALSE(hard == smooth);
+  Host off(100, 100);
+  off.composer.render(ring(hard));
+  off.frame();
+  EXPECT_EQ(feathered(off), 0);
+}

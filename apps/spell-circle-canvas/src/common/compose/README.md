@@ -588,7 +588,9 @@ child, where the anchor of a box is, what closes a run, which pool lanes
 a parameter speaks to.
 
 **Marks — `brush/`.** `brush/Decorations.h` has the concrete primitives
-that plug the `Decoration` seam — `PathFormat` (stroke formatting) and
+that plug the `Decoration` seam — `PathFormat` (stroke formatting, whose
+`antiAlias` is how a hard 1 px rule stands beside the equally hard
+`styles::BevelPair`, `Brackets` and `TickRail`) and
 `stroke`, its one-line spelling; `Shadow` / `shadow`, the soft drop
 shadow; `Slice` (lattice image mapping — its `density` is the source's pixels per
 layout unit in the fixed bands, so a frame generated oversized to stay

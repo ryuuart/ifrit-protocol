@@ -16,7 +16,7 @@ namespace sigil::compose {
 
 void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   SkPaint p;
-  p.setAntiAlias(true);
+  p.setAntiAlias(antiAlias);
   p.setStyle(SkPaint::kStroke_Style);
   // Inner/Outer: clip to the shape's side and stroke DOUBLE width — the
   // visible half lands entirely on the kept side (the standard trick).
