@@ -75,7 +75,6 @@ enable_testing()
 # generated-source groups — is still wanted.
 set(CMAKE_AUTOMOC OFF)
 set(CMAKE_AUTOUIC OFF)
-include(QtTarget)
 
 # Every benchmark binary hangs off this target, so one build command
 # produces the set scripts/bench_ledger.py runs. Benchmarks are not
