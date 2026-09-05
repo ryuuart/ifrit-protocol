@@ -74,6 +74,7 @@
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace camera = sigil::geometry::mesh::camera;
+namespace sections = sigil::geometry::sections;
 namespace curve = sigil::geometry::mesh::curve;
 namespace mesh = sigil::geometry::mesh;
 namespace render = sigil::geometry::mesh::render;

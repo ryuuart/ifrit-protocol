@@ -131,6 +131,7 @@
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace matkit = sigil::material::kit;
+namespace mat = sigil::material;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
 namespace skia = sigil::material::skia;
@@ -580,7 +581,7 @@ class GraniteBank {
   }
 
  private:
-  material::Bank m_bank{40};
+  mat::Bank m_bank{40};
 };
 
 // ---------------------------------------------------------------------------

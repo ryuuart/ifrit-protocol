@@ -106,6 +106,7 @@
 
 namespace sketch = sigil::sketch;
 namespace matkit = sigil::material::kit;
+namespace mat = sigil::material;
 namespace shapes = sigil::geometry::shapes;
 namespace skia = sigil::material::skia;
 namespace weave = sigil::weave;
@@ -211,7 +212,7 @@ inline float easeOutBack(float p) {
 //  * `along` turns the piece to run down local y, so one recipe boards the
 //    lattice's rails and its posts.
 //
-// A `material::Bank` of 24 buckets holds them: the seed folds to 24 values, so a
+// A `mat::Bank` of 24 buckets holds them: the seed folds to 24 values, so a
 // panel of hundreds of boards costs a bounded number of materials rather than
 // one per board, and because the instance is held rather than re-minted the
 // identity is stable and a re-describe prunes.
@@ -254,7 +255,7 @@ class TimberBank {
   }
 
  private:
-  material::Bank m_bank{24};
+  mat::Bank m_bank{24};
 };
 
 // ---------------------------------------------------------------------------

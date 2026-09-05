@@ -64,6 +64,7 @@ namespace material = sigil::material;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
 namespace gm = sigil::geometry::mesh;
+namespace sections = sigil::geometry::sections;
 
 namespace {
 

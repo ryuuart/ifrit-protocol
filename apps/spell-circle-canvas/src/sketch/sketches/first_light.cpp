@@ -30,6 +30,7 @@ namespace world = sigil::world;
 namespace material = sigil::material;
 namespace motion = sigil::motion;
 namespace gm = sigil::geometry::mesh;
+namespace sections = sigil::geometry::sections;
 
 namespace {
 

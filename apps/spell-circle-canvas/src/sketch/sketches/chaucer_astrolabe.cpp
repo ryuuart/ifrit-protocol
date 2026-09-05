@@ -859,7 +859,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
   // into kLevels buckets, so the whole instrument costs at most that many
   // materials however many faces are cut into it.
   static constexpr int kLevels = 48;
-  material::Bank latten{kLevels};
+  mat::Bank latten{kLevels};
 
   /** The ladder and the light, with the level left at the bottom: the bank
    *  keys on these bytes, so the run, the tones and the grain are the

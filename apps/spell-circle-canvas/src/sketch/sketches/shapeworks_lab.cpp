@@ -69,6 +69,7 @@ namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
 namespace geometry = sigil::geometry;
+namespace sections = sigil::geometry::sections;
 namespace material = sigil::material;
 namespace mesh = sigil::geometry::mesh;
 namespace curve = sigil::geometry::mesh::curve;
