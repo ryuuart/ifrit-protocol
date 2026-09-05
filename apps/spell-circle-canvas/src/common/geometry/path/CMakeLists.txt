@@ -1,6 +1,7 @@
-# The path leaf: polylines, contours addressed by arc length, noise, the
-# numeric routines under them, where a run of n items falls on a ring or
-# in a grid, the path operators, the two comparable seams a mark is
+# The path leaf: polylines, contours addressed by arc length, the walk
+# that spaces marks along one and the scanline lattice that fills it,
+# noise, the numeric routines under them, where a run of n items falls on
+# a ring or in a grid, the path operators, the two comparable seams a mark is
 # deviated and widened through (Shaper and Profile) with the band those
 # rails cut, where a set of paths cross, and the two coordinate systems a
 # figure is measured in (the polar Frame and the unit-map Grid). Skia, glm and the
@@ -12,10 +13,11 @@
 # the same bodies.
 find_package(glm CONFIG REQUIRED)
 sigil_library(SigilGeometryPath
-  SOURCES Band.cpp Contour.cpp Crossings.cpp Edges.cpp Noise.cpp Ops.cpp
-          Polyline.cpp Pose.cpp
-  HEADERS Arrange.h Band.h Contour.h Crossings.h Edges.h Frame.h Noise.h
-          Numeric.h Ops.h Polyline.h Pose.h Profile.h Shaper.h Skia.h
+  SOURCES Band.cpp Contour.cpp Crossings.cpp Edges.cpp Lattice.cpp Noise.cpp
+          Ops.cpp Polyline.cpp Pose.cpp
+  HEADERS Arrange.h Band.h Contour.h Crossings.h Edges.h Frame.h Lattice.h
+          Noise.h Numeric.h Ops.h Polyline.h Pose.h Profile.h Shaper.h Skia.h
+          Stride.h
   PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute Boost::unordered)
 
 sigil_test(geometry_path_test

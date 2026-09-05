@@ -1,7 +1,9 @@
 /** @file
  * Benchmarks of the path leaf: flattening and resampling by point count,
  * corner detection and the parallel and displaced constructions by
- * contour length, and the noise hashes per call.
+ * contour length, resampling by spacing (the walk that lays a mark every
+ * so many pixels, and the smooth curve through a chain of controls), the
+ * scanline lattice by the area it fills, and the noise hashes per call.
  */
 
 // geometry_path_bench — the path leaf under load: flattening and
@@ -15,9 +17,11 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Contour.h>
+#include <sigilgeometry/path/Lattice.h>
 #include <sigilgeometry/path/Noise.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Pose.h>
+#include <sigilgeometry/path/Stride.h>
 
 #include <cmath>
 #include <numbers>
@@ -110,6 +114,91 @@ void BM_Resample(benchmark::State& state) {
 BENCHMARK(BM_Resample)
     ->RangeMultiplier(4)
     ->Range(64, 16384)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+/** THE WALK A STROKE IS LAID DOWN BY: a centreline resampled so no step
+ *  is longer than the spacing, which is one mark per step for anything
+ *  that stamps along a curve. Measured per source vertex. */
+void BM_Subdivide(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Sampled even = resample(flatten(rippledRing(64), 0.5f).front(), count);
+  Polyline line;
+  line.points = even.points;
+  line.closed = true;
+  line.lane.assign(line.points.size(), 0.5f);
+  for ([[maybe_unused]] auto iteration : state) {
+    Polyline cut = subdivide(line, 2.0f);
+    benchmark::DoNotOptimize(cut.points.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Subdivide)
+    ->RangeMultiplier(4)
+    ->Range(64, 4096)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+/** The smooth centreline a chain of placed controls is read as. */
+void BM_CatmullRom(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  Polyline controls;
+  controls.points.reserve((size_t)count);
+  for (int i = 0; i < count; ++i) {
+    const float t = (float)i;
+    controls.points.push_back({t * 7.0f, 60.0f * std::sin(t * 0.4f)});
+  }
+  controls.lane.assign(controls.points.size(), 0.75f);
+  for ([[maybe_unused]] auto iteration : state) {
+    Polyline curve = catmullRom(controls, 1.0f, 0.5f);
+    benchmark::DoNotOptimize(curve.points.data());
+  }
+  state.counters["controls/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_CatmullRom)
+    ->RangeMultiplier(4)
+    ->Range(16, 1024)
+    ->Unit(benchmark::kMicrosecond)
+    ->Complexity(benchmark::oN);
+
+/** The walk fed one piece at a time, which is what a device reporting
+ *  input costs per event. */
+void BM_Stride(benchmark::State& state) {
+  for ([[maybe_unused]] auto iteration : state) {
+    Stride stride;
+    float last = 0;
+    for (int piece = 0; piece < 128; ++piece)
+      stride.advance(4.0f, 0.8f,
+                     [&](Stride::Step step) { last = step.distance; });
+    benchmark::DoNotOptimize(last);
+  }
+  state.counters["pieces/s"] =
+      benchmark::Counter(128, benchmark::Counter::kIsIterationInvariantRate);
+}
+BENCHMARK(BM_Stride);
+
+/** The scanline fill, measured by the number of lines it lays: the
+ *  crossing pass is every edge once per line. */
+void BM_Lattice(benchmark::State& state) {
+  const int lines = (int)state.range(0);
+  const std::vector<Polyline> rings = {flatten(rippledRing(64), 0.5f).front()};
+  const float height = rings.front().bounds().height();
+  const LatticeOptions options{.spacing = height / (float)lines, .angle = 0.4f};
+  for ([[maybe_unused]] auto iteration : state) {
+    std::vector<LatticeMark> marks = lattice(rings, options);
+    benchmark::DoNotOptimize(marks.data());
+  }
+  state.counters["lines/s"] =
+      benchmark::Counter(lines, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(lines);
+}
+BENCHMARK(BM_Lattice)
+    ->RangeMultiplier(4)
+    ->Range(16, 1024)
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
 

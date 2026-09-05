@@ -25,6 +25,7 @@
 #include "sigilgeometry/path/Crossings.h"
 #include "sigilgeometry/path/Edges.h"
 #include "sigilgeometry/path/Frame.h"
+#include "sigilgeometry/path/Lattice.h"
 #include "sigilgeometry/path/Noise.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Ops.h"
@@ -32,6 +33,7 @@
 #include "sigilgeometry/path/Pose.h"
 #include "sigilgeometry/path/Profile.h"
 #include "sigilgeometry/path/Shaper.h"
+#include "sigilgeometry/path/Stride.h"
 #include "sigilgeometry/path/Skia.h"
 
 using namespace sigil::geometry::path;
@@ -425,6 +427,208 @@ TEST(Polyline, SmoothThroughClosedComesRoundFromTheSeamsMidpoint) {
   // strictly inside the diamond at every vertex.
   EXPECT_LT(loop.computeTightBounds().right(), 10.0f);
   EXPECT_GT(loop.computeTightBounds().top(), -10.0f);
+}
+
+TEST(Polyline, SubdivideCapsTheStepKeepsTheVerticesAndCarriesTheLane) {
+  Polyline line;
+  line.points = {{0, 0}, {10, 0}, {10, 3}};
+  line.lane = {0.0f, 1.0f, 0.5f};
+  const Polyline cut = subdivide(line, 2.0f);
+  // Five steps across the first edge, two across the second, and every
+  // source vertex still on the result.
+  ASSERT_EQ(cut.points.size(), 8u);
+  ASSERT_EQ(cut.lane.size(), cut.points.size());
+  EXPECT_EQ(cut.points.front(), glm::vec2(0, 0));
+  EXPECT_EQ(cut.points[5], glm::vec2(10, 0));
+  EXPECT_EQ(cut.points.back(), glm::vec2(10, 3));
+  for (size_t i = 1; i < cut.points.size(); ++i)
+    EXPECT_LE(distance(cut.points[i - 1], cut.points[i]), 2.0f + 1e-4f);
+  // The lane arrives at each vertex's own value and runs between them.
+  EXPECT_FLOAT_EQ(cut.lane.front(), 0.0f);
+  EXPECT_FLOAT_EQ(cut.lane[5], 1.0f);
+  EXPECT_FLOAT_EQ(cut.lane.back(), 0.5f);
+  EXPECT_FLOAT_EQ(cut.lane[1], 0.2f);
+
+  // A repeated vertex is not a step.
+  Polyline doubled;
+  doubled.points = {{0, 0}, {0, 0}};
+  EXPECT_EQ(subdivide(doubled, 1.0f).points.size(), 1u);
+}
+
+TEST(Polyline, SubdivideClosedComesHomeWithoutRepeatingTheSeam) {
+  Polyline square;
+  square.points = {{0, 0}, {8, 0}, {8, 8}, {0, 8}};
+  square.closed = true;
+  const Polyline cut = subdivide(square, 4.0f);
+  EXPECT_TRUE(cut.closed);
+  EXPECT_EQ(cut.points.size(), 8u);
+  EXPECT_EQ(cut.points.front(), glm::vec2(0, 0));
+  EXPECT_NE(cut.points.back(), cut.points.front());
+}
+
+TEST(Polyline, CatmullRomPassesThroughTheControlsAndZeroCurvatureIsTheChords) {
+  Polyline controls;
+  controls.points = {{0, 0}, {10, 10}, {20, 0}};
+  controls.lane = {0.4f, 1.0f, 0.6f};
+
+  const Polyline curve = catmullRom(controls, 2.0f, 1.0f);
+  ASSERT_GT(curve.points.size(), controls.points.size());
+  EXPECT_EQ(curve.points.front(), controls.points.front());
+  EXPECT_EQ(curve.points.back(), controls.points.back());
+  ASSERT_EQ(curve.lane.size(), curve.points.size());
+  EXPECT_FLOAT_EQ(curve.lane.front(), 0.4f);
+  EXPECT_FLOAT_EQ(curve.lane.back(), 0.6f);
+
+  // No curvature is the chords themselves: every sample sits on the two
+  // straight legs.
+  const Polyline chords = catmullRom(controls, 5.0f, 0.0f);
+  for (const glm::vec2 p : chords.points)
+    EXPECT_NEAR(p.y, 10.0f - std::abs(p.x - 10.0f), 1e-4f);
+
+  // One control is itself, and none is nothing.
+  Polyline single;
+  single.points = {{3, 4}};
+  EXPECT_EQ(catmullRom(single, 1.0f).points.size(), 1u);
+  EXPECT_TRUE(catmullRom(Polyline{}, 1.0f).points.empty());
+}
+
+TEST(Polyline, ContainsIsTheEvenOddRayTestAndBoundsSpanEveryPoint) {
+  Polyline ring;
+  ring.points = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
+  EXPECT_TRUE(ring.contains({5, 5}));
+  EXPECT_FALSE(ring.contains({15, 5}));
+  EXPECT_FALSE(ring.contains({5, -1}));
+  EXPECT_EQ(ring.bounds(), SkRect::MakeLTRB(0, 0, 10, 10));
+
+  // Fewer than three points bound nothing.
+  Polyline thin;
+  thin.points = {{0, 0}, {10, 0}};
+  EXPECT_FALSE(thin.contains({5, 0}));
+
+  Polyline hole;
+  hole.points = {{3, 3}, {7, 3}, {7, 7}, {3, 7}};
+  const std::vector<Polyline> rings = {ring, hole};
+  EXPECT_TRUE(containsEvenOdd(rings, {1, 1}));
+  EXPECT_FALSE(containsEvenOdd(rings, {5, 5}));
+  EXPECT_EQ(bounds(rings), SkRect::MakeLTRB(0, 0, 10, 10));
+  EXPECT_TRUE(bounds(std::span<const Polyline>{}).isEmpty());
+}
+
+TEST(Polyline, EdgeCrossingsComeNearestTheStartFirst) {
+  Polyline ring;
+  ring.points = {{0, 0}, {10, 0}, {10, 10}, {0, 10}};
+  ring.closed = true;
+  const std::vector<glm::vec2> hits = edgeCrossings(ring, {-5, 5}, {15, 5});
+  ASSERT_EQ(hits.size(), 2u);
+  EXPECT_NEAR(hits[0].x, 0.0f, 1e-4f);
+  EXPECT_NEAR(hits[1].x, 10.0f, 1e-4f);
+  // A segment that stops short of the ring crosses nothing.
+  EXPECT_TRUE(edgeCrossings(ring, {-5, 5}, {-1, 5}).empty());
+  // An open polyline has no seam edge, so the side that edge would have
+  // closed is not there to be crossed.
+  Polyline open = ring;
+  open.closed = false;
+  const std::vector<glm::vec2> half = edgeCrossings(open, {-5, 5}, {15, 5});
+  ASSERT_EQ(half.size(), 1u);
+  EXPECT_NEAR(half[0].x, 10.0f, 1e-4f);
+}
+
+// ---------------------------------------------------------------------------
+// Stride
+
+TEST(Stride, LandsOneSpacingApartHoweverThePiecesArrive) {
+  // The same total length walked in one piece and in four lands in the
+  // same places: that is the whole of what the carried debt buys.
+  std::vector<float> whole;
+  Stride one;
+  one.advance(40.0f, 3.0f,
+              [&](Stride::Step step) { whole.push_back(step.distance); });
+
+  std::vector<float> pieces;
+  Stride many;
+  for (int i = 0; i < 4; ++i)
+    many.advance(10.0f, 3.0f,
+                 [&](Stride::Step step) { pieces.push_back(step.distance); });
+
+  ASSERT_EQ(whole.size(), pieces.size());
+  for (size_t i = 0; i < whole.size(); ++i)
+    EXPECT_NEAR(whole[i], pieces[i], 1e-3f);
+  EXPECT_FLOAT_EQ(whole.front(), 3.0f);
+  EXPECT_FLOAT_EQ(one.travelled(), 40.0f);
+  EXPECT_FLOAT_EQ(many.travelled(), 40.0f);
+
+  // The fraction addresses the piece just handed over, not the walk.
+  std::vector<float> fractions;
+  Stride third;
+  third.advance(10.0f, 4.0f,
+                [&](Stride::Step step) { fractions.push_back(step.fraction); });
+  ASSERT_EQ(fractions.size(), 2u);
+  EXPECT_FLOAT_EQ(fractions[0], 0.4f);
+  EXPECT_FLOAT_EQ(fractions[1], 0.8f);
+
+  // A piece of no length moves nothing; a restart owes nothing.
+  Stride idle;
+  int landings = 0;
+  idle.advance(0.0f, 1.0f, [&](Stride::Step) { ++landings; });
+  EXPECT_EQ(landings, 0);
+  one.restart();
+  EXPECT_FLOAT_EQ(one.travelled(), 0.0f);
+  EXPECT_FLOAT_EQ(one.pending(), 0.0f);
+}
+
+// ---------------------------------------------------------------------------
+// Lattice
+
+TEST(Lattice, MarksLieInsideTheEvenOddInteriorAndSkipTheHole) {
+  Polyline outer;
+  outer.points = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
+  Polyline hole;
+  hole.points = {{40, 40}, {60, 40}, {60, 60}, {40, 60}};
+  const std::vector<Polyline> rings = {outer, hole};
+
+  const std::vector<LatticeMark> marks =
+      lattice(rings, {.spacing = 10.0f, .angle = 0.0f});
+  ASSERT_FALSE(marks.empty());
+  for (const LatticeMark& mark : marks) {
+    // A horizontal lattice: both ends on one scanline, and the middle of
+    // every mark inside the interior it was cut to.
+    EXPECT_NEAR(mark.from.y, mark.to.y, 1e-3f);
+    EXPECT_TRUE(containsEvenOdd(rings, (mark.from + mark.to) * 0.5f));
+  }
+  // The lines that meet the hole are cut in two, so the middle of the
+  // square carries more marks than it has scanlines.
+  int throughTheHole = 0;
+  for (const LatticeMark& mark : marks)
+    if (mark.from.y > 40.0f && mark.from.y < 60.0f) ++throughTheHole;
+  EXPECT_EQ(throughTheHole, 4);
+}
+
+TEST(Lattice, TheAngleTurnsTheLinesAndTheTaperOpensTheGaps) {
+  Polyline square;
+  square.points = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
+  const std::vector<Polyline> rings = {square};
+
+  const std::vector<LatticeMark> upright =
+      lattice(rings, {.spacing = 10.0f, .angle = kPi / 2});
+  ASSERT_FALSE(upright.empty());
+  for (const LatticeMark& mark : upright)
+    EXPECT_NEAR(mark.from.x, mark.to.x, 1e-3f);
+
+  const std::vector<LatticeMark> even =
+      lattice(rings, {.spacing = 10.0f, .angle = 0.0f});
+  const std::vector<LatticeMark> opening =
+      lattice(rings, {.spacing = 10.0f, .angle = 0.0f, .taper = 1.4f});
+  EXPECT_LT(opening.size(), even.size());
+
+  // The cap is a bound and not a preference.
+  EXPECT_LE((int)lattice(rings, {.spacing = 0.01f, .angle = 0.0f,
+                                 .taper = 1.0f, .maxLines = 12})
+                .size(),
+            12);
+  // No rings with an area, no marks.
+  Polyline thin;
+  thin.points = {{0, 0}, {10, 0}};
+  EXPECT_TRUE(lattice(std::vector<Polyline>{thin}, {.spacing = 1.0f}).empty());
 }
 
 // ---------------------------------------------------------------------------

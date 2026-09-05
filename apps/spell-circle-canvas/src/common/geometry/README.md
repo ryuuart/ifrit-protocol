@@ -141,6 +141,24 @@ length). Everything above stands on those two. Blending interpolates
 Extrusion walls sweep flattened contours. Swept geometry rides arc-length
 samples of a spline.
 
+**A resampling is keyed to a COUNT or to a SPACING, and which is held
+fixed is the whole difference.** `resample` fixes the count and moves
+every point; `subdivide` fixes the longest step and keeps every source
+vertex; `catmullRom` does the same through a smooth curve rather than
+along the chords. Anything that lays a mark every so many pixels — a
+brush stamping dabs, a plotter drawing a fill, a dashed rule — asks for
+the spacing, and `Stride` is that same walk for a curve that does not
+exist yet: a stylus reports the next piece only when the hand moves, so
+the walk carries the distance it still owes across pieces and lands where
+one walk over the joined pieces would.
+
+**A polyline may CARRY something.** `Polyline::lane` is one scalar per
+vertex — pressure along a centreline, a width along a rail — and every
+resampling here interpolates it with the positions, so a caller reading a
+resampled curve never re-derives what the value there was. It is the same
+word a point cloud's attributes use, in the one class a 2D outline
+has room for.
+
 **A contour is addressed by distance.** Where a `Polyline` is the outline
 as vertices, a `Contour` is the outline as a length: position and unit
 tangent at a distance (`at()` clamps, `around()` wraps a closed contour
@@ -148,6 +166,15 @@ past its seam), the piece between two distances as its own path, and the
 corners along the way. Anything placed *along* an outline — text on a
 path, a marching dash, a stroke's ornaments — reads it this way, so there
 is one definition of "distance along" and one of "closed wraps around".
+
+**An AREA is a set of rings under the even-odd rule.** `Polyline::contains`
+is the ray test on one ring and `containsEvenOdd` the rule over a set of
+them — inside an odd number is inside — which is the rule a path filled
+with `SkPathFillType::kEvenOdd` is drawn by, so a point tested and a pixel
+painted agree. `path::lattice` fills such an interior with parallel lines
+cut to it, and what it answers with are CENTRELINES: a mark that can be
+walked, drawn along with a tool, split or joined to the next, which is
+what separates it from clipping a line pattern to an outline.
 
 **Noise is seeded and bit-exact.** Everything random in the library draws
 from `noise::` — a per-index hash, a PCG stream, and the trilinear value
@@ -296,11 +323,12 @@ the library root instead, in `test/support/`. Features nest by dependency — a 
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Fourteen headers that depend on
+**`path`** — `SigilGeometryPath`, the leaf. Sixteen headers that depend on
 nothing else in the library: Skia, glm, and SigilCoreCompute, whose
 seeded mixers the value-noise field is built on.
 
-- **`path/Polyline.h`** — the resampling core. `Polyline` and `flatten()`,
+- **`path/Polyline.h`** — the resampling core. `Polyline` (its points, its
+  closure and its `lane`, one scalar riding each vertex) and `flatten()`,
   `sample()` to walk a parametric curve evenly by arc length, `Sampled`
   and `resample()`, `bestAlignment()`/`applyAlignment()` for matching two
   closed contours, `toPath()` to rebuild (optionally through Catmull-Rom
@@ -308,7 +336,29 @@ seeded mixers the value-noise field is built on.
   quadratic per interior point, through the midpoint of every edge and
   never outside the hull of the points, so a coastline given a dozen
   points or a brush centreline given four reads as one stroke rather
-  than a chain of chords — and `lerp()`.
+  than a chain of chords — and `lerp()`. Beside them the two resamplings
+  keyed to a SPACING: `subdivide()`, every edge cut into equal steps no
+  longer than the spacing with every source vertex kept, and
+  `catmullRom()`, the same cut through the curve the controls lie on,
+  blended toward the chords by an amount so a hand-placed chain does not
+  bow further than the hand meant. Both carry the lane. And what a
+  polyline answers about the area it bounds: `bounds()` and `bounds()`
+  over a set, `contains()` (the even-odd ray test on one ring, which
+  joins the ends whether or not the polyline says it is closed) with
+  `containsEvenOdd()` over a set of them, and `edgeCrossings()`, where a
+  segment crosses the edges, nearest its start first.
+- **`path/Stride.h`** — the even-spacing walk for a curve that arrives one
+  piece at a time. `Stride::advance(length, spacing, land)` answers the
+  fractions of the piece the walk lands at and carries the distance still
+  owed across pieces, so a stroke sampled as a device reports it and the
+  same stroke sampled whole put their marks in the same places. It names
+  no point: the caller owns the geometry and interpolates whatever rides
+  on it.
+- **`path/Lattice.h`** — the scanline fill. `lattice()` lays parallel lines
+  at an `angle`, a `spacing` apart with an optional `taper` opening or
+  crowding each successive gap, and cuts them to the even-odd interior of
+  a set of rings; each `LatticeMark` is a centreline. A hatch, a plotter
+  fill and a mass of strokes are the same construction, so there is one.
 - **`path/Contour.h`** — a path's sub-paths by arc length. `Contour::of()`
   splits a path (skipping zero-length contours); `length()`, `closed()`,
   `at()`, `around()`, `segment()`/`appendSegment()`, and `corners()`, which

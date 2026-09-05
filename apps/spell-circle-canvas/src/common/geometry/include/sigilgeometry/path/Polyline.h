@@ -10,6 +10,7 @@
  * points.
  */
 #include <include/core/SkPath.h>
+#include <include/core/SkRect.h>
 
 #include <functional>
 #include <glm/vec2.hpp>
@@ -22,6 +23,14 @@ namespace sigil::geometry::path {
 struct Polyline {
   std::vector<glm::vec2> points;
   bool closed = false;
+  /** ONE SCALAR RIDING EACH VERTEX: pressure along a brush centreline, a
+   *  width along a rail, a weight along a coastline — the same word a
+   *  point cloud's attributes use, one value per point. Either empty
+   *  (the polyline carries nothing) or exactly as long as `points`.
+   *  Everything here that moves the points interpolates the lane with
+   *  them, so a caller reading a resampled curve never re-derives what
+   *  the value there was. */
+  std::vector<float> lane;
 
   float length() const;
   /** Length-weighted centroid of the edges. */
@@ -29,8 +38,34 @@ struct Polyline {
   /** Signed area (positive = clockwise in Skia's y-down space). Open
    *  polylines are treated as if closed. */
   float signedArea() const;
+  /** The rect every point fits in; no points at all is an empty rect. */
+  SkRect bounds() const;
+  /** Whether `point` is inside, by the even-odd ray rule. The polyline
+   *  is read as a RING — its last point joins its first whether or not
+   *  `closed` is set — because containment is a question about an area,
+   *  and an open chain bounds one exactly as a closed one does. Fewer
+   *  than three points bound nothing and contain nothing. */
+  bool contains(glm::vec2 point) const;
   void reverse();
 };
+
+/** The rect every point of every polyline fits in. */
+SkRect bounds(std::span<const Polyline> lines);
+
+/** Whether `point` is inside the EVEN-ODD union of the rings: inside an
+ *  odd number of them. The first ring an outer boundary and the rest
+ *  holes, or a set of islands — the rule is the same one, and it is the
+ *  rule a filled path with `SkPathFillType::kEvenOdd` is drawn by, so a
+ *  point tested here and a pixel painted there agree. */
+bool containsEvenOdd(std::span<const Polyline> rings, glm::vec2 point);
+
+/** Where the segment from `from` to `to` crosses the edges of `line`,
+ *  NEAREST `from` FIRST. A closed polyline's seam edge counts. An edge
+ *  the segment runs along contributes nothing: two parallel lines have
+ *  no one crossing, and answering either end of the overlap would be a
+ *  choice rather than a measurement. */
+std::vector<glm::vec2> edgeCrossings(const Polyline& line, glm::vec2 from,
+                                     glm::vec2 to);
 
 /** Every contour of `path` as a polyline, curves subdivided until they
  *  deviate from the chord by at most `tolerance` pixels. */
@@ -102,6 +137,38 @@ SkPath toPath(const Polyline& line);
 SkPath smoothThrough(std::span<const glm::vec2> points, bool closed = false);
 /** The same, over a polyline: its points, closed when it is. */
 SkPath smoothThrough(const Polyline& line);
+
+/** `line` SUBDIVIDED SO NO STEP IS LONGER THAN `spacing`: every edge cut
+ *  into equal steps, as few as will keep each one within the spacing.
+ *  Resampling by SPACING rather than by count, and the difference from
+ *  `resample` is which is held fixed — here every source vertex
+ *  survives and the steps of two edges need not be the same length,
+ *  there the count is exact and the vertices are not kept. A repeated
+ *  vertex is not a step: an edge of no length contributes nothing past
+ *  the point it starts at.
+ *
+ *  The lane, when the source carries one, is interpolated linearly
+ *  between the two vertices of each edge. A closed polyline is
+ *  subdivided round its seam edge as well. */
+Polyline subdivide(const Polyline& line, float spacing);
+
+/** THE CATMULL-ROM CURVE THROUGH `controls`, as points rather than as a
+ *  path: the uniform basis, so the curve passes through every control,
+ *  with each chord cut into equal steps no longer than `spacing`. The
+ *  ends duplicate their neighbour, which is what gives an open chain a
+ *  first and last tangent.
+ *
+ *  `curvature` blends each sample toward the chord it sits on: zero is
+ *  the chords themselves, one is the full curve, and the values between
+ *  are what keeps a hand-placed chain of controls from bowing further
+ *  than the hand meant. Outside [0, 1] it is clamped.
+ *
+ *  The lane rides along, interpolated between the two controls the step
+ *  lies between — the curve bends, the value does not. `toPath(sampled,
+ *  smooth)` is the same basis written as an `SkPath` for drawing;
+ *  this is the same basis as POINTS, for a caller that walks them. */
+Polyline catmullRom(const Polyline& controls, float spacing,
+                    float curvature = 1.0f);
 
 /** Point-for-point interpolation, pairing by index over whichever of the
  *  two is shorter. Closure comes from `a`; the source length interpolates
