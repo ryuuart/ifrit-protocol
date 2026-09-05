@@ -12,7 +12,7 @@ half4 main(float2 xy) {
       float w = 1.0 - abs(float(k)) / 4.0;
       float du = float(k) * brushed * 0.02;
       // Jitter breaks the 7-tap banding into grain — the brushed tell.
-      du += (hash21(xy + float(k)) - 0.5) * brushed * 0.012;
+      du += (hash(xy + float(k)) - 0.5) * brushed * 0.012;
       e3 += envAt(float2(fract(uv.x + du), uv.y)) * w;
       total += w;
     }

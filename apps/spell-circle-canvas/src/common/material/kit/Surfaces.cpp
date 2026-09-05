@@ -26,7 +26,8 @@ glm::vec2 sizeOf(const EnvironmentMap& env) {
 const std::shared_ptr<const Recipe>& goldRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<GoldParams>("gold").child("normals").child("env").body(
-          Target::SkSL, std::string(shaderSource("ReflectivePrelude.sksl"))
+          Target::SkSL, std::string(shaderSource("NoisePrelude.sksl"))
+                            .append(shaderSource("ReflectivePrelude.sksl"))
                             .append(shaderSource("ReflectiveGold.sksl"))));
   return recipe;
 }
@@ -34,7 +35,8 @@ const std::shared_ptr<const Recipe>& goldRecipe() {
 const std::shared_ptr<const Recipe>& chromeRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<ChromeParams>("chrome").child("normals").child("env").body(
-          Target::SkSL, std::string(shaderSource("ReflectivePrelude.sksl"))
+          Target::SkSL, std::string(shaderSource("NoisePrelude.sksl"))
+                            .append(shaderSource("ReflectivePrelude.sksl"))
                             .append(shaderSource("ReflectiveChrome.sksl"))));
   return recipe;
 }
@@ -46,7 +48,8 @@ const std::shared_ptr<const Recipe>& glassRecipe() {
           .child("env")
           .child("backdrop")
           .body(Target::SkSL,
-                std::string(shaderSource("ReflectivePrelude.sksl"))
+                std::string(shaderSource("NoisePrelude.sksl"))
+                    .append(shaderSource("ReflectivePrelude.sksl"))
                     .append(shaderSource("ReflectiveGlass.sksl"))));
   return recipe;
 }

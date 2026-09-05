@@ -22,7 +22,8 @@ std::shared_ptr<const Recipe> define(const char* name,
   return std::make_shared<const Recipe>(
       Recipe::of<P>(name)
           .body(Target::SkSL,
-                std::string(shaderSource("GrainedPrelude.sksl"))
+                std::string(shaderSource("NoisePrelude.sksl"))
+                    .append(shaderSource("GrainedPrelude.sksl"))
                     .append(shaderSource(std::string(shaderName) + ".sksl")))
           .body(Target::Slang,
                 std::string(shaderSource("GrainedPrelude.slang"))

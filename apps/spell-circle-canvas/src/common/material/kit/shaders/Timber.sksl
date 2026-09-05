@@ -16,7 +16,7 @@ half4 main(float2 p) {
   c = mix(c, dark.rgb, fig * figure);
   c = mix(c, light.rgb, drift * 0.07);
   float k = max(stretch, 0.01);
-  float t = fbm3((xy + s * 53.0) * float2(toothScale / k, toothScale * k));
+  float t = fbm((xy + s * 53.0) * float2(toothScale / k, toothScale * k));
   c = grained(c, t, tooth);
   return half4(half3(clamp(c, 0.0, 1.0)), 1.0);
 }

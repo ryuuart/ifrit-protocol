@@ -20,7 +20,7 @@ half4 main(float2 xy) {
   float3 col = f0 * ambient + spec;
 
   // Glints: sparse hash cells, gated to lit wrinkles.
-  float cell = hash21(floor(xy * 0.7));
+  float cell = hash(floor(xy * 0.7));
   float lum = dot(e3, float3(0.299, 0.587, 0.114));
   float glint = step(0.992, cell) * sparkle * smoothstep(0.35, 1.2, lum);
   col += float3(glint);

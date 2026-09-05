@@ -6,7 +6,7 @@ half4 main(float2 p) {
   float bed = 1.0 - abs(2.0 * t - 1.0);
   float3 c = mix(hi.rgb, lo.rgb, bed * bedDepth);
   float k = max(stretch, 0.01);
-  float g = fbm3(q * float2(grainScale / k, grainScale * k));
+  float g = fbm(q * float2(grainScale / k, grainScale * k));
   c = grained(c, g, grainContrast);
   float2 f = fleck(q, max(speckleCell, 2.0), speckle, seed);
   float3 tone = f.y > 0.5 ? min(hi.rgb * 1.45, float3(1.0)) : lo.rgb * 0.55;
