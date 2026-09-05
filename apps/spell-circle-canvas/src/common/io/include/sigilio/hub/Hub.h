@@ -4,7 +4,7 @@
  * The resource hub: game-engine-style mounted URIs over pluggable
  * decode backends.
  *
- * A Hub maps URI prefixes to providers (today: filesystem directories;
+ * A Hub maps URI prefixes to providers (filesystem directories;
  * the scheme leaves room for pack files and in-memory providers), so
  * application code asks for "res://ui/logo.png" and never touches the
  * filesystem again. Resources are cached, hot-reloadable (poll()

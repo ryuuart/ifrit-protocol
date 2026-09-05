@@ -33,9 +33,7 @@ add_library(SigilMotion INTERFACE)
 target_link_libraries(SigilMotion INTERFACE
   SigilMotionClock SigilMotionValues SigilMotionBind SigilMotionSchedule)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilMotion
   BRIEF "Animation timing, animatable values and schedules, with no renderer in them"

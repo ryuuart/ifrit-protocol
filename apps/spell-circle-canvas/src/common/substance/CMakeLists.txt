@@ -1,6 +1,6 @@
 # SigilSubstance — .sbsar procedural materials rendered to SkImages
 # through the Adobe Substance 3D SDK's framework and CPU engine. Only
-# configured when the SDK was found (see the top-level CMakeLists.txt);
+# configured when the SDK was found;
 # nothing here is vendored from the SDK.
 #
 # One static target over two subjects: graph/ (a graph described,
@@ -66,9 +66,7 @@ target_compile_definitions(substance_bench PRIVATE
   SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 add_dependencies(benches substance_bench)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilSubstance
   BRIEF "Adobe Substance 3D archives rendered to channel-tagged texture sets"

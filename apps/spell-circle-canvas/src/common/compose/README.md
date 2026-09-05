@@ -407,8 +407,8 @@ and nothing else — the internal headers beside each feature's sources are
 not reachable from outside it. Each feature has an umbrella named after
 it (`core/Core.h`, `kit/Kit.h`, `brush/Brush.h`,
 `typography/Typography.h`) over its public headers, and
-`<sigilcompose/Compose.h>` at the root is the transitional umbrella over
-the kernel — exactly `core/Core.h`. Each header stands on its own; include
+`<sigilcompose/Compose.h>` at the root is the umbrella over the kernel —
+exactly `core/Core.h`. Each header stands on its own; include
 the one a translation unit needs, from the feature whose target the
 translation unit links.
 
@@ -1065,9 +1065,9 @@ Core, never the web leaf, and nothing here
 links it. From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
-ctest --test-dir build -C Debug --output-on-failure
+python3 scripts/setup.py --config Release
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 Registered tests, one binary per feature target so that each links only
@@ -1082,7 +1082,10 @@ vertical writing, motion along paths, the text-fx presets, rich spans),
 the kit's stroke presets), `compose_paint_test` (patterns, SDF materials,
 layer styles, colour management), `compose_kit_test` and
 `compose_studio_test` (the kit, and the queries, the studio and the
-instruments over it), `compose_spike_test` (the Yoga+SigilWeave
+instruments over it), `compose_texture_test` (textures as element
+content), `compose_draw_test` (a pen program hosted in a node),
+`compose_video_test` (video frames as element content),
+`compose_spike_test` (the Yoga+SigilWeave
 measurement contract, with `core/`), and the library's own:
 `compose_docs_test` (the engine walkthroughs and the generated probes
 over this page and `TYPOGRAPHY.md`) and `compose_api_doc_probes_self_test`,
@@ -1093,7 +1096,8 @@ harness — through a support header of their own that includes only what
 they use. The benchmarks are executables, not tests.
 There is one benchmark binary per tier — `compose_core_bench`,
 `compose_shape_bench`, `compose_brush_bench`, `compose_paint_bench`,
-`compose_text_bench` — each in its feature's `bench/` over the shared
+`compose_text_bench`, `compose_texture_bench`, `compose_draw_bench` —
+each in its feature's `bench/` over the shared
 `bench/BenchSupport.h`, linking only the library it measures, all built
 by the `benches` target and run by `scripts/bench_ledger.py`; anything
 resembling a performance claim belongs to them and to the plate ledger,

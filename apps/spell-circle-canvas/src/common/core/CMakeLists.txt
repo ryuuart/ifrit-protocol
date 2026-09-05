@@ -46,9 +46,7 @@ add_subdirectory(hardware)
 # The header tree installs as one unit beside the exported leaves.
 install(DIRECTORY include/sigilcore DESTINATION include)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilCore
   BRIEF "The kernels a retained runtime is built on — the reconciler (keyed matching, memo, the identity prune, inherited values, animation lanes and phases) and the caching proof (policy, settled subtrees, the stability release and the bake seam) — over three leaves: comparable type erasure with the field pin, the mixers and folds several libraries agree on to the bit, and the GPU device with its handles and fences"

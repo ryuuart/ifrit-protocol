@@ -113,28 +113,37 @@ dylib.
 
 ## Libraries
 
-The app is thin. Most of the code is in libraries under `src/common/` and
-`src/sigilweave/`, each of which has its own README:
+The app is thin. Most of the code is in libraries under `src/common/`,
+`src/sigilweave/` and `src/sketch/`, each of which has its own README:
 
 | Library | What it does |
 | --- | --- |
-| [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
-| [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
-| [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: geometry, curves, materials |
-| [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
-| [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |
+| [SigilCore](src/common/core/README.md) | The kernels a retained runtime hosts: the reconciler, the caching proof, the hardware device seam |
+| [SigilSkia](src/common/skia/README.md) | Skia Graphite on a device someone else owns |
+| [Ifrit.Ui](src/common/ui/README.md) | Reusable Qt Quick controls |
 | [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding |
 | [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |
+| [SigilMeasure](src/common/measure/README.md) | Timing, statistics and check reporting |
+| [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |
+| [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: paths, contours, meshes, splines, point operators |
+| [SigilMaterial](src/common/material/README.md) | Recipes, textures, environment maps |
+| [SigilDraw](src/common/draw/README.md) | An immediate-mode pen with p5's verbs |
+| [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
+| [SigilSubstance](src/common/substance/README.md) | Adobe Substance 3D materials rendered to images, where the SDK is installed |
+| [SigilUsd](src/common/usd/README.md) | OpenUSD read and write, where the package is installed |
+| [SigilCompose](src/common/compose/README.md) | Data-driven drawable components — layout, caching, animation |
+| [SigilSketch](src/sketch/README.md) | Every renderable thing as one sketch, with Sketchbook over them |
+| [SigilWeave](src/sigilweave/README.md) | Text shaping and layout on HarfBuzz, ICU and Skia |
 
 ## Build and test
 
 ```sh
 cd apps/spell-circle-canvas
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
-ctest --test-dir build -C Debug --output-on-failure
+python3 scripts/setup.py --config Release
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 `setup.py` finds Qt and vcpkg and writes the uncommitted

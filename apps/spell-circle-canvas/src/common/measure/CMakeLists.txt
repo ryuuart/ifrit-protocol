@@ -36,9 +36,7 @@ add_executable(measure_bench bench/MeasureBench.cpp)
 target_link_libraries(measure_bench PRIVATE SigilMeasure benchmark::benchmark)
 add_dependencies(benches measure_bench)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilMeasure
   BRIEF "Timing, statistics and check reporting, with compact ordered counter storage"

@@ -112,9 +112,7 @@ if(TEXTFLOW_ENABLE_INSTALL)
   )
 endif()
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilWeave
   BRIEF "Styled Unicode text shaped into positioned glyph runs ready for a Skia canvas"

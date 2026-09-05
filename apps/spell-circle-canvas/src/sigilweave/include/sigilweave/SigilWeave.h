@@ -5,11 +5,11 @@
  *
  * Umbrella header for the SigilWeave engine — a cache-first Skia text
  * layout library built directly on HarfBuzz and ICU (no
- * SkParagraph/SkShaper). Transitional: it pulls in every engine feature so
- * a consumer written against one flat header keeps compiling, and it links
+ * SkParagraph/SkShaper). It pulls in every engine feature and links
  * against the `SigilWeave` interface target, which is every engine
- * archive. New code includes the feature headers it uses, spelled
- * `<sigilweave/<feature>/Name.h>`; README.md in this directory is the map.
+ * archive. A consumer of one feature includes that feature's header,
+ * spelled `<sigilweave/<feature>/Name.h>`; README.md in this directory is
+ * the map.
  *
  * The features, dependencies pointing down:
  *   - unicode/      the text analysis leaf: transcoding, scripts, case,

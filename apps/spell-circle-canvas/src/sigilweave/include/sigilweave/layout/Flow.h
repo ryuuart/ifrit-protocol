@@ -118,7 +118,7 @@ struct LineInterval {
 /// alone does not say.
 ///
 /// `bandStart` is the whole of why this is a value rather than three
-/// arguments. Bands used to stack at `index · lineHeight`, which is true
+/// arguments. Bands do not stack at `index · lineHeight`: that is true
 /// only while every line of a passage is the same height; a text whose
 /// blocks lead differently, or which puts air between them, stacks its
 /// bands at distances the LAYOUT accumulates and a geometry could not work

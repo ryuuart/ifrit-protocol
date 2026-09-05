@@ -316,7 +316,7 @@ TEST(ComposeCache, GroupBakesASubtreeItsChildrensBindingsMadeUncacheable) {
   // caching the lattice and the assertion above stopped being about Group.
   EXPECT_EQ(pair.off.composer.stats().texturesLive, 0u)
       << "the Cache::Auto lattice cached pixels by some other route, so the "
-         "comparison is no longer Group-against-nothing";
+         "comparison is not Group-against-nothing";
 }
 
 TEST(ComposeCache, GroupDropsTheBakeOnTheFrameABindingTicks) {
@@ -402,7 +402,7 @@ TEST(ComposeCache, AGroupBakeIsExactlyALayerAndNothingMore) {
     GroupPair lit(Ground::Lit);
     const LoopResult r = walkTheLoop(lit);
     EXPECT_LE(r.worst.peak, 4)
-        << "the divergence over a lit ground is no longer edge requantisation "
+        << "the divergence over a lit ground is not edge requantisation alone "
            "— "
         << r.worst.pixels << " pixels at peak " << r.worst.peak;
     EXPECT_LT(r.worst.pixels, (size_t)(240 * 240 / 10))

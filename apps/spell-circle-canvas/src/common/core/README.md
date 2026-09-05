@@ -537,9 +537,9 @@ text, paint and the meaning of every term stay on its side of the seam.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
-ctest --test-dir build -C Debug -R 'sigilcore|core_hardware' --output-on-failure
+python3 scripts/setup.py --config Release
+cmake --build build --config Release
+ctest --test-dir build -C Release -R 'sigilcore|core_hardware' --output-on-failure
 ```
 
 `sigilcore_comparable_test` (`comparable/test/`) covers the erased value

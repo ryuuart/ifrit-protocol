@@ -3,8 +3,8 @@
 # engine needs beyond that — publish and slot textures named by handle,
 # blits, uploads, painting through a Graphite recorder, and wrapping a
 # texture as an SkImage. GpuDriver.h is the graphics-API-neutral
-# contract; metal/ is its one implementation today, and a Vulkan one
-# joins beside it without the engine noticing. Both headers name
+# contract; metal/ is its one implementation, and a Vulkan one joins
+# beside it without the engine noticing. Both headers name
 # Ultralight and stay beside the sources.
 if(APPLE)
   # The SDK's stock Metal shader source, embedded so the driver compiles

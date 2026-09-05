@@ -536,7 +536,7 @@ whole list.
 **Lanes and the values on them are SigilMotion's.** `Lane`,
 `retargetSlots`, `mountEntrance`, `isLive` and the comparators that decide
 two animatable slots are the same live in `<sigilmotion/values/…>`; this
-library names the FAMILY (`LaneFamily::Slot`), the 26 rows, and what each
+library names the FAMILY (`LaneFamily::Slot`), the 27 rows, and what each
 row's standing value is when a description does not carry the block that
 holds it.
 
@@ -665,8 +665,8 @@ brought up by the BINARY and installed once for the process, so no
 feature here but `diligent/` links one, and a machine with no GPU still
 renders the CPU tier.
 
-Ten of them, and between them they exercise every feature this library
-has:
+Fifteen sketches draw through the Set runtime, and between them they
+exercise every feature this library has:
 
 - **`first_light`** — the scene: a tube swept along a closed loop, a
   comet of stamps riding a moving window of that same loop, a plate under
@@ -696,10 +696,24 @@ has:
   the disk, through the same `textures::` door a scanned folder arrives
   by: a plate is a function of the declaration, and what a machine
   happens to have under `build/assets` is not.
-- **`woven_card`** — a live 2D scene riding a 3D ribbon. A compose tree
-  is rendered into a texture by a composer of its own, and a band swept
-  over a two-point profile is made of it; the card repeats along the
-  band's length, which is the ordinary uv placement every texture has.
+- **`scene_surfaces`** — a compose scene as an ordinary texture, and
+  every sampling dial applied to it. Three flat cards on an arc, one
+  curved band under them and one swept ribbon whose card repeats along
+  the band's length each wear a compose tree rendered by a composer of
+  its own; the screens are unlit, so what they show is what the trees
+  painted, and the ribbon is a lit surface, so the same texture is read
+  through shading beside them.
+- **`reflection_lab`** — what a body sees when it looks past the lights.
+  Four spheres in a row under a sky — chrome, a rough metal, a
+  dielectric and glass — each legible only because of the environment
+  map; the sky is a node whose `rotateY` turns the reflections while the
+  lights and bodies stand still, and the row stands under a held
+  crossfade of two panoramas.
+- **`set_stagger`** — the entrances of a set's children, cascaded, and
+  the two selectors that address a subtree afterwards. Two rows differ
+  only in their spread's origin, so at one moment they hold different
+  shapes of the same cascade; `sel::under` and `sel::material` narrow a
+  pass to one of them.
 - **`key_light`** — the emitter's dials. One still set under the kit's
   three-point rig, with the key light's strength and colour bound to live
   values: nothing about the description changes from frame to frame, and
@@ -722,15 +736,16 @@ has:
   it are pushed out along their own normals, and inverting the same
   region turns everything outside it about the up axis. The chain is a
   value the node carries and the frame's runtime cooks it.
-- **`panel_console`** — 2D content on bodies that are not flat. Four
-  compose trees painted into textures and worn by three cards on an arc
-  and one curved band, each an unlit surface, so what the plate shows is
-  what the trees painted.
 - **`lantern_room`** — the three emitters together. Four unlit lantern
   shells each carrying a coloured point light, a spot opening downward
   onto the cluster between them, and a sun faint enough to be an
   outline. An emitter stands where its node stands and carries no
   geometry, so a lantern here is two siblings sharing a placement.
+- **`compute_variant`**, **`import_native`**, **`vagrant_story_target`**
+  and **`world_hud`** — the pass verbs that draw nothing by themselves
+  (cooking points, re-drawing a selection, asking for a resource back),
+  the zero-copy import door, and two studies that hang a compose overlay
+  on an unlit quad filling the frustum over a lit set.
 
 Most of them are built out of `kit/`: `kit::threePoint` puts three
 emitters round a subject in its own extents, `kit::turntable` rides a
@@ -815,10 +830,10 @@ depth-tests them and does not, so the two draw the same picture and not
 the same bytes; what a whole-picture comparison of them is worth depends
 on the subject, which is a scene's property rather than this code's. That
 judgement belongs to the plate ledger's device tier, which makes it
-against a committed baseline. **No sketch draws through this runtime
-today, so no tier renders it** — a study that stands a mesh on a canvas
-through `painterRuntime` is what would put the mesh painter under that
-judgement.
+against a committed baseline. `painter_gpu` and `floating_panels` stand
+a mesh on a canvas through `painterRuntime`, and `--gpu` rasterises a
+canvas sketch's mesh painter on the device, so the quick tier's plates
+of those two are what put the mesh painter under that judgement.
 
 ### The swept rings on the device
 
@@ -847,7 +862,7 @@ caller holding a runtime must not have to check for.
 **World's own geometry slot has no swept kind**, so nothing in `scene/`
 reaches for this: a sweep is formed by whoever describes the geometry,
 and a host that holds the device puts the runtime in the `SweepOptions`
-it sweeps with. A `Chained` slot is the one that carries a runtime today,
+it sweeps with. A `Chained` slot is the one that carries a runtime,
 and the device executor swaps the host pop runtime into it when the whole
 chain has kernels.
 
@@ -866,8 +881,9 @@ transitioned from its state to itself, which is the barrier: nothing else
 about the bindings tells the driver that the next operator reads what the
 last one wrote.
 
-Twelve operators have kernels — `Jitter`, `Ramp`, `Vary`, `LookAt`,
-`Math`, `Fill`, `Atlas`, `Lookup`, `Select`, `Affine`, `Peak` and `Mix` —
+Thirteen operators have kernels — `Jitter`, `Ramp`, `Vary`, `LookAt`,
+`Math`, `Fill`, `Atlas`, `Lookup`, `Select`, `Affine`, `Peak`, `Mix` and
+`Normal` —
 and the runtime's `supports()` answers from `kernel::has()` rather than
 from a list of its own. What it declines it declines by name, the way any
 unsupported operator stops a cook: `Relax` reads points it does not own,
@@ -977,25 +993,21 @@ and a rim term that nothing scales. So:
   host image at all, so a renderer on another device draws the body
   undressed rather than something it invented.
 
-## What is coming
-
-Every feature the layout declares is built, and `diligent/` owes nothing
-the layout promised. Two things an environment map makes possible are
-NOT here:
+## What the environment map does not reach
 
 - **The sky stands at infinity.** `Backdrop`'s strength and blur are
   drawn — one triangle over the target, each pixel reading the panorama
   along the ray the eye looks through it, on both tiers — but its
-  ground-projection radius and centre are not: they would treat the
-  panorama as a sphere standing on the ground, so that a body moving
-  through the set saw the horizon shift the way it would outdoors, and
-  nothing reads them.
+  ground-projection radius and centre are declared and not read: they
+  would treat the panorama as a sphere standing on the ground, so that a
+  body moving through the set saw the horizon shift the way it would
+  outdoors.
 - **Glass refracts the world and not what is behind it.** A refracted
-  ray reads the panorama, which is right for a body with sky behind it
-  and wrong for one with another body behind it. Screen-space refraction
-  wants the colour target as it stood before the body was drawn, which
-  is a pass that reads what another pass wrote — a thing the frame graph
-  can already order and that nothing has yet been written to do.
+  ray reads the panorama and never the colour target, which is right for
+  a body with sky behind it and wrong for one with another body behind
+  it. Screen-space refraction wants the colour target as it stood before
+  the body was drawn, which is a pass that reads what another pass wrote
+  — an order the frame graph can express.
 
 ### Where the shaders come from
 
@@ -1038,27 +1050,17 @@ SigilGeometry's `device` feature, and its README is canon for what a
 device is, how it is adopted and what the shared queue's lock rules are.
 This library takes one and executes a frame's passes on it:
 
+Bringing the device up — `DeviceConfig`, `Device::create` and the
+`error` it fills when there is no Vulkan runtime, the Diligent side that
+is never null on a created device and the adopted Graphite side that is
+null when adoption failed — is SigilGeometry's, and its README's device
+section shows it. What this library adds is one line over that device:
+
 ```cpp
-#include <sigilgeometry/device/Device.h>
 #include <sigilworld/diligent/Runtime.h>
-
-using namespace sigil;
-
-geometry::device::DeviceConfig config;
-std::string error;
-std::unique_ptr<geometry::device::Device> device =
-    geometry::device::Device::create(config, &error);
-if (!device) return;  // no Vulkan runtime, for instance; `error` says why
 
 world::Scene scene(world::diligent::runtime(*device));
 ```
-
-`renderDevice()` and `context()` are the Diligent side of that device,
-and are never null on a device that was created. `gpu()` and
-`graphite()` are the adopted side and are null together when the
-adoption failed — a driver without timeline semaphores, for instance,
-since that is what a hardware fence is. A failed adoption costs the
-shared 2D path and nothing else.
 
 There is no Metal path here, because Diligent has no Metal backend:
 `create` fails on a machine with no Vulkan runtime, and the answer for
@@ -1067,7 +1069,7 @@ such a machine is the CPU executor, not a second GPU path.
 ## Testing and benchmarks
 
 ```sh
-ctest --test-dir build -C Debug -R world_
+ctest --test-dir build -C Release -R world_
 ```
 
 **The fixtures every one of these binaries shares live in `test/`**, and
@@ -1106,13 +1108,13 @@ it the library's answer and not the test's — and a draw that is a
 function of the description alone. `world_light_test` runs anywhere.
 
 `world_diligent_test` covers the device side, and **the whole directory
-brings up ONE device for the process** — `test/OnDevice.h` holds it,
+brings up ONE device for the process** — `diligent/test/OnDevice.h` holds it,
 along with the two seam values that stand on it, the two cameras every
 case looks through, the card it photographs and the texture the 2D path
-paints on the device. `test/PainterTest.cpp` is the mesh painter: the
+paints on the device. `diligent/test/PainterTest.cpp` is the mesh painter: the
 runtime as a value, a surface that is its own light standing brighter
 than a lit one on both executors, and a panel that is the same bytes on
-either. `test/SurfaceTest.cpp` is the sampled slots and the import door —
+either. `diligent/test/SurfaceTest.cpp` is the sampled slots and the import door —
 an occlusion map darkening only where it is dark, an emissive map
 carrying its own colour, a cutout dropping texels outright, a normal map
 tilting the two halves of one flat card apart, a surface dressed with
@@ -1121,7 +1123,8 @@ texture painted with the graphics API on this device coming in through
 `importNative` with no host image at all — so a picture carrying its
 colour cannot have come from a copy — standing where a raster one of the
 same colour would, and an import of nothing answering no texture rather
-than one that lies. `test/RuntimeTest.cpp` covers the frame: a pipeline
+than one that lies. `diligent/test/StackTest.cpp` is the stack shading
+cases. `diligent/test/RuntimeTest.cpp` covers the frame: a pipeline
 off a recipe's Slang body with its parameter at a reflected offset and
 the lit build carrying shading the unlit one does not, a cooked chain
 that matches the host's cook exactly, a readback that arrives the frame

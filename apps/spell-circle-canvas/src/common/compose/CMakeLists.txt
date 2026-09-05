@@ -41,16 +41,17 @@
 # except the testing feature's read-back checks, which sit under a root of
 # their own (testing/include/) so that only a target that links
 # SigilComposeTesting can reach them;
-# <sigilcompose/Compose.h> at the root is the transitional umbrella over
-# the kernel and each feature has a <Feature>.h umbrella of its own. Test
+# <sigilcompose/Compose.h> at the root is the umbrella over the kernel —
+# exactly core/Core.h — and each feature has a <Feature>.h umbrella of its own. Test
 # fixtures every binary shares sit in test/support/ and the bench support
 # in bench/; a feature's test and bench binaries add those directories.
 
 set(SIGIL_COMPOSE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 set(SIGIL_COMPOSE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 set(SIGIL_COMPOSE_BENCH_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/bench)
-# Committed test assets (the SigilImage test/assets convention): today one
-# generated variable font, an advance-variant wght instrument. Not
+# Committed test assets (the SigilImage test/assets convention): two
+# generated variable fonts, an advance-variant wght instrument and a
+# vertical-advance one. Not
 # fetch_assets — a TEST must never depend on an opt-in target.
 set(SIGIL_COMPOSE_TEST_ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
 
@@ -209,9 +210,7 @@ if(APPLE AND TARGET SigilSkia)
   add_test(NAME compose_gpu_test COMMAND compose_gpu_test)
 endif()
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilCompose
   BRIEF "Immutable value-typed descriptions of a 2D scene, laid out with flexbox and drawn to an SkCanvas"

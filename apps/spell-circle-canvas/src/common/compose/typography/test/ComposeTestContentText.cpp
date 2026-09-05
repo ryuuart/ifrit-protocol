@@ -3029,9 +3029,9 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   // either order over one selection must produce one picture. What made
   // that untrue is invisible from the authoring side: a `TextStyle`
   // carries a paint whether or not its author was thinking about paint,
-  // so a `spanStyle` after a `spanPaint` used to read the colour standing
-  // under it as a difference to shape away — and then overwrite it with
-  // the style's own, leaving the author's colour nowhere and saying
+  // so a `spanStyle` after a `spanPaint` must not read the colour standing
+  // under it as a difference to shape away — it would then overwrite it
+  // with the style's own, leaving the author's colour nowhere and saying
   // nothing.
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);

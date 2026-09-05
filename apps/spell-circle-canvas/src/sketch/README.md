@@ -485,7 +485,7 @@ sketch's own execution rather than from its data.
 Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
 Sketchbook <file.cpp>                       # the app, on that file
-Sketchbook --list [--kind canvas|set]       # the registry, one per line
+Sketchbook --list [--kind canvas|set|draw]  # the registry, one per line
 Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
 Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
@@ -613,7 +613,7 @@ deterministic, so two runs measure the same frames.
 
 ```sh
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
-           [--sketch <name>] [--kind canvas|set]
+           [--sketch <name>] [--kind canvas|set|draw]
 ```
 
 Opens the window at a stated size and device pixel ratio, presents each
@@ -761,7 +761,8 @@ declared canvas — which on a plate's canvas is the identity, and is why
 the two hosts agree to the byte.
 
 `scripts/plate_ledger.py` drives this: four tiers over one binary, each
-with its own baseline. See `CLAUDE.md` for the tiers.
+with its own baseline. The four tiers — quick, full, world, world-gpu —
+are `scripts/README.md`'s.
 
 ## The live host
 
@@ -944,6 +945,7 @@ src/sketch/
   set/        the 3D runtime: a ticker and a retained Scene
   draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
   live/       the reload engine and the resident set
+  scry/       the opt-in shared Ultralight engine a web sketch borrows
   plate/      the headless sweep and vertical Story video encoder
   book/       Sketchbook: the app, and the headless entry point
   sketches/   every sketch, one file or one directory each; shared/ beside them
@@ -1018,11 +1020,11 @@ store does not expand the whole timeline into images.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug --target sketch_core_test \
+python3 scripts/setup.py --config Release
+cmake --build build --config Release --target sketch_core_test \
   sketch_canvas_test sketch_set_test sketch_draw_test sketch_live_test \
   sketch_plate_test
-ctest --test-dir build -C Debug -R sketch_ --output-on-failure
+ctest --test-dir build -C Release -R sketch_ --output-on-failure
 ```
 
 One test binary per feature, each linking that feature alone:
@@ -1030,7 +1032,9 @@ One test binary per feature, each linking that feature alone:
 stands on disk, `sketch_canvas_test`, `sketch_set_test` and
 `sketch_draw_test` over the three sessions, `sketch_live_test` over the
 host and the resident set, `sketch_plate_test` over the sweep and Story MP4
-exporter.
+exporter, and `sketch_scry_test` over the shared web engine. The
+`sketch_*_bench` binaries beside them are Google Benchmark executables,
+not tests, built through the `benches` target.
 
 `test/Support.h` at the library root holds what every one of them opens a
 session with — the one font context and the one asset store a process
@@ -1069,7 +1073,8 @@ and `first_light` are the widest canvas and set sketches by the symbols
 they name, `stock_materials` paints one of every stock material,
 `world_hud` is the other registration form, `dunhuang_star_chart` is
 the directory form — several units compiled apart and linked once — and
-the two behind an optional SDK name symbols nothing else does. A starter
+the entries behind an optional SDK or a device name symbols nothing
+else does. A starter
 sketch that names none of those adds no entry of its own: anything that
 stops it compiling and loading stops the wide ones too.
 

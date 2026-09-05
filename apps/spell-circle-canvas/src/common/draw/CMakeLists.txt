@@ -61,9 +61,7 @@ target_link_libraries(draw_bench PRIVATE SigilDraw SigilWeavePorts
   benchmark::benchmark)
 add_dependencies(benches draw_bench)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilDraw
   BRIEF "An immediate-mode canvas with p5's verbs, over Skia, material paints and shaped text"

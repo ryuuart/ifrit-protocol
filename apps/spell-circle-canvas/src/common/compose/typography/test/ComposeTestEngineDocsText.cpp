@@ -244,7 +244,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   // variationDrive() is sugar over fx(): the same axis coordinate reached by
   // hand as a track must draw the same pixels. The equivalence is the point
   // — if the verb kept a text path of its own, a track drawn over it would
-  // hide the drive entirely, which is exactly what it used to do.
+  // hide the drive entirely.
   sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
   sk_sp<SkTypeface> ui;
   for (const char* family :
@@ -297,7 +297,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
               0)
         << "the verb and the hand-built axis track disagreed on row " << y;
 
-  // …and the drive is no longer hidden by a track drawn over it: a second
+  // …and the drive stays visible under a second track: a second
   // track that moves the glyphs leaves the grade in place.
   Host stacked;
   stacked.composer.render(box().child(text(u8"GRADE", style)

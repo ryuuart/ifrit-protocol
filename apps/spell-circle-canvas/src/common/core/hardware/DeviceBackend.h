@@ -3,7 +3,7 @@
 // must do with native objects for the device to name them by handle.
 // GpuDevice.cpp owns every handle table and the deferred-destroy queue
 // and calls down here for the native work; each API implements this
-// once (GpuDeviceMetal.mm today).
+// once (GpuDeviceMetal.mm for Metal).
 
 #include <sigilcore/hardware/Fence.h>
 #include <sigilcore/hardware/GpuDevice.h>

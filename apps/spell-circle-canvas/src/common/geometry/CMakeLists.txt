@@ -49,9 +49,7 @@ endif()
 # The header tree installs as one unit beside the exported path leaf.
 install(DIRECTORY include/sigilgeometry DESTINATION include)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilGeometry
   BRIEF "2D and 3D drawing over Skia: path operators, meshes, splines, point clouds"

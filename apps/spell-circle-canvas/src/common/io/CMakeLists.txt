@@ -24,9 +24,7 @@ add_library(SigilIO INTERFACE
 )
 target_link_libraries(SigilIO INTERFACE SigilIOSource SigilIOHub)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilIO
   BRIEF "Runtime resource hub: resources addressed by URI, cached, and reloaded when they change"

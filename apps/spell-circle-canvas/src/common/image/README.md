@@ -184,7 +184,7 @@ none rather than the first.
 F32 images are not filterable on Apple GPUs, so a float source decoded
 here is not automatically drawable on such a device. The fallback that
 makes it drawable — an F16 copy — belongs to the GPU plumbing in
-`common/skia`, not to this library.
+`src/common/skia` (SigilSkia's `halfFloatPixels`), not to this library.
 
 AVIF needs both halves: `skia[avif]` alone installs libavif with no AV1
 codec, which parses AVIF containers and then silently decodes no frames.
@@ -226,10 +226,10 @@ in either direction: `encodeImage()` hands bytes back the way
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug --target image_asset_test \
+python3 scripts/setup.py --config Release
+cmake --build build --config Release --target image_asset_test \
   image_decode_test image_encode_test
-ctest --test-dir build -C Debug -R image_ --output-on-failure
+ctest --test-dir build -C Release -R image_ --output-on-failure
 ```
 
 Targets: `SigilImageAsset`, `SigilImageDecode` and `SigilImageEncode`

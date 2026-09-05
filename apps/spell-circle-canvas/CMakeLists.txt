@@ -69,7 +69,7 @@ option(SPELLCIRCLE_ENABLE_SKIA_CANVAS "Build the Skia Graphite (Metal/Vulkan) of
 
 # Builds SigilScry (src/common/scry): HTML/CSS layout rendered by the
 # Ultralight SDK onto SkImage frames for the scene canvases. Auto-disables
-# with a warning when the SDK isn't installed (see cmake/FindUltralight.cmake).
+# with a warning when the SDK isn't installed.
 option(SPELLCIRCLE_ENABLE_ULTRALIGHT "Build the SigilScry Ultralight HTML-layout backend" ON)
 
 # Builds SigilSubstance (src/common/substance): Adobe Substance 3D

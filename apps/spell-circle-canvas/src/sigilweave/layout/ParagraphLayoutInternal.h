@@ -69,8 +69,8 @@ void resolveMojikumi(const Paragraph& paragraph,
 // so break decisions and placement always agree on interval numbering.
 //
 // It also carries THE BAND CURSOR — how far down (or across) the flow the
-// next band's near edge sits. Bands used to stand at `index · pitch`, which
-// only holds while one pitch serves the whole text; a text whose blocks
+// next band's near edge sits. Bands do not stand at `index · pitch`: that
+// holds only while one pitch serves the whole text; a text whose blocks
 // lead differently, or which puts air between them, stacks at distances
 // only the accumulating side knows. openBlock() is where a block hands over
 // its pitch, its air and its indents, and everything after it is asked for

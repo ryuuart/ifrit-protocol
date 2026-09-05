@@ -136,7 +136,8 @@ Element& Element::variationDrive(const char (&tag)[5],
   // SUGAR over fx(): an axis coordinate is a per-glyph deviation like a
   // shove or a fade, so the drive is a whole-text track and composes with
   // whatever other tracks the element carries. A second, parallel text path
-  // is what it used to be, and a track drawn over it hid it completely.
+  // would be hidden by any track drawn over it, which is why the drive is
+  // a track.
   //
   // The effect reads the Output DIRECTLY rather than through the track's
   // progress, because an axis coordinate is a design-space number (GRAD

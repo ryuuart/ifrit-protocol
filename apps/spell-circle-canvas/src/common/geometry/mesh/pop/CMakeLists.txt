@@ -15,7 +15,7 @@
 # executor calls, and to the SPIR-V a runtime that owns a device
 # dispatches. Neither side re-derives a formula, which is what lets two
 # tiers be held to bit identity rather than to a tolerance. The C++ is
-# compiled with the float model pinned — see cmake/Slang.cmake.
+# compiled with the float model pinned by the Slang module rule.
 include(Slang)
 sigil_slang_module(NAME Pop
   SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang

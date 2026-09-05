@@ -55,9 +55,7 @@ if(APPLE AND TARGET SigilSkia)
   set_tests_properties(material_gpu_test PROPERTIES LABELS gpu)
 endif()
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilMaterial
   BRIEF "Materials as recipe instances: reflected params, per-target bodies, one program cache"

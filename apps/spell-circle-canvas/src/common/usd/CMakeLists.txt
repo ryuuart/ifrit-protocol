@@ -24,9 +24,7 @@ add_subdirectory(read)
 add_library(SigilUsd INTERFACE)
 target_link_libraries(SigilUsd INTERFACE SigilUsdRuntime SigilUsdWrite SigilUsdRead)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilUsd
   BRIEF "The world's data written to and read back from USD stages"

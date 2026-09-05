@@ -200,12 +200,12 @@ which is what makes the hash helpers and the variant order load-bearing
 
 **The arithmetic two tiers must agree about is written once, in Slang.**
 Two kernels are: `mesh/pop/kernels/Pop.slang`, the operators that are
-per-point arithmetic, and `mesh/curve/kernels/Sweep.slang`, the swept
+per-point arithmetic, and `mesh/pop/kernels/Sweep.slang`, the swept
 ring vertex. The build compiles each twice — to C++, which the executor
 behind the built-in runtime calls, and to SPIR-V, which a runtime that
 owns a device dispatches. Neither side re-derives a formula, which is
 what lets two tiers be held to bit identity rather than to a tolerance.
-`mesh/Spirv.h` is the one thing both kernels' words go through:
+`mesh/pop/Spirv.h` is the one thing both kernels' words go through:
 `noContraction()` adds the decoration the emitter leaves out, in one
 place rather than once per kernel. `kernel::has(op)` is the one
 answer to whether an operator has a kernel, `kernel::describe()` packs
@@ -296,7 +296,7 @@ the library root instead, in `test/support/`. Features nest by dependency — a 
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Twelve headers that depend on
+**`path`** — `SigilGeometryPath`, the leaf. Fourteen headers that depend on
 nothing else in the library: Skia, glm, and SigilCoreCompute, whose
 seeded mixers the value-noise field is built on.
 
@@ -575,8 +575,8 @@ separate implementations of the same dispatch seams.
   holding one, `curve::describe()` turning a rail and a profile into a
   `curve::kernel::Dispatch`, and `kernel::run()` and `kernel::spirv()` as
   the two ends of the one arithmetic. `Sweep.cpp` holds the profiles, the
-  packing, the topology and the built-in executor; `device/Sweep.cpp` the
-  device one.
+  packing, the topology and the built-in executor; `mesh/pop/device/Sweep.cpp`
+  the device one.
 
   **There is one sweep, and the shape is a parameter.** `sweep()` carries
   a 2D `path::Polyline` along a rail: every ring is that contour placed on
@@ -612,7 +612,7 @@ separate implementations of the same dispatch seams.
   arithmetic. `points::describe()` and `points::instance()` are in
   `Points.h`, because they are where a Cloud and a Mesh become one;
   `Stamp.cpp` is the packing, the index runs and the built-in executor,
-  and `device/Stamp.cpp` is the device one. Nothing here names a Cloud, a
+  and `mesh/pop/device/Stamp.cpp` is the device one. Nothing here names a Cloud, a
   Mesh or a device, so the seam is declarable before either of them.
 
   **The stamp rides the point, and the arithmetic is written once.** A
@@ -1153,8 +1153,8 @@ formula, because there is one formula and this side compiled it.
 Configure and build from `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
+python3 scripts/setup.py --config Release
+cmake --build build --config Release
 ```
 
 Targets: one static library per feature — `SigilGeometryPath`,
@@ -1202,7 +1202,7 @@ Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in
 test location; a helper one binary uses stays in that binary's file.
 
 ```sh
-ctest --test-dir build -C Debug -R geometry --output-on-failure
+ctest --test-dir build -C Release -R geometry --output-on-failure
 ```
 
 Everything is CPU and raster Skia, so the tests need no GPU and run
@@ -1210,12 +1210,15 @@ anywhere.
 
 **Looking at any of it** goes through SigilSketch, in `src/sketch/`: one
 file per renderable thing, in one registry, drawn by one application.
-The studies over this library are `blend_keys`, `blend_smooth_color`,
-`blend_spine`, `path_booleans`, `mesh_primitives`, `mesh_normal_bridge`,
-`floating_panels`, `spline_stations`, `pop_stamps`, `pop_prims`,
-`pop_deform`, `pop_lanes`, `geo_groups`, `yarn_marquee`,
-`shapeworks_lab` and `easel_playground`; `scattered_model` brings a file
-in through the codec and stands it in a lit room. Each is addressed by
+The studies over this library are `blend_options`, `path_booleans`,
+`crossing_rule`, `exact_tangent`, `curve_shelf`, `shape_tour`,
+`corner_notched`, `svg_silhouette`, `contour_poses`, `mesh_generators`,
+`mesh_normal_bridge`, `floating_panels`, `painter_gpu`, `pop_stamps`,
+`pop_prims`, `pop_deform`, `pop_math`, `pop_order`, `pop_billboards`,
+`formation_bands`, `over_under`, `routes_probe`, `geo_groups`,
+`yarn_marquee` and `shapeworks_lab`; `codec_roundtrip` takes a mesh out
+through the codec and back, and `scattered_model` brings a file in
+through it and stands it in a lit room. Each is addressed by
 its own stem:
 
 ```sh

@@ -27,7 +27,7 @@ namespace sigil::scry {
  * What the engine needs from a GPU backend, beyond Ultralight's own
  * GPUDriver command execution: publish blits, slot textures, and the
  * Skia interop (paint into / wrap as SkImage). One implementation per
- * graphics API — Metal today; a Vulkan implementation slots in here
+ * graphics API — Metal; a Vulkan implementation slots in here
  * with no changes to the engine, which only ever sees this interface.
  *
  * Textures are named by the engine's GpuDevice: the backend creates

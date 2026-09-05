@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates AdvanceVariant.ttf — the §35.3 test instrument.
+"""Generates AdvanceVariant.ttf — the advance-variant test instrument.
 
 `ComposeVariationDrive.AdvanceVariantAxisIsRefused` needs a variable face
 whose wght axis MOVES GLYPH ADVANCES (most text VFs do; the macOS system

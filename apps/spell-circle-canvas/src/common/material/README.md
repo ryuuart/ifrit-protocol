@@ -61,7 +61,7 @@ each a static archive that links only what sits beneath it:
 |--------|-------|-------|
 | `SigilMaterialColor` | `Color`, `rgb()`, `hsv()` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
-| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson and stb privately |
+| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `textures::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as LUT materials | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
@@ -216,9 +216,7 @@ and evaluates its shading again where those can be seen. A body that
 writes none of them costs nothing and changes nothing. It is an
 OPTIONAL half of the contract: a body that says only a colour is a
 complete body, and the four exist because a MAP that varies a surface
-across a face is a per-pixel answer no per-vertex shading can carry.
-
- A
+across a face is a per-pixel answer no per-vertex shading can carry. A
 material resolved for a target its recipe has no body for — or one no
 compiler is registered for, or one whose body fails to compile — yields a
 null program, and the cache reports it to stderr exactly once per (recipe,
@@ -402,7 +400,7 @@ the composed body; the operand still rides every query as a child, so the
 stack still reports itself animated. The composition costs one recipe and
 one program per distinct triple of definitions and buys nothing for a
 target that samples its operands, so it is built only where a compiler
-that needs it is installed. `Target::Slang` is the one such target today,
+that needs it is installed. `Target::Slang` is the one such target,
 and `stackName(blend)` is the name every stack of a blend carries.
 
 ## The Slang backend
@@ -860,7 +858,7 @@ Ten tests and ten benchmarks, one pair per feature, and one device sweep
 over all of them:
 
 ```sh
-ctest --test-dir build -C Debug -R material
+ctest --test-dir build -C Release -R material
 python3 scripts/bench_ledger.py --benches material_color_bench \
     material_core_bench material_texture_bench material_ocio_bench \
     material_sdf_bench material_pattern_bench material_field_bench \
@@ -902,8 +900,10 @@ ctest --test-dir build -C Release -R material_gpu_test
 ```
 
 The acceptance pieces are the
-`shapeworks_lab`, `easel_playground` and `mesh_normal_bridge` sketches
-under `src/sketch/sketches/`, whose surfaces are shaded here. SigilCompose is the largest consumer: its
+`material_lab`, `material_atlas`, `material_child`, `stock_materials`,
+`text_paints`, `reflection_lab`, `env_faces`, `env_lanes`, `env_theme`,
+`shapeworks_lab` and `mesh_normal_bridge` sketches under
+`src/sketch/sketches/`, whose surfaces are shaded here. SigilCompose is the largest consumer: its
 `Material::recipe` resolves a material through this library's cache with
 the frame built from its paint context, and its patterns, SDF fills,
 layer styles and view transforms are the primitives and presets here

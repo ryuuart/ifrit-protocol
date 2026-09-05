@@ -235,10 +235,9 @@ inline void drawSpriteAtlas(SkCanvas& canvas, Promoted& cache,
       (int)indices.size(), indices.data());
   SkPaint p;
   // WITHOUT this, a sprite narrower than a pixel does not draw at all —
-  // it simply covers no sample centre. The slit-scan study stamps a
-  // corridor whose sprite width is proportional to depth, so 239 of its
-  // 406 stamps per wall are sub-pixel BY CONSTRUCTION and the inner 60%
-  // of the image silently disappeared. Antialiasing makes a thin sprite
+  // it simply covers no sample centre. A corridor of stamps whose sprite
+  // width falls with depth loses its far half without antialiasing, BY
+  // CONSTRUCTION of the sprite widths. Antialiasing makes a thin sprite
   // contribute its true coverage instead of nothing, which is the only
   // behaviour an accumulation can be built on.
   p.setAntiAlias(true);

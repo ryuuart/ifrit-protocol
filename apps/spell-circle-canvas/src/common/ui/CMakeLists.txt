@@ -35,9 +35,7 @@ target_link_libraries(IfritUi
     Qt6::QuickLayouts
 )
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME IfritUi
   BRIEF "Reusable Qt Quick components shared by the desktop tools, plus native window dressing"

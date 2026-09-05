@@ -3,8 +3,8 @@
 SpellCircle is a receiver application for network-driven vector diagrams:
 scene descriptions arrive as FlatBuffers over UDP, are drawn with Skia on
 the GPU, and are published as a texture over Syphon. The app is thin —
-most of the code is a set of independent libraries under `src/common/`
-and `src/sigilweave/`.
+most of the code is a set of independent libraries under `src/common/`,
+`src/sigilweave/` and `src/sketch/`.
 
 ## Where the documentation is
 
@@ -19,6 +19,8 @@ do not reconstruct a library's rules from another library's document.
   `src/sigilweave/FEATURES.md` beside it for the control-by-control
   catalogue and the parity table; the paragraph
   engine is rooted here
+  - `src/sigilweave/kit/README.md` — the companion utilities for
+    SigilWeave consumers
 - `src/common/compose/README.md` — data-driven drawable components, with
   `src/common/compose/TYPOGRAPHY.md` beside it for the type chapter (both
   compile-checked: every API name they spell must exist in a header)
@@ -26,6 +28,8 @@ do not reconstruct a library's rules from another library's document.
   p5's verbs, the imperative way beside compose
 - `src/sketch/README.md` — SigilSketch: every renderable thing as one
   sketch, with Sketchbook, the live host and the plates
+  - `src/sketch/sketches/README.md` — the reference studies, one row
+    per sketch that rebuilds a real artefact
 - `src/common/geometry/README.md` — higher-level drawing over Skia, the
   geometry kit, the point operators
 - `src/common/world/README.md` — 3D surfaces on Diligent Engine
@@ -34,7 +38,12 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/core/README.md` — the kernels a retained runtime hosts:
   the reconciler and the caching proof
 - `src/common/image/README.md` — image decoding and encoding
-- `src/common/loader/README.md` — resource access: URIs, caching, reload
+- `src/common/video/README.md` — SigilVideo: streaming decode, GPU
+  composition, MP4 encode
+- `src/common/io/README.md` — SigilIO: resource access: URIs, mounts,
+  caching, hot reload, byte sinks
+- `src/common/measure/README.md` — timing, statistics and check
+  reporting
 - `src/common/scry/README.md` — HTML and CSS rendered to Skia images
 - `src/common/skia/README.md` — SigilSkia: Skia Graphite on a device
   someone else owns
@@ -43,9 +52,6 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/ui/README.md` — reusable Qt Quick controls
 - `apps/spell-circle-canvas/scripts/README.md` — the checks and ledgers
 - `docs/README.md` — the generated C++ API reference
-
-`archive/` directories hold superseded documents. **Nothing in an
-`archive/` is current — do not build from it, quote it, or cite it.**
 
 Defects found while working go to `apps/spell-circle-canvas/FINDINGS.md`
 — create it when needed. Each entry states what the code does, what it
@@ -133,9 +139,9 @@ feels slow, not gated per change.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
-ctest --test-dir build -C Debug --output-on-failure
+python3 scripts/setup.py --config Release
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 Every workflow is also a mise task (`mise tasks`; arguments after `--`
@@ -170,7 +176,7 @@ is an app bundle, so headless runs go through the binary inside it:
 
 ```sh
 build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook \
-  --headless <outdir> [--gpu] [--sketch <name>] [--kind canvas|set]
+  --headless <outdir> [--gpu] [--sketch <name>] [--kind canvas|set|draw]
 ```
 
 Pointed at a file with no `--headless`, Sketchbook opens on it, from
@@ -194,7 +200,7 @@ touchdesigner/     TouchDesigner project and editor tooling
 **Naming**: libraries intended for extraction into their own repositories
 carry the `Sigil` prefix; product-side integrations keep `Ifrit`.
 **Boundaries are deliberate** and each README states its own. Two that
-are easy to get backwards: SigilLoader owns resource *access* while
+are easy to get backwards: SigilIO owns resource *access* while
 SigilImage owns image *meaning*; SigilWorld consumes SigilGeometry's
 types, never the reverse.
 

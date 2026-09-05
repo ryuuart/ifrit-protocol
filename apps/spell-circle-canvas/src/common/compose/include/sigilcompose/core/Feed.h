@@ -183,8 +183,8 @@ template <class T, class RowFn>
  *
  *  The `box()` shell is the `snapshot()`/`measure()` sizing rule: both size
  *  by the root's CHILDREN and ignore the root's own dimensions. It changes
- *  nothing today — `feed()` returns a column that sets neither a width nor a
- *  height — and it keeps the measurement honest if that ever changes. */
+ *  nothing while `feed()` returns a column that sets neither a width nor a
+ *  height, and it keeps the measurement honest if that ever changes. */
 template <class RowFn>
   requires std::invocable<RowFn>
 [[nodiscard]] float height(const Options& options, size_t rows,

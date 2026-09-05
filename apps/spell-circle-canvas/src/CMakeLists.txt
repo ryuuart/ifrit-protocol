@@ -9,7 +9,8 @@
 #                SigilWorldFrame, SigilWorldGraph, SigilWorldScene,
 #                SigilWorldLight, SigilWorldKit, SigilWorldDiligent),
 #                material/ (SigilMaterial), draw/ (SigilDraw), compose/
-#                (SigilCompose)
+#                (SigilCompose), and substance/ (SigilSubstance) and usd/
+#                (SigilUsd), each only where its SDK was found
 #   sketch/      SigilSketch: every renderable thing in this repository as
 #                one sketch file, with the registry, the three runtimes a
 #                sketch may draw through, the live host and the headless

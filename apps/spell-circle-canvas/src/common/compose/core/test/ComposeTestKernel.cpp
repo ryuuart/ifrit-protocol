@@ -369,7 +369,7 @@ TEST(ComposeEffects, TextureBakesEffectOnce) {
 
 namespace {
 
-/** ~20 lines of user code: the lightweight grid from the design docs. */
+/** A lightweight grid, ~20 lines of user code. */
 struct Grid {
   int columns = 2;
   float gap = 8;

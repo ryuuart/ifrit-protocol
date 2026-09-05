@@ -151,16 +151,18 @@ encoding are outside this surface.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug --target video_decode_test video_encode_test
-ctest --test-dir build -C Debug -R video_ --output-on-failure
+python3 scripts/setup.py --config Release
+cmake --build build --config Release --target video_decode_test \
+  video_encode_test video_device_test
+ctest --test-dir build -C Release -R video_ --output-on-failure
 ```
 
 `video_encode_test` creates a short MP4 in memory, decodes it through
 `SigilVideoDecode`, and checks its timing and changing pixels.
 `video_decode_test` covers malformed input, seeking, cache behavior, and the
-hardware-policy failure contract. The native device path is exercised on a
-Graphite Metal surface where the platform makes VideoToolbox available.
+hardware-policy failure contract. `video_device_test` exercises the native
+device path on a Graphite Metal surface where the platform makes
+VideoToolbox available.
 `video_device_bench --async --streams 100 --surfaces 100 --rate 120` exercises
 independent mixed-resolution clocks through the worker pool and reports native,
 ready, and fresh frame percentages separately from render-thread frame time.

@@ -116,14 +116,11 @@ private:
 };
 ```
 
-Ready-made geometries cover the common cases: `BlockFlow` (a rectangle),
-`ExclusionFlow` (a rectangle minus moving circles, rects, or arbitrary
-`SkPath`s with their fill rule honored), `VerticalBlockFlow` (top-to-bottom
-columns advancing right to left), `LineSetFlow` (explicit intervals — any
-origin, direction, and count per line), and `PathFlow` (each contour of a
-path becomes a line). What a `LineRequest` carries, what a contour
-interval means, and what a column costs `ExclusionFlow` are in
-`FEATURES.md` under the flow geometries.
+Ready-made geometries cover the common cases: `BlockFlow`,
+`ExclusionFlow`, `VerticalBlockFlow`, `LineSetFlow` and `PathFlow`. What
+each one is, what a `LineRequest` carries, what a contour interval means,
+and what a column costs `ExclusionFlow` are in `FEATURES.md` under the
+flow geometries.
 
 ## The seams
 
@@ -176,7 +173,7 @@ every frame.
 | Target | Contents | Beyond Skia |
 |---|---|---|
 | `SigilWeaveUnicode` | the Unicode leaf | ICU and HarfBuzz's ICU bridge, private; no Skia |
-| `SigilWeaveStyle` | the style vocabulary, header-only, with `Type` and `type()` — the designated-init aggregate a call site names a style's numbers in | — |
+| `SigilWeaveStyle` | the style vocabulary, header-only, with `Type` and `textStyle()` — the designated-init aggregate a call site names a style's numbers in | — |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
 | `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU and Boost.Unordered — private |
@@ -187,7 +184,7 @@ every frame.
 | `SigilWeaveCache` | the label cache | Boost.Unordered, ICU — private |
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeaveShaders` | `shaders/PaintShaders.h` — water, mesh gradient, sparkle, star nest, clouds, tunnel | SigilMaterialKit, SigilMaterialSkia — private; not in the export set |
-| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText today; DirectWrite/Fontconfig slot into the same call — and `ports::pickTypeface()`, the first installed family of a fallback chain | Skia platform ports |
+| `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — and `ports::pickTypeface()`, the first installed family of a fallback chain | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the line-edge and hyphenation tables (see `kit/README.md`) | SigilWeaveUnicode — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
@@ -254,9 +251,9 @@ state.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug
-ctest --test-dir build -C Debug -R weave_ --output-on-failure
+python3 scripts/setup.py --config Release
+cmake --build build --config Release
+ctest --test-dir build -C Release -R weave_ --output-on-failure
 ```
 
 The tests are one binary per feature, each under its feature's `test/`

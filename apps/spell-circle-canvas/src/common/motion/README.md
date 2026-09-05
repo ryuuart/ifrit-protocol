@@ -426,11 +426,11 @@ here does not belong here.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug \
+python3 scripts/setup.py --config Release
+cmake --build build --config Release \
   --target motion_clock_test motion_values_test motion_bind_test \
            motion_schedule_test
-ctest --test-dir build -C Debug -R motion_ --output-on-failure
+ctest --test-dir build -C Release -R motion_ --output-on-failure
 ```
 
 Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`,

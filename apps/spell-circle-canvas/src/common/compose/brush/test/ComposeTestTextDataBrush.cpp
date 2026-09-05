@@ -205,14 +205,11 @@ TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
 }
 
 TEST(ComposeDecorations, TheBrushVocabularyWorksOnGeometryYouBuiltYourself) {
-  // The roadmap recorded that live geometry in custom() forfeits the
-  // decoration vocabulary along with pruning. Half wrong, and caught by a
-  // researcher reading the source: PathFormat, lines::Line and Brush read
-  // ONLY PaintContext::outline, Decoration::paint is public, and
-  // PaintContext is a plain aggregate. So a simulated rope, a live EQ
-  // curve or a plotted signal can wear all of it — including
-  // PathFormat's own trim window, which is the part the roadmap said was
-  // lost.
+  // Live geometry in custom() forfeits pruning and nothing else:
+  // PathFormat, lines::Line and Brush read ONLY PaintContext::outline,
+  // Decoration::paint is public, and PaintContext is a plain aggregate.
+  // So a simulated rope, a live EQ curve or a plotted signal can wear all
+  // of it — including PathFormat's own trim window.
   PathFormat dashedHead = stroke(5, Fill::color({0, 1, 0, 1}));
   dashedHead.trimStart = 0.75f;  // the last quarter only
   dashedHead.trimEnd = 1.0f;
@@ -220,8 +217,7 @@ TEST(ComposeDecorations, TheBrushVocabularyWorksOnGeometryYouBuiltYourself) {
   Host host(200, 200);
   host.composer.render(box().child(
       custom([dashedHead](SkCanvas& canvas, const PaintContext& ctx) {
-        // Geometry computed HERE, per paint — the case the roadmap
-        // claimed could not be decorated.
+        // Geometry computed HERE, per paint, and decorated.
         SkPathBuilder b;
         b.moveTo(10, 100).lineTo(190, 100);
         decorations::paintOn(canvas, ctx, b.detach(), dashedHead);

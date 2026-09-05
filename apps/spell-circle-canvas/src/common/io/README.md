@@ -246,9 +246,9 @@ and does not open a file in either direction.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Debug
-cmake --build build --config Debug --target io_source_test io_hub_test
-ctest --test-dir build -C Debug -R io_ --output-on-failure
+python3 scripts/setup.py --config Release
+cmake --build build --config Release --target io_source_test io_hub_test
+ctest --test-dir build -C Release -R io_ --output-on-failure
 ```
 
 Targets: `SigilIOSource` (header only, `source/`) with

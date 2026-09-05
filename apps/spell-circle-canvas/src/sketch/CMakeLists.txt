@@ -65,7 +65,7 @@ target_link_libraries(SigilSketch INTERFACE
   SigilSketchCore SigilSketchCanvas SigilSketchSet SigilSketchDraw
   SigilSketchLive SigilSketchPlate)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilSketch
   BRIEF "Sketches: one file per scene, one registry, one host"

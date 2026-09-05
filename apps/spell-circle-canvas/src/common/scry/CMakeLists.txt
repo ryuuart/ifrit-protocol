@@ -4,8 +4,8 @@
 # Platform singleton is handed: an SkBitmap-backed surface, the two-root
 # file system, the logger bridge and the resource directory. The gpu
 # feature executes Ultralight's GPU command lists on a SigilCoreHardware
-# GpuDevice and gives the engine its texture interop — Metal today, the
-# seam a Vulkan driver implements. The engine feature is the web thread,
+# GpuDevice and gives the engine its texture interop — Metal, with a Vulkan
+# driver slotting in beside it. The engine feature is the web thread,
 # the views that publish frames and the image slots pages display.
 # `SigilScry` is the umbrella over all three.
 #
@@ -17,7 +17,7 @@
 # engine feature reaches them by directory rather than the include root.
 #
 # Only added when SPELLCIRCLE_ENABLE_ULTRALIGHT is ON (auto-off when the
-# SDK is missing; see cmake/FindUltralight.cmake). Textures are named on
+# SDK is missing). Textures are named on
 # SigilCoreHardware's GpuDevice and the GPU driver draws over a shared
 # Graphite context, so the library needs SigilSkia's graphite feature
 # (SPELLCIRCLE_ENABLE_SKIA_CANVAS).
@@ -41,9 +41,7 @@ add_library(SigilScry INTERFACE)
 target_link_libraries(SigilScry INTERFACE
   SigilScryPlatform SigilScryGpu SigilScryEngine)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilScry
   BRIEF "A headless web engine whose HTML, CSS and JavaScript output arrives as Skia images"

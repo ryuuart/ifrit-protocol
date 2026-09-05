@@ -1,11 +1,12 @@
 # SigilWeaveKit
 
-Companion utilities for SigilWeave consumers, distilled from the patterns the
-gallery, demo, and SpellCircle app kept hand-rolling. Core SigilWeave stays a
-layout engine; this layer packages the *usage discipline* that keeps animated
-text cheap. It is Qt-free, rests on the paint feature (a label draws) and Skia,
-asks the Unicode leaf the character questions its tables are derived from, and
-ships as its own target (`sigil::weave::SigilWeaveKit`, the future vcpkg `Kit` component).
+Companion utilities for SigilWeave consumers: the usage discipline that
+keeps animated text cheap. Core SigilWeave stays a layout engine; this
+layer packages that discipline. It is Qt-free, rests on the paint feature
+(a label draws) and Skia, asks the Unicode leaf the character questions
+its tables are derived from, and ships as its own target
+(`sigil::weave::SigilWeaveKit`, the `Kit` component of the exported
+package).
 
 ## Why this library exists
 

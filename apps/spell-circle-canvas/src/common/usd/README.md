@@ -165,7 +165,8 @@ authored by hand must spell it.
 ## Boundary
 
 Public: SigilMaterialKit for the surface a preview surface is written
-from, SigilWorldLight for the emitters, and the geometry features each
+from, SigilWorldLight for the emitters, SigilWorldElement for the
+environment map a dome light carries, and the geometry features each
 door takes values from (mesh, pop and camera for the writer; codec and
 mesh for the reader), plus Skia. Private: OpenUSD core (`usd`, `usdGeom`, `usdShade`, `usdLux`,
 `sdf`, `tf`, `gf`, `vt`) — no imaging, no MaterialX, and no public
@@ -177,8 +178,8 @@ was handed.
 
 ## Build and test
 
-OpenUSD comes from vcpkg (`usd`, default features off: `tbb` and `zlib`
-only). When the package is not found the top-level configure warns and
+OpenUSD comes from vcpkg (`usd` with its default features off). When the
+package is not found the top-level configure warns and
 leaves every target here out.
 
 Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
@@ -187,7 +188,7 @@ Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
 Benchmark, through the `benches` target and `scripts/bench_ledger.py`).
 
 ```sh
-ctest --test-dir build -C Debug -R usd_ --output-on-failure
+ctest --test-dir build -C Release -R usd_ --output-on-failure
 ```
 
 Two test binaries, one per door, over one fixture header at

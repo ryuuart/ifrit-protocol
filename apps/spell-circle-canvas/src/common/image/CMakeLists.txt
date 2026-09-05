@@ -34,9 +34,7 @@ add_library(SigilImage INTERFACE)
 target_link_libraries(SigilImage INTERFACE SigilImageAsset SigilImageDecode
   SigilImageEncode)
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilImage
   BRIEF "Image decoding and encoding: bytes in, Skia images out, and back"

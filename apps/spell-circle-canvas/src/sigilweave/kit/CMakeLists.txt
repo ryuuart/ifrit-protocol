@@ -2,7 +2,7 @@
 # keyed rebuild guards, paragraph-aware layout memoization, glyph
 # bucketing, label and style shorthand, and shared sample content. They
 # make the invisible parts of fast usage — cache invalidation keys,
-# draw-call batching — explicit and reusable (see README.md here).
+# draw-call batching — explicit and reusable.
 # Qt-free; a label draws, so the kit rests on the paint feature, and it
 # asks the Unicode leaf the character questions its tables are derived from
 # rather than holding a copy of the answers.

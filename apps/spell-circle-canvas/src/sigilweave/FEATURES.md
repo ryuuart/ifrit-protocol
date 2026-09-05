@@ -104,9 +104,9 @@ belongs to none of them, so the shared ones sit at the library root:
 `test/support/`, `test/assets/` and `bench/support/`. Internal headers never leave the feature
 directory. The features form a dependency chain — each links those it
 needs, and each header includes those it needs, so including a later one
-pulls the earlier ones in. `<sigilweave/SigilWeave.h>` is a transitional
-umbrella over every engine feature, for code written against the flat
-header tree; new code includes the feature headers it uses.
+pulls the earlier ones in. `<sigilweave/SigilWeave.h>` is the umbrella
+over every engine feature; a translation unit that uses one feature
+includes that feature's header.
 
 **`unicode`** — `SigilWeaveUnicode`, the leaf: `unicode/Unicode.h`, every
 Unicode question the engine asks answered as plain values over UTF-16
@@ -857,8 +857,8 @@ regardless. Left on whole pixels, a run creeping by a fraction of a pixel
 per frame does not creep at all — each letter stands still until its own
 origin crosses a pixel boundary and then hops a whole one. This is the same
 trade the rotation ladder makes and not a competing one: the ladder still
-bounds the rotations, and dropping it in exchange costs several times what
-the grid does.
+bounds the rotations, and dropping it in exchange multiplies the mask
+population by the rotation count.
 
 **A `GlyphDress` carries what varies per glyph** rather than per pass — the
 placement, the fade, three colour terms (a `colorMul` tint, a `colorAdd`

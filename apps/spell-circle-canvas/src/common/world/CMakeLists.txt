@@ -74,9 +74,7 @@ if(TARGET SigilWorldDiligent)
   target_link_libraries(SigilWorld INTERFACE SigilWorldDiligent)
 endif()
 
-# Registers this library with the `docs` target (see cmake/Docs.cmake).
-# The README is the site's front page, so the generated pages open on the
-# same document that is canon for the library.
+# API documentation (docs/README.md).
 sigil_add_docs(
   NAME SigilWorld
   BRIEF "3D scenes as values, executed on a GPU over a shared device"

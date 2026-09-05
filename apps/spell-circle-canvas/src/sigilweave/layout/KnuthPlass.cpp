@@ -238,8 +238,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
   // Natural width and elasticity of a line holding a half-open word range.
   // These are the DP loop's hottest calls, so they stay slim enough to
   // inline; the tab corrections live in one flat, `tabAware`-guarded block
-  // at their call site instead (nesting them here measurably de-inlined
-  // the lot and cost ~10% on tab-free Knuth-Plass layouts).
+  // at their call site instead (nesting them here de-inlines the lot; the
+  // bench ledger owns the cost).
   auto lineNatural = [&](uint32_t lineStart, uint32_t lineEnd) {
     return (prefixWidth[atWord(lineEnd)] - prefixWidth[atWord(lineStart)]) +
            (prefixGlue[atWord(lineEnd - 1)] - prefixGlue[atWord(lineStart)]) +

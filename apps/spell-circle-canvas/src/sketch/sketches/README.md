@@ -44,10 +44,11 @@ which is what you want while you are CHANGING one. Opening the app on
 the whole registry is what you want while you are LOOKING at one next to
 everything else.
 
-The table below is the studies that rebuild a REFERENCE, with what each
-one puts under load. Every other sketch here carries its own line in its
-own `SIGIL_SKETCH` declaration, which is what the application shows
-beside it — so there is one place to read and one place to change.
+The table below is every sketch filed under a `Study ·` category — the
+studies that rebuild a REFERENCE — with what each one puts under load.
+Every other sketch here carries its own line in its own `SIGIL_SKETCH`
+declaration, which is what the application shows beside it — so there
+is one place to read and one place to change.
 
 | Sketch | Subject | What it puts under load |
 |---|---|---|
@@ -55,7 +56,7 @@ beside it — so there is one place to read and one place to change.
 | `chaucer_astrolabe` | A planispheric astrolabe of the English "Chaucer" type, computed for Oxford 51° 50′ | A working instrument that tells the time — every radius out of φ and ε, proving itself to 5.55e-16 R on the canvas |
 | `cde_motif` | CDE 1.0 on OSF/Motif 2.1 (1995) | A desktop as the OUTPUT of a published function — `XmGetColors` derives four colours from one background, byte-exact including C's truncating division |
 | `chevreul_circle` | Chevreul's *1er cercle chromatique*, Plate V, 1864 | The first study whose content is a PALETTE; 13 invariants computed, ten hold and three fail |
-| `chladni_tab1` | Chladni's Tab. I, sound-figures of a bowed plate, engraved by Capieux 1786 | 9,580 instanced sand grains migrating onto twelve nodal geometries in one stamp, at 0.23 ms |
+| `chladni_tab1` | Chladni's Tab. I, sound-figures of a bowed plate, engraved by Capieux 1786 | 9,580 instanced sand grains migrating onto twelve nodal geometries in one stamp |
 | `fallout2_charsheet` | The Fallout 2 character screen (Black Isle, 1998) at 2× | The program's first TYPE-SET study: ~134 positioned runs in five alignment regimes, 21/21 derived values verified |
 | `ds2_bench` | *Dead Space 2*'s Bench — the Nanocircuit Repair upgrade circuit (2011) | Routers, rails and connectors; a diegetic holographic panel |
 | `genesis_fire` | The Genesis Demo wall of fire (Lucasfilm, 1982) — the first particle system | Reeves' published attribute list against `instances()`; additive `kPlus` where the colour IS overlap count |
@@ -83,6 +84,16 @@ beside it — so there is one place to read and one place to change.
 | `matrix_rain` | The Matrix's digital rain (Simon Whiteley, Animal Logic, 1999) — the in-film kind, where the light falls and the type stands still | Four vertical-RL curtains of mirrored half-width katakana; per-column cue tables with nested cluster cascades, a held keyframe streak, `fx::scramble` churn through an advance-uniform charset, and per-glyph fades splitting glow underlays into fade classes — thousands of glyphs, all moving |
 | `rota_convocationis` | An invented conjuring wheel in the real idiom of the Solomonic circles, Agrippa's planetary tables and the alchemical rotae | A magic circle that ASSEMBLES — fourteen curved baselines forming, orbiting and charging at once: fitted ring runs, a cue-table rim with a `beatsOf`-placed scribe, roundels chained start-to-start from `spanMs`, a kamea decoding under a nested cascade, and an `fx::pass` charge riding a marquee baseline |
 | `winamp_base` | Winamp 2.91's default "Base" skin | A bitmap skin rebuilt as generated material; a genuinely quantised 28-frame slider |
+| `astral_tome` | Astral Sorcery's constellation cluster page (Minecraft 1.12.2 mod, 2016–19) at exactly 3× | Four live star charts on one spread — the chart is square, the CELL is stretched |
+| `cosmati` | Cosmatesque opus sectile — quincunx and guilloche | Quarried stone as generated material, laid by the pavement's own construction |
+| `dunhuang_star_chart` | BL Or.8210/S.3326, the Dunhuang star chart (c. 649–684) | Reprojected from 1,460 real stars and the published projection, then checked against the published identifications — and it refuses to answer where the source does |
+| `eva_magi_defense` | *The End of Evangelion*'s MAGI defense plate (1997) | Six installations as one component, rotated |
+| `eva_magi_deliberation` | Evangelion's MAGI deliberation plate | One routed system: a rear circular bus, three rotated instances of one square module, and an information layer over both |
+| `eva_magi_interior` | Evangelion Ep 13, the MAGI under Ireul | The camera roll as the projection; the infection as a shader |
+| `lain_navi` | *Serial Experiments Lain*'s Copland OS | No opaque window anywhere, and text through a fixed focal plane |
+| `sigillum_aemeth` | Dee's Sigillum Dei Aemeth (1582), Sloane MS 3188 f. 30r | Solved from the angels' own jump rule — 33 of 40 cells — and the wax disc's burnish drawn |
+| `thaumonomicon` | Thaumcraft 6's research browser (2018) | Edges that are stamped art, not strokes |
+| `thunder_fulu` | A Thunder-Rite talisman, WRITTEN | Real stroke medians, and the foot at 7.1× the body's tempo |
 
 Two are not studies:
 
