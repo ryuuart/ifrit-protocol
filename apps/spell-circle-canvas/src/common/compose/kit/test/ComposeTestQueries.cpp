@@ -890,20 +890,6 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   EXPECT_GT(inked, 50) << "the reported checks drew nothing";
 }
 
-TEST(ComposeLayout, CentredBuildsTheRectAroundAPoint) {
-  const SkRect r = geometry::path::centred({100, 50}, 40, 20);
-  EXPECT_EQ(r, SkRect::MakeXYWH(80, 40, 40, 20));
-  EXPECT_EQ(geometry::path::centred({100, 50}, SkSize{40, 20}), r);
-
-  // The point of it being a VALUE: rect() takes it, and so does everything
-  // else that wants the same geometry.
-  Host host(200, 200);
-  host.composer.render(box().child(box().key("d").rect(r).fill(red())));
-  host.frame();
-  ASSERT_TRUE(host.composer.bounds("d").has_value());
-  EXPECT_EQ(require(host.composer.bounds("d")), r);
-  EXPECT_EQ(host.pixel(100, 50), SK_ColorRED);
-}
 
 // ---------------------------------------------------------------------------
 // The stroke grammar: shape(), spans, band().

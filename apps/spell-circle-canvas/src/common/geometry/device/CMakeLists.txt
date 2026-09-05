@@ -49,9 +49,21 @@ sigil_library(SigilGeometryDevice
          SigilSkiaGraphite
   PRIVATE unofficial::diligent-engine::volk Vulkan::Headers)
 
+# The device fixture every binary with device cases reads: one device per
+# process, and the reason there is none. Named so a consumer in another
+# directory can put it on its include path.
+set(SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/support
+    CACHE INTERNAL "the shared Vulkan device fixture")
+
+# LABELLED `gpu`: every case here brings a Vulkan device up and skips with
+# the reason when the machine has none, so a machine without one runs
+# `ctest -LE gpu` and checks nothing it cannot judge.
 sigil_test(geometry_device_test
   SOURCES test/DeviceTest.cpp
-  LIBRARIES SigilGeometryDevice)
+  LIBRARIES SigilGeometryDevice
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support
+               ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
+  LABELS gpu)
 
 sigil_bench(geometry_device_bench
   SOURCES bench/DeviceBench.cpp

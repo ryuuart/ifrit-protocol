@@ -15,7 +15,8 @@
 #include <sigilgeometry/mesh/pop/Kernel.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
+
+#include "OnDevice.h"
 
 #include <bit>
 #include <cstdint>
@@ -30,23 +31,6 @@ namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
 
-/** A DEVICE AND THE POP RUNTIME ON IT, or the reason there is neither.
- *  Every test here SKIPS rather than fails without a Vulkan runtime, so
- *  a machine with no GPU stays green. */
-struct OnDevice {
-  std::unique_ptr<geometry::device::Device> device;
-  pop::Runtime runtime;
-  std::string error;
-  explicit operator bool() const { return (bool)device; }
-};
-
-OnDevice onDevice() {
-  OnDevice out;
-  const geometry::device::DeviceConfig config;
-  out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.runtime = pop::deviceRuntime(*out.device);
-  return out;
-}
 
 /** The closed loop every chain below is scattered along. */
 std::vector<glm::vec3> loop() {
@@ -238,8 +222,8 @@ void DILIGENT_CALL_TYPE collect(Diligent::DEBUG_MESSAGE_SEVERITY severity,
 }  // namespace
 
 TEST(DevicePop, ACookThatReadsBackAndCooksAgainDrawsNoComplaint) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::Runtime runtime = pop::deviceRuntime(*on);
 
   // A lane reaches a dispatch from three places, and only a SECOND cook
   // over held buffers visits all of them: the first cook creates the
@@ -259,8 +243,8 @@ TEST(DevicePop, ACookThatReadsBackAndCooksAgainDrawsNoComplaint) {
   const Diligent::DebugMessageCallbackType before =
       Diligent::DebugMessageCallback;
   Diligent::SetDebugMessageCallback(&collect);
-  const Cloud once = pop::cook(chain, on.runtime);
-  const Cloud twice = pop::cook(chain, on.runtime);
+  const Cloud once = pop::cook(chain, runtime);
+  const Cloud twice = pop::cook(chain, runtime);
   Diligent::SetDebugMessageCallback(before);
 
   ASSERT_FALSE(once.positions.empty());
@@ -274,16 +258,16 @@ TEST(DevicePop, ACookThatReadsBackAndCooksAgainDrawsNoComplaint) {
 }
 
 TEST(DevicePop, EverySupportedChainCooksToTheSameBits) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::Runtime runtime = pop::deviceRuntime(*on);
 
   for (const Case& one : everySupportedChain()) {
     for (const pop::Op& op : one.chain)
-      ASSERT_TRUE(on.runtime->supports(op))
+      ASSERT_TRUE(runtime->supports(op))
           << one.what << ": the device declined an operator this test "
           << "expected it to run";
     const Cloud host = pop::cook(one.chain, pop::Runtime::cpu());
-    const Cloud device = pop::cook(one.chain, on.runtime);
+    const Cloud device = pop::cook(one.chain, runtime);
     ASSERT_FALSE(host.positions.empty()) << one.what;
     const Difference difference = compare(host, device);
     EXPECT_EQ(difference.differing, 0u)
@@ -295,8 +279,8 @@ TEST(DevicePop, EverySupportedChainCooksToTheSameBits) {
 }
 
 TEST(DevicePop, AnOperatorWithNoKernelIsDeclinedByName) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::Runtime runtime = pop::deviceRuntime(*on);
 
   // Each of these is a boundary the runtime states rather than a gap:
   // a neighbourhood read, a permutation, the primitive class, and two
@@ -308,7 +292,7 @@ TEST(DevicePop, AnOperatorWithNoKernelIsDeclinedByName) {
   const pop::Chain noised = pop::on(loop()).count(64).noise(4.0f);
   const pop::Chain twisted = pop::on(loop()).count(64).twist(45.0f);
   for (const pop::Chain& chain : {relax, sorted, promoted, noised, twisted}) {
-    EXPECT_THROW(pop::cook(chain, on.runtime), std::runtime_error);
+    EXPECT_THROW(pop::cook(chain, runtime), std::runtime_error);
     // …and the host runs every one of them, so what the device declines
     // is a chain that still has an answer.
     EXPECT_FALSE(pop::cook(chain, pop::Runtime::cpu()).positions.empty());
@@ -316,28 +300,28 @@ TEST(DevicePop, AnOperatorWithNoKernelIsDeclinedByName) {
 }
 
 TEST(DevicePop, TwoRuntimesFromOneDeviceAreNotOneValue) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  const pop::Runtime again = pop::deviceRuntime(*on.device);
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::Runtime runtime = pop::deviceRuntime(*on);
+  const pop::Runtime again = pop::deviceRuntime(*on);
   // Each call holds its own pipeline and its own buffers, so a
   // reconciler comparing two descriptions sees two runtimes; a copy of
   // one is the one it was copied from.
-  EXPECT_FALSE(on.runtime == again);
-  const pop::Runtime copy = on.runtime;
-  EXPECT_TRUE(copy == on.runtime);
-  EXPECT_FALSE(on.runtime == pop::Runtime::cpu());
+  EXPECT_FALSE(runtime == again);
+  const pop::Runtime copy = runtime;
+  EXPECT_TRUE(copy == runtime);
+  EXPECT_FALSE(runtime == pop::Runtime::cpu());
 }
 
 TEST(DevicePop, TheKernelAndTheRuntimeAgreeOnWhatHasOne) {
   // Whether an operator has a kernel is asked in ONE place, so a
   // runtime cannot come to hold a list of its own that drifts from it.
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::Runtime runtime = pop::deviceRuntime(*on);
   namespace kernel = geometry::mesh::kernel;
   const pop::Op jitter = pop::Jitter{};
   const pop::Op relax = pop::Relax{};
   EXPECT_TRUE(kernel::has(jitter));
   EXPECT_FALSE(kernel::has(relax));
-  EXPECT_EQ(on.runtime->supports(jitter), kernel::has(jitter));
-  EXPECT_EQ(on.runtime->supports(relax), kernel::has(relax));
+  EXPECT_EQ(runtime->supports(jitter), kernel::has(jitter));
+  EXPECT_EQ(runtime->supports(relax), kernel::has(relax));
 }

@@ -72,9 +72,12 @@ target_include_directories(SigilGeometryMeshPop PUBLIC
 # The pop tests seed chains from an imported model and save a cooked
 # result, so this binary reaches into the codec as well.
 sigil_test(geometry_mesh_pop_test
-  SOURCES test/PointsTest.cpp test/PopTest.cpp test/RuntimeTest.cpp
-          test/SweepTest.cpp
-  LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit)
+  SOURCES test/PointsTest.cpp test/PopChainsTest.cpp test/PopFieldsTest.cpp
+          test/PopFiltersTest.cpp test/PopLanesTest.cpp
+          test/PopSelectionTest.cpp test/PopSinksTest.cpp
+          test/RuntimeTest.cpp test/SweepTest.cpp test/SweptShapesTest.cpp
+  LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit
+  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support)
 
 # THE DEVICE TIER, its own binary and labelled `gpu`: every case here
 # brings a Vulkan device up and skips with the reason when the machine
@@ -86,6 +89,7 @@ sigil_test(geometry_mesh_pop_device_test
   SOURCES test/DeviceCookTest.cpp test/DeviceStampTest.cpp
           test/DeviceSweepTest.cpp
   LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit
+  SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   LABELS gpu)
 
 sigil_bench(geometry_mesh_pop_bench

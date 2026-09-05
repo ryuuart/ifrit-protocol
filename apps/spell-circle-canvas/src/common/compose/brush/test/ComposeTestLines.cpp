@@ -1815,20 +1815,6 @@ TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
   PathDump round = dumpPath(
       routers::manhattan(routers::Bend::HFirst, 8.0f)(std::span(run, 2)));
   EXPECT_GT(round.curves, 0);
-  // The kit shaper is the same cut for any brush pipeline: a closed
-  // 100x100 polyline square chamfered at 30 becomes the octagon
-  // geometry::shapers::chamfered() draws — 8 vertices, corners cut.
-  SkPathBuilder sq;
-  sq.moveTo(0, 0).lineTo(100, 0).lineTo(100, 100).lineTo(0, 100).close();
-  const SkPath oct = geometry::shapers::chamfered(30).shape(sq.detach());
-  PathDump o = dumpPath(oct);
-  EXPECT_EQ(o.closes, 1);
-  // 8 unique vertices (the iterator's synthesized closing line repeats
-  // the start point, so the raw dump reads 9 with front == back).
-  ASSERT_GE(o.pts.size(), 2u);
-  EXPECT_EQ(o.pts.size() - (o.pts.front() == o.pts.back() ? 1 : 0), 8u);
-  EXPECT_FALSE(oct.contains(2, 2));  // corner cut away
-  EXPECT_TRUE(oct.contains(50, 50));
 }
 
 TEST(ComposeRouters, ManhattanCasedRailMatchesCleanGeometry) {

@@ -18,11 +18,7 @@ using namespace sigil::geometry::mesh;
 
 using sigil::geometry::test::splitQuad;
 
-namespace {
-
-}  // namespace
-
-TEST(Mesh, GridUvAndIndicesCoherent) {
+TEST(Mesh, TheSheetsUvsAndIndicesAgreeWithItsVertices) {
   Mesh m = mesh::grid(
       4, 3, [](float u, float v) -> glm::vec3 { return {u * 10, v * 10, 0}; });
   EXPECT_EQ(m.vertexCount(), 12u);
@@ -198,5 +194,22 @@ TEST(Mesh, BakePrimColorUnweldsFlatColoursIntoVertices) {
   EXPECT_EQ(mesh::bakePrimColor(m, "absent").vertexCount(), 4u);
 }
 
-// viewProjection() already folds the viewport mapping in, so its output
-// divided by w is in PIXELS, not in normalized device coordinates: the world
+TEST(Mesh, AppendConjuresNoLaneNeitherSideAuthored) {
+  // Append PADS an existing lane; it does not create one. A merge of two
+  // meshes that both carry bare positions and indices stays bare, because
+  // every consumer reads "lane sized to positions" as the presence bit and
+  // a conjured lane would switch lighting or texturing on with nothing in
+  // it.
+  const auto bare = [] {
+    Mesh m;
+    m.positions = {{-2, -2, 0}, {2, -2, 0}, {0, 2, 0}};
+    m.indices = {0, 1, 2};
+    return m;
+  };
+  Mesh merged = bare();
+  merged.append(bare());
+  EXPECT_EQ(merged.positions.size(), 6u);
+  EXPECT_TRUE(merged.normals.empty());
+  EXPECT_TRUE(merged.uvs.empty());
+  EXPECT_TRUE(merged.colors.empty());
+}

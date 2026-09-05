@@ -10,7 +10,7 @@ sigil_library(SigilGeometryMeshRender
   PRIVATE Boost::unordered)
 
 sigil_test(geometry_mesh_render_test
-  SOURCES test/PainterTest.cpp test/RuntimeTest.cpp
+  SOURCES test/PainterTest.cpp test/RuntimeTest.cpp test/ShadingTest.cpp
   LIBRARIES SigilGeometryMeshRender)
 
 sigil_bench(geometry_mesh_render_bench

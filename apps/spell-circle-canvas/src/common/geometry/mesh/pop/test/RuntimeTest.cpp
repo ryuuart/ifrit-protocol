@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "sigilgeometry/mesh/pop/Pop.h"
+#include "support/RuntimeSeam.h"
 
 using namespace sigil::geometry::mesh;
 
@@ -52,22 +53,15 @@ struct Recorder : pop::Executor {
   }
 };
 
+struct CookSeam {
+  using Seam = pop::Runtime;
+  static Seam builtIn() { return pop::Runtime::cpu(); }
+  static Seam holding(const char* label) { return pop::Runtime{Recorder{label}}; }
+};
+
 }  // namespace
 
-TEST(PopRuntime, BuiltInIsOneValue) {
-  EXPECT_TRUE((bool)pop::Runtime::cpu());
-  EXPECT_EQ(pop::Runtime::cpu(), pop::Runtime::cpu());
-}
-
-TEST(PopRuntime, ComparesByModelValue) {
-  const pop::Runtime a{Recorder{"a"}};
-  const pop::Runtime b{Recorder{"a"}};
-  const pop::Runtime c{Recorder{"c"}};
-  EXPECT_EQ(a, b);
-  EXPECT_NE(a, c);
-  EXPECT_NE(a, pop::Runtime::cpu());
-  EXPECT_NE(pop::Runtime(), a);
-}
+INSTANTIATE_TYPED_TEST_SUITE_P(TheCooksRuntimeSeam, RuntimeSeam, CookSeam);
 
 // The runtime is the whole of the switch: the same chain, the same
 // sinks, a different executor.
@@ -136,9 +130,12 @@ TEST(PopRuntime, TheSameChainCooksIdenticallyHoweverItIsDivided) {
     EXPECT_EQ(values, divided.vectors.at(name)) << "vector " << name;
   for (const auto& [name, values] : whole.colors)
     EXPECT_EQ(values, divided.colors.at(name)) << "color " << name;
+}
 
-  // The grain is part of the value, so a description that changed it
-  // re-cooks rather than standing on the cloud it already has.
+TEST(PopRuntime, TheGrainIsPartOfTheRuntimeValue) {
+  // A description that changed the grain re-cooks rather than standing on
+  // the cloud it already has, which is only true if the grain participates
+  // in the comparison a caching consumer prunes with.
   EXPECT_EQ(pop::Runtime::cpu(1), pop::Runtime::cpu(1));
   EXPECT_NE(pop::Runtime::cpu(1), pop::Runtime::cpu(64));
   EXPECT_NE(pop::Runtime::cpu(1), pop::Runtime::cpu());

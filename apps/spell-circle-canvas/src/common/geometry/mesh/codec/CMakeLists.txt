@@ -24,8 +24,12 @@ sigil_library(SigilGeometryMeshCodec
 # The decode tests write Alembic archives in memory with the O* API, so
 # the binary needs the library directly, not just the codec's door; they
 # also cook a pop chain over an imported cloud.
+# One file per format, plus the Model operations over whatever reader made
+# it and the writers' return leg.
 sigil_test(geometry_mesh_codec_test
-  SOURCES test/DecodeTest.cpp test/EncodeTest.cpp
+  SOURCES test/ObjTest.cpp test/GltfTest.cpp test/StlTest.cpp
+          test/PlyTest.cpp test/AlembicTest.cpp test/GeoTest.cpp
+          test/ModelTest.cpp test/EncodeTest.cpp
   LIBRARIES SigilGeometryMeshCodec SigilGeometryMeshPop SigilGeometryKit
             Alembic::Alembic)
 

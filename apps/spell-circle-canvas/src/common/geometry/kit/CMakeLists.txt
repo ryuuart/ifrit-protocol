@@ -26,7 +26,8 @@ sigil_library(SigilGeometryKit
 # Links only the shelves, over Skia — a link edge that pulled a component
 # or scene library in would show up as a build failure here.
 sigil_test(geometry_kit_test
-  SOURCES test/SilhouettesTest.cpp test/SolidsTest.cpp
+  SOURCES test/SilhouettesTest.cpp test/ShapersTest.cpp
+          test/DivisionsTest.cpp test/SolidsTest.cpp
   LIBRARIES SigilGeometryKit)
 
 sigil_bench(geometry_kit_bench

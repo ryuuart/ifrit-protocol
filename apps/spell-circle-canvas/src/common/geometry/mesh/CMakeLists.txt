@@ -5,9 +5,12 @@ sigil_library(SigilGeometryMesh
   HEADERS Mesh.h Vec.h
   PUBLIC SigilGeometryPath Boost::container)
 
+# ONE BINARY over the currency and the camera that places it. A camera is
+# not a boundary anyone reads: it names only mesh types and matrices, and
+# nothing links it without the currency underneath.
 sigil_test(geometry_mesh_test
-  SOURCES test/MeshTest.cpp
-  LIBRARIES SigilGeometryMesh)
+  SOURCES test/MeshTest.cpp test/CameraTest.cpp
+  LIBRARIES SigilGeometryMeshCamera)
 
 sigil_bench(geometry_mesh_bench
   SOURCES bench/MeshBench.cpp

@@ -193,40 +193,6 @@ TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
   EXPECT_GT(lit, 15);  // both spans shaped and painted
 }
 
-TEST(Shape, BlobIsDeterministicOrganicAndBounded) {
-  auto probe = [](uint32_t seed) {
-    Host host;
-    host.composer.render(
-        box().child(box()
-                        .width(120)
-                        .height(120)
-                        .shape(geometry::shapes::blob(seed, 0.3f, 9))
-                        .fill(red())));
-    host.frame();
-    std::vector<SkColor> px;
-    for (int y = 0; y < 130; y += 4)
-      for (int x = 0; x < 130; x += 4) px.push_back(host.pixel(x, y));
-    return px;
-  };
-  std::vector<SkColor> a1 = probe(7), a2 = probe(7), b = probe(8);
-  EXPECT_EQ(a1, a2);  // same seed → identical pixels (cacheable chaos)
-  EXPECT_NE(a1, b);   // different seed → different blob
-
-  Host host;
-  host.composer.render(
-      box().child(box()
-                      .width(120)
-                      .height(120)
-                      .shape(geometry::shapes::blob(7, 0.3f, 9))
-                      .fill(red())));
-  host.frame();
-  EXPECT_EQ(host.pixel(60, 60), SK_ColorRED);  // center always covered
-  int outside = 0;
-  for (int x = 121; x < 200; x += 4)
-    for (int y = 0; y < 200; y += 4)
-      if (host.pixel(x, y) != SK_ColorBLACK) outside++;
-  EXPECT_EQ(outside, 0);  // never escapes its layout box
-}
 
 TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   // The stagger law: at mid-progress the early glyphs are fully revealed

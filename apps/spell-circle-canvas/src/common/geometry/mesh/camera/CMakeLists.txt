@@ -8,10 +8,6 @@ sigil_library(SigilGeometryMeshCamera
   HEADERS Camera.h
   PUBLIC SigilGeometryMesh)
 
-sigil_test(geometry_mesh_camera_test
-  SOURCES test/CameraTest.cpp
-  LIBRARIES SigilGeometryMeshCamera)
-
 sigil_bench(geometry_mesh_camera_bench
   SOURCES bench/CameraBench.cpp
   LIBRARIES SigilGeometryMeshCamera)

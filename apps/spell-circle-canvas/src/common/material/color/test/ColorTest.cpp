@@ -82,3 +82,19 @@ TEST(Color, TakesAFourFloatColourFieldForFieldWithoutNamingItsLibrary) {
   const auto takesAColour = [](Color c) { return c.g; };
   EXPECT_FLOAT_EQ(takesAColour(FourFloats{0, 1, 0, 1}), 1.0f);
 }
+
+TEST(Color, TheOklabMidpointBetweenBlackAndWhiteIsPerceptual) {
+  // OKLab L is cube-root lightness, so its black-to-white midpoint is
+  // linear luminance 0.125 — sRGB about 0.389 — well below a naive sRGB
+  // lerp's 0.5 and far below a linear-light lerp's 0.735. Anything that
+  // interpolates two colours through this leaf inherits that, which is the
+  // whole reason a blend does not lerp channels.
+  const Color mid = lerpOklab({0, 0, 0, 1}, {1, 1, 1, 1}, 0.5f);
+  EXPECT_NEAR(mid.r, 0.389f, 0.03f);
+  EXPECT_NEAR(mid.r, mid.g, 0.01f);
+  EXPECT_NEAR(mid.g, mid.b, 0.01f);
+  // The ends are the keys themselves, so a blend's first and last step are
+  // the colours the caller named.
+  EXPECT_NEAR(lerpOklab({1, 0, 0, 1}, {0, 0, 1, 1}, 0.0f).r, 1.0f, 1e-3f);
+  EXPECT_NEAR(lerpOklab({1, 0, 0, 1}, {0, 0, 1, 1}, 1.0f).b, 1.0f, 1e-3f);
+}

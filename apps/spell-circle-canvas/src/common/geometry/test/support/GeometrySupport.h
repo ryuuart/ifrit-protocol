@@ -1,10 +1,13 @@
 #pragma once
 
 /** @file
- * Helpers shared by more than one geometry test binary: an OBJ cube with
- * its material, and a two-triangle quad with a known winding.
+ * Helpers shared by more than one geometry test file: the bytes of a piece
+ * of text, an OBJ cube with its material, and a two-triangle quad with a
+ * known winding.
  */
 
+#include <cstddef>
+#include <string_view>
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
@@ -14,6 +17,12 @@
 // here rather than in either of them.
 
 namespace sigil::geometry::test {
+
+/** The bytes of a piece of text, as a reader's resolver hands them over. */
+inline std::vector<std::byte> toBytes(std::string_view text) {
+  const auto* begin = reinterpret_cast<const std::byte*>(text.data());
+  return {begin, begin + text.size()};
+}
 
 constexpr const char* kCubeObj = R"(mtllib cube.mtl
 o Cube

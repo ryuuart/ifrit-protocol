@@ -20,7 +20,7 @@ using namespace sigil::geometry::mesh;
 
 using sigil::geometry::test::splitQuad;
 
-TEST(Render, DrawMeshCoversPixels) {
+TEST(Render, AMeshDrawnThroughTheCameraLandsInsideItsViewport) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 150));
   surface->getCanvas()->clear(SK_ColorBLACK);
@@ -40,7 +40,7 @@ TEST(Render, DrawMeshCoversPixels) {
   EXPECT_GT(SkColorGetR(c), 40u);
 }
 
-TEST(Render, NormalsModeEncodesDeviceSpaceYDown) {
+TEST(Render, TheNormalsModeEncodesDeviceSpaceWithYDown) {
   // The Normals G-buffer is DEVICE-space, +y down — the convention the
   // surface recipes read: rgb = (n.x, -n.y, n.z) * 0.5 + 0.5.
   camera::Camera camera;
@@ -78,7 +78,7 @@ TEST(Render, NormalsModeEncodesDeviceSpaceYDown) {
   EXPECT_LT(SkColorGetG(tiltedBm.getColor(100, 75)), 128u);
 }
 
-TEST(Render, PrimColorLaneTintsTrianglesFlat) {
+TEST(Render, APrimitiveColourLaneTintsEachTriangleFlat) {
   Mesh m = splitQuad();
   m.prim("Color")[0] = {1, 0, 0, 1};  // lower-right half
   m.prim("Color")[1] = {0, 0, 1, 1};  // upper-left half

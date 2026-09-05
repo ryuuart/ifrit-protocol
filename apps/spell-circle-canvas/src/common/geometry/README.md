@@ -1235,37 +1235,60 @@ through `scripts/bench_ledger.py`:
 | `geometry_device_bench` | the way in, less the driver: the Vulkan handles read off Diligent's interfaces and adopted, with Graphite stood up on what comes back |
 | `geometry_kit_bench` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with; and the solids by output size, an extrusion against the outline it lifts and a lathe against the profile it turns |
 
-The tests are one binary per feature, named for the feature's path, each
-linking only that feature's library (and the features above it), so a
-test cannot reach past the code it exercises and an edit to one feature
-recompiles one small file. All are registered with ctest and answer to
-`-R geometry`:
+A test asserts ONE behaviour this library promises through its public
+headers to a caller who has read only this document, and its name is that
+promise written as a sentence, so a failure line reads as the claim that
+broke. It pins only what editing this library alone could falsify: a
+closed form, a comparison two values are held to, a lane sized to its
+vertices, two executors of one kernel agreeing bit for bit. It never pins
+an anti-aliased byte, a fitted tolerance, a golden float read out of a
+mixer, a byte layout the compiler chose or elapsed time — a picture
+compared byte for byte is the plate ledger's to judge and a duration is
+the bench ledger's. A claim made N times with one thing varying is one
+`TEST_P` whose rows are named, so the failure line still reads as a
+promise. One file per subject, named for what it asserts.
 
-| Binary | Source | Covers |
+A binary exists only where it links a strictly smaller set of targets than
+its neighbours AND that boundary is a promise someone could read. That is
+why the blend feature's cases run in the path binary and the camera's in
+the mesh binary: nothing links either without the tier beneath it, so
+neither boundary is one a caller reads.
+
+| Binary | Files | Proves |
 | --- | --- | --- |
-| `geometry_path_test` | `path/test/PathTest.cpp` | the leaf alone: polylines, contours, poses along them (held against an independent walk of the same contours), the path operators, noise, numerics |
-| `geometry_path_blend_test` | `path/blend/test/BlendTest.cpp` | shape interpolation |
-| `geometry_mesh_test` | `mesh/test/MeshTest.cpp` | the mesh currency: the sheet's coherent lanes, transform and append, the primitive bake |
-| `geometry_kit_test` | `kit/test/SilhouettesTest.cpp`, `kit/test/SolidsTest.cpp` | the two shelves: every silhouette inscribed in its box, equal values drawing equal paths, the corner wrapper over any of them; and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled |
-| `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
-| `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
-| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the pose along them, and the projection to a 2D path |
-| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, `mesh/pop/test/SweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, the message an unsupported operator produces, and the same chain cooked at
-two grains to prove the divided passes answer what the whole ones do, bit
-for bit; the swept operator held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner, and its ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices. Links the codec to seed chains from an imported model |
-| `geometry_mesh_pop_device_test` (label `gpu`, built where a device feature exists) | `mesh/pop/test/DeviceCookTest.cpp`, `mesh/pop/test/DeviceStampTest.cpp`, `mesh/pop/test/DeviceSweepTest.cpp` | the CONFORMANCE of the device executors: every chain, every stamping and every sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected — the barrier the second cook needs is not the one the first needed, and only the diagnostics say so. Every case skips with the reason when no Vulkan device comes up |
-| `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and both writers' round trips; the only one linking Alembic |
+| `geometry_path_test` | `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, and how many steps a blend makes |
+| `geometry_mesh_test` | `mesh/test/` — `MeshTest`, `CameraTest` | the mesh currency and the camera that places it: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, and the view-projection and billboard transforms carried through to viewport pixels |
+| `geometry_kit_test` | `kit/test/` — `SilhouettesTest`, `ShapersTest`, `DivisionsTest`, `SolidsTest` | the four shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled |
+| `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
+| `geometry_mesh_render_test` | `mesh/render/test/` — `PainterTest`, `RuntimeTest`, `ShadingTest` | the mesh draw's pixels and the normals G-buffer's encoding; the draw's runtime seam; and each shading term against the closed form a device shader's own spelling of it is held to |
+| `geometry_mesh_pop_test` | `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the lanes a chain carries and the dials that address them by name, naming a subset and acting on it, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
+| `geometry_mesh_codec_test` | `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
+| `geometry_device_test` (`gpu`) | `device/test/DeviceTest` | one device end to end: Graphite draws on the very queue Diligent submits through, the adopted device names every Vulkan handle, and Diligent still drives it afterwards |
+| `geometry_mesh_pop_device_test` (`gpu`) | `mesh/pop/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
 
-Helpers that more than one binary reads (`kCubeObj`, `splitQuad`) live in
-`test/support/GeometrySupport.h` at the library root — the one shared
-test location; a helper one binary uses stays in that binary's file.
+Two binaries carry the `gpu` label: every case in them brings a Vulkan
+device up and skips, naming what is missing, when the machine has none. A
+machine without one runs `ctest -LE gpu` and checks the whole host tier.
+Nothing else here needs a device, a font or a network.
+
+| Label | On | Means |
+| --- | --- | --- |
+| `gpu` | `geometry_device_test`, `geometry_mesh_pop_device_test` | needs a Vulkan runtime (on macOS: `brew install molten-vk vulkan-loader`); skips with the reason without one |
+
+Fixtures live in one place per audience. `test/support/` at the library
+root holds what more than one binary reads: `GeometrySupport.h` (the OBJ
+cube with its material, a quad with a known winding, the bytes of a piece
+of text), `Paths.h` (a square and a rectangle) and `RuntimeSeam.h` — the
+typed suite every runtime seam in this library is held to, instantiated
+once per seam with a traits type. `device/test/support/OnDevice.h` is the
+one device a test process brings up, and the reason there is none; any
+binary with device cases puts that directory on its include path.
+`mesh/pop/test/support/Loops.h` holds the ring every pop chain is
+scattered along. A helper one file uses stays in that file.
 
 ```sh
 ctest --test-dir build -C Release -R geometry --output-on-failure
 ```
-
-Everything is CPU and raster Skia, so the tests need no GPU and run
-anywhere.
 
 **Looking at any of it** goes through SigilSketch, in `src/sketch/`: one
 file per renderable thing, in one registry, drawn by one application.

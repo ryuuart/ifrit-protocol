@@ -11,6 +11,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilgeometry/device/Device.h>
+
+#include "OnDevice.h"
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
@@ -29,23 +31,6 @@ namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
 
-/** A DEVICE AND THE SWEEP RUNTIME ON IT, or the reason there is neither.
- *  Every test that needs one SKIPS rather than fails without a Vulkan
- *  runtime, so a machine with no GPU stays green. */
-struct OnDevice {
-  std::unique_ptr<geometry::device::Device> device;
-  pop::SweepRuntime sweep;
-  std::string error;
-  explicit operator bool() const { return (bool)device; }
-};
-
-OnDevice onDevice() {
-  OnDevice out;
-  const geometry::device::DeviceConfig config;
-  out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.sweep = pop::sweepDeviceRuntime(*out.device);
-  return out;
-}
 
 /** A closed loop that turns in all three axes, so no ring's frame is
  *  axis-aligned and every component of the arithmetic is exercised. */
@@ -117,18 +102,18 @@ const char* nameOf(pop::SweepOptions::Normals rule) {
 }  // namespace
 
 TEST(DeviceSweep, TheRuntimeIsAValue) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
-  EXPECT_TRUE((bool)on.sweep);
-  EXPECT_EQ(on.sweep->name(), "diligent");
-  EXPECT_EQ(on.sweep, pop::SweepRuntime(on.sweep));
-  EXPECT_NE(on.sweep, pop::SweepRuntime::cpu());
-  EXPECT_NE(on.sweep, pop::sweepDeviceRuntime(*on.device));
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::SweepRuntime sweep = pop::sweepDeviceRuntime(*on);
+  EXPECT_TRUE((bool)sweep);
+  EXPECT_EQ(sweep->name(), "diligent");
+  EXPECT_EQ(sweep, pop::SweepRuntime(sweep));
+  EXPECT_NE(sweep, pop::SweepRuntime::cpu());
+  EXPECT_NE(sweep, pop::sweepDeviceRuntime(*on));
 }
 
 TEST(DeviceSweep, EveryNormalRuleIsBitIdenticalToTheHost) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::SweepRuntime sweep = pop::sweepDeviceRuntime(*on);
 
   for (pop::SweepOptions::Normals rule :
        {pop::SweepOptions::Normals::Radial, pop::SweepOptions::Normals::Frame,
@@ -143,7 +128,7 @@ TEST(DeviceSweep, EveryNormalRuleIsBitIdenticalToTheHost) {
         options.scale = 14.0f;
         options.caps = !closed;
         const gm::Mesh host = pop::sweep(rail, contour, options);
-        options.runtime = on.sweep;
+        options.runtime = sweep;
         const gm::Mesh device = pop::sweep(rail, contour, options);
         EXPECT_TRUE(identical(host, device))
             << nameOf(rule) << (closed ? " on a loop" : " on an arc")
@@ -154,8 +139,8 @@ TEST(DeviceSweep, EveryNormalRuleIsBitIdenticalToTheHost) {
 }
 
 TEST(DeviceSweep, ATaperReachesTheDeviceAsTheSizeItResolvedTo) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::SweepRuntime sweep = pop::sweepDeviceRuntime(*on);
 
   // A taper is an arbitrary host function; what crosses is the number it
   // answered, once per ring, so the two tiers scale by the same bits.
@@ -165,13 +150,13 @@ TEST(DeviceSweep, ATaperReachesTheDeviceAsTheSizeItResolvedTo) {
   const std::vector<curve::Frame3> rail = curve::frames(loop(), 48);
   const sigil::geometry::path::Polyline contour = pop::profile::circle(9);
   const gm::Mesh host = pop::sweep(rail, contour, options);
-  options.runtime = on.sweep;
+  options.runtime = sweep;
   EXPECT_TRUE(identical(host, pop::sweep(rail, contour, options)));
 }
 
 TEST(DeviceSweep, ASplineSweepsTheSameOnEitherRuntime) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::SweepRuntime sweep = pop::sweepDeviceRuntime(*on);
 
   // The spline overload builds the rail first and then hands it over, so
   // the runtime reaches the rings through the options exactly as the
@@ -180,7 +165,7 @@ TEST(DeviceSweep, ASplineSweepsTheSameOnEitherRuntime) {
   options.segments = 128;
   options.scale = 9.0f;
   const gm::Mesh host = pop::sweep(loop(), pop::profile::circle(16), options);
-  options.runtime = on.sweep;
+  options.runtime = sweep;
   EXPECT_TRUE(
       identical(host, pop::sweep(loop(), pop::profile::circle(16), options)));
 }

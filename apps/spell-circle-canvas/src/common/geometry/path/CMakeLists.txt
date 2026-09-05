@@ -20,9 +20,16 @@ sigil_library(SigilGeometryPath
           Stride.h
   PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute Boost::unordered)
 
+# ONE BINARY over the leaf and the shape interpolation that stands on it.
+# Blend is not a boundary anyone reads: no consumer links it without Path,
+# and its every claim is about the contours this leaf resamples. One file
+# per subject inside it — contours, polylines, marks, operators, seams,
+# crossings, frames, blend.
 sigil_test(geometry_path_test
-  SOURCES test/PathTest.cpp
-  LIBRARIES SigilGeometryPath)
+  SOURCES test/ContoursTest.cpp test/PolylinesTest.cpp test/MarksTest.cpp
+          test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
+          test/FramesTest.cpp test/BlendTest.cpp
+  LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
 sigil_bench(geometry_path_bench
   SOURCES bench/PathBench.cpp

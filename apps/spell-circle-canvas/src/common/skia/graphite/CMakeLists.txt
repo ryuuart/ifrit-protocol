@@ -35,16 +35,31 @@ if(APPLE)
   target_link_libraries(SigilSkiaGraphite PRIVATE ${FOUNDATION_FRAMEWORK})
 endif()
 
+# The Graphite readback every binary that draws on a device reads: this
+# target owns the context, so the one spelling of the snap-insert-read-
+# submit sequence lives beside it. Named so a consumer in another library
+# can put it on its include path.
+set(SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/support
+    CACHE INTERNAL "the shared Graphite readback")
+
+# THE PIXEL READS ARE ARITHMETIC over an SkImage — no device, no context,
+# no bring-up — so they are their own binary, built and run everywhere,
+# where the device cases below are Apple-only and labelled.
+sigil_test(skia_pixels_test
+  SOURCES test/PixelsTest.cpp
+  LIBRARIES SigilSkiaGraphite)
+
 # The Metal path end to end on the system device, and the same wrap
 # reached through a device's handles: needs a GPU, so both exist only
 # where one is guaranteed.
 if(APPLE)
-  sigil_test(sigilskia_graphite_test
+  sigil_test(skia_graphite_test
     SOURCES test/GraphiteTest.mm
     LIBRARIES SigilSkiaGraphite ${METAL_FRAMEWORK}
+    LABELS gpu
     ARC)
 
-  sigil_bench(sigilskia_graphite_bench
+  sigil_bench(skia_graphite_bench
     SOURCES bench/GraphiteBench.mm
     LIBRARIES SigilSkiaGraphite ${METAL_FRAMEWORK}
     ARC)

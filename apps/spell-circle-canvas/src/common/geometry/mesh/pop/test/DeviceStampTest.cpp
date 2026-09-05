@@ -11,6 +11,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilgeometry/device/Device.h>
+
+#include "OnDevice.h"
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>
@@ -28,23 +30,6 @@ namespace points = sigil::geometry::mesh::points;
 
 namespace {
 
-/** A DEVICE AND THE STAMP RUNTIME ON IT, or the reason there is neither.
- *  Every test that needs one SKIPS rather than fails without a Vulkan
- *  runtime, so a machine with no GPU stays green. */
-struct OnDevice {
-  std::unique_ptr<geometry::device::Device> device;
-  points::StampRuntime stamp;
-  std::string error;
-  explicit operator bool() const { return (bool)device; }
-};
-
-OnDevice onDevice() {
-  OnDevice out;
-  const geometry::device::DeviceConfig config;
-  out.device = geometry::device::Device::create(config, &out.error);
-  if (out.device) out.stamp = points::deviceRuntime(*out.device);
-  return out;
-}
 
 /** A cloud with every conventional lane written, so no lane of the
  *  dispatch is the filled-in default: a direction that is not axis
@@ -116,18 +101,18 @@ gm::Cloud cloud(int count) {
 }  // namespace
 
 TEST(DeviceStamp, TheRuntimeIsAValue) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
-  EXPECT_TRUE((bool)on.stamp);
-  EXPECT_EQ(on.stamp->name(), "diligent");
-  EXPECT_EQ(on.stamp, points::StampRuntime(on.stamp));
-  EXPECT_NE(on.stamp, points::StampRuntime::cpu());
-  EXPECT_NE(on.stamp, points::deviceRuntime(*on.device));
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const points::StampRuntime runtime = points::deviceRuntime(*on);
+  EXPECT_TRUE((bool)runtime);
+  EXPECT_EQ(runtime->name(), "diligent");
+  EXPECT_EQ(runtime, points::StampRuntime(runtime));
+  EXPECT_NE(runtime, points::StampRuntime::cpu());
+  EXPECT_NE(runtime, points::deviceRuntime(*on));
 }
 
 TEST(DeviceStamp, EveryStampIsBitIdenticalToTheHost) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const points::StampRuntime runtime = points::deviceRuntime(*on);
 
   const gm::Cloud points_ = cloud(3000);
   // Three stamps, each carrying a different set of the optional lanes: a
@@ -143,15 +128,15 @@ TEST(DeviceStamp, EveryStampIsBitIdenticalToTheHost) {
   for (const gm::Mesh& stamp : stamps) {
     points::InstanceOptions options = points::stampOptions(points_);
     const gm::Mesh host = points::instance(points_, stamp, options);
-    options.runtime = on.stamp;
+    options.runtime = runtime;
     EXPECT_TRUE(identical(host, points::instance(points_, stamp, options)))
         << "a stamp of " << stamp.vertexCount() << " vertices";
   }
 }
 
 TEST(DeviceStamp, AChainsStampedSinkIsTheSameOnEitherRuntime) {
-  const OnDevice on = onDevice();
-  if (!on) GTEST_SKIP() << on.error;
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const points::StampRuntime runtime = points::deviceRuntime(*on);
 
   // A cloud with no direction lane keeps the stamp's own axes, which is
   // the branch the oriented case does not take.
@@ -162,6 +147,6 @@ TEST(DeviceStamp, AChainsStampedSinkIsTheSameOnEitherRuntime) {
   const gm::Mesh stamp = gm::quad(3, 3);
   points::InstanceOptions options = points::stampOptions(flat);
   const gm::Mesh host = points::instance(flat, stamp, options);
-  options.runtime = on.stamp;
+  options.runtime = runtime;
   EXPECT_TRUE(identical(host, points::instance(flat, stamp, options)));
 }

@@ -1,5 +1,6 @@
 /** @file
- * Shape interpolation: step counts, spacing modes and colour blending.
+ * Shape interpolation over resampled contours: how many steps a blend
+ * makes, what decides the spacing, and where along a spine they land.
  */
 
 #include <gtest/gtest.h>
@@ -53,17 +54,6 @@ TEST(Blend, DistanceSpacingCountsSpineLength) {
   // 300px span / 50px = 6 slots -> 5 intermediates + 2 keys.
   const std::vector<blend::Step> steps = blend::make(from, to, options);
   EXPECT_EQ(steps.size(), 7u);
-}
-
-TEST(Blend, OklabMidGrayIsPerceptual) {
-  const SkColor4f mid =
-      blend::detail::lerpOklab({0, 0, 0, 1}, {1, 1, 1, 1}, 0.5f);
-  // OKLab L is cube-root lightness: its black-white midpoint is linear
-  // luminance 0.125 = sRGB ~0.389 — well below a naive sRGB lerp's 0.5
-  // and far below a linear-light lerp's 0.735.
-  EXPECT_NEAR(mid.fR, 0.389f, 0.03f);
-  EXPECT_NEAR(mid.fR, mid.fG, 0.01f);
-  EXPECT_NEAR(mid.fG, mid.fB, 0.01f);
 }
 
 TEST(Blend, SpinePlacesStepsAlongPath) {

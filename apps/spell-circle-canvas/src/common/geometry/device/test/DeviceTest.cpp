@@ -1,3 +1,10 @@
+/** @file
+ * The one device 2D and 3D share: Diligent creates the Vulkan device and
+ * SigilCoreHardware adopts it, so Graphite draws on the very queue
+ * Diligent submits through, the adopted device names every handle, and
+ * Diligent still drives it afterwards.
+ */
+
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <gpu/graphite/Context.h>
@@ -19,66 +26,12 @@
 
 #include <sigilgeometry/device/Device.h>
 
+#include "GraphiteReadback.h"
+#include "OnDevice.h"
+
 using namespace sigil;
 
 namespace {
-
-/** Device bring-up needs a Vulkan runtime. The tests SKIP rather than
- *  fail when the machine has none, so a machine without a GPU stays
- *  green. */
-// `d` names the variable the macro declares, and a declarator cannot be
-// parenthesised; every caller passes a plain identifier.
-// NOLINTBEGIN(bugprone-macro-parentheses)
-#define MAKE_DEVICE_OR_SKIP(d)                                   \
-  std::unique_ptr<geometry::device::Device> d;                    \
-  {                                                              \
-    geometry::device::DeviceConfig config;                        \
-    std::string deviceError;                                     \
-    d = geometry::device::Device::create(config, &deviceError);   \
-    if (!d) GTEST_SKIP() << "no Vulkan device: " << deviceError; \
-  }
-// NOLINTEND(bugprone-macro-parentheses)
-
-/** The pixels of a Graphite surface, read back through the context that
- *  drew it: snap and insert whatever the recorder still holds, ask for
- *  the read, submit synchronously, then spin until the callback lands.
- *  Empty when the read never completed. */
-SkBitmap readGraphiteSurface(skia::GraphiteContext& ctx, SkSurface* surface) {
-  SkBitmap bitmap;
-  const SkImageInfo info = surface->imageInfo();
-  if (auto recording = ctx.recorder()->snap()) {
-    skgpu::graphite::InsertRecordingInfo insert;
-    insert.fRecording = recording.get();
-    ctx.context()->insertRecording(insert);
-  }
-  struct Read {
-    std::unique_ptr<const SkImage::AsyncReadResult> result;
-    bool called = false;
-  } read;
-  ctx.context()->asyncRescaleAndReadPixels(
-      surface, info, SkIRect::MakeWH(info.width(), info.height()),
-      SkImage::RescaleGamma::kSrc, SkImage::RescaleMode::kNearest,
-      [](SkImage::ReadPixelsContext c,
-         std::unique_ptr<const SkImage::AsyncReadResult> r) {
-        auto* out = static_cast<Read*>(c);
-        out->result = std::move(r);
-        out->called = true;
-      },
-      &read);
-  skgpu::graphite::SubmitInfo submitInfo;
-  submitInfo.fSync = skgpu::graphite::SyncToCpu::kYes;
-  ctx.context()->submit(submitInfo);
-  for (int spin = 0; spin < 5000 && !read.called; ++spin)
-    ctx.context()->checkAsyncWorkCompletion();
-  if (!read.result) return bitmap;
-  bitmap.allocPixels(info);
-  const auto* src = static_cast<const uint8_t*>(read.result->data(0));
-  const size_t rowBytes = read.result->rowBytes(0);
-  for (int y = 0; y < info.height(); ++y)
-    std::memcpy(bitmap.pixmap().writable_addr(0, y), src + (size_t)y * rowBytes,
-                (size_t)info.width() * 4);
-  return bitmap;
-}
 
 /** A clear of a fresh render target through Diligent, submitted and
  *  waited out. False when the target could not be made. */
@@ -124,7 +77,7 @@ bool clearThroughDiligent(geometry::device::Device& device) {
 // out, and the clear at the end shows Diligent still driving the same
 // device after Graphite has submitted on it.
 TEST(Device, GraphiteDrawsOnTheDeviceDiligentMade) {
-  MAKE_DEVICE_OR_SKIP(d);
+  SIGIL_ON_DEVICE_OR_SKIP(d);
 
   core::hardware::GpuDevice* gpu = d->gpu();
   ASSERT_NE(gpu, nullptr) << "the Diligent device was not adopted";
@@ -154,7 +107,7 @@ TEST(Device, GraphiteDrawsOnTheDeviceDiligentMade) {
     EXPECT_GT(done, core::hardware::kFenceInitialValue);
     EXPECT_EQ(gpu->waitCpu(fence, done), core::hardware::FenceWait::Reached);
     EXPECT_EQ(gpu->completedValue(fence), done);
-    pixels = readGraphiteSurface(*d->graphite(), surface.surface());
+    pixels = skia::test::readGraphiteSurface(*d->graphite(), surface.surface());
   }
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(0, 0), painted);
@@ -171,7 +124,7 @@ TEST(Device, GraphiteDrawsOnTheDeviceDiligentMade) {
 // never touches gpu() or graphite(), so a device whose adoption failed
 // is still a device.
 TEST(Device, DiligentSideStandsOnItsOwn) {
-  MAKE_DEVICE_OR_SKIP(d);
+  SIGIL_ON_DEVICE_OR_SKIP(d);
   ASSERT_NE(d->renderDevice(), nullptr);
   ASSERT_NE(d->context(), nullptr);
   EXPECT_EQ(d->renderDevice()->GetDeviceInfo().Type,
@@ -202,33 +155,6 @@ using core::hardware::TextureFormat;
 using core::hardware::TextureHandle;
 using core::hardware::VulkanHandles;
 
-/** The one device this process brings up, kept for its lifetime: making
- *  a second Vulkan device costs the driver more the more it has already
- *  made, and every arm here wants the same one anyway. */
-geometry::device::Device *sharedDevice(std::string *why) {
-  static std::string error;
-  static std::unique_ptr<geometry::device::Device> device = [] {
-    geometry::device::DeviceConfig config;
-    return geometry::device::Device::create(config, &error);
-  }();
-  if (why) *why = error;
-  return device.get();
-}
-
-/** …and the adopted device standing on it, null when the adoption
- *  failed. */
-GpuDevice *adoptedDevice(std::string *why) {
-  geometry::device::Device *made = sharedDevice(why);
-  if (!made) return nullptr;
-  if (!made->gpu() && why) *why = "the device was created but not adopted";
-  return made->gpu();
-}
-
-/** …and Graphite on it. */
-skia::GraphiteContext *adoptedGraphite() {
-  geometry::device::Device *made = sharedDevice(nullptr);
-  return made ? made->graphite() : nullptr;
-}
 
 TextureDesc smallTexture() {
   TextureDesc desc;
@@ -238,19 +164,12 @@ TextureDesc smallTexture() {
   return desc;
 }
 
-// `var` names the variable the macro declares, and a declarator cannot
-// be parenthesised; every caller passes a plain identifier.
-// NOLINTBEGIN(bugprone-macro-parentheses)
-#define NEED_ADOPTED(var)                       \
-  std::string adoptError;                       \
-  GpuDevice *var = adoptedDevice(&adoptError);  \
-  if (!(var)) GTEST_SKIP() << "no adopted device: " << adoptError
-// NOLINTEND(bugprone-macro-parentheses)
-
 }  // namespace
 
 TEST(AdoptedDevice, CarriesEveryVulkanHandle) {
-  NEED_ADOPTED(device);
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice *device = on->gpu();
+  if (!device) GTEST_SKIP() << "the device was created but not adopted";
   EXPECT_EQ(device->backend(), Backend::Vulkan);
   const VulkanHandles &handles = device->native().vulkan;
   EXPECT_NE(handles.instance, nullptr);
@@ -262,7 +181,9 @@ TEST(AdoptedDevice, CarriesEveryVulkanHandle) {
 }
 
 TEST(AdoptedDevice, AdoptsItsOwnHandlesAgain) {
-  NEED_ADOPTED(owned);
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice *owned = on->gpu();
+  if (!owned) GTEST_SKIP() << "the device was created but not adopted";
   // The adopted device's handles, adopted again by a second device
   // object that also frees none of them: both name textures on the one
   // VkDevice Diligent made.
@@ -284,7 +205,13 @@ TEST(AdoptedDevice, AdoptsItsOwnHandlesAgain) {
 
 
 TEST(AdoptedDevice, TextureFormatsMapAndRetire) {
-  NEED_ADOPTED(device);
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice *device = on->gpu();
+  if (!device) GTEST_SKIP() << "the device was created but not adopted";
+  // Every case in this binary stands on the one device, so what a destroy
+  // adds to the retirement queue is a DELTA — an absolute count would be
+  // reading whatever ran before.
+  const size_t pendingBefore = device->pendingDestroys();
   const TextureFormat formats[] = {TextureFormat::RGBA8Unorm, TextureFormat::BGRA8Unorm,
                                    TextureFormat::RGBA16Float};
   const uint32_t expected[] = {37 /*R8G8B8A8_UNORM*/, 44 /*B8G8R8A8_UNORM*/,
@@ -302,7 +229,7 @@ TEST(AdoptedDevice, TextureFormatsMapAndRetire) {
     device->destroy(texture);
     EXPECT_FALSE(device->isValid(texture));
   }
-  EXPECT_EQ(device->pendingDestroys(), 3u);
+  EXPECT_EQ(device->pendingDestroys(), pendingBefore + 3u);
   for (int i = 0; i < 3; ++i) device->beginFrame();
   EXPECT_EQ(device->pendingDestroys(), 0u);
 
@@ -327,7 +254,9 @@ TEST(AdoptedDevice, TextureFormatsMapAndRetire) {
 }
 
 TEST(AdoptedDevice, ImportExportRoundTrip) {
-  NEED_ADOPTED(device);
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice *device = on->gpu();
+  if (!device) GTEST_SKIP() << "the device was created but not adopted";
   // A device-made image stands in for the host's: exported, imported
   // borrowed under a second name, exported again unchanged.
   const TextureHandle original = device->createTexture(smallTexture());
@@ -352,7 +281,9 @@ TEST(AdoptedDevice, ImportExportRoundTrip) {
 }
 
 TEST(AdoptedDevice, TimelineFenceSignalsAndWaits) {
-  NEED_ADOPTED(device);
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice *device = on->gpu();
+  if (!device) GTEST_SKIP() << "the device was created but not adopted";
   const FenceHandle fence = device->createFence();
   ASSERT_TRUE(device->isValid(fence));
   EXPECT_EQ(device->completedValue(fence), kFenceInitialValue);
@@ -378,8 +309,10 @@ TEST(AdoptedDevice, TimelineFenceSignalsAndWaits) {
 }
 
 TEST(AdoptedGraphite, WrapsATextureNamedByHandle) {
-  NEED_ADOPTED(dev);
-  skia::GraphiteContext *ctx = adoptedGraphite();
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice *dev = on->gpu();
+  if (!dev) GTEST_SKIP() << "the device was created but not adopted";
+  skia::GraphiteContext *ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
   TextureDesc desc = smallTexture();
@@ -392,7 +325,7 @@ TEST(AdoptedGraphite, WrapsATextureNamedByHandle) {
   ASSERT_NE(surface.canvas(), nullptr);
   surface.canvas()->clear(SkColorSetARGB(255, 0, 255, 0));
 
-  const SkBitmap pixels = readGraphiteSurface(*ctx, surface.surface());
+  const SkBitmap pixels = skia::test::readGraphiteSurface(*ctx, surface.surface());
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
   EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));
@@ -400,8 +333,10 @@ TEST(AdoptedGraphite, WrapsATextureNamedByHandle) {
 }
 
 TEST(AdoptedGraphite, SubmitSignalsAFence) {
-  NEED_ADOPTED(dev);
-  skia::GraphiteContext *ctx = adoptedGraphite();
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice *dev = on->gpu();
+  if (!dev) GTEST_SKIP() << "the device was created but not adopted";
+  skia::GraphiteContext *ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
   TextureDesc desc = smallTexture();
@@ -421,8 +356,10 @@ TEST(AdoptedGraphite, SubmitSignalsAFence) {
 }
 
 TEST(AdoptedGraphite, RenderTargetClearsAndReadsBack) {
-  NEED_ADOPTED(dev);
-  skia::GraphiteContext *ctx = adoptedGraphite();
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  GpuDevice *dev = on->gpu();
+  if (!dev) GTEST_SKIP() << "the device was created but not adopted";
+  skia::GraphiteContext *ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
   // A Graphite-owned target: the context alone, no wrap. The surface
@@ -432,7 +369,7 @@ TEST(AdoptedGraphite, RenderTargetClearsAndReadsBack) {
   sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
   ASSERT_NE(target, nullptr);
   target->getCanvas()->clear(SkColorSetARGB(255, 0, 255, 0));
-  const SkBitmap pixels = readGraphiteSurface(*ctx, target.get());
+  const SkBitmap pixels = skia::test::readGraphiteSurface(*ctx, target.get());
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(3, 3), SkColorSetARGB(255, 0, 255, 0));
 }

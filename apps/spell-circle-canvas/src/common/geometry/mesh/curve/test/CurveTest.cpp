@@ -1,9 +1,7 @@
 /** @file
- * Splines, the two rails, the pose along them, the profiles and the
- * sweep that carries them: a round profile forms a tube, a flat one a
- * ribbon or a hung banner. Each of those three shapes is also written
- * out longhand at the foot of this file, and the sweep is held against
- * the longhand vertex for vertex.
+ * Splines and the rails read off them: what a spline interpolates, how a
+ * pose is read at a distance along one, why a parallel-transport frame
+ * never inverts, and what a profile swept along a rail forms.
  */
 
 #include <gtest/gtest.h>
@@ -40,7 +38,7 @@ curve::Spline3 closedLoop() {
 
 }  // namespace
 
-TEST(Pose, WalksTheSplineByArcLength) {
+TEST(CurvePose, WalksTheSplineByArcLength) {
   curve::Spline3 line;
   line.type = curve::Spline3::Type::Linear;
   line.points = {{0, 0, 0}, {100, 0, 0}};
@@ -53,7 +51,7 @@ TEST(Pose, WalksTheSplineByArcLength) {
   EXPECT_NEAR(glm::length(quarter.binormal), 1.0f, 1e-4f);
 }
 
-TEST(Pose, AnOpenSplineParksAtItsEnds) {
+TEST(CurvePose, AnOpenSplineParksAtItsEnds) {
   curve::Spline3 line;
   line.type = curve::Spline3::Type::Linear;
   line.points = {{0, 0, 0}, {100, 0, 0}};
@@ -65,7 +63,7 @@ TEST(Pose, AnOpenSplineParksAtItsEnds) {
   EXPECT_NEAR(before.position.x, 0.0f, 0.5f);
 }
 
-TEST(Pose, AClosedSplineComesRound) {
+TEST(CurvePose, AClosedSplineComesRound) {
   const curve::Spline3 loop = closedLoop();
   const float total = loop.length();
   const curve::Frame3 start = curve::poseAlong(loop, 0.0f);
@@ -79,7 +77,7 @@ TEST(Pose, AClosedSplineComesRound) {
 // The whole point of a parallel-transport frame: walking the loop, the
 // normal turns a little at a time and never inverts — not at an
 // inflection, and not at the seam where the walk closes.
-TEST(Pose, FramesDoNotFlipAroundAClosedLoop) {
+TEST(CurvePose, FramesDoNotFlipAroundAClosedLoop) {
   const curve::Spline3 loop = closedLoop();
   const float total = loop.length();
   const int steps = 400;
@@ -102,7 +100,7 @@ TEST(Pose, FramesDoNotFlipAroundAClosedLoop) {
   EXPECT_GT(glm::dot(seam.normal, start.normal), 0.99f);
 }
 
-TEST(Pose, ARailReadsTheSamePlacesTheSplineDoes) {
+TEST(CurvePose, ARailReadsTheSamePlacesTheSplineDoes) {
   const curve::Spline3 loop = closedLoop();
   const std::vector<curve::Frame3> rail = curve::frames(loop, 256);
   const float total = loop.length();

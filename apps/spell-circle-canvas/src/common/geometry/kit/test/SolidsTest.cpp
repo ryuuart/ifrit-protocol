@@ -10,19 +10,13 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 
+#include "support/Paths.h"
+
 using namespace sigil::geometry::mesh;
+using sigil::geometry::test::rect;
+using sigil::geometry::test::square;
 
 namespace {
-
-SkPath squarePath(float side) {
-  SkPathBuilder b;
-  b.addRect(SkRect::MakeWH(side, side));
-  return b.detach();
-}
-
-SkPath rect(float x, float y, float w, float h) {
-  return SkPath::Rect(SkRect::MakeXYWH(x, y, w, h));
-}
 
 bool normalsAreUnit(const Mesh& mesh) {
   for (const glm::vec3& n : mesh.normals)
@@ -33,7 +27,7 @@ bool normalsAreUnit(const Mesh& mesh) {
 }  // namespace
 
 TEST(Solids, ExtrudeLiftsAPathIntoASolidAndDroppingCapsLeavesAShell) {
-  const Mesh solid = extrude(squarePath(10), {.depth = 4});
+  const Mesh solid = extrude(square(10), {.depth = 4});
   EXPECT_FALSE(solid.positions.empty());
   EXPECT_GT(solid.triangleCount(), 0u);
   EXPECT_EQ(solid.normals.size(), solid.positions.size());
@@ -42,65 +36,20 @@ TEST(Solids, ExtrudeLiftsAPathIntoASolidAndDroppingCapsLeavesAShell) {
   solid.bounds(&lo, &hi);
   EXPECT_NEAR(hi.z - lo.z, 4.0f, 1e-4f);  // the depth is total, centred on 0
 
-  const Mesh shell = extrude(squarePath(10),
-                             {.depth = 4, .frontCap = false, .backCap = false});
+  const Mesh shell =
+      extrude(square(10), {.depth = 4, .frontCap = false, .backCap = false});
   EXPECT_LT(shell.triangleCount(), solid.triangleCount());
-}
 
-TEST(Solids, RevolveLathesAProfileAroundTheAxisAndAPartialSweepStopsShort) {
-  const std::vector<glm::vec2> profile = {{1, 0}, {2, 1}, {1, 2}};
-  const Mesh full = revolve(profile, {.segments = 16});
-  EXPECT_EQ(full.uvs.size(), full.positions.size());
-  EXPECT_TRUE(normalsAreUnit(full));
-  glm::vec3 lo, hi;
-  full.bounds(&lo, &hi);
-  EXPECT_NEAR(hi.y - lo.y, 2.0f, 1e-4f);  // the profile's height, lathed
-  EXPECT_NEAR(hi.x, 2.0f, 1e-4f);
-  EXPECT_NEAR(lo.x, -2.0f, 1e-4f);  // all the way round
-
-  // A partial sweep leaves the surface open, so it never reaches the far
-  // side the full turn covers.
-  const Mesh quarter = revolve(profile, {.segments = 16, .sweepDeg = 90});
-  quarter.bounds(&lo, &hi);
-  EXPECT_GT(lo.x, -1e-4f);
-}
-
-TEST(Solids, TheNamedSurfacesAreTheSheetSeamEvaluated) {
-  const Mesh t = torus(3, 1, 24, 12);
-  EXPECT_EQ(t.positions.size(), t.normals.size());
-  EXPECT_TRUE(normalsAreUnit(t));
-  glm::vec3 lo, hi;
-  t.bounds(&lo, &hi);
-  EXPECT_NEAR(hi.x, 4.0f, 1e-2f);  // major plus tube
-
-  const Mesh sphere = superellipsoid({2, 2, 2}, 2.0f, 24, 16);
-  sphere.bounds(&lo, &hi);
-  EXPECT_NEAR(hi.y, 2.0f, 1e-2f);
-
-  // A flat panel is the degenerate curve, and it is the currency's own
-  // quad — the shelf's panel bends where the quad cannot.
-  const Mesh flat = cylinderPanel(4, 2, 0, 8, 4);
-  flat.bounds(&lo, &hi);
-  EXPECT_NEAR(hi.z - lo.z, 0.0f, 1e-4f);
-  const Mesh curved = cylinderPanel(4, 2, 3, 8, 4);
-  curved.bounds(&lo, &hi);
-  EXPECT_GT(hi.z - lo.z, 0.0f);
-}
-
-TEST(Solids, ExtrudeRectMakesABox) {
-  Mesh m = extrude(rect(0, 0, 100, 60), {.depth = 20});
-  ASSERT_GT(m.vertexCount(), 0u);
-  ASSERT_EQ(m.normals.size(), m.vertexCount());
-  ASSERT_EQ(m.uvs.size(), m.vertexCount());
-  glm::vec3 lo, hi;
-  m.bounds(&lo, &hi);
+  // A rectangle keeps its own two extents and gains the depth as the
+  // third, and a four-sided profile with both caps is six quads: two caps
+  // and four walls, two triangles each.
+  const Mesh box = extrude(rect(0, 0, 100, 60), {.depth = 20});
+  box.bounds(&lo, &hi);
   EXPECT_NEAR(hi.x - lo.x, 100.0f, 1e-3f);
   EXPECT_NEAR(hi.y - lo.y, 60.0f, 1e-3f);
   EXPECT_NEAR(hi.z - lo.z, 20.0f, 1e-3f);
-  // 2 caps (2 tris each) + 4 walls (2 tris each) = 12 triangles.
-  EXPECT_EQ(m.triangleCount(), 12u);
-  // All normals unit length.
-  for (const glm::vec3& n : m.normals) EXPECT_NEAR(glm::length(n), 1.0f, 1e-4f);
+  EXPECT_EQ(box.triangleCount(), 12u);
+  EXPECT_TRUE(normalsAreUnit(box));
 }
 
 TEST(Solids, ExtrudeAnnulusKeepsHole) {
@@ -129,6 +78,41 @@ TEST(Solids, ExtrudeAnnulusKeepsHole) {
   EXPECT_NEAR(area / expected, 1.0, 0.03);
 }
 
+TEST(Solids, RevolveLathesAProfileAroundTheAxisAndAPartialSweepStopsShort) {
+  const std::vector<glm::vec2> profile = {{1, 0}, {2, 1}, {1, 2}};
+  const Mesh full = revolve(profile, {.segments = 16});
+  EXPECT_EQ(full.uvs.size(), full.positions.size());
+  EXPECT_TRUE(normalsAreUnit(full));
+  glm::vec3 lo, hi;
+  full.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.y - lo.y, 2.0f, 1e-4f);  // the profile's height, lathed
+  EXPECT_NEAR(hi.x, 2.0f, 1e-4f);
+  EXPECT_NEAR(lo.x, -2.0f, 1e-4f);  // all the way round
+
+  // A partial sweep leaves the surface open, so it never reaches the far
+  // side the full turn covers.
+  const Mesh quarter = revolve(profile, {.segments = 16, .sweepDeg = 90});
+  quarter.bounds(&lo, &hi);
+  EXPECT_GT(lo.x, -1e-4f);
+}
+
+TEST(Solids, TheNamedSurfacesAreTheSheetSeamEvaluated) {
+  glm::vec3 lo, hi;
+  const Mesh sphere = superellipsoid({2, 2, 2}, 2.0f, 24, 16);
+  EXPECT_TRUE(normalsAreUnit(sphere));
+  sphere.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.y, 2.0f, 1e-2f);
+
+  // A flat panel is the degenerate curve, and it is the currency's own
+  // quad — the shelf's panel bends where the quad cannot.
+  const Mesh flat = cylinderPanel(4, 2, 0, 8, 4);
+  flat.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.z - lo.z, 0.0f, 1e-4f);
+  const Mesh curved = cylinderPanel(4, 2, 3, 8, 4);
+  curved.bounds(&lo, &hi);
+  EXPECT_GT(hi.z - lo.z, 0.0f);
+}
+
 TEST(Solids, TorusNormalsPointOutward) {
   Mesh m = torus(100, 30, 32, 16);
   // Parameterization convention: the first vertex is u = v = 0, which is on
@@ -137,5 +121,9 @@ TEST(Solids, TorusNormalsPointOutward) {
   // inside out.
   const glm::vec3 n0 = m.normals.front();
   EXPECT_GT(std::abs(n0.x), 0.7f);
-  for (const glm::vec3& n : m.normals) EXPECT_NEAR(glm::length(n), 1.0f, 1e-3f);
+  EXPECT_TRUE(normalsAreUnit(m));
+  // …and the surface reaches the major radius plus the tube.
+  glm::vec3 lo, hi;
+  m.bounds(&lo, &hi);
+  EXPECT_NEAR(hi.x, 130.0f, 1e-1f);
 }

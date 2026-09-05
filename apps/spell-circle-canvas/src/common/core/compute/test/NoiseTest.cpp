@@ -165,3 +165,12 @@ TEST(Noise, TwoMix64StreamsOnOneSeedDrawTheSameSequence) {
   noise::Mix64Stream a(0xdeadbeefcafef00dull), b(0xdeadbeefcafef00dull);
   for (int draw = 0; draw < 64; ++draw) EXPECT_EQ(a.bits(), b.bits());
 }
+
+TEST(Noise, ADifferentSeedIsADifferentStream) {
+  // The seed is the first argument for a reason: two consumers drawing at
+  // the same index must be able to differ by naming different seeds, or
+  // every seeded figure in a scene is the same figure.
+  for (uint32_t i = 0; i < 64; ++i)
+    EXPECT_NE(noise::hash(7u, i), noise::hash(8u, i)) << "index " << i;
+  EXPECT_NE(noise::pcgUnit(7u), noise::pcgUnit(8u));
+}

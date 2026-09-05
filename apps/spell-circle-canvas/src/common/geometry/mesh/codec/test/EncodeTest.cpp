@@ -1,17 +1,22 @@
 /** @file
- * The PLY writer: clouds and meshes round-trip through the reader lane
- * for lane, binary rows survive exactly, header and rows agree when
- * lanes mismatch, and primitive lanes travel as face properties.
+ * The writers: a cloud and a mesh come back through the reader lane for
+ * lane in either PLY encoding and in `.geo`, binary rows survive bit for
+ * bit, header and rows agree when lanes mismatch, primitive lanes travel
+ * as face properties, and what this library writes is recognisable from
+ * its bytes alone.
  */
 
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <filesystem>
+#include <string>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/codec/Decode.h"
 #include "sigilgeometry/mesh/codec/Encode.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
+#include "ScratchDir.h"
 #include "support/GeometrySupport.h"
 #include <sigilgeometry/kit/Solids.h>
 
@@ -117,10 +122,16 @@ TEST(Save, PlyRoundTripsCloudLanes) {
   EXPECT_NEAR((*back.colorIf("tint"))[3].w, 0.5f, 1.5f / 255.0f);
 }
 
-TEST(Save, PlyRoundTripsMeshWithFaces) {
+// The mesh round trip in both encodings: the writer emits a face element
+// either way — a list count then the indices, spelled out in text or laid
+// down as raw bytes — and the reader brings back the same quad.
+class PlyEncoding : public ::testing::TestWithParam<bool> {};
+
+TEST_P(PlyEncoding, RoundTripsAMeshWithItsFacesAndColours) {
   Mesh quad = mesh::quad(10, 6);
   quad.colors.assign(quad.vertexCount(), {0.2f, 0.9f, 0.4f, 1});
-  const std::string bytes = codec::encode::ply(quad);
+  const std::string bytes = codec::encode::ply(quad, {.binary = GetParam()});
+  ASSERT_FALSE(bytes.empty());
   auto model = codec::decode::model(bytes.data(), bytes.size(), "quad.ply");
   ASSERT_TRUE(model.has_value());
   const Mesh& back = model->parts.front().mesh;
@@ -128,14 +139,22 @@ TEST(Save, PlyRoundTripsMeshWithFaces) {
   EXPECT_EQ(back.triangleCount(), 2u);
   glm::vec3 lo, hi;
   back.bounds(&lo, &hi);
-  EXPECT_NEAR(hi.x - lo.x, 10, 1e-4f);
-  EXPECT_NEAR(hi.y - lo.y, 6, 1e-4f);
+  EXPECT_FLOAT_EQ(hi.x - lo.x, 10.0f);
+  EXPECT_FLOAT_EQ(hi.y - lo.y, 6.0f);
   ASSERT_EQ(back.uvs.size(), 4u);
   ASSERT_EQ(back.colors.size(), 4u);
+  // "tint" travels as uchar channels either way, so it pays its
+  // quantization in both.
   EXPECT_NEAR(back.colors[0].y, 0.9f, 1.5f / 255.0f);
 }
 
-TEST(Save, BinaryPlyRoundTripsExactly) {
+INSTANTIATE_TEST_SUITE_P(
+    Ply, PlyEncoding, ::testing::Bool(),
+    [](const ::testing::TestParamInfo<bool>& info) {
+      return info.param ? "Binary" : "Ascii";
+    });
+
+TEST(Save, ABinaryPlyRoundTripsACloudBitForBit) {
   // Binary rows are raw floats, so the round trip is BIT-exact and every
   // check can be an equality; only "tint", written as uchar channels, still
   // pays its quantization. The values are chosen to be ones the ascii
@@ -172,24 +191,6 @@ TEST(Save, BinaryPlyRoundTripsExactly) {
   ASSERT_TRUE(back.colorIf("tint"));  // uchar red/green/blue/alpha
   EXPECT_NEAR((*back.colorIf("tint"))[2].w, 0.5f, 1.5f / 255.0f);
 
-  // Faces are written in the binary encoding too: a list count as one raw
-  // uchar, then raw int32 indices — the same rows the ascii writer spells
-  // out in text.
-  Mesh quad = mesh::quad(10, 6);
-  quad.colors.assign(quad.vertexCount(), {0.2f, 0.9f, 0.4f, 1});
-  const std::string meshBytes = codec::encode::ply(quad, {.binary = true});
-  auto meshModel =
-      codec::decode::model(meshBytes.data(), meshBytes.size(), "quad.ply");
-  ASSERT_TRUE(meshModel.has_value());
-  const Mesh& tri = meshModel->parts.front().mesh;
-  ASSERT_EQ(tri.vertexCount(), 4u);
-  EXPECT_EQ(tri.triangleCount(), 2u);
-  glm::vec3 lo, hi;
-  tri.bounds(&lo, &hi);
-  EXPECT_FLOAT_EQ(hi.x - lo.x, 10.0f);
-  EXPECT_FLOAT_EQ(hi.y - lo.y, 6.0f);
-  ASSERT_EQ(tri.colors.size(), 4u);
-  EXPECT_NEAR(tri.colors[0].y, 0.9f, 1.5f / 255.0f);
 }
 
 TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
@@ -219,8 +220,8 @@ TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
   // PLY is ever produced — this library's own reader rejects one.
   EXPECT_TRUE(codec::encode::ply(Cloud{}).empty());
   EXPECT_TRUE(codec::encode::ply(Mesh{}).empty());
-  const std::filesystem::path file = std::filesystem::temp_directory_path() /
-                                     "sigilgeometry_empty_decline.ply";
+  const sigil::test::ScratchDir scratch("geometry_encode");
+  const std::filesystem::path file = scratch.path / "decline.ply";
   EXPECT_FALSE(codec::encode::ply(file, Cloud{}));
   EXPECT_FALSE(codec::encode::ply(file, Mesh{}));
 }
@@ -256,28 +257,46 @@ TEST(Save, PlyWritesPrimLanesAsFaceProperties) {
   EXPECT_EQ(back->parts.front().mesh.triangleCount(), 2u);
 }
 
-TEST(Save, WhatIsWrittenIsSniffableWithNoExtensionToGoOn) {
-  // A blob arriving over the wire, out of a cache, or from a URL whose
-  // path ends in nothing carries no extension for `model()` to dispatch
-  // on, and then the bytes have to speak for themselves. The one format
-  // this library also WRITES must be first among those: a file it made
-  // has to come back through a hint that says nothing about it.
+// A blob arriving over the wire, out of a cache, or from a URL whose path
+// ends in nothing carries no extension for `model()` to dispatch on, and
+// then the bytes have to speak for themselves. Every format this library
+// WRITES must be first among those: a file it made has to come back
+// through a hint that says nothing about it.
+struct WrittenFormat {
+  const char* name;
+  std::string (*write)(const Mesh&);
+};
+
+class WrittenBytes : public ::testing::TestWithParam<WrittenFormat> {};
+
+TEST_P(WrittenBytes, AreSniffableWithNoExtensionToGoOn) {
   const Mesh mesh = splitQuad();
-  for (bool binary : {false, true}) {
-    const std::string bytes = codec::encode::ply(mesh, {.binary = binary});
-    ASSERT_FALSE(bytes.empty());
-    for (const char* hint : {"", "download", "dir.d/blob", "blob.dat"}) {
-      const auto back =
-          codec::decode::model(bytes.data(), bytes.size(), hint);
-      ASSERT_TRUE(back.has_value())
-          << (binary ? "binary" : "ascii") << " under hint '" << hint << "'";
-      ASSERT_EQ(back->parts.size(), 1u);
-      EXPECT_EQ(back->parts.front().mesh.triangleCount(),
-                mesh.triangleCount());
-      EXPECT_EQ(back->parts.front().mesh.vertexCount(), mesh.vertexCount());
-    }
+  const std::string bytes = GetParam().write(mesh);
+  ASSERT_FALSE(bytes.empty());
+  for (const char* hint : {"", "download", "dir.d/blob", "blob.dat"}) {
+    const auto back = codec::decode::model(bytes.data(), bytes.size(), hint);
+    ASSERT_TRUE(back.has_value()) << "under hint '" << hint << "'";
+    ASSERT_EQ(back->parts.size(), 1u);
+    // The triangles are what every format carries back; whether the
+    // vertices come back welded is each writer's own claim.
+    EXPECT_EQ(back->parts.front().mesh.triangleCount(), mesh.triangleCount());
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    Save, WrittenBytes,
+    ::testing::Values(
+        WrittenFormat{"PlyAscii",
+                      [](const Mesh& m) { return codec::encode::ply(m); }},
+        WrittenFormat{"PlyBinary",
+                      [](const Mesh& m) {
+                        return codec::encode::ply(m, {.binary = true});
+                      }},
+        WrittenFormat{"Geo",
+                      [](const Mesh& m) { return codec::encode::geo(m); }}),
+    [](const ::testing::TestParamInfo<WrittenFormat>& info) {
+      return std::string(info.param.name);
+    });
 
 TEST(Save, GeoRoundTripsACloudLaneForLane) {
   // The writer is the reader's return leg, so the assertion is that a
@@ -376,17 +395,4 @@ TEST(Save, GeoRoundTripsAMeshUnweldedWithItsPrimitiveLanes) {
   ASSERT_TRUE(asCloud.has_value());
   EXPECT_EQ(asCloud->parts.front().mesh.vertexCount(), bare.vertexCount());
   EXPECT_EQ(asCloud->parts.front().mesh.triangleCount(), 0u);
-}
-
-TEST(Save, WhatTheGeoWriterMakesIsSniffableToo) {
-  // Same claim as the PLY one: a format the library writes has to be
-  // recognisable from its bytes, or every blob that arrives without an
-  // extension is unreachable.
-  const Mesh mesh = splitQuad();
-  const std::string text = codec::encode::geo(mesh);
-  for (const char* hint : {"", "download", "blob.dat"}) {
-    const auto back = codec::decode::model(text.data(), text.size(), hint);
-    ASSERT_TRUE(back.has_value()) << "under hint '" << hint << "'";
-    EXPECT_EQ(back->parts.front().mesh.triangleCount(), mesh.triangleCount());
-  }
 }
