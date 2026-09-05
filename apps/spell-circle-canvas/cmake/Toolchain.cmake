@@ -13,10 +13,25 @@
 # find_package(), so the release tree is searched first; a package whose
 # module resolves a release and a debug archive as a pair is unaffected,
 # since it names each by its own variable.
+#
+# The order also decides which .pc file a pkg-config lookup reads, since
+# FindPkgConfig derives PKG_CONFIG_PATH from CMAKE_PREFIX_PATH: both
+# prefixes ship a pkgconfig/ directory, one .pc describes one build, and
+# the answer is cached as one path for every configuration.
+#
+# One order is all a multi-config generator can have — the search paths
+# are settled once, for every configuration at once — so what is chosen
+# here is the answer a lookup gets when it has no way to ask per
+# configuration. A Debug binary still links debug archives wherever the
+# package names the release and the debug one separately, which is every
+# imported target with a per-configuration location and every module that
+# fills a `<name>_LIBRARY_RELEASE`/`_DEBUG` pair.
 foreach(_prefix_list IN ITEMS CMAKE_PREFIX_PATH CMAKE_LIBRARY_PATH
                               CMAKE_FIND_ROOT_PATH)
   set(_suffix "")
-  if(_prefix_list STREQUAL CMAKE_LIBRARY_PATH)
+  # Quoted, because if() dereferences an unquoted argument that names a
+  # variable, and every name in this loop is one.
+  if(_prefix_list STREQUAL "CMAKE_LIBRARY_PATH")
     set(_suffix "/lib/manual-link")
   endif()
   set(_release "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}${_suffix}")
