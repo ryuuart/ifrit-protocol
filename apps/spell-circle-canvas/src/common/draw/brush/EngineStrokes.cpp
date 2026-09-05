@@ -23,7 +23,7 @@ void Engine::line(Pen& pen, SkPoint from, SkPoint to, float startPressure,
   if (!hasStroke() || from == to) return;
   const Tool current = tool();
   paintStroke(pen, current,
-              segment(from, to, current.spacing, startPressure, endPressure),
+              segment(from, to, spacingOf(current), startPressure, endPressure),
               true);
 }
 
@@ -36,14 +36,14 @@ void Engine::flowLine(Pen& pen, SkPoint start, float length,
               segment(start,
                       {start.fX + std::cos(direction) * length,
                        start.fY + std::sin(direction) * length},
-                      current.spacing),
+                      spacingOf(current)),
               true);
 }
 
 PlacedPlot Engine::spline(Pen& pen, std::span<const Sample> controls,
                           float curvature) const {
   const Tool current = tool();
-  const Stroke curve = brush::spline(controls, current.spacing, curvature);
+  const Stroke curve = brush::spline(controls, spacingOf(current), curvature);
   if (curve.empty()) return PlacedPlot{};
   paintStroke(pen, current, curve, true);
   return {Plot::fromStroke(curve, PlotType::Segments), curve.front().position};
@@ -102,12 +102,12 @@ void Engine::beginInput(Pen& pen, Input input) {
 
 void Engine::moveInput(Pen& pen, Input input) {
   if (!hasStroke() || !m_sampler.active() || !m_liveTool) return;
-  depositInput(pen, m_sampler.move(input, m_liveTool->spacing), false);
+  depositInput(pen, m_sampler.move(input, spacingOf(*m_liveTool)), false);
 }
 
 void Engine::endInput(Pen& pen, Input input) {
   if (!hasStroke() || !m_sampler.active() || !m_liveTool) return;
-  depositInput(pen, m_sampler.end(input, m_liveTool->spacing), true);
+  depositInput(pen, m_sampler.end(input, spacingOf(*m_liveTool)), true);
   cancelInput();
 }
 
@@ -140,7 +140,7 @@ Stroke Engine::endStroke(Pen& pen, float angle, float pressure) {
   if (!m_strokeKind || m_stroke.empty()) return {};
   angle = toRadians(pen, angle);
   m_stroke.back().pressure = std::max(0.0f, pressure);
-  const float spacing = definition() ? definition()->spacing : 1.0f;
+  const float spacing = definition() ? spacingOf(*definition()) : 1.0f;
   Stroke result = *m_strokeKind == PlotType::Curve
                       ? brush::spline(m_stroke, spacing, 0.65f)
                       : m_stroke;

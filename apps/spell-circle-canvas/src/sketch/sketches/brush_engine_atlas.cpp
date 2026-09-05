@@ -68,7 +68,7 @@ struct BrushEngineAtlas final : sketch::DrawSketch {
     }
     brush::Tool paperTip = brush::marker(SkColors::kBlack, 22.0f);
     paperTip.tip = brush::Tip::Image;
-    paperTip.imageTip = SkImages::RasterFromBitmap(mask);
+    paperTip.shape = brush::Shape{.image = SkImages::RasterFromBitmap(mask)};
     paperTip.spacing = 4.2f;
     paperTip.scatter = 1.8f;
     paperTip.opacity = 0.18f;

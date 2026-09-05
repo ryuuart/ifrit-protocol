@@ -211,7 +211,8 @@ std::optional<PlacedPlot> Engine::endShape(Pen& pen, bool close) {
     return std::nullopt;
   }
   Stroke shapePath = brush::spline(
-      m_shape, definition() ? definition()->spacing : 1.0f, m_shapeCurvature);
+      m_shape, definition() ? spacingOf(*definition()) : 1.0f,
+      m_shapeCurvature);
   PlacedPlot result{Plot::fromStroke(shapePath, PlotType::Segments),
                     shapePath.front().position};
   if (close) {
@@ -268,7 +269,7 @@ void Engine::draw(Pen& pen, const Plot& stored, float x, float y,
                   float scale) const {
   if (!hasStroke() || stored.empty()) return;
   const Tool current = tool();
-  paintStroke(pen, current, stored.path({x, y}, current.spacing, 0.5f, scale),
+  paintStroke(pen, current, stored.path({x, y}, spacingOf(current), 0.5f, scale),
               true);
 }
 

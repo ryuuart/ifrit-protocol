@@ -11,12 +11,12 @@ namespace sigil::draw::brush {
 
 namespace {
 
-Tool dryTool(float width, float scatter, float sharpness, float grain,
+Tool dryTool(float width, float scatter, float sharpness, float density,
              float opacity, float spacing, Pressure pressure) {
   Tool tool = pencil(SkColors::kBlack, width);
   tool.scatter = scatter;
   tool.sharpness = sharpness;
-  tool.grain = grain;
+  tool.density = density;
   tool.opacity = opacity;
   tool.spacing = spacing;
   tool.pressure = std::move(pressure);
@@ -59,7 +59,7 @@ Catalogue Catalogue::stock() {
   aerosol.scatter = 6.0f;
   aerosol.opacity = 90.0f / 255.0f;
   aerosol.spacing = 0.50f;
-  aerosol.grain = 1.0f;
+  aerosol.density = 1.0f;
   aerosol.bristles = 40;
   aerosol.pressure = bell(0.20f, 0.35f, 0.70f, 1.00f);
   catalogue.add("spray", aerosol);

@@ -9,9 +9,11 @@
 #include <sigildraw/brush/Choice.h>
 #include <sigildraw/brush/Dab.h>
 #include <sigildraw/brush/Deposit.h>
+#include <sigildraw/brush/Dynamics.h>
 #include <sigildraw/brush/Engine.h>
 #include <sigildraw/brush/Field.h>
 #include <sigildraw/brush/Fields.h>
+#include <sigildraw/brush/Grain.h>
 #include <sigildraw/brush/Hatch.h>
 #include <sigildraw/brush/Mass.h>
 #include <sigildraw/brush/Plot.h>
@@ -19,6 +21,7 @@
 #include <sigildraw/brush/Position.h>
 #include <sigildraw/brush/Pressure.h>
 #include <sigildraw/brush/Sampler.h>
+#include <sigildraw/brush/Shape.h>
 #include <sigildraw/brush/Stroke.h>
 #include <sigildraw/brush/Tool.h>
 #include <sigildraw/brush/Wash.h>

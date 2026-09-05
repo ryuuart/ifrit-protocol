@@ -24,17 +24,21 @@ namespace sigil::draw::brush {
 namespace {
 
 float dabAngle(Pen& pen, const Tool& tool, const Dab& dab) {
+  const float jitter =
+      tool.shape ? pen.random(-std::max(0.0f, tool.shape->angleJitter),
+                              std::max(0.0f, tool.shape->angleJitter))
+                 : 0.0f;
   switch (tool.rotation) {
     case Rotation::Fixed:
-      return tool.angle + dab.barrelRotation;
+      return tool.angle + dab.barrelRotation + jitter;
     case Rotation::Natural:
-      return tool.angle + dab.direction + dab.barrelRotation;
+      return tool.angle + dab.direction + dab.barrelRotation + jitter;
     case Rotation::Random:
       return tool.angle + pen.random(TWO_PI);
     case Rotation::Tilt:
-      return tool.angle + dab.tiltDirection;
+      return tool.angle + dab.tiltDirection + jitter;
   }
-  return tool.angle;
+  return tool.angle + jitter;
 }
 
 std::optional<SkBlendMode> atlasBlend(Constant mode) {
@@ -132,6 +136,8 @@ DabStyle styleDab(Pen& pen, const Tool& tool, const Dab& dab,
   size *= std::max(0.0f, 1.0f + tool.tiltSize * dab.tilt);
   size *= 1.0f + pen.random(-std::max(0.0f, tool.sizeJitter),
                             std::max(0.0f, tool.sizeJitter));
+  if (tool.dynamics.size)
+    size *= tool.dynamics.size->at(dab, pressure, tool.speedReference);
   float opacity =
       1.0f - std::clamp(tool.speedOpacity, 0.0f, 1.0f) * normalizedSpeed;
   opacity *=
@@ -140,19 +146,34 @@ DabStyle styleDab(Pen& pen, const Tool& tool, const Dab& dab,
   opacity *= std::max(0.0f, 1.0f + tool.tiltOpacity * dab.tilt);
   opacity *= 1.0f + pen.random(-std::max(0.0f, tool.opacityJitter),
                                std::max(0.0f, tool.opacityJitter));
+  // Opacity is the tool's load and flow is the one dab's; with no
+  // buffer between a dab and the canvas the two multiply into the same
+  // alpha, and they are separate curves so one may follow the stylus
+  // while the other follows the hand.
+  if (tool.dynamics.opacity)
+    opacity *= tool.dynamics.opacity->at(dab, pressure, tool.speedReference);
+  if (tool.dynamics.flow)
+    opacity *= tool.dynamics.flow->at(dab, pressure, tool.speedReference);
   const float across =
       scatterPosition ? pen.random(-tool.scatter, tool.scatter) : 0.0f;
   const float along = pen.random(-std::max(0.0f, tool.spacingJitter),
                                  std::max(0.0f, tool.spacingJitter)) *
-                      tool.spacing;
+                      spacingOf(tool);
   const float normal = dab.direction + HALF_PI;
   const float tiltTravel = tool.tiltOffset * dab.tilt * tool.width;
+  // A shape states its scatter against the stamp and throws it in both
+  // axes, the way a stamped brush wanders off its own path; the tool's
+  // own scatter above is canvas units across the centreline.
+  const float spread =
+      tool.shape ? std::max(0.0f, tool.shape->scatter) * tool.width : 0.0f;
+  const float strayX = spread > 0.0f ? pen.random(-spread, spread) : 0.0f;
+  const float strayY = spread > 0.0f ? pen.random(-spread, spread) : 0.0f;
   return {{dab.position.fX + std::cos(normal) * across +
                std::cos(dab.direction) * along +
-               std::cos(dab.tiltDirection) * tiltTravel,
+               std::cos(dab.tiltDirection) * tiltTravel + strayX,
            dab.position.fY + std::sin(normal) * across +
                std::sin(dab.direction) * along +
-               std::sin(dab.tiltDirection) * tiltTravel},
+               std::sin(dab.tiltDirection) * tiltTravel + strayY},
           std::max(0.0f, size),
           std::clamp(opacity, 0.0f, 1.0f),
           dabAngle(pen, tool, dab),
@@ -165,11 +186,11 @@ void depositNib(const Tool& tool, const DabStyle& style,
                     style.angle, pigment(tool, style.opacity).toSkColor()});
 }
 
-void depositGrain(Pen& pen, const Tool& tool, const Dab& dab,
+void depositDust(Pen& pen, const Tool& tool, const Dab& dab,
                   const DabStyle& style, std::vector<Stamp>& stamps) {
   const float pressure = std::max(0.1f, pressureAt(tool, dab));
   if (pen.random() >=
-      std::clamp(tool.grain * std::min(1.0f, pressure), 0.0f, 1.0f))
+      std::clamp(tool.density * std::min(1.0f, pressure), 0.0f, 1.0f))
     return;
 
   const float sharpness = std::clamp(tool.sharpness, 0.0f, 1.0f);
@@ -201,7 +222,7 @@ void depositScatter(Pen& pen, const Tool& tool, const Dab& dab,
   const float pressure = std::max(0.1f, pressureAt(tool, dab));
   const int particles = std::max(
       1, (int)std::ceil((float)std::max(1, tool.bristles) *
-                        std::clamp(tool.grain, 0.0f, 1.0f) / pressure));
+                        std::clamp(tool.density, 0.0f, 1.0f) / pressure));
   for (int i = 0; i < particles; ++i) {
     const float radius = std::sqrt(pen.random()) * std::max(0.0f, tool.scatter);
     const float angle = pen.random(TWO_PI);

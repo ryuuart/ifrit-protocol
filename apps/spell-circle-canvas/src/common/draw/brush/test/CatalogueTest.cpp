@@ -18,7 +18,7 @@ TEST(Catalogue, OwnsTheFullStockNameSetAndScalesSpatialValues) {
         "marker2", "charcoal", "hatch_brush", "pastel", "crayon"})
     EXPECT_TRUE(catalogue.contains(name)) << name;
   EXPECT_EQ(catalogue.names().size(), 13u);
-  EXPECT_EQ(catalogue.find("HB")->tip, brush::Tip::Grain);
+  EXPECT_EQ(catalogue.find("HB")->tip, brush::Tip::Dust);
   EXPECT_EQ(catalogue.find("marker")->tip, brush::Tip::Nib);
   EXPECT_FLOAT_EQ(catalogue.find("marker")->width, 2.0f);
   EXPECT_FLOAT_EQ(catalogue.find("marker")->spacing, 0.03f);

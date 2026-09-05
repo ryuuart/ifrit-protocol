@@ -3,18 +3,59 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkColor.h>
+#include <include/core/SkImage.h>
 #include <include/core/SkSurface.h>
 #include <sigildraw/Draw.h>
 #include <sigildraw/brush/Brush.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 namespace {
 
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
+
+/** A soft round tip drawn once: what an imported brush's artwork is,
+ *  without a file in the benchmark. */
+sk_sp<SkImage> softTip(int side) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(side, side, true);
+  const float centre = (float)side * 0.5f;
+  for (int y = 0; y < side; ++y)
+    for (int x = 0; x < side; ++x) {
+      const float distance =
+          std::hypot((float)x + 0.5f - centre, (float)y + 0.5f - centre) /
+          centre;
+      const float coverage = std::clamp(1.0f - distance, 0.0f, 1.0f);
+      const uint32_t alpha = (uint32_t)(coverage * coverage * 255.0f);
+      *bitmap.getAddr32(x, y) =
+          SkPreMultiplyARGB(alpha, 255, 255, 255);
+    }
+  bitmap.setImmutable();
+  return SkImages::RasterFromBitmap(bitmap);
+}
+
+/** A tiled noise the grain is. */
+sk_sp<SkImage> noiseTile(int side) {
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(side, side, true);
+  uint32_t state = 0x9e3779b9u;
+  for (int y = 0; y < side; ++y)
+    for (int x = 0; x < side; ++x) {
+      state = state * 1664525u + 1013904223u;
+      const uint32_t level = 96u + (state >> 24) % 160u;
+      *bitmap.getAddr32(x, y) =
+          SkPreMultiplyARGB(255, level, level, level);
+    }
+  bitmap.setImmutable();
+  return SkImages::RasterFromBitmap(bitmap);
+}
 
 void BrushStroke(benchmark::State& state) {
   sk_sp<SkSurface> surface =
@@ -55,6 +96,41 @@ void DabSampling(benchmark::State& state) {
   }
 }
 BENCHMARK(DabSampling);
+
+/** One stroke of an imported brush: an image stamped per dab, with and
+ *  without the grain that is the second image over it. */
+void ShapeStroke(benchmark::State& state) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(640, 480));
+  Pen pen;
+  Frame frame;
+  frame.width = 640;
+  frame.height = 480;
+  brush::Tool tool = brush::marker({0.1f, 0.1f, 0.12f, 1.0f}, 28.0f);
+  tool.tip = brush::Tip::Image;
+  tool.shape = brush::Shape{.image = softTip(64),
+                            .mask = brush::ImageMask::Alpha,
+                            .spacing = 0.12f,
+                            .scatter = 0.08f,
+                            .angleJitter = 0.4f};
+  if (state.range(0) != 0)
+    tool.grain = brush::Grain{
+        .image = noiseTile(128),
+        .space = state.range(0) == 1 ? brush::GrainSpace::Stroke
+                                     : brush::GrainSpace::Dab,
+        .scale = 1.5f};
+  const brush::Stroke stroke = brush::segment({30, 240}, {610, 300},
+                                              brush::spacingOf(tool));
+  int count = 0;
+  for (auto _ : state) {
+    frame.frameCount = ++count;
+    pen.begin(*surface->getCanvas(), frame);
+    pen.randomSeed(12);
+    brush::paint(pen, tool, stroke);
+    pen.end();
+  }
+}
+BENCHMARK(ShapeStroke)->Arg(0)->Arg(1)->Arg(2)->Unit(benchmark::kMillisecond);
 
 void BrushHatch(benchmark::State& state) {
   sk_sp<SkSurface> surface =

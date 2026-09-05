@@ -61,7 +61,7 @@ void depositFibreDab(Pen& pen, const Tool& tool, const Dab& dab,
   const float normal = dab.direction + HALF_PI;
   pen.noStroke();
   for (int i = 0; i < fibres; ++i) {
-    if (pen.random() > std::clamp(tool.grain, 0.0f, 1.0f)) continue;
+    if (pen.random() > std::clamp(tool.density, 0.0f, 1.0f)) continue;
     const float lane = (((float)i + 0.5f) / (float)fibres - 0.5f) * style.size;
     const float radius =
         std::max(0.15f, style.size / (float)fibres * pen.random(0.35f, 0.9f));
@@ -86,9 +86,9 @@ void depositFibres(Pen& pen, const Tool& tool, std::span<const Dab> dabs) {
   pen.strokeCap(ROUND);
   pen.strokeJoin(ROUND);
   const int fibres = std::max(1, tool.bristles);
-  const float grain = std::clamp(tool.grain, 0.0f, 1.0f);
+  const float density = std::clamp(tool.density, 0.0f, 1.0f);
   for (int fibre = 0; fibre < fibres; ++fibre) {
-    if (pen.random() > 0.35f + grain * 0.65f) continue;
+    if (pen.random() > 0.35f + density * 0.65f) continue;
     const float lane = ((float)fibre + 0.5f) / (float)fibres - 0.5f +
                        pen.random(-0.48f, 0.48f) / (float)fibres;
     const float edge = std::abs(lane) * 2.0f;
@@ -104,9 +104,9 @@ void depositFibres(Pen& pen, const Tool& tool, std::span<const Dab> dabs) {
       const Dab& dab = dabs[index];
       const DabStyle& style = styles[index];
       const float dryBand = pen.noise(dab.distance * 0.0065f, drySeed, 0.31f);
-      const float dryThreshold = (1.0f - grain) * (0.42f + edge * 0.18f);
+      const float dryThreshold = (1.0f - density) * (0.42f + edge * 0.18f);
       if (!(style.size > 0.0f) || !(style.opacity > 0.0f) ||
-          dryBand < dryThreshold || pen.random() < (1.0f - grain) * 0.025f) {
+          dryBand < dryThreshold || pen.random() < (1.0f - density) * 0.025f) {
         flush();
         continue;
       }

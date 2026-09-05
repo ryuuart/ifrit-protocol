@@ -79,7 +79,7 @@ TEST(Deposit, CustomTipReceivesEveryResampledDab) {
   EXPECT_NE(paper.pixel(40, 20), SK_ColorWHITE);
 }
 
-TEST(Deposit, ImageTipUsesDarkArtworkAsTheDefaultMask) {
+TEST(Deposit, ShapeTipUsesDarkArtworkAsTheDefaultMask) {
   SkBitmap mask;
   mask.allocN32Pixels(8, 8, true);
   mask.eraseColor(SK_ColorWHITE);
@@ -90,7 +90,7 @@ TEST(Deposit, ImageTipUsesDarkArtworkAsTheDefaultMask) {
   paper.begin();
   brush::Tool tool = brush::marker(SkColors::kRed, 32.0f);
   tool.tip = brush::Tip::Image;
-  tool.imageTip = SkImages::RasterFromBitmap(mask);
+  tool.shape = brush::Shape{.image = SkImages::RasterFromBitmap(mask)};
   tool.opacity = 1.0f;
   tool.scatter = 0.0f;
   tool.pressure = {1, 1, 1};
@@ -106,8 +106,8 @@ TEST(Deposit, ImageTipUsesDarkArtworkAsTheDefaultMask) {
   alphaMask.eraseColor(SK_ColorTRANSPARENT);
   for (int y = 2; y < 6; ++y)
     for (int x = 2; x < 6; ++x) *alphaMask.getAddr32(x, y) = SK_ColorWHITE;
-  tool.imageTip = SkImages::RasterFromBitmap(alphaMask);
-  tool.imageMask = brush::ImageMask::Alpha;
+  tool.shape = brush::Shape{.image = SkImages::RasterFromBitmap(alphaMask),
+                            .mask = brush::ImageMask::Alpha};
   const std::array<brush::Dab, 1> alphaDabs{
       {{.position = {15, 40}, .pressure = 1.0f}}};
   brush::deposit(paper.pen, tool, alphaDabs);

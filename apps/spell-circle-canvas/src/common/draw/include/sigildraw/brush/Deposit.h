@@ -27,11 +27,13 @@ struct DepositOptions {
 };
 
 /** Deposits already sampled dabs. This is the executor seam shared by
- *  stored paths, live stylus input, image tips and caller-defined tips.
+ *  stored paths, live stylus input, shape tips and caller-defined tips.
  *  The pen's style and transform are restored afterwards; the transform
- *  still applies to the mark. Round grain, nib and scatter dabs go down as
- *  one sprite batch per stroke; fibres, image and custom tips and the
- *  SUBTRACT blend draw through the pen's verbs dab by dab. */
+ *  still applies to the mark. Round dust, nib and scatter dabs go down as
+ *  one sprite batch per stroke; fibres, shape and custom tips and the
+ *  SUBTRACT blend draw through the pen's verbs dab by dab. A grain that
+ *  stands still puts the whole run of dabs in one layer and takes its
+ *  coverage out of that. */
 void deposit(Pen& pen, const Tool& tool, std::span<const Dab> dabs,
              DepositOptions options = {});
 
@@ -50,7 +52,7 @@ template <DirectionField Field>
 void flowLine(Pen& pen, const Tool& tool, SkPoint start, float length,
               float seconds, const Field& field, float pressure = 1.0f) {
   paint(pen, tool,
-        trace(start, length, tool.spacing, seconds, field, pressure));
+        trace(start, length, spacingOf(tool), seconds, field, pressure));
 }
 
 }  // namespace sigil::draw::brush
