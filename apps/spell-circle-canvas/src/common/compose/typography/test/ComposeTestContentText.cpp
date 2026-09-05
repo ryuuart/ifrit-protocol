@@ -2050,8 +2050,8 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
 }
 
 TEST(ComposeTextFx, BeatsOfCompoundsANestedCascade) {
-  // The case the karaoke study had to give up: a nested beat lasts exactly
-  // as long as its inner ladder needs, so no author can restate the start
+  // A nested beat lasts exactly as long as its inner ladder needs, so no
+  // author can restate the start
   // times. Word w's letter i opens at w·outerEach + i·innerEach, and the
   // read-back is the only place that is true without being retyped.
   Host host(400, 120);

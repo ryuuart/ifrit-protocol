@@ -54,9 +54,14 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   host.composer.render(describe());
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);  // the new tail only
   host.frame();
-  // Ancestor chain re-records + the tail's own picture; the nine surviving
-  // rows replay their cached pictures untouched.
-  EXPECT_LE(host.composer.stats().picturesRecorded, 4u);
+  // Ancestor chain re-records plus the tail's own picture; the nine
+  // surviving rows replay their cached pictures untouched. Stated against
+  // the window size rather than against a number: re-recording the window
+  // would cost at least one picture per row in it.
+  const unsigned recordedForOneAppend = host.composer.stats().picturesRecorded;
+  EXPECT_GT(recordedForOneAppend, 0u) << "the append recorded nothing at all";
+  EXPECT_LT(recordedForOneAppend, 10u)
+      << "the whole ten-row window re-recorded for one appended line";
 
   // The price is CONSTANT, which is the whole claim: a second append costs
   // exactly what the first did, and the retained tree does not grow.
@@ -65,7 +70,8 @@ TEST(ComposeFeed, AnAppendCostsOneMountAndNeverRerecordsTheRowsAboveIt) {
   host.composer.render(describe());
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u);
   host.frame();
-  EXPECT_LE(host.composer.stats().picturesRecorded, 4u);
+  EXPECT_EQ(host.composer.stats().picturesRecorded, recordedForOneAppend)
+      << "the second append cost more than the first";
   EXPECT_EQ(host.composer.stats().instances, liveAfterFirst)
       << "the window is bounded: one mount in, one unmount out";
 }

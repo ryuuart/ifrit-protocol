@@ -49,7 +49,8 @@ TEST(ComposeBrushEngine, BrushPrunesAsOneValue) {
 
 TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
   // Under a fill StrokeRec, SkDiscretePathEffect force-closes open
-  // contours — the phantom-channel bug. Hairline rec keeps them open.
+  // contours, which invents a channel the author never drew. A hairline
+  // rec keeps them open.
   SkPathBuilder b;
   b.moveTo(0, 0);
   b.lineTo(300, 0);

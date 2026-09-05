@@ -158,9 +158,9 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
 }
 
 TEST(ComposeShapes, ParametricCurvesEvaluateInTheUnitFrame) {
-  // Shapes.h generated closed shapes from parameters; a curve DEFINED by
-  // a parameter had no generator, so every study that needed one wrote
-  // the same SkPathBuilder loop inside its own outline lambda.
+  // The silhouette shelf generates closed shapes from parameters. A curve
+  // DEFINED by a parameter needs a generator of its own, or every caller
+  // writes the same SkPathBuilder loop inside its outline lambda.
   const SkSize box{200, 100};  // deliberately non-square: unit → half-extents
 
   // A 1:1 Lissajous with a quarter-turn phase IS the inscribed ellipse.
@@ -286,8 +286,7 @@ TEST(ComposeText, OnPathBreaksAtWordsBetweenContours) {
 }
 
 TEST(ComposeDebug, CoverageCatchesWhatAreaAndContainmentMiss) {
-  // The Penrose study's sharpest finding, made into library code: a
-  // subdivision that OVERLAPS in one place and GAPS in another passes
+  // A subdivision that OVERLAPS in one place and GAPS in another passes
   // both cheap checks. Area conservation passes because the two errors
   // cancel exactly; containment passes because every piece really is
   // inside the parent. Only point sampling sees it.
@@ -431,9 +430,9 @@ TEST(ComposeBindings, QuantizeSnapsBeforeTheAffineChain) {
 }
 
 TEST(ComposeBindings, AFillCanBeBoundLive) {
-  // Pinned because a study concluded there was no bound Fill at all and
-  // rebuilt its most period-authentic widget on renderSlot() instead.
-  // There is one: the Output holds a Fill, and you write it from the
+  // A Fill can be bound, which is easy to miss and expensive to work
+  // around — the alternative is rebuilding the widget on renderSlot().
+  // The Output holds a Fill, and you write it from the
   // same steppable that computes the number driving everything else.
   Host host(200, 200);
   choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
@@ -450,9 +449,9 @@ TEST(ComposeBindings, AFillCanBeBoundLive) {
 }
 
 TEST(ComposeShapes, StarArmsCanBeWaisted) {
-  // Engraved stars are almost never straight-chorded: Chladni's 1787
-  // sound-figures narrow fast off the hub and then run as needles, and
-  // nine figures on that one plate wanted exactly this parameter.
+  // Engraved stars are almost never straight-chorded: the arms narrow
+  // fast off the hub and then run as needles, which is a waist rather
+  // than a chord.
   const SkSize box{200, 200};
   const SkRect region = SkRect::MakeWH(200, 200);
   // Measure the covered area by sampling, not by a shoelace over the
@@ -511,9 +510,9 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
 }
 
 TEST(ComposeMotion, AddFixedRunsAtItsOwnRateWhateverTheHostDraws) {
-  // Every simulation-shaped study reinvented the accumulator and its
-  // spiral-of-death clamp — a cellular automaton at 27 Hz behind the DOOM
-  // PlayStation titles, particles at 24. The library had declared
+  // Anything simulation-shaped otherwise reinvents the accumulator and
+  // its spiral-of-death clamp — a cellular automaton at 27 Hz, particles
+  // at 24. The library declares
   // choppiness for shaders (Material::quantizeTime) and nothing for logic.
   auto stepsOverOneSecond = [](double fps) {
     sigil::motion::Ticker ticker;
@@ -732,8 +731,8 @@ TEST(ComposeMotion, AddFixedPublishesTheRenderInterpolant) {
 TEST(ComposeBindings, WindowClampsBeforeTheCurveSoEasingsStayInDomain) {
   // motion::from(lo,hi) normalises and the curve runs after it, so on a
   // multi-beat timeline an Output outside the window feeds the easing a
-  // value outside its domain — and none of motion::ease:: is total. Every curve
-  // in the tartan study had to clamp its own input first.
+  // value outside its domain — and none of motion::ease:: is total, so
+  // every curve would otherwise have to clamp its own input first.
   auto plain = motion::bind(nullptr).source(0.4f, 0.6f);
   auto windowed = motion::bind(nullptr).window(0.4f, 0.6f);
 
@@ -877,9 +876,8 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
 TEST(ComposeDebug, CoverageOverAnArbitraryRegionAndComponentCounting) {
   // An annulus, a sector, a plate — anything whose outline is not a box
   // cannot be tested against its bounds without counting the parts
-  // outside it as gaps. The astrolabe study's zodiac ring needed exactly
-  // this, and got 62 phantom gaps first try from chord error against a
-  // true circle.
+  // outside it as gaps. A ring of segments compared against a true circle
+  // reports chord error as gaps, dozens of them, none of them real.
   auto rect = [](float l, float t, float r, float b) {
     SkPathBuilder p;
     p.addRect(SkRect::MakeLTRB(l, t, r, b));

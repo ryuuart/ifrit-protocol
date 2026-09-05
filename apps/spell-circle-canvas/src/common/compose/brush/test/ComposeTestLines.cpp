@@ -163,8 +163,8 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
 
 TEST(ComposeText, OnPathRidesTheBaselineItIsGiven) {
   // Placing curved lettering by hand costs one Element and one layout PER
-  // GLYPH — the Nightingale study spent ~230 of each on its ring labels.
-  // onPath shapes the run ONCE and places every glyph by arc length.
+  // GLYPH: a ring of labels is hundreds of each. onPath shapes the run
+  // ONCE and places every glyph by arc length.
   //
   // A run on the TOP half of a circle must paint above the centre and
   // leave the bottom half empty; the same run at at=0.5 must do the
@@ -796,9 +796,9 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
 TEST(ComposeLines, DashedParallelsOnLineActuallyDash) {
   // `Line`'s dashed-parallel branch must not build its dash geometry with a
   // FILL stroke rec: Skia's dash effect refuses one outright, and the
-  // failure mode is silent — `lines::cased(...)` with a dash pattern simply
-  // paints two SOLID rails, which looks like a design choice in every
-  // study that used one, without anyone noticing.
+  // failure mode is silent: `lines::cased(...)` with a dash pattern paints
+  // two SOLID rails, which reads as a design choice rather than as a
+  // dropped dash.
   Host host;
   lines::Line pair = lines::cased(3, green(), 10);
   pair.dashIntervals = {8, 8};

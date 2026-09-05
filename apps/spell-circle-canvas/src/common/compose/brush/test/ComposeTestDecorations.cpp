@@ -153,9 +153,9 @@ TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
 }
 
 TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
-  // Value decorations (Shadow, PathFormat stroke/dash) let a static decorated
-  // node prune without memo — the P0 chrome fix. Before it, any decoration
-  // forced a re-patch + re-record on every render().
+  // Value decorations (Shadow, PathFormat stroke/dash) compare by value, so
+  // a static decorated node prunes without a memo. A decoration that did
+  // not would force a re-patch and a re-record on every render().
   Host host;
   auto tree = [] {
     PathFormat dash;

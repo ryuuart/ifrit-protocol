@@ -78,8 +78,8 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
   // blend mode, so every pool composited kSrcOver. Element::blend() looks
   // like the fix and is not: it flattens the field into a layer and
   // composites it ONCE, so overlapping sprites never accumulate — which
-  // is the entire colour model of an additive particle system (Reeves'
-  // 1982 wall of fire has no palette, only an overlap count).
+  // is the entire colour model of an additive particle system: the colour
+  // is the overlap count and there is no palette.
   auto build = [](SkBlendMode blend) {
     auto atlas = std::make_shared<instancing::Atlas>(1.0f);
     atlas->cell(
@@ -108,12 +108,12 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
 }
 
 TEST(ComposeInstances, ThePerInstanceSizeLaneCarriesNonUniformScale) {
-  // The most-cited gap in the program's hard half: SkRSXform carries
-  // (scos, ssin) and ONE scale by construction, so Reeves' 1982
-  // `streaked spherical` particle — a quad 0.5·|v| long by `size` wide,
-  // aspect swinging ~2.4:1 to under 1:1 across its life — could not be
-  // instanced at all. One study hand-built the vertex buffer in 69 lines
-  // and lost every decoration slot and all picture caching with it.
+  // SkRSXform carries (scos, ssin) and ONE scale by construction, so a
+  // streaked particle — a quad 0.5·|v| long by `size` wide, its aspect
+  // swinging from about 2.4:1 to under 1:1 across its life — cannot be
+  // instanced through an RSXform alone. Without the size lane the only
+  // spelling left is a hand-built vertex buffer, which gives up every
+  // decoration slot and all picture caching with it.
   //
   // The lane is opt-in: a pool that never asks for it keeps the pure
   // RSXform path and costs nothing.

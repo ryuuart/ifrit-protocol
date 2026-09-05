@@ -319,8 +319,8 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
 }
 
 TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
-  // THE REGRESSION THIS PINS: a varied clone that the font context RETAINS
-  // is retained forever, so a driven axis fed a value that never repeats
+  // A varied clone the font context RETAINS is retained forever, so a
+  // driven axis fed a value that never repeats
   // must not put one there per frame. It reads as free under a fixed-dt
   // harness — where an animated value cycles on the scene's own period and
   // the memo saturates — and as a frame time growing linearly with uptime

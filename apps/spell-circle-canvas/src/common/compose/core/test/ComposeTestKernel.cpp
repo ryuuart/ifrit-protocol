@@ -1068,7 +1068,7 @@ TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
   });
   ASSERT_TRUE(inner.isAnimated());  // inherited from the bound layer
   material::skia::Paint outer = material::skia::Paint::blend({
-      {inner, SkBlendMode::kSrcOver},  // <- the null deref was HERE
+      {inner, SkBlendMode::kSrcOver},  // a nested blend layer
       {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kPlus},
   });
   ASSERT_TRUE(outer.isAnimated());  // liveness survives one more nesting
@@ -1125,7 +1125,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
 }
 
 TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
-  // Audit gap: the leaf fast path routes blend onto the fill paint — a
+  // The leaf fast path routes blend onto the fill paint, so a
   // live-material leaf with .blend(kPlus) must composite additively.
   choreograph::Output<float> k{1.0f};  // red
   Host host;
@@ -1154,7 +1154,7 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
 }
 
 TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
-  // Audit gap: snapshot() (the element-tree-as-a-brush bake) samples live
+  // snapshot() — the element-tree-as-a-brush bake — samples live
   // materials at their CURRENT Output values.
   choreograph::Output<float> k{1.0f};
   sk_sp<SkPicture> pic =
@@ -1169,7 +1169,7 @@ TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
 }
 
 TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
-  // Audit gap: a live material mounted through renderSlot() animates like
+  // A live material mounted through renderSlot() animates like
   // any other — the slot path wires volatility identically.
   choreograph::Output<float> k{0.0f};
   Host host;
@@ -2958,8 +2958,9 @@ SkPoint brightestPixel(Host& host) {
 }
 
 /** One light over the whole canvas — a radial highlight authored at CANVAS
- *  (70,70). Flagged, it is authored once; unflagged, it is hand-converted
- *  into the node's local px exactly as chaucer_astrolabe's brass() does. */
+ *  (70,70). Flagged, it is authored once; unflagged, the caller has to
+ *  hand-convert it into the node's local px, which is what the flag
+ *  exists to spare them. */
 material::skia::Paint canvasLight(bool flagged,
                                   SkPoint nodeOriginForHandConversion) {
   const SkPoint c = flagged ? SkPoint{70, 70}

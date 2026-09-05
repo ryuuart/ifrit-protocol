@@ -48,8 +48,8 @@ TEST(ComposeMaskGates, AHelpersMarksAreGatedFromOutsideIt) {
 // ---- S2 · the wet nib rides the head of the gate --------------------------
 
 TEST(ComposeMaskGates, ADecorationReceivesTheAlreadyGatedRun) {
-  // thunder_fulu: a brush stroke writes itself at the scribe's pace with a
-  // wet pool at the NIB. The pool is a PathFormat with its own
+  // A brush stroke writes itself at the scribe's pace with a wet pool at
+  // the NIB. The pool is a PathFormat with its own
   // trimStart 0.93 — a fraction of what is written, not of the whole line,
   // so it must ride the head of the node gate and needs no second node.
   const auto line = [](SkSize s) {
@@ -565,7 +565,7 @@ Element settledFillPanel(const choreograph::Output<Fill>* tint) {
 }  // namespace
 
 TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
-  // Pin (a): the release must show against Promotion::Volatile's
+  // The release must show against Promotion::Volatile's
   // `contentStable`, because promotion is a SEPARATE consumer of
   // `subtreeVolatile` from the memo — keeping the recording while still
   // refusing the bake would keep all of the 5 ms.
@@ -633,7 +633,7 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
 }
 
 TEST(ComposeSettledFill, AMovingBoundFillNeverReleases) {
-  // Pin (c): the release must NOT fire for a fill that IS moving — a
+  // The release must NOT fire for a fill that IS moving — a
   // binding driven every frame keeps full volatility, keeps the refusal,
   // and keeps painting the true colour.
   choreograph::Output<Fill> tint{red()};
@@ -664,9 +664,9 @@ TEST(ComposeSettledFill, AMovingBoundFillNeverReleases) {
 // ---- S6 · the directional wipe, over a lattice of children ---------------
 
 TEST(ComposeMaskGates, TheEdgeGateReachesTheChildren) {
-  // chevreul_circle's twelve grounds arrive and withdraw as a downward
-  // wipe. The CHILDREN are the point — an arc-length window has nothing to
-  // say about them, and this is the sample that says the family needs more
+  // A ring of grounds arriving and withdrawing as a downward wipe. The
+  // CHILDREN are the point — an arc-length window has nothing to
+  // say about them, which is why the family needs more
   // than one gate kind.
   const auto lattice = [](float t) {
     Element g = box().absolute().left(20).top(20).width(160).height(160).mask(
@@ -695,9 +695,9 @@ TEST(ComposeMaskGates, TheEdgeGateReachesTheChildren) {
 
 TEST(ComposeMaskGates, TheShapeGateAndItsComplementAreBothTerms) {
   // A portrait masked to a wax-seal silhouette. Nothing in the tree could
-  // express this: a study reached for `clipOut()` and
-  // `geometry::shapes::subtract` BY NAME, found neither, and dropped below the
-  // Compose seam to a raw SkPathOp. Both halves are terms here, and two masks
+  // express this without reaching below the Compose seam for a raw
+  // SkPathOp: neither `clipOut()` nor `geometry::shapes::subtract` is a
+  // spelling the tree offers. Both halves are terms here, and two masks
   // INTERSECT — so a set difference is one node and two lines.
   const SkRect seal = SkRect::MakeXYWH(20, 20, 60, 60);
   Host inside(200, 200), outside(200, 200), diff(200, 200);
@@ -1089,7 +1089,7 @@ Element pannedPanel(Pattern& pat) {
 }  // namespace
 
 TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
-  // Pin (a): assign the Output, the repeat moves — per frame, two frames
+  // Assign the Output, the repeat moves — per frame, two frames
   // pixel-asserted, and render() is never called again after the first
   // describe (the whole point of the bound form).
   choreograph::Output<float> panX{0.0f};
@@ -1162,7 +1162,7 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   EXPECT_EQ(settledPaints, 0u) << "a settled bound pan painted live";
   EXPECT_EQ(host.pixel(px, py), SK_ColorRED);
 
-  // Pin (c), move-after-settle: the frame the pan resumes shows the NEW
+  // Move after settle: the frame the pan resumes shows the NEW
   // phase — no stale frame, ever — and volatility re-declares.
   panX = 8.0f;
   host.frame(0.016);
@@ -1215,7 +1215,7 @@ TEST(ComposePatternPan, AMovingBoundPanNeverReleases) {
 }
 
 TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
-  // Pin (d), the control arm: the static offset() is UNTOUCHED by the
+  // The control arm: the static offset() is UNTOUCHED by the
   // bound channel — still describe-time, still the static fill path (no
   // live slot, no volatility), and an identical re-describe still prunes.
   Pattern pat = halfTilePattern();

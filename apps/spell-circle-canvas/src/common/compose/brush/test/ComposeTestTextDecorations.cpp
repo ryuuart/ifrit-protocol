@@ -8,9 +8,9 @@
 
 TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
   // lines::hatch is a parallel lattice at one fixed angle, which is the
-  // wrong field for anything engraved out of a point. The Chladni study
-  // built its radial fan from 120 geometry::shapes::sector sub-wedges each
-  // carrying a rotated Hatch — correct, and 120 nodes for one field.
+  // wrong field for anything engraved out of a point. Building a radial
+  // fan out of sector sub-wedges each carrying a rotated Hatch is correct
+  // and costs a node per wedge; one radial hatch is one node.
   auto lit = [](Host& host, int x0, int y0, int x1, int y1) {
     int n = 0;
     for (int y = y0; y < y1; ++y)
@@ -168,8 +168,9 @@ TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
   // trimPhase took a bound Output and declared isAnimated(); dashPhase was
   // a plain float, so marching ants — the commonest animated-line idiom
   // in map and diagram UI — could only be had by re-describing every
-  // frame, which defeats the pruning the library is built on. A study
-  // wrote a 25-line DecorationScheme for want of this.
+  // frame, which defeats the pruning the library is built on. Without a
+  // bound phase the only spelling left is a DecorationScheme of one's
+  // own.
   choreograph::Output<float> march{0.0f};
   PathFormat dashed = stroke(4, Fill::color({1, 1, 1, 1}));
   dashed.dashIntervals = {10.0f, 10.0f};
