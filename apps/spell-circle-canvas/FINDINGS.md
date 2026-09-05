@@ -113,28 +113,6 @@ probe generator's.
 Assert: the check passes over every README, FEATURES and TYPOGRAPHY
 under `src/`, and fails when one stem is misspelt.
 
-## A workspace row's runtime stays "not yet compiled" after it has compiled
-
-`SketchCatalog` builds a row for a file opened by path with an empty
-`kind`, because which runtime the file draws through is not known until
-it has been built — and nothing fills it in afterwards: `learn()` takes
-the canvas, the moment and the background off the running session and
-leaves the runtime alone, so the inspector reads "not yet compiled" under
-a sketch whose status strip says it is live. Evidently intended: a row
-learns everything a session can tell it, the runtime included, the first
-time that session runs. A test should open a file by path, drive one
-frame, and assert the row's `kind` names the session's runtime.
-
-## A sketch that fails to load leaves the window unable to load any other
-
-Opening a sketch whose shaders fail to compile on the device (chaucer_astrolabe
-before its latten body stopped naming a local `pos`) leaves Sketchbook
-running but refusing every later sketch: the window stays up and nothing new
-loads. The host evidently intends a failed load to be one session's failure,
-with the next file opening as if the first had never been tried. A test in
-the book's resident-session path should open a sketch that fails in its first
-frame, then open one that does not, and assert the second renders.
-
 ## video_device_bench cannot open a hardware decoder for its own clip
 
 Every arm of `video_device_bench` fails with FFmpeg's "Failed setup for
@@ -151,3 +129,17 @@ zero rather than failing.
 Assert once fixed: `bench_ledger.py --benches video_device_bench` reports
 the binary ran, and the native percentage it prints is non-zero on a
 machine whose `video_device_test` VideoToolbox case passes.
+
+## rota_convocationis slows with every sub-circle it generates
+
+Each sub-circle the sketch generates toward the end of its sequence
+adds to the per-frame cost rather than to a settled subtree, so the
+frame time climbs with the count: the last sub-circles are visibly
+slower to appear than the first. Evidently intended: a generated
+sub-circle is described once and then cached like the ring it joins, so
+generating one more costs one record and nothing per frame after it.
+
+Assert once fixed: `--bench --sketch rota_convocationis` verdicts PASS
+with the frame time at the end of the sequence within the budget and
+flat against the number of sub-circles generated (the per-frame report
+shows no node whose cost grows with the count).
