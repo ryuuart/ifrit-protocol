@@ -170,6 +170,23 @@ struct SketchContext {
                  : SkSize::MakeEmpty();
   }
 
+  /** DECLARE THE WHOLE CANVAS AT ONCE, from the one value a host reads
+   *  back afterwards. The setters below write that value a field at a
+   *  time, so a sketch that declares more than its size says the same
+   *  thing in three or four calls; this says it in one, and a caller
+   *  that already holds a `CanvasSpec` — a kit component handed a stage,
+   *  a host replaying a declaration — hands it over rather than taking
+   *  it apart.
+   *
+   *      ctx.canvas({.size = {1080, 430}, .background = ground,
+   *                  .captureSeconds = 2.78});
+   *
+   *  Every field is declared, defaults included: this is the value, not
+   *  a patch over the one already there. */
+  void canvas(const CanvasSpec& declared) {
+    if (spec) *spec = declared;
+    size = declared.size;  // visible immediately
+  }
   /** Declare the logical canvas size. Usually in setup(); calling later
    *  resizes live, applied on the next frame. */
   void canvas(float width, float height) {
