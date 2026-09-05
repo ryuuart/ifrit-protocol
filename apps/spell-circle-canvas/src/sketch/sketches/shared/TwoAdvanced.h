@@ -16,7 +16,7 @@
 //   THE TRACKING UNIT. Every one of these interfaces was set in
 //   Illustrator or Flash, where tracking is 1/1000 em — so a tracking
 //   value is a property of the VOICE and stays put when the size moves.
-//   `tracked()` is that conversion and nothing else; each sketch builds
+//   `sigil::weave::kit::tracked()` is that conversion; each sketch builds
 //   its own register on top, because the register is what its artefact
 //   sounded like.
 //
@@ -37,6 +37,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilweave/kit/Labels.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
@@ -94,22 +95,7 @@ inline const sk_sp<SkTypeface>& verdanaFace(bool bold) {
 }
 
 // ---------------------------------------------------------------------------
-// The tracking unit, and the one text alias.
-
-/** A style whose TRACKING IS AUTHORED IN 1/1000 em — Illustrator's unit,
- *  and Flash's — converted to pixels here, so a tracking value stays the
- *  same when the size changes. @p condense is `ShapingStyle::scaleX`,
- *  which is how a face with no `wdth` axis is narrowed. */
-inline sigil::weave::TextStyle tracked(const sk_sp<SkTypeface>& face,
-                                       float size, SkColor4f color,
-                                       float trackUnits = 0,
-                                       float condense = 1.0f) {
-  return sigil::weave::textStyle({.face = face,
-                               .size = size,
-                               .color = color,
-                               .track = size * trackUnits / 1000.0f,
-                               .condense = condense});
-}
+// The one text alias.
 
 /** A narrow-string label, which is what every caption on these pages is. */
 inline sigil::compose::Element t(const char* s, sigil::weave::TextStyle style) {
