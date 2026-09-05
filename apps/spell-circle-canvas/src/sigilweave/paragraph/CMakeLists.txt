@@ -13,10 +13,12 @@ sigil_library(SigilWeaveParagraph
 
 # Shaping as the paragraph drives it, the document model, the typographic
 # correctness a shaping engine must hold, and the options that reach
-# shaping. Nothing here lays a line out. Several cases can only be asked
-# on a machine that has the face for the script they are about, and they
-# skip when it does not; the label says so, so a runner that knows its
-# own font set can require them.
+# shaping. Nothing here lays a line out. A case whose claim is about a
+# script, an axis or a feature shapes an instrument from src/test/assets/
+# and needs nothing of the machine; what the label is still for is the
+# cases whose claim is the MACHINE'S OWN fallback — that an unstyled
+# paragraph of mixed scripts and emoji resolves to real glyphs at all —
+# which cannot be asked without the machine having faces for them.
 sigil_test(weave_paragraph_test
   SOURCES test/ShapingTest.cpp test/ParagraphTest.cpp test/CorrectnessTest.cpp
           test/TypographyTest.cpp

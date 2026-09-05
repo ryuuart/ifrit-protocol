@@ -31,14 +31,16 @@
 #   A GoogleTest binary registered with ctest. It sees SIGIL_TEST_DIR, the
 #   tree-wide test support directory and SUPPORT_DIRS, and reads its
 #   committed fixtures through SIGIL_TEST_ASSET_DIR — <root>/test/assets
-#   unless ASSET_DIR says otherwise. ARC compiles the Objective-C++ sources
-#   with automatic reference counting.
+#   unless ASSET_DIR says otherwise — and the tree's instrument faces
+#   through SIGIL_TEST_INSTRUMENT_DIR. ARC compiles the Objective-C++
+#   sources with automatic reference counting.
 #
 # sigil_bench(<name> SOURCES <file>... [LIBRARIES <item>...]
 #             [DEFINITIONS <define>...] [SUPPORT_DIRS <dir>...] [GPU] [ARC])
 #   A Google Benchmark binary hung off the `benches` target and never a
 #   test. It sees SIGIL_BENCH_DIR and SUPPORT_DIRS and reads fixtures
-#   through SIGIL_TEST_ASSET_DIR. GPU adds the Graphite arm where a device
+#   through SIGIL_TEST_ASSET_DIR and instrument faces through
+#   SIGIL_TEST_INSTRUMENT_DIR. GPU adds the Graphite arm where a device
 #   is guaranteed: on Apple the binary links SigilSkia and is compiled with
 #   SIGIL_BENCH_GPU.
 #
@@ -163,6 +165,13 @@ function(_sigil_binary_support target kind)
   if(ARG_ASSET_DIR)
     target_compile_definitions(${target} PRIVATE
       SIGIL_TEST_ASSET_DIR="${ARG_ASSET_DIR}")
+  endif()
+  # The instrument faces are the whole tree's, not one library's, so they
+  # are named separately from the fixtures a single library commits: a
+  # binary reads both, and "Fonts.h" spells only this one.
+  if(SIGIL_TEST_SUPPORT_DIR)
+    target_compile_definitions(${target} PRIVATE
+      SIGIL_TEST_INSTRUMENT_DIR="${SIGIL_TEST_SUPPORT_DIR}/assets")
   endif()
   if(ARG_DEFINITIONS)
     target_compile_definitions(${target} PRIVATE ${ARG_DEFINITIONS})

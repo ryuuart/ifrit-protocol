@@ -16,8 +16,8 @@
 #include <include/core/SkTypeface.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/fonts/Shaper.h>
-#include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/kit/Features.h>
+#include <sigilweave/ports/SystemFontManager.h>
 
 #include <string>
 #include <vector>
@@ -36,7 +36,7 @@ constexpr ScriptTag kLatin = 0x4C61746Eu;
 ShapedWordRef column(const std::vector<FontFeature>& features,
                      std::u16string_view text) {
   ShapingStyle style;
-  style.typeface = instrumentFace();
+  style.typeface = verticalFeaturesFace();
   style.fontSize = 100.0f;  // 1000 upem: one font unit is a tenth of a px
   style.fontFeatures = features;
   return shapeWord(sigil::test::fonts(), style, style.typeface, text, kLatin,
@@ -47,7 +47,7 @@ ShapedWordRef column(const std::vector<FontFeature>& features,
 ShapedWordRef line(const std::vector<FontFeature>& features,
                    std::u16string_view text) {
   ShapingStyle style;
-  style.typeface = instrumentFace();
+  style.typeface = verticalFeaturesFace();
   style.fontSize = 100.0f;
   style.fontFeatures = features;
   return shapeWord(sigil::test::fonts(), style, style.typeface, text, kLatin,
@@ -59,7 +59,7 @@ ShapedWordRef line(const std::vector<FontFeature>& features,
 class VerticalFeatures : public ::testing::Test {
  protected:
   void SetUp() override {
-    ASSERT_TRUE(instrumentFace())
+    ASSERT_TRUE(verticalFeaturesFace())
         << "test asset VerticalFeatures.ttf failed to load";
   }
 };

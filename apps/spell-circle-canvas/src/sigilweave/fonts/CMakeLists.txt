@@ -9,15 +9,14 @@ sigil_library(SigilWeaveFonts
   PUBLIC SigilWeaveStyle unofficial::skia::skia
   PRIVATE harfbuzz::harfbuzz Boost::container_hash Boost::unordered)
 
-# What the font service promises about faces this machine happens to have:
-# the fallback memo, the varied clone, and the pair a shaper sets by
-# measuring outlines. Each names an installed family and skips without it,
-# which is what the label says, so a runner that knows its own font set can
-# require them and every other runner can let them pass.
+# What the font service promises about the faces it is handed: the fallback
+# memo keyed by language, the varied clone that is never retained, and the
+# pair a shaper sets by measuring outlines. Every face here is an instrument
+# committed under src/test/assets/, so a runner needs no font of its own and
+# the answers are the same on every machine — which is why there is no label.
 sigil_test(weave_fonts_test
   SOURCES test/FontContextTest.cpp
-  LIBRARIES SigilWeaveFonts SigilWeavePorts
-  LABELS fonts)
+  LIBRARIES SigilWeaveFonts SigilWeavePorts)
 
 # The vertical OpenType features, asked of the face committed under
 # test/assets/ rather than of this machine's. Its own binary because it is

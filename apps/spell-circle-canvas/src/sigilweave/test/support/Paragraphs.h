@@ -44,12 +44,18 @@ inline TextStyle basicStyle(float fontSize = 16.0f) {
   return style;
 }
 
+/// A single-span paragraph over `utf8` in the given style — what a case
+/// naming its own face or its own features builds instead of `makeParagraph`.
+inline Paragraph paragraphIn(std::u8string_view utf8, const TextStyle& style) {
+  Paragraph paragraph;
+  paragraph.appendText(utf8, style);
+  return paragraph;
+}
+
 /// A single-span paragraph over `utf8` at the given size.
 inline Paragraph makeParagraph(std::u8string_view utf8,
                                float fontSize = 16.0f) {
-  Paragraph paragraph;
-  paragraph.appendText(utf8, basicStyle(fontSize));
-  return paragraph;
+  return paragraphIn(utf8, basicStyle(fontSize));
 }
 
 /// Glyphs the paragraph shaped, over every word and every segment.

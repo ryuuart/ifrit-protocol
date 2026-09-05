@@ -1157,8 +1157,12 @@ drawn two ways — never an anti-aliased byte, a fitted tolerance, a count
 the machine's fonts could move, or elapsed time: pixel identity is the
 plate ledger's to judge and timing is the bench ledger's. A claim made N
 times with one thing varying is one `TEST_P` whose parameter is that
-thing. Committed test assets sit in `test/assets/`, so a claim about a
-face is a claim about a face this repository ships. The benchmarks are
+thing. Committed test assets sit in `test/assets/`, and the faces more than one
+library asks of — a ligature, an advance-moving axis beside an
+advance-holding one, zero-advance combining marks — in the tree's own
+`src/test/assets/`, reached as `sigil::test::instrument::variable()` and
+its siblings, so a claim about a face is a claim about a face this
+repository ships. The benchmarks are
 executables, not tests.
 There is one benchmark binary per tier — `compose_core_bench`,
 `compose_shape_bench`, `compose_brush_bench`, `compose_paint_bench`,

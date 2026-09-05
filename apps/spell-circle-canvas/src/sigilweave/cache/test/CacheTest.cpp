@@ -65,7 +65,8 @@ TEST(SingleLineParagraphCache, AReferenceStaysValidAcrossLaterInsertions) {
   const Paragraph* address = &held;
 
   for (int index = 0; index < 512; ++index)
-    cache.paragraphFor(u8"filler" + std::u8string(1, (char8_t)('a' + index % 26)) +
+    cache.paragraphFor(u8"filler" +
+                           std::u8string(1, (char8_t)('a' + index % 26)) +
                            std::u8string(1, (char8_t)('a' + index / 26)),
                        nullptr, 16.0f);
 
@@ -100,10 +101,13 @@ TEST(SingleLineParagraphCache, TheKeyDiscriminatesTextAndTypeface) {
   EXPECT_NE(&cache.paragraphFor(u8"CAPTION", nullptr, 16.0f), &plain)
       << "different text is a different entry";
 
-  ASSERT_TRUE(instrumentFace()) << "the committed instrument face did not load";
-  Paragraph& faced = cache.paragraphFor(u8"caption", instrumentFace(), 16.0f);
+  ASSERT_TRUE(verticalFeaturesFace())
+      << "the committed instrument face did not load";
+  Paragraph& faced =
+      cache.paragraphFor(u8"caption", verticalFeaturesFace(), 16.0f);
   EXPECT_NE(&faced, &plain) << "the typeface is part of the key";
-  EXPECT_EQ(&cache.paragraphFor(u8"caption", instrumentFace(), 16.0f), &faced);
+  EXPECT_EQ(&cache.paragraphFor(u8"caption", verticalFeaturesFace(), 16.0f),
+            &faced);
 }
 
 TEST(SingleLineParagraphCache, AFullCacheRetiresWhatItHeldBeforeInsertingMore) {

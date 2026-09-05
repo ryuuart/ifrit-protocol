@@ -142,15 +142,16 @@ TEST(Itemization, FallbackResolvesCjkGlyphs) {
 }
 
 TEST(Itemization, CustomFallbackResolverControlsSelection) {
+  // A primary that cannot draw the character and a face that can: the two
+  // instruments make the resolver's answer observable, since a face chosen
+  // by the machine would be whichever one it happens to have.
   sk_sp<SkFontMgr> fontManager = ports::systemFontManager();
-  sk_sp<SkTypeface> primary =
-      fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
-  sk_sp<SkTypeface> preferred =
-      fontManager->matchFamilyStyle("Noto Serif JP", SkFontStyle());
+  sk_sp<SkTypeface> primary = sigil::test::instrument::sans();
+  sk_sp<SkTypeface> preferred = sigil::test::instrument::hanSans();
   constexpr SkUnichar kJapaneseHiragana = 0x3042;  // あ
-  if (!primary || !preferred || primary->unicharToGlyph(kJapaneseHiragana) ||
-      !preferred->unicharToGlyph(kJapaneseHiragana))
-    GTEST_SKIP() << "Noto Sans / Noto Serif JP fallback fixture unavailable";
+  ASSERT_TRUE(primary && preferred);
+  ASSERT_EQ(primary->unicharToGlyph(kJapaneseHiragana), 0);
+  ASSERT_NE(preferred->unicharToGlyph(kJapaneseHiragana), 0);
 
   int resolverCalls = 0;
   std::string observedLanguage;
@@ -223,20 +224,26 @@ TEST(Itemization, ARightToLeftWordIsShapedRightToLeft) {
   EXPECT_GT(clusters.front(), clusters.back());
 }
 
-// ── A script this machine may not have a face for ────────────────────────
+// ── A script shaped off the instrument that covers it ────────────────────
 
-/// A script shaped through the paragraph, on a machine that may not have a
-/// face for it. A face without the coverage shapes .notdef, which is no
-/// answer to the question rather than a wrong one.
+/// A script shaped through the paragraph, in the face committed for that
+/// script. A face without the coverage shapes .notdef, which is no answer
+/// to the question rather than a wrong one, so the coverage is named here
+/// instead of hoped for.
 class ShapedScript : public ::testing::Test {
  protected:
-  /// Shapes `utf8` into this fixture's paragraph and answers whether the
-  /// installed faces covered it. GTEST_SKIP returns from the function it is
-  /// written in, so the case itself is what stops.
-  [[nodiscard]] bool shapedWholly(std::u8string_view utf8) {
-    m_paragraph.appendText(utf8, basicStyle());
+  /// Shapes `utf8` into this fixture's paragraph, set in the instrument for
+  /// the script it is written in. Coverage is then the instrument's and not
+  /// the machine's, so the shaping below is the only thing under test and
+  /// there is nothing to skip for.
+  void shape(std::u8string_view utf8, const sk_sp<SkTypeface>& face) {
+    ASSERT_TRUE(face);
+    TextStyle style = basicStyle();
+    style.shaping.typeface = face;
+    m_paragraph.appendText(utf8, style);
     m_paragraph.ensureShaped(sigil::test::fonts());
-    return allGlyphsResolved(m_paragraph);
+    ASSERT_TRUE(allGlyphsResolved(m_paragraph))
+        << "the instrument face did not cover its own sample";
   }
 
   Paragraph m_paragraph;
@@ -244,7 +251,7 @@ class ShapedScript : public ::testing::Test {
 
 TEST_F(ShapedScript, ArabicLamAlefLigates) {
   // lam + alef: a mandatory ligature.
-  if (!shapedWholly(u8"لا")) GTEST_SKIP() << "no Arabic font on this system";
+  shape(u8"لا", sigil::test::instrument::arabic());
   ASSERT_EQ(m_paragraph.words().size(), 1u);
   const ShapedWord& shapedWord = *m_paragraph.words()[0].segments()[0].shaped;
   EXPECT_EQ(shapedWord.glyphs.size(), 1u)
@@ -252,8 +259,8 @@ TEST_F(ShapedScript, ArabicLamAlefLigates) {
 }
 
 TEST_F(ShapedScript, ArabicJoinsRtl) {
-  if (!shapedWholly(u8"العربية تكتب من اليمين إلى اليسار"))
-    GTEST_SKIP() << "no Arabic font on this system";
+  shape(u8"العربية تكتب من اليمين إلى اليسار",
+        sigil::test::instrument::arabic());
   ASSERT_GE(m_paragraph.words().size(), 5u);
   for (const Word& word : m_paragraph.words()) {
     EXPECT_EQ(word.bidiLevel & 1u, 1u) << "Arabic words must be RTL";
@@ -264,8 +271,7 @@ TEST_F(ShapedScript, ArabicJoinsRtl) {
 }
 
 TEST_F(ShapedScript, DevanagariFormsConjunctClusters) {
-  if (!shapedWholly(u8"नमस्ते दुनिया"))
-    GTEST_SKIP() << "no Devanagari font on this system";
+  shape(u8"नमस्ते दुनिया", sigil::test::instrument::devanagari());
   // "नमस्ते" is 6 UTF-16 units but the virama fuses स्+ते into one grapheme
   // cluster: distinct clusters must be fewer than code units.
   const Word& namaste = m_paragraph.words()[0];
@@ -279,8 +285,7 @@ TEST_F(ShapedScript, CuneiformSupplementaryPlane) {
   // Four codepoints beyond the BMP (U+12000, U+12031, U+12038, U+1204D):
   // each is a surrogate pair, so correct cluster values step by 2 UTF-16
   // units.
-  if (!shapedWholly(u8"𒀀𒀱𒀸𒁍"))
-    GTEST_SKIP() << "no Cuneiform font on this system";
+  shape(u8"𒀀𒀱𒀸𒁍", sigil::test::instrument::cuneiform());
   std::vector<uint32_t> clusters;
   for (const Word& word : m_paragraph.words())
     for (const WordSegment& segment : word.segments())
@@ -390,8 +395,8 @@ TEST(Shaper, PurgeAllCachesResetsBorrowedMemos) {
 
 TEST(Shaper, VariationsChangeShapingViaStyle) {
   FontContext& fontContext = sigil::test::fonts();
-  sk_sp<SkTypeface> base = installedVariableFace("Noto Sans");
-  if (!base) GTEST_SKIP() << "no variable Noto Sans installed";
+  sk_sp<SkTypeface> base = sigil::test::instrument::variable();
+  ASSERT_TRUE(base);
 
   auto totalWidth = [&](std::vector<FontVariation> variations) {
     TextStyle style = basicStyle(32.0f);
@@ -416,8 +421,8 @@ TEST(Shaper, VariationsChangeShapingViaStyle) {
 
 TEST(Shaper, VariedTypefaceIsMemoizedForCacheStability) {
   FontContext fontContext(ports::systemFontManager());
-  sk_sp<SkTypeface> base = installedVariableFace("Noto Sans");
-  if (!base) GTEST_SKIP() << "no variable Noto Sans installed";
+  sk_sp<SkTypeface> base = sigil::test::instrument::variable();
+  ASSERT_TRUE(base);
 
   const std::vector<FontVariation> axes = {{"wght", 700.0f}};
 

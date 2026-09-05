@@ -19,13 +19,14 @@ using namespace sigil::weave::test;
 // ── OpenType features ─────────────────────────────────────────────────────
 
 TEST(Features, LigatureToggleChangesGlyphCount) {
+  // The instrument ligates f f i under `liga` and does nothing else with
+  // it, so the glyph count is the feature and not the face's own taste.
   FontContext& fontContext = sigil::test::fonts();
-  sk_sp<SkTypeface> hoefler = fontContext.fontManager()->matchFamilyStyle(
-      "Hoefler Text", SkFontStyle());
-  if (!hoefler) GTEST_SKIP() << "Hoefler Text not installed";
+  sk_sp<SkTypeface> instrument = sigil::test::instrument::sans();
+  ASSERT_TRUE(instrument);
 
   TextStyle ligaturesEnabledStyle = basicStyle();
-  ligaturesEnabledStyle.shaping.typeface = hoefler;
+  ligaturesEnabledStyle.shaping.typeface = instrument;
   TextStyle ligaturesDisabledStyle = ligaturesEnabledStyle;
   ligaturesDisabledStyle.shaping.fontFeatures.emplace_back("liga", 0);
   ligaturesDisabledStyle.shaping.fontFeatures.emplace_back("clig", 0);
@@ -148,10 +149,13 @@ TEST(WordSpacing, WidensGlueWithoutReshaping) {
 
 TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
   FontContext& fontContext = sigil::test::fonts();
-  // SF Pro (macOS system font) ships proportional figures by default and a
-  // tnum feature; fall back to skipping when neither is measurable.
+  // The instrument gives every figure a different advance and carries a
+  // tnum that equalises them, so both halves of the claim are measurable
+  // here — on a face whose figures are already even there is nothing to
+  // prove.
   auto digitWidths = [&](std::vector<FontFeature> features) {
     TextStyle style = basicStyle(32.0f);
+    style.shaping.typeface = sigil::test::instrument::sans();
     style.shaping.fontFeatures = std::move(features);
     std::vector<float> widths;
     for (const char8_t* digit : {u8"1", u8"0", u8"7", u8"9"}) {
@@ -166,7 +170,8 @@ TEST(FeaturePresets, TabularNumbersEqualizeDigitAdvances) {
   const std::vector<float> proportional = digitWidths({});
   const std::vector<float> tabular = digitWidths({features::tabularNumbers});
 
-  if (spread(proportional) < 0.01f)
-    GTEST_SKIP() << "default face already has uniform digits; tnum unprovable";
+  EXPECT_GT(spread(proportional), 0.01f)
+      << "the instrument's figures must be proportional, or the feature has "
+         "nothing to equalise";
   EXPECT_LT(spread(tabular), 0.01f) << "tabular figures must share one advance";
 }

@@ -25,16 +25,16 @@ TEST(Correctness, VariableAxesReachHarfBuzz) {
   // A multi-axis variable instance must shape with the same complete design
   // position Skia rasterizes.
   FontContext& fontContext = sigil::test::fonts();
-  sk_sp<SkTypeface> base = installedFace("Noto Sans");
-  const int axisCount = base ? base->getVariationDesignPosition({}) : 0;
-  if (axisCount < 2)
-    GTEST_SKIP() << "no multi-axis variable Noto Sans installed";
+  sk_sp<SkTypeface> base = sigil::test::instrument::variable();
+  ASSERT_TRUE(base);
+  const int axisCount = base->getVariationDesignPosition({});
+  ASSERT_GE(axisCount, 2) << "the instrument face lost an axis";
 
   std::vector<SkFontArguments::VariationPosition::Coordinate> coordinates(
       static_cast<size_t>(axisCount));
-  if (base->getVariationDesignPosition(
-          {coordinates.data(), coordinates.size()}) != axisCount)
-    GTEST_SKIP() << "Noto Sans variation position unavailable";
+  ASSERT_EQ(base->getVariationDesignPosition(
+                {coordinates.data(), coordinates.size()}),
+            axisCount);
   bool changedWeight = false;
   bool changedWidth = false;
   for (auto& coordinate : coordinates) {
@@ -46,8 +46,8 @@ TEST(Correctness, VariableAxesReachHarfBuzz) {
       changedWidth = true;
     }
   }
-  if (!changedWeight || !changedWidth)
-    GTEST_SKIP() << "Noto Sans wght/wdth axes unavailable";
+  ASSERT_TRUE(changedWeight && changedWidth)
+      << "the instrument face lost its wght or wdth axis";
 
   SkFontArguments args;
   args.setVariationDesignPosition(
@@ -135,16 +135,22 @@ TEST(Correctness, CombiningMarkAttachesToBase) {
 }
 
 TEST(Correctness, ExtremeCombiningStacksKeepBaseAdvance) {
+  // The instrument carries the whole combining block with no advance on any
+  // of it and nothing that composes a mark into its base, so the stack below
+  // is a stack whatever the machine has installed.
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph plain = makeParagraph(u8"ZALGO TEXT", 32.0f);
-  Paragraph stacked = makeParagraph(
+  TextStyle style = basicStyle(32.0f);
+  style.shaping.typeface = sigil::test::instrument::marks();
+  ASSERT_TRUE(style.shaping.typeface);
+  Paragraph plain = paragraphIn(u8"ZALGO TEXT", style);
+  Paragraph stacked = paragraphIn(
       u8"Z̴̢̨̛̲̦̹̰̓̈́͊͘A̵̛̪̯̜̩͆̈́͝L̷̨̡̲̤̬̝̑̓͑̕G̵̢̺̙͎̺̤̓͛̾Ơ̶̢͙̟̲̦̿̽͋̚ "
       "T̷̨̗̰͉̼̯͛̋E̴̡̨̩̱͕̪͗̎X̷̢̳̮̱̪̿̈́͘T̴̛̬̠̦̞͙̋̄͝",
-      32.0f);
+      style);
   plain.ensureShaped(fontContext);
   stacked.ensureShaped(fontContext);
-  if (!allGlyphsResolved(stacked))
-    GTEST_SKIP() << "combining-mark fallback coverage unavailable";
+  ASSERT_TRUE(allGlyphsResolved(stacked))
+      << "the instrument face did not cover its own mark stack";
 
   EXPECT_GT(shapedGlyphCount(stacked), shapedGlyphCount(plain));
   const float plainWidth = plain.naturalWidth(fontContext);

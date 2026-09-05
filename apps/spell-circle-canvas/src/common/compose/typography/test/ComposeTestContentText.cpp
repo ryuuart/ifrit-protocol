@@ -193,7 +193,6 @@ TEST(TextLayout, ParagraphOverloadPaintsMixedSpans) {
   EXPECT_GT(lit, 15);  // both spans shaped and painted
 }
 
-
 TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   // The stagger law: at mid-progress the early glyphs are fully revealed
   // while the late ones haven't started — the canonical staggered reveal,
@@ -474,16 +473,16 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
   Host host(300, 120);
   std::vector<FxSample> samples;
   host.composer.render(box().padding(10).child(
-      text(u8"x́ýz", whiteStyle(28))
+      text(u8"x́ýz", markStyle(28))
           .key("k")
           .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
                          0.5f))));
   host.frame();
   ASSERT_FALSE(samples.empty());
   const uint32_t beats = samples.front().info.unitCount;
-  if (beats == samples.size())
-    GTEST_SKIP() << "this font composed the marks into single glyphs, so "
-                    "there is no multi-glyph cluster to keep together";
+  ASSERT_LT((size_t)beats, samples.size())
+      << "the instrument composed the marks into single glyphs, so there is "
+         "no multi-glyph cluster left to keep together";
   // Glyphs at one text offset are one cluster and must share one time.
   for (size_t i = 1; i < samples.size(); ++i)
     if (samples[i].info.textIndex == samples[i - 1].info.textIndex) {
@@ -492,12 +491,12 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
           << "a combining mark was staggered away from its base letter";
     }
 
-  // THE CONTROL: unit::Glyph is the raw shaping unit and DOES separate
-  // them. Without this the check above is satisfied by a cascade that
-  // never beat at all.
+  // THE CONTROL: the same text over unit::Glyph, which is the raw shaping
+  // unit and DOES separate a mark from its base. Without it the check above
+  // is satisfied by a cascade that never beat at all.
   std::vector<FxSample> raw;
   host.composer.render(box().padding(10).child(
-      text(u8"x́ýz", whiteStyle(28))
+      text(u8"x́ýz", markStyle(28))
           .key("k")
           .fx(probeTrack(&raw, {}, {.eachMs = 100, .durationMs = 400}, 0.5f,
                          unit::Glyph))));
@@ -2843,21 +2842,15 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
 
 namespace {
 
-/** A face carrying the advance-invariant GRAD axis, and that axis's own
- *  design range — null when this machine has none, or has one whose varied
- *  clone renders identically, because a test that cannot see the axis move
- *  would pass while checking nothing. */
+/** The instrument face carrying the advance-invariant GRAD axis, and that
+ *  axis's own design range read off the face rather than written here.
+ *  Null only when the face fails the two things a case about the axis needs
+ *  of it — advances that hold, and ink that moves — which is a broken
+ *  instrument and not a machine without a font. */
 sk_sp<SkTypeface> gradFace(float& lo, float& hi) {
   lo = hi = 0;
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> face;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    face = manager->matchFamilyStyle(family, SkFontStyle());
-    if (face && fonts().axisIsAdvanceInvariant(face, "GRAD")) break;
-    face = nullptr;
-  }
-  if (!face) return nullptr;
+  sk_sp<SkTypeface> face = sigil::test::instrument::variable();
+  if (!face || !fonts().axisIsAdvanceInvariant(face, "GRAD")) return nullptr;
   const int count = face->getVariationDesignParameters({});
   if (count <= 0) return nullptr;
   std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
@@ -2916,7 +2909,8 @@ int pixelsDiffering(const SkBitmap& a, const SkBitmap& b, int w, int h) {
 TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);
-  if (!face) GTEST_SKIP() << "no responsive advance-invariant GRAD face here";
+  ASSERT_TRUE(face) << "the instrument's GRAD axis no longer holds advances "
+                       "while moving ink";
 
   Host host(400, 120);
   sigil::weave::TextStyle base = coloredStyle(40, SK_ColorWHITE);
@@ -2954,7 +2948,8 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   // nothing.
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);
-  if (!face) GTEST_SKIP() << "no responsive advance-invariant GRAD face here";
+  ASSERT_TRUE(face) << "the instrument's GRAD axis no longer holds advances "
+                       "while moving ink";
 
   sigil::weave::TextStyle base = coloredStyle(40, SK_ColorWHITE);
   base.shaping.typeface = face;
@@ -2994,12 +2989,10 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
 }
 
 TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
-  // The instrument face whose wght genuinely interpolates advances, so the
-  // fold has something to decline. Loaded here rather than shared, so this
-  // face's verdict is this test's own to observe.
-  const sk_sp<SkTypeface> face = fonts().fontManager()->makeFromFile(
-      SIGIL_TEST_ASSET_DIR "/AdvanceVariant.ttf");
-  ASSERT_TRUE(face) << "test asset AdvanceVariant.ttf failed to load";
+  // The same instrument, read on its other axis: wght genuinely
+  // interpolates advances there, so the fold has something to decline.
+  const sk_sp<SkTypeface> face = sigil::test::instrument::variable();
+  ASSERT_TRUE(face);
   ASSERT_GT(face->getVariationDesignParameters({}), 0);
   ASSERT_FALSE(fonts().axisIsAdvanceInvariant(face, "wght"))
       << "the instrument face's wght must move advances";
@@ -3039,7 +3032,8 @@ TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
 TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);
-  if (!face) GTEST_SKIP() << "no responsive advance-invariant GRAD face here";
+  ASSERT_TRUE(face) << "the instrument's GRAD axis no longer holds advances "
+                       "while moving ink";
 
   // A FIXED WINDOW of design space, swept at a fixed number of samples, at
   // two rendered sizes. The ladder is cut per rendered size, so the same
@@ -3089,7 +3083,8 @@ TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
 TEST(TextSpanAxis, ALaterDeclarationWinsOnOverlap) {
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);
-  if (!face) GTEST_SKIP() << "no responsive advance-invariant GRAD face here";
+  ASSERT_TRUE(face) << "the instrument's GRAD axis no longer holds advances "
+                       "while moving ink";
 
   Host host(400, 120);
   sigil::weave::TextStyle base = coloredStyle(46, SK_ColorWHITE);

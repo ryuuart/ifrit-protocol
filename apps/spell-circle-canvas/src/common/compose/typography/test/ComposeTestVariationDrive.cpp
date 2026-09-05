@@ -5,35 +5,44 @@
 
 #include "support/TextTestSupport.h"
 
+namespace {
+
+/** The instrument face and the design range of its advance-invariant GRAD
+ *  axis, read off the face rather than written here. The axis holds every
+ *  advance and moves ink alone, which is the property the substitution gate
+ *  is about, and it is the same property on every machine. */
+sk_sp<SkTypeface> gradeInstrument(float& lo, float& hi) {
+  lo = hi = 0;
+  sk_sp<SkTypeface> face = sigil::test::instrument::variable();
+  if (!face || !fonts().axisIsAdvanceInvariant(face, "GRAD")) return nullptr;
+  const int count = face->getVariationDesignParameters({});
+  std::vector<SkFontParameters::Variation::Axis> axes((size_t)count);
+  face->getVariationDesignParameters({axes.data(), axes.size()});
+  for (const auto& axis : axes)
+    if (axis.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
+      lo = axis.min;
+      hi = axis.max;
+    }
+  return hi > lo ? face : nullptr;
+}
+
+}  // namespace
+
 // ---------------------------------------------------------------------------
 // VariationDrive — draw-time variable-font axes, gated by the advance probe
 
 TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
-  // The San Francisco system face carries the advance-invariant GRAD axis
-  // on modern macOS; find a face that passes the probe or skip honestly.
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> ui;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    ui = manager->matchFamilyStyle(family, SkFontStyle());
-    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
-    ui = nullptr;
-  }
-  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
-  // The probe proves advances HOLD; it cannot prove the clone RESPONDS
-  // (a hidden system face can accept the axis and render identically).
-  // Check a glyph's outline actually moves across the range, else skip.
+  // The gate proves advances HOLD; it cannot prove the clone RESPONDS, and
+  // a face that accepts the axis and renders identically would let this
+  // case pass while seeing nothing. The instrument answers both: one glyph
+  // rasterized at each end of the range must differ.
+  float gradeMin = 0, gradeMax = 0;
+  const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
+  ASSERT_TRUE(ui) << "the instrument's GRAD axis no longer holds advances "
+                     "over a range";
   {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    float lo = 0, hi = 0;
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-        lo = a.min;
-        hi = a.max;
-      }
-    const sigil::weave::FontVariation vLo("GRAD", lo), vHi("GRAD", hi);
+    const sigil::weave::FontVariation vLo("GRAD", gradeMin),
+        vHi("GRAD", gradeMax);
     SkFont fLo(fonts().variedTypeface(ui, {&vLo, 1}), 48);
     SkFont fHi(fonts().variedTypeface(ui, {&vHi, 1}), 48);
     SkGlyphID glyph = fLo.unicharToGlyph('W');
@@ -57,21 +66,7 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
     for (int y = 0; y < 80; ++y)
       for (int x = 0; x < 100; ++x)
         if (rLo.getColor(x, y) != rHi.getColor(x, y)) ++rasterDelta;
-    if (rasterDelta == 0)
-      GTEST_SKIP() << "GRAD clone is rendering-inert on this system face";
-  }
-  // Drive the axis's REAL design range (SF's GRAD span is font-defined;
-  // hardcoded values can land clamped onto the default = no visual delta).
-  float gradeMin = 0, gradeMax = 0;
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-        gradeMin = a.min;
-        gradeMax = a.max;
-      }
+    ASSERT_GT(rasterDelta, 0) << "the instrument's GRAD clone renders inert";
   }
 
   choreograph::Output<float> grade{gradeMin};
@@ -113,27 +108,10 @@ TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
   // The old baseline-on-a-path draw was its own path through the engine and
   // took none of the per-glyph dressing with it, so a driven axis on a ring
   // simply did nothing. One draw now places both, so it does.
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> ui;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    ui = manager->matchFamilyStyle(family, SkFontStyle());
-    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
-    ui = nullptr;
-  }
-  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
   float gradeMin = 0, gradeMax = 0;
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-        gradeMin = a.min;
-        gradeMax = a.max;
-      }
-  }
-  if (gradeMax <= gradeMin) GTEST_SKIP() << "GRAD declares no range";
+  const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
+  ASSERT_TRUE(ui) << "the instrument's GRAD axis no longer holds advances "
+                     "over a range";
 
   choreograph::Output<float> grade{gradeMin};
   Host host(240, 240);
@@ -192,18 +170,13 @@ bool faceDeclaresAxis(const sk_sp<SkTypeface>& face, SkFourByteTag tag) {
 
 TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   // This needs a face whose wght axis genuinely CHANGES advances, so that
-  // the drive has something to refuse. A system face may not offer one — on
-  // macOS the UI face declares no wght axis at all — so the fallback is a
-  // committed instrument, test/assets/AdvanceVariant.ttf: a generated
-  // two-master variable font whose wght interpolates advances (built by
-  // make_advance_variant_vf.py). Both preconditions are asserted below, so
-  // the test cannot pass by running against a face that has no axis.
+  // the drive has something to refuse. The instrument's does — it is the
+  // same face the GRAD cases above read, on its other axis — and both
+  // preconditions are asserted below, so the case cannot pass by running
+  // against a face that has no axis at all.
   const SkFourByteTag wght = SkSetFourByteTag('w', 'g', 'h', 't');
-  sk_sp<SkTypeface> ui = fonts().defaultTypeface();
-  if (!faceDeclaresAxis(ui, wght) || fonts().axisIsAdvanceInvariant(ui, "wght"))
-    ui = fonts().fontManager()->makeFromFile(SIGIL_TEST_ASSET_DIR
-                                             "/AdvanceVariant.ttf");
-  ASSERT_TRUE(ui) << "test asset AdvanceVariant.ttf failed to load";
+  const sk_sp<SkTypeface> ui = sigil::test::instrument::variable();
+  ASSERT_TRUE(ui);
   ASSERT_TRUE(faceDeclaresAxis(ui, wght));
   ASSERT_FALSE(fonts().axisIsAdvanceInvariant(ui, "wght"))
       << "the instrument face's wght must move advances";
@@ -246,23 +219,10 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   // hand as a track must draw the same pixels. The equivalence is the point
   // — if the verb kept a text path of its own, a track drawn over it would
   // hide the drive entirely.
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> ui;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    ui = manager->matchFamilyStyle(family, SkFontStyle());
-    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
-    ui = nullptr;
-  }
-  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
-  float gradeMax = 0;
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) gradeMax = a.max;
-  }
+  float gradeMin = 0, gradeMax = 0;
+  const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
+  ASSERT_TRUE(ui) << "the instrument's GRAD axis no longer holds advances "
+                     "over a range";
 
   sigil::weave::TextStyle style = styleAt(48);
   style.shaping.typeface = ui;
@@ -329,27 +289,10 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
   // So the coordinates here NEVER REPEAT: a golden-ratio rotation across
   // the axis's design range, which is irrational and therefore visits a
   // distinct value on every one of the frames below.
-  sk_sp<SkFontMgr> manager = sigil::weave::ports::systemFontManager();
-  sk_sp<SkTypeface> ui;
-  for (const char* family :
-       {".AppleSystemUIFont", ".SF NS", "SF Pro Text", "SF Pro"}) {
-    ui = manager->matchFamilyStyle(family, SkFontStyle());
-    if (ui && fonts().axisIsAdvanceInvariant(ui, "GRAD")) break;
-    ui = nullptr;
-  }
-  if (!ui) GTEST_SKIP() << "no advance-invariant GRAD face on this system";
   float gradeMin = 0, gradeMax = 0;
-  {
-    const int n = ui->getVariationDesignParameters({});
-    std::vector<SkFontParameters::Variation::Axis> axes((size_t)n);
-    ui->getVariationDesignParameters({axes.data(), axes.size()});
-    for (const auto& a : axes)
-      if (a.tag == SkSetFourByteTag('G', 'R', 'A', 'D')) {
-        gradeMin = a.min;
-        gradeMax = a.max;
-      }
-  }
-  if (gradeMax <= gradeMin) GTEST_SKIP() << "GRAD declares no range";
+  const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
+  ASSERT_TRUE(ui) << "the instrument's GRAD axis no longer holds advances "
+                     "over a range";
 
   constexpr float kSize = 48.0f;
   constexpr int kHalf = 200;  // frames per half; the run is two of them

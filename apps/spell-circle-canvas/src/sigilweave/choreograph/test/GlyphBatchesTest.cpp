@@ -11,6 +11,7 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilweave/kit/PaintLayers.h>
 
 #include <algorithm>
 #include <cmath>
@@ -21,7 +22,6 @@
 #include "support/ChoreographSupport.h"
 #include "support/Paints.h"
 #include "support/Pixels.h"
-#include <sigilweave/kit/PaintLayers.h>
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -294,7 +294,7 @@ TEST(GlyphBatches, ADrivenFaceIsItsOwnBucket) {
   // The committed instrument stands in for a varied clone: the bucket key
   // cares that the typeface differs, not how it was made, and a face this
   // machine happens to have is not needed to say so.
-  const sk_sp<SkTypeface> other = instrumentFace();
+  const sk_sp<SkTypeface> other = verticalFeaturesFace();
   ASSERT_TRUE(other);
   ASSERT_NE(other.get(), shapedFace);
   bool first = true;
@@ -419,8 +419,9 @@ TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
   // advance, so the device origin a pose asks for is stated here rather
   // than guessed at.
   float advance = 0;
-  forEachPlacedGlyph(layout, paragraph,
-                     [&](const PlacedGlyph& glyph) { advance = glyph.advance; });
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    advance = glyph.advance;
+  });
   ASSERT_GT(advance, 0.0f);
 
   // One frame, reduced to a value: two frames are the same rasterization

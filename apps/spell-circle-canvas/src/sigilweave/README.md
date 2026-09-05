@@ -324,17 +324,18 @@ opening the file its subject names.
 
 | label | binaries | what a runner must supply |
 |---|---|---|
-| `fonts` | `weave_fonts_test`, `weave_paragraph_test` | an installed face for the script or the family the case is about |
-| — | every other binary | nothing: they read the Unicode leaf, plain values, or the committed instrument |
+| `fonts` | `weave_paragraph_test` | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about |
+| — | every other binary | nothing: they read the Unicode leaf, plain values, or a committed instrument |
 
-A case that skips is not coverage on the machine it skipped on, so a
-binary holding one carries the `fonts` label and every other binary holds
-none. `ctest -L fonts` selects them, so a runner that knows its own font
-set can require what the rest of the tree lets pass.
+A case that skips is not coverage on the machine it skipped on, so a case
+whose claim is about a script, an axis or a feature names the instrument
+that carries it and skips on nothing; what is left behind the label is the
+handful whose claim IS the machine's font set. `ctest -L fonts` selects
+them, so a runner that knows its own font set can require what the rest of
+the tree lets pass.
 
 Fixtures live in `test/support/`, and nothing is written twice: `Faces.h`
-holds the two lookups into what this machine has installed and the
-committed instrument face beside them, `Paragraphs.h` builds paragraphs
+holds this library's own committed face, `Paragraphs.h` builds paragraphs
 and the deterministic texts drawn from a word pool, `Layouts.h` takes the
 readings off a finished layout — which runs placed glyphs, where each line
 ended, how wide it is, how many glyphs it placed, whether every run stayed
@@ -347,12 +348,16 @@ is the whole test tree's, `sigil::test::fonts()` from `src/test/Fonts.h`,
 so one process shapes through one cache. `Layouts.h` calls no GoogleTest
 assertion, so the benchmarks include it and count what the tests count.
 Each binary that needs more has a support header that includes exactly
-the headers its translation units use. `test/assets/` holds the
-constructed faces a question needs that no installed font can answer —
-`VerticalFeatures.ttf`, where every vertical feature has its own visible
-consequence and none share one — each with the script that generates it
-beside it; `SIGIL_TEST_ASSET_DIR` names the directory to the binaries
-that read them.
+the headers its translation units use. `test/assets/` holds the face only
+this library asks for — `VerticalFeatures.ttf`, where every vertical
+feature has its own visible consequence and none share one — with the
+script that generates it beside it, reached through
+`SIGIL_TEST_ASSET_DIR`. The faces more than one library asks for are the
+tree's, under `src/test/assets/` and reached as
+`sigil::test::instrument::sans()` and its siblings: a ligature, an
+advance-moving axis beside an advance-holding one, an A/V pair for an
+optical kerner, zero-advance combining marks, and the coverage for
+Arabic, Devanagari and a supplementary-plane script.
 
 The benchmarks own every performance claim about this library — one
 binary per feature, under its feature's `bench/`, so each links only what

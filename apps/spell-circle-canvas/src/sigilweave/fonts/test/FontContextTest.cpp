@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
 #include <include/core/SkTypeface.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/fonts/Shaper.h>
@@ -22,20 +21,21 @@ using namespace sigil::weave;
 using namespace sigil::weave::test;
 
 TEST(FallbackMemo, AResolvedFallbackIsKeyedByTheLanguageItWasAskedFor) {
+  // Two regional faces over one shared character is the shape of the
+  // question, and two instruments are what make it askable: a Latin-only
+  // primary that answers nothing for the character, and two faces that do
+  // under two family names, so a resolver told a different language has a
+  // different face to hand back and the memo has two answers to keep apart.
   sk_sp<SkFontMgr> fontManager = ports::systemFontManager();
-  sk_sp<SkTypeface> primary =
-      fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
-  sk_sp<SkTypeface> simplified =
-      fontManager->matchFamilyStyle("Noto Sans SC", SkFontStyle());
-  sk_sp<SkTypeface> traditional =
-      fontManager->matchFamilyStyle("Noto Sans TC", SkFontStyle());
+  sk_sp<SkTypeface> primary = sigil::test::instrument::sans();
+  sk_sp<SkTypeface> simplified = sigil::test::instrument::hanSans();
+  sk_sp<SkTypeface> traditional = sigil::test::instrument::hanSerif();
   constexpr SkUnichar kSharedHanCharacter = 0x4E2D;  // 中
-  if (!primary || !simplified || !traditional ||
-      primary->unicharToGlyph(kSharedHanCharacter) ||
-      !simplified->unicharToGlyph(kSharedHanCharacter) ||
-      !traditional->unicharToGlyph(kSharedHanCharacter) ||
-      simplified->uniqueID() == traditional->uniqueID())
-    GTEST_SKIP() << "regional Noto CJK fallback fixtures unavailable";
+  ASSERT_TRUE(primary && simplified && traditional);
+  ASSERT_EQ(primary->unicharToGlyph(kSharedHanCharacter), 0);
+  ASSERT_NE(simplified->unicharToGlyph(kSharedHanCharacter), 0);
+  ASSERT_NE(traditional->unicharToGlyph(kSharedHanCharacter), 0);
+  ASSERT_NE(simplified->uniqueID(), traditional->uniqueID());
 
   int resolverCalls = 0;
   FontContext fontContext(std::move(fontManager), nullptr,
@@ -73,8 +73,8 @@ TEST(VariedTypeface, TheTransientCloneIsNeverPutInThePermanentMemo) {
   // point is what such a caller asks for, and the property it promises is
   // that the retained population does not move.
   FontContext fontContext(ports::systemFontManager());
-  sk_sp<SkTypeface> base = installedVariableFace("Noto Sans");
-  if (!base) GTEST_SKIP() << "no variable Noto Sans installed";
+  sk_sp<SkTypeface> base = sigil::test::instrument::variable();
+  ASSERT_TRUE(base);
 
   EXPECT_EQ(fontContext.variedTypefaceCount(), 0u);
   for (int step = 0; step < 300; ++step) {
@@ -108,14 +108,15 @@ TEST(VariedTypeface, TheTransientCloneIsNeverPutInThePermanentMemo) {
 
 // ── Optical kerning ───────────────────────────────────────────────────────
 
-/// A face whose outlines are what optical kerning measures. Helvetica is
-/// the one asked for because its A and V lean into each other far enough
-/// for a measured pair to differ from a metric one.
+/// A face whose outlines are what optical kerning measures. The instrument
+/// is the one asked for because its A and V lean into each other far enough
+/// for a measured pair to differ from a metric one, and by exactly as much
+/// on every machine.
 class OpticalKerning : public ::testing::Test {
  protected:
   void SetUp() override {
-    m_typeface = installedFace("Helvetica");
-    if (!m_typeface) GTEST_SKIP() << "no Helvetica installed";
+    m_typeface = sigil::test::instrument::optical();
+    ASSERT_TRUE(m_typeface);
   }
 
   FontContext m_fontContext{ports::systemFontManager()};

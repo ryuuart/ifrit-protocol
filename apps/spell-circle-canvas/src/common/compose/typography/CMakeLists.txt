@@ -46,7 +46,9 @@ sigil_library(SigilComposeTypography
 # Text data, the text pass, vertical writing, motion along paths, the
 # text-fx presets, rich spans and the variation drive. The kit is here
 # because a path baseline and an upright column are exercised on `shapes::`
-# silhouettes.
+# silhouettes. A case about an axis or a cluster shapes an instrument from
+# src/test/assets/; the label is for the rest, which set unstyled type in
+# whatever face the machine calls its default.
 sigil_test(compose_text_test
   SOURCES test/ComposeTestTextData.cpp test/ComposeTestTextPass.cpp
           test/ComposeTestVertical.cpp test/ComposeTestPathMotion.cpp

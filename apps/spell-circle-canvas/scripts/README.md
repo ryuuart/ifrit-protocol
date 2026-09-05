@@ -23,7 +23,10 @@ a picture to compare it, or times a loop to bound it, belongs to one of
 those instruments rather than to ctest. A case that skips on this
 machine is not coverage on this machine — say what it needs with a ctest
 label (`gpu`, `fonts`), and commit the instrument whenever one can be
-committed.
+committed. For a face that is `src/test/assets/`, whose generated
+instruments carry one property each and are reached as
+`sigil::test::instrument::sans()` and its siblings; a fixture only one
+library asks for stays in that library's own `test/assets/`.
 
 ## Formatting and linting — `check.py`
 
