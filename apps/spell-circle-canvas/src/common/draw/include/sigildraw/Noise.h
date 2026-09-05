@@ -19,7 +19,16 @@ namespace sigil::draw {
  *  lattice is core's `lattice(seed, x, y, z)` word squeezed to a unit
  *  float, and the value between corners is a cosine blend of the eight
  *  around it, which is the blend p5 uses. So the pictures a pasted
- *  sketch draws with it have p5's character and not p5's exact pixels. */
+ *  sketch draws with it have p5's character and not p5's exact pixels.
+ *
+ *  `geometry::path::valueNoise` is a DIFFERENT FIELD over the same
+ *  lattice mixer, not a rounding of this one: it squeezes a corner from
+ *  the whole word rather than from the low 24 bits, eases with a
+ *  smoothstep rather than a cosine, and answers in [-1, 1]. Either one
+ *  re-spelled as the other re-rolls every picture stored from it, which
+ *  is why they stand side by side. Reach for that one where a
+ *  displacement wants a signed field; reach for this one where a pasted
+ *  sketch wants p5's. */
 class NoiseField {
  public:
   explicit NoiseField(uint32_t seed = 0) : m_seed(seed) {}
