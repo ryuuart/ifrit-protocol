@@ -26,22 +26,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
-# workaround: vcpkg orders its release prefix and the debug/ tree beside it
-# by CMAKE_BUILD_TYPE, which a multi-config generator never sets, and reads
-# "not set" as Debug — so a find_library() answering ONE archive for every
-# configuration answers with the debug one, and a Release binary carries it
-# (skia's dav1d, curl's ssl and crypto). Deleted by VCPKG_BUILD_TYPE release
-# in cmake/triplets/arm64-osx.cmake, which stops the debug tree being built.
-foreach(_list IN ITEMS CMAKE_PREFIX_PATH CMAKE_LIBRARY_PATH CMAKE_FIND_ROOT_PATH)
-  set(_suffix "")
-  if(_list STREQUAL "CMAKE_LIBRARY_PATH")
-    set(_suffix "/lib/manual-link")
-  endif()
-  set(_release "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}${_suffix}")
-  list(REMOVE_ITEM ${_list} "${_release}")
-  list(INSERT ${_list} 0 "${_release}")
-endforeach()
-
 # workaround: vcpkg configs name some dependencies as imported targets and
 # others as archive paths, so one archive reaches ld64 under both names.
 if(APPLE)

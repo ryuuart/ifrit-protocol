@@ -266,6 +266,16 @@ SECONDARY_TREES = {
 
 SECONDARY_CONFIGURATION = "RelWithDebInfo"
 
+# The multi-config generator builds the configuration a build names and
+# reads none as CMAKE_DEFAULT_BUILD_TYPE. vcpkg's toolchain reads
+# CMAKE_BUILD_TYPE to put the release prefix ahead of the debug tree, and
+# reads it unset as Debug; naming it here is what keeps a Release link
+# free of debug archives.
+MAIN_CACHE = {
+    "CMAKE_DEFAULT_BUILD_TYPE": "Release",
+    "CMAKE_BUILD_TYPE": "Release",
+}
+
 
 def secondary_presets(presets: dict) -> None:
     """Adds the configure, build and test preset of every secondary tree."""
@@ -340,12 +350,12 @@ def write_user_presets(
             {
                 "name": "main",
                 "inherits": main_inherits + ["ninja"],
-                "cacheVariables": {"CMAKE_DEFAULT_BUILD_TYPE": "Release"},
+                "cacheVariables": MAIN_CACHE,
             },
             {
                 "name": "main-xcode",
                 "inherits": main_inherits + ["xcode"],
-                "cacheVariables": {"CMAKE_DEFAULT_BUILD_TYPE": "Release"},
+                "cacheVariables": MAIN_CACHE,
             },
         ],
         "buildPresets": [
