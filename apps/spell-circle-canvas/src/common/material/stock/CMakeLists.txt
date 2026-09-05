@@ -16,3 +16,14 @@ sigil_test(material_stock_test
   SOURCES test/StockTest.cpp
   LIBRARIES SigilMaterialStock SigilMaterialField SigilMaterialSdf
             SigilMaterialKit SigilMaterialSkia)
+
+# The warm-up is the wait before a host's first frame, and it is two
+# costs: reading each catalogue's shader files, and compiling what they
+# hold. The bench names both, one arm per catalogue beside the whole
+# stock, so a recipe added to one family is attributable to that family.
+# It links the three catalogues by name for the same reason the test
+# does — an arm per family is an arm that calls that family's own list.
+sigil_bench(material_stock_bench
+  SOURCES bench/StockBench.cpp
+  LIBRARIES SigilMaterialStock SigilMaterialField SigilMaterialSdf
+            SigilMaterialKit SigilMaterialSkia)
