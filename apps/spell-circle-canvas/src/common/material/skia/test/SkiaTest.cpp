@@ -406,6 +406,80 @@ TEST(SkiaEffect, ChainingPrecomposesAndAnEmptySideIsTheOther) {
   EXPECT_TRUE(skia::Effect{}.then(blur) == blur);
 }
 
+namespace {
+
+/** A 32x32 white layer with a black square in the middle, painted
+ *  through @p filter as one layer — the smallest picture a blur changes. */
+SkBitmap squareThrough(const sk_sp<SkImageFilter>& filter) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(32, 32));
+  SkCanvas canvas(bm);
+  canvas.clear(SK_ColorTRANSPARENT);
+  SkPaint layer;
+  layer.setImageFilter(filter);
+  canvas.saveLayer(nullptr, &layer);
+  canvas.clear(SK_ColorWHITE);
+  SkPaint ink;
+  ink.setColor(SK_ColorBLACK);
+  canvas.drawRect(SkRect::MakeXYWH(12, 12, 8, 8), ink);
+  canvas.restore();
+  return bm;
+}
+
+}  // namespace
+
+TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
+  // The declared range builds the pyramid once; a bound sigma re-wraps
+  // only the mix, so two resolves at different sigmas share their blur
+  // inputs by identity — which is what lets Skia's filter cache keep the
+  // blurred layers between frames while the sigma breathes.
+  choreograph::Output<float> sigma(2.0f);
+  skia::Effect blur =
+      skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 8.0f);
+  blur.uniform("maxSigma", &sigma);
+  EXPECT_TRUE(blur.isAnimated());
+  const sk_sp<SkImageFilter> at2 = blur.resolvedImageFilter(nullptr);
+  sigma = 6.0f;
+  const sk_sp<SkImageFilter> at6 = blur.resolvedImageFilter(nullptr);
+  ASSERT_NE(at2, nullptr);
+  ASSERT_NE(at6, nullptr);
+  EXPECT_NE(at2, at6);  // the mix is re-wrapped for the new sigma
+  ASSERT_EQ(at2->countInputs(), 3);
+  ASSERT_EQ(at6->countInputs(), 3);
+  EXPECT_EQ(at2->getInput(1), at6->getInput(1));
+  EXPECT_EQ(at2->getInput(2), at6->getInput(2));
+
+  // Exact at a pass sigma: a white map bound to half the declared range
+  // IS the half-range pass, so it paints what a blur declared at that
+  // sigma with no binding paints.
+  sigma = 4.0f;
+  const SkBitmap ridden = squareThrough(blur.resolvedImageFilter(nullptr));
+  const SkBitmap declared = squareThrough(
+      skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 4.0f)
+          .resolvedImageFilter(nullptr));
+  for (int y = 0; y < 32; ++y)
+    for (int x = 0; x < 32; ++x)
+      EXPECT_NEAR((int)SkColorGetR(ridden.getColor(x, y)),
+                  (int)SkColorGetR(declared.getColor(x, y)), 1)
+          << "at " << x << "," << y;
+  // The edge of the square is softened, so the picture is a blur at all.
+  EXPECT_GT(SkColorGetR(ridden.getColor(11, 16)), 0u);
+  EXPECT_LT(SkColorGetR(ridden.getColor(11, 16)), 255u);
+
+  // Above the declared range the sigma clamps to it: the top of the
+  // pyramid is the widest the effect ever paints.
+  sigma = 40.0f;
+  const SkBitmap clamped = squareThrough(blur.resolvedImageFilter(nullptr));
+  const SkBitmap top = squareThrough(
+      skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 8.0f)
+          .resolvedImageFilter(nullptr));
+  for (int y = 0; y < 32; ++y)
+    for (int x = 0; x < 32; ++x)
+      EXPECT_NEAR((int)SkColorGetR(clamped.getColor(x, y)),
+                  (int)SkColorGetR(top.getColor(x, y)), 1)
+          << "at " << x << "," << y;
+}
+
 TEST(SkiaEffect, PhosphorBloomIsAComparableSpectralPostProcess) {
   const skia::Effect bloom =
       skia::Effect::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f);

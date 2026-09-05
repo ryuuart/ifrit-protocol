@@ -160,26 +160,52 @@ sk_sp<SkRuntimeEffect> paramBlurMix() {
   return fx;
 }
 
-/** blur()'s filter DAG. The intermediates are per-draw image-filter
- *  surfaces inside the effect's ONE saveLayer — the same place every
- *  effect intermediate already lives — so there is nothing new to
- *  invalidate. A null input means "the source", which is level 0. */
-sk_sp<SkImageFilter> makeParamBlur(float maxSigma, sk_sp<SkShader> sigmaMap) {
+}  // namespace
+
+/** The two blurred levels of the pyramid at a declared range: the layer
+ *  at half the range and at the range. Level 0 is the layer itself. */
+struct Effect::BlurLevels {
+  float maxSigma = 0;
+  sk_sp<SkImageFilter> half, full;
+};
+
+namespace {
+std::shared_ptr<const Effect::BlurLevels> makeBlurLevels(float maxSigma) {
+  if (!(maxSigma > 0)) return nullptr;
+  auto levels = std::make_shared<Effect::BlurLevels>();
+  levels->maxSigma = maxSigma;
+  levels->half = SkImageFilters::Blur(maxSigma * 0.5f, maxSigma * 0.5f, nullptr);
+  levels->full = SkImageFilters::Blur(maxSigma, maxSigma, nullptr);
+  return levels;
+}
+
+/** blur()'s filter DAG over HELD levels. The intermediates are per-draw
+ *  image-filter surfaces inside the effect's ONE saveLayer — the same
+ *  place every effect intermediate already lives — so there is nothing
+ *  new to invalidate. A null input means "the source", which is level 0.
+ *
+ *  The levels are inputs by identity: Skia's image-filter cache keys a
+ *  result on the filter node, so a mix re-wrapped around the same two
+ *  blur nodes finds both blurred layers already made. @p sigma is the
+ *  sigma the map's white asks for; inside the declared range it rides
+ *  the held pyramid as a scale on the mix parameter, and above it clamps
+ *  to the range. */
+sk_sp<SkImageFilter> makeParamBlur(const Effect::BlurLevels* levels,
+                                   float sigma, sk_sp<SkShader> sigmaMap) {
   const sk_sp<SkRuntimeEffect> fx = paramBlurMix();
-  if (!sigmaMap || !fx || !(maxSigma > 0)) {
+  if (!sigmaMap || !fx || !levels) {
     // No map or no SkSL: the honest fallback is the constant blur the
-    // parameter would have modulated, which is also what maxSigma == 0
+    // parameter would have modulated, which is also what sigma == 0
     // means (no blur anywhere).
-    return maxSigma > 0 ? SkImageFilters::Blur(maxSigma, maxSigma, nullptr)
-                        : nullptr;
+    return sigma > 0 ? SkImageFilters::Blur(sigma, sigma, nullptr) : nullptr;
   }
   SkRuntimeShaderBuilder b(fx);
   b.child("param") = std::move(sigmaMap);
+  b.uniform("scale") = std::min(sigma / levels->maxSigma, 1.0f);
   std::string_view names[3] = {"level0", "level1", "level2"};
   const sk_sp<SkImageFilter> inputs[3] = {
       nullptr,  // level 0 IS the layer, unblurred
-      SkImageFilters::Blur(maxSigma * 0.5f, maxSigma * 0.5f, nullptr),
-      SkImageFilters::Blur(maxSigma, maxSigma, nullptr)};
+      levels->half, levels->full};
   return SkImageFilters::RuntimeShader(b, names, inputs, 3);
 }
 }  // namespace
@@ -187,6 +213,7 @@ sk_sp<SkImageFilter> makeParamBlur(float maxSigma, sk_sp<SkShader> sigmaMap) {
 Effect Effect::blur(Paint sigmaMap, float maxSigma) {
   Effect e;
   e.m_paramBlur = ParamBlur{maxSigma};
+  e.m_blurLevels = makeBlurLevels(maxSigma);
   e.m_children.emplace_back("sigma",
                             std::make_shared<const Paint>(std::move(sigmaMap)));
   // The static snapshot, built context-free exactly as Material::child
@@ -427,11 +454,15 @@ sk_sp<SkImageFilter> Effect::resolvedImageFilter(const PaintFrame* ctx) const {
  *  per-paint resolve are the SAME construction differing only in whether
  *  there is a context, exactly as Material::build(live, ctx) is. */
 sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* ctx) const {
-  if (m_paramBlur) {  // rebuild the pyramid from the parameter and the map
-    float maxSigma = m_paramBlur->maxSigma;
+  if (m_paramBlur) {  // re-wrap the held pyramid with the parameter's scale
+    float sigma = m_paramBlur->maxSigma;
     for (const auto& [name, out] : m_bound)
-      if (name == "maxSigma") maxSigma = motion::resolveFloatAt(nullptr, out);
-    return makeParamBlur(maxSigma, childShaderFor("sigma", ctx));
+      if (name == "maxSigma") sigma = motion::resolveFloatAt(nullptr, out);
+    // A declared 0 holds no pyramid; a bound value then builds one at
+    // the value, at every paint — the cost declaring the range avoids.
+    const std::shared_ptr<const BlurLevels> levels =
+        m_blurLevels ? m_blurLevels : makeBlurLevels(sigma);
+    return makeParamBlur(levels.get(), sigma, childShaderFor("sigma", ctx));
   }
   if (m_dirBlur) {  // rebuild the sandwich from the bound parameters
     DirectionalBlur d = *m_dirBlur;

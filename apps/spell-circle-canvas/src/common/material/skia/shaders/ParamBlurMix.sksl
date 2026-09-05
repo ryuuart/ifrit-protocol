@@ -2,9 +2,10 @@ uniform shader level0;
 uniform shader level1;
 uniform shader level2;
 uniform shader param;
+uniform float scale;
 
 half4 main(float2 p) {
-  float t = clamp(param.eval(p).r, 0.0, 1.0) * 2.0;
+  float t = clamp(param.eval(p).r * scale, 0.0, 1.0) * 2.0;
   half4 lo = mix(level0.eval(p), level1.eval(p),
                  half(clamp(t, 0.0, 1.0)));
   return mix(lo, level2.eval(p), half(clamp(t - 1.0, 0.0, 1.0)));

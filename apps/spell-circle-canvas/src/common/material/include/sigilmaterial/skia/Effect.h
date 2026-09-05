@@ -40,6 +40,11 @@ namespace sigil::material::skia {
  */
 class Effect {
  public:
+  /** blur()'s held passes — the constant-sigma blurs of the layer at the
+   *  declared range, built once and shared by every copy of the value.
+   *  Defined with the effect's body; a consumer never holds one. */
+  struct BlurLevels;
+
   static Effect filter(sk_sp<SkImageFilter> f);
   /** A SigilMaterial recipe as the effect: its program runs over the
    *  layer, which arrives in the child slot named `content`; every other
@@ -113,7 +118,18 @@ class Effect {
    *  accepts uniform(name, &output), and a LIVE sigma map (a bound
    *  uniform, uTime) makes the whole effect isAnimated() by tier
    *  inheritance — so a bake can never sample the map once and freeze it.
-   *  `child("sigma", otherMap)` re-aims the map on an existing blur. */
+   *  `child("sigma", otherMap)` re-aims the map on an existing blur.
+   *
+   *  THE DECLARED VALUE IS THE RANGE A BOUND SIGMA RIDES INSIDE. The
+   *  passes are built once from @p maxSigma and held; a bound "maxSigma"
+   *  re-wraps only the final mix with a scale, so a sigma that breathes
+   *  every frame costs the same fixed passes over the same held inputs
+   *  and Skia's filter cache keeps hitting. The result is exact at the
+   *  pass sigmas and linear in sigma between them, and a bound value
+   *  above the declared range clamps to it. Declare the LARGEST sigma
+   *  the binding will reach: a declared 0 declares no range, and a
+   *  bound value then rebuilds every pass at every paint, which is the
+   *  full cost the range exists to avoid. */
   static Effect blur(Paint sigmaMap, float maxSigma);
   /** THE CHILD SLOT — `Material::child` on the effect seam: same name,
    *  same shape, same semantics. The effect declares `uniform shader
@@ -254,6 +270,7 @@ class Effect {
       m_blocks;
   std::optional<DirectionalBlur> m_dirBlur;  // directionalBlur()'s recipe
   std::optional<ParamBlur> m_paramBlur;      // blur()'s recipe
+  std::shared_ptr<const BlurLevels> m_blurLevels;  // …and its held passes
   // The child slots: `uniform shader NAME` → Material. Held by
   // shared_ptr because Material is only FORWARD-DECLARED here (Material.h
   // includes this header, so it cannot be included back) — the surface is
@@ -281,16 +298,17 @@ class Effect {
    *  is private, so the decomposition lives inside the class. */
   static void fieldPin(Effect& v) {
     auto& [filter, effect, uniforms, uniforms2, uniforms4, uniformArrays, bound,
-           blocks, dirBlur, paramBlur, children, chainA, chainB] = v;
+           blocks, dirBlur, paramBlur, blurLevels, children, chainA, chainB] = v;
     static_assert(std::tuple_size_v<decltype(std::tie(
                           filter, effect, uniforms, uniforms2, uniforms4,
                           uniformArrays, bound, blocks, dirBlur, paramBlur,
-                          children, chainA, chainB))> == 13,
+                          blurLevels, children, chainA, chainB))> == 14,
                   "Effect gained or lost a member — rule on it in "
                   "Effect::operator== (Effects.cpp), then bump this count. "
                   "(m_filter is EXCLUDED on the shader, directionalBlur and "
                   "blur paths because it is derived from m_effect + the "
-                  "constant lanes / m_dirBlur / m_paramBlur + m_children; "
+                  "constant lanes / m_dirBlur / m_paramBlur + m_children, "
+                  "and m_blurLevels is derived from m_paramBlur alone; "
                   "m_bound and m_blocks make the effect isAnimated(), which "
                   "operator== already refuses; m_chainA/B only exist on a "
                   "live chain, ditto.)");
