@@ -20,7 +20,7 @@
 
 namespace sigil::world {
 
-std::unique_ptr<Instance> Scene::Impl::create(const Desc& desc,
+std::unique_ptr<Instance> Scene::Impl::create(const Description& description,
                                               Instance* parent, size_t ordinal,
                                               size_t count) {
   // WHERE THIS CHILD SITS IN ITS PARENT'S CASCADE, in seconds, added to
@@ -28,12 +28,12 @@ std::unique_ptr<Instance> Scene::Impl::create(const Desc& desc,
   // carry is restored on the way out, so a sibling's delay never leaks
   // into the next branch.
   const float saved = mountDelayCarrySeconds;
-  if (parent && parent->desc && parent->desc->childStagger) {
+  if (parent && parent->description && parent->description->childStagger) {
     // The whole schedule, not just its spacing: a set's children reach
     // the amount division, the cue table and the distribution curve on
     // the same terms a text's glyphs do, because it is the same body.
     static thread_local motion::Cascade cascade;
-    cascade.build(*parent->desc->childStagger, (uint32_t)count, 0);
+    cascade.build(*parent->description->childStagger, (uint32_t)count, 0);
     mountDelayCarrySeconds += cascade.startMs((uint32_t)ordinal, 0) * 0.001f;
   }
   auto inst = std::make_unique<Instance>();
@@ -42,7 +42,7 @@ std::unique_ptr<Instance> Scene::Impl::create(const Desc& desc,
   registry.emplace<component::Placement>(inst->entity);
   // The first patch is the mount: it plays the entrances, marks the
   // geometry slot for resolution and walks the children.
-  reconciler.patch(*inst, desc);
+  reconciler.patch(*inst, description);
   mountDelayCarrySeconds = saved;
   return inst;
 }

@@ -81,7 +81,7 @@ bool Composer::Impl::remountRequired(const Instance& match,
   return (match.yoga != nullptr) != childrenCarryYoga(parent);
 }
 
-std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
+std::unique_ptr<Instance> Composer::Impl::create(const Description& node,
                                                  Instance* parent,
                                                  size_t ordinal, size_t count) {
   // staggerChildren(): the child's whole subtree mounts with
@@ -90,8 +90,8 @@ std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
   // order — End counts from the last child (the bottom-up cascade),
   // Center ripples outward.
   const float saved = mountDelayCarryMs;
-  const float staggerMs = parent && parent->desc->fxData
-                              ? parent->desc->fxData->staggerChildrenMs
+  const float staggerMs = parent && parent->description->fxData
+                              ? parent->description->fxData->staggerChildrenMs
                               : 0.0f;
   if (staggerMs > 0) {
     // Order among NEWLY MOUNTED children: the initial cascade staggers
@@ -103,10 +103,10 @@ std::unique_ptr<Instance> Composer::Impl::create(const Desc& node,
     static thread_local std::vector<float> order;
     // Child stagger has no seed knob: a Random child order is the
     // count-keyed deal, as it always was.
-    // staggerMs > 0 only when parent->desc->fxData exists: the ternary
+    // staggerMs > 0 only when parent->description->fxData exists: the ternary
     // above yields 0 for a null parent, so this dereference is guarded.
     // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
-    motion::cascadeOrder(parent->desc->fxData->staggerFrom, (uint32_t)count, 0u,
+    motion::cascadeOrder(parent->description->fxData->staggerFrom, (uint32_t)count, 0u,
                          order);
     if (ordinal < order.size()) mountDelayCarryMs += staggerMs * order[ordinal];
   }
@@ -264,8 +264,8 @@ void Composer::Impl::reorder(Instance& parent, bool structureChanged) {
   std::iota(parent.paintOrder.begin(), parent.paintOrder.end(), size_t{0});
   std::stable_sort(parent.paintOrder.begin(), parent.paintOrder.end(),
                    [&](size_t a, size_t b) {
-                     return parent.children[a]->desc->paint.zIndex <
-                            parent.children[b]->desc->paint.zIndex;
+                     return parent.children[a]->description->paint.zIndex <
+                            parent.children[b]->description->paint.zIndex;
                    });
 
   // Yoga sees the children in the order they now stand: every child is
@@ -282,7 +282,7 @@ void Composer::Impl::reorder(Instance& parent, bool structureChanged) {
       // child DOES keep is its insets — `.top(12).right(12)` inside a stack
       // pins that corner, because absolute is exactly the mode insets need.
       if (child->yoga) {
-        if (parent.desc->kind == Kind::Stack)
+        if (parent.description->kind == Kind::Stack)
           YGNodeStyleSetPositionType(child->yoga, YGPositionTypeAbsolute);
         YGNodeInsertChild(parent.yoga, child->yoga,
                           YGNodeGetChildCount(parent.yoga));

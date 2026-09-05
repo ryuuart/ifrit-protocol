@@ -85,7 +85,7 @@ namespace {
 std::vector<std::vector<Span>> resolveSpans(const Instance& inst,
                                             const SkPath& outline) {
   std::vector<std::vector<Span>> out;
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   if (!node.hasStrokePasses()) return out;
   const std::vector<StrokePass>& passes = node.strokeData->passes;
   out.resize(passes.size());

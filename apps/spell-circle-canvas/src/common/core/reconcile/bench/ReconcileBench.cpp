@@ -17,14 +17,14 @@ using namespace sigil::core::test::reconcile;
 
 namespace {
 
-Desc grid(int count, int changed = -1, int shift = 0) {
-  std::vector<Desc> children;
+Description grid(int count, int changed = -1, int shift = 0) {
+  std::vector<Description> children;
   children.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
     const int id = (i + shift) % count;
-    children.push_back(desc("n" + std::to_string(id), id == changed ? 1 : 0));
+    children.push_back(description("n" + std::to_string(id), id == changed ? 1 : 0));
   }
-  return desc("root", 0, std::move(children));
+  return description("root", 0, std::move(children));
 }
 
 void ColdMount(benchmark::State& state) {
@@ -80,13 +80,13 @@ void Churn(benchmark::State& state) {
   int generation = 0;
   for ([[maybe_unused]] auto iteration : state) {
     ++generation;
-    std::vector<Desc> children;
+    std::vector<Description> children;
     for (int i = 0; i < count; ++i) {
       const int gen = (i % 10 == 0) ? generation : 0;
       children.push_back(
-          desc("n" + std::to_string(i) + "g" + std::to_string(gen)));
+          description("n" + std::to_string(i) + "g" + std::to_string(gen)));
     }
-    host.render(desc("root", 0, std::move(children)));
+    host.render(description("root", 0, std::move(children)));
     host.retired.clear();
     host.log.clear();
     benchmark::DoNotOptimize(host.root);
@@ -97,21 +97,21 @@ void Churn(benchmark::State& state) {
 void MemoHit(benchmark::State& state) {
   const int count = (int)state.range(0);
   const auto memoGrid = [count] {
-    std::vector<Desc> children;
+    std::vector<Description> children;
     for (int i = 0; i < count; ++i) {
-      auto shell = desc("m" + std::to_string(i));
-      Memo<Desc> memo;
+      auto shell = description("m" + std::to_string(i));
+      Memo<Description> memo;
       memo.props = i;
       memo.equal = [](const std::any& a, const std::any& b) {
         return std::any_cast<int>(a) == std::any_cast<int>(b);
       };
       memo.invoke = [i](const std::any&) {
-        return desc("m" + std::to_string(i), i);
+        return description("m" + std::to_string(i), i);
       };
       shell->memo = std::move(memo);
       children.push_back(std::move(shell));
     }
-    return desc("root", 0, std::move(children));
+    return description("root", 0, std::move(children));
   };
   FakeHost host;
   host.render(memoGrid());

@@ -18,9 +18,9 @@
 namespace sigil::core {
 
 /** The pointee of a description handle. */
-template <class Desc>
-using DescValue =
-    std::remove_reference_t<decltype(*std::declval<const Desc&>())>;
+template <class Description>
+using DescriptionValue =
+    std::remove_reference_t<decltype(*std::declval<const Description&>())>;
 
 /** What the reconciler asks of its host.
  *
@@ -31,20 +31,20 @@ using DescValue =
  *  The split is a set of named operations the host implements on itself:
  *
  *  Reading a description:
- *  - `keyOf(desc)` — the description's key; empty means positional.
+ *  - `keyOf(description)` — the description's key; empty means positional.
  *  - `equal(a, b)` — are two descriptions provably identical? Equal
  *    descriptions PRUNE: the node is not patched, nothing is dirtied, and
  *    only its children keep reconciling. Anything the host cannot compare
  *    must answer false.
- *  - `reconcilesChildren(desc)` — does the reconciler walk this node's
+ *  - `reconcilesChildren(description)` — does the reconciler walk this node's
  *    children, or does the host fill them by another path (a slot)?
- *  - `children(desc)` — the child descriptions, as a sized range whose
- *    elements `descOf()` reads a handle off.
- *  - `memoOf(desc)` — the description's Memo, or null when it is not one.
+ *  - `children(description)` — the child descriptions, as a sized range whose
+ *    elements `descriptionOf()` reads a handle off.
+ *  - `memoOf(description)` — the description's Memo, or null when it is not one.
  *  - `produce(memo)` — run the memo and read the description it made.
  *
  *  Acting on a node:
- *  - `create(desc, parent, ordinal, count)` — a fresh node for `desc`
+ *  - `create(description, parent, ordinal, count)` — a fresh node for `description`
  *    under `parent`, patched once through the reconciler. `ordinal` is
  *    the node's order among the children created in the same patch and
  *    `count` the parent's child count, for a host that staggers mounts.
@@ -63,17 +63,17 @@ using DescValue =
  *  - `destroy(node, frame)` — the node left the tree in reconcile pass
  *    `frame`. The host retires it now or queues it; nothing in the
  *    reconciler holds it after this call. */
-template <class H, class Node, class Desc>
+template <class H, class Node, class Description>
 concept ReconcileHost = requires(
-    H& host, Node& node, const Node& cnode, Node* parent, const Desc& desc,
+    H& host, Node& node, const Node& cnode, Node* parent, const Description& description,
     std::unique_ptr<Node> owned, size_t n, uint64_t frame) {
-  { host.keyOf(desc) } -> std::convertible_to<std::string_view>;
-  { host.equal(desc, desc) } -> std::convertible_to<bool>;
-  { host.reconcilesChildren(desc) } -> std::convertible_to<bool>;
-  { host.children(desc).size() } -> std::convertible_to<size_t>;
-  { host.memoOf(desc) == nullptr } -> std::convertible_to<bool>;
-  { host.create(desc, parent, n, n) } -> std::same_as<std::unique_ptr<Node>>;
-  host.onPatched(node, static_cast<const DescValue<Desc>*>(nullptr), *desc);
+  { host.keyOf(description) } -> std::convertible_to<std::string_view>;
+  { host.equal(description, description) } -> std::convertible_to<bool>;
+  { host.reconcilesChildren(description) } -> std::convertible_to<bool>;
+  { host.children(description).size() } -> std::convertible_to<size_t>;
+  { host.memoOf(description) == nullptr } -> std::convertible_to<bool>;
+  { host.create(description, parent, n, n) } -> std::same_as<std::unique_ptr<Node>>;
+  host.onPatched(node, static_cast<const DescriptionValue<Description>*>(nullptr), *description);
   host.reorder(node, true);
   { host.remountRequired(cnode, cnode) } -> std::convertible_to<bool>;
   host.invalidate(node);

@@ -206,23 +206,23 @@ struct Composer::Impl {
   // ---- the reconciler's host (ReconcileHost.cpp) ----
   // The ReconcileHost operations, in the reconciler's terms. Reading a
   // description:
-  using Desc = std::shared_ptr<detail::ElementNode>;
-  static const std::string& keyOf(const Desc& desc) { return desc->key; }
-  static bool equal(const Desc& a, const Desc& b) {
+  using Description = std::shared_ptr<detail::ElementNode>;
+  static const std::string& keyOf(const Description& description) { return description->key; }
+  static bool equal(const Description& a, const Description& b) {
     return detail::propsEqual(*a, *b);
   }
   /** Slot content is owned by renderSlot(), not the description. */
-  static bool reconcilesChildren(const Desc& desc) {
-    return desc->kind != detail::Kind::Slot;
+  static bool reconcilesChildren(const Description& description) {
+    return description->kind != detail::Kind::Slot;
   }
-  static const std::vector<Element>& children(const Desc& desc) {
-    return desc->children;
+  static const std::vector<Element>& children(const Description& description) {
+    return description->children;
   }
-  static const Desc& descOf(const Element& child) { return child.node(); }
-  static const detail::MemoData* memoOf(const Desc& desc) {
-    return desc->memoData ? &*desc->memoData : nullptr;
+  static const Description& descriptionOf(const Element& child) { return child.node(); }
+  static const detail::MemoData* memoOf(const Description& description) {
+    return description->memoData ? &*description->memoData : nullptr;
   }
-  static Desc produce(const detail::MemoData& memo) {
+  static Description produce(const detail::MemoData& memo) {
     return memo.invoke(memo.props).node();
   }
   // Acting on an instance:
@@ -230,7 +230,7 @@ struct Composer::Impl {
    *  is its order among the children created in the same patch and @p count
    *  the parent's child count, which is what staggerChildren() cascades
    *  over; the carry that cascade accumulates is host state. */
-  std::unique_ptr<detail::Instance> create(const Desc& node,
+  std::unique_ptr<detail::Instance> create(const Description& node,
                                            detail::Instance* parent,
                                            size_t ordinal, size_t count);
   /** Everything the composer does to an instance whose description changed:
@@ -584,7 +584,7 @@ struct Composer::Impl {
   /** The engine a text description installed, or null for text the kernel
    *  draws at rest by itself. */
   static const TextPainterOps* textPainterOf(const detail::Instance& inst) {
-    const detail::ElementNode* node = inst.desc.get();
+    const detail::ElementNode* node = inst.description.get();
     return node && node->textData ? node->textData->painter.get() : nullptr;
   }
   /** Resolves the node's mark() rects through its painter; a node with no
@@ -601,8 +601,8 @@ struct Composer::Impl {
    *  carry no other. */
   void resolveTextAnnotations(detail::Instance& inst) {
     inst.textAnnotations.clear();
-    if (!inst.desc || !inst.desc->textData ||
-        inst.desc->textData->annotations.empty())
+    if (!inst.description || !inst.description->textData ||
+        inst.description->textData->annotations.empty())
       return;
     const TextPainterOps* painter = textPainterOf(inst);
     if (!painter) painter = detail::registeredTextEngine();

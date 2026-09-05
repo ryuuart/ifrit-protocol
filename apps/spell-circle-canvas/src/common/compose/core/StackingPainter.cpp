@@ -191,10 +191,10 @@ sk_sp<SkShader> lumaCoverageShader(sk_sp<SkShader> src) {
 
 const SkPath& Composer::Impl::resolveOutline(Instance& inst,
                                              SkSize size) const {
-  if (inst.outlineCacheDesc != inst.desc.get() ||
+  if (inst.outlineCacheDescription != inst.description.get() ||
       inst.outlineCacheSize != size) {
-    inst.outlineCache = inst.desc->shapeFn(size);
-    inst.outlineCacheDesc = inst.desc.get();
+    inst.outlineCache = inst.description->shapeFn(size);
+    inst.outlineCacheDescription = inst.description.get();
     inst.outlineCacheSize = size;
   }
   return inst.outlineCache;
@@ -205,7 +205,7 @@ const SkPath& Composer::Impl::resolveOutline(Instance& inst,
 
 std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     Instance& inst, const PaintContext& paintCtx) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   const material::skia::Paint* metricMat = metricFillOf(node);
   const bool stroked = node.textData && node.textData->hasTextStroke;
   if (!metricMat && !stroked) return std::nullopt;
@@ -313,7 +313,7 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
 void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                                   float contentScale, SkBlendMode leafBlend,
                                   float leafOpacity, Phase phase) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   // The two halves of a node's paint, split at the children loop. A
   // split bake is only ever offered to a node with no layer effect — that
   // one WRAPS BOTH HALVES and a bake of the prefix alone would have to
@@ -1071,7 +1071,7 @@ constexpr float kStableKeep = 0.3f;
  *  key() when there is one (that is what they will search for), else the
  *  node kind and its painted size, which is usually enough to find it. */
 std::string profileLabel(const detail::Instance& inst, const SkRect& rect) {
-  const detail::ElementNode& node = *inst.desc;
+  const detail::ElementNode& node = *inst.description;
   const char* kind = "box";
   switch (node.kind) {
     case detail::Kind::Box:
@@ -1133,7 +1133,7 @@ struct ProfileScope {
 }  // namespace
 
 void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   const SkRect rect = instanceRect(inst);
   ProfileScope profileScope(this, inst, rect);
 

@@ -18,7 +18,7 @@ using namespace detail;
 
 SkM44 Composer::Impl::depthMatrixOf(Instance& inst, const NodeTransform& tf,
                                     const SkRect& rect) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   const DepthData* depth = node.depthData ? &*node.depthData : nullptr;
   SkM44 m = tf.matrix44({rect.left(), rect.top()}, node.paint, depth,
                         rect.width(), rect.height());
@@ -28,7 +28,7 @@ SkM44 Composer::Impl::depthMatrixOf(Instance& inst, const NodeTransform& tf,
   // has not turned and has no depth is untouched by it, since a point at
   // z = 0 divides by 1.
   if (Instance* parent = inst.parent) {
-    const ElementNode& pn = *parent->desc;
+    const ElementNode& pn = *parent->description;
     if (pn.depthData) {
       const float distance = parent->resolveFloat(Instance::kPerspective,
                                                   pn.depthData->perspective);
@@ -45,7 +45,7 @@ SkM44 Composer::Impl::depthMatrixOf(Instance& inst, const NodeTransform& tf,
 }
 
 bool Composer::Impl::hostsSpace(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   if (!node.depthData || !node.depthData->preserve3d) return false;
   // THE GROUPING PROPERTIES. Each of these composites the node as ONE
   // layer — a clip, a layer effect, a coverage layer, an opacity or blend

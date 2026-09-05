@@ -75,8 +75,8 @@ void warnMarkSelectsNothing(const std::string& key) {
 
 void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   inst.textMarkRects.clear();
-  if (!inst.desc || !inst.desc->textData || !inst.paragraph) return;
-  const detail::TextData& textData = *inst.desc->textData;
+  if (!inst.description || !inst.description->textData || !inst.paragraph) return;
+  const detail::TextData& textData = *inst.description->textData;
   const std::vector<detail::MarkAnchor>& marks = textData.marks;
   if (marks.empty()) return;
   // A PATH-laid run's marks stand on the curve the letters stand on: the
@@ -141,10 +141,10 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
 
 std::vector<TextUnit> detail::unitsOfText(Composer::Impl& impl, Instance& inst,
                                           const Selector& selector, Unit unit) {
-  if (!inst.desc || !inst.paragraph) return {};
+  if (!inst.description || !inst.paragraph) return {};
   const sigil::weave::Paragraph& paragraph = *inst.paragraph;
   const TextData* textData =
-      inst.desc->textData ? &*inst.desc->textData : nullptr;
+      inst.description->textData ? &*inst.description->textData : nullptr;
   const TextPath* onPath =
       textData && textData->onPath ? &*textData->onPath : nullptr;
   if (onPath) {
@@ -249,16 +249,16 @@ struct TrackSchedule {
 
 bool resolveTrackSchedule(Composer::Impl& impl, Instance& inst,
                           size_t trackIndex, TrackSchedule& out) {
-  if (!inst.desc || !inst.paragraph) return false;
-  const std::span<const Track> tracks = tracksOf(*inst.desc);
+  if (!inst.description || !inst.paragraph) return false;
+  const std::span<const Track> tracks = tracksOf(*inst.description);
   if (trackIndex >= tracks.size()) return false;
   out.track = &tracks[trackIndex];
   if (!out.track->effect) return false;
 
   // The layout the last draw() left standing — the path one where the run
   // rides a curve, so the beats are on the curve the letters are on.
-  if (inst.desc->textData) {
-    const std::optional<TextPath>& path = inst.desc->textData->onPath;
+  if (inst.description->textData) {
+    const std::optional<TextPath>& path = inst.description->textData->onPath;
     if (path.has_value()) out.onPath = &path.value();
   }
   out.ridesPath = out.onPath && textStateOf(inst).pathValid;

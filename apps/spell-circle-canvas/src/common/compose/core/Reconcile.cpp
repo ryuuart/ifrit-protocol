@@ -452,7 +452,7 @@ namespace detail {
  *  The two legitimate exclusions, stated rather than assumed:
  *  `memoData` is compared EARLIER and more strictly by resolveMemo()
  *  (env snapshot + the author's own props comparator) and never reaches
- *  here, because `inst.desc` holds the memo's PRODUCED payload; and
+ *  here, because `inst.description` holds the memo's PRODUCED payload; and
  *  `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
 static_assert(kFieldCount<ElementNode> == 25 && kFieldCount<PaintProps> == 15 &&
@@ -607,7 +607,7 @@ bool describedTransformEqual(const ElementNode& a, const ElementNode& b) {
 void Composer::Impl::materializeText(
     Instance& inst, std::span<const sigil::weave::LineMetrics> lines,
     std::span<const sigil::weave::ColumnMetrics> columns) {
-  const TextData& text = *inst.desc->textData;
+  const TextData& text = *inst.description->textData;
   inst.paragraph.emplace();
   // Cleared for every content form, so the names a node answers for are
   // exactly the ones its CURRENT content declares.
@@ -779,8 +779,8 @@ void Composer::Impl::materializeText(
 sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
     const Instance& inst) const {
   sigil::weave::ParagraphLayoutOptions options;
-  if (!inst.desc || !inst.desc->textData) return options;
-  const TextData& text = *inst.desc->textData;
+  if (!inst.description || !inst.description->textData) return options;
+  const TextData& text = *inst.description->textData;
   // The passed value is the ground the setters are written over, so a
   // full-control caller keeps every field no setter named.
   options = text.layoutOptions;
@@ -817,7 +817,7 @@ sigil::weave::ParagraphLayoutOptions Composer::Impl::textLayoutOptions(
 void Composer::Impl::applyLayoutProps(Instance& inst) {
   if (!inst.yoga)
     return;  // positioned subtree: instanceRect() reads the props directly
-  const LayoutProps& l = inst.desc->layout;
+  const LayoutProps& l = inst.description->layout;
   YGNodeRef n = inst.yoga;
 
   YGNodeStyleSetFlexDirection(
@@ -838,7 +838,7 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // those here would zero the container every re-describe and feed
   // place() a degenerate input for a pass.
   const bool autoSized =
-      inst.desc->deriveData && inst.desc->deriveData->placeFn && l.absolute;
+      inst.description->deriveData && inst.description->deriveData->placeFn && l.absolute;
   if (!autoSized || l.width.unit != Dim::Unit::Auto)
     applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
   if (!autoSized || l.height.unit != Dim::Unit::Auto)
@@ -863,11 +863,11 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // while letting any explicit alignment — the node's own or inherited from
   // the parent — through untouched.
   Align self = l.alignSelf;
-  if (inst.desc->kind == Kind::Text) {
+  if (inst.description->kind == Kind::Text) {
     const Align resolved = self != Align::Auto
                                ? self
-                               : (inst.parent && inst.parent->desc
-                                      ? inst.parent->desc->layout.alignItems
+                               : (inst.parent && inst.parent->description
+                                      ? inst.parent->description->layout.alignItems
                                       : Align::Stretch);
     if (resolved == Align::Stretch) self = Align::Start;
   }
@@ -926,9 +926,9 @@ void Composer::Impl::rebuildKeyIndex() {
   // the derive order.
   if (root)
     reconciler.indexKeys(*root, byKey, [this](Instance& inst) {
-      if (inst.desc->kind == Kind::Slot && !inst.desc->key.empty())
-        bySlot[inst.desc->key] = &inst;
-      const ElementNode& node = *inst.desc;
+      if (inst.description->kind == Kind::Slot && !inst.description->key.empty())
+        bySlot[inst.description->key] = &inst;
+      const ElementNode& node = *inst.description;
       if (node.deriveData) {
         const DeriveData& derive = *node.deriveData;
         if (!derive.flowAroundKeys.empty()) flowInstances.push_back(&inst);
@@ -1003,9 +1003,9 @@ void Composer::Impl::orderDerivedByReads() {
     keys.reserve(list.size());
     reads.reserve(list.size());
     for (const Instance* inst : list) {
-      keys.push_back(inst->desc ? inst->desc->key : std::string());
-      if (inst->desc && inst->desc->deriveData)
-        reads.push_back(inst->desc->deriveData->reads);
+      keys.push_back(inst->description ? inst->description->key : std::string());
+      if (inst->description && inst->description->deriveData)
+        reads.push_back(inst->description->deriveData->reads);
       else
         reads.emplace_back();  // a node that declares nothing reads nothing
     }

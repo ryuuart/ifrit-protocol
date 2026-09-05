@@ -18,7 +18,7 @@ using namespace detail;
 
 bool Composer::Impl::shapeContains(Instance& inst, SkPoint local,
                                    SkSize size) const {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   // Routed elements (rails, connectors) hit near their PATH, not their
   // layout box — a rail placed absolute().inset(0) must not eclipse the
   // scene. The stroke-expanded hit path is built at derive time.
@@ -41,7 +41,7 @@ bool Composer::Impl::shapeContains(Instance& inst, SkPoint local,
 std::optional<std::string> Composer::Impl::hitInstance(
     Instance& inst, SkPoint parentPt, const std::string* inheritedKey,
     const HitSpace* space) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
 
   const float opacity = std::clamp(
       inst.resolveFloat(Instance::kOpacity, node.paint.opacity), 0.0f, 1.0f);
@@ -119,7 +119,7 @@ std::optional<std::string> Composer::Impl::hitInstance(
 
   const std::shared_ptr<ElementNode>& shell =
       inst.memoShell && !inst.memoShell->key.empty() ? inst.memoShell
-                                                     : inst.desc;
+                                                     : inst.description;
   const std::string* key = !shell->key.empty() ? &shell->key : inheritedKey;
 
   if (hosts) {
@@ -154,11 +154,11 @@ std::vector<std::string> Composer::routesAt(std::string_view nodeKey) const {
   for (const detail::Instance* route : it->second) {
     // A route's addressable key may live on its memo shell (memo'd routes).
     const std::shared_ptr<detail::ElementNode>& shell =
-        route->memoShell ? route->memoShell : route->desc;
+        route->memoShell ? route->memoShell : route->description;
     if (!shell->key.empty())
       keys.push_back(shell->key);
-    else if (!route->desc->key.empty())
-      keys.push_back(route->desc->key);
+    else if (!route->description->key.empty())
+      keys.push_back(route->description->key);
   }
   return keys;
 }

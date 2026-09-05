@@ -46,7 +46,7 @@ inline bool hasTextFx(const ElementNode& n) {
   return false;
 }
 inline bool hasTextFx(const Instance& inst) {
-  return hasTextFx(*inst.desc) ||
+  return hasTextFx(*inst.description) ||
          (inst.textState && !inst.textState->spanAxisTracks.empty());
 }
 inline const sigil::image::ImageAsset* imageAssetOf(const ElementNode& n) {

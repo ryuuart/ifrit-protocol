@@ -92,8 +92,8 @@ namespace {
  *  past its box, and the marker it asked for never lands because it never
  *  runs out. */
 bool isFrameOfAChain(const Instance& inst) {
-  return inst.threadedInto || (inst.desc && inst.desc->textData &&
-                               !inst.desc->textData->threadTo.empty());
+  return inst.threadedInto || (inst.description && inst.description->textData &&
+                               !inst.description->textData->threadTo.empty());
 }
 
 }  // namespace
@@ -105,7 +105,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // then be placed along the path from the start again — the glyphs pile
   // up on each other. The box still sizes the path; it does not bound the
   // run.
-  if (inst.desc && inst.desc->textData && inst.desc->textData->onPath)
+  if (inst.description && inst.description->textData && inst.description->textData->onPath)
     constraint = 1.0e6f;
   if (constraint == inst.measuredForWidth &&
       downConstraint == inst.measuredForHeight &&
@@ -136,7 +136,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // it cuts a line, so only the flow's axis differs.
   const auto addExclusions = [&](sigil::weave::ExclusionFlow& flow) {
     const float flowMargin =
-        inst.desc->deriveData ? inst.desc->deriveData->flowAroundMargin : 0.0f;
+        inst.description->deriveData ? inst.description->deriveData->flowAroundMargin : 0.0f;
     for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
       if (exclusion.circle)
         flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromCircle(
@@ -207,8 +207,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // spanStyle that moves the line breaks does not chase its own result,
   // which is what keeps this two passes rather than a fixed-point search
   // that may not have a fixed point.
-  if (inst.desc->textData &&
-      std::ranges::any_of(inst.desc->textData->spanRestyles,
+  if (inst.description->textData &&
+      std::ranges::any_of(inst.description->textData->spanRestyles,
                           [](const detail::SpanRestyle& restyle) {
                             return detail::selectorNeedsLayout(restyle.where);
                           })) {
@@ -236,7 +236,7 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // run's marks are the one exception: their curve resolves against the
   // node's final box, which this measure does not know, so they resolve in
   // ensureLayout's post-layout pass instead.
-  if (!inst.desc->textData || !inst.desc->textData->onPath)
+  if (!inst.description->textData || !inst.description->textData->onPath)
     resolveTextMarks(inst);
   // The readings, laid out on the placement the base just reached. Their
   // band was already in the base's strut, so nothing here moves the base.
@@ -398,8 +398,8 @@ void Composer::Impl::syncLayoutRects(Instance& inst, bool movedAbove) {
  *  quiet round and would burn its full round count every frame. */
 bool Composer::Impl::applyCenterPins(Instance& inst) {
   bool applied = false;
-  if (inst.desc->layout.centerAt && inst.yoga) {
-    const SkPoint p = *inst.desc->layout.centerAt;
+  if (inst.description->layout.centerAt && inst.yoga) {
+    const SkPoint p = *inst.description->layout.centerAt;
     // Correct by the observed layout delta rather than writing the target
     // into the style directly — converges whatever reference box Yoga
     // resolves absolute positions against (padding, borders).
@@ -427,8 +427,8 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   // layout() schemes are a flex-world feature; inside a positioned
   // subtree (no Yoga nodes) — or ON a positioned() container, whose
   // children have none — the placeFn is documented-unsupported.
-  if (inst.yoga && !inst.desc->layout.positioned && inst.desc->deriveData &&
-      inst.desc->deriveData->placeFn && !inst.children.empty()) {
+  if (inst.yoga && !inst.description->layout.positioned && inst.description->deriveData &&
+      inst.description->deriveData->placeFn && !inst.children.empty()) {
     LayoutInput input;
     input.container = {YGNodeLayoutGetWidth(inst.yoga),
                        YGNodeLayoutGetHeight(inst.yoga)};
@@ -443,15 +443,15 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
         baseline = first.baseline - first.rect().top();
       }
       input.childBaselines.push_back(baseline);
-      input.childCells.push_back(child->desc->layout.cells);
+      input.childCells.push_back(child->description->layout.cells);
     }
-    std::vector<SkRect> rects = inst.desc->deriveData->placeFn(input);
+    std::vector<SkRect> rects = inst.description->deriveData->placeFn(input);
     const size_t count = std::min(rects.size(), inst.children.size());
     for (size_t i = 0; i < count; ++i) {
       // A centerAt() child opts OUT of the scheme's placement — the pin
       // wins (otherwise place() and the pin fight in a period-2
       // oscillation that never settles).
-      if (inst.children[i]->desc->layout.centerAt) continue;
+      if (inst.children[i]->description->layout.centerAt) continue;
       YGNodeRef child = inst.children[i]->yoga;
       // Count a change only on an actual delta: the convergence loop in
       // ensureLayout keys off this (idempotent writes are free).
@@ -473,7 +473,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     // parent to size it, so without this it would collapse and the scheme
     // would place its children outside a zero box. Flex-embedded layout()
     // containers are left alone: their flex/stretch sizing already holds.
-    const LayoutProps& l = inst.desc->layout;
+    const LayoutProps& l = inst.description->layout;
     if (l.absolute) {
       SkRect extent = SkRect::MakeEmpty();
       for (size_t i = 0; i < count; ++i) extent.join(rects[i]);
@@ -557,14 +557,14 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // whose child cannot argue with it. Looked up first for the same reason:
   // a text node may carry both, and a mark is not an unknown slot.
   const SkRect* anchor = nullptr;
-  if (inst.parent && inst.parent->desc->kind == Kind::Text &&
-      inst.parent->desc->textData && !inst.desc->key.empty() &&
-      std::ranges::any_of(inst.parent->desc->textData->marks,
+  if (inst.parent && inst.parent->description->kind == Kind::Text &&
+      inst.parent->description->textData && !inst.description->key.empty() &&
+      std::ranges::any_of(inst.parent->description->textData->marks,
                           [&](const detail::MarkAnchor& mark) {
-                            return mark.key == inst.desc->key;
+                            return mark.key == inst.description->key;
                           })) {
     for (const auto& [key, rect] : inst.parent->textMarkRects)
-      if (key == inst.desc->key) {
+      if (key == inst.description->key) {
         anchor = &rect;
         break;
       }
@@ -580,14 +580,14 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // slot child has no Yoga node to write to — the paragraph IS its layout,
   // so a reflow that moves the placeholder moves the child with no second
   // pass and no convergence round.
-  if (!anchor && inst.parent && inst.parent->desc->kind == Kind::Text &&
-      !inst.parent->textSlotKeys.empty() && !inst.desc->key.empty()) {
+  if (!anchor && inst.parent && inst.parent->description->kind == Kind::Text &&
+      !inst.parent->textSlotKeys.empty() && !inst.description->key.empty()) {
     for (const auto& [key, rect] : inst.parent->textSlotRects)
-      if (key == inst.desc->key) return rect;
-    warnUnknownTextSlot(*inst.parent, inst.desc->key);
+      if (key == inst.description->key) return rect;
+    warnUnknownTextSlot(*inst.parent, inst.description->key);
     return SkRect::MakeEmpty();
   }
-  const LayoutProps& l = inst.desc->layout;
+  const LayoutProps& l = inst.description->layout;
   float parentW = 0, parentH = 0;
   if (anchor) {
     parentW = anchor->width();
@@ -623,7 +623,7 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // Text with an open extent: measure now, against the width we have.
   // The measure caches are logically mutable (measuredForWidth guards),
   // hence the casts.
-  if (inst.desc->kind == Kind::Text && inst.paragraph && (!width || !height)) {
+  if (inst.description->kind == Kind::Text && inst.paragraph && (!width || !height)) {
     const_cast<Composer::Impl*>(this)->layoutText(const_cast<Instance&>(inst),
                                                   width ? *width : parentW,
                                                   height ? *height : 1.0e6f);

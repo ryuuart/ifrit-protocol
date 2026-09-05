@@ -49,7 +49,7 @@ using namespace detail;
  *  run's path baseline, and a borrowed band spine, each outset by its own
  *  reach. */
 SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   const SkRect rect = instanceRect(inst);
   SkRect local = SkRect::MakeWH(rect.width(), rect.height());
   float bleed = 0;
@@ -154,7 +154,7 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
 
 std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
     Instance& inst, const SkSize& frame) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   if (!node.motionData || !(bool)node.motionData->path) return std::nullopt;
   const MotionPath& spec = *node.motionData;
 
@@ -201,7 +201,7 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
 }
 
 Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   NodeTransform out;
   out.rot = inst.resolveFloat(Instance::kRotate, node.paint.rotate);
   out.scl = inst.resolveFloat(Instance::kScale, node.paint.scale);
@@ -279,7 +279,7 @@ Composer::Impl::NodeTransform Composer::Impl::transformOf(Instance& inst) {
  *  through the child's full matrix there, so the layer or bake an ancestor
  *  sizes from this holds the faces of a cube wherever they have turned. */
 SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   SkRect local = ownPaintBounds(inst);
   const bool hosts = hostsSpace(inst);
   // The host's own 4x4 in the plane its space is drawn on — what every
@@ -294,7 +294,7 @@ SkRect Composer::Impl::recordBounds(Instance& inst, const SkM44* space) {
   }
   if (node.clipContent) return local;
   for (auto& child : inst.children) {
-    const ElementNode& cn = *child->desc;
+    const ElementNode& cn = *child->description;
     const SkRect crect = instanceRect(*child);
     const NodeTransform tf = transformOf(*child);
     if (hosts) {

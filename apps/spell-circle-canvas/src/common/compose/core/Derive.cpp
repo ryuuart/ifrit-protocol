@@ -47,7 +47,7 @@ SkPath expandForHit(const SkPath& route) {
  *  the same answer the painter builds, so a borrowed spine and the
  *  element it was borrowed from can never disagree. */
 SkPath resolvedShapeOf(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   const SkRect rect = inst.owner->instanceRect(inst);
   const SkSize size{rect.width(), rect.height()};
   if (node.deriveData && !inst.connectorPath.isEmpty())
@@ -63,7 +63,7 @@ SkPath resolvedShapeOf(Instance& inst) {
  *  not count: they round the fill, not the outline the borrow family reads,
  *  and `resolvedShapeOf` ignores them everywhere else too. */
 bool hasResolvedSilhouette(const Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   return (bool)node.shapeFn ||
          (node.deriveData && !inst.connectorPath.isEmpty());
 }
@@ -115,7 +115,7 @@ bool Composer::Impl::resolveThreads() {
   boost::container::flat_set<const Instance*> threadedInto;
   std::vector<Instance*> targets;
   for (Instance* inst : threadedInstances) {
-    auto found = byKey.find(inst->desc->textData->threadTo);
+    auto found = byKey.find(inst->description->textData->threadTo);
     if (found == byKey.end()) continue;
     if (threadedInto.insert(found->second).second)
       targets.push_back(found->second);
@@ -152,8 +152,8 @@ bool Composer::Impl::resolveThreads() {
     for (Instance* frame = head; frame;) {
       if (!visited.insert(frame).second)
         break;  // a cycle: stop where it closes
-      const detail::TextData* text = frame->desc && frame->desc->textData
-                                         ? &*frame->desc->textData
+      const detail::TextData* text = frame->description && frame->description->textData
+                                         ? &*frame->description->textData
                                          : nullptr;
       Instance* next = nullptr;
       if (text && !text->threadTo.empty()) {
@@ -203,7 +203,7 @@ bool Composer::Impl::resolveThreads() {
 
 bool Composer::Impl::deriveFlow(Instance& inst) {
   bool relayout = false;
-  const DeriveData* derive = &*inst.desc->deriveData;
+  const DeriveData* derive = &*inst.description->deriveData;
 
   if (inst.paragraph) {
     std::vector<Exclusion> exclusions;
@@ -253,7 +253,7 @@ bool Composer::Impl::deriveFlow(Instance& inst) {
 }
 
 void Composer::Impl::deriveRoute(Instance& inst) {
-  const DeriveData* derive = &*inst.desc->deriveData;
+  const DeriveData* derive = &*inst.description->deriveData;
 
   // band(around(key)): the spine is another element's resolved shape,
   // moved into this node's local space.

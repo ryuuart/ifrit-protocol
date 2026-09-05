@@ -513,7 +513,7 @@ itself. Operation by operation:
 | `keyOf` | the description's `key` |
 | `equal` | `propsEqual` — every field of `ElementNode`, with the geometry slot's variant equality standing in for a kind comparison |
 | `reconcilesChildren` | true: children are described, never filled by another path |
-| `children` / `descOf` | the description's `children`, and the node handle off each `Element` |
+| `children` / `descriptionOf` | the description's `children`, and the node handle off each `Element` |
 | `memoOf` / `produce` | the description's `Memo`, and the deferred describe run under the environment its author had |
 | `create` | a node, an entity with a `Placement`, and the first patch — with the child's ordinal read through the parent's `staggerChildren()` schedule, so the entrance the patch mounts is delayed by where this child sits in the cascade |
 | `onPatched` | retargets the lanes (mounting entrances on the first patch, at whatever the enclosing cascade delayed this branch by), marks the geometry slot for resolution when it or its window changed, and stales every bake above |

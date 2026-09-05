@@ -28,7 +28,7 @@ using namespace detail;
  *  end of trackAnims and so reads its progress at rest. */
 inline std::span<const Track> paintedTracksOf(const Instance& inst,
                                               std::vector<Track>& joined) {
-  const std::span<const Track> declared = tracksOf(*inst.desc);
+  const std::span<const Track> declared = tracksOf(*inst.description);
   if (!inst.textState || inst.textState->spanAxisTracks.empty())
     return declared;
   joined.assign(declared.begin(), declared.end());

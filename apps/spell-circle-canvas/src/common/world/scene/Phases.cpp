@@ -133,7 +133,7 @@ bool Scene::Impl::phaseDescribe() {
 // ---- lanes -----------------------------------------------------------------
 
 void Scene::Impl::sampleLanes(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   lanesOf(node, laneScratch);
   const auto read = [this, &inst](Slot slot) {
     const Lane& lane = laneScratch[slot];
@@ -173,7 +173,7 @@ bool Scene::Impl::phaseLanes() {
 
 void Scene::Impl::deriveInto(Instance& inst, const glm::mat4& parentWorld,
                              bool* changed) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   glm::mat4 local(1.0f);
   if (node.transform.matrix) {
     local = *node.transform.matrix;
@@ -231,7 +231,7 @@ void Scene::Impl::rescanMoved(Instance& inst) {
 // ---- the geometry slot's resource -------------------------------------------
 
 Geometry Scene::Impl::effectiveGeometry(const Instance& inst) const {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   if (!node.window) return node.geometry;
   const Chained* chained = std::get_if<Chained>(&node.geometry);
   if (!chained || chained->chain.empty()) return node.geometry;
@@ -259,8 +259,8 @@ void Scene::Impl::ensureResource(Instance& inst) {
   // slot the window cannot address would compare its whole contents
   // against the store on every frame of a motion that does not touch it.
   const bool windowMoved =
-      inst.desc->window &&
-      std::holds_alternative<Chained>(inst.desc->geometry) &&
+      inst.description->window &&
+      std::holds_alternative<Chained>(inst.description->geometry) &&
       (inst.resolvedHead != inst.windowHead ||
        inst.resolvedSpan != inst.windowSpan);
   if (!inst.geometryDirty && !windowMoved) return;
@@ -274,7 +274,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   for (std::unique_ptr<Instance>& child : inst.children)
     childVolatility.add(foldVolatility(*child));
 
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   lanesOf(node, laneScratch);
   bool movingPlacement = false;
   bool movingContent = false;
@@ -356,7 +356,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
       fprintf(stderr,
               "[world] two environment maps in one frame: \"%s\" shades "
               "and \"%s\" is ignored\n",
-              environmentKey.c_str(), inst.desc->key.c_str());
+              environmentKey.c_str(), inst.description->key.c_str());
     } else {
       environment = *node.environment;
       environment.intensity = inst.intensity;
@@ -373,7 +373,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
       // anything to it; the inverse of that rotation is what carries a
       // world-space direction into the panorama's own frame.
       environmentOrientation = glm::inverse(glm::mat3(inst.world));
-      environmentKey = inst.desc->key;
+      environmentKey = inst.description->key;
     }
   }
   if (node.camera && !camera) camera = placeCamera(*node.camera, inst.world);
@@ -381,7 +381,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
 }
 
 void Scene::Impl::writeComponents(Instance& inst) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   registry.get<component::Placement>(inst.entity).world = inst.world;
   const geometry::mesh::Mesh* mesh =
       inst.resource && !inst.resource->cooked.mesh.indices.empty()
@@ -426,7 +426,7 @@ void Scene::Impl::extractInto(Instance& inst, std::vector<entt::entity>& into,
 
   // The ancestry a selector reads is the keys standing above the node,
   // which is exactly this walk's own stack.
-  ancestry.push_back(inst.desc->key);
+  ancestry.push_back(inst.description->key);
   for (std::unique_ptr<Instance>& child : inst.children) {
     if (recording) {
       // A bake is one order for the whole settled subtree. Asking a

@@ -126,7 +126,7 @@ struct TextState {
   std::vector<Track> spanAxisTracks;
 };
 
-/** The retained node. The tree skeleton — `parent`, `desc` (the resolved,
+/** The retained node. The tree skeleton — `parent`, `description` (the resolved,
  *  post-memo description), `memoShell` (the memo element, if any) and
  *  `children` — is SigilCore's Node, which is what the reconciler walks;
  *  everything below it is what this kernel retains per node. */
@@ -556,7 +556,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkRect lastLayoutRect = SkRect::MakeLTRB(-1, -1, -1, -1);
 
   // Resolved custom-outline cache: generators (blobs, rounded stars) can be
-  // arbitrarily expensive — resolve once per (description, size). Desc pointer
+  // arbitrarily expensive — resolve once per (description, size). Description pointer
   // identity keys invalidation: every patch swaps the description.
   // Element::boundary(Boundary::Glyphs): the union of this text's glyph
   // outlines at the placement its layout produced, resolved once per
@@ -576,7 +576,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   float coverageOutlineScale = -1.0f;  ///< the device scale it was traced at
   SkPath outlineCache;
   SkSize outlineCacheSize = {-1.0f, -1.0f};
-  const ElementNode* outlineCacheDesc = nullptr;
+  const ElementNode* outlineCacheDescription = nullptr;
 
   // Stamped-brush bakes live with the NODE (handed to decorations via
   // PaintContext::stamps), so a brush value rebuilt every describe reuses
@@ -671,8 +671,8 @@ inline TextState& textStateOf(Instance& inst) {
 }
 
 inline bool childrenCarryYoga(const Instance& inst) {
-  return inst.yoga != nullptr && inst.desc && !inst.desc->layout.positioned &&
-         inst.desc->kind != Kind::Text;
+  return inst.yoga != nullptr && inst.description && !inst.description->layout.positioned &&
+         inst.description->kind != Kind::Text;
 }
 
 /** WHERE A LEAF STANDS IN ITS STORY, read off the retained instance: the
@@ -681,11 +681,11 @@ inline bool childrenCarryYoga(const Instance& inst) {
  *  its own key, so the ordinary text is the general case with nothing
  *  subtracted. */
 [[nodiscard]] inline TextScope scopeOf(const Instance& inst) {
-  const bool threads = inst.desc && inst.desc->textData &&
-                       !inst.desc->textData->threadTo.empty();
+  const bool threads = inst.description && inst.description->textData &&
+                       !inst.description->textData->threadTo.empty();
   return {inst.threadLineOffset, inst.threadStoryLines,
           threads || inst.threadLineOffset > 0,
-          inst.desc ? std::string_view(inst.desc->key) : std::string_view{}};
+          inst.description ? std::string_view(inst.description->key) : std::string_view{}};
 }
 
 }  // namespace sigil::compose::detail

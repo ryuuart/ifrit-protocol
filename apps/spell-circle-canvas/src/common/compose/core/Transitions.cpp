@@ -272,7 +272,7 @@ void Composer::Impl::applyTransitions(Instance& inst, const ElementNode& prev,
 
 std::vector<float> detail::Instance::resolveGateValues() const {
   std::vector<float> values;
-  const ElementNode& node = *desc;
+  const ElementNode& node = *description;
   if (!node.hasMasks()) return values;
   size_t slot = 0;
   const auto push = [&](const motion::Animatable<float>& v) {
@@ -295,8 +295,8 @@ std::vector<float> detail::Instance::resolveGateValues() const {
 }
 
 float detail::Instance::resolvePathAt() const {
-  if (!desc || !desc->textData) return 0.0f;
-  const std::optional<TextPath>& baseline = desc->textData->onPath;
+  if (!description || !description->textData) return 0.0f;
+  const std::optional<TextPath>& baseline = description->textData->onPath;
   if (!baseline) return 0.0f;
   return resolveFloat(kTextPathAt, baseline->at);
 }
@@ -304,7 +304,7 @@ float detail::Instance::resolvePathAt() const {
 std::vector<float> detail::Instance::resolveTrackValues() const {
   std::vector<float> values;
   const std::span<const Track> tracks =
-      desc->textData ? std::span<const Track>(desc->textData->tracks)
+      description->textData ? std::span<const Track>(description->textData->tracks)
                      : std::span<const Track>();
   values.reserve(tracks.size());
   for (size_t i = 0; i < tracks.size(); ++i) {
@@ -316,7 +316,7 @@ std::vector<float> detail::Instance::resolveTrackValues() const {
 }
 
 Fill detail::Instance::resolveBoundFill() const {
-  const ElementNode& node = *desc;
+  const ElementNode& node = *description;
   if (node.paint.fill)
     if (const choreograph::Output<Fill>* binding = node.paint.fill->binding())
       return binding->value();
@@ -330,7 +330,7 @@ std::array<float, 2> detail::Instance::resolvePatternOffset() const {
   // animatedBeyondBoundOffset — and never reaches this lane. All-zero when
   // unbound, matching the ContentScalars guard, so a node without the
   // channel compares equal to itself forever.
-  const material::skia::Paint* m = liveMaterialOf(*desc);
+  const material::skia::Paint* m = liveMaterialOf(*description);
   if (!m || !m->hasBoundOffset()) return {};
   const SkPoint pan = m->boundOffsetValue();
   return {pan.x(), pan.y()};

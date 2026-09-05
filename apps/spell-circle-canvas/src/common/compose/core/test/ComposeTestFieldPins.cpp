@@ -307,7 +307,7 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //
   //  - `memoData` never reaches propsEqual at all. resolveMemo() compares a
   //    memo EARLIER and more strictly (the env snapshot, then the author's
-  //    own props comparator) and `inst.desc` holds the memo's PRODUCED
+  //    own props comparator) and `inst.description` holds the memo's PRODUCED
   //    payload, which carries no memo block.
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
@@ -322,7 +322,7 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   static const bool kParticipates[] = {
       true,  true, true, true, true, true, true, true, true, true, true,
       true,  true, true, true, true, true, true, true, true, true,
-      false,  // memoData — resolveMemo owns it, and it never lands in desc
+      false,  // memoData — resolveMemo owns it, and it never lands in description
       true,  true,
       false,  // children — reconciled by key, never compared
   };

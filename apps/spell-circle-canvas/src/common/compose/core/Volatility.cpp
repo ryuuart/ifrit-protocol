@@ -65,7 +65,7 @@ using namespace detail;
  *  what it decides whether to skip. */
 void collectGroupScalars(const Instance& inst, bool root,
                          std::vector<float>& out) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   const auto push = [&](Instance::Slot slot,
                         const motion::Animatable<float>& v) {
     if (motion::isLive(inst.anims[slot].get(), v))
@@ -174,7 +174,7 @@ SkMatrix Composer::Impl::worldMatrixOf(Instance& inst) {
     } else {
       m.preTranslate(rect.left(), rect.top());
       m.preConcat(
-          tf.matrix({0, 0}, node.desc->paint, rect.width(), rect.height()));
+          tf.matrix({0, 0}, node.description->paint, rect.width(), rect.height()));
     }
     if (hosts)
       space = Space{*depth, space ? space->rootToPlane : plane};
@@ -229,7 +229,7 @@ void Composer::Impl::scanReleasedScalars() {
 
 core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
                                                      Above above) {
-  const ElementNode& node = *inst.desc;
+  const ElementNode& node = *inst.description;
   const bool movingAbove = above.moving;
 
   auto boundOrRunning = [&](Instance::Slot slot,

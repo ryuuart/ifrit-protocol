@@ -79,9 +79,9 @@ include their own directory's headers. The hardware feature's are
 | `comparable/Fields.h` | `kFieldCount<T>` — how many direct non-static data members an aggregate has, and the pin a hand-written comparator sits under |
 | `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), the 64-bit avalanche `noise::mix64` with its `noise::kMix64Gamma` and the `noise::Mix64Stream` that walks it (`bits`, `unit`, `signedUnit`, `range`), the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext`, the xorshift stream `noise::xorshiftNext`/`noise::xorshiftUnitNext`, and the grid mixer `noise::lattice` |
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
-| `reconcile/Reconciler.h` | `Reconciler<Host, Node, Desc>` — `render()`, `replaceContent()`, `patch()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
-| `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescValue` |
-| `reconcile/Node.h` | `Node<Derived, Desc>` — the tree skeleton a host's node derives from: `parent`, `desc`, `memoShell`, `children` |
+| `reconcile/Reconciler.h` | `Reconciler<Host, Node, Description>` — `render()`, `replaceContent()`, `patch()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
+| `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescriptionValue` |
+| `reconcile/Node.h` | `Node<Derived, Description>` — the tree skeleton a host's node derives from: `parent`, `description`, `memoShell`, `children` |
 | `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `props`, `equal`, `invoke`, `env` |
 | `reconcile/Env.h` | `env::Provide`, `env::inherited`, `env::inheritedOr`, `env::bound`, and the `env::Snapshot`, `env::capture`, `env::Restore` a memo is built on |
 | `reconcile/Erased.h` | `Erased<Ops>` under the name a description spells it by; the type is `comparable/Erased.h`'s |
@@ -106,46 +106,46 @@ itself and holds a `Reconciler` over its own node and description types:
 
 using namespace sigil::core;
 
-struct Desc {                       // what the author builds each frame
+struct Description {                       // what the author builds each frame
   std::string key;
   int value = 0;
-  std::vector<std::shared_ptr<Desc>> children;
-  std::optional<Memo<std::shared_ptr<Desc>>> memo;
+  std::vector<std::shared_ptr<Description>> children;
+  std::optional<Memo<std::shared_ptr<Description>>> memo;
 };
-using DescPtr = std::shared_ptr<Desc>;
+using DescriptionPtr = std::shared_ptr<Description>;
 
-struct Instance : Node<Instance, DescPtr> {   // what the host retains
+struct Instance : Node<Instance, DescriptionPtr> {   // what the host retains
   int lane = 0;                     // survives every patch
 };
 
 struct Host {
-  Reconciler<Host, Instance, DescPtr> reconciler{*this};
+  Reconciler<Host, Instance, DescriptionPtr> reconciler{*this};
   std::unique_ptr<Instance> root;
 
   // reading a description
-  static const std::string& keyOf(const DescPtr& d) { return d->key; }
-  static bool equal(const DescPtr& a, const DescPtr& b) {
+  static const std::string& keyOf(const DescriptionPtr& d) { return d->key; }
+  static bool equal(const DescriptionPtr& a, const DescriptionPtr& b) {
     return a->key == b->key && a->value == b->value;
   }
-  static bool reconcilesChildren(const DescPtr&) { return true; }
-  static const std::vector<DescPtr>& children(const DescPtr& d) {
+  static bool reconcilesChildren(const DescriptionPtr&) { return true; }
+  static const std::vector<DescriptionPtr>& children(const DescriptionPtr& d) {
     return d->children;
   }
-  static const DescPtr& descOf(const DescPtr& child) { return child; }
-  static const Memo<DescPtr>* memoOf(const DescPtr& d) {
+  static const DescriptionPtr& descriptionOf(const DescriptionPtr& child) { return child; }
+  static const Memo<DescriptionPtr>* memoOf(const DescriptionPtr& d) {
     return d->memo ? &*d->memo : nullptr;
   }
-  static DescPtr produce(const Memo<DescPtr>& m) { return m.invoke(m.props); }
+  static DescriptionPtr produce(const Memo<DescriptionPtr>& m) { return m.invoke(m.props); }
 
   // acting on a node
-  std::unique_ptr<Instance> create(const DescPtr& d, Instance* parent,
+  std::unique_ptr<Instance> create(const DescriptionPtr& d, Instance* parent,
                                    size_t ordinal, size_t count) {
     auto node = std::make_unique<Instance>();
     node->parent = parent;
     reconciler.patch(*node, d);     // the first patch is the mount
     return node;
   }
-  void onPatched(Instance&, const Desc* prev, const Desc& next) {}
+  void onPatched(Instance&, const Description* prev, const Description& next) {}
   void reorder(Instance& parent, bool structureChanged) {}
   bool remountRequired(const Instance&, const Instance&) { return false; }
   void invalidate(Instance&) {}
@@ -216,7 +216,7 @@ props second against the shell the node was last described from; on a
 hit the node's payload stands and the describe is skipped, on a miss the
 describe runs under the environment its author had (`env::Restore`) and
 the result becomes the payload. The shell rides on the node as
-`memoShell`; the payload is `desc`.
+`memoShell`; the payload is `description`.
 
 **An inherited value lands in the description.** `env::Provide<T>` binds
 a value for a describe scope and `env::inherited<T>()` reads it four

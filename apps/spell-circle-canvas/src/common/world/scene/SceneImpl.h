@@ -157,7 +157,7 @@ inline constexpr int kConvergeRounds = 8;
 /** THE HOST. It implements the ReconcileHost operations on itself and
  *  holds the reconciler over its own node and description types. */
 struct Scene::Impl {
-  using Desc = std::shared_ptr<ElementNode>;
+  using Description = std::shared_ptr<ElementNode>;
 
   /** What one bake decision acts on: the node whose subtree is being
    *  decided, the host that walks it, and the order the result lands
@@ -171,7 +171,7 @@ struct Scene::Impl {
   explicit Impl(motion::Ticker& t);
 
   motion::Ticker& ticker;
-  core::Reconciler<Impl, Instance, Desc> reconciler;
+  core::Reconciler<Impl, Instance, Description> reconciler;
   std::unique_ptr<Instance> root;
   entt::registry registry;
   ResourceStore store;
@@ -182,7 +182,7 @@ struct Scene::Impl {
    *  argument describe needs. */
   Element pending;
 
-  core::Reconciler<Impl, Instance, Desc>::KeyIndex byKey;
+  core::Reconciler<Impl, Instance, Description>::KeyIndex byKey;
   /** The extracted draw order, in tree order. */
   std::vector<entt::entity> order;
   std::vector<Light> lights;
@@ -221,21 +221,21 @@ struct Scene::Impl {
   core::Bake<BakeTarget> bake;
 
   // ---- the reconciler's host (Host.cpp) ----
-  static const std::string& keyOf(const Desc& desc) { return desc->key; }
-  static bool equal(const Desc& a, const Desc& b) { return propsEqual(*a, *b); }
-  static bool reconcilesChildren(const Desc&) { return true; }
-  static const std::vector<Element>& children(const Desc& desc) {
-    return desc->children;
+  static const std::string& keyOf(const Description& description) { return description->key; }
+  static bool equal(const Description& a, const Description& b) { return propsEqual(*a, *b); }
+  static bool reconcilesChildren(const Description&) { return true; }
+  static const std::vector<Element>& children(const Description& description) {
+    return description->children;
   }
-  static const Desc& descOf(const Element& child) { return child.node(); }
-  static const Memo* memoOf(const Desc& desc) {
-    return desc->memo ? &*desc->memo : nullptr;
+  static const Description& descriptionOf(const Element& child) { return child.node(); }
+  static const Memo* memoOf(const Description& description) {
+    return description->memo ? &*description->memo : nullptr;
   }
-  static Desc produce(const Memo& memo) {
+  static Description produce(const Memo& memo) {
     return memo.invoke(memo.props).node();
   }
 
-  std::unique_ptr<Instance> create(const Desc& desc, Instance* parent,
+  std::unique_ptr<Instance> create(const Description& description, Instance* parent,
                                    size_t ordinal, size_t count);
   /** The entrance delay this subtree's mount inherits, in seconds: the
    *  sum of every ancestor cascade's start time for the branch being

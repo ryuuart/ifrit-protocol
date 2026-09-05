@@ -14,14 +14,14 @@
 namespace sigil::core {
 
 /** The reconciler's view of a retained node. `Derived` is the host's node
- *  type; `Desc` is its description handle — a pointer-like value that is
+ *  type; `Description` is its description handle — a pointer-like value that is
  *  null before the first patch, dereferences to the description, and
  *  compares by identity, which is how a memo hit is recognised. */
-template <class Derived, class Desc>
+template <class Derived, class Description>
 struct Node {
   Derived* parent = nullptr;
-  Desc desc;       ///< the resolved (post-memo) description
-  Desc memoShell;  ///< the memo element this node was described through
+  Description description;       ///< the resolved (post-memo) description
+  Description memoShell;  ///< the memo element this node was described through
   std::vector<std::unique_ptr<Derived>> children;
 
  private:
