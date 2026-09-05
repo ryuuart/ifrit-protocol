@@ -65,6 +65,9 @@
 #include <QtGui/QGuiApplication>
 #include <QtGui/QImage>
 #include <QtQml/QQmlApplicationEngine>
+
+// Generated with the QML module: registers every QML_ELEMENT it compiled.
+void qml_register_types_Sigil_Sketchbook();
 #include <QtQml/qqml.h>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
@@ -762,6 +765,13 @@ int main(int argc, char* argv[]) {
   QCoreApplication::setOrganizationDomain(QStringLiteral("sigil.dev"));
   QCoreApplication::setApplicationName(QStringLiteral("Sketchbook"));
 
+  // Every way out of main lets the device go first: released during static
+  // destruction, the textures and pipelines it holds want locks that no
+  // longer exist.
+  struct DeviceScope {
+    ~DeviceScope() { releaseDevice(); }
+  } deviceScope;
+
   std::filesystem::path sketchFile;
   std::filesystem::path assetsOverride;
   std::string selected, kind, shotPath;
@@ -1110,6 +1120,13 @@ int main(int argc, char* argv[]) {
   finishMaterialWarmup(materialWarmup);
 
   QQmlApplicationEngine engine;
+  // The module's own types register lazily, when the engine first imports
+  // its URI — and only if no type module of that name exists yet. A type
+  // registered by hand into the same URI beforehand creates the module,
+  // and the engine then never asks for the rest. So the module's
+  // generated registration runs first, explicitly, and the hand
+  // registration joins it.
+  qml_register_types_Sigil_Sketchbook();
   // SketchCatalog lives in the SigilSketchBook library rather than in the
   // QML module's own sources, so it is registered into the module's URI
   // here rather than by a QML_ELEMENT the module compiled.
