@@ -1145,6 +1145,25 @@ std::string profileLabel(const detail::Instance& inst, const SkRect& rect) {
   return buf;
 }
 
+/** A BAKE LAYER IS A DEVICE OF ITS OWN. What is painted into it lands on
+ *  the layer's grid, and the layer is then blitted wherever the node is —
+ *  so a node inside the bake composes its matrix through nothing, whatever
+ *  recording the blit itself is being recorded into. RAII because the
+ *  bake sites return from the middle of paint(). */
+struct BakeLayerScope {
+  Composer::Impl* impl;
+  SkMatrix replay, inverse;
+  explicit BakeLayerScope(Composer::Impl* i)
+      : impl(i), replay(i->recordingReplay), inverse(i->recordingReplayInverse) {
+    impl->recordingReplay = SkMatrix::I();
+    impl->recordingReplayInverse = SkMatrix::I();
+  }
+  ~BakeLayerScope() {
+    impl->recordingReplay = replay;
+    impl->recordingReplayInverse = inverse;
+  }
+};
+
 /** Scoped per-node timer. RAII because paint() has several early returns
  *  and a half-written row would be worse than no row at all. */
 struct ProfileScope {
@@ -1704,7 +1723,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)device.left(), -(float)device.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
-          paintContent(inst, *lc, hostScale, leafBlend, leafOpacity);
+          {
+            const BakeLayerScope bakeLayer(this);
+            paintContent(inst, *lc, hostScale, leafBlend, leafOpacity);
+          }
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = SkRect::Make(device);
@@ -1842,8 +1864,11 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)device.left(), -(float)device.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
-          paintContent(inst, *lc, hostScale, leafBlend, leafOpacity,
-                       Phase::OwnOnly);
+          {
+            const BakeLayerScope bakeLayer(this);
+            paintContent(inst, *lc, hostScale, leafBlend, leafOpacity,
+                         Phase::OwnOnly);
+          }
           inst.ownImage = layer->makeImageSnapshot();
           inst.ownBakeRect = want;
           inst.ownPaintDirty = false;
@@ -2013,7 +2038,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           // No leaf blend and no leaf opacity: bakes isolate, and the node's
           // own blend/opacity are applied by the saveLayer wrapping the blit
           // — which is why leafDirectBlend excludes Cache::Group.
-          paintContent(inst, *lc, hostScale);
+          {
+            const BakeLayerScope bakeLayer(this);
+            paintContent(inst, *lc, hostScale);
+          }
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = want;
@@ -2129,7 +2157,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           SkCanvas* lc = layer->getCanvas();
           lc->translate(-(float)deviceR.left(), -(float)deviceR.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
-          paintContent(inst, *lc, hostScale);  // no leaf blend: bakes isolate
+          {
+            const BakeLayerScope bakeLayer(this);
+            paintContent(inst, *lc, hostScale);  // no leaf blend: bakes isolate
+          }
           inst.textureImage = layer->makeImageSnapshot();
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = bakeRect;
@@ -2212,8 +2243,11 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         layer = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pw, ph));
       layer->getCanvas()->scale(scale, scale);
       layer->getCanvas()->translate(-bake.left(), -bake.top());
-      paintContent(inst, *layer->getCanvas(), scale);  // no leaf blend:
-      inst.textureImage = layer->makeImageSnapshot();  // bakes isolate
+      {
+        const BakeLayerScope bakeLayer(this);
+        paintContent(inst, *layer->getCanvas(), scale);  // no leaf blend:
+      }                                                  // bakes isolate
+      inst.textureImage = layer->makeImageSnapshot();
       inst.textureScale = scale;
       inst.textureDeviceSpace = false;
       inst.textureBakeRect = bake;
