@@ -362,6 +362,46 @@ TEST(Environment, ABackdropAtZeroStrengthDrawsNothing) {
   EXPECT_LT(luma(at(plate, 0.5f, 0.92f)), 0.02f);
 }
 
+TEST(Environment, AGroundProjectedBackdropMovesTheHorizonWithTheEye) {
+  const auto on = diligent::onDevice();
+  if (!on) GTEST_SKIP() << on.error;
+  // At infinity a sky is the same picture from everywhere; projected
+  // onto a ground sphere, an eye that rises above the sphere's centre
+  // sees more ground and the horizon drops down the frame.
+  world::Environment sky;
+  sky.map = hemispheres({0.9f, 0.1f, 0.1f, 1}, {0.1f, 0.1f, 0.9f, 1});
+  sky.backdrop.intensity = 1.0f;
+
+  const auto horizonRow = [&](float height) {
+    geometry::mesh::camera::Camera camera;
+    camera.eye = {0, height, 0};
+    camera.target = {0, height, -100};
+    Frame frame = skyAlone(sky);
+    frame.camera(camera);
+    const SkBitmap plate =
+        diligent::photograph(frame, on.runtime, kExtent, camera);
+    for (int y = 0; y < plate.height(); ++y) {
+      const SkColor4f c = plate.getColor4f(plate.width() / 2, y);
+      if (c.fB > c.fR) return y;
+    }
+    return -1;
+  };
+
+  const int atInfinityLow = horizonRow(0.0f);
+  const int atInfinityHigh = horizonRow(20.0f);
+  ASSERT_GE(atInfinityLow, 0);
+  EXPECT_EQ(atInfinityLow, atInfinityHigh)
+      << "a sky at infinity does not move with the eye";
+
+  sky.backdrop.groundRadius = 100.0f;
+  const int projectedCentre = horizonRow(0.0f);
+  const int projectedHigh = horizonRow(20.0f);
+  EXPECT_EQ(projectedCentre, atInfinityLow)
+      << "an eye at the centre reads the sphere by direction";
+  EXPECT_GT(projectedHigh, projectedCentre + 4)
+      << "an eye above the centre looks down on the horizon";
+}
+
 TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;

@@ -345,6 +345,13 @@ void drawBackdrop(Gpu& gpu, const View& view, const glm::mat4& projection,
   uniforms.set("uTone", sky.exposure, 0.0f, 0.0f, 0.0f);
   uniforms.set("uBackdrop", sky.backdrop.intensity,
                std::clamp(sky.backdrop.blur, 0.0f, 1.0f), 0.0f, 0.0f);
+  // The ground sphere's centre is carried into the space the ray is
+  // found in, where the eye is the origin — so the eye's own position
+  // is never stated twice.
+  const glm::vec3 centre =
+      glm::vec3(viewMatrix * glm::vec4(sky.backdrop.projectionCenter, 1.0f));
+  uniforms.set("uGround", centre.x, centre.y, centre.z,
+               sky.backdrop.groundRadius);
   uniforms.set("uEnvMatrix",
                glm::mat4(view.orientation *
                          glm::transpose(glm::mat3(

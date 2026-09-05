@@ -241,6 +241,93 @@ TEST(Shading, TheBackdropPutsTheZENITHAtTheTOP) {
   EXPECT_EQ(plate.getColor4f(60, 8).fR, 0.0f);
 }
 
+namespace {
+
+/** Two hemispheres, two colours, a hard horizon: red above, blue
+ *  below. */
+sk_sp<SkImage> horizonPanorama() {
+  const int w = 64, h = 32;
+  std::vector<float> px((size_t)w * h * 4);
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      float* t = &px[((size_t)y * w + x) * 4];
+      t[0] = y < h / 2 ? 0.9f : 0.1f;
+      t[1] = 0.1f;
+      t[2] = y < h / 2 ? 0.1f : 0.9f;
+      t[3] = 1.0f;
+    }
+  const SkImageInfo info =
+      SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
+  return SkImages::RasterFromPixmapCopy(
+      {info, px.data(), (size_t)w * 4 * sizeof(float)});
+}
+
+/** The row the horizon lands on down the middle of a backdrop drawn for
+ *  an eye at @p height looking level along -z, or -1 where no row turns
+ *  from red to blue. */
+int horizonRow(const sigil::geometry::mesh::render::Environment& sky,
+               float height) {
+  sigil::geometry::mesh::camera::Camera camera;
+  camera.eye = {0, height, 0};
+  camera.target = {0, height, -100};
+  const int side = 120;
+  const SkSize viewport = SkSize::Make((float)side, (float)side);
+  SkBitmap plate;
+  plate.allocPixels(SkImageInfo::MakeN32Premul(side, side));
+  SkCanvas canvas(plate);
+  canvas.clear(SK_ColorBLACK);
+  sigil::geometry::mesh::render::drawBackdrop(
+      canvas, sky, camera.projection(1.0f), camera.view(), viewport);
+  for (int y = 0; y < side; ++y) {
+    const SkColor4f c = plate.getColor4f(side / 2, y);
+    if (c.fB > c.fR) return y;
+  }
+  return -1;
+}
+
+}  // namespace
+
+TEST(Shading, AGroundProjectedBackdropMovesTheHorizonWithTheEye) {
+  using namespace sigil::geometry::mesh::render;
+  // At infinity a sky is the same picture from everywhere, which is the
+  // one thing ground projection exists to change: an eye that rises
+  // above the sphere's centre sees more ground and the horizon drops.
+  Environment sky;
+  sky.levels = {horizonPanorama()};
+  sky.irradiance = sky.levels.front();
+  sky.backdrop = 1.0f;
+
+  const int atInfinityLow = horizonRow(sky, 0.0f);
+  const int atInfinityHigh = horizonRow(sky, 20.0f);
+  ASSERT_GE(atInfinityLow, 0);
+  EXPECT_EQ(atInfinityLow, atInfinityHigh)
+      << "a sky at infinity does not move with the eye";
+
+  sky.groundRadius = 100.0f;
+  const int projectedCentre = horizonRow(sky, 0.0f);
+  const int projectedHigh = horizonRow(sky, 20.0f);
+  EXPECT_EQ(projectedCentre, atInfinityLow)
+      << "an eye at the centre reads the sphere by direction";
+  EXPECT_GT(projectedHigh, projectedCentre + 4)
+      << "an eye above the centre looks down on the horizon";
+
+  // The remap itself, at its two ends: by direction at the centre and
+  // wherever there is no sphere, and through the exit point otherwise
+  // — a fifth of the radius up, a level ray leaves the sphere a fifth
+  // of the way up it.
+  const glm::vec3 level{0, 0, -1};
+  EXPECT_EQ(backdropRay(sky, {0, 0, 0}, level), level);
+  Environment flat = sky;
+  flat.groundRadius = 0;
+  EXPECT_EQ(backdropRay(flat, {0, 20, 0}, level), level);
+  const glm::vec3 exit = backdropRay(sky, {0, 20, 0}, level);
+  EXPECT_NEAR(exit.y, 0.2f, 1e-4f);
+  EXPECT_NEAR(exit.z, -std::sqrt(1.0f - 0.2f * 0.2f), 1e-4f);
+  EXPECT_NEAR(glm::length(exit), 1.0f, 1e-4f);
+  // …and an eye outside the sphere has no inside to project onto.
+  EXPECT_EQ(backdropRay(sky, {0, 140, 0}, level), level);
+}
+
 TEST(Shading, APanoramaReadAfterAnotherWasReleasedReadsItsOwnTexels) {
   using namespace sigil::geometry::mesh::render;
   // The kept read outlives the image it came from, so an entry keyed on

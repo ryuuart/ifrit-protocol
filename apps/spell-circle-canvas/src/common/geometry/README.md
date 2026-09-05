@@ -486,13 +486,17 @@ own repertoire here rather than inside whatever draws through it.
 - **`mesh/render/Shading.h`** — the arithmetic a lit draw is composed of,
   for a tier with no shading language: `Environment` (the prefiltered
   chain a reflection reads, the cosine convolution a diffuse term reads,
-  the orientation, the dials and the backdrop), `equirectUv` and the two
-  polynomials under it, `specularColor`, `fresnelRough`,
-  `environmentBrdf` and `environmentSpecular`, `attenuate`,
-  `refraction`, and `luminance`/`toneMap`, the display transform every
-  lit sum ends at. Beside them `samplePanorama`, `environmentRadiance`,
-  `environmentIrradiance` and `drawBackdrop`, which paints the sky
-  itself. These are the SAME closed forms a device shader is composed of,
+  the orientation, the dials, the backdrop and the ground sphere it is
+  projected onto), `equirectUv` and the two polynomials under it,
+  `specularColor`, `fresnelRough`, `environmentBrdf` and
+  `environmentSpecular`, `attenuate`, `refraction`, and
+  `luminance`/`toneMap`, the display transform every lit sum ends at.
+  Beside them `samplePanorama`, `environmentRadiance`,
+  `environmentIrradiance`, `backdropRay` — the direction a sky pixel
+  reads, which is the eye's ray at infinity and the exit of that ray
+  from the ground sphere where `groundRadius` is past zero — and
+  `drawBackdrop`, which paints the sky itself for the eye the view
+  matrix places. These are the SAME closed forms a device shader is composed of,
   transcribed: two spellings of one arithmetic is what a host tier costs,
   and each is pinned by its own test while the two tiers' pictures are
   compared within a stated per-channel ceiling. Shading here is per

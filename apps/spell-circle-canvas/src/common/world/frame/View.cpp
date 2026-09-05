@@ -90,6 +90,8 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   out.roughnessBias = environment.roughnessBias;
   out.backdrop = environment.backdrop.intensity;
   out.backdropBlur = environment.backdrop.blur;
+  out.groundRadius = environment.backdrop.groundRadius;
+  out.projectionCenter = environment.backdrop.projectionCenter;
   return out;
 }
 

@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/geometric.hpp>
 #include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
@@ -72,9 +73,44 @@ struct Environment {
    *  the same roughness units a reflection reads. */
   float backdrop = 0;
   float backdropBlur = 0;
+  /** GROUND PROJECTION: past zero, the sky SHOWN is a sphere of this
+   *  radius centred at `projectionCenter` rather than a panorama at
+   *  infinity, so an eye moving through the set sees the horizon shift
+   *  the way it would outdoors. Zero leaves the sky at infinity, which
+   *  is what a panorama means on its own. It reaches the backdrop and
+   *  nothing else: what a surface mirrors stays at infinity. */
+  float groundRadius = 0;
+  /** Where that sphere is centred, in world units. */
+  glm::vec3 projectionCenter{0, 0, 0};
 
   bool valid() const { return !levels.empty() || irradiance != nullptr; }
 };
+
+/** THE DIRECTION A BACKDROP PIXEL READS, for an eye at @p eye (world
+ *  space) looking along @p ray (world space, any length): with no
+ *  ground projection the ray itself; with one, the direction from the
+ *  sphere's centre to where the ray leaves it. An eye on or outside the
+ *  sphere sees no inside to project onto and reads by direction again,
+ *  and an eye at the centre reads by direction whatever the radius,
+ *  which is what makes the two agree where they meet. */
+inline glm::vec3 backdropRay(const Environment& environment, glm::vec3 eye,
+                             glm::vec3 ray) {
+  const float radius = environment.groundRadius;
+  if (radius <= 0) return ray;
+  const float len = std::sqrt(glm::dot(ray, ray));
+  if (len <= 0) return ray;
+  const glm::vec3 d = ray / len;
+  const glm::vec3 o = eye - environment.projectionCenter;
+  const float b = glm::dot(o, d);
+  const float c = glm::dot(o, o) - radius * radius;
+  if (c >= 0) return ray;
+  // Inside the sphere the quadratic has one positive root — the exit —
+  // and its discriminant is positive wherever c is negative.
+  const float t = std::sqrt(b * b - c) - b;
+  // The exit point stands on the sphere, so its distance from the centre
+  // is the radius: dividing by it is the normalisation.
+  return (o + d * t) / radius;
+}
 
 /** Arctangent of y/x over all four quadrants, as arithmetic. */
 inline float atan2P(float y, float x) {
@@ -209,9 +245,12 @@ glm::vec3 environmentIrradiance(const Environment& environment,
 
 /** THE SKY ITSELF, painted over the whole of @p canvas before anything
  *  stands in front of it: every pixel reads the panorama along the ray
- *  the eye looks through it. @p projection is the camera's own, without
- *  the view in it, and @p viewMatrix is what carries a direction back
- *  out of the space the shading is written in.
+ *  the eye looks through it — remapped through `backdropRay` where the
+ *  environment projects onto a ground sphere. @p projection is the
+ *  camera's own, without the view in it, and @p viewMatrix is what
+ *  carries a direction back out of the space the shading is written in;
+ *  the eye's own world position is read off its inverse, so there is no
+ *  second statement of where the camera stands to disagree with it.
  *
  *  It is a fill and not a body because a body would need a mesh, a
  *  placement and a depth, and a sky has none of the three: it is what is

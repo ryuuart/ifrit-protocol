@@ -10,7 +10,7 @@
 
 #include <boost/unordered/unordered_node_map.hpp>
 #include <cstdint>
-#include <glm/gtc/matrix_inverse.hpp>
+#include <glm/matrix.hpp>
 #include <mutex>
 
 namespace sigil::geometry::mesh::render {
@@ -173,28 +173,44 @@ void drawBackdrop(SkCanvas& canvas, const Environment& environment,
   sky.specular = 1;
   sky.roughnessBias = 0;
   const glm::mat4 rayMatrix = glm::inverse(projection);
-  const glm::mat3 worldFromView =
-      glm::transpose(glm::mat3(glm::inverseTranspose(glm::mat3(viewMatrix))));
+  const glm::mat4 cameraToWorld = glm::inverse(viewMatrix);
+  const glm::mat3 worldFromView = glm::mat3(cameraToWorld);
+  // Where the eye stands in the world, which is the one thing a sky
+  // projected onto a ground sphere depends on and a sky at infinity
+  // does not.
+  const glm::vec3 eye = glm::vec3(cameraToWorld[3]);
   const float blur = std::clamp(environment.backdropBlur, 0.0f, 1.0f);
 
   SkBitmap picture;
   if (!picture.tryAllocPixels(SkImageInfo::MakeN32Premul(w, h))) return;
   for (int y = 0; y < h; ++y) {
     uint32_t* row = picture.getAddr32(0, y);
-    // The camera's projection is authored for a CANVAS, whose second
-    // axis runs down the picture, so a pixel's row maps straight onto
-    // the clip coordinate rather than being turned over on the way.
-    const float ndcY = 2.0f * ((float)y + 0.5f) / (float)h - 1.0f;
+    // The projection's clip space has +y UP, and a picture's rows run
+    // down it, so the top row is the clip coordinate's +1: the same
+    // turn the vertex path makes taking a body from clip space to the
+    // canvas, and what keeps the zenith over the bodies rather than
+    // under them.
+    const float ndcY = 1.0f - 2.0f * ((float)y + 0.5f) / (float)h;
     for (int x = 0; x < w; ++x) {
       const float ndcX = 2.0f * ((float)x + 0.5f) / (float)w - 1.0f;
-      const glm::vec4 onRay = rayMatrix * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
-      glm::vec3 view = glm::vec3(onRay / onRay.w);
-      // A view-space point in FRONT of the eye has a negative z. The
-      // homogeneous divide above can land on a negative w and answer
-      // the ray behind the eye instead, which puts the ground where the
-      // zenith is and nothing about a smooth sky would show it.
+      // THE RAY IS THE LINE BETWEEN TWO UNPROJECTED POINTS on it, at the
+      // two ends of clip depth, rather than the direction from the
+      // origin to one of them: the projection's centre need not be the
+      // origin — Skia's perspective keeps a one in its last row, which
+      // puts the eye a unit behind it — and a single point a few units
+      // in front then answers a direction wider than the one every body
+      // was drawn with. Two points on the line are exact whatever the
+      // matrix.
+      const glm::vec4 nearClip = rayMatrix * glm::vec4(ndcX, ndcY, 1.0f, 1.0f);
+      const glm::vec4 farClip = rayMatrix * glm::vec4(ndcX, ndcY, -1.0f, 1.0f);
+      glm::vec3 view =
+          glm::vec3(farClip / farClip.w) - glm::vec3(nearClip / nearClip.w);
+      // A view-space direction in FRONT of the eye has a negative z; a
+      // matrix whose depth runs the other way answers the line's other
+      // sense, which puts the ground where the zenith is and nothing
+      // about a smooth sky would show it.
       if (view.z > 0) view = -view;
-      const glm::vec3 ray = worldFromView * view;
+      const glm::vec3 ray = backdropRay(sky, eye, worldFromView * view);
       // THE SKY ENDS AT THE SAME CURVE A SURFACE DOES, at the same
       // exposure: a panorama holds values far above one, and a backdrop
       // cut off at one would be a flat white disc where a body standing
@@ -205,7 +221,10 @@ void drawBackdrop(SkCanvas& canvas, const Environment& environment,
       const SkColor4f colour{std::clamp(radiance.x, 0.0f, 1.0f),
                              std::clamp(radiance.y, 0.0f, 1.0f),
                              std::clamp(radiance.z, 0.0f, 1.0f), 1.0f};
-      row[x] = colour.toSkColor();
+      // The buffer is N32, whose byte order is the platform's and not
+      // SkColor's ARGB: a premultiplied colour is packed in N32's own
+      // order, and an opaque one loses nothing to the premultiply.
+      row[x] = SkPreMultiplyColor(colour.toSkColor());
     }
   }
   picture.setImmutable();

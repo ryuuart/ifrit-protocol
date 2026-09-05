@@ -993,15 +993,20 @@ and a rim term that nothing scales. So:
   host image at all, so a renderer on another device draws the body
   undressed rather than something it invented.
 
+- **the sky SHOWN behind the set is `Backdrop`**, drawn on both tiers as
+  one triangle over the target with each pixel reading the panorama
+  along the ray the eye looks through it, at the backdrop's strength and
+  blur. Past a `groundRadius` of zero the panorama is projected onto a
+  sphere of that radius centred at `projectionCenter`: the pixel reads
+  where its ray leaves the sphere, along the direction from the centre
+  to that point, so an eye moving through the set sees the horizon shift
+  the way it would outdoors. An eye at the centre, or on or outside the
+  sphere, reads by direction — the sky at infinity, which is what a
+  radius of zero means. The projection reaches the backdrop alone: what a
+  surface mirrors stays at infinity.
+
 ## What the environment map does not reach
 
-- **The sky stands at infinity.** `Backdrop`'s strength and blur are
-  drawn — one triangle over the target, each pixel reading the panorama
-  along the ray the eye looks through it, on both tiers — but its
-  ground-projection radius and centre are declared and not read: they
-  would treat the panorama as a sphere standing on the ground, so that a
-  body moving through the set saw the horizon shift the way it would
-  outdoors.
 - **Glass refracts the world and not what is behind it.** A refracted
   ray reads the panorama and never the colour target, which is right for
   a body with sky behind it and wrong for one with another body behind

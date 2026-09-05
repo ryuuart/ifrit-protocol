@@ -117,6 +117,11 @@ uniform float4 uEnvTint;
  *  a number. y: how blurred it is shown, in the same roughness units a
  *  reflection reads, so racking a sky out of focus costs nothing. */
 uniform float4 uBackdrop;
+/** GROUND PROJECTION, for the same pass. xyz: where the sphere the sky
+ *  is projected onto is centred, in the space the shading is written in
+ *  — where the eye is the origin; w: its radius, and zero is a sky at
+ *  infinity. */
+uniform float4 uGround;
 /** The projection's inverse, which turns a point on the near plane into
  *  the direction the eye is looking through it. */
 uniform float4x4 uInvProj;
@@ -442,6 +447,19 @@ float4 fsBackdrop(BackdropOut input) : SV_Target {
   // A view-space point in front of the eye has a negative z; a
   // homogeneous divide by a negative w would answer the ray behind it.
   if (ray.z > 0.0) ray = -ray;
+  // A SKY PROJECTED ONTO A GROUND SPHERE is read where the ray leaves
+  // the sphere, along the direction from its centre to that point, so
+  // an eye moving through the set sees the horizon shift. The eye is
+  // this space's origin, so it stands at minus the centre relative to
+  // it; inside the sphere the quadratic has one positive root, the
+  // exit. An eye on or outside the sphere, or a radius of zero, reads
+  // by direction: the sky at infinity.
+  if (uGround.w > 0.0) {
+    let o = -uGround.xyz;
+    let b = dotP(o, ray);
+    let c = dotP(o, o) - uGround.w * uGround.w;
+    if (c < 0.0) ray = normalizeP(o + ray * (sqrtP(b * b - c) - b));
+  }
   let sky = environmentAt(ray, uBackdrop.y) * uBackdrop.x;
   // The specular dial belongs to what a surface mirrors and not to what
   // the sky IS, so it is divided back out here.
