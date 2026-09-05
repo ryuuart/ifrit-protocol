@@ -1044,9 +1044,12 @@ src/sketch/
 ```
 
 Each feature is its own archive with its own tests and benchmarks, and
-links only what is beneath it. Every public header lives under
-`include/sigilsketch/`, and the directories under it nest the way the
-targets do.
+links only what is beneath it. Directories, targets and headers are the
+same outline: a feature at `canvas/` is target `SigilSketchCanvas` with
+its headers under `include/sigilsketch/canvas/`, and `SigilSketch` is
+the umbrella over the seven a sketch may draw through — the browser's
+own `SigilSketchBook` and the optional `SigilSketchScry` stand outside
+it, since neither is anything a sketch declares.
 
 ## Boundaries
 
