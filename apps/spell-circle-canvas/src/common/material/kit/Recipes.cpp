@@ -10,6 +10,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
@@ -36,7 +37,7 @@ Texture stand(SkColor color) {
 std::vector<Material> everyRecipe() {
   const SkPath shape = SkPath::Circle(20, 20, 16);
   const Texture normals = bevelNormals(shape, 5);
-  const EnvironmentMap env = EnvironmentMap::studio(64);
+  const EnvironmentMap env = kit::studioEnvironment(64);
   const SkRect bounds = SkRect::MakeWH(64, 24);
   // A time other than zero, because a body whose motion is folded away at
   // t = 0 is not the body that runs.

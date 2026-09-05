@@ -21,11 +21,11 @@ sigil_slang_module(NAME Shading SOURCE ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slan
   PROOF_VAR SIGIL_MATERIAL_SHADING_PROOF)
 
 sigil_library(SigilMaterialKit
-  SOURCES LayerStyles.cpp Mask.cpp Grained.cpp Patterns.cpp Recipes.cpp
-          Surface.cpp Surfaces.cpp Terms.cpp TextPaint.cpp
+  SOURCES Environments.cpp Grained.cpp LayerStyles.cpp Mask.cpp Patterns.cpp
+          Recipes.cpp Surface.cpp Surfaces.cpp Terms.cpp TextPaint.cpp
           ${SIGIL_MATERIAL_SHADING_PROOF}
-  HEADERS Bank.h Grained.h LayerStyles.h Mask.h Patterns.h Recipes.h
-          Surface.h Surfaces.h Terms.h TextPaint.h
+  HEADERS Bank.h Environments.h Grained.h LayerStyles.h Mask.h Patterns.h
+          Recipes.h Surface.h Surfaces.h Terms.h TextPaint.h
   PUBLIC SigilMaterialPattern SigilMaterialColor Boost::container)
 sigil_shader_sources(SigilMaterialKit
   DIR ${SIGIL_MATERIAL_SHADER_DIR} NAMESPACE sigil::material::kit)

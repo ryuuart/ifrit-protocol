@@ -140,12 +140,12 @@ is the one-call draw: clip to the path, paint the shader across it.
 A surface from the kit reads the same way, its slots filled with textures:
 
 ```cpp
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
-#include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 
-const EnvironmentMap studio = EnvironmentMap::studio();
+const EnvironmentMap studio = kit::studioEnvironment();
 kit::ChromeParams steel;
 steel.brushed = 0.6f;
 steel.roughness = 0.2f;
@@ -316,8 +316,10 @@ slot — is the renderer's rule, not this library's.
 panorama a surface sees when it looks past the lights — equirectangular,
 u = azimuth, v = 0 at the zenith, with `equirectUv` and
 `equirectDirection` as the one convention every consumer shares. Sources
-resolve into that single form while the value is built: `studio()` and
-`sunset()` bake one with no assets, `fromEquirect()` wraps a loaded
+resolve into that single form while the value is built: `baked()` runs a
+radiance function over the panorama (the kit's `studioEnvironment()` and
+`sunsetEnvironment()` are two written against it, and need no assets),
+`fromEquirect()` wraps a loaded
 lat-long panorama, `fromFaces()` resamples six cube faces and
 `fromCubeMap()` unpacks one sheet — a 4:3 or 3:4 cross, a 6:1 row or a
 1:6 column — into the same. A cube map arrives as an ordinary image

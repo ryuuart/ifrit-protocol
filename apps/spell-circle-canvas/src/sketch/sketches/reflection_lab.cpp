@@ -44,6 +44,7 @@
 
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/set/Set.h>
@@ -130,9 +131,9 @@ struct ReflectionLab final : sketch::Set {
     // The lower half of a bake is a floor, and a sphere reflects it
     // straight down where nothing interesting is; a flat ground colour
     // there keeps the reflections about the sky.
-    studio = material::EnvironmentMap::studio(512).withGround(
+    studio = material::kit::studioEnvironment(512).withGround(
         {0.06f, 0.065f, 0.08f, 1});
-    sunset = material::EnvironmentMap::sunset(512).withGround(
+    sunset = material::kit::sunsetEnvironment(512).withGround(
         {0.05f, 0.03f, 0.05f, 1});
   }
 

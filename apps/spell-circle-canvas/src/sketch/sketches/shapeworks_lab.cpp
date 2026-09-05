@@ -49,6 +49,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Ops.h>
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
@@ -297,7 +298,7 @@ struct ShapeworksLab : sketch::Sketch {
     ctx.captureAt(2.6);
 
     material::skia::install();
-    studio = material::EnvironmentMap::studio();
+    studio = material::kit::studioEnvironment();
 
     // The recipe, cooked once. A path operator chain is a DESCRIPTION —
     // the outline it produces is a constant of this file, and so is the

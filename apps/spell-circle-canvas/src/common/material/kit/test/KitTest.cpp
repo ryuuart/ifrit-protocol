@@ -15,6 +15,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Bank.h>
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/kit/Mask.h>
@@ -239,7 +240,7 @@ TEST(Terms, TheToneCurveNeverReachesWhite) {
 
 TEST(Surfaces, RecipesCompileAndShade) {
   skia::install();
-  const EnvironmentMap env = EnvironmentMap::studio(128);
+  const EnvironmentMap env = kit::studioEnvironment(128);
   ASSERT_TRUE(env.valid());
   const SkPath shape = SkPath::Circle(40, 40, 30);
   const Texture normals = bevelNormals(shape, SkIRect::MakeWH(80, 80), 6);
@@ -257,7 +258,7 @@ TEST(Surfaces, RecipesCompileAndShade) {
 }
 
 TEST(Surfaces, BuildersFillTheDeclaredSlots) {
-  const EnvironmentMap env = EnvironmentMap::studio(64);
+  const EnvironmentMap env = kit::studioEnvironment(64);
   const Texture normals = bevelNormals(SkPath::Circle(30, 30, 20), 5);
   kit::ChromeParams params;
   params.roughness = 0.5f;
@@ -281,7 +282,7 @@ TEST(Surfaces, FillShadesInsideTheShapeOnly) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 120));
   surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-  const EnvironmentMap env = EnvironmentMap::studio(128);
+  const EnvironmentMap env = kit::studioEnvironment(128);
   const SkPath shape = SkPath::Circle(60, 60, 40);
   skia::fill(*surface->getCanvas(), shape,
              kit::chrome(bevelNormals(shape, 8), env));

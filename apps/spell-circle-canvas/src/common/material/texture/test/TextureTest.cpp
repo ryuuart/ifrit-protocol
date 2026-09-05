@@ -22,6 +22,7 @@
 #include <sigilimage/decode/Decode.h>
 
 #include <algorithm>
+#include <cmath>
 #include <boost/container/map.hpp>
 #include <filesystem>
 #include <string>
@@ -35,6 +36,23 @@ using namespace sigil::material;
 using sigil::material::test::solid;
 
 namespace {
+
+/** A sky with structure on both axes: a hot band at the horizon and a
+ *  dark ground under it, so a blur has something to smear and a ground
+ *  replacement has something to cover. The kit's named bakes are a
+ *  layer above this feature; a test of the panorama itself writes its
+ *  own radiance. */
+EnvironmentMap bandedSky(int width) {
+  return EnvironmentMap::baked(width, [](float u, float v) -> SkV3 {
+    constexpr float kHorizon = 0.52f;
+    if (v >= kHorizon) return {0.04f, 0.02f, 0.05f};
+    const float t = v / kHorizon;
+    const float band = 0.5f + 0.5f * std::sin(t * 40.0f);
+    const float sun = std::exp(-((u - 0.5f) * (u - 0.5f)) / 0.002f);
+    return {0.05f + t * band + 2.0f * sun, 0.10f + 0.4f * t,
+            0.30f - 0.2f * t};
+  });
+}
 
 /** A panorama of one colour, in F32 so a value above 1 survives. */
 sk_sp<SkImage> constantPanorama(int w, int h, SkColor4f color) {
@@ -305,7 +323,7 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
 }
 
 TEST(EnvironmentMap, RoughnessBlursAndEachBucketIsBuiltOnce) {
-  const EnvironmentMap env = EnvironmentMap::sunset(128);
+  const EnvironmentMap env = bandedSky(128);
   ASSERT_TRUE(env.valid());
   sk_sp<SkImage> sharp = env.image(0);
   sk_sp<SkImage> rough = env.image(0.6f);
@@ -528,7 +546,7 @@ TEST(EnvironmentMap, FloatSurvivesTheBucketsAndTheChain) {
 }
 
 TEST(EnvironmentMap, GroundColourReplacesTheLowerHemisphere) {
-  const EnvironmentMap sky = EnvironmentMap::sunset(128);
+  const EnvironmentMap sky = bandedSky(128);
   const EnvironmentMap floored = sky.withGround({0.05f, 0.05f, 0.05f, 1});
   ASSERT_TRUE(floored.valid());
   EXPECT_EQ(floored.size(), sky.size());

@@ -27,6 +27,7 @@
 #include <sigilmaterial/texture/Texture.h>
 
 #include <array>
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -53,12 +54,13 @@ class EnvironmentMap {
 
   EnvironmentMap() = default;
 
-  /** Neutral photo-studio bake: graded sky, floor bounce, three
-   *  softboxes — the default for steel and gold. */
-  static EnvironmentMap studio(int width = 512);
-  /** A chrome horizon: banded sky over dark ground with a hot sun
-   *  stripe. */
-  static EnvironmentMap sunset(int width = 512);
+  /** Bake a panorama from @p radiance, called once per texel with the
+   *  equirect coordinates that texel stands for and answering linear
+   *  RGB. The width is the panorama's; the height is half of it. This is
+   *  the seam a procedural sky is written against — the named bakes live
+   *  in the kit. */
+  static EnvironmentMap baked(
+      int width, const std::function<SkV3(float u, float v)>& radiance);
   /** Wrap a loaded equirect panorama (LDR, or F16/F32 with HDR range
    *  intact). This is the primary form a photographed sky arrives in. */
   static EnvironmentMap fromEquirect(sk_sp<SkImage> image);

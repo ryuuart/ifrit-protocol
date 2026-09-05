@@ -8,6 +8,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
@@ -23,7 +24,7 @@ using namespace sigil::material;
 namespace {
 
 const EnvironmentMap& studio() {
-  static const EnvironmentMap env = EnvironmentMap::studio(256);
+  static const EnvironmentMap env = kit::studioEnvironment(256);
   return env;
 }
 

@@ -33,6 +33,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -126,8 +127,8 @@ struct EnvLanes final : sketch::Sketch {
     // every bake has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    const material::EnvironmentMap studio = material::EnvironmentMap::studio();
-    const material::EnvironmentMap sunset = material::EnvironmentMap::sunset();
+    const material::EnvironmentMap studio = material::kit::studioEnvironment();
+    const material::EnvironmentMap sunset = material::kit::sunsetEnvironment();
 
     /** One frame: the subject under an environment node carrying the
      *  cell's own dials, and nothing else different. */

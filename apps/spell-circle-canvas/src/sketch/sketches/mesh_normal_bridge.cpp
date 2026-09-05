@@ -54,6 +54,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -187,8 +188,8 @@ struct MeshNormalBridge final : sketch::Sketch {
     ctx.background({0.051f, 0.051f, 0.075f, 1});
     ctx.captureAt(1.0);
     material::skia::install();
-    studio = material::EnvironmentMap::studio();
-    sunset = material::EnvironmentMap::sunset();
+    studio = material::kit::studioEnvironment();
+    sunset = material::kit::sunsetEnvironment();
     blob = mesh::superellipsoid({170, 150, 90}, 2.6f, 64, 48);
     ring = mesh::torus(130, 46);
     const auto caption = [&](const char* call, const char* note, float x) {

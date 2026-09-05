@@ -102,9 +102,20 @@ void authorEmitters(const std::filesystem::path& file) {
  *  compared against it without building the panorama again. */
 constexpr float kSkyIntensity = 1.5f;
 
-world::Environment sunsetSky() {
+/** A sky whose brightest texel is well above one, which is the case the
+ *  writer normalises: it divides the panorama by its peak and multiplies
+ *  that peak into the light's strength. */
+material::EnvironmentMap overbrightSky() {
+  return material::EnvironmentMap::baked(64, [](float u, float v) -> SkV3 {
+    const float sun = std::exp(-((u - 0.5f) * (u - 0.5f)) / 0.002f) *
+                      std::exp(-((v - 0.45f) * (v - 0.45f)) / 0.004f);
+    return {0.05f + 2.6f * sun, 0.10f + 1.6f * sun, 0.30f + 0.7f * sun};
+  });
+}
+
+world::Environment writtenSky() {
   world::Environment sky;
-  sky.map = material::EnvironmentMap::sunset(64);
+  sky.map = overbrightSky();
   sky.intensity = kSkyIntensity;
   sky.tint = {0.9f, 0.95f, 1.0f};
   sky.diffuse = 0.7f;
@@ -125,7 +136,7 @@ glm::mat3 quarterTurn() {
 
 void authorSky(const std::filesystem::path& file) {
   usd::Writer writer(file);
-  ASSERT_EQ(writer.environmentMap("sky", sunsetSky(), quarterTurn()),
+  ASSERT_EQ(writer.environmentMap("sky", writtenSky(), quarterTurn()),
             "/World/sky");
   std::string error;
   ASSERT_TRUE(writer.save(&error)) << error;
@@ -433,7 +444,7 @@ TEST(UsdRead, ADomeLightsPanoramaIsAFileBesideTheStageAndItsDialsComeBack) {
   EXPECT_TRUE(std::filesystem::exists(file.parent_path() / back.texture));
   EXPECT_FALSE(back.environment.valid());
 
-  // A sunset has values above one, so the writer divided the panorama by
+  // The sky has values above one, so the writer divided the panorama by
   // its peak and multiplied that peak into the light's strength: what
   // comes back is brighter than what went out by exactly that factor,
   // and the radiance the set is lit at is the same either way.

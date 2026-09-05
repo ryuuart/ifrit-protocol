@@ -33,6 +33,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -183,7 +184,7 @@ struct EnvFaces final : sketch::Sketch {
     material::skia::install();  // the SkSL compiler, once per process
 
     const material::EnvironmentMap studio =
-        material::EnvironmentMap::studio(384);
+        material::kit::studioEnvironment(384);
     const material::EnvironmentMap resampled =
         material::EnvironmentMap::fromFaces(faces());
     const material::EnvironmentMap unpacked =
@@ -210,7 +211,7 @@ struct EnvFaces final : sketch::Sketch {
             {.cells =
                  {kit::cells(
                       {.cells =
-                           {panorama("EnvironmentMap::studio(384)",
+                           {panorama("kit::studioEnvironment(384)",
                                      "baked with no assets \xc2\xb7 a "
                                      "graded sky, a floor bounce and "
                                      "three softboxes",
