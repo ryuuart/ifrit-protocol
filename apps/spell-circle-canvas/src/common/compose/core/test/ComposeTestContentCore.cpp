@@ -381,6 +381,47 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
   }
 }
 
+TEST(ComposeCaching, AMemoShellsCacheIsCarriedOntoItsProduce) {
+  // memo(...).cache(Cache::Picture) is written on the SHELL, and the
+  // reconciler retains the PRODUCE as the node's description — so the
+  // explicit cache reaches the painter only if the shell's say is carried
+  // across. The produce here is a childless box, which records nothing
+  // under Cache::Auto (one draw beats a nested recording) and exactly one
+  // picture under Cache::Picture; the parent is Cache::None so no
+  // recording above it can stand in for the memo's own.
+  struct Props {
+    int tick = 0;
+    bool operator==(const Props&) const = default;
+  };
+  Host host;
+  const auto describe = [](int tick) {
+    return box().cache(Cache::None).child(
+        memo(Props{tick},
+             [](const Props& p) {
+               return box().width(40).height(40).fill(p.tick % 2 ? red()
+                                                                  : green());
+             })
+            .key("cell")
+            .cache(Cache::Picture));
+  };
+  host.composer.render(describe(0));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorGREEN);
+  // Props change → the memo re-describes → its shell's cache still holds,
+  // and the fresh produce is recorded once more.
+  host.composer.render(describe(1));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 1u);
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);
+  // Equal props → a memo hit reuses the retained produce, and its
+  // recording replays untouched.
+  host.composer.render(describe(1));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  EXPECT_EQ(host.pixel(10, 10), SK_ColorRED);
+}
+
 // ---------------------------------------------------------------------------
 // Layout and leaf surface: wrap, per-edge spacing, per-corner radii,
 // Dim literals, atlas regions, the Paragraph overload, contentScale.

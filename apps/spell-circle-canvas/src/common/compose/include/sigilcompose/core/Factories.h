@@ -156,7 +156,20 @@ Element makeMemo(std::any props,
  *  function of (props, environment) and would otherwise serve the theme
  *  it first described under forever. The captured stack is re-established
  *  around the deferred call, so `env::inherited<T>()` inside `fn` reads
- *  what was bound where the memo was WRITTEN, not where it runs. */
+ *  what was bound where the memo was WRITTEN, not where it runs.
+ *
+ *  THE SHELL. The element this returns is a shell; the element `fn`
+ *  produces is the node's whole look. Three calls on the shell speak for
+ *  the node: `.key()` names it (the reconciler matches memos by the
+ *  shell's key), and `.cache()` and `.bakeScale()` say how the produced
+ *  subtree is held — both are carried onto the produce, and an explicit
+ *  choice on the shell wins over one made inside `fn`. Every other
+ *  property set on the shell (a fill, a transform, a layout dimension, a
+ *  child, a decoration) describes nothing, is warned about once and
+ *  ignored: set it on the element produced inside `fn`. A `.cache()`
+ *  changed while the props and the environment compare equal does not
+ *  take, because a hit reuses the retained produce untouched — change a
+ *  prop to re-describe. */
 template <ComponentProps P, ComponentFn<P> F>
 Element memo(P props, F fn) {
   return detail::makeMemo(

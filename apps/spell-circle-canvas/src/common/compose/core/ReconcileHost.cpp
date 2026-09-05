@@ -10,8 +10,12 @@
  * is done here; these are the ReconcileHost operations it drives.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf — the ignored-shell warning
+
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <numeric>
+#include <string>
 
 #include "ComposeRuntime.h"
 
@@ -59,6 +63,74 @@ void staleWorldSpaceBelow(Instance& inst) {
     if (child->hasWorldSpaceMaterial) child->markPaintDirtyUp();
     staleWorldSpaceBelow(*child);
   }
+}
+
+/** A property set on a memo's SHELL — the element memo() returned, after
+ *  `.key()`, `.cache()` and `.bakeScale()` — that describes nothing: the
+ *  produced element is the node's whole look, and the reconciler retains
+ *  the produce as the description. Said once per property, because a
+ *  description is rebuilt every frame and a call that silently takes no
+ *  effect must not be silent. Each group is judged by the structural
+ *  compare itself, over a node carrying only that group, so a lane the
+ *  compare rules on is a lane this warning sees. */
+void warnIgnoredMemoShellProps(const ElementNode& shell) {
+  const ElementNode blank;
+  const auto only = [&](auto&& copy) {
+    ElementNode probe;
+    copy(probe);
+    return !propsEqual(probe, blank);
+  };
+  struct Probe {
+    const char* what;
+    bool set;
+  };
+  const Probe probes[] = {
+      {"a layout property",
+       only([&](ElementNode& n) { n.layout = shell.layout; })},
+      {"a fill, opacity, blend, transform or zIndex",
+       only([&](ElementNode& n) {
+         n.paint = shell.paint;
+         n.materialData = shell.materialData;
+       })},
+      {"corners or a shape",
+       only([&](ElementNode& n) {
+         n.corners = shell.corners;
+         n.shapeFn = shell.shapeFn;
+       })},
+      {"a decoration", !shell.backgrounds.empty() || !shell.foregrounds.empty()},
+      {"a transition", shell.nodeTransition.has_value()},
+      {"a child", !shell.children.empty()},
+      {"a mask, overlay, effect or stagger", (bool)shell.fxData},
+      {"a stroke pass", (bool)shell.strokeData},
+      {"travel()", (bool)shell.motionData},
+      {"a depth lane", (bool)shell.depthData},
+      {"clipContent", shell.clipContent},
+      {"hitTestable(false)", !shell.hitTestable},
+      {"a boundary", shell.boundary != Boundary::Auto},
+  };
+  static boost::unordered_flat_set<std::string> warned;
+  for (const Probe& probe : probes) {
+    if (!probe.set || !warned.insert(probe.what).second) continue;
+    SkDebugf(
+        "[compose] memo(...) shell carries %s — ignored. A memo shell "
+        "takes .key(), .cache() and .bakeScale() only; its look is what "
+        "the deferred describe produces, so set this on the element "
+        "produced inside it. (warned once)\n",
+        probe.what);
+  }
+}
+
+/** What a memo's shell says about the node it stands for, carried onto
+ *  the produced description the reconciler retains: which node it is
+ *  (the key, which the reconciler matches on itself) and how its
+ *  recording is held. The painter reads cacheMode and bakeScale off the
+ *  description alone, so an explicit choice on the shell would otherwise
+ *  never reach it. The shell's Cache::Auto and unit bakeScale are its
+ *  silence, and the produce's own values stand. */
+void mergeMemoShell(ElementNode& produced, const ElementNode& shell) {
+  if (shell.cacheMode != Cache::Auto) produced.cacheMode = shell.cacheMode;
+  if (shell.bakeScale != 1.0f) produced.bakeScale = shell.bakeScale;
+  warnIgnoredMemoShellProps(shell);
 }
 
 }  // namespace
@@ -131,6 +203,12 @@ std::unique_ptr<Instance> Composer::Impl::create(const Description& node,
 void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
                                const ElementNode& next) {
   invalidate(inst);
+  // `next` IS `*inst.description`: on a memo that is the produce, and the
+  // shell's say over it is applied here, before anything reads the node.
+  // A memo hit returns before this runs and keeps the payload it merged
+  // on the patch that produced it, so a `.cache()` changed while props and
+  // environment compare equal does not take — the memo's own contract.
+  if (inst.memoShell) mergeMemoShell(*inst.description, *inst.memoShell);
 
   // Recompute the world-space flag once per patch. A pruned node keeps
   // its existing flag, which is correct: equal props mean equal
