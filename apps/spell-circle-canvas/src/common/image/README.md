@@ -260,6 +260,15 @@ subject is compared for equality on all four quadrants of the fixture, a
 lossy one at quadrant centres, away from the edge its chroma subsampling
 smears.
 
+The optional decode backends are a build-time fact, so a case that wants
+one is compiled whatever this build has and skips naming the backend it
+wanted rather than vanishing from the run: `image_decode_test` carries
+the `svg` and `oiio` labels for the SVG document cases and the DDS cube
+map. A case here asserts one thing a header promises and is named that
+promise as a sentence, and it pins only what editing this library could
+falsify — a routed format, a frame count, a channel value, a round trip —
+never an exact byte a codec chose.
+
 The benchmarks:
 `image_decode_bench` times `decodeImage` per megapixel over PNG and JPEG
 fixtures encoded in memory at several sizes, the committed 4x4 stills for

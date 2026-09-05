@@ -36,9 +36,13 @@ else()
     "SigilImageDecode: skia svg module not found — SVG decoding disabled")
 endif()
 
+# The optional-backend cases compile whatever this build has and skip
+# with the backend they wanted named, so the labels say what a run on a
+# box without them is missing.
 sigil_test(image_decode_test
   SOURCES test/DecodeTest.cpp
   LIBRARIES SigilImageDecode
+  LABELS svg oiio
   DEFINITIONS $<$<TARGET_EXISTS:unofficial::skia::modules::svg>:SIGILIMAGE_HAS_SVG>
               $<$<BOOL:${OpenImageIO_FOUND}>:SIGILIMAGE_HAS_OIIO>)
 

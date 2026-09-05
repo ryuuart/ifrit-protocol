@@ -35,6 +35,20 @@ std::vector<std::byte> readFile(const std::string& path) {
   return bytes;
 }
 
+// The optional backends are a build-time fact, so a claim about one is
+// carried here whether or not it is built in: without the backend the
+// case says which backend it wanted rather than vanishing from the run.
+#ifdef SIGILIMAGE_HAS_OIIO
+constexpr bool kOiioBackend = true;
+#else
+constexpr bool kOiioBackend = false;
+#endif
+#ifdef SIGILIMAGE_HAS_SVG
+constexpr bool kSvgBackend = true;
+#else
+constexpr bool kSvgBackend = false;
+#endif
+
 TEST(ImageDecode, RoutesRasterBytesThroughTheSkiaCodecs) {
   const auto bytes = readFile(assetPath("anim.gif"));
   ASSERT_FALSE(bytes.empty());
@@ -123,15 +137,10 @@ TEST(KtxDecode, ATruncatedFileIsRefused) {
   EXPECT_FALSE(sigil::image::probeImage(ktx2.data(), ktx2.size()).has_value());
 }
 
-#ifdef SIGILIMAGE_HAS_OIIO
-
 TEST(OiioDecode, ADdsCubeMapIsTheSixFacesAsAColumn) {
+  if (!kOiioBackend) GTEST_SKIP() << "built without the OpenImageIO backend";
   expectCubeColumn(sigil::image::test::cubeDds(kCubeFaces, 8), "cube.dds");
 }
-
-#endif  // SIGILIMAGE_HAS_OIIO
-
-#ifdef SIGILIMAGE_HAS_SVG
 
 // An 8x4 document, red left half, blue right half.
 constexpr char kTwoRectSvg[] =
@@ -145,6 +154,7 @@ const std::byte* svgBytes(const char* svg) {
 }
 
 TEST(SvgDecode, RendersAtExplicitSize) {
+  if (!kSvgBackend) GTEST_SKIP() << "built without the Skia SVG backend";
   auto asset = sigil::image::decodeImage(
       svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg),
       {.width = 64, .height = 32});
@@ -159,6 +169,7 @@ TEST(SvgDecode, RendersAtExplicitSize) {
 }
 
 TEST(SvgDecode, WidthOnlyDerivesHeightFromAspect) {
+  if (!kSvgBackend) GTEST_SKIP() << "built without the Skia SVG backend";
   auto asset = sigil::image::decodeImage(
       svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg),
       {.width = 100});
@@ -174,6 +185,7 @@ TEST(SvgDecode, WidthOnlyDerivesHeightFromAspect) {
 }
 
 TEST(SvgDecode, ProbeReportsFormatAndIntrinsicSize) {
+  if (!kSvgBackend) GTEST_SKIP() << "built without the Skia SVG backend";
   auto info = sigil::image::probeImage(
       svgBytes(kTwoRectSvg), std::char_traits<char>::length(kTwoRectSvg));
   ASSERT_TRUE(info.has_value());
@@ -184,7 +196,5 @@ TEST(SvgDecode, ProbeReportsFormatAndIntrinsicSize) {
   EXPECT_EQ(info->frames, 1);
   EXPECT_FALSE(info->floatingPoint);
 }
-
-#endif  // SIGILIMAGE_HAS_SVG
 
 }  // namespace

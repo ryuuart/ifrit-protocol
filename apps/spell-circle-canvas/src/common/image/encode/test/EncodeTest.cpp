@@ -14,6 +14,7 @@
 #include <cmath>
 #include <string>
 
+#include "Pixels.h"
 #include "sigilimage/decode/ChannelData.h"
 #include "sigilimage/decode/Decode.h"
 #include "sigilimage/encode/Encode.h"
@@ -101,12 +102,14 @@ TEST_P(EncodeRoundTrip, TheDecodedPictureIsThePictureThatWentIn) {
   }
   // Sampled at a quadrant centre rather than an edge: a lossy codec's
   // chroma subsampling smears the boundary between two flat fields,
-  // which is the loss the format is for, not a defect in the encode.
-  const SkColor red = back->getColor(3, 3);
-  EXPECT_GT(SkColorGetR(red), 200u);
-  EXPECT_LT(SkColorGetG(red), 60u);
-  const SkColor green = back->getColor(11, 3);
-  EXPECT_GT(SkColorGetG(green), 200u);
+  // which is the loss the format is for, not a defect in the encode. A
+  // quarter of the channel range is the whole budget such a codec is
+  // allowed here, so a hue that survived reads as itself.
+  constexpr int kLossyBudget = 64;
+  test::expectNearColor(back->getColor(3, 3), SK_ColorRED, kLossyBudget,
+                        "red quadrant");
+  test::expectNearColor(back->getColor(11, 3), SK_ColorGREEN, kLossyBudget,
+                        "green quadrant");
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -22,6 +22,8 @@ endif()
 
 # Links the decode side too, because the claim a round trip makes is
 # that what came back out is what went in.
+# The library-wide test directory is already on the include path, so the
+# round trip is judged by the same pixel comparison a decode is.
 sigil_test(image_encode_test
   SOURCES test/EncodeTest.cpp
   LIBRARIES SigilImageEncode SigilImageDecode
