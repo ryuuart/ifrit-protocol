@@ -461,6 +461,17 @@ class Runtime : public core::Erased<Executor> {
    *  the definition every other executor reproduces. Every call
    *  returns the same value, so two default cooks compare equal. */
   static Runtime cpu();
+
+  /** The same executor dividing its passes at a chosen grain: how many
+   *  points one worker takes at a time, with a range no larger than one
+   *  grain staying on the calling thread. The stock grain suits a pass
+   *  of a few operations per point, which is what the operators are; a
+   *  caller whose chain is far heavier per point, or one that wants a
+   *  small set of points divided at all, names its own. The cloud is the
+   *  same either way, bit for bit — the grain decides only where the
+   *  arithmetic runs — and two runtimes given different grains are
+   *  different values. */
+  static Runtime cpu(size_t itemGrain);
 };
 
 /** The artist's spelling — TouchDesigner ergonomics over the same

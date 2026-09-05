@@ -13,6 +13,7 @@
  */
 
 #include <sigilcore/compute/Noise.h>
+#include <sigilcore/schedule/Parallel.h>
 
 #include <algorithm>
 #include <cmath>
@@ -20,7 +21,6 @@
 #include <stdexcept>
 #include <string>
 
-#include "Parallel.h"
 #include "sigilgeometry/mesh/pop/Kernel.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
 
@@ -31,6 +31,14 @@ namespace sigil::geometry::mesh {
 using curve::Spline3;
 
 namespace {
+
+/** How many points one worker takes at a time when a pass is divided.
+ *  A pass over lanes is a handful of arithmetic operations per point, so
+ *  handing a chunk to a worker is only worth it for many thousands of
+ *  them; below that the whole range stays on the calling thread. A cook
+ *  divides its own passes at the grain its executor was given, and this
+ *  is what the built-in one carries. */
+constexpr size_t kLaneGrain = 4096;
 
 float wrap01(float t) { return t - std::floor(t); }
 
@@ -118,7 +126,7 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
     return it->second;
   };
   std::vector<glm::vec4>& P = lane("P", {0, 0, 0, 0});
-  parallel::items(n, [&](size_t first, size_t last) {
+  core::schedule::parallelFor(n, kLaneGrain, [&](size_t first, size_t last) {
     for (size_t i = first; i < last; ++i)
       P[i] = {cloud.positions[i].x, cloud.positions[i].y, cloud.positions[i].z,
               0};
@@ -132,7 +140,7 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
     if (values.size() != n) continue;
     const std::string target(attrFor(name));
     std::vector<glm::vec4>& out = lane(target, {0, 0, 0, 0});
-    parallel::items(n, [&](size_t first, size_t last) {
+    core::schedule::parallelFor(n, kLaneGrain, [&](size_t first, size_t last) {
       for (size_t i = first; i < last; ++i)
         out[i] = target == "Scale"
                      ? glm::vec4{values[i], values[i], values[i], values[i]}
@@ -147,7 +155,7 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
     const bool skip = name == "normal" && cloud.vectorIf("dir");
     const std::string target(skip ? std::string_view(name) : attrFor(name));
     std::vector<glm::vec4>& out = lane(target, {0, 0, 1, 0});
-    parallel::items(n, [&](size_t first, size_t last) {
+    core::schedule::parallelFor(n, kLaneGrain, [&](size_t first, size_t last) {
       for (size_t i = first; i < last; ++i)
         out[i] = {values[i].x, values[i].y, values[i].z, 0};
     });
@@ -230,52 +238,55 @@ size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
         points::onMesh(surface->mesh, (int)count, surface->seed);
     const std::vector<glm::vec3>* normals = seeds.vectorIf("normal");
     const size_t copied = std::min(count, seeds.size());
-    parallel::items(copied, [&](size_t first, size_t last) {
-      for (size_t i = first; i < last; ++i) {
-        const glm::vec3& p = seeds.positions[i];
-        laneP[i] = {p.x, p.y, p.z, 0};
-        laneT[i] = {((float)i + 0.5f) / (float)count, 0, 0, 0};
-        if (normals) {
-          const glm::vec3& n = (*normals)[i];
-          laneDir[i] = {n.x, n.y, n.z, 0};
-        }
-      }
-    });
+    core::schedule::parallelFor(
+        copied, kLaneGrain, [&](size_t first, size_t last) {
+          for (size_t i = first; i < last; ++i) {
+            const glm::vec3& p = seeds.positions[i];
+            laneP[i] = {p.x, p.y, p.z, 0};
+            laneT[i] = {((float)i + 0.5f) / (float)count, 0, 0, 0};
+            if (normals) {
+              const glm::vec3& n = (*normals)[i];
+              laneDir[i] = {n.x, n.y, n.z, 0};
+            }
+          }
+        });
   }
 
   if (scatter) {
     Spline3 spline;
     spline.points = scatter->loop;
     spline.closed = true;
-    parallel::items(count, [&](size_t first, size_t last) {
-      for (size_t i = first; i < last; ++i) {
-        const uint32_t seed = scatter->seed;
-        const float u0 = ((float)i + 0.5f) / (float)count;
-        const float t = scatter->head - scatter->span + scatter->span * u0 +
-                        (core::noise::pcgUnit((uint32_t)i * 3u + seed) - 0.5f) *
-                            (scatter->span / (float)count) * 4.0f;
-        const glm::vec3 p = spline.position(wrap01(t));
-        glm::vec3 tangent = spline.position(wrap01(t + 0.002f)) -
-                            spline.position(wrap01(t - 0.002f));
-        const float len = glm::length(tangent);
-        tangent = len > 1e-6f ? tangent * (1.0f / len) : glm::vec3{1, 0, 0};
-        glm::vec3 n0 = std::abs(tangent.y) < 0.9f
-                           ? glm::cross(tangent, {0, 1, 0})
-                           : glm::cross(tangent, {1, 0, 0});
-        n0 = n0 * (1.0f / glm::length(n0));
-        const glm::vec3 b0 = glm::cross(tangent, n0);
-        const float ang =
-            core::noise::pcgUnit((uint32_t)i * 7u + seed + 2u) * 6.2831853f;
-        const float rad =
-            std::sqrt(core::noise::pcgUnit((uint32_t)i * 5u + seed + 3u)) *
-            scatter->radius;
-        const glm::vec3 placed =
-            p + (n0 * std::cos(ang) + b0 * std::sin(ang)) * rad;
-        laneP[i] = {placed.x, placed.y, placed.z, 0};
-        laneT[i] = {u0, 0, 0, 0};
-        laneDir[i] = {tangent.x, tangent.y, tangent.z, 0};
-      }
-    });
+    core::schedule::parallelFor(
+        count, kLaneGrain, [&](size_t first, size_t last) {
+          for (size_t i = first; i < last; ++i) {
+            const uint32_t seed = scatter->seed;
+            const float u0 = ((float)i + 0.5f) / (float)count;
+            const float t =
+                scatter->head - scatter->span + scatter->span * u0 +
+                (core::noise::pcgUnit((uint32_t)i * 3u + seed) - 0.5f) *
+                    (scatter->span / (float)count) * 4.0f;
+            const glm::vec3 p = spline.position(wrap01(t));
+            glm::vec3 tangent = spline.position(wrap01(t + 0.002f)) -
+                                spline.position(wrap01(t - 0.002f));
+            const float len = glm::length(tangent);
+            tangent = len > 1e-6f ? tangent * (1.0f / len) : glm::vec3{1, 0, 0};
+            glm::vec3 n0 = std::abs(tangent.y) < 0.9f
+                               ? glm::cross(tangent, {0, 1, 0})
+                               : glm::cross(tangent, {1, 0, 0});
+            n0 = n0 * (1.0f / glm::length(n0));
+            const glm::vec3 b0 = glm::cross(tangent, n0);
+            const float ang =
+                core::noise::pcgUnit((uint32_t)i * 7u + seed + 2u) * 6.2831853f;
+            const float rad =
+                std::sqrt(core::noise::pcgUnit((uint32_t)i * 5u + seed + 3u)) *
+                scatter->radius;
+            const glm::vec3 placed =
+                p + (n0 * std::cos(ang) + b0 * std::sin(ang)) * rad;
+            laneP[i] = {placed.x, placed.y, placed.z, 0};
+            laneT[i] = {u0, 0, 0, 0};
+            laneDir[i] = {tangent.x, tangent.y, tangent.z, 0};
+          }
+        });
   }
   return count;
 }
@@ -299,17 +310,18 @@ Cloud pop::exportLanes(const pop::Lanes& lanes, size_t count) {
   std::vector<glm::vec3>& dir = out.vector(std::string(cloudLaneFor("Dir")));
   std::vector<float>& size = out.scalar(std::string(cloudLaneFor("Scale")), 1);
   std::vector<glm::vec4>& tint = out.color(std::string(cloudLaneFor("Color")));
-  parallel::items(count, [&](size_t first, size_t last) {
-    for (size_t i = first; i < last; ++i) {
-      const glm::vec4 p = (*P)[i];
-      out.positions[i] = {p.x, p.y, p.z};
-      t[i] = (*T)[i].x;
-      const glm::vec4 d = (*Dir)[i];
-      dir[i] = {d.x, d.y, d.z};
-      size[i] = (*Scale)[i].x;
-      tint[i] = (*Color)[i];
-    }
-  });
+  core::schedule::parallelFor(count, kLaneGrain,
+                              [&](size_t first, size_t last) {
+                                for (size_t i = first; i < last; ++i) {
+                                  const glm::vec4 p = (*P)[i];
+                                  out.positions[i] = {p.x, p.y, p.z};
+                                  t[i] = (*T)[i].x;
+                                  const glm::vec4 d = (*Dir)[i];
+                                  dir[i] = {d.x, d.y, d.z};
+                                  size[i] = (*Scale)[i].x;
+                                  tint[i] = (*Color)[i];
+                                }
+                              });
   for (const auto& [name, lane] : lanes) {
     if (name == "P" || name == "T" || name == "Dir" || name == "Scale" ||
         name == "Color")
@@ -322,8 +334,10 @@ Cloud pop::exportLanes(const pop::Lanes& lanes, size_t count) {
 
 namespace {
 
-/** The built-in executor's body. */
-Cloud cookOnCpu(const pop::Chain& chain) {
+/** The built-in executor's body. @p grain is how many points one worker
+ *  takes at a time; it changes nothing about the cloud, only how the
+ *  passes are divided. */
+Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
   Attrs attrs;
   attrs.count = pop::seedLanes(chain, &attrs.lanes);
   if (attrs.count == 0) return {};
@@ -364,21 +378,22 @@ Cloud cookOnCpu(const pop::Chain& chain) {
                 op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
             for (int pass = 0; pass < op.iterations; ++pass) {
               std::vector<glm::vec4> next(count);
-              parallel::items(count, [&](size_t first, size_t last) {
-                for (size_t i = first; i < last; ++i) {
-                  const size_t a = i == 0 ? 0 : i - 1;
-                  const size_t b = i + 1 < count ? i + 1 : i;
-                  const glm::vec4 mid = (values[a] + values[b]) * 0.5f;
-                  const glm::vec4 v = values[i];
-                  const glm::vec4 relaxed = v + (mid - v) * op.strength;
-                  float m = 1.0f;
-                  if (mask) {
-                    const float raw = (*mask)[i].x;
-                    m = raw < 0.0f ? 0.0f : (raw > 1.0f ? 1.0f : raw);
-                  }
-                  next[i] = m >= 1.0f ? relaxed : v + (relaxed - v) * m;
-                }
-              });
+              core::schedule::parallelFor(
+                  count, grain, [&](size_t first, size_t last) {
+                    for (size_t i = first; i < last; ++i) {
+                      const size_t a = i == 0 ? 0 : i - 1;
+                      const size_t b = i + 1 < count ? i + 1 : i;
+                      const glm::vec4 mid = (values[a] + values[b]) * 0.5f;
+                      const glm::vec4 v = values[i];
+                      const glm::vec4 relaxed = v + (mid - v) * op.strength;
+                      float m = 1.0f;
+                      if (mask) {
+                        const float raw = (*mask)[i].x;
+                        m = raw < 0.0f ? 0.0f : (raw > 1.0f ? 1.0f : raw);
+                      }
+                      next[i] = m >= 1.0f ? relaxed : v + (relaxed - v) * m;
+                    }
+                  });
               values.swap(next);
             }
           } else if constexpr (std::is_same_v<T, pop::Sort>) {
@@ -390,17 +405,18 @@ Cloud cookOnCpu(const pop::Chain& chain) {
             // permuted, so the map is not grown mid-walk.
             std::vector<float> keys(count);
             const std::vector<glm::vec4>& values = attrs.ensure(op.by.name);
-            parallel::items(count, [&](size_t first, size_t last) {
-              for (size_t i = first; i < last; ++i) {
-                const glm::vec4 v = values[i];
-                const float k = v.x * op.weights.x + v.y * op.weights.y +
-                                v.z * op.weights.z + v.w * op.weights.w;
-                // A NaN key would break the comparator's strict weak
-                // ordering outright (UB in stable_sort), so it sorts as
-                // zero rather than corrupting the whole permutation.
-                keys[i] = std::isfinite(k) ? k : 0.0f;
-              }
-            });
+            core::schedule::parallelFor(
+                count, grain, [&](size_t first, size_t last) {
+                  for (size_t i = first; i < last; ++i) {
+                    const glm::vec4 v = values[i];
+                    const float k = v.x * op.weights.x + v.y * op.weights.y +
+                                    v.z * op.weights.z + v.w * op.weights.w;
+                    // A NaN key would break the comparator's strict weak
+                    // ordering outright (UB in stable_sort), so it sorts as
+                    // zero rather than corrupting the whole permutation.
+                    keys[i] = std::isfinite(k) ? k : 0.0f;
+                  }
+                });
             std::vector<uint32_t> order(count);
             std::iota(order.begin(), order.end(), 0u);
             std::stable_sort(
@@ -409,9 +425,11 @@ Cloud cookOnCpu(const pop::Chain& chain) {
                 });
             std::vector<glm::vec4> next(count);
             for (auto& [name, lane] : attrs.lanes) {
-              parallel::items(count, [&](size_t first, size_t last) {
-                for (size_t i = first; i < last; ++i) next[i] = lane[order[i]];
-              });
+              core::schedule::parallelFor(
+                  count, grain, [&](size_t first, size_t last) {
+                    for (size_t i = first; i < last; ++i)
+                      next[i] = lane[order[i]];
+                  });
               lane = next;
             }
           } else if constexpr (std::is_same_v<T, pop::Delete>) {
@@ -430,9 +448,11 @@ Cloud cookOnCpu(const pop::Chain& chain) {
             }
             for (auto& [name, lane] : attrs.lanes) {
               std::vector<glm::vec4> next(kept.size());
-              parallel::items(kept.size(), [&](size_t first, size_t last) {
-                for (size_t i = first; i < last; ++i) next[i] = lane[kept[i]];
-              });
+              core::schedule::parallelFor(
+                  kept.size(), grain, [&](size_t first, size_t last) {
+                    for (size_t i = first; i < last; ++i)
+                      next[i] = lane[kept[i]];
+                  });
               lane = std::move(next);
             }
             count = kept.size();
@@ -449,59 +469,60 @@ Cloud cookOnCpu(const pop::Chain& chain) {
             std::vector<glm::vec4>& values = attrs.ensure(op.lane.name);
             const std::vector<glm::vec4>* mask =
                 op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
-            parallel::items(count, [&](size_t first, size_t last) {
-              for (size_t i = first; i < last; ++i) {
-                const glm::vec4 v = values[i];
-                const glm::vec3 p = glm::vec3{v.x, v.y, v.z} - op.origin;
-                const float h = glm::dot(p, axis);
-                const glm::vec3 perp = p - axis * h;
-                float u = span != 0.0f ? (h - op.low) / span
-                                       : (h >= op.low ? 1.0f : 0.0f);
-                u = u < 0.0f ? 0.0f : (u > 1.0f ? 1.0f : u);
-                glm::vec3 out;
-                if (op.kind == pop::Deform::Kind::Twist) {
-                  const float ang = rad * u;
-                  const float c = std::cos(ang), sn = std::sin(ang);
-                  // Rodrigues about the unit axis; perp is already
-                  // perpendicular so the parallel term is zero.
-                  out = axis * h + perp * c + glm::cross(axis, perp) * sn;
-                } else if (op.kind == pop::Deform::Kind::Taper) {
-                  out = axis * h + perp * (1.0f + (op.amount - 1.0f) * u);
-                } else {
-                  // Bend: the band becomes an arc of `rad` radians and
-                  // length `span`, curving toward dir. Below the band
-                  // nothing moves; on it, the axis coordinate walks the
-                  // arc; above it, the point rides the arc's end
-                  // tangent. The x offset toward dir bends with the
-                  // arc (points on the outside stretch, inside
-                  // compress); the offset along side is carried over.
-                  const float x = glm::dot(perp, dir);
-                  const float y = glm::dot(perp, side);
-                  if (rad == 0.0f || span == 0.0f) {
-                    out = p;
-                  } else {
-                    const float R = span / rad;
-                    const float hb =
-                        h < op.low ? op.low : (h > op.high ? op.high : h);
-                    const float theta = (hb - op.low) / R;
-                    const float c = std::cos(theta), sn = std::sin(theta);
-                    // Arc centre sits at +R along dir from (low). A
-                    // point at height hb and offset x lands at
-                    //   along axis: low + (R - x) * sin(theta)
-                    //   along dir:  R - (R - x) * cos(theta)
-                    const float extra = h - hb;  // rigid overhang
-                    const float hOut = op.low + (R - x) * sn + extra * c;
-                    const float xOut = R - (R - x) * c + extra * sn;
-                    out = axis * hOut + dir * xOut + side * y;
+            core::schedule::parallelFor(
+                count, grain, [&](size_t first, size_t last) {
+                  for (size_t i = first; i < last; ++i) {
+                    const glm::vec4 v = values[i];
+                    const glm::vec3 p = glm::vec3{v.x, v.y, v.z} - op.origin;
+                    const float h = glm::dot(p, axis);
+                    const glm::vec3 perp = p - axis * h;
+                    float u = span != 0.0f ? (h - op.low) / span
+                                           : (h >= op.low ? 1.0f : 0.0f);
+                    u = u < 0.0f ? 0.0f : (u > 1.0f ? 1.0f : u);
+                    glm::vec3 out;
+                    if (op.kind == pop::Deform::Kind::Twist) {
+                      const float ang = rad * u;
+                      const float c = std::cos(ang), sn = std::sin(ang);
+                      // Rodrigues about the unit axis; perp is already
+                      // perpendicular so the parallel term is zero.
+                      out = axis * h + perp * c + glm::cross(axis, perp) * sn;
+                    } else if (op.kind == pop::Deform::Kind::Taper) {
+                      out = axis * h + perp * (1.0f + (op.amount - 1.0f) * u);
+                    } else {
+                      // Bend: the band becomes an arc of `rad` radians and
+                      // length `span`, curving toward dir. Below the band
+                      // nothing moves; on it, the axis coordinate walks the
+                      // arc; above it, the point rides the arc's end
+                      // tangent. The x offset toward dir bends with the
+                      // arc (points on the outside stretch, inside
+                      // compress); the offset along side is carried over.
+                      const float x = glm::dot(perp, dir);
+                      const float y = glm::dot(perp, side);
+                      if (rad == 0.0f || span == 0.0f) {
+                        out = p;
+                      } else {
+                        const float R = span / rad;
+                        const float hb =
+                            h < op.low ? op.low : (h > op.high ? op.high : h);
+                        const float theta = (hb - op.low) / R;
+                        const float c = std::cos(theta), sn = std::sin(theta);
+                        // Arc centre sits at +R along dir from (low). A
+                        // point at height hb and offset x lands at
+                        //   along axis: low + (R - x) * sin(theta)
+                        //   along dir:  R - (R - x) * cos(theta)
+                        const float extra = h - hb;  // rigid overhang
+                        const float hOut = op.low + (R - x) * sn + extra * c;
+                        const float xOut = R - (R - x) * c + extra * sn;
+                        out = axis * hOut + dir * xOut + side * y;
+                      }
+                    }
+                    out += op.origin;
+                    const glm::vec4 result{out.x, out.y, out.z, v.w};
+                    float m = mask ? (*mask)[i].x : 1.0f;
+                    m = m < 0.0f ? 0.0f : (m > 1.0f ? 1.0f : m);
+                    values[i] = m >= 1.0f ? result : v + (result - v) * m;
                   }
-                }
-                out += op.origin;
-                const glm::vec4 result{out.x, out.y, out.z, v.w};
-                float m = mask ? (*mask)[i].x : 1.0f;
-                m = m < 0.0f ? 0.0f : (m > 1.0f ? 1.0f : m);
-                values[i] = m >= 1.0f ? result : v + (result - v) * m;
-              }
-            });
+                });
           } else if constexpr (std::is_same_v<T, pop::Noise>) {
             // A field of library sines. There is no kernel for it: a
             // polynomial sine is a different function from a library
@@ -510,21 +531,23 @@ Cloud cookOnCpu(const pop::Chain& chain) {
             std::vector<glm::vec4>& values = attrs.ensure(op.lane.name);
             const std::vector<glm::vec4>* mask =
                 op.mask.empty() ? nullptr : &attrs.ensure(op.mask);
-            parallel::items(count, [&](size_t first, size_t last) {
-              for (size_t i = first; i < last; ++i) {
-                const glm::vec4 old = values[i];
-                const glm::vec3 dd = pop::noiseField({old.x, old.y, old.z},
-                                                     op.frequency, op.seed) *
-                                     op.amplitude;
-                glm::vec4 v = old;
-                v.x += dd.x;
-                v.y += dd.y;
-                v.z += dd.z;
-                float m = mask ? (*mask)[i].x : 1.0f;
-                m = m < 0.0f ? 0.0f : (m > 1.0f ? 1.0f : m);
-                values[i] = m >= 1.0f ? v : old + (v - old) * m;
-              }
-            });
+            core::schedule::parallelFor(
+                count, grain, [&](size_t first, size_t last) {
+                  for (size_t i = first; i < last; ++i) {
+                    const glm::vec4 old = values[i];
+                    const glm::vec3 dd =
+                        pop::noiseField({old.x, old.y, old.z}, op.frequency,
+                                        op.seed) *
+                        op.amplitude;
+                    glm::vec4 v = old;
+                    v.x += dd.x;
+                    v.y += dd.y;
+                    v.z += dd.z;
+                    float m = mask ? (*mask)[i].x : 1.0f;
+                    m = m < 0.0f ? 0.0f : (m > 1.0f ? 1.0f : m);
+                    values[i] = m >= 1.0f ? v : old + (v - old) * m;
+                  }
+                });
           }
         },
         chain[opIndex]);
@@ -536,17 +559,24 @@ Cloud cookOnCpu(const pop::Chain& chain) {
 /** The built-in executor: every operator on the CPU, and the cloud
  *  every other executor is measured against. */
 struct CpuExecutor : pop::Executor {
-  // Stateless: every instance is the same value, which is what makes
-  // two default cooks compare equal. (A defaulted comparison cannot say
-  // so — the abstract base it derives from has none.)
-  bool operator==(const CpuExecutor&) const { return true; }
+  // The grain is the whole of its state, so two executors given the same
+  // one are the same value and two default cooks compare equal. (A
+  // defaulted comparison cannot say so — the abstract base it derives
+  // from has none.)
+  CpuExecutor() = default;
+  explicit CpuExecutor(size_t itemGrain) : grain(itemGrain) {}
+
+  size_t grain = kLaneGrain;
+  bool operator==(const CpuExecutor& other) const {
+    return grain == other.grain;
+  }
 
   std::string name() const override { return "cpu"; }
   // The reference runs the whole vocabulary; there is no operator for
   // it to decline, because it is what "supported" is defined against.
   bool supports(const pop::Op&) const override { return true; }
   Cloud cook(const pop::Chain& chain) const override {
-    return cookOnCpu(chain);
+    return cookOnCpu(chain, grain);
   }
 };
 
@@ -555,6 +585,10 @@ struct CpuExecutor : pop::Executor {
 pop::Runtime pop::Runtime::cpu() {
   static const pop::Runtime kCpu{CpuExecutor{}};
   return kCpu;
+}
+
+pop::Runtime pop::Runtime::cpu(size_t itemGrain) {
+  return pop::Runtime{CpuExecutor{itemGrain}};
 }
 
 Cloud pop::cook(const pop::Chain& chain, const pop::Runtime& runtime) {

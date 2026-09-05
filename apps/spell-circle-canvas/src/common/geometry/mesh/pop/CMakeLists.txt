@@ -47,12 +47,13 @@ sigil_slang_kernel_flags(${SIGIL_STAMP_KERNEL_CPP})
 # the sources alone. The device executors dispatch the kernels this
 # feature compiled, on the device SigilGeometryDevice created; Diligent
 # arrives through that target and is never named beside it, because that
-# target's archive must come first on the link line.
-find_package(TBB CONFIG REQUIRED)
+# target's archive must come first on the link line. The built-in
+# executor divides its passes through SigilCoreSchedule, which is where
+# every divided range in this repository is decided.
 sigil_library(SigilGeometryMeshPop
   SOURCES device/Cook.cpp device/Stamp.cpp device/Sweep.cpp
           Billboards.cpp Cloud.cpp Cook.cpp Fields.cpp Generators.cpp
-          Kernel.cpp Modifiers.cpp Parallel.h Sinks.cpp Spirv.cpp Stamp.cpp
+          Kernel.cpp Modifiers.cpp Sinks.cpp Spirv.cpp Stamp.cpp
           Sweep.cpp
           ${SIGIL_POP_KERNEL_CPP} ${SIGIL_POP_KERNEL_SPV_H}
           ${SIGIL_STAMP_KERNEL_CPP} ${SIGIL_STAMP_KERNEL_SPV_H}
@@ -61,7 +62,7 @@ sigil_library(SigilGeometryMeshPop
   HEADERS Kernel.h Points.h Pop.h Spirv.h Stamp.h Sweep.h
   PUBLIC SigilGeometryMeshCurve SigilGeometryDevice SigilCoreComparable
          Boost::container
-  PRIVATE SigilCoreCompute TBB::tbb)
+  PRIVATE SigilCoreCompute SigilCoreSchedule)
 # The generated headers are PUBLIC because a runtime that dispatches the
 # kernel on a device reads the words this build embedded rather than
 # compiling the source a second time.

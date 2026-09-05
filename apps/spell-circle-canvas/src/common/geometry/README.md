@@ -530,9 +530,11 @@ on, so the cloud vocabulary lives in this feature beside the chain
 language — and so does every piece of GPU-focused mesh work the library
 has: the swept operator with its own kernel, both device executors, and
 the decoration a compiled module needs before a driver may be handed it.
-The built-in CPU executor divides large item and output-group ranges through
-oneTBB; small ranges stay on the calling thread, and the device executors remain
-separate implementations of the same dispatch seams.
+The built-in CPU executor divides its passes and its kernel dispatches
+through SigilCore's schedule, and `Runtime::cpu(itemGrain)` is the same
+executor dividing at a grain the caller names — the cloud is the same
+either way, bit for bit. The device executors remain separate
+implementations of the same dispatch seams.
 
 - **`mesh/pop/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
   the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and
@@ -560,7 +562,8 @@ separate implementations of the same dispatch seams.
   `pop::Executor` is what a runtime supplies (`pop::Runtime` is an erased
   value of SigilCoreComparable's shape) and `pop::opName()` names an
   operator. The field table behind `pop::setField()`/`getField()` is
-  `Fields.cpp`; the built-in executor, the `Runtime::cpu()` value and the
+  `Fields.cpp`; the built-in executor, the `Runtime::cpu()` value with
+  its `Runtime::cpu(itemGrain)` spelling, and the
   `cook()` door that checks an executor's capability before dispatching
   are `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and
   `cookSweep()` are `Sinks.cpp`.
@@ -1197,7 +1200,9 @@ recompiles one small file. All are registered with ctest and answer to
 | `geometry_mesh_camera_test` | `mesh/camera/test/CameraTest.cpp` | the view-projection carried through to viewport pixels, and the two placement transforms |
 | `geometry_mesh_render_test` | `mesh/render/test/PainterTest.cpp`, `mesh/render/test/RuntimeTest.cpp` | the mesh draw's pixels, the normals G-buffer's encoding and the primitive tint; and the runtime seam — the built-in value, comparison by model, and a substituted executor receiving the draw |
 | `geometry_mesh_curve_test` | `mesh/curve/test/CurveTest.cpp` | splines, the two rails, the pose along them, and the projection to a 2D path |
-| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, `mesh/pop/test/SweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, and the message an unsupported operator produces; the swept operator held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner, and its ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices. Links the codec to seed chains from an imported model |
+| `geometry_mesh_pop_test` | `mesh/pop/test/PointsTest.cpp`, `mesh/pop/test/PopTest.cpp`, `mesh/pop/test/RuntimeTest.cpp`, `mesh/pop/test/SweepTest.cpp` | point clouds, instancing, the agreement between an instanced facing lane and `faceCamera()`, and pop chains with their operators; and the cook's runtime seam — the built-in value, comparison by model, a substituted executor receiving the cook, the message an unsupported operator produces, and the same chain cooked at
+two grains to prove the divided passes answer what the whole ones do, bit
+for bit; the swept operator held vertex for vertex against independent reference bodies for a tube, a ribbon and a banner, and its ring seam — what a rail and a profile become as a dispatch, the taper resolved on the host, comparison by model, and a substituted executor forming the vertices. Links the codec to seed chains from an imported model |
 | `geometry_mesh_pop_device_test` (label `gpu`, built where a device feature exists) | `mesh/pop/test/DeviceCookTest.cpp`, `mesh/pop/test/DeviceStampTest.cpp`, `mesh/pop/test/DeviceSweepTest.cpp` | the CONFORMANCE of the device executors: every chain, every stamping and every sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected — the barrier the second cook needs is not the one the first needed, and only the diagnostics say so. Every case skips with the reason when no Vulkan device comes up |
 | `geometry_mesh_codec_test` | `mesh/codec/test/DecodeTest.cpp`, `mesh/codec/test/EncodeTest.cpp` | every reader, and both writers' round trips; the only one linking Alembic |
 

@@ -10,6 +10,7 @@
  * could disagree about.
  */
 
+#include <sigilcore/schedule/Parallel.h>
 #include <sigilslang/Stamp.spv.h>
 
 #include <cstddef>
@@ -17,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "Parallel.h"
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Spirv.h"
 
@@ -69,6 +69,11 @@ struct Globals {
 
 }  // namespace
 
+/** How many kernel groups one worker takes at a time. A group is already
+ *  a run of lanes, so the run of groups only has to be long enough that
+ *  entering the generated kernel is the small part of it. */
+constexpr uint32_t kGroupsPerTask = 32;
+
 void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals,
          glm::vec4* colors) {
   const size_t count = dispatch.vertices();
@@ -93,10 +98,14 @@ void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals,
   globals.outColor = {colors, count};
 
   const uint32_t groupCount = (uint32_t)((count + kGroupSize - 1) / kGroupSize);
-  parallel::groups(groupCount, [&](uint32_t first, uint32_t last) {
-    VaryingInput varying{{first, 0, 0}, {last, 1, 1}};
-    sigilStampKernel(&varying, nullptr, &globals);
-  });
+  // A worker takes a run of groups rather than one, so it enters the
+  // generated kernel once per run; the kernel owns the group size and
+  // clips its last group against the lane count either way.
+  core::schedule::parallelFor(
+      groupCount, kGroupsPerTask, [&](uint32_t first, uint32_t last) {
+        VaryingInput varying{{first, 0, 0}, {last, 1, 1}};
+        sigilStampKernel(&varying, nullptr, &globals);
+      });
 }
 
 std::span<const uint32_t> spirv() {

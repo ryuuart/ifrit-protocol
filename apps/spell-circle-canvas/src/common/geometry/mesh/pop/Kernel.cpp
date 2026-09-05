@@ -11,6 +11,7 @@
 
 #include "sigilgeometry/mesh/pop/Kernel.h"
 
+#include <sigilcore/schedule/Parallel.h>
 #include <sigilslang/Pop.spv.h>
 
 #include <algorithm>
@@ -20,7 +21,6 @@
 #include <variant>
 #include <vector>
 
-#include "Parallel.h"
 #include "sigilgeometry/mesh/pop/Spirv.h"
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
@@ -67,6 +67,10 @@ struct Globals {
  *  dispatches them — the kernel drops the lanes past the count itself,
  *  so both ends run the same number of invocations. */
 constexpr uint32_t kGroupSize = 64;
+/** How many kernel groups one worker takes at a time. A group is already
+ *  a run of lanes, so the run of groups only has to be long enough that
+ *  entering the generated kernel is the small part of it. */
+constexpr uint32_t kGroupsPerTask = 32;
 
 /** A colour or a vector field as four floats. */
 glm::vec4 asVec4(const glm::vec3& v, float w) { return {v.x, v.y, v.z, w}; }
@@ -219,10 +223,14 @@ void run(const Dispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
                    dispatch.table.size()};
 
   const uint32_t groupCount = (uint32_t)((count + kGroupSize - 1) / kGroupSize);
-  parallel::groups(groupCount, [&](uint32_t first, uint32_t last) {
-    VaryingInput varying{{first, 0, 0}, {last, 1, 1}};
-    sigilPopKernel(&varying, nullptr, &globals);
-  });
+  // A worker takes a run of groups rather than one, so it enters the
+  // generated kernel once per run; the kernel owns the group size and
+  // clips its last group against the lane count either way.
+  core::schedule::parallelFor(
+      groupCount, kGroupsPerTask, [&](uint32_t first, uint32_t last) {
+        VaryingInput varying{{first, 0, 0}, {last, 1, 1}};
+        sigilPopKernel(&varying, nullptr, &globals);
+      });
 }
 
 std::span<const uint32_t> spirv() {
