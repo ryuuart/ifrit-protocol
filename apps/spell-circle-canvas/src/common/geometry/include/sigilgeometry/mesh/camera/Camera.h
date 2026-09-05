@@ -12,9 +12,11 @@
  */
 
 #include <include/core/SkM44.h>
+#include <include/core/SkPoint.h>
 #include <include/core/SkSize.h>
 
 #include <glm/glm.hpp>
+#include <optional>
 
 namespace sigil::geometry::mesh::camera {
 
@@ -43,6 +45,38 @@ struct Camera {
    *  agree, both counting y upward, so nothing turns them over. The
    *  aspect is @p extent's; a device's target is whole pixels. */
   glm::mat4 clipProjection(SkISize extent) const;
+
+  /** HOW BIG THE FRUSTUM IS at @p distance in front of the eye, for a
+   *  viewport of @p aspect (width over height): the width and height a
+   *  plane standing square to the view there has to be to fill the
+   *  frame exactly.
+   *
+   *  It is what a head-up overlay is measured with — a quad this size,
+   *  at this distance, put in front of the eye by `faceCamera()`, maps
+   *  one texture pixel onto one plate pixel, so an overlay drawn in 2D
+   *  arrives in 3D unresampled. It is the frustum THIS camera's
+   *  projection opens, which is a shade wider than the field of view
+   *  alone would make it, and the difference is what a texture pixel
+   *  landing between two plate pixels is made of.
+   *
+   *  `distance` is measured along the view direction, not to a corner;
+   *  the near and far planes do not enter it, so it answers for a
+   *  distance outside them too. Nothing sensible stands at or behind the
+   *  eye, and the extent there is empty. */
+  [[nodiscard]] SkSize extentAt(float distance, float aspect) const;
+
+  /** @p point through the view, the projection and the viewport, to the
+   *  pixel it lands on — exactly what a vertex does on its way to the
+   *  canvas, so a mark placed here sits on the geometry the painter
+   *  drew rather than near it.
+   *
+   *  Nothing comes back for a point that is not in front of the eye: at
+   *  or behind the eye plane the perspective divide has no answer, and a
+   *  caller that took one anyway would get a point mirrored through the
+   *  centre of the frame. Depth is dropped — this is where a thing is on
+   *  the canvas, not how far away it is. */
+  [[nodiscard]] std::optional<SkPoint> project(glm::vec3 point,
+                                               SkSize viewport) const;
 };
 
 /** A VIEWPOINT AS A POINTER STATES IT: yaw and pitch in degrees about

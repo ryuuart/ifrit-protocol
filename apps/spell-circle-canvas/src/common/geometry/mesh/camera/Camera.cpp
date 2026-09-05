@@ -61,6 +61,34 @@ glm::mat4 Camera::clipProjection(SkISize extent) const {
   return depth * projection(aspect) * view();
 }
 
+SkSize Camera::extentAt(float distance, float aspect) const {
+  // Asked of the projection rather than of the field of view, because
+  // the frustum is what the projection opens and the two do not quite
+  // agree: this one's centre of projection stands a unit behind the eye,
+  // so the frame at a distance is a shade wider than the angle alone
+  // would make it. Solving the matrix for the point that lands on the
+  // frame edge keeps the answer exact whatever the projection is.
+  const glm::mat4 clip = projection(aspect);
+  const float w = (clip * glm::vec4{0, 0, -distance, 1}).w;
+  if (!(w > 0)) return {0, 0};
+  const float height = clip[1][1] != 0 ? 2.0f * w / clip[1][1] : 0.0f;
+  const float width = clip[0][0] != 0 ? 2.0f * w / clip[0][0] : 0.0f;
+  return {width, height};
+}
+
+std::optional<SkPoint> Camera::project(glm::vec3 point,
+                                       SkSize viewport) const {
+  // In front of the eye is negative z in a right-handed view. The
+  // perspective divide answers for a little way behind the eye plane as
+  // well, and the answer is the point mirrored through the middle of the
+  // frame, so the eye plane is the boundary rather than whatever w
+  // happens to reach zero at.
+  if (!((view() * glm::vec4{point, 1.0f}).z < 0.0f)) return std::nullopt;
+  const glm::vec4 clip = viewProjection(viewport) * glm::vec4{point, 1.0f};
+  if (!(clip.w > 0)) return std::nullopt;
+  return SkPoint{clip.x / clip.w, clip.y / clip.w};
+}
+
 Orbit orbitOf(const Camera& camera) {
   const glm::vec3 out = camera.eye - camera.target;
   const float distance = glm::length(out);

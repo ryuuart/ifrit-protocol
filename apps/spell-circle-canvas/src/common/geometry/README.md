@@ -562,6 +562,18 @@ own repertoire here rather than inside whatever draws through it.
   Every executor that hands a camera to a shader takes it from here, so
   the arithmetic that turns a viewpoint into clip space is written once.
 
+  `project(point, viewport)` carries one point the whole of that way —
+  view, projection, viewport — so a mark placed by it sits ON the
+  geometry the painter drew rather than near it, and answers nothing for
+  a point at or behind the eye plane, where the canvas has no place for
+  it. `extentAt(distance, aspect)` is the other direction: how wide and
+  how tall the frustum is that far in front of the eye, which is the
+  measurement a head-up overlay is built from — a quad that size, at that
+  distance, oriented by `faceCamera()`, maps one texture pixel onto one
+  plate pixel. It asks the projection rather than the field of view,
+  because this projection's centre stands a unit behind the eye and its
+  frame is therefore a shade wider than the angle alone would make it.
+
   `Orbit` is a viewpoint as a POINTER states it — yaw and pitch in
   degrees about the target, and the distance from it — with `orbitOf()`
   reading one off a camera and `cameraAt()` putting a camera back on one.

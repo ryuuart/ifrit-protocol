@@ -166,3 +166,66 @@ TEST(Camera, ProjectsDepthTheDeviceWayRound) {
 }
 
 }  // namespace
+
+// A quad this wide and this tall, standing square to the view at that
+// distance, fills the frame exactly — which is the whole of how a head-up
+// overlay maps a texture pixel onto a plate pixel. It is the frustum the
+// projection opens, not the one the angle alone describes.
+TEST(Camera, TheFrustumExtentIsWhatFillsTheFrameAtThatDistance) {
+  camera::Camera cam;
+  cam.eye = {0, 0, 0};
+  cam.target = {0, 0, -1};
+  cam.fovYDeg = 90.0f;  // half-angle 45 degrees: the height is twice the run
+  const SkSize at100 = cam.extentAt(100.0f, 2.0f);
+  EXPECT_NEAR(at100.height(), 202.0f, 1e-2f);
+  EXPECT_NEAR(at100.width(), 404.0f, 1e-2f);  // the aspect is the width's
+
+  // The claim it makes is the one worth checking: a point half that
+  // height above the axis lands exactly on the top edge of the viewport,
+  // and half that width across lands exactly on the right edge.
+  const SkSize viewport{800, 400};
+  const std::optional<SkPoint> top =
+      cam.project({0, at100.height() * 0.5f, -100.0f}, viewport);
+  ASSERT_TRUE(top.has_value());
+  EXPECT_NEAR(top->fY, 0.0f, 1e-2f);
+  const std::optional<SkPoint> right =
+      cam.project({at100.width() * 0.5f, 0, -100.0f}, viewport);
+  ASSERT_TRUE(right.has_value());
+  EXPECT_NEAR(right->fX, 800.0f, 1e-2f);
+
+  // Twice as far is very nearly twice as wide, and the shortfall is the
+  // projection's, not the field of view's.
+  const SkSize at200 = cam.extentAt(200.0f, 2.0f);
+  EXPECT_NEAR(at200.height(), 402.0f, 1e-2f);
+}
+
+// Projection is the vertex's own path to the canvas, so a mark placed by
+// it sits on the geometry rather than near it — and a point that is not in
+// front of the eye has no place on the canvas at all.
+TEST(Camera, ProjectFollowsTheVertexAndDeclinesWhatIsBehindTheEye) {
+  camera::Camera cam;
+  cam.eye = {0, 0, 100};
+  cam.target = {0, 0, 0};
+  const SkSize viewport{800, 600};
+
+  const std::optional<SkPoint> center = cam.project({0, 0, 0}, viewport);
+  ASSERT_TRUE(center.has_value());
+  EXPECT_NEAR(center->fX, 400.0f, 1e-2f);
+  EXPECT_NEAR(center->fY, 300.0f, 1e-2f);
+
+  // The same answer the matrix gives, because it is the same matrix.
+  const glm::vec4 clip =
+      cam.viewProjection(viewport) * glm::vec4{40, 25, -60, 1};
+  const std::optional<SkPoint> p = cam.project({40, 25, -60}, viewport);
+  ASSERT_TRUE(p.has_value());
+  EXPECT_NEAR(p->fX, clip.x / clip.w, 1e-3f);
+  EXPECT_NEAR(p->fY, clip.y / clip.w, 1e-3f);
+  // y counts down the canvas: something above the target is nearer the top.
+  EXPECT_LT(p->fY, center->fY);
+
+  // The eye plane is the boundary: on it and behind it there is no answer,
+  // even where the divide would still hand one back.
+  EXPECT_FALSE(cam.project({0, 0, 100}, viewport).has_value());
+  EXPECT_FALSE(cam.project({0, 0, 100.5f}, viewport).has_value());
+  EXPECT_FALSE(cam.project({0, 0, 400}, viewport).has_value());
+}
