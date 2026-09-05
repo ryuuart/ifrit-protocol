@@ -709,8 +709,7 @@ struct PersonaMenu final : sketch::Sketch {
                    // 220px digits render as glyph PATHS (over the atlas
                    // cutoff); bake them once, the rotation rides outside
                    .cache(Cache::Texture))
-        // ---- the sticker scatter; stagger 33ms BOTTOM-UP: children are
-        //      declared bottom-first (zIndex owns paint order) ----
+        // ---- the sticker scatter; stagger 33ms BOTTOM-UP ----
         .child(box()
                    .key("menu")
                    .left(nn::kMenuX)
@@ -719,9 +718,13 @@ struct PersonaMenu final : sketch::Sketch {
                    .height(530)
                    .zIndex(2)
                    .staggerChildren(33ms)
-                   // declared BOTTOM-UP: the stagger runs in declaration
-                   // order and zIndex owns paint order, so the list
-                   // enters from SYSTEM upward the way the game does
+                   // Declared BOTTOM-UP, and the declaration order is what
+                   // the stickers OVERLAP in — a lower row's skewed plate
+                   // laps over the one above it. The stagger runs in that
+                   // same order, so the list enters from SYSTEM upward the
+                   // way the game does, and this file needs no
+                   // `Spread::From::End` to reverse the cascade against a
+                   // paint order it does not have.
                    .child(plainRow(8))    // SYSTEM (bottom -- enters first)
                    .child(plainRow(7))    // CALENDAR
                    .child(plainRow(6))    // SOCIAL LINK

@@ -115,8 +115,9 @@
 // THE HARD THING: every row here is a two-column table and the library has no
 // table. Five regimes on one screen. The kills folder is the dense case — it
 // measures the name, measures the count, and draws a hairline between them at
-// y + lineHeight/2. TabStopOptions carries `positions` and `interval` and NO
-// LEADER, so that is hand-built from two measure() calls per row.
+// y + lineHeight/2. `TabStop::leader` fills a stop's gap with a repeated
+// STRING, which is a run of dots; what stands here is a 1 px rule on the
+// row's own midline, so the gap is hand-built from two measure() calls.
 //
 // -----------------------------------------------------------------------------
 // SIX RULES THIS RECONSTRUCTION TURNS ON
@@ -1156,8 +1157,8 @@ struct Fallout2CharSheet : sketch::Sketch {
   //           to 314 - width(count) - gap       a 1 px hairline
   //         at  y + lineHeight/2                the row's vertical midline
   //
-  // Three nodes and two setup-time measure() calls per row, because
-  // TabStopOptions has no leader.
+  // Three nodes and two setup-time measure() calls per row: a tab stop's
+  // leader is a repeated string, and this gap holds a rule.
 
   Element folder() {
     using namespace fo;

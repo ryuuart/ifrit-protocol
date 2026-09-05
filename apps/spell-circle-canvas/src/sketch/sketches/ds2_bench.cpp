@@ -312,14 +312,14 @@ inline std::function<SkPath(SkSize)> vline() {
 // ---------------------------------------------------------------------------
 // the router the Bench actually draws with
 //
-// routers::orthogonal() is the WRONG shape here twice over: it always
-// breaks at midX (a Z, never an L at the target's column — a PCB never
-// routes that way), and on an axis-aligned pair it emits DUPLICATE
-// points, which makes every parallel-offset brush (lines::cased) spike at
-// both endpoints. Routers are values, so this one is written here: an L
-// with a 45 deg cut corner, a single clean segment for a pure run, and an
-// optional 45 deg Z-JOG for long horizontals — the stepped trace the
-// screenshot is full of.
+// routers::orthogonal(Bend, cornerRadius, chamferCut) answers two of the
+// three things this trace needs — a bend that is not always midX, and a
+// 45 deg cut corner — and its own header says the zero-argument spelling
+// is the frozen one whose degenerate verbs make a parallel-offset brush
+// (lines::cased) spike at both endpoints. What is genuinely not there is
+// the 45 deg Z-JOG for long horizontals, the stepped trace the screenshot
+// is full of, and a router is a value, so the whole one is written here
+// rather than composed from a half of it.
 
 inline Router pcb(float cut, float jog) {
   return [cut, jog](const SkRect& from, const SkRect& to) {

@@ -153,7 +153,6 @@
 //   Bracket/Gapped Borders   with an EXPLICIT angleDeg — the
 //                        disc's 28-fold division turns 12.86° per vertex
 //                        and the 30° default finds no corners at all
-//   TextPath::Orient::Radial   the disc's mansion names
 //   spans::upTo + gate()  one Output writes the whole plate
 //   feed::TextRing       three panels of checks, printed as they run
 //   slot()/renderSlot()  the audit panel re-renders without a full

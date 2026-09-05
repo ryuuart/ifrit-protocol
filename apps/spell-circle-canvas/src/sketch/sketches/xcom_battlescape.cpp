@@ -1099,14 +1099,15 @@ inline void paintButtonGlyph(SkCanvas& canvas, int id) {
 inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
                        const char* key) {
   const int outline = colorIdx + 4;
-  // A transparent full-canvas shell, so the four rects keep SCREEN coordinates.
-  // The KEY goes on the fill rect, never on the shell: a keyed full-bleed shell
-  // answers hitTest whether or not it has a fill, so four keyed shells stacked
-  // over the whole frame would make every probe return the topmost one. There
-  // is no way to opt an element out of hit testing.
+  // A transparent full-canvas shell, so the four rects keep SCREEN
+  // coordinates. The shell answers hitTest whether or not it has a fill, so
+  // four of them stacked over the whole frame would make every probe return
+  // the topmost one: `hitTestable(false)` excludes the shell's own box and
+  // leaves its children tested, which is exactly what a coordinate carrier
+  // wants. The KEY still goes on the fill rect rather than the shell.
   // The top outline row carries "<key>-max" so the audit can measure the
   // DRAWN outline length the same way it measures the drawn fill.
-  Element g = box().inset(0);
+  Element g = box().inset(0).hitTestable(false);
   g.child(at(x, y, (float)(maxValue + 1), 1)
               .fill(C(outline))
               .key(std::string(key) + "-max"));
@@ -1122,7 +1123,7 @@ inline Element statBar(float x, float y, int value, int maxValue, int colorIdx,
  *  GREEN block rather than its own yellow-green, at +7..+13. Copy that — it is
  *  what the screen looks like. */
 inline Element recess(float x, float y, int firstIdx) {
-  Element g = box().inset(0);
+  Element g = box().inset(0).hitTestable(false);
   for (int r = 0; r < 7; ++r)
     g.child(at(x, y + (float)r, 17, 1).fill(C(firstIdx + r)));
   return g;

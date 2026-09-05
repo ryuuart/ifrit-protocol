@@ -152,6 +152,14 @@
 //    shaped node can never prune costs this artefact exactly nothing.
 //    The only three corners() in the file are inside the clock icon,
 //    which is artwork, not chrome.
+//  · THE BEVEL IS NOT `styles::BevelPair`, deliberately. That one
+//    classifies an outline's edges by sampling it every `step` px and
+//    lays a light and a dark stroke along the two families, which is the
+//    right shape for a bevel on any silhouette. Motif's is not a stroke
+//    on an outline: `XmeDrawShadows` draws two MITRED L paths on the
+//    integer pixel lattice, and `XmSHADOW_ETCHED_IN` is a second pass at
+//    half thickness with the two colours swapped. `MotifShadow` below is
+//    that, and it is a comparable value like any other decoration.
 //  · `.background()` IS NOT WHERE A BEVEL GOES. It paints BENEATH the
 //    fill (the CSS box-shadow ordering), so a bevel put there is drawn
 //    and then covered by the surface it was meant to sit on, leaving a
