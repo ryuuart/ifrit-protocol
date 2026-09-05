@@ -28,7 +28,7 @@
  * waiting on the ENGINE'S OWN EVENTS — the load callback for the document
  * and the frame callback for the repaint a call caused — and never on a
  * stretch of clock. A machine that runs the engine slowly reaches those
- * events later and draws this same sheet. See shared/SettledPage.h.
+ * events later and draws this same sheet. See <sigilsketch/scry/SettledPage.h>.
  *
  * EDIT THESE FIRST
  *   kScrollBy  — how far down the page the third cell walks, px.
@@ -37,7 +37,7 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <shared/SettledPage.h>
+#include <sigilsketch/scry/SettledPage.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilscry/engine/WebEngine.h>
@@ -158,14 +158,14 @@ struct WebScript final : sketch::Sketch {
 
     // ---- the load callback, on a view that is only loaded ------------
     std::shared_ptr<scry::WebView> plain = open(*web);
-    const webpage::Events plainEvents(*plain);
+    const sketch::scry::Events plainEvents(*plain);
     plain->loadHTML(page());
     const bool painted = plainEvents.awaitLoad();
     const bool fired = plainEvents.loaded();
 
     // ---- the script, and what it evaluated to ------------------------
     std::shared_ptr<scry::WebView> scripted = open(*web);
-    const webpage::Events scriptedEvents(*scripted);
+    const sketch::scry::Events scriptedEvents(*scripted);
     scripted->loadHTML(page());
     bool settled = scriptedEvents.awaitLoad();
 
@@ -176,19 +176,19 @@ struct WebScript final : sketch::Sketch {
     });
     // The heading the script rewrites is the page's own statement that
     // the rewrite has landed AND been painted.
-    settled = webpage::awaitAnswer(*scripted, scriptedEvents,
+    settled = sketch::scry::awaitAnswer(*scripted, scriptedEvents,
                                    "document.getElementById('head')"
                                    ".textContent",
                                    "EVALUATED") &&
               settled;
     const std::string returned =
-        reply.wait_for(webpage::kUnresponsive) == std::future_status::ready
+        reply.wait_for(sketch::scry::kUnresponsive) == std::future_status::ready
             ? reply.get()
             : std::string();
 
     // ---- the wheel ---------------------------------------------------
     std::shared_ptr<scry::WebView> scrolled = open(*web);
-    const webpage::Events scrolledEvents(*scrolled);
+    const sketch::scry::Events scrolledEvents(*scrolled);
     scrolled->loadHTML(page());
     settled = scrolledEvents.awaitLoad() && settled;
     // A wheel's delta is what the CONTENT moves by, so moving DOWN the
@@ -198,14 +198,14 @@ struct WebScript final : sketch::Sketch {
     // the page part of the way down. The page's own scroll offset says
     // when the walk is over — read EXACTLY, because the last fraction of
     // a pixel of that walk is a row edge antialiased two ways.
-    settled = webpage::awaitAnswer(*scrolled, scrolledEvents,
+    settled = sketch::scry::awaitAnswer(*scrolled, scrolledEvents,
                                    "String(window.scrollY)",
                                    std::to_string(kScrollBy)) &&
               settled;
 
     // ---- the press ---------------------------------------------------
     std::shared_ptr<scry::WebView> pressed = open(*web);
-    const webpage::Events pressedEvents(*pressed);
+    const sketch::scry::Events pressedEvents(*pressed);
     pressed->loadHTML(page());
     settled = pressedEvents.awaitLoad() && settled;
     pressed->mouseMove(kClickAt.x(), kClickAt.y());
@@ -213,7 +213,7 @@ struct WebScript final : sketch::Sketch {
     pressed->mouseUp(kClickAt.x(), kClickAt.y());
     // The class the page's own handler adds is its statement that the
     // click arrived and the button has been repainted in it.
-    settled = webpage::awaitAnswer(*pressed, pressedEvents,
+    settled = sketch::scry::awaitAnswer(*pressed, pressedEvents,
                                    "document.getElementById('btn').className",
                                    "hit") &&
               settled;

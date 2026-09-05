@@ -1,30 +1,34 @@
 #pragma once
-// SettledPage.h — waiting for a web page by the engine's own events
-// rather than by a stretch of clock.
-//
-// A view paints on the engine's thread at the engine's cadence, so a
-// still of a page is a race unless something says when the page is
-// there. TWO ENGINE EVENTS SAY IT. The load callback fires when the main
-// frame has finished loading — the document and everything it pulled in
-// are present. The frame callback fires once per repaint handed over, so
-// counting those counts the engine's own ticks. A machine that runs the
-// engine slowly reaches both later and draws the same picture; a machine
-// that runs it fast reaches them sooner and draws the same picture.
-//
-// WHY THIS IS NOT A DEADLINE. There is one, and it decides nothing about
-// the drawing: it bounds a machine whose engine never loads at all, so a
-// sweep reports instead of hanging. Every machine that gets a page at
-// all settles on the events and never reaches it. A settle rule made of
-// elapsed time is the opposite — it makes how fast the machine ran part
-// of what is drawn.
-//
-// A CALL THAT LANDS OVER SEVERAL FRAMES needs a third thing, because one
-// repaint is not the end of it — the engine walks a wheel smoothly, so
-// the first frame after `scroll` shows the page part of the way there.
-// The document itself is asked instead: a script is dispatched to the
-// page BEFORE the engine's next advance, so an answer read after a
-// repaint describes exactly the state that repaint painted. When the
-// answer is the one asked for, the published frame is the picture of it.
+
+/** @file
+ * Waiting for a web page by the ENGINE'S OWN EVENTS rather than by a
+ * stretch of clock — what a deterministic still of a `scry::WebView`
+ * needs, and a host concern rather than anything about a look.
+ *
+ * A view paints on the engine's thread at the engine's cadence, so a
+ * still of a page is a race unless something says when the page is
+ * there. TWO ENGINE EVENTS SAY IT. The load callback fires when the main
+ * frame has finished loading — the document and everything it pulled in
+ * are present. The frame callback fires once per repaint handed over, so
+ * counting those counts the engine's own ticks. A machine that runs the
+ * engine slowly reaches both later and draws the same picture; a machine
+ * that runs it fast reaches them sooner and draws the same picture.
+ *
+ * WHY THIS IS NOT A DEADLINE. There is one, and it decides nothing about
+ * the drawing: it bounds a machine whose engine never loads at all, so a
+ * sweep reports instead of hanging. Every machine that gets a page at
+ * all settles on the events and never reaches it. A settle rule made of
+ * elapsed time is the opposite — it makes how fast the machine ran part
+ * of what is drawn.
+ *
+ * A CALL THAT LANDS OVER SEVERAL FRAMES needs a third thing, because one
+ * repaint is not the end of it — the engine walks a wheel smoothly, so
+ * the first frame after `scroll` shows the page part of the way there.
+ * The document itself is asked instead: a script is dispatched to the
+ * page BEFORE the engine's next advance, so an answer read after a
+ * repaint describes exactly the state that repaint painted. When the
+ * answer is the one asked for, the published frame is the picture of it.
+ */
 
 #include <sigilscry/engine/WebView.h>
 
@@ -38,7 +42,7 @@
 #include <string_view>
 #include <utility>
 
-namespace webpage {
+namespace sigil::sketch::scry {
 
 /** How long a page that never loads is given before it is called broken.
  *  Not part of the settle rule: nothing about the picture depends on it,
@@ -171,4 +175,4 @@ inline std::string answer(sigil::scry::WebView& view,
   return false;
 }
 
-}  // namespace webpage
+}  // namespace sigil::sketch::scry

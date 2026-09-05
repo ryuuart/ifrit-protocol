@@ -27,7 +27,7 @@
 // of clock: the load callback says the document and everything it pulled
 // in are here, and the frame callback says a repaint carrying that
 // document has been handed over. A machine that runs the engine slowly
-// reaches both later and draws this same picture. See shared/SettledPage.h.
+// reaches both later and draws this same picture. See <sigilsketch/scry/SettledPage.h>.
 //
 // EDIT THESE FIRST
 //   kPage                     — the document. It is the subject.
@@ -36,7 +36,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
-#include <shared/SettledPage.h>
+#include <sigilsketch/scry/SettledPage.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/web/Web.h>
 #include <sigilscry/engine/WebEngine.h>
@@ -205,7 +205,7 @@ struct WebPanelSketch final : sketch::Sketch {
       m_view = engine->createView(kPageWidth, kPageHeight);
       // The events are latched before the load, so nothing about the
       // document can happen between asking for it and listening.
-      const webpage::Events events(*m_view);
+      const sketch::scry::Events events(*m_view);
       m_view->loadHTML(pageFor(m_slotName));
       if (!events.awaitLoad()) {
         why = "the page never loaded and painted";
