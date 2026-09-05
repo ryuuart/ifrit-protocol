@@ -54,9 +54,10 @@ per-scene override. `--rebase` adopts; a sweep narrowed by `--kind`,
 `--sketch` or `--scenes` merges into the manifest rather than
 truncating it, and only an unnarrowed rebase rewrites it wholesale.
 `--stability N` re-renders a mover and attributes a self-disagreeing
-scene to the scene. Every successful cpu sweep also copies its plates
-into the per-kind directories Sketchbook shows its stills from; those
-are a display cache, never a verdict.
+scene to the scene. The ledger renders plates for the verdict and
+nothing else: Sketchbook owns the thumbnails it shows, rendering them on
+demand into its own cache and warming them with `Sketchbook
+--thumbnails`.
 
 `--tier device` renders the same sketches through the device and
 compares each against the CPU plate of the same run per colour channel

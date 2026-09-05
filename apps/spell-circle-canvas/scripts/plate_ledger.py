@@ -7,6 +7,11 @@ and compares against a stored baseline manifest. One binary renders
 both tiers; what separates them is which rasteriser a sketch draws
 through.
 
+Thumbnails are not this script's to write. Sketchbook owns the stills it
+shows — it renders them on demand into its own cache and warms them with
+`Sketchbook --thumbnails` — so the ledger renders plates for the verdict
+and nothing else.
+
 Usage (from apps/spell-circle-canvas):
   scripts/plate_ledger.py --rebase           # bake the baseline manifest
   scripts/plate_ledger.py                    # sweep + compare + verdict
@@ -75,13 +80,6 @@ measured per-frame cost, which load can tip either way, so it is the
 one renderer feature a byte-identity gate must hold off — with it off,
 hashes are load-immune.
 
-EVERY SUCCESSFUL CPU SWEEP REFRESHES SKETCHBOOK'S THUMBNAILS: the plates
-it rendered are copied into the directories Sketchbook shows its stills
-from, one per kind. The thumbnails are not the baseline — retaining the
-current pictures changes no verdict, which is still the manifest's byte
-identity — so a new or deliberately changed sketch has a thumbnail
-before it has been adopted.
-
 EVERY SCENE PRINTS ONE LINE AS IT FINISHES — its running count, how it
 stands against the baseline, its name and what it took — in COMPLETION
 order, so the scene the sweep is still waiting on is the one that has not
@@ -149,15 +147,6 @@ KINDS = ("canvas", "set")
 # The flags every render carries: the benchmark-free exact-stepped
 # capture, with cost-based texture promotion held off.
 RENDER_ARGS = ("--no-promotion", "--ledger")
-
-# WHERE SKETCHBOOK SHOWS ITS STILLS FROM, per kind. The directory names
-# are compiled into Sketchbook, and every configuration of it reads the
-# Release stores, so the ledger writes them for whichever configuration
-# it rendered under those names.
-THUMBNAIL_STORES = {
-    "canvas": "plate_thumbnails_quick_{config}",
-    "set": "plate_thumbnails_world_{config}",
-}
 
 # HOW FAR A SKETCH'S DEVICE PLATE MAY STAND FROM ITS CPU PLATE: (mean,
 # p99) per colour channel in 0..255. Set from what the two tiers actually
@@ -432,28 +421,6 @@ def channel_distance(reference, candidate):
     return total / count, p99 or 0, worst
 
 
-def store_thumbnails(root, config, rendered_dir, scenes, kinds, whole_registry):
-    """Copies the rendered plates into Sketchbook's per-kind stores.
-
-    A complete sweep re-makes a store so a scene that left the registry
-    cannot linger; a subset or partially failed sweep replaces only the
-    scenes it rendered."""
-    for kind in kinds:
-        store = os.path.join(
-            root, "build", THUMBNAIL_STORES[kind].format(config=config)
-        )
-        chosen = [scene for scene in scenes if scenes[scene] == kind]
-        if whole_registry and os.path.isdir(store):
-            shutil.rmtree(store)
-        os.makedirs(store, exist_ok=True)
-        for scene in chosen:
-            plate = f"{PLATE_PREFIX}{scene}.png"
-            shutil.copyfile(
-                os.path.join(rendered_dir, plate), os.path.join(store, plate)
-            )
-        print(f"thumbnails written: {store} ({len(chosen)} plates)")
-
-
 def discard_later(directory):
     """A sweep's plates, marked for removal when the process ends.
 
@@ -661,7 +628,6 @@ def main():
     results, errors = sweep(
         binary, list(scenes), outdir, args.timeout_seconds, args.jobs, (), standing
     )
-    rendered = {scene: scenes[scene] for scene in results}
 
     if args.rebase or not os.path.exists(manifest):
         if not args.rebase:
@@ -724,10 +690,6 @@ def main():
         if verdict == 0 and not errors:
             print("VERDICT: byte-neutral")
 
-    if rendered:
-        store_thumbnails(
-            root, args.config, outdir, rendered, kinds, not narrowed and not errors
-        )
     return verdict or (1 if errors else 0)
 
 
