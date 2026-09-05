@@ -39,14 +39,12 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 namespace crossing = sigil::geometry::path::crossing;
 
@@ -68,32 +66,9 @@ constexpr float kAmplitude = 5;
 constexpr float kWavelength = 34;
 constexpr float kChamfer = 14;
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
 constexpr SkColor4f kPlate{0.15f, 0.155f, 0.175f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kCool{0.46f, 0.70f, 0.86f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** The plaque every cell dresses: a chamfered box, so each corner is a
  *  real tangent break the corner scan can find — except in the last cell,
@@ -109,22 +84,20 @@ Element plaque(bool round = false) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(std::move(body).absolute().inset(
-                           (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2,
-                           (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(std::move(body).absolute().inset(
+              (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2,
+              (kCell - kPlaque) / 2, (kPicture - kPlaque) / 2)));
 }
 
 }  // namespace
 
 struct BorderWeave final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const Border bracket{.width = kWidth,
                          .fill = Fill::color(kFigure),
@@ -132,77 +105,64 @@ struct BorderWeave final : sketch::Sketch {
                          .mode = Border::Mode::Bracket,
                          .corner = kArm};
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE RULE AND THE STRANDS \xc2\xb7 Border's four "
-                           "modes, brush::weave over one outline"),
-             .subtitle = toU8("dials \xc2\xb7 the width (1.8 px) and inset "
-                              "(7 px) \xc2\xb7 the corner arm (18 px) "
-                              "\xc2\xb7 the strand count (3), amplitude and "
-                              "wavelength \xc2\xb7 the chamfer"),
-             .footer = toU8("a crossing is DISCOVERED and not declared, so "
-                            "the strands of a weave must be waves: n "
-                            "oscillations of equal amplitude at evenly "
-                            "spread phases must trade sides, and parallels "
-                            "are rails that never cross"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("border(1.8, ink, inset 7)",
-                           "Continuous \xc2\xb7 an ordinary rule 7 px inside "
-                           "the outline, following the chamfers because it "
-                           "follows the silhouette",
-                           plaque().foreground(decorations::border(
-                               kWidth, Fill::color(kFigure), kInset))),
-                      cell("Border::Mode::Bracket",
-                           "only within 18 px of each corner \xc2\xb7 the "
-                           "four L's, landing on the chamfers with no "
-                           "further instruction",
-                           plaque().foreground(bracket)),
-                      cell("Border::Mode::Gapped",
-                           "everything EXCEPT within 18 px \xc2\xb7 the open "
-                           "corner, which is the complement of the one "
-                           "above",
-                           plaque().foreground(
-                               Border{.width = kWidth,
-                                      .fill = Fill::color(kFigure),
-                                      .inset = kInset,
-                                      .mode = Border::Mode::Gapped,
-                                      .corner = kArm})),
-                      cell("doubleBorder(weighted, rule)",
-                           "two rules as ONE style value \xc2\xb7 the outer "
-                           "thickens near each turn, the inner is the same "
-                           "value at another inset",
-                           plaque().style(decorations::doubleBorder(
-                               decorations::weightedCorners(
-                                   kWidth, kWidth * 3, Fill::color(kFigure),
-                                   kArm, kInset),
-                               decorations::border(0.9f, Fill::color(kCool),
-                                                   14)))),
-                      cell("weave(braid(3), alternate())",
-                           "three waves at phases k/3 around the same "
-                           "outline, with the rule saying who passes over "
-                           "whom where they meet",
-                           plaque().stroke(Decoration(brush::weave(
-                               kit::braid(kStrands, kAmplitude, kWavelength,
-                                          Decoration(brush::solid(
-                                              2.0f, Fill::color(kFigure)))),
-                               crossing::alternate())))),
-                      cell("Bracket on a CIRCLE",
-                           "a curve has no tangent break, so the corner scan "
-                           "finds nothing and the brackets vanish entirely "
-                           "\xc2\xb7 correct, and surprising",
-                           plaque(true).foreground(bracket))},
-                 .gap = 10}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE RULE AND THE STRANDS \xc2\xb7 Border's four "
+                       "modes, brush::weave over one outline"),
+         .subtitle = toU8("dials \xc2\xb7 the width (1.8 px) and inset "
+                          "(7 px) \xc2\xb7 the corner arm (18 px) "
+                          "\xc2\xb7 the strand count (3), amplitude and "
+                          "wavelength \xc2\xb7 the chamfer"),
+         .footer = toU8("a crossing is DISCOVERED and not declared, so "
+                        "the strands of a weave must be waves: n "
+                        "oscillations of equal amplitude at evenly "
+                        "spread phases must trade sides, and parallels "
+                        "are rails that never cross")},
+        kit::cells(
+            {.cells =
+                 {cell("border(1.8, ink, inset 7)",
+                       "Continuous \xc2\xb7 an ordinary rule 7 px inside "
+                       "the outline, following the chamfers because it "
+                       "follows the silhouette",
+                       plaque().foreground(decorations::border(
+                           kWidth, Fill::color(kFigure), kInset))),
+                  cell("Border::Mode::Bracket",
+                       "only within 18 px of each corner \xc2\xb7 the "
+                       "four L's, landing on the chamfers with no "
+                       "further instruction",
+                       plaque().foreground(bracket)),
+                  cell("Border::Mode::Gapped",
+                       "everything EXCEPT within 18 px \xc2\xb7 the open "
+                       "corner, which is the complement of the one "
+                       "above",
+                       plaque().foreground(Border{.width = kWidth,
+                                                  .fill = Fill::color(kFigure),
+                                                  .inset = kInset,
+                                                  .mode = Border::Mode::Gapped,
+                                                  .corner = kArm})),
+                  cell("doubleBorder(weighted, rule)",
+                       "two rules as ONE style value \xc2\xb7 the outer "
+                       "thickens near each turn, the inner is the same "
+                       "value at another inset",
+                       plaque().style(decorations::doubleBorder(
+                           decorations::weightedCorners(
+                               kWidth, kWidth * 3, Fill::color(kFigure), kArm,
+                               kInset),
+                           decorations::border(0.9f, Fill::color(kCool), 14)))),
+                  cell("weave(braid(3), alternate())",
+                       "three waves at phases k/3 around the same "
+                       "outline, with the rule saying who passes over "
+                       "whom where they meet",
+                       plaque().stroke(Decoration(brush::weave(
+                           kit::braid(kStrands, kAmplitude, kWavelength,
+                                      Decoration(brush::solid(
+                                          2.0f, Fill::color(kFigure)))),
+                           crossing::alternate())))),
+                  cell("Bracket on a CIRCLE",
+                       "a curve has no tangent break, so the corner scan "
+                       "finds nothing and the brackets vanish entirely "
+                       "\xc2\xb7 correct, and surprising",
+                       plaque(true).foreground(bracket))},
+             .gap = 10})));
   }
 };
 

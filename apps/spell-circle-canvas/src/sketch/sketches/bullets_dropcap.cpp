@@ -40,6 +40,7 @@
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -64,10 +65,7 @@ constexpr float kMargin = 7;    // the body's stand-off from the initial
 constexpr float kHang = 16;     // the indent a marker hangs in, px
 
 constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kBody{0.82f, 0.83f, 0.86f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
@@ -77,16 +75,6 @@ const char* kPassage =
     "characters somebody counted once. That is the whole difference "
     "between a nested style and a restyle by hand.";
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
 weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
   static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
@@ -94,21 +82,11 @@ weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
       {.face = face, .size = size, .color = color, .track = track});
 }
 
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
-
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround),
-                              .padding = 14})
-                       .child(std::move(body)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 14})
+          .child(std::move(body)));
 }
 
 /** One dropped cap over the same passage; `nested`, when given, sets the
@@ -145,9 +123,8 @@ Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
 
 struct BulletsDropCap final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const weave::TextStyle smallCaps = serif(11.5f, kFigure, 1.1f);
 
@@ -174,67 +151,54 @@ struct BulletsDropCap final : sketch::Sketch {
                                 kCell - 28 - kHang * 2)
                        .margin(kHang, 0, 0, 0));
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("BULLETS AND THE DROPPED CAP \xc2\xb7 kit::"
-                           "dropCap, kit::NestedStyle, kit::bullets"),
-             .subtitle = toU8("dials \xc2\xb7 the cap's type size (46 px, "
-                              "which IS its depth) \xc2\xb7 the body's "
-                              "stand-off (7 px) \xc2\xb7 where the nested "
-                              "run stops \xc2\xb7 the hang (16 px per "
-                              "level)"),
-             .footer = toU8("none of these is a mechanism: the cap is an "
-                            "exclusion the body flows around, the nested "
-                            "style is a span restyle over a selector the "
-                            "vocabulary could already name, and a list is "
-                            "an indent with the marker standing in the room "
-                            "it opened"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("kit::dropCap(\"W\", capType, rest, bodyType)",
-                           "the initial is a keyed leaf placed absolutely "
-                           "and the body flowAround()s it \xc2\xb7 no "
-                           "drop-cap facility underneath",
-                           dropped("cap-plain", {})),
-                      cell("dropCap(ornament, rest, bodyType)",
-                           "the star is the painted initial AND the "
-                           "silhouette subtracted from each horizontal "
-                           "line \xc2\xb7 type enters its notches",
-                           illuminated(
-                               "cap-ornament",
-                               kit::NestedStyle{
-                                   .until = kit::NestedStyle::Until::Words,
-                                   .count = 6,
-                                   .style = smallCaps})),
-                      cell("\xe2\x80\xa6"
-                           ", NestedStyle{Delimiter, \"once.\"}",
-                           "from the start THROUGH the first occurrence, "
-                           "inclusive \xc2\xb7 an anchored non-greedy regex "
-                           "with the mark literal-quoted",
-                           dropped(
-                               "cap-delim",
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("BULLETS AND THE DROPPED CAP \xc2\xb7 kit::"
+                       "dropCap, kit::NestedStyle, kit::bullets"),
+         .subtitle = toU8("dials \xc2\xb7 the cap's type size (46 px, "
+                          "which IS its depth) \xc2\xb7 the body's "
+                          "stand-off (7 px) \xc2\xb7 where the nested "
+                          "run stops \xc2\xb7 the hang (16 px per "
+                          "level)"),
+         .footer = toU8("none of these is a mechanism: the cap is an "
+                        "exclusion the body flows around, the nested "
+                        "style is a span restyle over a selector the "
+                        "vocabulary could already name, and a list is "
+                        "an indent with the marker standing in the room "
+                        "it opened")},
+        kit::cells(
+            {.cells =
+                 {cell("kit::dropCap(\"W\", capType, rest, bodyType)",
+                       "the initial is a keyed leaf placed absolutely "
+                       "and the body flowAround()s it \xc2\xb7 no "
+                       "drop-cap facility underneath",
+                       dropped("cap-plain", {})),
+                  cell("dropCap(ornament, rest, bodyType)",
+                       "the star is the painted initial AND the "
+                       "silhouette subtracted from each horizontal "
+                       "line \xc2\xb7 type enters its notches",
+                       illuminated("cap-ornament",
+                                   kit::NestedStyle{
+                                       .until = kit::NestedStyle::Until::Words,
+                                       .count = 6,
+                                       .style = smallCaps})),
+                  cell("\xe2\x80\xa6"
+                       ", NestedStyle{Delimiter, \"once.\"}",
+                       "from the start THROUGH the first occurrence, "
+                       "inclusive \xc2\xb7 an anchored non-greedy regex "
+                       "with the mark literal-quoted",
+                       dropped("cap-delim",
                                kit::NestedStyle{
                                    .until = kit::NestedStyle::Until::Delimiter,
                                    .delimiter = u8"once.",
                                    .style = smallCaps})),
-                      cell("kit::bullets(items, markers, style, hang, "
-                           "measure)",
-                           "two levels, two calls \xc2\xb7 every line of an "
-                           "item stands one hang in, the first included, "
-                           "and the marker keeps the room the indent "
-                           "opened",
-                           std::move(list))},
-                 .gap = 14}))
-            .absolute()
-            .inset(0));
+                  cell("kit::bullets(items, markers, style, hang, "
+                       "measure)",
+                       "two levels, two calls \xc2\xb7 every line of an "
+                       "item stands one hang in, the first included, "
+                       "and the marker keeps the room the indent "
+                       "opened",
+                       std::move(list))},
+             .gap = 14})));
   }
 };
 

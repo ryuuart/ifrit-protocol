@@ -48,15 +48,13 @@
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 namespace ch = choreograph;
 
@@ -75,31 +73,11 @@ constexpr double kFixedHz = 5.0;      // the fixed steppable's rate
 constexpr int kLevels = 6;            // levels the derivation quantizes to
 constexpr float kRamp = 1.4f;         // the timeline motion's duration
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kSecond{0.46f, 0.72f, 0.92f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** One recorded lane: a value per tick, plotted left to right. */
 using Trace = std::vector<float>;
@@ -140,15 +118,13 @@ Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
 
 Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      kit::well({.width = kCell,
-                 .height = kPicture,
-                 .ground = Fill::color(kCellGround)})
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body))
           // The readout stands on a scrim of the cell's own ground: a
           // trace runs the whole plate and would otherwise cross it.
-          .child(text(toU8(readout), mono(10, kFigure))
+          .child(text(toU8(readout), sketch::kit::theme().mono(10, kFigure))
                      .absolute()
                      .left(Dim(8.0f))
                      .top(Dim(6.0f))
@@ -163,9 +139,8 @@ struct TickerLanes final : sketch::Sketch {
   std::string readouts[4];
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // the run has already happened, on its own ticker
+    // the run has already happened, on its own ticker
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // A TICKER OF THIS SKETCH'S OWN, stepped at a fixed delta: everything
     // below is what it answered, sample by sample, rather than a drawing
@@ -212,58 +187,46 @@ struct TickerLanes final : sketch::Sketch {
                     kLevels, derived_ok ? "true" : "false");
     readouts[3] = kit::format("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE TICKER'S LANES \xc2\xb7 Ticker::add, "
-                           "addFixed, derive, timeline"),
-             .subtitle = toU8("dials \xc2\xb7 three seconds at a 120 Hz delta "
-                              "\xc2\xb7 the fixed rate (5 Hz) \xc2\xb7 the "
-                              "derivation's levels (6) \xc2\xb7 the "
-                              "timeline motion's duration (1.4 s)"),
-             .footer = toU8("a derivation runs in a SECOND PHASE, after the "
-                            "timeline and after every steppable, so it "
-                            "never reads a stale source and registration "
-                            "order does not matter \xe2\x80\x94 which is "
-                            "exactly what a hand-rolled shadow copy cannot "
-                            "promise"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("ticker.add([](double dt) { … return true; })",
-                           "the free steppable, handed the frame's delta "
-                           "\xc2\xb7 it answers true forever here, which is "
-                           "what keeps active() true forever",
-                           plot("free", {{freeLane, kFigure}}), readouts[0]),
-                      cell("ticker.addFixed(5, fn, 8, &alpha)",
-                           "the count of fixed steps against the render "
-                           "interpolant \xc2\xb7 the count comes from total "
-                           "elapsed time, so it is exact at any draw rate",
-                           plot("fixed",
-                                {{fixedLane, kFigure}, {alphaLane, kSecond}}),
-                           readouts[1]),
-                      cell("derive(&d, bind(&source).quantize(6))",
-                           "the source under the derivation \xc2\xb7 the "
-                           "bind() vocabulary reaching an Output instead of "
-                           "a property slot",
-                           plot("derive",
-                                {{sourceLane, kAsh}, {derivedLane, kFigure}}),
-                           readouts[2]),
-                      cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
-                           "the master timeline \xc2\xb7 a finished motion "
-                           "is removed, which is what would let active() "
-                           "settle if the steppable above ever retired",
-                           plot("timeline", {{timelineLane, kFigure}}),
-                           readouts[3])},
-                 .gap = 14}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE TICKER'S LANES \xc2\xb7 Ticker::add, "
+                       "addFixed, derive, timeline"),
+         .subtitle = toU8("dials \xc2\xb7 three seconds at a 120 Hz delta "
+                          "\xc2\xb7 the fixed rate (5 Hz) \xc2\xb7 the "
+                          "derivation's levels (6) \xc2\xb7 the "
+                          "timeline motion's duration (1.4 s)"),
+         .footer = toU8("a derivation runs in a SECOND PHASE, after the "
+                        "timeline and after every steppable, so it "
+                        "never reads a stale source and registration "
+                        "order does not matter \xe2\x80\x94 which is "
+                        "exactly what a hand-rolled shadow copy cannot "
+                        "promise")},
+        kit::cells(
+            {.cells = {cell("ticker.add([](double dt) { … return true; })",
+                            "the free steppable, handed the frame's delta "
+                            "\xc2\xb7 it answers true forever here, which is "
+                            "what keeps active() true forever",
+                            plot("free", {{freeLane, kFigure}}), readouts[0]),
+                       cell("ticker.addFixed(5, fn, 8, &alpha)",
+                            "the count of fixed steps against the render "
+                            "interpolant \xc2\xb7 the count comes from total "
+                            "elapsed time, so it is exact at any draw rate",
+                            plot("fixed",
+                                 {{fixedLane, kFigure}, {alphaLane, kSecond}}),
+                            readouts[1]),
+                       cell("derive(&d, bind(&source).quantize(6))",
+                            "the source under the derivation \xc2\xb7 the "
+                            "bind() vocabulary reaching an Output instead of "
+                            "a property slot",
+                            plot("derive",
+                                 {{sourceLane, kAsh}, {derivedLane, kFigure}}),
+                            readouts[2]),
+                       cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
+                            "the master timeline \xc2\xb7 a finished motion "
+                            "is removed, which is what would let active() "
+                            "settle if the steppable above ever retired",
+                            plot("timeline", {{timelineLane, kFigure}}),
+                            readouts[3])},
+             .gap = 14})));
   }
 };
 

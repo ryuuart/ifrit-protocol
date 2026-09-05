@@ -38,15 +38,13 @@
 #include <sigilcore/compute/Hash.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <functional>
 #include <string>
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace noise = sigil::core::noise;
 namespace core = sigil::core;
 
@@ -63,30 +61,15 @@ constexpr uint32_t kSeed = 20260903;  // the seed every field is drawn from
 constexpr float kBlock = 4;           // px one sample is drawn at
 constexpr int kCells = 6;             // the lattice cell, in samples
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Below,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 8,
-          .noteGap = 3,
-          .noteMeasure = kCell};
+/** The house sheet, in this one's caption voice. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.captionWhere = kit::Caption::Where::Below;
+  look.spacing.captionGap = 8;
+  look.spacing.captionNoteGap = 3;
+  return look;
 }
 
 /** A FIELD: one sample per block, the value read as a grey. The sampler
@@ -118,102 +101,90 @@ Element field(const char* key, Field sample) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(std::move(body)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(std::move(body)));
 }
 
 }  // namespace
 
 struct NoiseShelf final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the shelf is complete at once
+    // nothing moves; the shelf is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const int columns = (int)(kCell / kBlock);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE MIXERS \xc2\xb7 core::noise hash, "
-                           "Mix64Stream, pcgHash, xorshift, lattice, and "
-                           "core::hash"),
-             .subtitle = toU8("dials \xc2\xb7 one seed for the whole shelf "
-                              "\xc2\xb7 four px a sample \xc2\xb7 the "
-                              "lattice's cell (6 samples) \xc2\xb7 what the "
-                              "key is folded over"),
-             .footer = toU8("each of these is a bit-exact function of its "
-                            "inputs on every platform, which is what lets a "
-                            "shader agree with a CPU preview to the bit "
-                            "\xe2\x80\x94 and why the constants and the "
-                            "shift schedules are not tuning knobs"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("noise::hash(seed, i)",
-                           "the 64-bit avalanche squeezed to a unit float "
-                           "\xc2\xb7 indexed by a counter, here the sample's "
-                           "own number",
-                           field("hash",
-                                 [columns](int x, int y) {
-                                   return noise::hash(
-                                       kSeed, (uint32_t)(y * columns + x));
-                                 })),
-                      cell("Mix64Stream(seed).unit()",
-                           "the same avalanche as a STREAM \xc2\xb7 one "
-                           "state stepped by the gamma, so successive draws "
-                           "are uncorrelated rather than merely different",
-                           field("mix64",
-                                 [columns](int x, int y) {
-                                   noise::Mix64Stream stream(
-                                       kSeed + (uint64_t)(y * columns + x));
-                                   return stream.unit();
-                                 })),
-                      cell("noise::pcgUnit(x)",
-                           "the PCG word, which the point-operator compute "
-                           "kernel reproduces word for word \xc2\xb7 what "
-                           "new code takes",
-                           field("pcg",
-                                 [columns](int x, int y) {
-                                   return noise::pcgUnit(
-                                       kSeed + (uint32_t)(y * columns + x));
-                                 })),
-                      cell("xorshiftUnitNext(state)",
-                           "the xorshift step, walked from one state down "
-                           "the field \xc2\xb7 a different mixer with a "
-                           "different output, kept for the renders seeded "
-                           "by it",
-                           field("xorshift",
-                                 [columns](int x, int y) {
-                                   uint32_t state =
-                                       kSeed + (uint32_t)(y * columns + x) * 7u;
-                                   noise::xorshiftUnitNext(state);
-                                   return noise::xorshiftUnitNext(state);
-                                 })),
-                      cell("lattice(seed, x, y, 0)",
-                           "indexed by a grid POSITION rather than a counter "
-                           "\xc2\xb7 what value noise asks at each corner of "
-                           "a cell, drawn here one draw per cell",
-                           field("lattice",
-                                 [](int x, int y) {
-                                   const uint32_t h = noise::lattice(
-                                       kSeed, x / kCells, y / kCells, 0);
-                                   return (float)(h >> 8u) *
-                                          (1.0f / 16777216.0f);
-                                 })),
-                      keys()},
-                 .gap = 10}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE MIXERS \xc2\xb7 core::noise hash, "
+                       "Mix64Stream, pcgHash, xorshift, lattice, and "
+                       "core::hash"),
+         .subtitle = toU8("dials \xc2\xb7 one seed for the whole shelf "
+                          "\xc2\xb7 four px a sample \xc2\xb7 the "
+                          "lattice's cell (6 samples) \xc2\xb7 what the "
+                          "key is folded over"),
+         .footer = toU8("each of these is a bit-exact function of its "
+                        "inputs on every platform, which is what lets a "
+                        "shader agree with a CPU preview to the bit "
+                        "\xe2\x80\x94 and why the constants and the "
+                        "shift schedules are not tuning knobs")},
+        kit::cells(
+            {.cells = {cell("noise::hash(seed, i)",
+                            "the 64-bit avalanche squeezed to a unit float "
+                            "\xc2\xb7 indexed by a counter, here the sample's "
+                            "own number",
+                            field("hash",
+                                  [columns](int x, int y) {
+                                    return noise::hash(
+                                        kSeed, (uint32_t)(y * columns + x));
+                                  })),
+                       cell("Mix64Stream(seed).unit()",
+                            "the same avalanche as a STREAM \xc2\xb7 one "
+                            "state stepped by the gamma, so successive draws "
+                            "are uncorrelated rather than merely different",
+                            field("mix64",
+                                  [columns](int x, int y) {
+                                    noise::Mix64Stream stream(
+                                        kSeed + (uint64_t)(y * columns + x));
+                                    return stream.unit();
+                                  })),
+                       cell("noise::pcgUnit(x)",
+                            "the PCG word, which the point-operator compute "
+                            "kernel reproduces word for word \xc2\xb7 what "
+                            "new code takes",
+                            field("pcg",
+                                  [columns](int x, int y) {
+                                    return noise::pcgUnit(
+                                        kSeed + (uint32_t)(y * columns + x));
+                                  })),
+                       cell("xorshiftUnitNext(state)",
+                            "the xorshift step, walked from one state down "
+                            "the field \xc2\xb7 a different mixer with a "
+                            "different output, kept for the renders seeded "
+                            "by it",
+                            field("xorshift",
+                                  [columns](int x, int y) {
+                                    uint32_t state =
+                                        kSeed +
+                                        (uint32_t)(y * columns + x) * 7u;
+                                    noise::xorshiftUnitNext(state);
+                                    return noise::xorshiftUnitNext(state);
+                                  })),
+                       cell("lattice(seed, x, y, 0)",
+                            "indexed by a grid POSITION rather than a counter "
+                            "\xc2\xb7 what value noise asks at each corner of "
+                            "a cell, drawn here one draw per cell",
+                            field("lattice",
+                                  [](int x, int y) {
+                                    const uint32_t h = noise::lattice(
+                                        kSeed, x / kCells, y / kCells, 0);
+                                    return (float)(h >> 8u) *
+                                           (1.0f / 16777216.0f);
+                                  })),
+                       keys()},
+             .gap = 10})));
   }
 
   /** THE KEY, not a field: the fold a cache address is built out of, over
@@ -242,7 +213,7 @@ struct NoiseShelf final : sketch::Sketch {
   }
 
   Element text_(const std::string& row) {
-    return text(toU8(row), mono(9.5f, kFigure));
+    return text(toU8(row), sketch::kit::theme().mono(9.5f, kFigure));
   }
 };
 

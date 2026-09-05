@@ -41,8 +41,7 @@
 #include <sigilio/hub/Network.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <filesystem>
 #include <memory>
@@ -50,7 +49,6 @@
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace img = sigil::image;
 namespace io = sigil::io;
 
@@ -68,30 +66,7 @@ constexpr float kPicture = 190;
 const char* kSeeded = "https://sigil.invalid/plate.png";
 const char* kMissing = "https://sigil.invalid/absent.png";
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** What the seed holds — drawn here so the cell that serves it from the
  *  cache is showing bytes this file wrote and nothing else. */
@@ -115,24 +90,21 @@ Element cell(const char* call, const char* note,
   Element art = asset ? image(asset).width(Dim(150)).height(Dim(100))
                       : box().width(Dim(150)).height(Dim(100)).fill(
                             Fill::color({0.13f, 0.10f, 0.11f, 1}));
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround),
-                              .padding = 12})
-                       .column()
-                       .gap(10)
-                       .child(std::move(art))
-                       .child(text(toU8(readout), mono(10, kFigure))));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
+          .column()
+          .gap(10)
+          .child(std::move(art))
+          .child(text(toU8(readout), sketch::kit::theme().mono(10, kFigure))));
 }
 
 }  // namespace
 
 struct NetPolicy final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // every ask has already been answered
+    // every ask has already been answered
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // THE PRE-SEED: the cache is a directory of files named by the key a
     // URL maps to, and the key is exposed for exactly this.
@@ -167,53 +139,41 @@ struct NetPolicy final : sketch::Sketch {
             : "null");
     };
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE NETWORK POLICIES \xc2\xb7 Hub::"
-                           "setNetworkPolicy over a pre-seeded cache"),
-             .subtitle = toU8("dials \xc2\xb7 the policy \xc2\xb7 which URL "
-                              "is seeded \xc2\xb7 the cache directory "
-                              "\xc2\xb7 the key a URL maps to, which is what "
-                              "makes seeding possible at all"),
-             .footer = toU8("the host is a reserved name that cannot "
-                            "resolve, so nothing here leaves the machine "
-                            "\xe2\x80\x94 which is what makes the Refresh "
-                            "cell a fetch that genuinely failed and fell "
-                            "back rather than one that was skipped"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("CacheFirst \xc2\xb7 seeded",
-                           "the default \xc2\xb7 a present cache file is "
-                           "served with no traffic at all, which is what "
-                           "makes an offline run work once a resource has "
-                           "been seen",
-                           cacheFirst, verdict("CacheFirst", cacheFirst)),
-                      cell("Offline \xc2\xb7 seeded",
-                           "never touches the network \xc2\xb7 a cache hit "
-                           "answers exactly as CacheFirst did, because "
-                           "neither of them asked anything",
-                           offlineHit, verdict("Offline", offlineHit)),
-                      cell("Offline \xc2\xb7 not seeded",
-                           "…and a miss is a miss \xc2\xb7 nothing is "
-                           "fetched and nothing is invented, which is what "
-                           "a hermetic run wants",
-                           offlineMiss, verdict("Offline", offlineMiss)),
-                      cell("Refresh \xc2\xb7 seeded",
-                           "asks the network FIRST to pick up upstream "
-                           "changes \xc2\xb7 the fetch failed here, and a "
-                           "failed fetch falls back to the cached copy",
-                           refresh, verdict("Refresh", refresh))},
-                 .gap = 14}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE NETWORK POLICIES \xc2\xb7 Hub::"
+                       "setNetworkPolicy over a pre-seeded cache"),
+         .subtitle = toU8("dials \xc2\xb7 the policy \xc2\xb7 which URL "
+                          "is seeded \xc2\xb7 the cache directory "
+                          "\xc2\xb7 the key a URL maps to, which is what "
+                          "makes seeding possible at all"),
+         .footer = toU8("the host is a reserved name that cannot "
+                        "resolve, so nothing here leaves the machine "
+                        "\xe2\x80\x94 which is what makes the Refresh "
+                        "cell a fetch that genuinely failed and fell "
+                        "back rather than one that was skipped")},
+        kit::cells(
+            {.cells = {cell("CacheFirst \xc2\xb7 seeded",
+                            "the default \xc2\xb7 a present cache file is "
+                            "served with no traffic at all, which is what "
+                            "makes an offline run work once a resource has "
+                            "been seen",
+                            cacheFirst, verdict("CacheFirst", cacheFirst)),
+                       cell("Offline \xc2\xb7 seeded",
+                            "never touches the network \xc2\xb7 a cache hit "
+                            "answers exactly as CacheFirst did, because "
+                            "neither of them asked anything",
+                            offlineHit, verdict("Offline", offlineHit)),
+                       cell("Offline \xc2\xb7 not seeded",
+                            "…and a miss is a miss \xc2\xb7 nothing is "
+                            "fetched and nothing is invented, which is what "
+                            "a hermetic run wants",
+                            offlineMiss, verdict("Offline", offlineMiss)),
+                       cell("Refresh \xc2\xb7 seeded",
+                            "asks the network FIRST to pick up upstream "
+                            "changes \xc2\xb7 the fetch failed here, and a "
+                            "failed fetch falls back to the cached copy",
+                            refresh, verdict("Refresh", refresh))},
+             .gap = 14})));
   }
 };
 

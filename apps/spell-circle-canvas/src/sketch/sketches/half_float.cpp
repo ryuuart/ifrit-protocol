@@ -36,9 +36,8 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilskia/graphite/Pixels.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <cmath>
@@ -49,7 +48,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace img = sigil::image;
 namespace skia = sigil::skia;
 
@@ -66,30 +64,7 @@ constexpr int kSide = 96;                   // the source's side, texels
 constexpr float kPeak = 6.0f;               // how far past one the ramp runs
 constexpr float kStops[2] = {1.0f, 0.18f};  // the two exposures
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** IEEE half back to float, written out because reading the words is the
  *  whole point of asking for them: a packed half is data until somebody
@@ -133,21 +108,18 @@ sk_sp<SkImage> hdrSource() {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround),
-                              .padding = 10})
-                       .child(std::move(body)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 10})
+          .child(std::move(body)));
 }
 
 }  // namespace
 
 struct HalfFloat final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // both readbacks have already been taken
+    // both readbacks have already been taken
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const sk_sp<SkImage> source = hdrSource();
     const bool isFloat = skia::isFloatImage(source);
@@ -177,57 +149,46 @@ struct HalfFloat final : sketch::Sketch {
         halves.size() > hot * 4 ? halfToFloat(halves[hot * 4]) : 0.0f,
         bytes.size() > hot * 4 ? (float)bytes[hot * 4] / 255.0f : 0.0f, kPeak);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE DRAWABLE COPY \xc2\xb7 skia::isFloatImage, "
-                           "halfFloatPixels, bytePixels"),
-             .subtitle = toU8("dials \xc2\xb7 how far past one the ramp runs "
-                              "(6.0) \xc2\xb7 the two exposures each "
-                              "readback is tone-mapped at (1.0 and 0.18) "
-                              "\xc2\xb7 the source's side"),
-             .footer = toU8("values above one survive the halves, which is "
-                            "the whole point of asking for them rather than "
-                            "for bytes \xe2\x80\x94 and the byte copy clipped "
-                            "them on the way out, so no exposure brings them "
-                            "back"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("halfFloatPixels \xc2\xb7 exposure 1.0",
-                           "the half readback shown straight \xc2\xb7 "
-                           "everything past one is off the top of the "
-                           "display, which is what a display is",
-                           fromHalves(kStops[0])),
-                      cell("halfFloatPixels \xc2\xb7 exposure 0.18",
-                           "the same words brought down \xc2\xb7 the "
-                           "highlights are still there to bring, because a "
-                           "half held them",
-                           fromHalves(kStops[1])),
-                      cell("bytePixels \xc2\xb7 exposure 1.0",
-                           "the ordinary readback \xc2\xb7 the same picture, "
-                           "and the top band and the ramp above one are now "
-                           "one colour",
-                           fromBytes(kStops[0])),
-                      cell("bytePixels \xc2\xb7 exposure 0.18",
-                           "brought down by the same amount \xc2\xb7 nothing "
-                           "comes back: the clip happened in the readback "
-                           "and not in the display",
-                           fromBytes(kStops[1])),
-                      cell("what each readback answered",
-                           "the question a caller asks first, the two buffer "
-                           "sizes, and one hot texel read out of each",
-                           text(toU8(readout), mono(10, kFigure))
-                               .width(Dim(kCell - 20)))},
-                 .gap = 12}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE DRAWABLE COPY \xc2\xb7 skia::isFloatImage, "
+                       "halfFloatPixels, bytePixels"),
+         .subtitle = toU8("dials \xc2\xb7 how far past one the ramp runs "
+                          "(6.0) \xc2\xb7 the two exposures each "
+                          "readback is tone-mapped at (1.0 and 0.18) "
+                          "\xc2\xb7 the source's side"),
+         .footer = toU8("values above one survive the halves, which is "
+                        "the whole point of asking for them rather than "
+                        "for bytes \xe2\x80\x94 and the byte copy clipped "
+                        "them on the way out, so no exposure brings them "
+                        "back")},
+        kit::cells(
+            {.cells = {cell("halfFloatPixels \xc2\xb7 exposure 1.0",
+                            "the half readback shown straight \xc2\xb7 "
+                            "everything past one is off the top of the "
+                            "display, which is what a display is",
+                            fromHalves(kStops[0])),
+                       cell("halfFloatPixels \xc2\xb7 exposure 0.18",
+                            "the same words brought down \xc2\xb7 the "
+                            "highlights are still there to bring, because a "
+                            "half held them",
+                            fromHalves(kStops[1])),
+                       cell("bytePixels \xc2\xb7 exposure 1.0",
+                            "the ordinary readback \xc2\xb7 the same picture, "
+                            "and the top band and the ramp above one are now "
+                            "one colour",
+                            fromBytes(kStops[0])),
+                       cell("bytePixels \xc2\xb7 exposure 0.18",
+                            "brought down by the same amount \xc2\xb7 nothing "
+                            "comes back: the clip happened in the readback "
+                            "and not in the display",
+                            fromBytes(kStops[1])),
+                       cell("what each readback answered",
+                            "the question a caller asks first, the two buffer "
+                            "sizes, and one hot texel read out of each",
+                            text(toU8(readout),
+                                 sketch::kit::theme().mono(10, kFigure))
+                                .width(Dim(kCell - 20)))},
+             .gap = 12})));
   }
 
   /** A readback laid back out as a displayable picture: the sampler is

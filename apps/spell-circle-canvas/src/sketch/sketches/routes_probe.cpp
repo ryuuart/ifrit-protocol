@@ -39,8 +39,7 @@
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cstdio>
 #include <string>
@@ -48,7 +47,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -62,31 +60,8 @@ constexpr float kNode = 74;
 
 constexpr const char* kProbe = "hub";  // whose routes are listed
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kWire{0.42f, 0.62f, 0.78f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice(float measure) {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = measure};
-}
 
 /** A promotion outcome as the one word the enum names — for the refusal
  *  MASK, where the sentence a reason spells would not fit. */
@@ -148,9 +123,8 @@ struct RoutesProbe final : sketch::Sketch {
   std::vector<std::string> verdicts;  // one line per probe, from profile()
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // the readouts are taken before the sheet is built
+    // the readouts are taken before the sheet is built
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // NEITHER QUERY ANSWERS BEFORE THE FRAME IT DESCRIBES HAS BEEN DRAWN,
     // so the diagram is composed once on its own, drawn onto a scratch
@@ -198,8 +172,10 @@ struct RoutesProbe final : sketch::Sketch {
         .inset(Dim(x), Dim(y), Dim(), Dim())
         .width(Dim(kNode))
         .height(Dim(34))
-        .fill(Fill::color(kCellGround))
-        .child(text(toU8(key), mono(10, kFigure)).absolute().inset(9, 9, 0, 0));
+        .fill(Fill::color(sketch::kit::theme().palette.cellGround))
+        .child(text(toU8(key), sketch::kit::theme().mono(10, kFigure))
+                   .absolute()
+                   .inset(9, 9, 0, 0));
   }
 
   Element diagram() const {
@@ -257,9 +233,9 @@ struct RoutesProbe final : sketch::Sketch {
                        .inset(0)
                        .foreground(wire));
 
-    return kit::well({.width = kDiagram,
-                      .height = kPicture,
-                      .ground = Fill::color({0.085f, 0.09f, 0.10f, 1})})
+    return sketch::kit::well({.width = kDiagram,
+                              .height = kPicture,
+                              .ground = Fill::color({0.085f, 0.09f, 0.10f, 1})})
         .child(nodes)
         .child(wires);
   }
@@ -269,69 +245,62 @@ struct RoutesProbe final : sketch::Sketch {
                 const char* empty) const {
     Element column = box().column().gap(7);
     if (rows.empty())
-      column.child(text(toU8(empty), mono(10, kAsh)).width(Dim(measure)));
+      column.child(text(toU8(empty), sketch::kit::theme().mono(
+                                         10, sketch::kit::theme().palette.ash))
+                       .width(Dim(measure)));
     for (const std::string& row : rows)
-      column.child(text(toU8(row), mono(10, kFigure)).width(Dim(measure)));
+      column.child(text(toU8(row), sketch::kit::theme().mono(10, kFigure))
+                       .width(Dim(measure)));
     return column;
   }
 
   Element sheetFor() const {
     constexpr float kList = 260;
     constexpr float kTable = 430;
-    return kit::sheet(
-               {.title = toU8("ROUTES AND COSTS \xc2\xb7 "
-                              "Composer::routesAt, Composer::profile"),
-                .subtitle = toU8("dials \xc2\xb7 the probed node (\"hub\") "
-                                 "\xc2\xb7 which routes carry a key \xc2\xb7 "
-                                 "the property each probe wears: rotate, "
-                                 "opacity, Cache::None, Cache::Texture"),
-                .footer = toU8("a profile row's reason names a condition "
-                               "under which a bake would produce DIFFERENT "
-                               "pixels \xe2\x80\x94 which is the one thing "
-                               "promotion may never do, and the reason an "
-                               "expensive node stays live"),
-                .titleStyle = label(14, kInk, 2.4f),
-                .subtitleStyle = label(11.5f, kAsh, 0.8f),
-                .footerStyle = label(11, kAsh, 0.4f),
-                .marginX = 24,
-                .marginTop = 20,
-                .marginBottom = 16,
-                .ground = Fill::color(kGround),
-                .rule = Fill::color(kRule)},
-               kit::cells(
-                   {.cells =
-                        {kit::cell(voice(kDiagram),
-                                   toU8("connector(from, to, router)"
-                                        ".key(\xe2\x80\xa6)"),
-                                   toU8("four routes on one hub \xc2\xb7 "
-                                        "three carry keys and the fourth "
-                                        "does not"),
-                                   diagram()),
-                         kit::cell(voice(kList),
-                                   toU8("composer.routesAt(\"hub\")"),
-                                   toU8("in tree order \xc2\xb7 the keyless "
-                                        "route is anchored and drawn, and "
-                                        "not in this list"),
-                                   lines(routes, kList,
-                                         "\xe2\x80\x94 nothing yet: the "
-                                         "first describe has not been "
-                                         "drawn")),
-                         kit::cell(voice(kTable),
-                                   toU8("composer.profile() \xe2\x86\x92 "
-                                        "label \xc2\xb7 cacheState \xc2\xb7 "
-                                        "promotionReason"),
-                                   toU8("each probe looked up by its own key "
-                                        "\xc2\xb7 the milliseconds are on "
-                                        "these same rows and are not printed, "
-                                        "because a plate that carries a "
-                                        "timing differs from itself"),
-                                   lines(verdicts, kTable,
-                                         "\xe2\x80\x94 empty until a frame "
-                                         "has been drawn with profiling "
-                                         "on"))},
-                    .gap = 18}))
-        .absolute()
-        .inset(0);
+    return sketch::kit::page(
+        {.title = toU8("ROUTES AND COSTS \xc2\xb7 "
+                       "Composer::routesAt, Composer::profile"),
+         .subtitle = toU8("dials \xc2\xb7 the probed node (\"hub\") "
+                          "\xc2\xb7 which routes carry a key \xc2\xb7 "
+                          "the property each probe wears: rotate, "
+                          "opacity, Cache::None, Cache::Texture"),
+         .footer = toU8("a profile row's reason names a condition "
+                        "under which a bake would produce DIFFERENT "
+                        "pixels \xe2\x80\x94 which is the one thing "
+                        "promotion may never do, and the reason an "
+                        "expensive node stays live")},
+        kit::cells({.cells = {sketch::kit::caption(
+                                  kDiagram,
+                                  toU8("connector(from, to, router)"
+                                       ".key(\xe2\x80\xa6)"),
+                                  toU8("four routes on one hub \xc2\xb7 "
+                                       "three carry keys and the fourth "
+                                       "does not"),
+                                  diagram()),
+                              sketch::kit::caption(
+                                  kList, toU8("composer.routesAt(\"hub\")"),
+                                  toU8("in tree order \xc2\xb7 the keyless "
+                                       "route is anchored and drawn, and "
+                                       "not in this list"),
+                                  lines(routes, kList,
+                                        "\xe2\x80\x94 nothing yet: the "
+                                        "first describe has not been "
+                                        "drawn")),
+                              sketch::kit::caption(
+                                  kTable,
+                                  toU8("composer.profile() \xe2\x86\x92 "
+                                       "label \xc2\xb7 cacheState \xc2\xb7 "
+                                       "promotionReason"),
+                                  toU8("each probe looked up by its own key "
+                                       "\xc2\xb7 the milliseconds are on "
+                                       "these same rows and are not printed, "
+                                       "because a plate that carries a "
+                                       "timing differs from itself"),
+                                  lines(verdicts, kTable,
+                                        "\xe2\x80\x94 empty until a frame "
+                                        "has been drawn with profiling "
+                                        "on"))},
+                    .gap = 18}));
   }
 };
 

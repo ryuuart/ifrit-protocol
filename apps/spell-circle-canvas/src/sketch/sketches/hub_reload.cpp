@@ -42,8 +42,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <filesystem>
 #include <memory>
@@ -53,7 +52,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace img = sigil::image;
 namespace io = sigil::io;
 
@@ -70,30 +68,8 @@ const char* kMount = "res://";
 const char* kFirst = "the first state on disk";
 const char* kSecond = "the second, after the write";
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** THE CALLER'S OWN TYPE — a run of points in a two-number-per-line
  *  text, which is exactly the shape of thing a hub has no opinion
@@ -135,21 +111,18 @@ sk_sp<SkData> chart(int bars, SkColor4f ink) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround),
-                              .padding = 10})
-                       .child(std::move(body)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 10})
+          .child(std::move(body)));
 }
 
 }  // namespace
 
 struct HubReload final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // both readings have already been taken
+    // both readings have already been taken
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const std::filesystem::path dir =
         std::filesystem::temp_directory_path() / "sigil-hub-reload";
@@ -189,85 +162,70 @@ struct HubReload final : sketch::Sketch {
     const std::shared_ptr<const img::ImageAsset> secondChart =
         hub.image(chartUri);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("A MOUNTED FOLDER \xc2\xb7 Hub::mount, text, "
-                           "registerDecoder / load, poll"),
-             .subtitle = toU8("dials \xc2\xb7 the prefix the folder is "
-                              "mounted under \xc2\xb7 the two states each "
-                              "file is written in \xc2\xb7 what a T is "
-                              "decoded from bytes by"),
-             .footer = toU8("the decode a view was made with rides along "
-                            "with the view, so poll() re-runs exactly it "
-                            "\xe2\x80\x94 which is what makes hot reload a "
-                            "property of the hub rather than of every "
-                            "consumer of it"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("hub.text(\"res://notes.txt\")",
-                           "the UTF-8 convenience over blob() \xc2\xb7 read "
-                           "once before the file changed and once after, "
-                           "with poll() between them",
-                           lines({kit::format(
-                                      "first  \xc2\xb7 %s",
-                                      firstText ? firstText->c_str() : "-"),
-                                  kit::format("poll() \xc2\xb7 %s",
-                                              moved ? "true" : "false"),
-                                  kit::format("second \xc2\xb7 %s",
-                                              secondText ? secondText->c_str()
-                                                         : "-")})),
-                      cell("hub.load<Cloud>(\"res://cloud.pts\")",
-                           "a type the hub has no opinion about, decoded by "
-                           "a function this file registered \xc2\xb7 both "
-                           "readings drawn over one another",
-                           clouds(firstCloud, secondCloud)),
-                      cell("hub.image(\"res://chart.png\")",
-                           "the decoder the constructor registered \xc2\xb7 "
-                           "image(uri) IS load<ImageAsset>(uri) and shares "
-                           "one view of the entry",
-                           charts(firstChart, secondChart)),
-                      cell("what a reload costs a holder",
-                           "nothing: a view already handed out keeps its "
-                           "value, so the first reading is still the first "
-                           "reading and the new one arrives by asking again",
-                           lines({kit::format(
-                                      "first  cloud \xc2\xb7 %zu points",
-                                      firstCloud
-                                          ? firstCloud->points
-                                                .size()
-                                          : 0),
-                                  kit::format(
-                                      "second cloud \xc2\xb7 %zu points",
-                                      secondCloud ? secondCloud
-                                                        ->points.size()
-                                                  : 0),
-                                  kit::format("first  chart \xc2\xb7 "
-                                              "%d\xc3\x97%d",
-                                              firstChart ? firstChart->width()
-                                                         : 0,
-                                              firstChart ? firstChart->height()
-                                                         : 0),
-                                  kit::format("mount  \xc2\xb7 %s", hub.resolve(notesUri)
-                                                                        .filename()
-                                                                        .string()
-                                                                        .c_str())}))},
-                 .gap = 14}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("A MOUNTED FOLDER \xc2\xb7 Hub::mount, text, "
+                       "registerDecoder / load, poll"),
+         .subtitle = toU8("dials \xc2\xb7 the prefix the folder is "
+                          "mounted under \xc2\xb7 the two states each "
+                          "file is written in \xc2\xb7 what a T is "
+                          "decoded from bytes by"),
+         .footer = toU8("the decode a view was made with rides along "
+                        "with the view, so poll() re-runs exactly it "
+                        "\xe2\x80\x94 which is what makes hot reload a "
+                        "property of the hub rather than of every "
+                        "consumer of it")},
+        kit::cells(
+            {.cells =
+                 {cell("hub.text(\"res://notes.txt\")",
+                       "the UTF-8 convenience over blob() \xc2\xb7 read "
+                       "once before the file changed and once after, "
+                       "with poll() between them",
+                       lines({kit::format("first  \xc2\xb7 %s",
+                                          firstText ? firstText->c_str() : "-"),
+                              kit::format("poll() \xc2\xb7 %s",
+                                          moved ? "true" : "false"),
+                              kit::format(
+                                  "second \xc2\xb7 %s",
+                                  secondText ? secondText->c_str() : "-")})),
+                  cell("hub.load<Cloud>(\"res://cloud.pts\")",
+                       "a type the hub has no opinion about, decoded by "
+                       "a function this file registered \xc2\xb7 both "
+                       "readings drawn over one another",
+                       clouds(firstCloud, secondCloud)),
+                  cell("hub.image(\"res://chart.png\")",
+                       "the decoder the constructor registered \xc2\xb7 "
+                       "image(uri) IS load<ImageAsset>(uri) and shares "
+                       "one view of the entry",
+                       charts(firstChart, secondChart)),
+                  cell("what a reload costs a holder",
+                       "nothing: a view already handed out keeps its "
+                       "value, so the first reading is still the first "
+                       "reading and the new one arrives by asking again",
+                       lines({kit::format("first  cloud \xc2\xb7 %zu points",
+                                          firstCloud ? firstCloud->points.size()
+                                                     : 0),
+                              kit::format(
+                                  "second cloud \xc2\xb7 %zu points",
+                                  secondCloud ? secondCloud->points.size() : 0),
+                              kit::format("first  chart \xc2\xb7 "
+                                          "%d\xc3\x97%d",
+                                          firstChart ? firstChart->width() : 0,
+                                          firstChart ? firstChart->height()
+                                                     : 0),
+                              kit::format("mount  \xc2\xb7 %s",
+                                          hub
+                                              .resolve(notesUri)
+                                              .filename()
+                                              .string()
+                                              .c_str())}))},
+             .gap = 14})));
   }
 
   Element lines(std::vector<std::string> rows) {
     Element column = box().column().gap(8);
     for (const std::string& row : rows)
-      column.child(text(toU8(row), mono(10, kFigure)).width(Dim(kCell - 20)));
+      column.child(text(toU8(row), sketch::kit::theme().mono(10, kFigure))
+                       .width(Dim(kCell - 20)));
     return column;
   }
 

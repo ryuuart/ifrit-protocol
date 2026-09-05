@@ -40,6 +40,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -66,36 +67,13 @@ constexpr int kWidows = 2;   // fewest lines at the head of a frame
 constexpr int kOrphans = 2;  // fewest at the foot of one
 constexpr float kSeat = 0;   // added on top of a measured seating
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kBody{0.84f, 0.85f, 0.88f, 1};
 constexpr SkColor4f kLead{0.90f, 0.83f, 0.68f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
 
 weave::TextStyle serif(float size, SkColor4f color) {
   static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice(float measure) {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = measure};
 }
 
 /** Three blocks: a lead, a body long enough to straddle the join, and a
@@ -136,7 +114,7 @@ Element chain(const std::string& tag, const Story& story) {
         .width(Dim(kFrame.width()))
         .height(Dim(kFrame.height()))
         .clip()
-        .fill(Fill::color(kCellGround))
+        .fill(Fill::color(sketch::kit::theme().palette.cellGround))
         .padding(10)
         .child(std::move(leaf));
   };
@@ -152,7 +130,7 @@ Element optionPlate(Element body) {
       .width(Dim(kOptionCell))
       .height(Dim(kOptionPicture))
       .clip()
-      .fill(Fill::color(kCellGround))
+      .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .padding(12)
       .child(std::move(body));
 }
@@ -161,79 +139,65 @@ Element optionPlate(Element body) {
 
 struct KeepsAndFrames final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("KEEPS AND FRAME OPTIONS \xc2\xb7 KeepOptions, "
-                           "Element::firstBaseline, Element::distribute"),
-             .subtitle = toU8("dials \xc2\xb7 the widow and orphan counts "
-                              "(2 and 2) \xc2\xb7 startInNextFrame \xc2\xb7 "
-                              "the seating rule \xc2\xb7 what becomes of the "
-                              "room left over"),
-             .footer = toU8("a keep never empties a frame \xe2\x80\x94 a "
-                            "retraction that would leave the fill with "
-                            "nothing is dropped, because the text would "
-                            "arrive at the next frame in exactly the state "
-                            "that emptied this one and the chain would "
-                            "never advance"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells = {chains(), options()}, .column = true, .gap = 18}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("KEEPS AND FRAME OPTIONS \xc2\xb7 KeepOptions, "
+                       "Element::firstBaseline, Element::distribute"),
+         .subtitle = toU8("dials \xc2\xb7 the widow and orphan counts "
+                          "(2 and 2) \xc2\xb7 startInNextFrame \xc2\xb7 "
+                          "the seating rule \xc2\xb7 what becomes of the "
+                          "room left over"),
+         .footer = toU8("a keep never empties a frame \xe2\x80\x94 a "
+                        "retraction that would leave the fill with "
+                        "nothing is dropped, because the text would "
+                        "arrive at the next frame in exactly the state "
+                        "that emptied this one and the chain would "
+                        "never advance")},
+        kit::cells(
+            {.cells = {chains(), options()}, .column = true, .gap = 18})));
   }
 
   /** The three chains: the same story, the same two frames, one keep
    *  changed. */
   Element chains() {
     return kit::cells(
-        {.cells =
-             {kit::cell(voice(kChainCell), toU8("KeepOptions{} \xc2\xb7 free"),
-                        toU8("the cut falls where the fill reached the foot "
-                             "of frame one \xc2\xb7 the reference"),
-                        chain("free", article(true, {}, {}))),
-              kit::cell(voice(kChainCell),
-                        toU8("keep{.widowLines = 2, .orphanLines = 2}"),
-                        toU8("no single line may stand alone at either side "
-                             "of the join \xc2\xb7 the lines that would have "
-                             "are taken back out and reported as overflow"),
-                        chain("keep",
-                              article(true,
-                                      {.widowLines = kWidows,
-                                       .orphanLines = kOrphans},
-                                      {}))),
-              kit::cell(voice(kChainCell),
-                        toU8("keep{.startInNextFrame = true}"),
-                        toU8("on the LAST block, over a SHORTER body "
-                             "\xc2\xb7 it starts frame two though frame "
-                             "one still has room for it"),
-                        chain("start", article(false, {}, {.startInNextFrame = true})))},
+        {.cells = {sketch::kit::caption(
+                       kChainCell, toU8("KeepOptions{} \xc2\xb7 free"),
+                       toU8("the cut falls where the fill reached the foot "
+                            "of frame one \xc2\xb7 the reference"),
+                       chain("free", article(true, {}, {}))),
+                   sketch::kit::caption(
+                       kChainCell,
+                       toU8("keep{.widowLines = 2, .orphanLines = 2}"),
+                       toU8("no single line may stand alone at either side "
+                            "of the join \xc2\xb7 the lines that would have "
+                            "are taken back out and reported as overflow"),
+                       chain("keep", article(true,
+                                             {.widowLines = kWidows,
+                                              .orphanLines = kOrphans},
+                                             {}))),
+                   sketch::kit::caption(
+                       kChainCell, toU8("keep{.startInNextFrame = true}"),
+                       toU8("on the LAST block, over a SHORTER body "
+                            "\xc2\xb7 it starts frame two though frame "
+                            "one still has room for it"),
+                       chain("start",
+                             article(false, {}, {.startInNextFrame = true})))},
          .gap = 16});
   }
 
   /** The four frame options: two seatings and two distributions, each on
    *  the same short passage in the same box. */
   Element options() {
-    const auto passage = [](const char* text) {
-      return toU8(text);
-    };
+    const auto passage = [](const char* text) { return toU8(text); };
     Element seated =
         text(passage("Seated on the first line's own ascent, which is what "
                      "a leaf that says nothing gets."),
              serif(11.5f, kBody))
             .width(Dim(kOptionCell - 24))
-            .firstBaseline(weave::FrameOptions::FirstBaseline::kAscent,
-                           kSeat);
+            .firstBaseline(weave::FrameOptions::FirstBaseline::kAscent, kSeat);
     Element capped =
         text(passage("Seated on the first line's CAP HEIGHT, so two leaves "
                      "of different type start their text at one height."),
@@ -261,32 +225,31 @@ struct KeepsAndFrames final : sketch::Sketch {
             .distribute(weave::FrameOptions::Distribute::kJustify);
 
     return kit::cells(
-        {.cells =
-             {kit::cell(voice(kOptionCell),
-                        toU8("firstBaseline(kAscent)"),
-                        toU8("the first line's own ascent \xc2\xb7 what a "
-                             "leaf that says nothing gets, and the "
-                             "reference for the cell beside it"),
-                        optionPlate(std::move(seated))),
-              kit::cell(voice(kOptionCell),
-                        toU8("firstBaseline(kCapHeight)"),
-                        toU8("the cap top lands on the box's own top "
-                             "\xc2\xb7 every later baseline follows at its "
-                             "block's pitch, so the passage moves as one"),
-                        optionPlate(std::move(capped))),
-              kit::cell(voice(kOptionCell),
-                        toU8("distribute(kStart)"),
-                        toU8("the leftover room stays past the last line "
-                             "\xc2\xb7 the frame carries a stated height, "
-                             "so there IS room left over here"),
-                        optionPlate(std::move(stacked))),
-              kit::cell(voice(kOptionCell),
-                        toU8("distribute(kJustify)"),
-                        toU8("the same room spread between the lines as "
-                             "extra leading \xc2\xb7 the gaps open evenly "
-                             "and the last line lands on the frame's "
-                             "foot"),
-                        optionPlate(std::move(justified)))},
+        {.cells = {sketch::kit::caption(
+                       kOptionCell, toU8("firstBaseline(kAscent)"),
+                       toU8("the first line's own ascent \xc2\xb7 what a "
+                            "leaf that says nothing gets, and the "
+                            "reference for the cell beside it"),
+                       optionPlate(std::move(seated))),
+                   sketch::kit::caption(
+                       kOptionCell, toU8("firstBaseline(kCapHeight)"),
+                       toU8("the cap top lands on the box's own top "
+                            "\xc2\xb7 every later baseline follows at its "
+                            "block's pitch, so the passage moves as one"),
+                       optionPlate(std::move(capped))),
+                   sketch::kit::caption(
+                       kOptionCell, toU8("distribute(kStart)"),
+                       toU8("the leftover room stays past the last line "
+                            "\xc2\xb7 the frame carries a stated height, "
+                            "so there IS room left over here"),
+                       optionPlate(std::move(stacked))),
+                   sketch::kit::caption(
+                       kOptionCell, toU8("distribute(kJustify)"),
+                       toU8("the same room spread between the lines as "
+                            "extra leading \xc2\xb7 the gaps open evenly "
+                            "and the last line lands on the frame's "
+                            "foot"),
+                       optionPlate(std::move(justified)))},
          .gap = 14});
   }
 };

@@ -44,15 +44,13 @@
 #include <sigilmotion/values/Spring.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <functional>
 #include <string>
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
@@ -69,33 +67,12 @@ constexpr float kTau = 0.6f;     // the decay's time constant, seconds
 constexpr float kHz = 4.0f;      // the rate the clock is posterised at
 constexpr float kPeriod = 0.8f;  // the phase's loop and the spring's period
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kGrid{0.17f, 0.18f, 0.21f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kSecond{0.46f, 0.72f, 0.92f, 1};
 constexpr SkColor4f kThird{0.86f, 0.46f, 0.36f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** One curve over `kSpan` seconds, in a plot whose y runs 0 at the bottom
  *  to 1 at the top. The sampler is dense enough that a staircase reads as
@@ -147,20 +124,18 @@ Element plot(const char* key, std::vector<std::pair<Curve, SkColor4f>> curves,
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(std::move(body)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(std::move(body)));
 }
 
 }  // namespace
 
 struct DecayStep final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // the plots are functions of time, not of the clock
+    // the plots are functions of time, not of the clock
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // The spring is a STATE, so its curve is a walk rather than a
     // sampling: it is stepped at a fixed dt and remembers its velocity.
@@ -175,81 +150,68 @@ struct DecayStep final : sketch::Sketch {
       };
     };
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE CLOCK ARITHMETIC \xc2\xb7 motion::decay, "
-                           "quantizeTime, stepIndex, phase, spring"),
-             .subtitle = toU8("dials \xc2\xb7 three seconds across every plot "
-                              "\xc2\xb7 the time constant (0.6 s) \xc2\xb7 "
-                              "the rate (4 Hz) \xc2\xb7 the period (0.8 s) "
-                              "\xc2\xb7 the damping ratios"),
-             .footer = toU8("a spring is a STATE and the rest are functions, "
-                            "which is the whole difference: an ease needs "
-                            "two fixed endpoints and can only restart when "
-                            "the target moves, where a spring carries the "
-                            "motion it already has into the new one"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell(
-                          "motion::decay(age, 0.6)",
-                          "exp(-age/tau) \xc2\xb7 1 at the instant it "
-                          "happened, and never quite 0 \xc2\xb7 the grid is "
-                          "one tau apart, so the curve crosses each line "
-                          "lower by the same fraction",
-                          plot("decay",
-                               {{[](float t) { return motion::decay(t, kTau); },
-                                 kFigure}},
-                               (int)(kSpan / kTau))),
-                      cell("quantizeTime(t, 4) / 3",
-                           "SECONDS posterised at a rate and held still "
-                           "between steps \xc2\xb7 twelve steps across "
-                           "three seconds, against the ramp they came from",
-                           plot("quantize",
-                                {{[](float t) { return t / kSpan; }, kAsh},
-                                 {[](float t) {
-                                    return motion::quantizeTime(t, kHz) / kSpan;
-                                  },
-                                  kFigure}},
-                                (int)(kSpan * kHz))),
-                      cell("stepIndex(t, 4) / 12",
-                           "the same clock as an INTEGER COUNT \xc2\xb7 the "
-                           "same staircase, and the number a cursor or a "
-                           "frame table indexes with",
-                           plot("step",
-                                {{[](float t) {
-                                    return (float)motion::stepIndex(t, kHz) /
-                                           (kSpan * kHz);
-                                  },
-                                  kSecond}},
-                                (int)(kSpan * kHz))),
-                      cell("motion::phase(t, 0.8)",
-                           "seconds folded into a wrapping [0, 1) "
-                           "\xc2\xb7 the marching ants, the marquee, the "
-                           "scanline creep \xc2\xb7 three and three quarter "
-                           "turns in three seconds",
-                           plot("phase", {{[](float t) {
-                                             return motion::phase(t, kPeriod);
-                                           },
-                                           kFigure}})),
-                      cell("spring(s, 1, dt, {0.8, damping})",
-                           "damping 0.25, 0.6 and 1.2 \xc2\xb7 below one it "
-                           "overshoots and rings, at one it arrives as fast "
-                           "as it can without crossing, above one it crawls "
-                           "in from one side",
-                           plot("spring", {{springWalk(0.25f), kThird},
-                                           {springWalk(0.6f), kFigure},
-                                           {springWalk(1.2f), kSecond}}))},
-                 .gap = 12}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE CLOCK ARITHMETIC \xc2\xb7 motion::decay, "
+                       "quantizeTime, stepIndex, phase, spring"),
+         .subtitle = toU8("dials \xc2\xb7 three seconds across every plot "
+                          "\xc2\xb7 the time constant (0.6 s) \xc2\xb7 "
+                          "the rate (4 Hz) \xc2\xb7 the period (0.8 s) "
+                          "\xc2\xb7 the damping ratios"),
+         .footer = toU8("a spring is a STATE and the rest are functions, "
+                        "which is the whole difference: an ease needs "
+                        "two fixed endpoints and can only restart when "
+                        "the target moves, where a spring carries the "
+                        "motion it already has into the new one")},
+        kit::cells(
+            {.cells =
+                 {cell("motion::decay(age, 0.6)",
+                       "exp(-age/tau) \xc2\xb7 1 at the instant it "
+                       "happened, and never quite 0 \xc2\xb7 the grid is "
+                       "one tau apart, so the curve crosses each line "
+                       "lower by the same fraction",
+                       plot("decay",
+                            {{[](float t) { return motion::decay(t, kTau); },
+                              kFigure}},
+                            (int)(kSpan / kTau))),
+                  cell("quantizeTime(t, 4) / 3",
+                       "SECONDS posterised at a rate and held still "
+                       "between steps \xc2\xb7 twelve steps across "
+                       "three seconds, against the ramp they came from",
+                       plot("quantize",
+                            {{[](float t) { return t / kSpan; }, kAsh},
+                             {[](float t) {
+                                return motion::quantizeTime(t, kHz) / kSpan;
+                              },
+                              kFigure}},
+                            (int)(kSpan * kHz))),
+                  cell("stepIndex(t, 4) / 12",
+                       "the same clock as an INTEGER COUNT \xc2\xb7 the "
+                       "same staircase, and the number a cursor or a "
+                       "frame table indexes with",
+                       plot("step",
+                            {{[](float t) {
+                                return (float)motion::stepIndex(t, kHz) /
+                                       (kSpan * kHz);
+                              },
+                              kSecond}},
+                            (int)(kSpan * kHz))),
+                  cell("motion::phase(t, 0.8)",
+                       "seconds folded into a wrapping [0, 1) "
+                       "\xc2\xb7 the marching ants, the marquee, the "
+                       "scanline creep \xc2\xb7 three and three quarter "
+                       "turns in three seconds",
+                       plot("phase",
+                            {{[](float t) { return motion::phase(t, kPeriod); },
+                              kFigure}})),
+                  cell("spring(s, 1, dt, {0.8, damping})",
+                       "damping 0.25, 0.6 and 1.2 \xc2\xb7 below one it "
+                       "overshoots and rings, at one it arrives as fast "
+                       "as it can without crossing, above one it crawls "
+                       "in from one side",
+                       plot("spring", {{springWalk(0.25f), kThird},
+                                       {springWalk(0.6f), kFigure},
+                                       {springWalk(1.2f), kSecond}}))},
+             .gap = 12})));
   }
 };
 

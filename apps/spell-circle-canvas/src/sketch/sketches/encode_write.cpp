@@ -46,8 +46,7 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <filesystem>
 #include <memory>
@@ -55,7 +54,6 @@
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace img = sigil::image;
 namespace io = sigil::io;
 
@@ -72,30 +70,7 @@ constexpr int kLossy = 24;  // the quality the lossy cells ask for
 constexpr int kSide = 176;  // the source image's side, px
 const char* kMount = "out://";
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** The source: a smooth ramp under hard edges and fine text-sized
  *  detail, which is the pair of things the lossy codecs disagree about. */
@@ -129,26 +104,24 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
   Element art = picture ? image(std::make_shared<const img::ImageAsset>(
                               img::ImageAsset::wrap(std::move(picture))))
                         : box();
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(std::move(art).absolute().inset(0))
-                       .child(text(toU8(readout), mono(10, kFigure))
-                                  .absolute()
-                                  .left(Dim(6.0f))
-                                  .top(Dim(6.0f))
-                                  .padding(4, 2)
-                                  .fill(Fill::color({0, 0, 0, 0.55f}))));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(std::move(art).absolute().inset(0))
+          .child(text(toU8(readout), sketch::kit::theme().mono(10, kFigure))
+                     .absolute()
+                     .left(Dim(6.0f))
+                     .top(Dim(6.0f))
+                     .padding(4, 2)
+                     .fill(Fill::color({0, 0, 0, 0.55f}))));
 }
 
 }  // namespace
 
 struct EncodeWrite final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // every encode has already been taken
+    // every encode has already been taken
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const sk_sp<SkImage> art = source();
 
@@ -188,72 +161,57 @@ struct EncodeWrite final : sketch::Sketch {
                     wrote ? "true" : "false", read ? "true" : "false",
                     read ? read->width() : 0, read ? read->height() : 0);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("ENCODE, THEN WRITE \xc2\xb7 image::encodeImage, "
-                           "io::Hub::write"),
-             .subtitle =
-                 toU8("dials \xc2\xb7 the format \xc2\xb7 the quality the "
-                      "lossy ones honour (24) \xc2\xb7 the source's side "
-                      "(176 px) \xc2\xb7 the mount the bytes are stored "
-                      "under"),
-             .footer = toU8("the encoder hands bytes back and never looks at "
-                            "a filename; the hub stores them through the "
-                            "same mount table a read resolves by and drops "
-                            "every cached view of that URI, so the next ask "
-                            "reads the file"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("the source pixels",
-                           "a smooth ramp under hard edges and fine detail "
-                           "\xc2\xb7 the pair of things the lossy codecs "
-                           "disagree about",
-                           art,
-                           kit::format("N32 premul \xc2\xb7 %d\xc3\x97%d",
-                                       kSide, kSide)),
-                      cell("encodeImage(art, Png)",
-                           "lossless at every setting, and the quality is "
-                           "ignored \xc2\xb7 the bytes decode back to the "
-                           "pixels that went in",
-                           png,
-                           kit::format("png \xc2\xb7 %zu bytes", pngBytes)),
-                      cell("Webp, quality 100",
-                           "100 selects the LOSSLESS codec rather than lossy "
-                           "at maximum \xc2\xb7 two codecs in one container, "
-                           "and this is the one that keeps everything",
-                           webpLossless,
-                           kit::format("webp \xc2\xb7 %zu bytes",
-                                       losslessBytes)),
-                      cell("Webp, quality 24",
-                           "the same container, the other codec \xc2\xb7 the "
-                           "ramp survives and the fine rules go soft",
-                           webpLossy,
-                           kit::format("webp \xc2\xb7 %zu bytes", lossyBytes)),
-                      cell("Jpeg, quality 24",
-                           "the quantisation quality \xc2\xb7 the blocks are "
-                           "the codec's own, and they land where the edges "
-                           "are",
-                           jpeg,
-                           kit::format("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
-                      cell("hub.write(uri, bytes)",
-                           "the bytes out through the mount table, then "
-                           "asked back for as an image \xc2\xb7 the write "
-                           "dropped the cached view, so this is the file",
-                           read && !read->frames().empty()
-                               ? read->frames().front().image
-                               : nullptr,
-                           written)},
-                 .gap = 10}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("ENCODE, THEN WRITE \xc2\xb7 image::encodeImage, "
+                       "io::Hub::write"),
+         .subtitle = toU8("dials \xc2\xb7 the format \xc2\xb7 the quality the "
+                          "lossy ones honour (24) \xc2\xb7 the source's side "
+                          "(176 px) \xc2\xb7 the mount the bytes are stored "
+                          "under"),
+         .footer = toU8("the encoder hands bytes back and never looks at "
+                        "a filename; the hub stores them through the "
+                        "same mount table a read resolves by and drops "
+                        "every cached view of that URI, so the next ask "
+                        "reads the file")},
+        kit::cells(
+            {.cells =
+                 {cell("the source pixels",
+                       "a smooth ramp under hard edges and fine detail "
+                       "\xc2\xb7 the pair of things the lossy codecs "
+                       "disagree about",
+                       art,
+                       kit::format("N32 premul \xc2\xb7 %d\xc3\x97%d", kSide,
+                                   kSide)),
+                  cell("encodeImage(art, Png)",
+                       "lossless at every setting, and the quality is "
+                       "ignored \xc2\xb7 the bytes decode back to the "
+                       "pixels that went in",
+                       png, kit::format("png \xc2\xb7 %zu bytes", pngBytes)),
+                  cell("Webp, quality 100",
+                       "100 selects the LOSSLESS codec rather than lossy "
+                       "at maximum \xc2\xb7 two codecs in one container, "
+                       "and this is the one that keeps everything",
+                       webpLossless,
+                       kit::format("webp \xc2\xb7 %zu bytes", losslessBytes)),
+                  cell("Webp, quality 24",
+                       "the same container, the other codec \xc2\xb7 the "
+                       "ramp survives and the fine rules go soft",
+                       webpLossy,
+                       kit::format("webp \xc2\xb7 %zu bytes", lossyBytes)),
+                  cell("Jpeg, quality 24",
+                       "the quantisation quality \xc2\xb7 the blocks are "
+                       "the codec's own, and they land where the edges "
+                       "are",
+                       jpeg, kit::format("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
+                  cell("hub.write(uri, bytes)",
+                       "the bytes out through the mount table, then "
+                       "asked back for as an image \xc2\xb7 the write "
+                       "dropped the cached view, so this is the file",
+                       read && !read->frames().empty()
+                           ? read->frames().front().image
+                           : nullptr,
+                       written)},
+             .gap = 10})));
   }
 };
 

@@ -35,8 +35,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
 #include <memory>
@@ -44,7 +43,6 @@
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
@@ -62,31 +60,8 @@ constexpr int kTiles = 4;      // slices the strip is cut into
 constexpr SkSize kMotif = {34, 34};
 constexpr SkISize kTile = {44, 128};
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kWarm{0.86f, 0.52f, 0.34f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** The one motif every chain repeats and the strip is built from. */
 Element motif() {
@@ -98,11 +73,10 @@ Element motif() {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(std::move(body)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(std::move(body)));
 }
 
 }  // namespace
@@ -113,9 +87,8 @@ struct PlaceRepeatTiles final : sketch::Sketch {
   sk_sp<SkPicture> strip;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     atlas = std::make_shared<instancing::Atlas>();
     atlas->cell(motif(), kMotif);
@@ -156,33 +129,22 @@ struct PlaceRepeatTiles final : sketch::Sketch {
     // quadratic: every tile would walk every tile's ops.
     strip = tiles::sliceable(snapshot(box().child(std::move(run)), *ctx.fonts));
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("REPEAT AND TILE \xc2\xb7 instancing::place::"
-                           "repeat, tiles::window / tiles::sliceable"),
-             .subtitle =
-                 toU8("dials \xc2\xb7 the copy count (9) \xc2\xb7 the "
-                      "per-copy translate (19 px), rotation and scale step "
-                      "\xc2\xb7 the opacity ramp \xc2\xb7 the tile count (4) "
-                      "and its facing"),
-             .footer = toU8("a chain's scale step is EXPONENTIAL and its "
-                            "translate linear, and a tile is a clip and a "
-                            "translate \xe2\x80\x94 there is no windowed "
-                            "bake and no need for one, because neighbouring "
-                            "tiles share their boundary texels"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells({.cells = {chain(), turned(), ramped(), sliced(false),
-                                  sliced(true)},
-                        .gap = 12}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("REPEAT AND TILE \xc2\xb7 instancing::place::"
+                       "repeat, tiles::window / tiles::sliceable"),
+         .subtitle =
+             toU8("dials \xc2\xb7 the copy count (9) \xc2\xb7 the "
+                  "per-copy translate (19 px), rotation and scale step "
+                  "\xc2\xb7 the opacity ramp \xc2\xb7 the tile count (4) "
+                  "and its facing"),
+         .footer = toU8("a chain's scale step is EXPONENTIAL and its "
+                        "translate linear, and a tile is a clip and a "
+                        "translate \xe2\x80\x94 there is no windowed "
+                        "bake and no need for one, because neighbouring "
+                        "tiles share their boundary texels")},
+        kit::cells({.cells = {chain(), turned(), ramped(), sliced(false),
+                              sliced(true)},
+                    .gap = 12})));
   }
 
   Element pooled(const std::shared_ptr<instancing::Pool>& pool) const {

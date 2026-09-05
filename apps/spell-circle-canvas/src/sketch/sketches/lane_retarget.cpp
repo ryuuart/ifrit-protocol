@@ -41,8 +41,7 @@
 #include <sigilmotion/values/Animated.h>
 #include <sigilmotion/values/Lanes.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <chrono>
 #include <memory>
@@ -51,7 +50,6 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
@@ -70,9 +68,7 @@ constexpr float kFirst = 0.92f;       // the first target
 constexpr float kSecond = 0.24f;      // …and the one it is bent onto
 constexpr int kDuration = 900;        // the transition both ask for, ms
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kGrid{0.19f, 0.20f, 0.24f, 1};
@@ -83,24 +79,6 @@ constexpr SkColor4f kSecondInk{0.46f, 0.72f, 0.92f, 1};
  *  names no host type: one fixed slot array and one positional family. */
 enum class Family : uint8_t { Slots, Points };
 using Lane = motion::Lane<Family>;
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 motion::Transition ramp() { return {std::chrono::milliseconds(kDuration)}; }
 
@@ -147,17 +125,16 @@ Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
 
 Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(std::move(body))
-                       .child(text(toU8(readout), mono(10, kFigure))
-                                  .absolute()
-                                  .left(Dim(8.0f))
-                                  .top(Dim(6.0f))
-                                  .padding(4, 2)
-                                  .fill(Fill::color(kCellGround))));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(std::move(body))
+          .child(text(toU8(readout), sketch::kit::theme().mono(10, kFigure))
+                     .absolute()
+                     .left(Dim(8.0f))
+                     .top(Dim(6.0f))
+                     .padding(4, 2)
+                     .fill(Fill::color(kCellGround))));
 }
 
 }  // namespace
@@ -167,9 +144,8 @@ struct LaneRetarget final : sketch::Sketch {
   std::string readouts[4];
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // the four flights have already been run
+    // the four flights have already been run
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     plain = run(Change::None);
     slots = run(Change::Slots);
@@ -183,57 +159,45 @@ struct LaneRetarget final : sketch::Sketch {
     readouts[2] = kit::format("retargetFamily \xc2\xb7 same shape");
     readouts[3] = kit::format("retargetFamily \xc2\xb7 shape 1 \xe2\x86\x92 2");
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("RETARGETING A LANE \xc2\xb7 motion::"
-                           "retargetSlots, motion::retargetFamily"),
-             .subtitle = toU8("dials \xc2\xb7 the moment the second "
-                              "description arrives (0.55 s, the rule on "
-                              "every plot) \xc2\xb7 the two targets \xc2\xb7 "
-                              "the transition both ask for (900 ms)"),
-             .footer = toU8("a description that changes the SHAPE of a "
-                            "positional family DROPS its running motions "
-                            "rather than carrying them onto endpoints that "
-                            "now mean something else \xe2\x80\x94 the same "
-                            "rule keys enforce for whole nodes"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("one description, left alone",
-                           "the flight the other three interrupt \xc2\xb7 "
-                           "one transition from the standing value to the "
-                           "first target",
-                           plot("plain", {{plain, kFigure}}), readouts[0]),
-                      cell("retargetSlots(ticker, anims, prev, next, spec)",
-                           "the fixed row bent onto the second target "
-                           "mid-flight \xc2\xb7 the plain flight is under it "
-                           "for comparison",
-                           plot("slots", {{plain, kAsh}, {slots, kFigure}}),
-                           readouts[1]),
-                      cell("retargetFamily \xc2\xb7 equal shape",
-                           "a positional family of the same length "
-                           "retargets lane by lane, exactly as the fixed "
-                           "rows do",
-                           plot("family", {{plain, kAsh}, {family, kFigure}}),
-                           readouts[2]),
-                      cell("retargetFamily \xc2\xb7 the shape changed",
-                           "one lane became two \xc2\xb7 the motions are "
-                           "dropped and the new lanes start where the "
-                           "storage starts, which is the jump this rule "
-                           "chooses over a wrong carry",
-                           plot("reshaped",
-                                {{plain, kAsh}, {reshaped, kSecondInk}}),
-                           readouts[3])},
-                 .gap = 14}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("RETARGETING A LANE \xc2\xb7 motion::"
+                       "retargetSlots, motion::retargetFamily"),
+         .subtitle = toU8("dials \xc2\xb7 the moment the second "
+                          "description arrives (0.55 s, the rule on "
+                          "every plot) \xc2\xb7 the two targets \xc2\xb7 "
+                          "the transition both ask for (900 ms)"),
+         .footer = toU8("a description that changes the SHAPE of a "
+                        "positional family DROPS its running motions "
+                        "rather than carrying them onto endpoints that "
+                        "now mean something else \xe2\x80\x94 the same "
+                        "rule keys enforce for whole nodes")},
+        kit::cells(
+            {.cells = {cell("one description, left alone",
+                            "the flight the other three interrupt \xc2\xb7 "
+                            "one transition from the standing value to the "
+                            "first target",
+                            plot("plain", {{plain, kFigure}}), readouts[0]),
+                       cell("retargetSlots(ticker, anims, prev, next, spec)",
+                            "the fixed row bent onto the second target "
+                            "mid-flight \xc2\xb7 the plain flight is under it "
+                            "for comparison",
+                            plot("slots", {{plain, kAsh}, {slots, kFigure}}),
+                            readouts[1]),
+                       cell("retargetFamily \xc2\xb7 equal shape",
+                            "a positional family of the same length "
+                            "retargets lane by lane, exactly as the fixed "
+                            "rows do",
+                            plot("family", {{plain, kAsh}, {family, kFigure}}),
+                            readouts[2]),
+                       cell("retargetFamily \xc2\xb7 the shape changed",
+                            "one lane became two \xc2\xb7 the motions are "
+                            "dropped and the new lanes start where the "
+                            "storage starts, which is the jump this rule "
+                            "chooses over a wrong carry",
+                            plot("reshaped",
+                                 {{plain, kAsh}, {reshaped, kSecondInk}}),
+                            readouts[3])},
+             .gap = 14})));
   }
 
   enum class Change { None, Slots, Family, Reshaped };

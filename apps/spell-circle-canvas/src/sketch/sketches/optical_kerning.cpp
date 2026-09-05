@@ -34,6 +34,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -56,24 +57,9 @@ constexpr float kSize = 40;  // the size the deltas are measured at
 const char* kHeadline = "WAVY. To AVA";
 const char* kPairs[6] = {"AV", "VA", "To", "Y.", "WA", "av"};
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kTable{0.95f, 0.44f, 0.32f, 0.80f};
 constexpr SkColor4f kOptical{0.40f, 0.76f, 0.98f, 0.80f};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
 
 /** The headline's register. `optical` is the whole difference between the
  *  two settings on this sheet. */
@@ -86,21 +72,11 @@ weave::TextStyle display(float size, SkColor4f color, bool optical) {
   return style;
 }
 
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
-
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround),
-                              .padding = 12})
-                       .child(std::move(body)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
+          .child(std::move(body)));
 }
 
 }  // namespace
@@ -109,9 +85,8 @@ struct OpticalKerning final : sketch::Sketch {
   std::string rows[7];
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // THE DELTAS ARE MEASURED: each pair is set twice at the headline's
     // own size and the difference of the two advances is the answer. A
@@ -129,31 +104,20 @@ struct OpticalKerning final : sketch::Sketch {
     rows[6] = kit::format("%-3s %+6.2f px", "the line",
                           advance(kHeadline, true) - advance(kHeadline, false));
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("OPTICAL KERNING \xc2\xb7 "
-                           "ShapingStyle::opticalKerning"),
-             .subtitle = toU8("dials \xc2\xb7 the size (40 px, which is the "
-                              "size the deltas are for) \xc2\xb7 the pairs "
-                              "measured \xc2\xb7 the face, whose own even "
-                              "pair is the reference"),
-             .footer = toU8("the face's table is switched OFF while this is "
-                            "on, because the two are answers to the same "
-                            "question and a page takes one of them \xe2\x80"
-                            "\x94 and the reference is the face's own even "
-                            "pair, so a loose face stays loose"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells = {plain(), optical(), both(), table()}, .gap = 14}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("OPTICAL KERNING \xc2\xb7 "
+                       "ShapingStyle::opticalKerning"),
+         .subtitle = toU8("dials \xc2\xb7 the size (40 px, which is the "
+                          "size the deltas are for) \xc2\xb7 the pairs "
+                          "measured \xc2\xb7 the face, whose own even "
+                          "pair is the reference"),
+         .footer = toU8("the face's table is switched OFF while this is "
+                        "on, because the two are answers to the same "
+                        "question and a page takes one of them \xe2\x80"
+                        "\x94 and the reference is the face's own even "
+                        "pair, so a loose face stays loose")},
+        kit::cells(
+            {.cells = {plain(), optical(), both(), table()}, .gap = 14})));
   }
 
   Element headline(SkColor4f colour, bool optical) {
@@ -193,7 +157,7 @@ struct OpticalKerning final : sketch::Sketch {
   Element table() {
     Element column = box().column().gap(7);
     for (const std::string& row : rows)
-      column.child(text(toU8(row), mono(11, kFigure)));
+      column.child(text(toU8(row), sketch::kit::theme().mono(11, kFigure)));
     return cell("measured pair deltas",
                 "each pair set twice and the two advances subtracted "
                 "\xc2\xb7 negative closes the pair up, and the last row is "

@@ -31,13 +31,11 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Curves.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
@@ -50,42 +48,28 @@ constexpr float kCell = 200;
 constexpr float kPicture = 176;
 constexpr float kWeight = 1.5f;  // every curve drawn at one width
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
+/** The house sheet, in this one's caption voice. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.captionWhere = kit::Caption::Where::Below;
+  look.type.captionLabel = {.size = 11.5f, .mono = true};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.captionGap = 8;
+  look.spacing.captionNoteGap = 3;
+  return look;
 }
 
 /** A specimen's name is a legend under the thing it names, so the
  *  caption stands below the body on this shelf rather than around it. */
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Below,
-          .label = mono(11.5f, kInk),
-          .note = label(10.5f, kAsh, 0.2f),
-          .gap = 8,
-          .noteGap = 3,
-          .noteMeasure = kCell};
-}
 
 /** One specimen: the curve stroked inside a bordered plate, its call
  *  spelled under it and the rule it illustrates under that. */
 Element cell(const char* call, const char* note, Shape curve) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      kit::well({.width = kCell,
-                 .height = kPicture,
-                 .ground = Fill::color(kCellGround)})
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
           .child(box()
                      .absolute()
                      .inset(12)
@@ -97,99 +81,89 @@ Element cell(const char* call, const char* note, Shape curve) {
 
 struct CurveShelf final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("CURVE SHELF \xc2\xb7 shapes:: parametric, "
-                           "lissajous, harmonograph, rose, spiral, trochoid"),
-             .subtitle = toU8("dials \xc2\xb7 the two frequency parameters in "
-                              "each cell \xc2\xb7 the sample count \xc2\xb7 "
-                              "the stroke width (1.5 px, one for the shelf)"),
-             .footer = toU8("every curve here evaluates in the unit frame "
-                            "and is scaled onto the node's half-extents, so "
-                            "a cell twice the size draws the same figure "
-                            "twice as large and never a different one"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {kit::cells(
-                          {.cells =
-                               {cell("parametric(\"epicycle\", f)",
-                                     "the KEYED escape hatch \xe2\x80\x94 "
-                                     "your callable, comparable by name",
-                                     shapes::parametric(
-                                         "epicycle",
-                                         [](float t) {
-                                           return SkPoint{
-                                               0.62f * std::cos(t) +
-                                                   0.34f * std::cos(7 * t),
-                                               0.62f * std::sin(t) +
-                                                   0.34f * std::sin(7 * t)};
-                                         },
-                                         0.0f, 6.2831853f, 1400)),
-                                cell("lissajous(3, 2, 90)",
-                                     "x = sin(a\xc2\xb7t + \xce\xb4), "
-                                     "y = sin(b\xc2\xb7t)",
-                                     shapes::lissajous(3, 2, 90)),
-                                cell("lissajous(5, 4, 45)",
-                                     "the ratio picks the family, "
-                                     "\xce\xb4 the phase",
-                                     shapes::lissajous(5, 4, 45)),
-                                cell("harmonograph(3,2,0,.06,5)",
-                                     "amplitudes DECAY, so a real pendulum "
-                                     "figure spirals in",
-                                     shapes::
-                                         harmonograph(3, 2, 0, 0.06f, 5, 9)),
-                                cell("rose(5)",
-                                     "r = cos(k\xc2\xb7\xce\xb8) \xc2\xb7 "
-                                     "odd k gives k petals",
-                                     shapes::
-                                         rose(5))},
-                           .gap = 12}),
-                      kit::cells(
-                          {.cells =
-                               {cell("rose(4)",
-                                     "\xe2\x80\xa6"
-                                     "and EVEN k gives 2k, "
-                                     "which is the rule about this family",
-                                     shapes::
-                                         rose(4)),
-                                cell("spiral(4)",
-                                     "Archimedean \xe2\x80\x94 even "
-                                     "spacing: a clock spring",
-                                     shapes::
-                                         spiral(4)),
-                                cell("spiral(4, true, 0.34)",
-                                     "logarithmic \xe2\x80\x94 a constant "
-                                     "angle: a nautilus",
-                                     shapes::
-                                         spiral(4, true, 0.34f)),
-                                cell("trochoid(5, 3, 5, false, 3)",
-                                     "an EPItrochoid: the rolling circle "
-                                     "runs outside the fixed one",
-                                     shapes::
-                                         trochoid(5, 3, 5, false, 3)),
-                                cell("trochoid(5, 3, 5, true, 3)",
-                                     "\xe2\x80\xa6"
-                                     "and the same three "
-                                     "numbers with it running inside",
-                                     shapes::
-                                         trochoid(5, 3, 5, true, 3))},
-                           .gap = 12})},
-                 .column = true,
-                 .gap = 16}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("CURVE SHELF \xc2\xb7 shapes:: parametric, "
+                       "lissajous, harmonograph, rose, spiral, trochoid"),
+         .subtitle = toU8("dials \xc2\xb7 the two frequency parameters in "
+                          "each cell \xc2\xb7 the sample count \xc2\xb7 "
+                          "the stroke width (1.5 px, one for the shelf)"),
+         .footer = toU8("every curve here evaluates in the unit frame "
+                        "and is scaled onto the node's half-extents, so "
+                        "a cell twice the size draws the same figure "
+                        "twice as large and never a different one")},
+        kit::cells(
+            {.cells =
+                 {kit::cells(
+                      {.cells =
+                           {cell("parametric(\"epicycle\", f)",
+                                 "the KEYED escape hatch \xe2\x80\x94 "
+                                 "your callable, comparable by name",
+                                 shapes::parametric(
+                                     "epicycle",
+                                     [](float t) {
+                                       return SkPoint{
+                                           0.62f * std::cos(t) +
+                                               0.34f * std::cos(7 * t),
+                                           0.62f * std::sin(t) +
+                                               0.34f * std::sin(7 * t)};
+                                     },
+                                     0.0f,
+                                     6.2831853f, 1400)),
+                            cell("lissajous(3, 2, 90)",
+                                 "x = sin(a\xc2\xb7t + \xce\xb4), "
+                                 "y = sin(b\xc2\xb7t)",
+                                 shapes::lissajous(3, 2, 90)),
+                            cell("lissajous(5, 4, 45)",
+                                 "the ratio picks the family, "
+                                 "\xce\xb4 the phase",
+                                 shapes::lissajous(5, 4, 45)),
+                            cell("harmonograph(3,2,0,.06,5)",
+                                 "amplitudes DECAY, so a real pendulum "
+                                 "figure spirals in",
+                                 shapes::harmonograph(3, 2, 0, 0.06f, 5, 9)),
+                            cell("rose(5)",
+                                 "r = cos(k\xc2\xb7\xce\xb8) \xc2\xb7 "
+                                 "odd k gives k petals",
+                                 shapes::rose(5))},
+                       .gap =
+                           12}),
+                  kit::cells(
+                      {.cells =
+                           {cell("rose(4)",
+                                 "\xe2\x80\xa6"
+                                 "and EVEN k gives 2k, "
+                                 "which is the rule about this family",
+                                 shapes::
+                                     rose(4)),
+                            cell("spiral(4)",
+                                 "Archimedean \xe2\x80\x94 even "
+                                 "spacing: a clock spring",
+                                 shapes::
+                                     spiral(4)),
+                            cell("spiral(4, true, 0.34)",
+                                 "logarithmic \xe2\x80\x94 a constant "
+                                 "angle: a nautilus",
+                                 shapes::
+                                     spiral(4, true, 0.34f)),
+                            cell("trochoid(5, 3, 5, false, 3)",
+                                 "an EPItrochoid: the rolling circle "
+                                 "runs outside the fixed one",
+                                 shapes::
+                                     trochoid(5, 3, 5, false, 3)),
+                            cell("trochoid(5, 3, 5, true, 3)",
+                                 "\xe2\x80\xa6"
+                                 "and the same three "
+                                 "numbers with it running inside",
+                                 shapes::
+                                     trochoid(5, 3, 5, true, 3))},
+                       .gap =
+                           12})},
+             .column = true,
+             .gap = 16})));
   }
 };
 

@@ -46,6 +46,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -70,36 +71,13 @@ constexpr float kWide = 230;     // …and to
 constexpr float kBudget = 4000;  // the frame's floor, microseconds
 constexpr float kStarved = 1;    // a floor nothing can meet
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kBody{0.84f, 0.85f, 0.88f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
 
 weave::TextStyle body() {
   static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle({.face = face, .size = 11.5f, .color = kBody});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
 }
 
 const char* kPassage =
@@ -124,9 +102,8 @@ struct LiveSettling final : sketch::Sketch {
   std::string reports[4];
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // the swell has already been run, on its own composer
+    // the swell has already been run, on its own composer
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // THE SWELL, on a composer of its own: every whole pixel from the
     // narrow measure to the wide one and back, drawn each time, because
@@ -155,68 +132,54 @@ struct LiveSettling final : sketch::Sketch {
     reports[2] = sweep(false, 0, kWide);
     reports[3] = sweep(true, kStarved, kWide);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("A MOVING MEASURE \xc2\xb7 Element::live, "
-                           "Composer::settling"),
-             .subtitle = toU8("dials \xc2\xb7 the measure the swell runs "
-                              "between (150 to 230 px, one pixel at a step) "
-                              "\xc2\xb7 the frame's budget (4000 \xc2\xb5s, "
-                              "then 1)"),
-             .footer = toU8("a settled passage reports nothing and answers "
-                            "reused 0 \xe2\x80\x94 it decided its breaks "
-                            "once and no later frame asks it again, which "
-                            "is why live is DECLARED and never inferred"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("live(true, 4000) \xc2\xb7 at the narrow end",
-                           "the swell has crossed this measure before "
-                           "\xc2\xb7 the block comes back out of the store, "
-                           "so this frame costs no break decision at all",
-                           kNarrow, true, kBudget, reports[0]),
-                      cell("live(true, 4000) \xc2\xb7 at the wide end",
-                           "the other end of the range, reached from "
-                           "the narrow one \xc2\xb7 the decisions are keyed "
-                           "on the words and on the measure taken to the "
-                           "whole pixel below it",
-                           kWide, true, kBudget, reports[1]),
-                      cell("no live() at all",
-                           "the same swell run on a passage that never said "
-                           "its input moves \xc2\xb7 it decides its breaks "
-                           "again every frame and stores nothing",
-                           kWide, false, 0, reports[2]),
-                      cell("live(true, 1)",
-                           "a floor no optimizing break can meet "
-                           "\xc2\xb7 the block is filled greedily for this "
-                           "frame and counted, and the setting comes back "
-                           "the frame the budget is met",
-                           kWide, true, kStarved, reports[3])},
-                 .gap = 14}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("A MOVING MEASURE \xc2\xb7 Element::live, "
+                       "Composer::settling"),
+         .subtitle = toU8("dials \xc2\xb7 the measure the swell runs "
+                          "between (150 to 230 px, one pixel at a step) "
+                          "\xc2\xb7 the frame's budget (4000 \xc2\xb5s, "
+                          "then 1)"),
+         .footer = toU8("a settled passage reports nothing and answers "
+                        "reused 0 \xe2\x80\x94 it decided its breaks "
+                        "once and no later frame asks it again, which "
+                        "is why live is DECLARED and never inferred")},
+        kit::cells(
+            {.cells = {cell("live(true, 4000) \xc2\xb7 at the narrow end",
+                            "the swell has crossed this measure before "
+                            "\xc2\xb7 the block comes back out of the store, "
+                            "so this frame costs no break decision at all",
+                            kNarrow, true, kBudget, reports[0]),
+                       cell("live(true, 4000) \xc2\xb7 at the wide end",
+                            "the other end of the range, reached from "
+                            "the narrow one \xc2\xb7 the decisions are keyed "
+                            "on the words and on the measure taken to the "
+                            "whole pixel below it",
+                            kWide, true, kBudget, reports[1]),
+                       cell("no live() at all",
+                            "the same swell run on a passage that never said "
+                            "its input moves \xc2\xb7 it decides its breaks "
+                            "again every frame and stores nothing",
+                            kWide, false, 0, reports[2]),
+                       cell("live(true, 1)",
+                            "a floor no optimizing break can meet "
+                            "\xc2\xb7 the block is filled greedily for this "
+                            "frame and counted, and the setting comes back "
+                            "the frame the budget is met",
+                            kWide, true, kStarved, reports[3])},
+             .gap = 14})));
   }
 
   /** One cell: the passage set at its own measure, with the report the
    *  swell produced printed under it. */
   Element cell(const char* call, const char* note, float measure, bool live,
                float budget, const std::string& report) {
-    return kit::cell(voice(), toU8(call), toU8(note),
-                     kit::well({.width = kCell,
-                                .height = kPicture,
-                                .ground = Fill::color(kCellGround),
-                                .padding = 12})
-                         .column()
-                         .gap(10)
-                         .child(passage(measure, live, budget))
-                         .child(text(toU8(report), mono(10, kFigure))));
+    return sketch::kit::caption(
+        kCell, toU8(call), toU8(note),
+        sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
+            .column()
+            .gap(10)
+            .child(passage(measure, live, budget))
+            .child(text(toU8(report), sketch::kit::theme().mono(10, kFigure))));
   }
 };
 

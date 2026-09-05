@@ -34,14 +34,12 @@
 #include <sigilgeometry/path/Band.h>
 #include <sigilgeometry/path/Profile.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <functional>
 #include <string>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
 
@@ -58,32 +56,18 @@ constexpr float kAmplitude = 11;   // the wave law's swing, px
 constexpr float kWavelength = 54;  // px per cycle of it
 constexpr float kRail = 15;        // the constant offset, px
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kSpine{0.44f, 0.70f, 0.95f, 1};
 constexpr SkColor4f kFigure{0.86f, 0.80f, 0.66f, 1};
 constexpr SkColor4f kBandFill{0.95f, 0.62f, 0.30f, 0.34f};
 constexpr SkColor4f kBandEdge{0.95f, 0.62f, 0.30f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = label(12, kInk, 1.2f),
-          .note = mono(10.5f, kAsh),
-          .gap = 8,
-          .noteMeasure = kCell};
+/** The house sheet, in this one's caption voice. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.type.captionLabel = {.size = 12, .track = 1.2f};
+  look.type.captionNote = {.size = 10.5f, .mono = true};
+  look.spacing.captionGap = 8;
+  return look;
 }
 
 /** The subject: a regular hexagon, clockwise, with six real corners —
@@ -115,16 +99,14 @@ SkPaint fillPaint(SkColor4f color) {
 
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&)> draw) {
-  return kit::cell(
-      voice(), toU8(call), toU8(note),
-      kit::well({.width = kCell,
-                 .height = kPicture,
-                 .ground = Fill::color(kCellGround),
-                 .clip = false},
-                custom(call, [draw = std::move(draw)](SkCanvas& canvas,
-                                                      const PaintContext&) {
-                  draw(canvas);
-                })));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well(
+          {.width = kCell, .height = kPicture, .clip = false},
+          custom(call, [draw = std::move(draw)](SkCanvas& canvas,
+                                                const PaintContext&) {
+            draw(canvas);
+          })));
 }
 
 /** The spine drawn under everything, so each cell says what it added. */
@@ -145,129 +127,117 @@ void region(SkCanvas& canvas, const SkPath& p) {
 
 struct FormationBands final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const path::Profile wave = path::profile::wave(kAmplitude, kWavelength);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("FORMATION BANDS \xc2\xb7 Profile + profileOffset "
-                           "+ bandRegion"),
-             .subtitle = toU8("dials \xc2\xb7 the formation (Centered, "
-                              "Outward, Inward) \xc2\xb7 the amplitude "
-                              "(11 px) \xc2\xb7 the wavelength (54 px per "
-                              "cycle)"),
-             .footer = toU8("positive across is LEFT of travel, which on a "
-                            "clockwise path is outside it \xe2\x80\x94 so "
-                            "Outward and Inward are not a sign the caller "
-                            "picks but a side the formation names"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {kit::cells(
-                          {.cells =
-                               {cell("profileOffset(spine, profile::self())",
-                                     kit::format(
-                                         "across \xe2\x89\xa1 0 \xc2\xb7 "
-                                         "max() %.0f px \xe2\x80\x94 the "
-                                         "boundary itself, which is the "
-                                         "law every other law is measured "
-                                         "against",
-                                         (double)path::profile::self().max()),
-                                     [](SkCanvas& canvas) {
-                                       ghost(canvas);
-                                       canvas.drawPath(
-                                           path::profileOffset(
-                                               spine(), path::profile::self()),
-                                           strokePaint(kFigure, 2.4f));
-                                     }),
-                                cell("profileOffset(spine, "
-                                     "profile::offset(15))",
-                                     kit::format(
-                                         "across \xe2\x89\xa1 15 \xc2\xb7 "
-                                         "max() %.0f px \xc2\xb7 a "
-                                         "constant law delegates to "
-                                         "parallel, so the corners take an "
-                                         "arc outside and a miter inside",
-                                         (double)path::profile::offset(kRail)
-                                             .max()),
-                                     [](SkCanvas& canvas) {
-                                       ghost(canvas);
-                                       canvas.drawPath(
-                                           path::profileOffset(
-                                               spine(),
-                                               path::profile::offset(kRail)),
-                                           strokePaint(kFigure, 2.4f));
-                                     }),
-                                cell("profileOffset(spine, "
-                                     "profile::wave(11, 54))",
-                                     kit::format(
-                                         "one rail of the wave law \xc2\xb7 "
-                                         "max() %.0f px, which is what "
-                                         "bleed and cull are sized from",
-                                         (double)wave.max()),
-                                     [wave](SkCanvas& canvas) {
-                                       ghost(canvas);
-                                       canvas.drawPath(
-                                           path::profileOffset(spine(), wave),
-                                           strokePaint(kFigure, 2.4f));
-                                     })},
-                           .gap = 14}),
-                      kit::cells(
-                          {.cells = {cell("bandRegion(spine, wave, "
-                                          "Formation::Centered)",
-                                          "both rails at \xc2\xb1"
-                                          "across, closed "
-                                          "per contour \xc2\xb7 a law that "
-                                          "crosses zero pinches the band shut "
-                                          "wherever it does",
-                                          [wave](SkCanvas& canvas) {
-                                            region(
-                                                canvas,
-                                                path::bandRegion(
-                                                    spine(), wave,
-                                                    path::Formation::Centered));
-                                          }),
-                                     cell("bandRegion(spine, wave, "
-                                          "Formation::Outward)",
-                                          "the spine (blue) is the INNER rail "
-                                          "\xc2\xb7 the whole mark stands "
-                                          "outside the figure it was measured "
-                                          "from",
-                                          [wave](SkCanvas& canvas) {
-                                            region(
-                                                canvas,
-                                                path::bandRegion(
-                                                    spine(), wave,
-                                                    path::Formation::Outward));
-                                          }),
-                                     cell("bandRegion(spine, wave, "
-                                          "Formation::Inward)",
-                                          "the spine (blue) is the OUTER rail "
-                                          "\xc2\xb7 the mark falls entirely "
-                                          "within the figure, which is what a "
-                                          "milled groove wants",
-                                          [wave](SkCanvas& canvas) {
-                                            region(
-                                                canvas,
-                                                path::bandRegion(
-                                                    spine(), wave,
-                                                    path::Formation::Inward));
-                                          })},
-                           .gap = 14})},
-                 .column = true,
-                 .gap = 18}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("FORMATION BANDS \xc2\xb7 Profile + profileOffset "
+                       "+ bandRegion"),
+         .subtitle = toU8("dials \xc2\xb7 the formation (Centered, "
+                          "Outward, Inward) \xc2\xb7 the amplitude "
+                          "(11 px) \xc2\xb7 the wavelength (54 px per "
+                          "cycle)"),
+         .footer = toU8("positive across is LEFT of travel, which on a "
+                        "clockwise path is outside it \xe2\x80\x94 so "
+                        "Outward and Inward are not a sign the caller "
+                        "picks but a side the formation names")},
+        kit::cells(
+            {.cells =
+                 {kit::cells(
+                      {.cells =
+                           {cell("profileOffset(spine, profile::self())",
+                                 kit::format(
+                                     "across \xe2\x89\xa1 0 \xc2\xb7 "
+                                     "max() %.0f px \xe2\x80\x94 the "
+                                     "boundary itself, which is the "
+                                     "law every other law is measured "
+                                     "against",
+                                     (double)path::profile::self().max()),
+                                 [](SkCanvas& canvas) {
+                                   ghost(canvas);
+                                   canvas.drawPath(
+                                       path::profileOffset(
+                                           spine(), path::profile::self()),
+                                       strokePaint(kFigure, 2.4f));
+                                 }),
+                            cell("profileOffset(spine, "
+                                 "profile::offset(15))",
+                                 kit::format(
+                                     "across \xe2\x89\xa1 15 \xc2\xb7 "
+                                     "max() %.0f px \xc2\xb7 a "
+                                     "constant law delegates to "
+                                     "parallel, so the corners take an "
+                                     "arc outside and a miter inside",
+                                     (
+                                         double)path::profile::offset(kRail)
+                                         .max()),
+                                 [](SkCanvas& canvas) {
+                                   ghost(canvas);
+                                   canvas.drawPath(
+                                       path::profileOffset(
+                                           spine(),
+                                           path::profile::offset(kRail)),
+                                       strokePaint(kFigure, 2.4f));
+                                 }),
+                            cell("profileOffset(spine, "
+                                 "profile::wave(11, 54))",
+                                 kit::format(
+                                     "one rail of the wave law \xc2\xb7 "
+                                     "max() %.0f px, which is what "
+                                     "bleed and cull are sized from",
+                                     (
+                                         double)wave.max()),
+                                 [wave](SkCanvas& canvas) {
+                                   ghost(canvas);
+                                   canvas.drawPath(
+                                       path::profileOffset(spine(), wave),
+                                       strokePaint(kFigure, 2.4f));
+                                 })},
+                       .gap = 14}),
+                  kit::cells(
+                      {.cells =
+                           {cell("bandRegion(spine, wave, "
+                                 "Formation::Centered)",
+                                 "both rails at \xc2\xb1"
+                                 "across, closed "
+                                 "per contour \xc2\xb7 a law that "
+                                 "crosses zero pinches the band shut "
+                                 "wherever it does",
+                                 [wave](SkCanvas& canvas) {
+                                   region(canvas,
+                                          path::bandRegion(
+                                              spine(), wave,
+                                              path::Formation::Centered));
+                                 }),
+                            cell("bandRegion(spine, wave, "
+                                 "Formation::Outward)",
+                                 "the spine (blue) is the INNER rail "
+                                 "\xc2\xb7 the whole mark stands "
+                                 "outside the figure it was measured "
+                                 "from",
+                                 [wave](SkCanvas& canvas) {
+                                   region(canvas,
+                                          path::bandRegion(
+                                              spine(), wave,
+                                              path::Formation::Outward));
+                                 }),
+                            cell("bandRegion(spine, wave, "
+                                 "Formation::Inward)",
+                                 "the spine (blue) is the OUTER rail "
+                                 "\xc2\xb7 the mark falls entirely "
+                                 "within the figure, which is what a "
+                                 "milled groove wants",
+                                 [wave](SkCanvas& canvas) {
+                                   region(canvas, path::bandRegion(
+                                                      spine(), wave,
+                                                      path::Formation::Inward));
+                                 })},
+                       .gap = 14})},
+             .column = true,
+             .gap = 18})));
   }
 };
 

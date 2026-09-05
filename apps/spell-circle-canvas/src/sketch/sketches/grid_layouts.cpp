@@ -31,14 +31,12 @@
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -56,30 +54,17 @@ constexpr float kGutter = 10;
 constexpr float kRhythm = 32;    // the baseline pitch, px
 constexpr float kSkewDeg = -12;  // the shear the second cell's rows ride
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
 constexpr SkColor4f kCard{0.17f, 0.18f, 0.21f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(11, kInk),
-          .note = label(10.5f, kAsh, 0.2f),
-          .gap = 8,
-          .noteMeasure = kCell};
+/** The house sheet, in this one's caption voice. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.type.captionLabel = {.size = 11, .mono = true};
+  look.type.captionNote = {.size = 10.5f, .track = 0.2f};
+  look.spacing.captionGap = 8;
+  return look;
 }
 
 /** The twelve cards, identical in every cell. Each is a TEXT leaf, so
@@ -91,9 +76,10 @@ std::vector<Element> cards() {
   made.reserve(12);
   for (int i = 0; i < 12; ++i) {
     const std::string digits = (i < 9 ? "0" : "") + std::to_string(i + 1);
-    made.push_back(text(toU8(digits), mono(kSizes[i % 3], kFigure))
-                       .padding(8, 4, 8, 4)
-                       .fill(Fill::color(kCard)));
+    made.push_back(
+        text(toU8(digits), sketch::kit::theme().mono(kSizes[i % 3], kFigure))
+            .padding(8, 4, 8, 4)
+            .fill(Fill::color(kCard)));
   }
   return made;
 }
@@ -114,68 +100,55 @@ Element rhythmLines() {
 
 Element cell(const char* call, const char* note, Element placed,
              bool ruled = false) {
-  Element plate = kit::well(
-      {.width = kCell, .height = kPicture, .ground = Fill::color(kCellGround)});
+  Element plate = sketch::kit::well({.width = kCell, .height = kPicture});
   if (ruled) plate.child(rhythmLines());
   plate.child(placed.absolute().inset(kInset).children(cards()));
-  return kit::cell(voice(), toU8(call), toU8(note), std::move(plate));
+  return sketch::kit::caption(kCell, toU8(call), toU8(note), std::move(plate));
 }
 
 }  // namespace
 
 struct GridLayouts final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    const sketch::kit::Provide look(sheetTheme());
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("GRID LAYOUTS \xc2\xb7 layout(layouts::"
-                           "ModularGrid | Diagonal | BaselineGrid)"),
-             .subtitle = toU8("dials \xc2\xb7 the module (3 columns "
-                              "\xc3\x97 4 rows, 10 px gutter) \xc2\xb7 the "
-                              "baseline rhythm (32 px) \xc2\xb7 the shear "
-                              "(\xe2\x88\x92"
-                              "12\xc2\xb0) \xc2\xb7 the same "
-                              "twelve cards in all three"),
-             .footer = toU8("a scheme is arithmetic over LayoutInput, so "
-                            "each of these caches like any other static "
-                            "subtree \xe2\x80\x94 and only BaselineGrid "
-                            "reads childBaselines, which a box does not "
-                            "have"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("layouts::ModularGrid{3, 4, 10}",
-                           "the card is SIZED to its cell \xc2\xb7 twelve "
-                           "with no spans auto-flow one module each, "
-                           "left to right then down",
-                           layout(layouts::ModularGrid{.columns = kColumns,
-                                                       .rows = kRows,
-                                                       .gutter = kGutter})),
-                      cell("layouts::Diagonal{-12, 6}",
-                           "measured sizes kept \xc2\xb7 x tracks the shear "
-                           "line at each row's y, and the run is shifted so "
-                           "nothing lands at negative x",
-                           layout(layouts::Diagonal{.skewDeg = kSkewDeg,
-                                                    .gap = 6})),
-                      cell("layouts::BaselineGrid{32}",
-                           "each card falls to the next 32 px line by its "
-                           "own FIRST BASELINE \xc2\xb7 three type sizes, "
-                           "one rhythm",
-                           layout(layouts::BaselineGrid{.rhythm = kRhythm}),
-                           true)},
-                 .gap = 16}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("GRID LAYOUTS \xc2\xb7 layout(layouts::"
+                       "ModularGrid | Diagonal | BaselineGrid)"),
+         .subtitle = toU8("dials \xc2\xb7 the module (3 columns "
+                          "\xc3\x97 4 rows, 10 px gutter) \xc2\xb7 the "
+                          "baseline rhythm (32 px) \xc2\xb7 the shear "
+                          "(\xe2\x88\x92"
+                          "12\xc2\xb0) \xc2\xb7 the same "
+                          "twelve cards in all three"),
+         .footer = toU8("a scheme is arithmetic over LayoutInput, so "
+                        "each of these caches like any other static "
+                        "subtree \xe2\x80\x94 and only BaselineGrid "
+                        "reads childBaselines, which a box does not "
+                        "have")},
+        kit::cells(
+            {.cells = {cell("layouts::ModularGrid{3, 4, 10}",
+                            "the card is SIZED to its cell \xc2\xb7 twelve "
+                            "with no spans auto-flow one module each, "
+                            "left to right then down",
+                            layout(layouts::ModularGrid{.columns = kColumns,
+                                                        .rows = kRows,
+                                                        .gutter = kGutter})),
+                       cell("layouts::Diagonal{-12, 6}",
+                            "measured sizes kept \xc2\xb7 x tracks the shear "
+                            "line at each row's y, and the run is shifted so "
+                            "nothing lands at negative x",
+                            layout(layouts::Diagonal{.skewDeg = kSkewDeg,
+                                                     .gap = 6})),
+                       cell("layouts::BaselineGrid{32}",
+                            "each card falls to the next 32 px line by its "
+                            "own FIRST BASELINE \xc2\xb7 three type sizes, "
+                            "one rhythm",
+                            layout(layouts::BaselineGrid{.rhythm = kRhythm}),
+                            true)},
+             .gap = 16})));
   }
 };
 

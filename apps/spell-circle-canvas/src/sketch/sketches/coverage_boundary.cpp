@@ -37,14 +37,12 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <memory>
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
@@ -60,31 +58,8 @@ constexpr float kArt = 132;  // the cut-out's box inside a cell
 constexpr float kWash = 0.30f;  // the faint cut-out's alpha, under 0.5
 constexpr float kGlow = 11;     // the outer glow's blur extent, px
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kFigure{0.86f, 0.79f, 0.62f, 1};
 constexpr SkColor4f kHalo{0.36f, 0.72f, 1.00f, 0.95f};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** The cut-out: a six-pointed star with a hole punched clean through it,
  *  on nothing at all. Its box is a rectangle, its silhouette is neither a
@@ -131,22 +106,20 @@ Element art(float alpha = 1.0f) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(std::move(body).absolute().inset(
-                           (kCell - kArt) / 2, (kPicture - kArt) / 2,
-                           (kCell - kArt) / 2, (kPicture - kArt) / 2)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(std::move(body).absolute().inset(
+              (kCell - kArt) / 2, (kPicture - kArt) / 2, (kCell - kArt) / 2,
+              (kPicture - kArt) / 2)));
 }
 
 }  // namespace
 
 struct CoverageBoundary final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // The union of three discs: a silhouette that exists only once the
     // children have been drawn, so no shape() could have named it.
@@ -161,67 +134,54 @@ struct CoverageBoundary final : sketch::Sketch {
           .fill(Fill::color(kFigure));
     };
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("COVERAGE BOUNDARY \xc2\xb7 "
-                           "Element::boundary(Boundary::Coverage)"),
-             .subtitle = toU8("dials \xc2\xb7 the boundary \xc2\xb7 the "
-                              "cut-out's alpha (0.30, under the half a "
-                              "pixel must be covered to join) \xc2\xb7 the "
-                              "glow's blur (11 px) \xc2\xb7 one style value "
-                              "for every cell"),
-             .footer = toU8("Coverage costs a raster and a trace whenever "
-                            "the node's layer is invalidated, and the "
-                            "node's OWN decorations are never in it "
-                            "\xe2\x80\x94 a mark that dressed itself would "
-                            "have no fixed point"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("image(cutOut)",
-                           "the source \xc2\xb7 an opaque star with a hole "
-                           "punched through it, and a rectangle of nothing "
-                           "around both",
-                           art()),
-                      cell("\xe2\x80\xa6"
-                           ".style(halo)",
-                           "Boundary::Auto is the node's own shape \xc2\xb7 "
-                           "the halo hugs the BOX, which is what the "
-                           "picture is not",
-                           art().style(halo())),
-                      cell("\xe2\x80\xa6"
-                           ".boundary(Coverage).style(halo)",
-                           "the same style on the traced silhouette \xc2\xb7 "
-                           "a staircase of whole pixels, which is what "
-                           "reading a raster gives",
-                           art().boundary(Boundary::Coverage).style(halo())),
-                      cell("the same cut-out at 30% alpha",
-                           "under half a pixel covered is not a silhouette "
-                           "\xc2\xb7 the trace comes back EMPTY, and an "
-                           "empty trace keeps the node's own shape",
-                           art(kWash)
-                               .boundary(Boundary::Coverage)
-                               .style(halo())),
-                      cell("children only \xc2\xb7 boundary(Coverage)",
-                           "the content and the CHILDREN are in the trace "
-                           "\xc2\xb7 three discs, one outline, and no "
-                           "shape() that could have said it",
-                           box()
-                               .boundary(Boundary::Coverage)
-                               .style(halo())
-                               .child(disc(6, 22, 62))
-                               .child(disc(44, 4, 70))
-                               .child(disc(30, 60, 76)))},
-                 .gap = 12}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("COVERAGE BOUNDARY \xc2\xb7 "
+                       "Element::boundary(Boundary::Coverage)"),
+         .subtitle = toU8("dials \xc2\xb7 the boundary \xc2\xb7 the "
+                          "cut-out's alpha (0.30, under the half a "
+                          "pixel must be covered to join) \xc2\xb7 the "
+                          "glow's blur (11 px) \xc2\xb7 one style value "
+                          "for every cell"),
+         .footer = toU8("Coverage costs a raster and a trace whenever "
+                        "the node's layer is invalidated, and the "
+                        "node's OWN decorations are never in it "
+                        "\xe2\x80\x94 a mark that dressed itself would "
+                        "have no fixed point")},
+        kit::cells(
+            {.cells =
+                 {cell("image(cutOut)",
+                       "the source \xc2\xb7 an opaque star with a hole "
+                       "punched through it, and a rectangle of nothing "
+                       "around both",
+                       art()),
+                  cell("\xe2\x80\xa6"
+                       ".style(halo)",
+                       "Boundary::Auto is the node's own shape \xc2\xb7 "
+                       "the halo hugs the BOX, which is what the "
+                       "picture is not",
+                       art().style(halo())),
+                  cell("\xe2\x80\xa6"
+                       ".boundary(Coverage).style(halo)",
+                       "the same style on the traced silhouette \xc2\xb7 "
+                       "a staircase of whole pixels, which is what "
+                       "reading a raster gives",
+                       art().boundary(Boundary::Coverage).style(halo())),
+                  cell("the same cut-out at 30% alpha",
+                       "under half a pixel covered is not a silhouette "
+                       "\xc2\xb7 the trace comes back EMPTY, and an "
+                       "empty trace keeps the node's own shape",
+                       art(kWash).boundary(Boundary::Coverage).style(halo())),
+                  cell("children only \xc2\xb7 boundary(Coverage)",
+                       "the content and the CHILDREN are in the trace "
+                       "\xc2\xb7 three discs, one outline, and no "
+                       "shape() that could have said it",
+                       box()
+                           .boundary(Boundary::Coverage)
+                           .style(halo())
+                           .child(disc(6, 22, 62))
+                           .child(disc(44, 4, 70))
+                           .child(disc(30, 60, 76)))},
+             .gap = 12})));
   }
 };
 

@@ -37,6 +37,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -61,24 +62,9 @@ constexpr float kLean = 26;        // …and its lean, degrees
 constexpr float kEach = 60;        // per-unit spacing, ms
 constexpr float kDuration = 420;   // one unit's own motion, ms
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kHot{0.95f, 0.36f, 0.28f,
                          1};  // what the mixed tint wipes FROM
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
 
 weave::TextStyle specimen() {
   static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
@@ -87,26 +73,17 @@ weave::TextStyle specimen() {
       {.face = face, .size = 27, .color = kFigure, .track = 1.5f});
 }
 
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
-
 Element cell(const char* call, const char* note, const char* key, Track track) {
   track.progress = kProgress;
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround)})
-                       .child(text(toU8("DISPLACEMENT"), specimen())
-                                  .key(key)
-                                  .width(Dim(kCell - 28))
-                                  .absolute()
-                                  .inset(14, 60, 14, 14)
-                                  .fx(std::move(track))));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture})
+          .child(text(toU8("DISPLACEMENT"), specimen())
+                     .key(key)
+                     .width(Dim(kCell - 28))
+                     .absolute()
+                     .inset(14, 60, 14, 14)
+                     .fx(std::move(track))));
 }
 
 /** The one spread every cell starts from — the origin and the
@@ -123,77 +100,65 @@ motion::Spread ladder(motion::Spread::From from,
 
 struct FxScatterMix final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
+    sketch::kit::stage(ctx, {.size = kCanvas});
     // Every track holds one constant progress: the sheet is one instant
     // of the cascade, not a moment of an animation.
     ctx.captureAt(0.05);
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("SCATTER, MIX AND THE LADDER \xc2\xb7 fx::"
-                           "scatter, fx::mix, Spread::from, distribution"),
-             .subtitle = toU8("dials \xc2\xb7 the progress the photograph is "
-                              "taken at (0.50) \xc2\xb7 the scatter's radius "
-                              "(34 px) and lean (26\xc2\xb0) \xc2\xb7 the "
-                              "origin \xc2\xb7 the distribution curve"),
-             .footer = toU8("mix composes by the algebra stacked tracks use "
-                            "\xe2\x80\x94 dx, dy and rotation add, scale and "
-                            "alpha multiply \xe2\x80\x94 and the scatter's "
-                            "randomness is seeded from each glyph's own "
-                            "identity, so it is the same scatter every "
-                            "frame"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("fx::scatter(34, 26)",
-                           "each glyph flies in from its own offset in a "
-                           "disc, with its own lean \xc2\xb7 From::Start, so "
-                           "the head has landed",
-                           "sc",
-                           {.effect = fx::scatter(kRadius, kLean),
-                            .stagger = ladder(motion::Spread::From::Start)}),
-                      cell("fx::mix(scatter, tint)",
-                           "both at once at one local t \xc2\xb7 the "
-                           "offsets are the scatter's and the colour the "
-                           "tint's, composed and not sequenced",
-                           "mx",
-                           {.effect = fx::mix(fx::scatter(kRadius, kLean),
-                                              fx::tint(kHot, kFigure)),
-                            .stagger = ladder(motion::Spread::From::Start)}),
-                      cell("Spread::From::End",
-                           "the same effect, the cascade run backwards "
-                           "\xc2\xb7 the LAST glyph is the one that has "
-                           "landed",
-                           "en",
-                           {.effect = fx::scatter(kRadius, kLean),
-                            .stagger = ladder(motion::Spread::From::End)}),
-                      cell("Spread::From::Edges",
-                           "both ends start together and meet in the middle "
-                           "\xc2\xb7 the centre of the word is still in "
-                           "flight",
-                           "ed",
-                           {.effect = fx::scatter(kRadius, kLean),
-                            .stagger = ladder(motion::Spread::From::Edges)}),
-                      cell("\xe2\x80\xa6"
-                           ", .distribution = t\xc2\xb2",
-                           "the ramp of DELAYS passed through a curve "
-                           "\xc2\xb7 an ease-in crowds the early units and "
-                           "lets the tail spread out",
-                           "di",
-                           {.effect = fx::scatter(kRadius, kLean),
-                            .stagger = ladder(motion::Spread::From::Start,
-                                              [](float t) { return t * t; })})},
-                 .gap = 12}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("SCATTER, MIX AND THE LADDER \xc2\xb7 fx::"
+                       "scatter, fx::mix, Spread::from, distribution"),
+         .subtitle = toU8("dials \xc2\xb7 the progress the photograph is "
+                          "taken at (0.50) \xc2\xb7 the scatter's radius "
+                          "(34 px) and lean (26\xc2\xb0) \xc2\xb7 the "
+                          "origin \xc2\xb7 the distribution curve"),
+         .footer = toU8("mix composes by the algebra stacked tracks use "
+                        "\xe2\x80\x94 dx, dy and rotation add, scale and "
+                        "alpha multiply \xe2\x80\x94 and the scatter's "
+                        "randomness is seeded from each glyph's own "
+                        "identity, so it is the same scatter every "
+                        "frame")},
+        kit::cells(
+            {.cells =
+                 {cell("fx::scatter(34, 26)",
+                       "each glyph flies in from its own offset in a "
+                       "disc, with its own lean \xc2\xb7 From::Start, so "
+                       "the head has landed",
+                       "sc",
+                       {.effect = fx::scatter(kRadius, kLean),
+                        .stagger = ladder(motion::Spread::From::Start)}),
+                  cell("fx::mix(scatter, tint)",
+                       "both at once at one local t \xc2\xb7 the "
+                       "offsets are the scatter's and the colour the "
+                       "tint's, composed and not sequenced",
+                       "mx",
+                       {.effect = fx::mix(fx::scatter(kRadius, kLean),
+                                          fx::tint(kHot, kFigure)),
+                        .stagger = ladder(motion::Spread::From::Start)}),
+                  cell("Spread::From::End",
+                       "the same effect, the cascade run backwards "
+                       "\xc2\xb7 the LAST glyph is the one that has "
+                       "landed",
+                       "en",
+                       {.effect = fx::scatter(kRadius, kLean),
+                        .stagger = ladder(motion::Spread::From::End)}),
+                  cell("Spread::From::Edges",
+                       "both ends start together and meet in the middle "
+                       "\xc2\xb7 the centre of the word is still in "
+                       "flight",
+                       "ed",
+                       {.effect = fx::scatter(kRadius, kLean),
+                        .stagger = ladder(motion::Spread::From::Edges)}),
+                  cell("\xe2\x80\xa6"
+                       ", .distribution = t\xc2\xb2",
+                       "the ramp of DELAYS passed through a curve "
+                       "\xc2\xb7 an ease-in crowds the early units and "
+                       "lets the tail spread out",
+                       "di",
+                       {.effect = fx::scatter(kRadius, kLean),
+                        .stagger = ladder(motion::Spread::From::Start,
+                                          [](float t) { return t * t; })})},
+             .gap = 12})));
   }
 };
 

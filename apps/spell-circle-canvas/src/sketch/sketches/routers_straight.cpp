@@ -37,15 +37,13 @@
 #include <sigilcompose/kit/Routers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using sigil::compose::toU8;
@@ -61,31 +59,8 @@ constexpr float kRadius = 12;    // the corner radius, px
 constexpr float kChamfer = 14;   // the 45 degree cut, which wins over a radius
 constexpr float kBulge = 0.26f;  // the arc's bulge, as a fraction of the chord
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kNodeFill{0.17f, 0.18f, 0.21f, 1};
 constexpr SkColor4f kWire{0.90f, 0.83f, 0.68f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
-}
 
 /** The two nodes every cell routes between, at the same two places in
  *  every cell, so the ROUTER is the only thing that differs. */
@@ -102,9 +77,7 @@ Element plate(const std::string& tag, Element route) {
   PathFormat wire;
   wire.width = 1.6f;
   wire.strokeFill = Fill::color(kWire);
-  return kit::well({.width = kCell,
-                    .height = kPicture,
-                    .ground = Fill::color(kCellGround)})
+  return sketch::kit::well({.width = kCell, .height = kPicture})
       .child(stack()
                  .inset(0)
                  .child(endpoint(tag + "-a", 16, 26))
@@ -118,86 +91,73 @@ Element plate(const std::string& tag, Element route) {
 
 Element cell(const char* call, const char* note, const std::string& tag,
              Element route) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   plate(tag, std::move(route)));
+  return sketch::kit::caption(kCell, toU8(call), toU8(note),
+                              plate(tag, std::move(route)));
 }
 
 }  // namespace
 
 struct RoutersStraight final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const auto wire = [](const std::string& tag, Router router) {
       return connector(tag + "-a", tag + "-b", std::move(router), 4);
     };
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("THE STOCK ROUTES \xc2\xb7 routers::straight, "
-                           "orthogonal, arc, octilinear"),
-             .subtitle = toU8("dials \xc2\xb7 the router \xc2\xb7 the bend "
-                              "(MidX, HFirst, VFirst) \xc2\xb7 the corner "
-                              "radius (12 px) or the 45\xc2\xb0 cut (14 px, "
-                              "which wins) \xc2\xb7 the arc's bulge (0.26 of "
-                              "the chord)"),
-             .footer = toU8("a Router is a function of the two endpoint "
-                            "rects and a RailRouter one over the whole "
-                            "anchor run \xe2\x80\x94 which is why octilinear "
-                            "is reached through rail() and never through "
-                            "connector()"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells(
-                {.cells =
-                     {cell("routers::straight()",
-                           "centre to centre \xc2\xb7 the connector default, "
-                           "here as a named value, with a 4 px gap pulling "
-                           "each end back",
-                           "st", wire("st", routers::straight())),
-                      cell(
-                          "orthogonal(Bend::MidX)",
-                          "the Z \xc2\xb7 half way over, one vertical run, "
-                          "half way in \xe2\x80\x94 what a node graph "
-                          "defaults to",
-                          "mx",
-                          wire("mx", routers::orthogonal(routers::Bend::MidX))),
-                      cell("orthogonal(Bend::HFirst, 12)",
-                           "an L bending AT THE TARGET column, its turn "
-                           "rounded \xc2\xb7 the circuit trace",
-                           "hf",
-                           wire("hf", routers::orthogonal(routers::Bend::HFirst,
-                                                          kRadius))),
-                      cell("orthogonal(Bend::VFirst, 0, 14)",
-                           "the other L, out of the SOURCE first, its turn "
-                           "cut at 45\xc2\xb0 \xc2\xb7 a chamfer wins over a "
-                           "radius",
-                           "vf",
-                           wire("vf", routers::orthogonal(routers::Bend::VFirst,
-                                                          0, kChamfer))),
-                      cell("routers::arc(0.26)",
-                           "the chord bowed by a fraction of its own length "
-                           "\xc2\xb7 the sign picks the side",
-                           "ar", wire("ar", routers::arc(kBulge))),
-                      cell("rail({a, b}, octilinear(8))",
-                           "the metro-map RailRouter \xc2\xb7 the leg runs "
-                           "45\xc2\xb0 for the shorter delta and finishes "
-                           "straight, and rail() is its only door",
-                           "oc",
-                           rail({Anchor{"oc-a", {0.5f, 0.5f}, 4},
-                                 Anchor{"oc-b", {0.5f, 0.5f}, 4}},
-                                routers::octilinear(8)))},
-                 .gap = 10}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("THE STOCK ROUTES \xc2\xb7 routers::straight, "
+                       "orthogonal, arc, octilinear"),
+         .subtitle = toU8("dials \xc2\xb7 the router \xc2\xb7 the bend "
+                          "(MidX, HFirst, VFirst) \xc2\xb7 the corner "
+                          "radius (12 px) or the 45\xc2\xb0 cut (14 px, "
+                          "which wins) \xc2\xb7 the arc's bulge (0.26 of "
+                          "the chord)"),
+         .footer = toU8("a Router is a function of the two endpoint "
+                        "rects and a RailRouter one over the whole "
+                        "anchor run \xe2\x80\x94 which is why octilinear "
+                        "is reached through rail() and never through "
+                        "connector()")},
+        kit::cells(
+            {.cells =
+                 {cell("routers::straight()",
+                       "centre to centre \xc2\xb7 the connector default, "
+                       "here as a named value, with a 4 px gap pulling "
+                       "each end back",
+                       "st", wire("st", routers::straight())),
+                  cell("orthogonal(Bend::MidX)",
+                       "the Z \xc2\xb7 half way over, one vertical run, "
+                       "half way in \xe2\x80\x94 what a node graph "
+                       "defaults to",
+                       "mx",
+                       wire("mx", routers::orthogonal(routers::Bend::MidX))),
+                  cell("orthogonal(Bend::HFirst, 12)",
+                       "an L bending AT THE TARGET column, its turn "
+                       "rounded \xc2\xb7 the circuit trace",
+                       "hf",
+                       wire("hf", routers::orthogonal(routers::Bend::HFirst,
+                                                      kRadius))),
+                  cell("orthogonal(Bend::VFirst, 0, 14)",
+                       "the other L, out of the SOURCE first, its turn "
+                       "cut at 45\xc2\xb0 \xc2\xb7 a chamfer wins over a "
+                       "radius",
+                       "vf",
+                       wire("vf", routers::orthogonal(routers::Bend::VFirst, 0,
+                                                      kChamfer))),
+                  cell("routers::arc(0.26)",
+                       "the chord bowed by a fraction of its own length "
+                       "\xc2\xb7 the sign picks the side",
+                       "ar", wire("ar", routers::arc(kBulge))),
+                  cell("rail({a, b}, octilinear(8))",
+                       "the metro-map RailRouter \xc2\xb7 the leg runs "
+                       "45\xc2\xb0 for the shorter delta and finishes "
+                       "straight, and rail() is its only door",
+                       "oc",
+                       rail({Anchor{"oc-a", {0.5f, 0.5f}, 4},
+                             Anchor{"oc-b", {0.5f, 0.5f}, 4}},
+                            routers::octilinear(8)))},
+             .gap = 10})));
   }
 };
 

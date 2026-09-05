@@ -34,6 +34,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilweave/layout/Beside.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -60,37 +61,14 @@ constexpr float kDrop = 3;  // the slot's bottom, below the base's baseline
 
 const char* kNote = "which a text sets small and doubled inside the line";
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kBody{0.86f, 0.87f, 0.90f, 1};
 constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kSlot{0.16f, 0.17f, 0.20f, 1};
-
-weave::TextStyle label(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
-}
-
-weave::TextStyle mono(float size, SkColor4f color) {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"SF Mono", "Menlo", "DejaVu Sans Mono", "monospace"});
-  return weave::textStyle({.face = face, .size = size, .color = color});
-}
 
 weave::TextStyle serif(float size, SkColor4f color) {
   static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle({.face = face, .size = size, .color = color});
-}
-
-kit::Caption voice() {
-  return {.where = kit::Caption::Where::Split,
-          .label = mono(10.5f, kInk),
-          .note = label(10, kAsh, 0.2f),
-          .gap = 7,
-          .noteMeasure = kCell};
 }
 
 /** UTF-16 back to UTF-8 for the two halves of a Latin note. The note is
@@ -104,12 +82,10 @@ std::u8string narrow(std::u16string_view utf16) {
 }
 
 Element cell(const char* call, const char* note, Element body) {
-  return kit::cell(voice(), toU8(call), toU8(note),
-                   kit::well({.width = kCell,
-                              .height = kPicture,
-                              .ground = Fill::color(kCellGround),
-                              .padding = 12})
-                       .child(std::move(body)));
+  return sketch::kit::caption(
+      kCell, toU8(call), toU8(note),
+      sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
+          .child(std::move(body)));
 }
 
 }  // namespace
@@ -121,9 +97,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
   float oneLine = 0;
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kCanvas.width(), kCanvas.height());
-    ctx.background(kGround);
-    ctx.captureAt(0.05);  // nothing moves; the sheet is complete at once
+    // nothing moves; the sheet is complete at once
+    sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     // The note as a paragraph of its own, which is what the split is asked
     // about: its size, its face and its language are the note's, and the
@@ -147,32 +122,21 @@ struct WarichuPlaceholder final : sketch::Sketch {
     report[2] = kit::format("cut at word %u \xc2\xb7 \"%s\"", split.cutWord,
                             reinterpret_cast<const char*>(second.c_str()));
 
-    ctx.composer.render(
-        kit::sheet(
-            {.title = toU8("WARICHU \xc2\xb7 weave::warichuSplit into a "
-                           "reserved inline slot"),
-             .subtitle = toU8("dials \xc2\xb7 the note's own size (8 px "
-                              "against a 13 px base) \xc2\xb7 the slot's "
-                              "baseline drop \xc2\xb7 the note's length, "
-                              "which is what decides the cut"),
-             .footer = toU8("the cut is the break opportunity that leaves "
-                            "the two lines CLOSEST IN ADVANCE \xe2\x80\x94 "
-                            "two lines of one length is what makes a note "
-                            "read as one object rather than as a line with "
-                            "something under it"),
-             .titleStyle = label(14, kInk, 2.4f),
-             .subtitleStyle = label(11.5f, kAsh, 0.8f),
-             .footerStyle = label(11, kAsh, 0.4f),
-             .marginX = 24,
-             .marginTop = 20,
-             .marginBottom = 16,
-             .ground = Fill::color(kGround),
-             .rule = Fill::color(kRule)},
-            kit::cells({.cells = {oneLineCell(), splitCell(), verticalCell(),
-                                  readoutCell()},
-                        .gap = 14}))
-            .absolute()
-            .inset(0));
+    ctx.composer.render(sketch::kit::page(
+        {.title = toU8("WARICHU \xc2\xb7 weave::warichuSplit into a "
+                       "reserved inline slot"),
+         .subtitle = toU8("dials \xc2\xb7 the note's own size (8 px "
+                          "against a 13 px base) \xc2\xb7 the slot's "
+                          "baseline drop \xc2\xb7 the note's length, "
+                          "which is what decides the cut"),
+         .footer = toU8("the cut is the break opportunity that leaves "
+                        "the two lines CLOSEST IN ADVANCE \xe2\x80\x94 "
+                        "two lines of one length is what makes a note "
+                        "read as one object rather than as a line with "
+                        "something under it")},
+        kit::cells({.cells = {oneLineCell(), splitCell(), verticalCell(),
+                              readoutCell()},
+                    .gap = 14})));
   }
 
   Element text_(const char* utf8) {
@@ -259,7 +223,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
   Element readoutCell() {
     Element column = box().column().gap(8);
     for (const std::string& row : report)
-      column.child(text(toU8(row), mono(10, kFigure)).width(Dim(kCell - 24)));
+      column.child(text(toU8(row), sketch::kit::theme().mono(10, kFigure))
+                       .width(Dim(kCell - 24)));
     return cell("WarichuSplit{advance, band, cutWord}",
                 "what the split answered for this note at this size "
                 "\xc2\xb7 the caller cuts its own text at that word's start",
