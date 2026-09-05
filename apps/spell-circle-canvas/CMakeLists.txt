@@ -70,6 +70,11 @@ option(SPELLCIRCLE_ENABLE_SUBSTANCE "Build the SigilSubstance .sbsar material re
 option(SPELLCIRCLE_ENABLE_USD "Build the SigilUsd writer/reader over OpenUSD" ON)
 set(SUBSTANCE_SDK_DIR "" CACHE PATH "Adobe Substance 3D SDK directory (holds substance-config.cmake)")
 
+# cmake/ holds the modules the whole tree is built from — the library
+# helper, the instrumentation switch, the Qt target rule, the header
+# self-test. A module that belongs to ONE library lives in that library's
+# own cmake/ directory and is included by its path, so moving the library
+# moves its build rules with it.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 # workaround: Qt adds a case-colliding FindFFmpeg module on macOS. Resolve
@@ -97,6 +102,8 @@ find_package(choreograph CONFIG REQUIRED)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 if(SPELLCIRCLE_ENABLE_ULTRALIGHT)
+  # SigilScry carries the find module for the SDK it is the only consumer of.
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/src/common/scry/cmake")
   find_package(Ultralight)
   if(NOT Ultralight_FOUND)
     message(WARNING "Ultralight SDK not found; disabling the SigilScry backend")

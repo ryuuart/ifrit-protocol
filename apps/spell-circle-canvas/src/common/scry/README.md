@@ -221,7 +221,7 @@ compositing model, in both directions.
 
 The library is gated on `SPELLCIRCLE_ENABLE_ULTRALIGHT`, which turns itself
 off with a warning when the SDK is not found (see
-`cmake/FindUltralight.cmake`).
+`src/common/scry/cmake/FindUltralight.cmake`).
 
 Targets: `SigilScryPlatform`, `SigilScryGpu`, `SigilScryEngine` and the
 `SigilScry` umbrella. Tests (ctest): `scry_platform_test` exercises the
@@ -258,7 +258,7 @@ New executables that link `SigilScry` must also call
    and extract it.
 
 2. Install headers and dylibs to `/usr/local`, the prefix
-   `cmake/FindUltralight.cmake` searches:
+   `src/common/scry/cmake/FindUltralight.cmake` searches:
 
    ```sh
    sudo cp -R <sdk>/include/Ultralight /usr/local/include/

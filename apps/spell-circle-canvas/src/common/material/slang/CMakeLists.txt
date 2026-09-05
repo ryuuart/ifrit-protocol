@@ -17,7 +17,7 @@
 # session by name, so a renderer's shading and every material body
 # compiled beside it call one definition of a term. Slang itself is
 # PRIVATE — the public header names none of its types.
-include(Slang)
+include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 set(SIGIL_MATERIAL_SLANG_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material Slang backend's shader modules")
 sigil_slang_module(NAME Portable

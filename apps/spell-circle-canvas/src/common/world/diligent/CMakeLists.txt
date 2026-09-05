@@ -10,7 +10,7 @@ find_package(unofficial-diligent-engine CONFIG REQUIRED)
 # which makes a mistake in one a build failure. At run time SigilIO loads the
 # same authored files before a material body is appended; the generated headers
 # remain the build's validation artifacts.
-include(Slang)
+include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 # Every module here imports the portable subset, and Surface.slang and
 # Painter.slang the material kit's shading terms as well, so slangc is

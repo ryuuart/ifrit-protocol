@@ -15,7 +15,7 @@
 # dispatches. Neither side re-derives a formula, which is what lets two
 # tiers be held to bit identity rather than to a tolerance. The C++ is
 # compiled with the float model pinned by the Slang module rule.
-include(Slang)
+include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 sigil_slang_module(NAME Pop
   SOURCE ${CMAKE_CURRENT_LIST_DIR}/kernels/Pop.slang
   ENTRIES sigilPopKernel

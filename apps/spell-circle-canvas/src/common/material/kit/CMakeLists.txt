@@ -14,7 +14,7 @@
 # authored file into the compiler session; the generated header remains the
 # build's validation artifact. A renderer's own shaders import it, so their
 # compilers also search this directory.
-include(Slang)
+include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 set(SIGIL_MATERIAL_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material kit's shader modules")
 file(GLOB _shader_sources CONFIGURE_DEPENDS

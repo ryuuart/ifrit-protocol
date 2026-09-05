@@ -102,7 +102,7 @@ target_compile_definitions(Sketchbook PRIVATE SIGILSKETCH_BOOK_GPU)
 # this repository's in its own and SigilSketches' link closure, read off
 # the targets rather than listed a second time. Skia is the one vendored
 # archive a sketch calls directly, and it is named.
-include(SketchLinkSurface)
+include("${CMAKE_SOURCE_DIR}/src/sketch/cmake/SketchLinkSurface.cmake")
 if(APPLE)
   target_link_options(Sketchbook PRIVATE "LINKER:-export_dynamic")
   sigil_sketch_link_surface(Sketchbook SigilSketches

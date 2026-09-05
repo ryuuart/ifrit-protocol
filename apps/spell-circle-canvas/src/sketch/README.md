@@ -941,7 +941,7 @@ target, so the include surface cannot drift between a compiled-in sketch
 and a reloaded one.
 
 What a sketch may **link** is read off the same target: at configure
-time `cmake/SketchLinkSurface.cmake` walks `SigilSketches`' link closure
+time `src/sketch/cmake/SketchLinkSurface.cmake` walks `SigilSketches`' link closure
 and force-loads into Sketchbook every archive of this repository's in it
 — the public ones, the private ones riding beneath them, and the ones an
 optional SDK produced on the machines where it did — with Skia, the one

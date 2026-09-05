@@ -639,7 +639,7 @@ separate implementations of the same dispatch seams.
   entry point is one pipeline and one generated function.
   **`mesh/pop/kernels/Sweep.slang`** is the ring vertex and
   **`mesh/pop/kernels/Stamp.slang`** the stamped vertex, written the same
-  way. `cmake/Slang.cmake` compiles all three (`sigil_slang_module` with
+  way. `src/common/material/cmake/Slang.cmake` compiles all three (`sigil_slang_module` with
   `CPP_VAR` and `SPIRV_VAR`, and `sigil_slang_kernel_flags` to pin the
   float model).
 
