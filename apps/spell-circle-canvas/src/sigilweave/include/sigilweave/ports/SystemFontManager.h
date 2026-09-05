@@ -62,4 +62,34 @@ inline sk_sp<SkTypeface> pickTypeface(
                       SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
 }
 
+/** THE SAME RESOLUTION, HELD. `pickTypeface` walks the installed font
+ *  list on every call, so the answer is kept once per (families, style)
+ *  for the life of the process and handed back on every later ask.
+ *
+ *      const sk_sp<SkTypeface> face =
+ *          weave::ports::face({"SF Mono", "Menlo", "monospace"});
+ *
+ *  WHY THIS IS A CALL AND NOT A `static` AT THE CALL SITE. A local
+ *  `static` holds one answer per site, so the same four families asked
+ *  for in twenty places walk the list twenty times and hand back twenty
+ *  faces — and a face is compared by POINTER wherever a style, a memo
+ *  key or an inherited value is compared, so two resolutions of one
+ *  family never compare equal and everything keyed on them re-does its
+ *  work. One holder gives one answer.
+ *
+ *  Safe from any thread: a describe runs on whichever thread the host
+ *  calls on, and the holder is guarded. The face itself is immutable and
+ *  shared, exactly as `systemFontManager()`'s is. */
+sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
+                       SkFontStyle style = SkFontStyle::Normal());
+
+/** `face` spelled with a weight and a slant, matching the `pickTypeface`
+ *  overload above. */
+inline sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
+                              int weight,
+                              SkFontStyle::Slant slant =
+                                  SkFontStyle::kUpright_Slant) {
+  return face(families, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
+}
+
 }  // namespace sigil::weave::ports

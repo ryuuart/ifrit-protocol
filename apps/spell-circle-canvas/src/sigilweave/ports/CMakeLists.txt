@@ -5,4 +5,5 @@
 sigil_library(SigilWeavePorts
   SOURCES SystemFontManager.cpp
   HEADERS SystemFontManager.h
-  PUBLIC unofficial::skia::skia)
+  PUBLIC unofficial::skia::skia
+  PRIVATE Boost::unordered)
