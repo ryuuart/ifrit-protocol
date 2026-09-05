@@ -51,7 +51,7 @@ sigil_test(compose_text_test
   SOURCES test/ComposeTestTextData.cpp test/ComposeTestTextPass.cpp
           test/ComposeTestVertical.cpp test/ComposeTestPathMotion.cpp
           test/ComposeTestContentText.cpp test/ComposeTestParagraphs.cpp
-          test/ComposeTestEngineDocsText.cpp
+          test/ComposeTestVariationDrive.cpp
   LIBRARIES SigilComposeTypography SigilComposeKit SigilComposeTesting
             SigilWeavePorts
   LABELS fonts)

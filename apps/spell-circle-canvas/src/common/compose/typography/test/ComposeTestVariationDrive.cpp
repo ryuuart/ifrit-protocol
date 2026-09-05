@@ -1,6 +1,7 @@
-// The text binary's share of ComposeTestEngineDocs.cpp: the suites whose
-// subjects are text-tier values, cut from that file so each test binary links
-// only the target it exercises.
+// The variation drive: draw-time variable-font axes, and the advance probe
+// that decides whether an axis may be driven at all. An axis that moves
+// advances would re-place every glyph after the one it touched, so the
+// drive refuses it rather than shaping again per frame.
 
 #include "support/TextTestSupport.h"
 

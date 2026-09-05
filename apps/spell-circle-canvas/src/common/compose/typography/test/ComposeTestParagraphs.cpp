@@ -1092,14 +1092,22 @@ TEST(ComposeJustification, ALineOfOneWordStretchesOnlyWhenAskedTo) {
   sigil::weave::JustificationOptions stretched = aligned;
   stretched.singleWord =
       sigil::weave::JustificationOptions::SingleWord::kJustify;
-  const std::vector<float> left =
-      justifiedEdges(aligned, "Antidisestablishmentarianism", 240.0f);
-  const std::vector<float> spread =
-      justifiedEdges(stretched, "Antidisestablishmentarianism", 240.0f);
-  ASSERT_EQ(left.size(), 1u);
+  // The measure is derived from the word's own shaped width rather than
+  // named, so the word is on one line whatever face the machine hands us
+  // and the stretch target is a number this case computed rather than one
+  // fitted to a face.
+  const char* kWord = "Antidisestablishmentarianism";
+  float wordWidth = 0;
+  for (float advance : measureRun(toU8(kWord), whiteStyle(12), fonts()))
+    wordWidth += advance;
+  ASSERT_GT(wordWidth, 0.0f);
+  const float measure = wordWidth + 40.0f;
+  const std::vector<float> left = justifiedEdges(aligned, kWord, measure);
+  const std::vector<float> spread = justifiedEdges(stretched, kWord, measure);
+  ASSERT_EQ(left.size(), 1u) << "the word did not fit on one line";
   ASSERT_EQ(spread.size(), 1u);
-  EXPECT_LT(left.front(), 220.0f);
-  EXPECT_NEAR(spread.front(), 240.0f, 1.0f);
+  EXPECT_LT(left.front(), measure - 20.0f);
+  EXPECT_NEAR(spread.front(), measure, 1.0f);
 }
 
 TEST(ComposeJustification, TheLastLineJustifiesOnlyWhenAskedTo) {

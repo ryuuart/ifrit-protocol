@@ -114,10 +114,17 @@ Element ringWith(float at, float pixelSize, Track track) {
                          .fx(std::move(track)));
 }
 
+/// The most distinct frames a WHOLE-PIXEL origin can produce over that
+/// slide, which is arithmetic rather than a measurement: 1.5 px of travel
+/// crosses at most two pixel boundaries, and a run re-uses one
+/// rasterization between crossings, so at most three frames differ. A
+/// subpixel grid is not bounded by it -- every step lands somewhere new --
+/// so the two answers are separated by the count itself and by no fitted
+/// number.
+constexpr int kWholePixelCeiling = 3;
+
 /// How many DISTINCT frames a run produces as it slides through a pixel
-/// and a half of arc. Whole-pixel origins re-use one rasterization until
-/// the origin crosses a boundary, so the count is the number of crossings;
-/// the subpixel phase grid gives a fresh one nearly every step.
+/// and a half of arc.
 int distinctFramesAcrossOnePixel(Host& host,
                                  const std::function<Element(float)>& scene) {
   constexpr int kSteps = 8;
@@ -148,61 +155,125 @@ int distinctFramesAcrossOnePixel(Host& host,
 
 }  // namespace
 
-// A TURNING RING'S LETTERS MOVE SMOOTHLY, at every size. The placement is
-// continuous in the phase, so every quantizer between that placement and
-// the pixels shows up here and in nothing else: the ladder the tangent
-// snaps to, and the grid the glyph's device origin lands on.
+namespace {
+
+/// THE OTHER WAY A RING TURNS: the phase stands still and a transform
+/// above the text rotates the whole figure. Its letters creep across the
+/// device exactly as a marquee's do, so the same declaration has to reach
+/// them -- through the node's placement rather than through its baseline.
+std::vector<SkPoint> turnedFigureTrack(float pixelSize) {
+  Host host(kField, kField);
+  choreograph::Output<float> spin{0.0f};
+  std::vector<SkPoint> track;
+  for (int i = 0; i < kFrames; ++i) {
+    spin = 0.15f * (float)i;
+    host.composer.render(box().child(box()
+                                         .key("figure")
+                                         .absolute()
+                                         .left(0)
+                                         .top(0)
+                                         .width(kField)
+                                         .height(kField)
+                                         .rotate(&spin)
+                                         .child(ringAt(0.05f, pixelSize))));
+    host.frame();
+    track.push_back(inkCentroid(host, kField, kField));
+  }
+  return track;
+}
+
+/// THE THIRD WAY A RUN CREEPS: nothing above the type is turning and its
+/// baseline is a level line standing still, but a live track carries every
+/// letter across the device on its own schedule.
+///
+/// The master is driven so the LETTER's travel is uniform, which is what a
+/// constant angular step buys the ring: `fx::slide` places a glyph at
+/// (1-t)^3 of its distance, so stepping the inverse of that curve advances
+/// the letter by exactly half a pixel a frame. Half a pixel is the
+/// interval that separates the two placements -- two steps of the finer
+/// grid, and never enough to be sure of crossing a whole-pixel boundary.
+/// The window sits where the slide's own fade has long since finished, so
+/// the letter is solid ink throughout and the centroid is measuring
+/// placement alone.
+std::vector<SkPoint> slidingTrack(float pixelSize) {
+  constexpr float kDistance = 640.0f;
+  constexpr float kFromPx = 40.0f;  // where in the slide the window opens
+  constexpr float kTravel = 0.5f;   // …and how far the letter goes per frame
+  constexpr int kSlideFrames = 40;
+  Host host(kField, kField);
+  choreograph::Output<float> progress{0.0f};
+  std::vector<SkPoint> track;
+  for (int i = 0; i < kSlideFrames; ++i) {
+    progress = 1.0f - std::cbrt((kFromPx - kTravel * (float)i) / kDistance);
+    host.composer.render(box().child(
+        text(u8"H", whiteStyle(pixelSize))
+            .key("run")
+            .width(kField)
+            .height(kField)
+            .absolute()
+            .left(0)
+            .top(0)
+            .fx({.effect = fx::slide(kDistance), .progress = &progress})));
+    host.frame();
+    track.push_back(inkCentroid(host, kField, kField));
+  }
+  return track;
+}
+
+/// One declaration that a run is moving, at one type size.
+///
+/// `uniformAdvance` says whether the DECLARATION makes the letter's travel
+/// constant frame to frame. A ring stepped by a constant angle does; a
+/// slide driven through the inverse of its own easing curve only
+/// approximately does, so its second difference carries real motion and a
+/// jerk bound there would be measuring the driver rather than the library.
+struct MovingRun {
+  const char* what;
+  float pixelSize;
+  std::vector<SkPoint> (*track)(float);
+  bool uniformAdvance;
+};
+
+class RunInMotion : public testing::TestWithParam<MovingRun> {};
+
+}  // namespace
+
+// A MOVING RUN'S LETTERS MOVE SMOOTHLY, however the motion was declared and
+// at every size. The placement is continuous in whatever drives it, so
+// every quantizer between that placement and the pixels shows up here and
+// in nothing else: the ladder a tangent snaps to, and the grid a glyph's
+// device origin lands on.
 //
 // Two bounds, because the two failures look different. `minStep` catches
 // the whole-pixel origin, whose signature is a letter that does not move AT
-// ALL for a frame or two and then hops a whole pixel — the step goes
-// exactly to zero, the same mask drawn in the same place. `rmsJerk`
-// catches a rotation ladder coarse enough to tick, which varies the step
-// without ever stopping it.
-TEST(ComposePathMotion, ATurningRingAdvancesSmoothlyAtEverySize) {
-  for (const float size : {14.0f, 44.0f}) {
-    const MotionStats s = motionOf(ringTrack(size));
-    SCOPED_TRACE(testing::Message()
-                 << "size " << size << " meanStep " << s.meanStep << " minStep "
-                 << s.minStep << " rmsJerk " << s.rmsJerk);
-    ASSERT_GT(s.meanStep, 0.1) << "the ring did not turn";
-    EXPECT_GT(s.minStep, 0.25 * s.meanStep) << "a frame the letter stood still";
+// ALL for a frame or two and then hops a whole pixel -- the step goes
+// exactly to zero, the same mask drawn in the same place. `rmsJerk` catches
+// a rotation ladder coarse enough to tick, which varies the step without
+// ever stopping it. Both are stated against the run's own mean step, so
+// neither is a number fitted to this machine.
+TEST_P(RunInMotion, ItsLettersAdvanceWithoutStallingOrTicking) {
+  const MotionStats s = motionOf(GetParam().track(GetParam().pixelSize));
+  SCOPED_TRACE(testing::Message()
+               << "meanStep " << s.meanStep << " minStep " << s.minStep
+               << " rmsJerk " << s.rmsJerk);
+  ASSERT_GT(s.meanStep, 0.1) << "the run did not move at all";
+  EXPECT_GT(s.minStep, 0.25 * s.meanStep) << "a frame the letter stood still";
+  if (GetParam().uniformAdvance)
     EXPECT_LT(s.rmsJerk, 0.5 * s.meanStep) << "the letter's advance ticks";
-  }
 }
 
-// The OTHER way a ring turns: the phase stands still and a transform above
-// the text rotates the whole figure. Its letters creep across the device
-// exactly as a marquee's do, so the same declaration has to reach them —
-// through the node's placement rather than through its baseline.
-TEST(ComposePathMotion, ARingTurnedByAnAncestorAdvancesSmoothly) {
-  for (const float size : {14.0f, 44.0f}) {
-    Host host(kField, kField);
-    choreograph::Output<float> spin{0.0f};
-    std::vector<SkPoint> track;
-    for (int i = 0; i < kFrames; ++i) {
-      spin = 0.15f * (float)i;
-      host.composer.render(box().child(box()
-                                           .key("figure")
-                                           .absolute()
-                                           .left(0)
-                                           .top(0)
-                                           .width(kField)
-                                           .height(kField)
-                                           .rotate(&spin)
-                                           .child(ringAt(0.05f, size))));
-      host.frame();
-      track.push_back(inkCentroid(host, kField, kField));
-    }
-    const MotionStats s = motionOf(track);
-    SCOPED_TRACE(testing::Message()
-                 << "size " << size << " meanStep " << s.meanStep << " minStep "
-                 << s.minStep << " rmsJerk " << s.rmsJerk);
-    ASSERT_GT(s.meanStep, 0.1) << "the figure did not turn";
-    EXPECT_GT(s.minStep, 0.25 * s.meanStep) << "a frame the letter stood still";
-    EXPECT_LT(s.rmsJerk, 0.5 * s.meanStep) << "the letter's advance ticks";
-  }
-}
+INSTANTIATE_TEST_SUITE_P(
+    ComposePathMotion, RunInMotion,
+    testing::Values(
+        MovingRun{"ABoundBaselinePhaseSmall", 14.0f, ringTrack, true},
+        MovingRun{"ABoundBaselinePhaseLarge", 44.0f, ringTrack, true},
+        MovingRun{"AnAncestorsRotationSmall", 14.0f, turnedFigureTrack, true},
+        MovingRun{"AnAncestorsRotationLarge", 44.0f, turnedFigureTrack, true},
+        MovingRun{"ALiveDisplacingTrackSmall", 14.0f, slidingTrack, false},
+        MovingRun{"ALiveDisplacingTrackLarge", 44.0f, slidingTrack, false}),
+    [](const testing::TestParamInfo<MovingRun>& info) {
+      return info.param.what;
+    });
 
 // …AND TYPE AT REST KEEPS WHOLE-PIXEL ORIGINS, which is the other half of
 // the contract and the half that costs nothing. A phase written as a plain
@@ -226,56 +297,10 @@ TEST(ComposePathMotion, TypeAtRestKeepsWholePixelOrigins) {
     return ringAt(&phase, 44.0f);
   });
 
-  EXPECT_LE(atRest, 3) << "a resting run is paying for the subpixel grid";
-  EXPECT_GE(inMotion, 6) << "a turning run is rounding to whole pixels";
-}
-
-// THE THIRD WAY A RUN CREEPS: nothing above the type is turning and its
-// baseline is a level line standing still, but a live track is carrying
-// every letter across the device on its own schedule. A glyph under a slow
-// slide advances by a fraction of a pixel per frame exactly as one on a
-// turning ring does, and whole-pixel origins express that the same way —
-// not at all, and then a whole pixel at once.
-//
-// The master is driven so the LETTER's travel is uniform, which is what a
-// constant angular step buys the ring above: `fx::slide` places a glyph at
-// (1−t)³ of its distance, so stepping the inverse of that curve advances the
-// letter by exactly half a pixel a frame. Half a pixel is the interval that
-// separates the two placements — two steps of the finer grid, and never
-// enough to be sure of crossing a whole-pixel boundary. The window sits
-// where the slide's own fade has long since finished, so the letter is
-// solid ink throughout and the centroid is measuring placement alone.
-TEST(ComposePathMotion, ADisplacingTrackAdvancesSmoothlyUnderALiveProgress) {
-  constexpr float kDistance = 640.0f;
-  constexpr float kFromPx = 40.0f;  // where in the slide the window opens
-  constexpr float kTravel = 0.5f;   // …and how far the letter goes per frame
-  constexpr int kSlideFrames = 40;
-  for (const float size : {14.0f, 44.0f}) {
-    Host host(kField, kField);
-    choreograph::Output<float> progress{0.0f};
-    std::vector<SkPoint> track;
-    for (int i = 0; i < kSlideFrames; ++i) {
-      progress = 1.0f - std::cbrt((kFromPx - kTravel * (float)i) / kDistance);
-      host.composer.render(box().child(
-          text(u8"H", whiteStyle(size))
-              .key("run")
-              .width(kField)
-              .height(kField)
-              .absolute()
-              .left(0)
-              .top(0)
-              .fx({.effect = fx::slide(kDistance), .progress = &progress})));
-      host.frame();
-      track.push_back(inkCentroid(host, kField, kField));
-    }
-    const MotionStats s = motionOf(track);
-    SCOPED_TRACE(testing::Message()
-                 << "size " << size << " meanStep " << s.meanStep << " minStep "
-                 << s.minStep << " rmsJerk " << s.rmsJerk);
-    ASSERT_GT(s.meanStep, 0.1) << "the letter did not travel";
-    EXPECT_GT(s.minStep, 0.0) << "a frame the letter stood still";
-    EXPECT_GT(s.minStep, 0.25 * s.meanStep) << "the letter's advance stalls";
-  }
+  EXPECT_LE(atRest, kWholePixelCeiling)
+      << "a resting run is paying for the subpixel grid";
+  EXPECT_GT(inMotion, kWholePixelCeiling)
+      << "a turning run is rounding to whole pixels";
 }
 
 // …AND A TRACK THAT MOVES NOTHING BUYS NOTHING. A fade is a coverage ramp:
@@ -289,7 +314,8 @@ TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
   const int distinct = distinctFramesAcrossOnePixel(host, [&](float at) {
     return ringWith(at, 44.0f, {.effect = fade, .progress = &progress});
   });
-  EXPECT_LE(distinct, 3) << "a fade-only track is paying for the subpixel grid";
+  EXPECT_LE(distinct, kWholePixelCeiling)
+      << "a fade-only track is paying for the subpixel grid";
 }
 
 // A TABLE IS ANSWERED BY ITS OWN ENTRIES, and the two verdicts are measured
@@ -311,8 +337,10 @@ TEST(ComposePathMotion, AKeysTableEngagesTheGridOnlyWhereItMovesGlyphs) {
     return ringWith(at, 44.0f, {.effect = offset, .progress = &progress});
   });
 
-  EXPECT_LE(cheap, 3) << "a colour-only table is paying for the subpixel grid";
-  EXPECT_GE(moving, 6) << "a table with an offset is rounding to whole pixels";
+  EXPECT_LE(cheap, kWholePixelCeiling)
+      << "a colour-only table is paying for the subpixel grid";
+  EXPECT_GT(moving, kWholePixelCeiling)
+      << "a table with an offset is rounding to whole pixels";
 }
 
 // A SETTLED TRACK IS TYPE AT REST, whatever it does while it runs. Its
@@ -345,7 +373,8 @@ TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
   const int distinct = distinctFramesAcrossOnePixel(sliding, [](float at) {
     return ringWith(at, 44.0f, {.effect = fx::slide(), .progress = 1.0f});
   });
-  EXPECT_LE(distinct, 3) << "a settled track is paying for the subpixel grid";
+  EXPECT_LE(distinct, kWholePixelCeiling)
+      << "a settled track is paying for the subpixel grid";
 }
 
 // A TRACK'S OWN ROTATION TAKES THE SAME LADDER as the baseline's tangent.
@@ -412,7 +441,11 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
     }
     SCOPED_TRACE(testing::Message() << "size " << size << " sweep " << sweep
                                     << " deg, distinct " << distinct);
-    EXPECT_GE(distinct, 9) << "the track's rotation is on a coarser ladder "
-                              "than the baseline's tangent";
+    // A ladder twice as coarse as the sweep can answer at most half the
+    // steps, so half is where the two verdicts part -- a derived bound
+    // rather than a fitted one.
+    EXPECT_GT(distinct, kSteps / 2)
+        << "the track's rotation is on a coarser ladder than the "
+           "baseline's tangent";
   }
 }

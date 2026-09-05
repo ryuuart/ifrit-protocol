@@ -1030,9 +1030,19 @@ TEST(ComposeText, MeasureRunShapesOnceAndMatchesTheLaidOutElement) {
     sumBig += a;
   EXPECT_NEAR(sumBig, sum * 2.0f, sum * 0.1f);
   // …an empty run shapes to nothing, and the count is the GLYPH count —
-  // one per character here, no ligatures in play.
+  // read off the layout's own walk rather than off the character count,
+  // which a ligature in the machine's face would part company with.
   EXPECT_TRUE(measureRun(u8"", style, fonts()).empty());
-  EXPECT_EQ(advances.size(), 15u);
+  size_t placedGlyphs = 0;
+  {
+    sigil::weave::Paragraph paragraph;
+    paragraph.appendText(u8"HAMBURGEFONTSIV", style);
+    sigil::weave::BlockFlow flow(SkRect::MakeWH(1.0e6f, 1.0e6f));
+    sigil::weave::forEachPlacedGlyph(
+        sigil::weave::layoutParagraph(fonts(), paragraph, flow), paragraph,
+        [&](const sigil::weave::PlacedGlyph&) { ++placedGlyphs; });
+  }
+  EXPECT_EQ(advances.size(), placedGlyphs);
 }
 
 TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
@@ -1076,8 +1086,11 @@ TEST(ComposeText, MeasureRunPrefixSumsAreThePenPositionsAcrossWords) {
         << "\"";
   }
   // The glyph count is untouched: a space still contributes no entry, it
-  // only lends its advance to the glyph before it.
+  // only lends its advance to the glyph before it. Stated against the same
+  // two letters with no space between them, so the claim does not turn on
+  // how many glyphs the machine's face makes of them.
   const std::vector<float> spaced = measureRun(u8"A B", style, fonts());
+  ASSERT_EQ(spaced.size(), measureRun(u8"AB", style, fonts()).size());
   ASSERT_EQ(spaced.size(), 2u);
   EXPECT_GT(spaced[0], measureRun(u8"A", style, fonts())[0])
       << "the gap must ride the advance of the glyph it follows";
