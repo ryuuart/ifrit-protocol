@@ -425,8 +425,8 @@ struct ElasticType : sketch::Sketch {
     face = weave::ports::face({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
     faceLabel = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       pass = motion::phase(t, kLoop);
       return true;
     });

@@ -451,8 +451,8 @@ struct AxisRipple : sketch::Sketch {
     gradRowLo = widthAt("GRAD", kGradLo, kProofRowSize);
     gradRowHi = widthAt("GRAD", kGradHi, kProofRowSize);
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       phase = motion::phase(t, kPeriod);
       return true;
     });

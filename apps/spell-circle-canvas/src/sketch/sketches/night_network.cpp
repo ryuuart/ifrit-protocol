@@ -193,8 +193,8 @@ struct NightNetwork final : sketch::Sketch {
     drawOn(cyanReveal, 0.55f);
     drawOn(ringReveal, 0.70f);
 
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       hubGlow = 4.0f + 2.0f * (float)std::sin(t * 2.1);
       return true;
     });

@@ -258,9 +258,9 @@ struct PersonaMenu final : sketch::Sketch {
     curDy = -40;
     cursorFlight = {40.0f, 0.0f};
 
-    ticker.add([this, t = 0.0](double dt) mutable {
+    ticker.add([this, &ticker](double dt) {
       namespace ch = choreograph;
-      t += dt;
+      const double t = ticker.elapsed();
       // The caustics step time at 6 Hz rather than running smoothly. This
       // is not an optimization — the stepping IS the texture, and a
       // continuous version does not look like the original.

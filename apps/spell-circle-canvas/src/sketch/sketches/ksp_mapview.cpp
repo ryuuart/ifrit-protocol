@@ -1938,8 +1938,8 @@ struct KspMapView : sketch::Sketch {
     burnTick = 0;
     nextBurnAt = 0;
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       const float ft = (float)t;
       dashFast = -ft * 22.0f;
       dashSlow = -ft * 14.0f;

@@ -113,8 +113,8 @@ struct HelloSketch : sketch::Sketch {
 
     // Declared motion: a steppable drives the bound Output every
     // frame from here on — no per-frame describes needed.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       wave = (float)std::sin(t * 1.6);
       return true;
     });

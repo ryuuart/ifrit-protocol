@@ -939,8 +939,8 @@ struct ShippingForecast : sketch::Sketch {
         {0.5f, 0.0f}, {0.5f, 1.0f},
         {{0.00f, hex(0xFFFBF2)}, {0.52f, kBone}, {1.00f, hex(0xC9A46A)}});
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       cycle = motion::phase(t, kLoop) * (float)kLoop;
       secs = (float)t;
       return true;

@@ -366,8 +366,8 @@ struct DaemonConsole final : sketch::Sketch {
     // prices each at the new row's mount plus the chrome leaves whose text
     // changed. Meters, lamp and caret ride bound outputs and never
     // re-describe anything.
-    ticker.add([this, &composer, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &composer, &ticker](double) {
+      const double t = ticker.elapsed();
       clockNow = t;
       meter[0] = 0.62f + 0.26f * (float)std::sin(t * 0.83 + 0.4);
       meter[1] = 0.48f + 0.30f * (float)std::sin(t * 1.31 + 2.1);

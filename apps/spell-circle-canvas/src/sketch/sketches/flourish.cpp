@@ -594,8 +594,8 @@ struct Flourish final : sketch::Sketch {
     ticker.timeline().apply(&titleFade).then<ch::RampTo>(1.0f, 1.2f);
     ticker.timeline().apply(&flare).then<ch::RampTo>(1.0f, 1.3f);
 
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       for (int q = 0; q < 4; ++q) {
         const float dir = (q == 0 || q == 2) ? 1.0f : -1.0f;
         spin[q] = (float)(t * 7.0) * dir;

@@ -767,8 +767,8 @@ struct VertigoTitles : sketch::Sketch {
     // ---- the perpetual loop --------------------------------------
     // One clock, and the card cycle's own three cells. Everything the
     // turntable and the nib need is derived from these where it is used.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       secs = (float)t;
       const double cycle = std::fmod(t, 16.0);
       for (int i = 0; i < 4; ++i) {

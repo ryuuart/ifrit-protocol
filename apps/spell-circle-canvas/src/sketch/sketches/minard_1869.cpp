@@ -2864,8 +2864,8 @@ struct Minard1869 : sketch::Sketch {
     // ONE Output drives every beat, looping at tLoop. Each beat is
     // bind().window(lo, hi), never from(): outside a window from() feeds
     // the easing curve values outside its domain and ease:: is not total.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       const float s = (float)std::fmod(t, (double)tLoop);
       T = s;
       // the 12.6%: every band morphs from engraved to STATED and back,

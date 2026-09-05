@@ -858,8 +858,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
     foxing.seed(91);
 
     // The needles and the rim flashes they ring.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       const float s = (float)t;
       auto sweep = [&](float t0, float t1, ch::Output<float>& deg,
                        ch::Output<float>& alpha, int base) {

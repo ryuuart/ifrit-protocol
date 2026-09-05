@@ -1780,8 +1780,8 @@ struct ChevreulCircle : sketch::Sketch {
     buildLaw();
 
     // one Output, 0 -> 1 over 13.0 s, then a 1.0 s hold, then loop.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       const double u = std::fmod(t, 14.0);
       demo = (float)std::clamp(u / 13.0, 0.0, 1.0);
       // §163's quadrant turning on the circle's axis: one column every

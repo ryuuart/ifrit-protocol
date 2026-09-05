@@ -264,8 +264,8 @@ struct AeroDesktop final : sketch::Sketch {
         // Aero's hover bloom came up fast, over roughly a tenth of a second.
         .then<ch::RampTo>(1.0f, 0.10f, &ch::easeOutQuad);
 
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       // 8 Hz-stepped breathing: invisible on a soft glow, and the stepped
       // value holds between steps so the taskbar plane can blit instead
       // of re-rastering (the live-resolve/stability rule, host-side).

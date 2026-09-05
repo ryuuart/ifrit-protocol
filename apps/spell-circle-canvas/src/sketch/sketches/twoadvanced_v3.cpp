@@ -1206,8 +1206,8 @@ struct TwoAdvancedV3 : sketch::Sketch {
     }
 
     // --- idle motion ------------------------------------------------------
-    ctx.ticker.add([this, tAcc = 0.0](double dt) mutable {
-      tAcc += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double tAcc = ticker.elapsed();
       const float s = (float)tAcc;
       // the art beacon: sharp on, slow decay, period 2.4 s
       const float ph = std::fmod(s, 2.4f);

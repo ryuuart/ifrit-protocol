@@ -485,8 +485,8 @@ struct LootGrid final : sketch::Sketch {
         cellPool->add(
             {lt::cellX(c) + lt::kCell * 0.5f, lt::cellY(r) + lt::kCell * 0.5f});
 
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       // 4.4 s round trip: rest blocked, slide, rest free, slide back.
       const double cycle = std::fmod(t, 4.4);
       double u = 0;  // 0 = blocked slot, 1 = free slot

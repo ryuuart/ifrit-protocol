@@ -116,8 +116,8 @@ struct CardFlip final : sketch::Sketch {
     spinX = 0;
     spinY = 0;
     sway = 0;
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       flip = motion::phase(t, kFlipPeriod);
       spinX = motion::phase(t, kSpinXPeriod);
       spinY = motion::phase(t, kSpinYPeriod);

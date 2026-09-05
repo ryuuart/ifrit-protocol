@@ -1925,8 +1925,8 @@ struct CdeMotifSketch : sketch::Sketch {
 
     // The clock: 60x, so a minute passes every second and the hand
     // visibly steps.
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       clockT = (float)std::fmod(t / 60.0 + 0.42, 1.0);
       busy = (std::fmod(t, 0.5) < 0.25) ? 1.0f : 0.0f;
       caret = (std::fmod(t, 1.0) < 0.5) ? 1.0f : 0.0f;

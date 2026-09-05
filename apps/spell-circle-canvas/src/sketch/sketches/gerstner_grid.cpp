@@ -193,8 +193,8 @@ struct GerstnerGrid final : sketch::Sketch {
     // hold the opening configuration for one beat so a still frame
     // lands on a real setting rather than mid-step
     nextStep = gerstner::kHoldSecs;
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       // The reading index: one pass down the field every kSweepSecs.
       sweep = gerstner::kFieldY +
               gerstner::kFieldH * motion::phase(t, gerstner::kSweepSecs);

@@ -1759,8 +1759,8 @@ struct Thaumonomicon : sketch::Sketch {
     cornerTile = cornerPlate({1, 1, 1, 1});
 
     // ---- motion ----------------------------------------------------------
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       // :610 — sin(systemTime % 600 / 600 * 2pi) * 0.25 + 0.75, wall clock,
       // so every unlockable node is in lockstep with zero phase offset.
       pulse =

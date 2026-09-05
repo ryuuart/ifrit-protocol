@@ -247,8 +247,8 @@ struct PassiveTree final : sketch::Sketch {
     // sweeping the allocated spine in 1.1 s then resting out a 2.8 s
     // cycle); the wrap comet at 0.5 rev/s; the search sin; the selection
     // ring's slow rotation.
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       breath = 5.5f + 3.5f * (float)std::sin(t * 2.1);
       const float cycle = (float)std::fmod(t, 2.8);
       const float u = (cycle - 1.1f) / 1.1f;

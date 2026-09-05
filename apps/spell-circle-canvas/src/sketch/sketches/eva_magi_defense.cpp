@@ -1347,8 +1347,8 @@ struct EvaMagiDefense : sketch::Sketch {
     }
 
     // --- motion ---
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       // scanlines creep one WHOLE PIXEL at a time, 4 px per 8 s: a fractional
       // translate turns the cached CRT texture's blit into a resample.
       creep = (float)(motion::stepIndex(t, 0.5) % 4);

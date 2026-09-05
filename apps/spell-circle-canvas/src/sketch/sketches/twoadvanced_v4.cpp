@@ -2528,8 +2528,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
     }
 
     // --- the idle motion, all of it driven from this one ticker -----------
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       const float s = (float)t;
       stripePan = s * 2.5f;                               // 20 px / 8 s
       portalGlow = 54.0f + 4.4f * std::sin(s * 1.5708f);  // ±8 %, period 4 s

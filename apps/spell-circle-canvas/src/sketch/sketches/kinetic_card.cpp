@@ -158,8 +158,8 @@ struct KineticCard final : sketch::Sketch {
     // exists to show, and late enough that each word is legible as the
     // word it is.
     phase = 0;
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       phase = motion::phase(t, kPeriod);
       return true;
     });

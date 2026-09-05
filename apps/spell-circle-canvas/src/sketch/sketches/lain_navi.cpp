@@ -1200,8 +1200,8 @@ struct LainNavi : sketch::Sketch {
     // roughly 1.0 em, so the body size is the leading less the gap)
     proseSize = 28.0f;
 
-    ctx.ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ctx.ticker.add([this, &ticker = ctx.ticker](double) {
+      const double t = ticker.elapsed();
       // whole-pixel creep: a fractional translate turns a cached blit into a
       // resample, so the creep steps in whole pixels and never lands between
       creep = (float)(motion::stepIndex(t, 0.5) % 6);

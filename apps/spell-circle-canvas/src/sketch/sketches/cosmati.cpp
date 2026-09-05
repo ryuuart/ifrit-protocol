@@ -212,8 +212,8 @@ struct Cosmati final : sketch::Sketch {
     sigil::motion::Ticker& ticker = ctx.ticker;
     rake = 0;
     lay = 0;
-    ticker.add([this, t = 0.0](double dt) mutable {
-      t += dt;
+    ticker.add([this, &ticker](double) {
+      const double t = ticker.elapsed();
       // A raking light crosses the floor every 7 s: the way polished
       // porphyry actually announces itself in a nave.
       rake = (float)std::fmod(t / 7.0, 1.0);
