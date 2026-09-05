@@ -2,13 +2,14 @@
 # color filled in from the font's metrics, the paint a band draws with,
 # skip-ink cut around glyph intercepts, and the walk that turns a layout's
 # decorations into rectangles the paint feature puts on the canvas. The
-# intercept cache's key is folded with the shared stir, so a hash is one
-# body wherever it is accumulated.
+# intercept cache's key is folded with Boost's stir: the table lives
+# inside one run and nothing outside the process ever sees a bucket of
+# it, so the fold does not have to be one whose answer is pinned.
 sigil_library(SigilWeaveDecoration
   SOURCES Decoration.cpp
   HEADERS Decoration.h DecorationRects.h
   PUBLIC SigilWeaveLayout
-  PRIVATE SigilCoreCompute Boost::unordered)
+  PRIVATE Boost::unordered)
 
 # Bands checked as geometry, without drawing them: where each kind and side
 # anchors is one TEST_P over the anchor table. Whether the ink arrives is

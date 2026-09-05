@@ -342,6 +342,18 @@ both, and re-buckets everything already keyed. The tests pin exact
 outputs — words as words, floats as bits — because determinism, range and
 "different for different inputs" all survive a body that drifted.
 
+**Which fold a key is accumulated with depends on how long it has to
+mean the same thing.** `hash::fnv1a` and `hash::combine` are pinned bodies
+with pinned constants: a key that is STORED, or that two libraries or two
+runs must agree on bit for bit, is folded with them, because their answer
+is a fact the tests hold to. A key that lives no longer than the table it
+buckets is folded with `boost::hash_combine`, whose answer the standard
+library and Boost are both free to change between versions and which
+nothing outside that process ever sees. Reaching for the pinned fold on a
+throwaway table key costs nothing but says something untrue about the
+value; reaching for Boost's on a stored key is a defect that appears as a
+cache that misses everything after an upgrade.
+
 **Two mixers side by side are two different functions.** `noise::hash`
 and `noise::pcgHash` mix differently and answer differently; each seeds
 work compared byte-for-byte against stored renders, so neither can become
