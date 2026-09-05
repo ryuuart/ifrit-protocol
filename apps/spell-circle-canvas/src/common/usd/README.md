@@ -188,14 +188,16 @@ Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
 Benchmark, through the `benches` target and `scripts/bench_ledger.py`).
 
 ```sh
-ctest --test-dir build -C Release -R usd_ --output-on-failure
+ctest --test-dir build -C Release -R '^usd_' --output-on-failure
 ```
 
 Two test binaries, one per door, over one fixture header at
 `test/Fixture.h`: the scratch path an authored stage is written to —
-named for the process, so two runs never read each other's files — the
+the tree-wide `src/test/ScratchDir.h`, named for the process, so two
+runs never read each other's files and neither leaves one behind — the
 skip every case opens with, and the two-slot ring both doors are
-exercised over. The runtime leaf carries no test binary of its own; its
+exercised over. Both binaries carry the `usd` ctest label, because
+without the plugin registry every case in them skips. The runtime leaf carries no test binary of its own; its
 claim, that the probe answers and answers the same way twice, is
 asserted in `usd_read_test` beside the cases that skip on it.
 

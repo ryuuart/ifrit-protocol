@@ -15,6 +15,7 @@ sigil_library(SigilUsdRead
 # feature's test/assets/ reach it through SIGIL_TEST_ASSET_DIR.
 sigil_test(usd_read_test
   SOURCES test/ReadTest.cpp
+  LABELS usd
   LIBRARIES SigilUsdRead SigilUsdWrite SigilUsdRuntime SigilGeometryKit
   ASSET_DIR ${CMAKE_CURRENT_LIST_DIR}/test/assets)
 

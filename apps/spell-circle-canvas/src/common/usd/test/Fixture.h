@@ -16,13 +16,14 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilusd/runtime/Runtime.h>
-#include <unistd.h>
 
 #include <cstddef>
 #include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "ScratchDir.h"
 
 /** USD's file formats are discovered on disk, and a build whose plugin
  *  registry is not beside its libraries opens nothing. That is the
@@ -37,13 +38,10 @@
 namespace sigil::usd::test {
 
 /** @p name under a directory this process alone writes to, so two runs
- *  never read each other's stages. */
+ *  never read each other's stages and neither leaves one behind. */
 inline std::filesystem::path scratch(const char* name) {
-  const std::filesystem::path dir =
-      std::filesystem::temp_directory_path() /
-      ("sigilusd_test_" + std::to_string(::getpid()));
-  std::filesystem::create_directories(dir);
-  return dir / name;
+  static const sigil::test::ScratchDir dir("sigilusd_test");
+  return dir.path / name;
 }
 
 /** A 4 x 4 image of one colour, for a material that wants a texture. */

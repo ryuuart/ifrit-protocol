@@ -18,6 +18,7 @@ sigil_library(SigilUsdWrite
 # itself to inspect the authored stage.
 sigil_test(usd_write_test
   SOURCES test/WriteTest.cpp
+  LABELS usd
   LIBRARIES SigilUsdWrite SigilUsdRuntime SigilGeometryKit usd usdGeom
             usdShade sdf tf vt)
 

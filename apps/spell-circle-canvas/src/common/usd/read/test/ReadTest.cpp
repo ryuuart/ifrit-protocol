@@ -15,6 +15,7 @@
 #include <sigilusd/write/Writer.h>
 
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <glm/geometric.hpp>
@@ -196,6 +197,16 @@ TEST(UsdRead, SubsetsBecomeTheMaterialLaneAndTheFirstOneFillsTheFactors) {
   EXPECT_FLOAT_EQ(plate->transmission, 0.5f);
 }
 
+// A PNG's first eight bytes are the format's own signature, so a
+// prefix compare says the bytes that came back are an image rather than
+// a path the reader failed to follow.
+constexpr char kPngSignature[] = "\x89PNG\r\n\x1a\n";
+
+bool isPng(const std::vector<std::byte>& bytes) {
+  if (bytes.size() < 8) return false;
+  return std::memcmp(bytes.data(), kPngSignature, 8) == 0;
+}
+
 TEST(UsdRead, APrimBindingOneMaterialCarriesTheImagesBesideTheStage) {
   SKIP_WITHOUT_USD();
   const Stage stage = readAsset("fixture.usda");
@@ -206,8 +217,7 @@ TEST(UsdRead, APrimBindingOneMaterialCarriesTheImagesBesideTheStage) {
   ASSERT_TRUE(ball);
   EXPECT_EQ(ball->materialIndex, 1);
   EXPECT_EQ(ball->textureUri, "checker.png");
-  EXPECT_FALSE(ball->textureBytes.empty());
-  EXPECT_EQ((int)ball->textureBytes[1], 'P');
+  EXPECT_TRUE(isPng(ball->textureBytes));
   ASSERT_TRUE(ball->textures.count("roughness"));
   EXPECT_FALSE(ball->textures.at("roughness").bytes.empty());
 }
@@ -308,10 +318,7 @@ TEST(UsdRead, APackageIsOneFileAndTheModelComesBackOutOfIt) {
   // The image the material wears, read out of the package: the file it
   // was written from is gone, so these bytes came from inside.
   EXPECT_FALSE(part.textureUri.empty());
-  ASSERT_GE(part.textureBytes.size(), 8u);
-  EXPECT_EQ((unsigned char)part.textureBytes[1], 'P');
-  EXPECT_EQ((unsigned char)part.textureBytes[2], 'N');
-  EXPECT_EQ((unsigned char)part.textureBytes[3], 'G');
+  EXPECT_TRUE(isPng(part.textureBytes));
 }
 
 TEST(UsdRead, ASunComesBackAimedWhereItWasPointedAndStandingNowhere) {
