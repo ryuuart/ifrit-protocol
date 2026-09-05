@@ -59,13 +59,30 @@ class Effect {
   static Effect glow(SkColor4f color, float sigma);
   /** Display bloom over the completed layer. Pixels above @p threshold feed
    *  three concentric kernels; their red, green and blue channels are
-   *  recombined with progressively different reach, so the feather changes
+   *  recombined with progressively different reach — red the widest, blue
+   *  the tightest, as a phosphor's own spread is — so the feather changes
    *  hue instead of behaving like a same-colour software blur. @p radius is
    *  the outer kernel radius in pixels, @p intensity is its additive energy,
    *  and @p chroma blends from an achromatic falloff at zero to full spectral
-   *  separation at one. The sharp source is retained on top. */
+   *  separation at one. The sharp source is retained on top.
+   *
+   *  @p hueDrift is the turn, in degrees, the halo's hue has made at the
+   *  outer radius: each kernel turns in proportion to its reach, and only
+   *  where the pixel is lit by a halo rather than by a source of its own,
+   *  so the source keeps its colour and its decay tail drifts. A NEGATIVE
+   *  turn is the direction a phosphor decays — a warm source's halo goes
+   *  through orange toward red, a cool source's through cyan toward
+   *  green. @p tail is extra energy on the outermost kernel beyond the
+   *  three-kernel falloff, so a stronger glow reaches further rather than
+   *  only brighter. Both default to zero, which is exactly the falloff
+   *  without them.
+   *
+   *  Twenty-four taps per pixel, so the layer it runs over should be
+   *  bounded: put the glow sources on their own node under
+   *  `Cache::Texture` and the bloom is baked with them once. */
   static Effect phosphorBloom(float radius = 9.0f, float threshold = 0.52f,
-                              float intensity = 0.46f, float chroma = 0.80f);
+                              float intensity = 0.46f, float chroma = 0.80f,
+                              float hueDrift = 0.0f, float tail = 0.0f);
   /** @p uniforms are float uniforms set by name on the SkSL effect;
    *  the layer arrives as the child shader named "content".
    *

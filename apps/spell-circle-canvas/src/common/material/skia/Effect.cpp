@@ -43,7 +43,7 @@ Effect Effect::glow(SkColor4f color, float sigma) {
 }
 
 Effect Effect::phosphorBloom(float radius, float threshold, float intensity,
-                             float chroma) {
+                             float chroma, float hueDrift, float tail) {
   static const sk_sp<SkRuntimeEffect> effect = [] {
     auto [program, error] = SkRuntimeEffect::MakeForShader(
         SkString(shaderSource("PhosphorBloom.sksl")));
@@ -53,10 +53,13 @@ Effect Effect::phosphorBloom(float radius, float threshold, float intensity,
     return program;
   }();
 
+  constexpr float kDegree = 3.14159265f / 180.0f;
   return shader(effect, {{"uRadius", std::max(radius, 0.0f)},
                          {"uThreshold", std::clamp(threshold, 0.0f, 0.99f)},
                          {"uIntensity", std::max(intensity, 0.0f)},
-                         {"uChroma", std::clamp(chroma, 0.0f, 1.0f)}});
+                         {"uChroma", std::clamp(chroma, 0.0f, 1.0f)},
+                         {"uHueDrift", hueDrift * kDegree},
+                         {"uTail", std::max(tail, 0.0f)}});
 }
 
 namespace {

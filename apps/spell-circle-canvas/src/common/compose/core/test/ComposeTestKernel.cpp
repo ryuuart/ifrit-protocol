@@ -223,6 +223,36 @@ TEST(ComposeBindings, OutputDrivesPaintWithoutRender) {
   EXPECT_EQ(host.pixel(140, 20), SK_ColorBLUE);
 }
 
+TEST(ComposeCaching, APhosphorBloomOnATextureNodeIsBakedWithIt) {
+  // A layer effect is captured by the node's bake, so a bloom over a
+  // bounded glow-source layer under Cache::Texture is paid once: the
+  // second frame blits the baked image and records nothing, and the
+  // halo is in the blit.
+  Host host;
+  host.composer.render(box().cache(Cache::None).child(
+      box()
+          .key("glow")
+          .width(80)
+          .height(80)
+          .cache(Cache::Texture)
+          .effect(material::skia::Effect::phosphorBloom(9, 0.5f, 1.0f, 0.8f,
+                                                        -30.0f, 0.5f))
+          .child(box()
+                     .absolute()
+                     .left(28)
+                     .top(28)
+                     .width(24)
+                     .height(24)
+                     .fill(Fill::color({1, 0.7f, 0.1f, 1})))));
+  host.frame();
+  EXPECT_GE(host.composer.stats().texturesBaked, 1u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
+  EXPECT_GT(SkColorGetR(host.pixel(57, 40)), 0u);  // the halo, 5 px out
+  EXPECT_EQ(host.pixel(4, 4), SK_ColorBLACK);       // and no further
+}
+
 TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
   static int programRuns;
   programRuns = 0;
