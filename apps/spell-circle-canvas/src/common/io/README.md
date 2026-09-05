@@ -147,7 +147,10 @@ rule as an ordinary read decides which physical file occupies a URI.
 
 `preload()` fetches distinct URI bytes concurrently and merges them into the
 same cache ordinary reads use. Its selector overload calls `select()` first, so
-one directory or glob replaces a maintained list.
+one directory or glob replaces a maintained list. A fetch waits on a disk or
+on a server, so the fan-out is SigilCore's blocking seam rather than the one
+computations divide themselves over: a preload of a hundred URLs cannot stall
+a parallel range somewhere else in the process for as long as a server takes.
 
 Preloading and retention are separate. `preload()` eagerly fills the byte cache
 but makes no residency promise. `retain()` returns a movable `ResourceLease`
@@ -244,9 +247,9 @@ cache hit or failure.
 ## Boundary
 
 Dependencies: `SigilIOHub` links `SigilIOSource`, `SigilImageDecode` and
-Boost.Container publicly and `CURL::libcurl` plus oneTBB privately — private
-because they are transport and loading implementation, while curl remains a
-hard requirement to configure. `SigilIOSource` itself depends on
+Boost.Container publicly and `CURL::libcurl` plus `SigilCoreSchedule`
+privately — private because they are transport and where a fetch that
+blocks runs, while curl remains a hard requirement to configure. `SigilIOSource` itself depends on
 nothing beyond the standard library, so a decoder or an encoder library
 can speak the byte vocabulary without inheriting the hub, libcurl or any
 codec.

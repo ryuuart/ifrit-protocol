@@ -8,6 +8,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
+#include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/TextCatalog.h>
@@ -27,6 +28,7 @@
 #include <fstream>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "ScratchDir.h"
 
@@ -242,6 +244,30 @@ TEST_F(IOHub, PreloadFetchesDistinctUrisIntoTheByteCache) {
   dir.write("one.sksl", "changed on disk");
   EXPECT_EQ(hub.text("res://one.sksl"), "one");
   EXPECT_EQ(hub.text("res://two.slang"), "two");
+}
+
+/** More resources than a preload fetches at one time, so the batch is
+ *  the concurrent path and not the single-item one a handful degenerates
+ *  to. Every resource still lands in the cache under its own URI, which
+ *  is what a fan-out that mixed two asks up would fail. */
+TEST_F(IOHub, PreloadFetchesMoreResourcesThanItFetchesAtOnce) {
+  const size_t count = sigil::core::schedule::concurrentIoWidth() * 4 + 3;
+  std::vector<std::string> uris;
+  for (size_t i = 0; i != count; ++i) {
+    const std::string name = "many/" + std::to_string(i) + ".txt";
+    dir.write(name, std::to_string(i));
+    uris.push_back("res://" + name);
+  }
+  std::vector<std::string_view> asked(uris.begin(), uris.end());
+
+  EXPECT_EQ(hub.preload(asked), count);
+
+  // Written over afterwards: what comes back is what the preload read,
+  // so a URI that was never fetched shows up as the newer text.
+  for (size_t i = 0; i != count; ++i)
+    dir.write("many/" + std::to_string(i) + ".txt", "after the preload");
+  for (size_t i = 0; i != count; ++i)
+    EXPECT_EQ(hub.text(uris[i]), std::to_string(i));
 }
 
 TEST_F(IOHub, PreloadingADirectoryDiscoversNestedResourcesByUri) {

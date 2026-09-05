@@ -5,8 +5,7 @@
  * the changed ones from one read.
  */
 
-#include <oneapi/tbb/blocked_range.h>
-#include <oneapi/tbb/parallel_for.h>
+#include <sigilcore/schedule/ConcurrentIo.h>
 
 #include <boost/container/flat_set.hpp>
 
@@ -108,19 +107,15 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
     }
   }
 
-  const auto fetch = [&](size_t from, size_t to) {
-    for (size_t i = from; i != to; ++i)
-      pending[i].fetched = fetchResource(*this, network, pending[i].uri);
-  };
-  if (pending.size() < 4) {
-    fetch(0, pending.size());
-  } else {
-    oneapi::tbb::parallel_for(
-        oneapi::tbb::blocked_range<size_t>(0, pending.size(), 2),
-        [&](const oneapi::tbb::blocked_range<size_t>& range) {
-          fetch(range.begin(), range.end());
-        });
-  }
+  // A fetch waits on a disk or on a server, so it runs on the threads a
+  // blocking call gets rather than on the ones a computation divides
+  // itself over: a preload of a hundred URLs must not be able to stall
+  // every parallel range in the process for as long as a server takes.
+  // Each ask writes its own element and nothing else, and the cache is
+  // not held meanwhile.
+  core::schedule::concurrentIo(pending, [&](Pending& ask) {
+    ask.fetched = fetchResource(*this, network, ask.uri);
+  });
 
   {
     const std::lock_guard lock(m_mutex);
