@@ -875,10 +875,11 @@ void deformFrame(const Deform& op, glm::vec3* axis, glm::vec3* direction,
  *
  *  The work runs on @p runtime, the built-in CPU executor by default,
  *  and every executor is required to agree with it bit for bit. An
- *  operator the runtime does not support stops the cook with a message
- *  naming the operator and the runtime — a chain that cannot run must
- *  say so, because a chain quietly missing an operator cooks a
- *  plausible cloud that is not the described one. */
+ *  operator the runtime does not support stops the cook: a
+ *  `std::runtime_error` is thrown whose message names the operator and
+ *  the runtime — a chain that cannot run must say so, because a chain
+ *  quietly missing an operator cooks a plausible cloud that is not the
+ *  described one. */
 Cloud cook(const Chain& chain, const Runtime& runtime = Runtime::cpu());
 
 /** The mesh-forming sink: cook @p chain and stamp @p stamp at every
