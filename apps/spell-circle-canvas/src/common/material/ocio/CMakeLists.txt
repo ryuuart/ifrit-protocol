@@ -8,12 +8,11 @@
 find_package(OpenColorIO CONFIG QUIET)
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 sigil_library(SigilMaterialOcio
-  SOURCES LutRecipe.cpp ${_shaders}/Lut3d.sksl ${_shaders}/Response1d.sksl
+  SOURCES LutRecipe.cpp
   HEADERS Ocio.h
-  PUBLIC SigilMaterialTexture
-  PRIVATE SigilIOHub)
-target_compile_definitions(SigilMaterialOcio
-  PRIVATE SIGIL_MATERIAL_OCIO_SHADER_DIR="${_shaders}")
+  PUBLIC SigilMaterialTexture)
+sigil_shader_sources(SigilMaterialOcio
+  DIR ${_shaders} NAMESPACE sigil::material::ocio)
 if(TARGET OpenColorIO::OpenColorIO)
   target_sources(SigilMaterialOcio PRIVATE Ocio.cpp)
   target_link_libraries(SigilMaterialOcio PRIVATE OpenColorIO::OpenColorIO)

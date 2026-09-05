@@ -22,8 +22,8 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilio/hub/TextCatalog.h>
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilshaders/ComposeCore.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
@@ -160,17 +160,6 @@ void Composer::Impl::recordPicture(Instance& inst,
 // cannot compound its own edge.
 
 namespace {
-
-constexpr char kShaderPrefix[] = "shader://compose/core/";
-
-sigil::io::TextCatalog& shaders() {
-  static sigil::io::TextCatalog catalog(kShaderPrefix, SIGIL_COMPOSE_SHADER_DIR);
-  return catalog;
-}
-
-std::string shaderSource(std::string_view name) {
-  return shaders().text(name).value_or("");
-}
 
 /** Does this span set claim the whole boundary? Then the boundary is
  *  untouched, and returning the source path unchanged is required, not an

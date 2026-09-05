@@ -5,22 +5,11 @@
  * found it.
  */
 
-#include <sigilio/hub/TextCatalog.h>
+#include <sigilshaders/MaterialOcio.h>
 
 #include "sigilmaterial/ocio/Ocio.h"
 
 namespace sigil::material::ocio {
-
-namespace {
-
-constexpr char kShaderPrefix[] = "shader://material/ocio/";
-
-io::TextCatalog& shaders() {
-  static io::TextCatalog catalog(kShaderPrefix, SIGIL_MATERIAL_OCIO_SHADER_DIR);
-  return catalog;
-}
-
-}  // namespace
 
 const std::shared_ptr<const Recipe>& lutRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
@@ -28,7 +17,7 @@ const std::shared_ptr<const Recipe>& lutRecipe() {
           .child("content")
           .child("lut")
           .body(Target::SkSL,
-                shaders().text("Lut3d.sksl").value_or("")));
+                std::string(shaderSource("Lut3d.sksl"))));
   return recipe;
 }
 
@@ -39,7 +28,7 @@ const std::shared_ptr<const Recipe>& responseRecipe() {
           .child("lut")
           .channelwise("lut")
           .body(Target::SkSL,
-                shaders().text("Response1d.sksl").value_or("")));
+                std::string(shaderSource("Response1d.sksl"))));
   return recipe;
 }
 

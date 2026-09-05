@@ -37,8 +37,7 @@ sigil_library(SigilComposeCore
     Composer.cpp Reconcile.cpp ReconcileHost.cpp Layout.cpp Derive.cpp
     Transitions.cpp Query.cpp
     # the paint phase
-    Volatility.cpp Bounds.cpp Depth.cpp StackingPainter.cpp
-    ${_shaders}/LumaCoverage.sksl Coverage.cpp
+    Volatility.cpp Bounds.cpp Depth.cpp StackingPainter.cpp Coverage.cpp
     # text
     TextPainter.cpp
     # the instanced leaf
@@ -56,9 +55,8 @@ sigil_library(SigilComposeCore
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial
          SigilMeasure SigilMotion SigilSkiaDraw SigilWeave Boost::unordered
          unofficial::skia::skia
-  PRIVATE Boost::container SigilIOHub yoga::yogacore)
-target_compile_definitions(SigilComposeCore
-  PRIVATE SIGIL_COMPOSE_SHADER_DIR="${_shaders}")
+  PRIVATE Boost::container yoga::yogacore)
+sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)
 
 # The kernel: elements, the reconciler, layout, paint, transitions, text,
 # the feed, the instanced leaf, masks and the field walks. Links Core
