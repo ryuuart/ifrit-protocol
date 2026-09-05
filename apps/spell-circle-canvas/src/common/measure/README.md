@@ -17,7 +17,7 @@ them all:
 
 | header | holds |
 |--------|-------|
-| `time/Stopwatch.h`    | `Stopwatch` (`elapsedMs()`, `reset()`) and `ScopedMs`, which writes a block's milliseconds into a double at scope exit |
+| `time/Stopwatch.h`    | `Stopwatch` (`elapsedMs()`, `elapsedUs()`, `reset()`), `toMicroseconds()` for a caller holding two clock readings, and `ScopedMs`, which writes a block's milliseconds into a double at scope exit |
 | `time/Laps.h`         | `Laps` — `mark(name)` returns the milliseconds since the previous mark and records the lap; `each()` reads them back |
 | `time/FrameTimer.h`   | `FrameTimer` — `begin()`, `composed()`, `finished()`, `presented()` feeding the `frame()`, `work()` and `present()` rings, with `headroomFps()` and `presentedFps()` read off them |
 | `stats/Samples.h`     | `Samples`, a rolling ring (`add`, `mean`, `percentile`, `min`, `max`, `last`, `size`, `samples`), and the free `quantile()` it and everything else shares |

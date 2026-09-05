@@ -6,6 +6,7 @@
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 
@@ -56,7 +57,7 @@ class KnuthPlassScene final : public Scene {
           options.knuthPlass.minimumIntervalWidth = fontSize * 3;
           options.overflow.ellipsis = u"…";
 
-          const kit::Stopwatch layoutTime;
+          const sigil::measure::Stopwatch layoutTime;
           for (int pass = 0; pass < 2; ++pass) {
             options.lineBreakStrategy = pass == 0
                                             ? LineBreakStrategy::kGreedy
@@ -68,7 +69,7 @@ class KnuthPlassScene final : public Scene {
             m_layouts[pass] =
                 layoutParagraph(fontContext, m_body.paragraph, flow, options);
           }
-          layoutMicroseconds = layoutTime.microseconds();
+          layoutMicroseconds = layoutTime.elapsedUs();
         });
 
     canvas->clear(kPaper);

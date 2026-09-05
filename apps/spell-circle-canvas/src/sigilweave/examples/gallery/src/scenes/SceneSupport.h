@@ -18,6 +18,7 @@
 #include <string_view>
 
 #include "../include/GalleryScenes.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 namespace gallery {
 
@@ -26,7 +27,7 @@ namespace gallery {
 namespace kit = sigil::weave::kit;
 
 using Clock = std::chrono::steady_clock;
-using kit::toMicroseconds;
+using sigil::measure::toMicroseconds;
 
 inline constexpr SkColor kInk = kit::palette::kInk;
 inline constexpr SkColor kAccent = kit::palette::kAccent;

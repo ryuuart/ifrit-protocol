@@ -10,6 +10,7 @@
 
 #include "EffectsParts.h"
 #include "SceneSupport.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 
@@ -47,7 +48,7 @@ class LoudShadersPart final : public Scene {
       sparkleOverlay.setBlendMode(SkBlendMode::kScreen);
       m_paints[3].addOverlay(PaintLayer(std::move(sparkleOverlay)));
 
-      const kit::Stopwatch layoutTime;
+      const sigil::measure::Stopwatch layoutTime;
       const float top = 60.0f;
       const float rowHeight =
           std::max(80.0f, (static_cast<float>(size.height()) - top - 30.0f) /
@@ -64,7 +65,7 @@ class LoudShadersPart final : public Scene {
             {std::max(220.0f, static_cast<float>(size.width()) * 0.32f),
              top + rowHeight * (static_cast<float>(row) + 0.68f)});
       }
-      layoutMicroseconds = layoutTime.microseconds();
+      layoutMicroseconds = layoutTime.elapsedUs();
     });
 
     // Bound to the whole canvas so every row's shader shares one coordinate

@@ -35,6 +35,7 @@
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 
@@ -111,9 +112,9 @@ class TerminalScene final : public Scene {
           options.lineBreakStrategy = params.lineBreakStrategy;
           options.lineMetrics.height = params.fontSize * 1.55f;
 
-          const kit::Stopwatch layoutTime;
+          const sigil::measure::Stopwatch layoutTime;
           m_layout = layoutParagraph(fontContext, paragraph, flow, options);
-          layoutMicroseconds = layoutTime.microseconds();
+          layoutMicroseconds = layoutTime.elapsedUs();
           rebuildGlyphPools(paragraph);
         });
 

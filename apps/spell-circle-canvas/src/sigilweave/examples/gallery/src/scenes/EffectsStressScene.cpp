@@ -10,6 +10,7 @@
 
 #include "EffectsParts.h"
 #include "SceneSupport.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 
@@ -76,9 +77,9 @@ class StressPart final : public Scene {
       options.lineBreakStrategy = LineBreakStrategy::kGreedy;
       options.lineMetrics.height = stressFontSize * 1.22f;
       BlockFlow flow(textBounds);
-      const kit::Stopwatch layoutTime;
+      const sigil::measure::Stopwatch layoutTime;
       m_layout = layoutParagraph(fontContext, m_paragraph, flow, options);
-      layoutMicroseconds = layoutTime.microseconds();
+      layoutMicroseconds = layoutTime.elapsedUs();
       m_glyphCount = 0;
       for (const PositionedRun& run : m_layout.runs)
         if (run.shaped)

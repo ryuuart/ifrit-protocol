@@ -19,4 +19,3 @@
 #include "sigilweave/kit/Quantize.h"
 #include "sigilweave/kit/RebuildGuard.h"
 #include "sigilweave/kit/SampleText.h"
-#include "sigilweave/kit/Timing.h"

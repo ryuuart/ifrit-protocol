@@ -12,6 +12,7 @@
 
 #include "DemoScenes.h"
 #include "DemoSupport.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 

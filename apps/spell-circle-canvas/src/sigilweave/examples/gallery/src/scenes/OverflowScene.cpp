@@ -6,6 +6,7 @@
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 

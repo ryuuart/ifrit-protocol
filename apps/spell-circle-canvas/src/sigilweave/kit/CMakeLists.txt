@@ -10,7 +10,7 @@ sigil_library(SigilWeaveKit
   SOURCES Hyphenation.cpp Labels.cpp LineTables.cpp SampleText.cpp
   HEADERS SigilWeaveKit.h RebuildGuard.h CachedValue.h LayoutGuard.h
           Quantize.h GlyphBuckets.h Hyphenation.h Labels.h LineTables.h
-          Palette.h SampleText.h Timing.h
+          Palette.h SampleText.h
   PUBLIC SigilWeavePaint unofficial::skia::skia
   PRIVATE SigilWeaveUnicode Boost::unordered)
 

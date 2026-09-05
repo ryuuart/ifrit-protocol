@@ -6,6 +6,7 @@
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 
@@ -113,10 +114,10 @@ class MarkersScene final : public Scene {
           options.lineBreakStrategy = params.lineBreakStrategy;
           options.lineMetrics.height = params.fontSize * 1.8f;
 
-          const kit::Stopwatch layoutTime;
+          const sigil::measure::Stopwatch layoutTime;
           m_layout =
               layoutParagraph(fontContext, m_body.paragraph, flow, options);
-          layoutMicroseconds = layoutTime.microseconds();
+          layoutMicroseconds = layoutTime.elapsedUs();
 
           // Remember how much text actually landed: the next re-query (text
           // edit) scopes itself to this window.

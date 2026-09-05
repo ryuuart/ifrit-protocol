@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <sigilmeasure/time/Stopwatch.h>
 
 using Clock = std::chrono::steady_clock;
 
@@ -22,7 +23,7 @@ inline constexpr SkColor kBlue = sigil::weave::kit::palette::kBlue;
 inline constexpr SkColor kShape = sigil::weave::kit::palette::kShape;
 inline constexpr SkColor kPaper = sigil::weave::kit::palette::kPaper;
 
-using sigil::weave::kit::toMicroseconds;
+using sigil::measure::toMicroseconds;
 
 /** Writes a raster surface's pixels to a PNG file at `path`. */
 void writePng(SkSurface* surface, const std::filesystem::path& path);

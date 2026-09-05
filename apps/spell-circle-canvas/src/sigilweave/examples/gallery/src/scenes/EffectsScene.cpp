@@ -14,6 +14,7 @@
 #include "EffectsParts.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
+#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 
@@ -82,7 +83,7 @@ class LayerShowcasePart final : public Scene {
           buildPaints(fontSize);
           buildParagraphPaints(paragraphFontSize);
 
-          const kit::Stopwatch layoutTime;
+          const sigil::measure::Stopwatch layoutTime;
           for (size_t row = 0; row < m_paragraphs.size(); ++row) {
             Paragraph& paragraph = m_paragraphs[row];
             paragraph.clear();
@@ -123,7 +124,7 @@ class LayerShowcasePart final : public Scene {
           m_paragraphBlockLayout = layoutParagraph(
               fontContext, m_paragraphBlock, paragraphFlow, paragraphOptions);
 
-          layoutMicroseconds = layoutTime.microseconds();
+          layoutMicroseconds = layoutTime.elapsedUs();
         });
 
     // Each preset's program compiles once per process. These calls only

@@ -75,6 +75,7 @@ target_link_libraries(WeaveGallery
     SigilMaterialKit  # the text-paint presets the effect scenes shade
     SigilMaterialSkia # and the Skia backend that shades them
     SigilWeavePorts # systemFontManager()
+    SigilMeasure # the stopwatch each scene times its layout with
     Boost::container
 )
 

@@ -1,8 +1,8 @@
 #pragma once
 
 /** @file
- * A steady-clock stopwatch reading elapsed milliseconds, and a scope
- * guard that writes its elapsed time into a double when it goes out of
+ * A steady-clock stopwatch reading elapsed time, and a scope guard that
+ * writes its elapsed milliseconds into a double when it goes out of
  * scope.
  */
 
@@ -24,11 +24,23 @@ class Stopwatch {
     return std::chrono::duration<double, std::milli>(Clock::now() - m_start)
         .count();
   }
+  /** The same span in microseconds — the unit a per-frame reading wants,
+   *  where a millisecond is already the whole budget. */
+  double elapsedUs() const {
+    return std::chrono::duration<double, std::micro>(Clock::now() - m_start)
+        .count();
+  }
   void reset() { m_start = Clock::now(); }
 
  private:
   Clock::time_point m_start;
 };
+
+/** @p span as fractional microseconds, for a caller holding two clock
+ *  readings rather than a stopwatch. */
+inline double toMicroseconds(Stopwatch::Clock::duration span) {
+  return std::chrono::duration<double, std::micro>(span).count();
+}
 
 /** Writes the milliseconds a scope took into the double it was given,
  *  at scope exit — one line to time a block without laying marks by hand:

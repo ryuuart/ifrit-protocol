@@ -41,7 +41,6 @@ One header per utility under `include/sigilweave/kit/`, and
 | `Labels.h` | `makeStyle()` / `drawLabel()` | Ten-line single-span style and caption rituals, reinvented per tool. |
 | `SampleText.h` | `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
 | `Palette.h` | `palette::kInk`, `kPaper`, … | Every showcase picking its own near-black and off-white. |
-| `Timing.h` | `Stopwatch` / `toMicroseconds()` | Frame-timing brackets duplicated across targets. |
 | `Hyphenation.h` | `PatternHyphenator`, `englishHyphenationPatterns()` | The engine growing an opinion about where a language's words break. |
 | `LineTables.h` | `kinsoku::japanese()`, `hanging::latin()`, `hanging::japanese()` | The engine growing an opinion about which marks may stand at a line's edge, and how far one may hang past it. |
 
