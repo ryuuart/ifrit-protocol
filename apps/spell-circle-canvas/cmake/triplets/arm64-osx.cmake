@@ -7,6 +7,9 @@
 # and a task enqueued in one runtime waits forever for workers idling in
 # another — the first UsdStage::Open hangs. A shared TBB is the single
 # runtime they all expect.
+#
+# One port's settings are varied by testing PORT, which is where vcpkg
+# means per-port customization to live.
 set(VCPKG_TARGET_ARCHITECTURE arm64)
 set(VCPKG_CRT_LINKAGE dynamic)
 set(VCPKG_LIBRARY_LINKAGE static)

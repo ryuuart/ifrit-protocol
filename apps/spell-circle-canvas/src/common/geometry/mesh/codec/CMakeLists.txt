@@ -5,7 +5,9 @@
 # return nullopt), simdjson for the JSON a `.geo` is; STL and PLY are
 # parsed by hand. None of them reaches a public header.
 #
-# workaround: the cgltf port installs headers and exports no config.
+# cgltf is a single-file header, and its port installs that header and
+# nothing else — no package, no find module — so a consumer locates the
+# header and puts its directory on the include path.
 find_path(CGLTF_INCLUDE_DIR cgltf.h REQUIRED)
 find_package(tinyobjloader CONFIG REQUIRED)
 find_package(Alembic CONFIG REQUIRED)

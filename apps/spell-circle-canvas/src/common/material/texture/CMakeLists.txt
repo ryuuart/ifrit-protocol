@@ -5,8 +5,9 @@
 # simdjson reads the sprite tools' JSON and stb packs the sheet, both
 # private: no consumer sees either.
 find_package(simdjson CONFIG REQUIRED)
-# workaround: the stb port ships a find module rather than a config
-# package, so it is found by module and reached by include directory.
+# stb is a set of single-file headers, and its port publishes a find
+# module and an include directory rather than a package — the contract
+# the port's own usage states.
 find_package(Stb REQUIRED)
 sigil_library(SigilMaterialTexture
   SOURCES Atlas.cpp EnvironmentMap.cpp Surface.cpp Texture.cpp TextureSet.cpp
