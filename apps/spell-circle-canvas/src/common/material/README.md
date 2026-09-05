@@ -769,9 +769,10 @@ READS.** Three tiers, and nothing chooses between them by hand:
   effect with only constant uniforms. It resolves eagerly, so
   `isSolid()`/`solidColor()` or `staticShader()` answer with no frame at
   all and a consumer caches and prunes it like any other value.
-- GEOMETRY — an effect declaring `uResolution`, or a `worldSpace()` flag.
-  It depends on the box, not on the clock: `geometryDependent()` is true,
-  and `shaderFor(frame)` answers against the box the frame names.
+- GEOMETRY — an effect declaring `uResolution`, a `worldSpace()` flag, or
+  an image or buffer carrying a `fit()`. It depends on the box, not on the
+  clock: `geometryDependent()` is true, and `shaderFor(frame)` answers
+  against the box the frame names.
 - LIVE — an effect with a uniform bound to an `Output`, or one reading
   `uTime` or `uContentScale`. `isAnimated()` is true and the paint is
   rebuilt every draw; a live CHILD or blend layer makes its parent live,

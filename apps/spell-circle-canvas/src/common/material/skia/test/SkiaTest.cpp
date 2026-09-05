@@ -758,3 +758,86 @@ TEST(ShaderTable, HoldsEveryFileTheShaderDirectoryDoes) {
   sigil::test::expectShaderTableIsWholeDirectory(
       sigil::material::skia::shaderSources(), SIGIL_MATERIAL_SKIA_SHADER_DIR);
 }
+
+namespace {
+
+/** Two pixels side by side, red then blue — a source whose halves are
+ *  told apart wherever it lands. */
+sk_sp<SkImage> twoHalves() {
+  SkBitmap bm;
+  bm.allocPixels(
+      SkImageInfo::Make(2, 1, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType));
+  *bm.getAddr32(0, 0) = 0xFF0000FFu;  // ABGR: opaque red
+  *bm.getAddr32(1, 0) = 0xFFFF0000u;  // opaque blue
+  bm.setImmutable();
+  return bm.asImage();
+}
+
+/** The image's POINTER is its identity in a recipe, so every case here
+ *  fits the same one — two paints over two copies of the same pixels are
+ *  deliberately not equal. */
+sk_sp<SkImage> theHalves() {
+  static const sk_sp<SkImage> image = twoHalves();
+  return image;
+}
+
+skia::Paint fitted(skia::Fit how) {
+  skia::Paint p = skia::Paint::image(theHalves(), SkTileMode::kDecal,
+                                     SkTileMode::kDecal, SkMatrix::I(),
+                                     SkSamplingOptions(SkFilterMode::kNearest));
+  p.fit(how);
+  return p;
+}
+
+}  // namespace
+
+TEST(SkiaPaint, AFittedImageIsMappedOntoTheBoxItIsPainting) {
+  // Native is the absence of the question: two source pixels at the
+  // origin, and the rest of the box is not the image's business.
+  const skia::Paint native = fitted(skia::Fit::Native);
+  EXPECT_FALSE(native.geometryDependent());
+  EXPECT_EQ(SkColorGetA(render(native.staticShader(), 40, 10).getColor(20, 5)),
+            0u);
+
+  // Stretch fills both axes: the halves land either side of the middle and
+  // the whole box is covered.
+  const skia::Paint stretch = fitted(skia::Fit::Stretch);
+  EXPECT_TRUE(stretch.geometryDependent());
+  const SkBitmap wide =
+      render(stretch.shaderFor(skia::PaintFrame{.size = {40, 10}}), 40, 10);
+  EXPECT_EQ(wide.getColor(5, 5), SK_ColorRED);
+  EXPECT_EQ(wide.getColor(35, 5), SK_ColorBLUE);
+  EXPECT_EQ(wide.getColor(5, 9), SK_ColorRED);
+
+  // Contain keeps the aspect and leaves the margin: a 2:1 source in a
+  // square box is half the height of it, centred, and the box's own top
+  // is not the image.
+  const SkBitmap inside =
+      render(fitted(skia::Fit::Contain).shaderFor(skia::PaintFrame{.size = {40, 40}}),
+             40, 40);
+  EXPECT_EQ(SkColorGetA(inside.getColor(5, 5)), 0u);
+  EXPECT_EQ(inside.getColor(5, 20), SK_ColorRED);
+  EXPECT_EQ(inside.getColor(35, 20), SK_ColorBLUE);
+
+  // Cover keeps the aspect the other way: nothing of the box is left, and
+  // what does not fit is off the edges.
+  const SkBitmap over =
+      render(fitted(skia::Fit::Cover).shaderFor(skia::PaintFrame{.size = {40, 40}}),
+             40, 40);
+  EXPECT_EQ(over.getColor(5, 2), SK_ColorRED);
+  EXPECT_EQ(over.getColor(5, 38), SK_ColorRED);
+  EXPECT_EQ(over.getColor(35, 20), SK_ColorBLUE);
+}
+
+TEST(SkiaPaint, AFitIsPartOfTheRecipeAndDegradesWhereThereIsNoBox) {
+  EXPECT_FALSE(fitted(skia::Fit::Cover) == fitted(skia::Fit::Contain));
+  EXPECT_FALSE(fitted(skia::Fit::Cover) == fitted(skia::Fit::Native));
+  EXPECT_TRUE(fitted(skia::Fit::Cover) == fitted(skia::Fit::Cover));
+
+  // Asked with no box in reach — a standalone decoration, a measurement —
+  // it answers the unfitted mapping rather than nothing at all, the same
+  // degradation a world-space material makes outside a composer.
+  const SkBitmap loose = render(fitted(skia::Fit::Cover).asShader(), 40, 40);
+  EXPECT_EQ(SkColorGetA(loose.getColor(20, 20)), 0u);
+  EXPECT_EQ(loose.getColor(0, 0), SK_ColorRED);
+}

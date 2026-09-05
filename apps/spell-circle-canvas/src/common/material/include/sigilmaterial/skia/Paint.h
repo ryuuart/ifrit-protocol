@@ -87,6 +87,24 @@ struct PaintFrame {
   float contentScale = 1.0f;
 };
 
+/** HOW AN IMAGE MEETS THE BOX it is painting — the frame question, which
+ *  the source's own pixel dimensions cannot answer and a `local` matrix
+ *  authored beside them cannot either, because neither knows how big the
+ *  box will be.
+ *
+ *  `Native` is the absence of the question: source pixels at their own
+ *  size, placed by whatever `local` says, which is what an atlas sprite
+ *  and a tiled texture both want. The other three are resolved against
+ *  the box when the node records, and they SUPERSEDE `local` — a sprite's
+ *  sub-rect and a fit are two different mappings and only one of them can
+ *  decide. */
+enum class Fit : uint8_t {
+  Native,   ///< source px 1:1, placed by `local`
+  Stretch,  ///< fill the box on both axes; the aspect is not kept
+  Cover,    ///< keep the aspect, fill the box, crop what overflows
+  Contain,  ///< keep the aspect, sit inside the box, leave the margin
+};
+
 /** A gradient ramp stop (position 0..1 + color) — the MaterialX `<ramp>` atom.
  *  Authored in the working color space. */
 struct Stop {
@@ -527,6 +545,23 @@ class Paint {
    *  compares), so it drops to live paint there — conservative, never
    *  stale. */
   Paint& worldSpace(bool on = true);
+
+  /** HOW THE SOURCE MEETS THE BOX: stretch it, cover it, or sit inside
+   *  it. Meaningful on `image()` and `buffer()` — the kinds that have a
+   *  source with a size of its own — and warned and ignored elsewhere,
+   *  matching `offset()`'s guardrails.
+   *
+   *  A stated fit makes the material GEOMETRY-DEPENDENT: it needs the box
+   *  to answer, so it resolves when its node records and re-records when
+   *  layout changes the box. Between layouts it caches like any static
+   *  fill. A bound pan still composes — the fit decides the mapping and
+   *  the pan post-translates it, exactly as it does over `local`.
+   *
+   *  Resolved with no box in reach (`asShader()`, a standalone
+   *  decoration) it degrades to `Native`, the same way a world-space
+   *  material degrades to node-local. The flag is recipe and joins
+   *  operator==. */
+  Paint& fit(Fit how);
   /** Is THIS material flagged world-space (the layer-local flag)? */
   bool worldSpace() const { return m_worldSpace; }
   /** Does this material — or any blend() layer or child() below it —
@@ -686,6 +721,9 @@ class Paint {
    *  resolve() and asShader(), so a bound-offset material cannot look
    *  different depending on which asked. */
   sk_sp<SkShader> pannedImageShader() const;
+  sk_sp<SkShader> fittedImageShader(const PaintFrame& frame) const;
+  /** Does the recipe state a fit the box has to answer? */
+  bool hasFit() const;
   void detachLive();    // copy-on-write before any recipe mutation
   void detachBacked();  // the same, for the Material instance
   /** The recipe-backed resolve: @p frame (null is the static snapshot),

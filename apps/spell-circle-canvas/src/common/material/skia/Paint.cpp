@@ -152,6 +152,7 @@ struct Paint::Recipe {
   SkTileMode tx = SkTileMode::kClamp, ty = SkTileMode::kClamp;
   SkMatrix local = SkMatrix::I();
   SkSamplingOptions sampling;
+  Fit fit = Fit::Native;
   // Blend: layer materials (recursive Paint equality) + modes.
   std::vector<std::pair<Paint, SkBlendMode>> layers;
   // Buffer: a caller-owned mutable bitmap, so identity alone cannot decide
@@ -171,12 +172,13 @@ struct Paint::Recipe {
                stops == o.stops && tile == o.tile;
       case Kind::Image:
         return image == o.image && tx == o.tx && ty == o.ty &&
-               local == o.local && sampling == o.sampling;
+               local == o.local && sampling == o.sampling && fit == o.fit;
       case Kind::Blend:
         return layers == o.layers;
       case Kind::Buffer:
         return source == o.source && revision == o.revision && tx == o.tx &&
-               ty == o.ty && local == o.local && sampling == o.sampling;
+               ty == o.ty && local == o.local && sampling == o.sampling &&
+               fit == o.fit;
     }
     return false;
   }
@@ -1110,6 +1112,68 @@ sk_sp<SkShader> Paint::pannedImageShader() const {
                           m_recipe->sampling, &local);
 }
 
+bool Paint::hasFit() const {
+  return m_recipe && m_recipe->fit != Fit::Native;
+}
+
+Paint& Paint::fit(Fit how) {
+  if (!m_recipe || (m_recipe->kind != Recipe::Kind::Image &&
+                    m_recipe->kind != Recipe::Kind::Buffer)) {
+    SkDebugf(
+        "skia::Paint::fit(): ignored — only image()/buffer() materials have "
+        "a source with a size of its own to fit\n");
+    return *this;
+  }
+  // The recipe is held const and shared by every copy of the material, so
+  // a fit is stated by replacing it — the same posture the factories take.
+  auto rec = std::make_shared<Recipe>(*m_recipe);
+  rec->fit = how;
+  m_recipe = std::move(rec);
+  return *this;
+}
+
+/** The FITTED build, the box's answer to the pan's: the source mapped
+ *  onto @p frame's box by the stated rule, then post-translated by any
+ *  bound pan exactly as `pannedImageShader` translates the static matrix.
+ *  Null when there is no fit, no source, or no box to fit to — the caller
+ *  falls through to the unfitted form, which is the same degradation a
+ *  world-space material makes outside a composer. */
+sk_sp<SkShader> Paint::fittedImageShader(const PaintFrame& frame) const {
+  if (!hasFit() || frame.size.isEmpty()) return nullptr;
+  sk_sp<SkImage> img =
+      m_recipe->kind == Recipe::Kind::Buffer
+          ? (m_recipe->source ? m_recipe->source->image() : nullptr)
+          : m_recipe->image;
+  if (!img || img->width() <= 0 || img->height() <= 0) return nullptr;
+  const float iw = (float)img->width(), ih = (float)img->height();
+  const float bw = frame.size.width(), bh = frame.size.height();
+  const float sx = bw / iw, sy = bh / ih;
+  SkMatrix local;
+  switch (m_recipe->fit) {
+    case Fit::Stretch:
+      local = SkMatrix::Scale(sx, sy);
+      break;
+    case Fit::Cover:
+    case Fit::Contain: {
+      // One scale for both axes; which one is the whole difference
+      // between covering the box and sitting inside it. Centred either
+      // way, so the crop takes the same from both edges and the margin
+      // leaves the same at both.
+      const float k = m_recipe->fit == Fit::Cover ? std::max(sx, sy)
+                                                  : std::min(sx, sy);
+      local = SkMatrix::Scale(k, k);
+      local.postTranslate((bw - iw * k) * 0.5f, (bh - ih * k) * 0.5f);
+      break;
+    }
+    case Fit::Native:
+      return nullptr;
+  }
+  const SkPoint pan = boundOffsetValue();
+  local.postTranslate(pan.fX, pan.fY);
+  return SkShaders::Image(std::move(img), m_recipe->tx, m_recipe->ty,
+                          m_recipe->sampling, &local);
+}
+
 Paint& Paint::worldSpace(bool on) {
   m_worldSpace = on;  // recipe, like amount()/bleed(): joins operator==
   return *this;
@@ -1209,6 +1273,9 @@ bool Paint::geometryDependent() const {
   // context-carrying paths: Element::fill's live slot, the coverage gate's
   // resolve, childShader's per-frame form, and build()'s memo skip.
   if (m_worldSpace) return true;
+  // A fit is a question about the BOX, so it is answered where uResolution
+  // is answered: when the node records, and again when layout moves it.
+  if (hasFit()) return true;
   if (m_backed && m_backed->material.geometryDependent()) return true;
   if (m_live && m_live->usesGeometry) return true;
   if (m_live)
@@ -1474,6 +1541,15 @@ sk_sp<SkShader> Paint::shaderFor(const PaintFrame& ctx) const {
   // The recipe-backed path — the same rule, through the core's cache.
   if (m_backed && (isAnimated() || geometryDependent()))
     return buildBacked(&ctx);
+  // The fit: the source mapped onto THIS box, which neither the static
+  // snapshot below nor the recipe matrix could know. It carries the bound
+  // pan itself, so it sits above the pan branch as well.
+  if (hasFit()) {
+    if (sk_sp<SkShader> fitted = fittedImageShader(ctx)) {
+      if (m_worldSpace) fitted = anchorToRoot(std::move(fitted), ctx);
+      return fitted;
+    }
+  }
   // The bound pan: the recipe matrix translated by the bindings' current
   // values, per draw. It has to sit above the static snapshot below,
   // which baked the UNpanned matrix. The paint layer's scalar memo,
