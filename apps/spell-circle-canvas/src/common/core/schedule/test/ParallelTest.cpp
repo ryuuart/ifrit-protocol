@@ -57,10 +57,9 @@ TEST(ScheduleParallel, ChunksCoverTheRangeExactlyOnce) {
 
 TEST(ScheduleParallel, ARangeNoLargerThanTheGrainStaysOnTheCaller) {
   Chunks chunks;
-  schedule::parallelFor(size_t{4096}, size_t{4096},
-                        [&](size_t first, size_t last) {
-                          chunks.record(first, last);
-                        });
+  schedule::parallelFor(
+      size_t{4096}, size_t{4096},
+      [&](size_t first, size_t last) { chunks.record(first, last); });
 
   ASSERT_EQ(chunks.ranges.size(), 1u);
   EXPECT_EQ(chunks.ranges.front().first, 0u);
@@ -70,7 +69,8 @@ TEST(ScheduleParallel, ARangeNoLargerThanTheGrainStaysOnTheCaller) {
 
 TEST(ScheduleParallel, AnEmptyRangeNeverCallsTheBodyAndAZeroGrainIsOneItem) {
   int calls = 0;
-  schedule::parallelFor(size_t{0}, size_t{16}, [&](size_t, size_t) { ++calls; });
+  schedule::parallelFor(size_t{0}, size_t{16},
+                        [&](size_t, size_t) { ++calls; });
   EXPECT_EQ(calls, 0);
 
   std::vector<int> visits(64, 0);
@@ -84,10 +84,9 @@ TEST(ScheduleParallel, AnEmptyRangeNeverCallsTheBodyAndAZeroGrainIsOneItem) {
  *  group index is one and a point index is another. */
 TEST(ScheduleParallel, AnUnsignedIndexOtherThanSizeTypeIsCarriedThrough) {
   std::atomic_uint32_t seen{0};
-  schedule::parallelFor(uint32_t{1000}, uint32_t{8},
-                        [&](uint32_t first, uint32_t last) {
-                          seen += last - first;
-                        });
+  schedule::parallelFor(
+      uint32_t{1000}, uint32_t{8},
+      [&](uint32_t first, uint32_t last) { seen += last - first; });
   EXPECT_EQ(seen.load(), 1000u);
 }
 
@@ -102,10 +101,9 @@ TEST(ScheduleParallel, ForEachRunsOverEveryElement) {
 
 TEST(ScheduleParallel, ABodyThatThrowsReachesTheCaller) {
   const auto run = [] {
-    schedule::parallelFor(size_t{10'000}, size_t{64},
-                          [](size_t first, size_t) {
-                            if (first == 0) throw std::runtime_error("body");
-                          });
+    schedule::parallelFor(size_t{10'000}, size_t{64}, [](size_t first, size_t) {
+      if (first == 0) throw std::runtime_error("body");
+    });
   };
   EXPECT_THROW(run(), std::runtime_error);
 }

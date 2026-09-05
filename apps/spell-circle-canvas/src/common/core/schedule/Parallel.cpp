@@ -7,10 +7,9 @@
  * every consumer at once.
  */
 
-#include <sigilcore/schedule/Parallel.h>
-
 #include <oneapi/tbb/blocked_range.h>
 #include <oneapi/tbb/parallel_for.h>
+#include <sigilcore/schedule/Parallel.h>
 
 namespace sigil::core::schedule::detail {
 

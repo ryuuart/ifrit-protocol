@@ -74,11 +74,11 @@ TEST(ScheduleConcurrentIo, ARangeOfItemsIsTheSameFanOut) {
   for (size_t i = 0; i != 40; ++i) uris.push_back("res://" + std::to_string(i));
   std::vector<std::string> fetched(uris.size());
 
-  schedule::concurrentIo(uris.size(), [&](size_t index) {
-    fetched[index] = uris[index] + "!";
-  });
+  schedule::concurrentIo(
+      uris.size(), [&](size_t index) { fetched[index] = uris[index] + "!"; });
 
-  for (size_t i = 0; i != uris.size(); ++i) EXPECT_EQ(fetched[i], uris[i] + "!");
+  for (size_t i = 0; i != uris.size(); ++i)
+    EXPECT_EQ(fetched[i], uris[i] + "!");
 }
 
 /** One item's failure is not the batch's: the others still run, and the
