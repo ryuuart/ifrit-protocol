@@ -53,7 +53,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Kit.h>
 
 #include <cmath>
 #include <memory>
@@ -117,20 +117,15 @@ Element card(float w, float h, SkColor4f accent) {
                      Fill::color({accent.fR, accent.fG, accent.fB, 0.9f})))
                  .child(std::move(rows))
                  .child(std::move(bars)))
-      .child(box()
-                 .width(gauge)
-                 .height(gauge)
+      .child(sketch::kit::gauge({.fraction = 200.0f / 280.0f,
+                                 .diameter = gauge,
+                                 .thickness = gauge * 0.5f * (1 - 0.72f),
+                                 .startDeg = 130,
+                                 .sweepDeg = 280,
+                                 .track = Fill::color({1, 1, 1, 0.15f}),
+                                 .bar = Fill::color(accent)})
                  .absolute()
-                 .inset(w - gauge - 16, h - gauge - 16, 16, 16)
-                 .shape(shapes::sector(130, 280, 0.72f))
-                 .fill(Fill::color({1, 1, 1, 0.15f})))
-      .child(box()
-                 .width(gauge)
-                 .height(gauge)
-                 .absolute()
-                 .inset(w - gauge - 16, h - gauge - 16, 16, 16)
-                 .shape(shapes::sector(130, 200, 0.72f))
-                 .fill(Fill::color(accent)));
+                 .inset(w - gauge - 16, h - gauge - 16, 16, 16));
 }
 
 }  // namespace

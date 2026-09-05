@@ -114,7 +114,7 @@ Element tiled(const char* name, const char* call, ptn::Tile tile) {
 }
 
 Element row(std::vector<Element> cells) {
-  return kit::cells({.cells = std::move(cells), .gap = 14});
+  return sketch::kit::cells({.cells = std::move(cells), .gap = 14});
 }
 
 }  // namespace
@@ -122,11 +122,10 @@ Element row(std::vector<Element> cells) {
 struct StockMaterialsSheet final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
-    sketch::kit::stage(ctx, {.size = {1150, 900}});
     // Nothing on the sheet moves: every generator is evaluated from its
     // parameters and the box, and the two that read the clock are pinned
     // by the moment their call names.
-    ctx.captureAt(0.05);
+    sketch::kit::stage(ctx, {.size = {1150, 900}, .captureAt = 0.05});
 
     const std::vector<mskia::Stop> ramp = {{0.0f, {0.95f, 0.35f, 0.25f, 1}},
                                            {0.5f, {0.95f, 0.80f, 0.30f, 1}},
@@ -237,11 +236,12 @@ struct StockMaterialsSheet final : sketch::Sketch {
          .footer = toU8("each caption is the recipe's own name; running "
                         "the effect is what crosses the split-Skia "
                         "image boundary, so every cell is PAINTED")},
-        kit::cells({.cells = {std::move(fields), std::move(patterns),
-                              std::move(grained), std::move(shapesAndRamps),
-                              std::move(textPaints)},
-                    .column = true,
-                    .gap = 20})));
+        sketch::kit::cells({.cells = {std::move(fields), std::move(patterns),
+                                      std::move(grained),
+                                      std::move(shapesAndRamps),
+                                      std::move(textPaints)},
+                            .column = true,
+                            .gap = 20})));
   }
 };
 

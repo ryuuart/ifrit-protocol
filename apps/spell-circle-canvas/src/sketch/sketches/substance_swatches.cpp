@@ -25,6 +25,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Kit.h>
 #include <sigilsubstance/Substance.h>
 
 #include <cstdio>
@@ -56,6 +57,23 @@ constexpr int kPerRow = 4;
 constexpr SkColor4f kInk = hex(0xf0ece4);
 constexpr SkColor4f kDim = hex(0xb4a894);
 
+/** The archive's own look: warm ink on a cooled ground, and the card's
+ *  two lines under its picture rather than around it. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ink = kInk;
+  look.palette.ash = kDim;
+  look.type.title = {.size = 15, .track = 2.4f};
+  look.type.subtitle = {.size = 12};
+  look.type.captionLabel = {.size = 14};
+  look.type.captionNote = {.size = 11.5f};
+  look.captionWhere = kit::Caption::Where::Below;
+  look.spacing.captionGap = 7;
+  look.spacing.captionNoteGap = 7;
+  look.spacing.cellGap = kGap;
+  return look;
+}
+
 std::filesystem::path archive() {
   return std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
          "Autumn_Leaves.sbsar";
@@ -74,18 +92,15 @@ Element card(const Swatch& swatch) {
   char size[32];
   std::snprintf(size, sizeof size, "%d \xc3\x97 %d", swatch.width,
                 swatch.height);
-  return box()
-      .width(kCard)
-      .column()
-      .gap(7)
-      .child(image(swatch.asset)
+  return sketch::kit::caption(
+             kCard, toU8(swatch.usage), toU8(size),
+             image(swatch.asset)
                  .width(kCard)
                  .height(kCard)
                  .corners({10})
                  .clip()
                  .foreground(stroke(1.0f, Fill::color(hex(0xffffff, 0.16f)))))
-      .child(text(toU8(swatch.usage), weave::textStyle({.size = 14, .color = kInk})))
-      .child(text(toU8(size), weave::textStyle({.size = 11.5f, .color = kDim})));
+      .width(kCard);
 }
 
 Element notice(std::u8string heading, const std::string& detail) {
@@ -145,6 +160,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
       return;
     }
 
+    const sketch::kit::Provide look(sheetTheme());
     std::vector<Swatch> swatches;
     for (const auto& [usage, cooked] : graph.outputsByUsage()) {
       if (!cooked) continue;
@@ -176,25 +192,29 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
                   graph.label().c_str(), graph.parameters().size(),
                   swatches.size());
 
-    Element grid = box().left(kMargin).top(kHeaderHeight).column().gap(kGap);
-    for (int start = 0; start < (int)swatches.size(); start += kPerRow) {
-      Element row = box().row().gap(kGap);
-      for (int i = start; i < start + kPerRow && i < (int)swatches.size(); ++i)
-        row.child(card(swatches[i]));
-      grid.child(std::move(row));
-    }
+    std::vector<Element> cards;
+    cards.reserve(swatches.size());
+    for (const Swatch& swatch : swatches) cards.push_back(card(swatch));
+    // The grid is as wide as its own cards, so a share IS a card: the
+    // canvas above was sized from the same arithmetic.
+    Element grid = box()
+                       .left(kMargin)
+                       .top(kHeaderHeight)
+                       .width(kPerRow * kCard + (kPerRow - 1) * kGap)
+                       .child(sketch::kit::panelGrid(
+                           {.cells = std::move(cards), .columns = kPerRow}));
 
     ctx.composer.render(
         stack()
-            .fill(linearGradient({0, 0}, {0, ctx.size.height()},
-                                 {hex(0x1a120b), hex(0x0f0d10)}))
-            .child(text(u8"A PROCEDURAL ARCHIVE, COOKED",
-                        weave::textStyle({.size = 15, .color = kInk, .track = 2.4f}))
+            .child(sketch::kit::backdrop(
+                {.over = ctx.size,
+                 .ground = linearGradient({0, 0}, {0, ctx.size.height()},
+                                          {hex(0x1a120b), hex(0x0f0d10)})}))
+            .child(sketch::kit::titleCard(
+                       {.title = u8"A PROCEDURAL ARCHIVE, COOKED",
+                        .subtitle = toU8(caption)})
                        .left(kMargin)
                        .top(34))
-            .child(text(toU8(caption), weave::textStyle({.size = 12, .color = kDim}))
-                       .left(kMargin)
-                       .top(62))
             .child(std::move(grid)));
   }
 };

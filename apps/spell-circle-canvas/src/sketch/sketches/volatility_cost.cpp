@@ -118,6 +118,14 @@ sketch::kit::Theme sheetTheme() {
   look.type.footer = {.size = 10, .track = 0.2f};
   look.spacing.marginX = 26;
   look.spacing.marginBottom = 14;
+  // The readout's own register: every reading is one size, the name in
+  // the quiet ink and the figure in the bright one.
+  look.palette.figure = look.palette.ink;
+  look.type.captionNote = {.size = 11};
+  look.type.captionLabel = {.size = 11};
+  look.spacing.labelGap = 8;
+  look.spacing.rowGap = 3;
+  look.spacing.swatch = 9;
   return look;
 }
 
@@ -307,60 +315,58 @@ struct VolatilityCost final : sketch::Sketch {
         {Composer::CacheState::Promoted, "blitted the library's bake"},
         {Composer::CacheState::SplitOwn, "own paint blitted, children live"},
         {Composer::CacheState::Group, "whole subtree blitted, held still"}};
-    Element row = box().row().gap(16).wrapLines();
+    // The key is OUTLINED because the map it keys is: every node on the
+    // sheet is outlined in its tier's colour, not filled with it.
+    std::vector<sketch::kit::LegendEntry> entries;
     for (const auto& [state, what] : tiers)
-      row.child(box()
-                    .row()
-                    .gap(6)
-                    .alignItems(Align::Center)
-                    .child(box().width(11).height(11).stroke(
-                        stroke(1.4f, Fill::color(tierColor(state)))))
-                    .child(text(toU8(std::string(tierName(state)) +
-                                     "  \xc2\xb7  " + what),
-                                label(10.5f, kDim))));
-    return row;
+      entries.push_back({Fill::color(tierColor(state)),
+                         toU8(tierName(state)), toU8(what)});
+    return sketch::kit::legend({.entries = std::move(entries),
+                                .column = false,
+                                .swatch = 11,
+                                .gap = 16,
+                                .strokeWidth = 1.4f,
+                                .wrap = true});
   }
 
   /** THE FRAME, as the composer reports it. Every number here is one the
    *  sketch measured about its own execution, so every one is pinned when
    *  the host is capturing for a diff. */
   Element statsBlock(const sketch::SketchContext& ctx) const {
-    const auto line = [&](const std::string& name, const std::string& value) {
-      return box()
-          .row()
-          .gap(8)
-          .child(text(toU8(name), label(11, kDim)).width(Dim(168)))
-          .child(text(toU8(value), label(11, kInk)));
-    };
     // A COUNT IS A FUNCTION OF THE DESCRIPTION and is printed as it is;
     // a TIME is a function of the machine and is pinned when the host is
     // capturing for a diff, so a plate carries the shape and not the
     // stopwatch.
-    const auto count = [](size_t v) { return std::to_string(v); };
-    (void)ctx;
-    Element column = box().column().gap(3);
-    column.child(text(toU8("Composer::stats()"), label(12.5f, kInk, 0.8f))
-                     .margin(0, 0, 0, 4));
-    column.child(line("instances", count(frame.instances)));
-    column.child(line("describedNodes", count(frame.describedNodes)));
-    column.child(line("memoHits", count(frame.memoHits)));
-    column.child(line("patchedNodes", count(frame.patchedNodes)));
-    column.child(line("picturesLive", count(frame.picturesLive)));
-    column.child(line("texturesLive", count(frame.texturesLive)));
-    column.child(line("picturesRecorded", count(frame.picturesRecorded)));
-    column.child(line("texturesBaked", count(frame.texturesBaked)));
-    column.child(line("nodesPainted", count(frame.nodesPainted)));
-    column.child(line("reconcile ms", ms(ctx.measured(frame.reconcileMs))));
-    column.child(line("layout ms", ms(ctx.measured(frame.layoutMs))));
-    column.child(line("volatile ms", ms(ctx.measured(frame.volatileMs))));
-    column.child(line("paint ms", ms(ctx.measured(frame.paintMs))));
-    column.child(box().height(8));
-    column.child(
-        text(toU8("the split"), label(12.5f, kInk, 0.8f)).margin(0, 0, 0, 4));
-    column.child(line("refused: Volatile", count((size_t)volatileNodes)));
-    column.child(line("reached a bake", count((size_t)bakedNodes)));
-    column.child(line("nodes profiled", count(profiled)));
-    return column;
+    const auto count = [](size_t v) { return toU8(std::to_string(v)); };
+    const sketch::kit::Readout how{.nameMeasure = 168};
+    return box()
+        .column()
+        .gap(3)
+        .child(text(toU8("Composer::stats()"), label(12.5f, kInk, 0.8f))
+                   .margin(0, 0, 0, 4))
+        .child(sketch::kit::readout(
+            {{u8"instances", count(frame.instances)},
+             {u8"describedNodes", count(frame.describedNodes)},
+             {u8"memoHits", count(frame.memoHits)},
+             {u8"patchedNodes", count(frame.patchedNodes)},
+             {u8"picturesLive", count(frame.picturesLive)},
+             {u8"texturesLive", count(frame.texturesLive)},
+             {u8"picturesRecorded", count(frame.picturesRecorded)},
+             {u8"texturesBaked", count(frame.texturesBaked)},
+             {u8"nodesPainted", count(frame.nodesPainted)},
+             {u8"reconcile ms", toU8(ms(ctx.measured(frame.reconcileMs)))},
+             {u8"layout ms", toU8(ms(ctx.measured(frame.layoutMs)))},
+             {u8"volatile ms", toU8(ms(ctx.measured(frame.volatileMs)))},
+             {u8"paint ms", toU8(ms(ctx.measured(frame.paintMs)))}},
+            how))
+        .child(box().height(8))
+        .child(text(toU8("the split"), label(12.5f, kInk, 0.8f))
+                   .margin(0, 0, 0, 4))
+        .child(sketch::kit::readout(
+            {{u8"refused: Volatile", count((size_t)volatileNodes)},
+             {u8"reached a bake", count((size_t)bakedNodes)},
+             {u8"nodes profiled", count(profiled)}},
+            how));
   }
 
   /** THE COSTLIEST NODES, worst first, each with the tier it took and the
