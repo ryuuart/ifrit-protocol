@@ -15,8 +15,6 @@
 #include <string_view>
 #include <utility>
 
-#include "sigilmaterial/kit/Terms.h"
-
 namespace sigil::material::kit {
 
 namespace {

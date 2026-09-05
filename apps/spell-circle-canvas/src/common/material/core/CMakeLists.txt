@@ -14,13 +14,23 @@
 # outline a normals pass is drawn over arrives as pixels. A warm-up
 # compiles its distinct keys through SigilCoreSchedule, which is where a
 # divided range is decided for every library that has one.
-find_package(boost_pfr CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
+#
+# Shading.slang is compiled by slangc as well when this library is built,
+# which makes a mistake in a term a build failure rather than a first-frame
+# surprise. A renderer's own shaders import it, so their compilers search
+# this directory: SIGIL_MATERIAL_TERMS_DIR is where they find it.
+include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
+set(SIGIL_MATERIAL_TERMS_DIR "${_shaders}"
+    CACHE INTERNAL "the directory holding the shading terms module")
+sigil_slang_module(NAME Shading SOURCE ${_shaders}/Shading.slang
+  PROOF_VAR SIGIL_MATERIAL_SHADING_PROOF)
+
 sigil_library(SigilMaterialCore
-  SOURCES Combine.cpp Material.cpp Params.cpp Program.cpp Recipe.cpp
+  SOURCES Combine.cpp Material.cpp Params.cpp Program.cpp Recipe.cpp Terms.cpp
+          ${SIGIL_MATERIAL_SHADING_PROOF}
   HEADERS ../Material.h Combine.h FrameData.h Leaf.h Material.h Params.h
-          Program.h Recipe.h Target.h UniformBlock.h
+          Program.h Recipe.h Target.h Terms.h UniformBlock.h
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr
          Boost::container
   PRIVATE Boost::unordered SigilCoreSchedule)

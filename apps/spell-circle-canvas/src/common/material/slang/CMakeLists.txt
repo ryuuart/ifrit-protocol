@@ -12,10 +12,10 @@
 # built, which makes a mistake in it a build failure. Compilers of
 # importing shaders search this directory.
 #
-# The kit is linked for one thing: its shading terms are loaded into every
-# session by name, so a renderer's shading and every material body
-# compiled beside it call one definition of a term. Slang itself is
-# PRIVATE — the public header names none of its types.
+# The core's shading terms are loaded into every session by name, so a
+# renderer's shading and every material body compiled beside it call one
+# definition of a term. Slang itself is PRIVATE — the public header names
+# none of its types.
 include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
 set(SIGIL_MATERIAL_SLANG_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
     CACHE INTERNAL "the material Slang backend's shader modules")
@@ -27,7 +27,7 @@ sigil_library(SigilMaterialSlang
   SOURCES SlangCompiler.cpp ${SIGIL_MATERIAL_PORTABLE_PROOF}
   HEADERS SlangCompiler.h
   PUBLIC SigilMaterialCore Boost::container
-  PRIVATE SigilMaterialKit slang::slang)
+  PRIVATE slang::slang)
 sigil_shader_sources(SigilMaterialSlang
   DIR ${SIGIL_MATERIAL_SLANG_SHADER_DIR} NAMESPACE sigil::material::slang)
 

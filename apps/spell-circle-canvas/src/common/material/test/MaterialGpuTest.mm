@@ -28,7 +28,7 @@
 #include <sigilmaterial/kit/Mask.h>
 #include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/kit/Surface.h>
-#include <sigilmaterial/kit/Terms.h>
+#include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -155,7 +155,7 @@ Material termsMaterial() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<NoParams>("terms.everyTerm")
           .body(Target::SkSL,
-                kit::termsSource(Target::SkSL) + R"(
+                termsSource(Target::SkSL) + R"(
       half4 main(float2 xy) {
         float3 n = normalize(float3(0.2, 0.3, 1.0));
         float3 l = normalize(float3(xy.x + 0.5, xy.y + 0.5, 1.0));

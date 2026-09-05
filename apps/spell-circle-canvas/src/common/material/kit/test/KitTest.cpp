@@ -23,7 +23,7 @@
 #include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
-#include <sigilmaterial/kit/Terms.h>
+#include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -58,7 +58,7 @@ SkColor4f term(const std::string& expression) {
   static int serial = 0;
   const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<NoParams>("term." + std::to_string(serial++))
-          .body(Target::SkSL, kit::termsSource(Target::SkSL) +
+          .body(Target::SkSL, termsSource(Target::SkSL) +
                                   "half4 main(float2 xy) { return half4(" +
                                   expression + "); }"));
   sk_sp<SkShader> shader = skia::shader(Material(recipe, NoParams{}), {});

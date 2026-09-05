@@ -2,11 +2,11 @@
  * The one term text, in each language a renderer speaks.
  */
 
-#include "sigilmaterial/kit/Terms.h"
+#include "sigilmaterial/core/Terms.h"
 
-#include <sigilshaders/MaterialKit.h>
+#include <sigilshaders/MaterialCore.h>
 
-namespace sigil::material::kit {
+namespace sigil::material {
 
 namespace {
 
@@ -46,4 +46,4 @@ const std::string& termsSource(Target target) {
   return kSkSL;
 }
 
-}  // namespace sigil::material::kit
+}  // namespace sigil::material

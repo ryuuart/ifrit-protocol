@@ -16,15 +16,15 @@ set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 # same texts, embedded in the libraries they belong to, are loaded into
 # the compiler session by name.
 set(_imports ${_shaders} ${SIGIL_MATERIAL_SLANG_SHADER_DIR}
-             ${SIGIL_MATERIAL_SHADER_DIR})
+             ${SIGIL_MATERIAL_TERMS_DIR})
 set(_portable ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang)
 sigil_slang_module(NAME Surface SOURCE ${_shaders}/Surface.slang
   ENTRIES vsMain fsFlat INCLUDE ${_imports}
-  DEPENDS ${_portable} ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
+  DEPENDS ${_portable} ${SIGIL_MATERIAL_TERMS_DIR}/Shading.slang
   PROOF_VAR SIGIL_WORLD_SURFACE_PROOF)
 sigil_slang_module(NAME Painter SOURCE ${_shaders}/Painter.slang
   ENTRIES vsPaint fsPaint INCLUDE ${_imports}
-  DEPENDS ${_portable} ${SIGIL_MATERIAL_SHADER_DIR}/Shading.slang
+  DEPENDS ${_portable} ${SIGIL_MATERIAL_TERMS_DIR}/Shading.slang
   PROOF_VAR SIGIL_WORLD_PAINTER_PROOF)
 sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
   ENTRIES vsFullscreen fsCopy fsBlur fsLevels fsMasked INCLUDE ${_imports}

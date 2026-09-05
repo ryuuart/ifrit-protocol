@@ -60,15 +60,15 @@ each a static archive that links only what sits beneath it:
 | target | holds | links |
 |--------|-------|-------|
 | `SigilMaterialColor` | `Color`, `rgb()`, `hsv()` and the OKLab round trip — the leaf, which the core's `Params.h` includes | nothing of this project's |
-| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
+| `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, over the 3D-LUT `lutRecipe()` and the per-channel `responseRecipe()` | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
-| `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; SigilMaterialKit and Slang privately |
-| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; `kit::Bank`, the bounded seeded bank of a field's instances; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::termsSource`, the shading terms a surface is composed of; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, Boost.Container |
+| `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
+| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit` and the masks that stack them; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; `kit::Bank`, the bounded seeded bank of a field's instances; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, Boost.Container |
 
 `SigilMaterial` is the umbrella, an interface over all ten. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
@@ -434,7 +434,7 @@ in the library each belongs to, so a shader's `import` resolves against the
 session rather than opening a file during compilation. `Portable` is the subset
 whose transcendentals a host and a device answer alike — a kernel compiled for
 both cannot afford two spellings of a square root. `Shading` is
-`kit::termsSource`'s own text, so a renderer's shading and every material body
+`termsSource`'s own text, so a renderer's shading and every material body
 compiled beside it call one definition of a term rather than a copy apiece.
 
 `lit` is the one axis a session specialises on: it defines `SIGIL_LIT`,
@@ -465,7 +465,7 @@ share the `TextPaintParams` ABI of a run's origin and extent, the clock
 and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`
 are the chrome-type ramps in unit space.
 
-**A surface is composed of TERMS.** `kit::termsSource(target)` is one
+**A surface is composed of TERMS.** `termsSource(target)` is one
 text holding each piece of shading arithmetic as a function with a closed
 form — `lambert`, `blinn`, `fresnel` and `fresnelRough`,
 `specularColor`, `environmentBrdf` and `environmentSpecular` (the split
@@ -876,7 +876,7 @@ through the accessor the generated header declares —
 `<sigilshaders/MaterialKit.h>` spells `kit::shaderSource("Stone.sksl")`
 and `kit::shaderSources()`, the whole table — and no feature reaches
 another's: text that two of them need is asked for by name from the one
-that owns it, which is what `kit::termsSource` is.
+that owns it, which is what `termsSource` is.
 
 Adding a file to a `shaders/` directory is the whole of adding a body:
 the glob picks it up on the next build, and a per-feature case fails if

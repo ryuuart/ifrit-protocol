@@ -32,7 +32,7 @@
 
 #include <string>
 
-namespace sigil::material::kit {
+namespace sigil::material {
 
 /** The terms as source in @p target, ready to be prepended to a body.
  *  Empty for a target that has no spelling of them. */
@@ -47,4 +47,4 @@ const std::string& termsSource(Target target);
  *  `equirectUv`, `equirectDirection`, `roughnessLevel`, `atan2P`,
  *  `acosP`. */
 
-}  // namespace sigil::material::kit
+}  // namespace sigil::material
