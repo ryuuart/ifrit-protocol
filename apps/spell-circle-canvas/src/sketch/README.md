@@ -538,6 +538,7 @@ Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
 Sketchbook --compare <dir-a> <dir-b>        # two sweeps' plates, differenced
 Sketchbook --window-bench [<sec>] [--window-size <WxH>] [--window-scale <n>]
 Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
+           [--thumbnail-budget <sec>] [--thumbnail-heavy]
 … [--assets <dir>]                          # what mounts at res://
 … [--thumbnails-dir <dir>]                  # the app's own thumbnail store
 ```
@@ -734,7 +735,8 @@ after another, so the two questions are kept apart:
 * **Enter presents.** So does a double click, and so does the
   inspector's Open. This is the only thing that changes what is drawn —
   and the resident set is what makes it cheap, because a sketch already
-  opened comes back without being built again.
+  opened comes back without being built again. It is also what ends the
+  thumbnail fill: from there on the canvas is what draws.
 * **A click on the canvas gives it the keyboard.** The pointer over the
   canvas and the keys while it holds focus reach the running session in
   the sketch's own canvas units, through `Session::pointer` and
@@ -759,24 +761,54 @@ file stem at once, while `folder:` and `kind:` narrow on that field
 alone — so `folder:study kind:canvas rain` is one question, not three.
 `/` puts the cursor in it and Escape empties it.
 
-**The thumbnails are the app's own, rendered on demand.** Sketchbook keeps
-one store — one PNG per sketch, under the platform cache location
-(`--thumbnails-dir` and the `SIGIL_SKETCHBOOK_THUMBNAILS` environment
-variable name another). Each file's name carries a KEY: a hash of the
-sketch's source — the file, or every file of a directory sketch — folded
-with the running host's build identity, so a thumbnail whose key no longer
-matches is stale and is drawn again. When the browser shows a row whose
-thumbnail is missing or stale, a background worker renders that sketch at
-its declared moment — the same capture the CPU plate tier takes — scaled to
-the thumbnail size, one at a time in the order rows asked, on the CPU and
-never touching the device: the render shares no graphics context with the
-live canvas. A row updates when its file lands, without remounting the
-others. A sketch that fails to render gets its runtime glyph and one line in
-the status strip, and is not tried again. Set sketches render through the
-same path the CPU tier uses for them. `Sketchbook --thumbnails` renders
-every missing or stale thumbnail headless and exits non-zero naming the
-sketches that failed — the same code path, run ahead of time. A sketch with
-no thumbnail yet gets a drawn glyph for the runtime it draws through.
+**The thumbnails are the app's own.** Sketchbook keeps one store — one PNG
+per sketch, under the platform cache location (`--thumbnails-dir` and the
+`SIGIL_SKETCHBOOK_THUMBNAILS` environment variable name another). Each
+file's name carries a KEY: a hash of the sketch's source — the file, or
+every file of a directory sketch — folded with the running host's build
+identity, so a thumbnail whose key no longer matches is stale and is drawn
+again.
+
+They are filled at two moments, and never while a sketch is being
+presented.
+
+**The fill, at launch.** The window comes up on the browser with the
+canvas dark, and draws a still for every sketch that has none: the
+sketch's kind opened and stepped to its declared moment — the same
+capture the CPU plate tier takes — scaled to the thumbnail size, one at a
+time, on the CPU and never touching the device. The status strip counts
+them off, `thumbnails 12/41 …`, and each row fills in as its file lands
+without remounting the others; a row on screen is moved to the front of
+the queue, so what you are looking at is drawn first. **Opening a sketch
+ends the fill** — the walk in flight is let go at its next frame and the
+queue is dropped — and the fill finishing opens the sketch the run was
+pointed at. A run that named a sketch (`--sketch`, a file on the command
+line) or that is here to photograph or measure one (`--shot`,
+`--window-bench`) opens at once and never fills.
+
+**One still is bounded.** A sketch whose walk runs past the per-sketch
+budget, and a sketch that declared itself a plate with `ctx.plate()`
+(which is a statement that its subject costs what a plate costs), is
+abandoned and gets a one-line NOTE beside where its still would have
+gone, under the same key: the note stands in for the picture, the fill
+moves on, and the question is asked again only when the sketch's source
+or the host changes. `--thumbnail-budget <sec>` names another budget and
+`--thumbnail-heavy` walks the declared plates as well. A sketch that
+could not be drawn at all is named once in the status strip and not tried
+again this run.
+
+**The refresh, on opening.** Once a sketch is presented, its session is
+photographed once — as it reaches the moment it declared, or after a
+second of its own clock when it declares none — and that frame is written
+into the store under the sketch's current key. So the stills refresh as
+you browse, they are the frames you were looking at, and nothing renders
+in the background to keep them current. A sketch with no thumbnail yet
+gets a drawn glyph for the runtime it draws through.
+
+`Sketchbook --thumbnails` fills the store headless, over the same budget
+and writing the same notes, and exits non-zero naming the sketches that
+failed. Set sketches render through the same path the CPU tier uses for
+them.
 
 **What is not in a row is the canvas.** A sketch declares its size, its
 ground and the moment it names from inside its own setup, so those are
