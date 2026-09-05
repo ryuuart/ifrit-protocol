@@ -9,6 +9,11 @@
 #   SigilCoreCompute     compute/     the arithmetic several libraries
 #                                     agree on to the bit: the seeded
 #                                     mixers and the identifying folds
+#   SigilCoreSchedule    schedule/    where independent work runs: one
+#                                     parallel for over the task runtime,
+#                                     and a fan-out of its own threads for
+#                                     calls that block on a disk or a
+#                                     server
 #   SigilCoreReconcile   reconcile/   descriptions reconciled onto a host's
 #                                     retained tree: keyed matching, the
 #                                     memo, the identity prune, the
@@ -24,6 +29,10 @@
 #                                     destruction deferred past the frames
 #                                     in flight
 #
+# The schedule feature is the one every library that divides work over
+# threads links, so that a task runtime is named in one file of this
+# repository and no header of it spells one.
+#
 # The two leaves depend on the standard library alone (Boost.PFR aside)
 # and are linked from libraries far outside this one, which is what makes
 # them leaves rather than parts of the kernels above them. The hardware
@@ -36,6 +45,7 @@ sigil_library_root(SigilCore
 
 add_subdirectory(comparable)
 add_subdirectory(compute)
+add_subdirectory(schedule)
 add_subdirectory(reconcile)
 add_subdirectory(cache)
 add_subdirectory(hardware)

@@ -20,7 +20,7 @@ paint caches, running motions — is the host's, reached through named
 operations the host implements on itself. That is the line both kernels
 draw: they own the DECISION, the host owns the THING.
 
-Under the kernels are three leaves, which libraries far from any
+Under the kernels are four leaves, which libraries far from any
 reconciler link on their own.
 
 **Comparable** — what a value needs before anything can decide it did not
@@ -34,6 +34,12 @@ bit: the seeded mixers a jitter draws from, and the folds a cache key is
 accumulated with. The standard library is the whole of its dependencies,
 so a shader's CPU twin, a point cook, a text cache and a resource store
 all reach the same bodies.
+
+**Schedule** — where independent work runs. One parallel for over the
+task runtime, taking a count, a grain and a body, so the runtime is
+named in one file of this repository and in no header of it; and beside
+it a fan-out of its own threads for calls that BLOCK on a disk or a
+server, which must not sit on the workers a compute range shares.
 
 **Hardware** — the GPU device itself: one device and its one command
 queue, created here or adopted from a host that owns them, with the
@@ -52,6 +58,7 @@ catalog. One target per directory:
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
 | `SigilCoreCompute` | `compute/` | the seeded mixers, the identifying folds |
+| `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam |
 | `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
@@ -59,15 +66,18 @@ catalog. One target per directory:
 `SigilCoreComparable` and `SigilCoreCompute` are header-only, so they are
 INTERFACE targets and produce no archive; everything else is a static
 library. `SigilCoreComparable` takes the standard library and Boost.PFR,
-`SigilCoreCompute` the standard library alone, and `SigilCoreReconcile`
+`SigilCoreCompute` the standard library alone, `SigilCoreSchedule` oneTBB
+privately, and `SigilCoreReconcile`
 Boost.Unordered for its keyed indices. `SigilCoreHardware` takes the graphics
 API and nothing else. Consumers still link only the feature they use, without
 pulling in a drawing or layout library.
 
 Every public header lives under `include/sigilcore/<feature>/` and is
 spelled `<sigilcore/comparable/X.h>`, `<sigilcore/compute/X.h>`,
-`<sigilcore/reconcile/X.h>` or `<sigilcore/cache/X.h>`;
+`<sigilcore/schedule/X.h>`, `<sigilcore/reconcile/X.h>` or
+`<sigilcore/cache/X.h>`;
 `<sigilcore/comparable/Comparable.h>`, `<sigilcore/compute/Compute.h>`,
+`<sigilcore/schedule/Schedule.h>`,
 `<sigilcore/reconcile/Reconcile.h>` and `<sigilcore/cache/Cache.h>`
 include their own directory's headers. The hardware feature's are
 `<sigilcore/hardware/GpuDevice.h>`, `<sigilcore/hardware/Handle.h>` and
@@ -79,6 +89,8 @@ include their own directory's headers. The hardware feature's are
 | `comparable/Fields.h` | `kFieldCount<T>` — how many direct non-static data members an aggregate has, and the pin a hand-written comparator sits under |
 | `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), the 64-bit avalanche `noise::mix64` with its `noise::kMix64Gamma` and the `noise::Mix64Stream` that walks it (`bits`, `unit`, `signedUnit`, `range`), the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext`, the xorshift stream `noise::xorshiftNext`/`noise::xorshiftUnitNext`, and the grid mixer `noise::lattice` |
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
+| `schedule/Parallel.h` | `schedule::parallelFor(count, grain, body)` over contiguous chunks and `schedule::parallelForEach(items, grain, body)` over a range's elements |
+| `schedule/ConcurrentIo.h` | `schedule::concurrentIo(count \| items, body)` — one blocking call per item, off the task runtime — and `schedule::concurrentIoWidth()`, how many of them run at once |
 | `reconcile/Reconciler.h` | `Reconciler<Host, Node, Description>` — `render()`, `replaceContent()`, `patch()`, `patchChildren()`, `resolveMemo()`, `keyOf()`, `matchKeyOf()`, `indexKeys()`, `stats()`, `frame()`, and its `KeyIndex` |
 | `reconcile/Host.h` | the `ReconcileHost` concept — the operations a host implements — and `DescriptionValue` |
 | `reconcile/Node.h` | `Node<Derived, Description>` — the tree skeleton a host's node derives from: `parent`, `description`, `memoShell`, `children` |
@@ -342,6 +354,68 @@ others. What the splitmix stream buys over the other two is its 64-bit
 counter: a caller with two integers to fold into one seed packs them into
 a word and does no mixing of its own.
 
+## Where work runs
+
+**A grain, and nothing else.** `schedule::parallelFor(count, grain, body)`
+divides `[0, count)` into contiguous chunks and calls `body(first, last)`
+on each; the chunks are disjoint and together cover the range exactly
+once. The grain is a COUNT OF ITEMS — how many are worth handing to one
+worker, which follows from what one item costs — and it is written where
+the body is written, because that is the only place the cost of an item
+is known. A body that touches one float per item takes a large grain; a
+body that compiles a program per item takes a grain of one.
+
+The grain is also the whole of the small-range rule: a count no larger
+than one grain IS one chunk and runs on the calling thread, with no task
+created and no second constant that could disagree with the first. What
+a caller must not do is put a measured number here and call it settled —
+a number that only a benchmark could falsify belongs in a ledger, and the
+grain that survives in the code is the one that says what an item costs.
+
+```cpp
+#include <sigilcore/schedule/Parallel.h>
+using namespace sigil::core;
+
+// A pass over point lanes: cheap per item, so a worker takes many.
+schedule::parallelFor(count, kLaneGrain, [&](size_t first, size_t last) {
+  for (size_t i = first; i != last; ++i) values[i] = displace(values[i]);
+});
+
+// One program compiled per element: expensive per item, so a worker
+// takes one.
+schedule::parallelForEach(work, 1, [&](const Request& request) {
+  compile(request);
+});
+```
+
+**A call that blocks is not a chunk of work.** A read from a disk, a
+fetch from a server or a wait on another thread's lock spends nearly all
+of its time waiting for something that is not a core. Run through the
+parallel for, one such call holds a worker of the one pool every parallel
+range in the process shares, and a handful of them stalls all of them —
+including ranges written nowhere near the fetch. `schedule::concurrentIo`
+is the other seam: one blocking call per item, on threads of its own.
+
+```cpp
+#include <sigilcore/schedule/ConcurrentIo.h>
+
+schedule::concurrentIo(pending.size(), [&](size_t i) {
+  pending[i].fetched = fetch(pending[i].uri);   // waits on a disk or a server
+});
+```
+
+Its threads last exactly as long as the call: the fan-out starts them
+when it is asked and joins every one before it returns, so nothing is
+parked between calls, nothing has to be shut down at exit, and a process
+that never fetches has no thread for it. Starting a thread per helper per
+call is the price, and it is small beside the wait that motivated the
+call — which is also why this seam is wrong for short compute chunks.
+`concurrentIoWidth()` is how many run at once, and it is deliberately
+larger than the core count: these threads are waiting rather than
+computing. A body that throws does not abandon the batch — every item is
+still handed out and every thread still joined, and the first exception
+is rethrown to the caller afterwards.
+
 ## The device
 
 A consumer that wants a GPU device — one it owns, or one an engine
@@ -510,7 +584,12 @@ without acquiring a kernel, and SigilMotion is one of the libraries that
 does, for the pin its own comparators sit under. SigilCoreReconcile links
 SigilCoreComparable (the erased seam value and the field pin) and
 SigilMeasure (the published counts), and nothing that draws, lays out,
-shapes text or animates. SigilCoreCache
+shapes text or animates. SigilCoreSchedule links nothing of this
+project's either: a task runtime, privately, and the standard library's
+threads. That privacy is the feature — a consumer hands over a count, a
+grain and a body, so no header in this repository spells a task runtime,
+and the one that runs every divided range in the process is chosen in one
+file. SigilCoreCache
 links SigilCoreReconcile alone. SigilCoreHardware links nothing of this
 project's either: the platform's graphics API — Metal where there is one,
 the Vulkan loader resolved at run time everywhere — and no Skia, no
@@ -539,7 +618,7 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release
-ctest --test-dir build -C Release -R 'sigilcore|core_hardware' --output-on-failure
+ctest --test-dir build -C Release -R 'sigilcore|core_' --output-on-failure
 ```
 
 `sigilcore_comparable_test` (`comparable/test/`) covers the erased value
@@ -555,6 +634,18 @@ words and floats they produce, floats compared as bits: a body that
 drifted by one operation fails there rather than in a stored render
 weeks later. `sigilcore_compute_bench` (`compute/bench/`) times each
 mixer one call at a time, which is how they are spent.
+
+`core_schedule_test` (`schedule/test/`) asks what the seam promises and
+nothing about how fast it is: that the chunks of a divided range are
+disjoint and cover it exactly once, that a count no larger than the grain
+runs on the calling thread and a larger one does not, that a zero grain
+is one item and an empty range calls the body not at all, that a body's
+exception reaches the caller, and — for the blocking fan-out — that every
+item runs exactly once, that two items are in flight together, and that
+one item's failure still leaves the batch run and every thread joined.
+`core_schedule_bench` (`schedule/bench/`) times a divided range over a
+body that does nothing but touch its item, at three sizes, so what is
+measured is the split rather than any consumer's arithmetic.
 
 `sigilcore_reconcile_test` (`reconcile/test/`) exercises the reconciler
 over a fake host — `FakeHost.h`, a host with nothing behind it that logs
