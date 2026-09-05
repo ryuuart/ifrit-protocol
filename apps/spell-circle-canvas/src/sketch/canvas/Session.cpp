@@ -37,6 +37,15 @@ class CanvasSession final : public Session {
         m_deterministic(deterministic) {
     m_composer = std::make_unique<compose::Composer>(m_ticker, m_fonts);
     m_composer->setClock(&m_clock);
+    // A deterministic session is one whose picture will be diffed, and the
+    // composer's automatic texture promotion decides by a STOPWATCH: a node
+    // whose paint measures over a millisecond for eight frames is baked and
+    // blitted thereafter, and its antialiased edges then land one code
+    // value away from the live paint. Whether the threshold is crossed
+    // depends on how busy the machine is, so with it on the same binary
+    // draws two different plates. The sketch's own measurements are pinned
+    // by ctx.measured(); this pins the runtime's.
+    if (deterministic) m_composer->setAutoTexturePromotion(false);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.

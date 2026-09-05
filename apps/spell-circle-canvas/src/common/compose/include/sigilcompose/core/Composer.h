@@ -489,14 +489,23 @@ class Composer {
    *  actually stable: a bake per frame would cost more than the replay it
    *  replaced.
    *
-   *  IT MUST NOT CHANGE A PIXEL, and that is enforced structurally rather
+   *  IT MUST NOT MOVE A PIXEL, and that is enforced structurally rather
    *  than hoped for: promotion is refused unless the node maps to device
    *  space with no rotation, mirroring or skew, and the bake is then taken
    *  in DEVICE space at an integer-snapped rect and blitted back with the
    *  matrix reset and no resampling. An integer device-space translation
-   *  cannot alter rasterisation, so the blit is a literal copy of the
-   *  pixels the live paint would have produced. Anything outside that
-   *  envelope keeps painting as it did.
+   *  cannot alter rasterisation, so every fully covered pixel of the blit
+   *  is the pixel the live paint would have produced. Anything outside
+   *  that envelope keeps painting as it did.
+   *
+   *  It is exact to the pixel and not to the code value: an antialiased
+   *  edge is stored in the bake as 8-bit premultiplied coverage and
+   *  composited from there, where the live draw blends its coverage
+   *  against the backdrop in one step, and the two agree only to within
+   *  1 LSB along the edge. Because promotion is decided by a measured
+   *  cost, which load can tip either way, a capture that will be diffed
+   *  turns it off here rather than accept an edge that depends on how busy
+   *  the machine was.
    *
    *  The refusals that look most like missed wins are the honest ones. A
    *  leaf at `opacity(0.13).blend(kSoftLight)` — the paper-grain idiom,

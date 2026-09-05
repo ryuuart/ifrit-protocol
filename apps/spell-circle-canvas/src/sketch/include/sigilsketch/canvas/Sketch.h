@@ -136,7 +136,9 @@ struct SketchContext {
   /** The host is taking a capture that will be DIFFED, so anything the
    *  sketch measured about its own execution must be pinned. See
    *  `measured()`; read the flag directly only when you need to suppress
-   *  a whole panel rather than one number. */
+   *  a whole panel rather than one number. The runtime's own measured
+   *  decision — the composer's stopwatch-driven texture promotion — is
+   *  already held off under this flag by the session that opened it. */
   bool deterministic = false;
 
   /** A number the sketch measured about ITS OWN EXECUTION — a build
