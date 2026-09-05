@@ -21,7 +21,7 @@ enable_language(Swift)
 
 find_library(QUARTZCORE_FRAMEWORK QuartzCore REQUIRED)
 
-if(NOT SYPHON_FRAMEWORK)
+if(NOT TARGET unofficial::syphon::syphon)
   message(STATUS "SpellCircleMac skipped: Syphon.framework not found")
   return()
 endif()
@@ -50,7 +50,7 @@ target_link_libraries(SpellCircleMacBridge
     SpellCircleScene
     SigilSkia
     SpellCircleNet
-    ${SYPHON_FRAMEWORK}
+    unofficial::syphon::syphon
 )
 
 add_executable(SpellCircleMac MACOSX_BUNDLE

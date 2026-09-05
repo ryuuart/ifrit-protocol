@@ -161,10 +161,11 @@ if(APPLE)
   find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
   find_library(METAL_FRAMEWORK Metal REQUIRED)
   find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics)
-  # workaround: Syphon has no vcpkg port, so the framework is probed by
-  # hand and its absence skips the target that needs it.
-  find_library(SYPHON_FRAMEWORK Syphon)
 endif()
+
+# Syphon publishes a canvas as a GPU texture other applications attach to.
+# Absent, the targets that publish one skip themselves.
+find_package(unofficial-syphon CONFIG)
 
 # Qt's source scanning is decided here rather than left to
 # qt_standard_project_setup(), which turns moc on for every target in the

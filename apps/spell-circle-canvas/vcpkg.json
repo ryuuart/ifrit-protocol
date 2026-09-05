@@ -72,6 +72,10 @@
     "simdjson",
     "spdlog",
     "stb",
+    {
+      "name": "syphon",
+      "platform": "osx"
+    },
     "tbb",
     {
       "name": "spout2",

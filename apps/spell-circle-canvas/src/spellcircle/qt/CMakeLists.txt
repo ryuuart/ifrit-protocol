@@ -119,7 +119,7 @@ if(APPLE)
   target_link_libraries(SpellCircleCanvas
       PRIVATE
         ${FOUNDATION_FRAMEWORK}
-        ${SYPHON_FRAMEWORK}
+        unofficial::syphon::syphon
         ${CORE_GRAPHICS_FRAMEWORK}
   )
 elseif(TARGET Spout2::SpoutDX)
