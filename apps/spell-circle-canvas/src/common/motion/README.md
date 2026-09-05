@@ -414,7 +414,9 @@ sits under — so that a `static_assert` about `BoundFloat`'s field count
 lives in the same file as `BoundFloat` — and `SigilCoreCompute` for the
 seeded mixer the scattered ordering ranks with, so that a `From::Random`
 permutation is the same permutation wherever in the tree it is dealt.
-Both carry no kernel, no device and nothing that draws.
+Both carry no kernel, no device and nothing that draws. Boost is
+private, in one place: the scheduler's own table (`Boost::unordered` on
+`SigilMotionSchedule`), which no public header names.
 
 `SigilMotionSchedule` links neither the clock nor the values. A cascade
 is a pure function of a master float in [0, 1] and two integer counts,

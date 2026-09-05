@@ -30,7 +30,6 @@
 
 #include <algorithm>
 #include <array>
-#include <boost/unordered/unordered_node_map.hpp>
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -277,23 +276,38 @@ class StampCache {
   };
   /** The entry for `key`, or null — never a recycled address's entry. */
   const Entry* get(const std::shared_ptr<const void>& key) const {
-    auto it = m_entries.find(key.get());
-    if (it == m_entries.end()) return nullptr;
-    if (it->second.first.lock() != key)
-      return nullptr;  // the address was recycled: not this art's bake
-    return &it->second.second;
+    for (const Row& row : m_entries) {
+      if (row.address != key.get()) continue;
+      if (row.owner.lock() != key)
+        return nullptr;  // the address was recycled: not this art's bake
+      return &row.entry;
+    }
+    return nullptr;
   }
   void put(const std::shared_ptr<const void>& key, Entry entry) {
-    // A node's stamp arts are few; a runaway map means keys churn every
+    // A node's stamp arts are few; a runaway store means keys churn every
     // frame, and keeping stale bakes alive would pin their nodes' memory.
-    if (m_entries.size() >= 16) m_entries.clear();
-    m_entries[key.get()] = {std::weak_ptr<const void>(key), std::move(entry)};
+    // At this size a scan beats a hash, which is why the store is a list
+    // and this header needs no map.
+    if (m_entries.size() >= kCapacity) m_entries.clear();
+    for (Row& row : m_entries)
+      if (row.address == key.get()) {
+        row.owner = key;
+        row.entry = std::move(entry);
+        return;
+      }
+    m_entries.push_back({key.get(), key, std::move(entry)});
   }
 
  private:
-  boost::unordered_node_map<const void*,
-                            std::pair<std::weak_ptr<const void>, Entry>>
-      m_entries;
+  /** How many bakes one node may hold at once. */
+  static constexpr size_t kCapacity = 16;
+  struct Row {
+    const void* address = nullptr;
+    std::weak_ptr<const void> owner;
+    Entry entry;
+  };
+  std::vector<Row> m_entries;
 };
 
 // ---------------------------------------------------------------------------

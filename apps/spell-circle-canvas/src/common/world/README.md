@@ -16,6 +16,14 @@ with; the device and its handles are SigilCoreHardware's, and Graphite is
 SigilSkia's; animation is SigilMotion's; counters and timers are
 SigilMeasure's.
 
+Two dependencies reach a consumer through the public headers rather than
+staying behind them: **Skia**, which is genuine vocabulary here — a frame
+hands back an `SkImage`, a pass draws into an `SkSurface`, and a target's
+size is an `SkISize` — and **Boost.Container**, which is not: the frame
+targets keep six ordered tables of their surfaces, points and stampings
+as private members, and a private member in a header is still an include
+every consumer pays for.
+
 Namespace `sigil::world`, headers under `include/sigilworld/`. Each
 feature is its own static archive with its own tests and benchmark, and
 links only the features beneath it; **`SigilWorld`** is the umbrella over

@@ -613,6 +613,13 @@ src/common/draw/
   core's mixers.** A fill IS `material::skia::Paint`; text IS a
   `weave::Paragraph` laid out and drawn; the random stream and the noise
   corners ARE `core::noise`. None of that is re-spelled here.
+* **Boost.Unordered and Boost's hash fold are in public headers.** The
+  call-site store a retained mark is keyed in (`Retained.h`), the brush
+  engine's direction registry (`brush/Engine.h`) and the brush catalogue
+  (`brush/Catalogue.h`) each hold a Boost table or fold one of its keys,
+  so a consumer of those headers compiles against Boost. Both are
+  header-only and declared PUBLIC on the targets; the keys live inside
+  one run, which is why Boost's fold rather than the pinned one.
 * **Knows no runtime and no compose.** The pen is handed a canvas and a
   frame; the sketch runtime that steps it and the compose feature that
   hosts it both stand above this library. A guest reaches the pen

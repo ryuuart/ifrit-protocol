@@ -53,9 +53,9 @@ sigil_library(SigilComposeCore
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial
-         SigilMeasure SigilMotion SigilSkiaDraw SigilWeave Boost::unordered
+         SigilMeasure SigilMotion SigilSkiaDraw SigilWeave
          unofficial::skia::skia
-  PRIVATE Boost::container yoga::yogacore)
+  PRIVATE Boost::container Boost::unordered yoga::yogacore)
 sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)
 
 # The kernel: elements, the reconciler, layout, paint, transitions, text,
