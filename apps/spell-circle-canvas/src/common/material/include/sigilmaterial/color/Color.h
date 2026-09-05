@@ -14,6 +14,7 @@
 #include <concepts>
 #include <cstdint>
 #include <span>
+#include <vector>
 
 namespace sigil::material {
 
@@ -257,6 +258,47 @@ struct RampStop {
   float pos = 0.0f;
   Color color;
   bool operator==(const RampStop&) const = default;
+};
+
+/** AN ORDERED TABLE OF COLOURS READ BY INDEX — the fixed palette, which
+ *  is a different thing from a ramp and is not a ramp with more stops.
+ *
+ *  A ramp says what lies BETWEEN its stops; a palette says there is
+ *  nothing between its entries. An indexed picture's colour IS entry n,
+ *  and blending entry n with entry n+1 makes a colour the palette does
+ *  not contain — which is the one thing a fixed palette exists to
+ *  prevent, and what a linear-filtered lookup silently does at every
+ *  boundary. So every read here is EXACT: `at()` takes the index, and
+ *  `nearest()` takes a unit position and answers the entry it falls in,
+ *  never a blend of two.
+ *
+ *  Out of range CLAMPS rather than wrapping. An index past the end is a
+ *  mistake somewhere upstream, and answering the last entry keeps the
+ *  mistake visible as a flat band instead of hiding it as a plausible
+ *  colour from the other end of the table. */
+struct Palette {
+  std::vector<Color> entries;
+
+  bool operator==(const Palette&) const = default;
+  bool empty() const { return entries.empty(); }
+  size_t size() const { return entries.size(); }
+
+  /** Entry @p index exactly, clamped into the table. Transparent black
+   *  for an empty palette, which is the only colour a table with no
+   *  entries can honestly answer. */
+  Color at(int index) const {
+    if (entries.empty()) return {0, 0, 0, 0};
+    const int last = (int)entries.size() - 1;
+    return entries[(size_t)std::clamp(index, 0, last)];
+  }
+
+  /** The entry a unit position falls IN — the table divided into equal
+   *  bands, `t` at 1 landing on the last one. The reading a normalised
+   *  parameter (a height, a heat, a depth) is quantised through. */
+  Color nearest(float t) const {
+    if (entries.empty()) return {0, 0, 0, 0};
+    return at((int)std::floor(t * (float)entries.size()));
+  }
 };
 
 /** THE RAMP READ ON THE CPU — the same ladder a renderer's gradient

@@ -20,6 +20,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Ramp.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilshaders/MaterialSkia.h>
 
@@ -840,4 +841,32 @@ TEST(SkiaPaint, AFitIsPartOfTheRecipeAndDegradesWhereThereIsNoBox) {
   const SkBitmap loose = render(fitted(skia::Fit::Cover).asShader(), 40, 40);
   EXPECT_EQ(SkColorGetA(loose.getColor(20, 20)), 0u);
   EXPECT_EQ(loose.getColor(0, 0), SK_ColorRED);
+}
+
+TEST(SkiaPaint, APaletteCrossesToAShaderAsATableSampledNearest) {
+  const Palette pal{{Color{1, 0, 0, 1}, Color{0, 1, 0, 1}, Color{0, 0, 1, 1}}};
+  const sk_sp<SkImage> table = skia::paletteImage(pal);
+  ASSERT_NE(table, nullptr);
+  EXPECT_EQ(table->width(), 3);
+  EXPECT_EQ(table->height(), 1);
+  EXPECT_EQ(skia::paletteImage(Palette{}), nullptr);
+
+  // The body reads the table at texel centres, so entry n is entry n. The
+  // index runs past the end deliberately: clamped, it is the last entry,
+  // which is what Palette::at answers on the CPU for the same index.
+  skia::Paint lut = skia::Paint::sksl(
+      effectFor("uniform shader uPalette;\n"
+                "uniform float uIndex;\n"
+                "half4 main(float2 p) {\n"
+                "  return uPalette.eval(float2(uIndex + 0.5, 0.5));\n"
+                "}"));
+  lut.child("uPalette", skia::paletteLookup(pal));
+  for (int i : {0, 1, 2, 9}) {
+    lut.uniform("uIndex", (float)i);
+    const SkColor got = render(lut.staticShader()).getColor(1, 1);
+    const Color want = pal.at(i);
+    EXPECT_EQ(SkColorGetR(got), (uint32_t)std::lround(want.r * 255.0f)) << i;
+    EXPECT_EQ(SkColorGetG(got), (uint32_t)std::lround(want.g * 255.0f)) << i;
+    EXPECT_EQ(SkColorGetB(got), (uint32_t)std::lround(want.b * 255.0f)) << i;
+  }
 }

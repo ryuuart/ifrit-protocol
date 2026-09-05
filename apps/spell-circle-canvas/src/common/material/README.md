@@ -653,6 +653,17 @@ matching. `sampleRamp` reads a `RampStop` ladder on the CPU exactly as a
 renderer's gradient draws it, for the caller that needs one colour out of
 a ramp rather than a shader.
 
+**A PALETTE IS NOT A RAMP.** A ramp says what lies between its stops; a
+`Palette` says there is nothing between its entries, so every read of it
+is exact — `at(index)` and `nearest(t)`, clamped at both ends, never a
+blend, because a blend of two entries is a colour the table does not
+contain and that is the one thing a fixed palette exists to prevent. One
+seam, two executors: `Palette::at` is the CPU reading, and
+`skia::paletteImage` / `skia::paletteLookup` are the same table crossing
+to a shader as an N x 1 texture sampled NEAREST at texel centres, which
+is what makes an indexed picture one channel of indices and one child
+slot instead of a branch over N literals.
+
 **Two ways to name a colour, for two different jobs.** `rgb()` is how an
 authored palette is typed in; `hsv(hueDegrees, saturation, value)` is how
 a palette is WALKED — a wheel, a run of chips on a golden-angle step, one

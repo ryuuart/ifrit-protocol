@@ -196,3 +196,35 @@ TEST(Color, ARampReadsOnTheCpuTheWayAGradientDraws) {
 
   EXPECT_EQ(sampleRamp({}, 0.5f), (Color{0, 0, 0, 0}));
 }
+
+TEST(Color, APaletteIsReadExactlyWhereARampIsReadBetween) {
+  const Palette pal{{Color{1, 0, 0, 1}, Color{0, 1, 0, 1}, Color{0, 0, 1, 1},
+                     Color{1, 1, 1, 0.5f}}};
+  EXPECT_EQ(pal.size(), 4u);
+  EXPECT_EQ(pal.at(0), (Color{1, 0, 0, 1}));
+  EXPECT_EQ(pal.at(2), (Color{0, 0, 1, 1}));
+  EXPECT_EQ(pal.at(3).a, 0.5f);  // an entry's own alpha is the entry's
+
+  // Out of range clamps rather than wrapping: a mistake upstream shows as
+  // a flat band at the end of the table, not as a plausible colour from
+  // the other end of it.
+  EXPECT_EQ(pal.at(-3), pal.at(0));
+  EXPECT_EQ(pal.at(99), pal.at(3));
+
+  // A unit position falls IN a band and answers that entry whole. Nothing
+  // here ever returns a colour the table does not contain, which is the
+  // one thing a fixed palette exists for.
+  EXPECT_EQ(pal.nearest(0.0f), pal.at(0));
+  EXPECT_EQ(pal.nearest(0.2f), pal.at(0));
+  EXPECT_EQ(pal.nearest(0.26f), pal.at(1));
+  EXPECT_EQ(pal.nearest(0.99f), pal.at(3));
+  EXPECT_EQ(pal.nearest(1.0f), pal.at(3));
+  EXPECT_EQ(pal.nearest(-1.0f), pal.at(0));
+
+  // An empty table has one honest answer and gives it rather than reading
+  // past its own end.
+  const Palette none;
+  EXPECT_TRUE(none.empty());
+  EXPECT_EQ(none.at(0), (Color{0, 0, 0, 0}));
+  EXPECT_EQ(none.nearest(0.5f), (Color{0, 0, 0, 0}));
+}
