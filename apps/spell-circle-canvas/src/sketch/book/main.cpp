@@ -23,6 +23,7 @@
  *              [--window-scale <n>] [--sketch <name>] [--kind <k>]
  *                                              the window's own frame rate
  *   Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
+ *              [--thumbnail-budget <sec>] [--thumbnail-heavy]
  *                                              render missing/stale stills
  *   … [--assets <dir>]                         where res:// mounts
  *   … [--thumbnails-dir <dir>]                 the app's own thumbnail store
@@ -714,17 +715,24 @@ std::filesystem::path thumbnailStoreDir(const std::string& override) {
 }
 
 /** THE WARM COMMAND: render every selected sketch's MISSING OR STALE
- *  thumbnail through the same CPU path the browser's lazy render takes,
- *  and exit non-zero naming the ones that could not be drawn. A sketch
+ *  thumbnail through the same CPU path the window's own fill takes, and
+ *  exit non-zero naming the ones that could not be drawn.
+ *
+ *  It answers to the same budget the window's fill does: a still that
+ *  runs past it is abandoned and NOTED, so the note stands in for the
+ *  thumbnail and neither this command nor the window spends the budget
+ *  on that sketch again while its source and its host stay put. A sketch
  *  this machine cannot run is stood down by name rather than failed, and
- *  a sketch whose thumbnail is already fresh is left alone. */
+ *  a sketch whose thumbnail or note is already fresh is left alone. */
 int runThumbnails(int only, const std::string& kind,
-                  const std::filesystem::path& dir, sigil::weave::FontContext& fonts,
-                  sketch::Assets& store) {
+                  const std::filesystem::path& dir,
+                  std::chrono::milliseconds budget, bool heavy,
+                  sigil::weave::FontContext& fonts, sketch::Assets& store) {
   std::filesystem::create_directories(dir);
   const auto& entries = sketch::registry();
   int rendered = 0;
   size_t skipped = 0;
+  size_t noted = 0;
   std::vector<std::string> failed;
   for (int index : sketch::selection(only, kind)) {
     const sketch::Entry& entry = entries[index];
@@ -738,22 +746,43 @@ int runThumbnails(int only, const std::string& kind,
         sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
     const std::string key = sketch::thumbnailKey(source);
     if (!sketch::freshThumbnail(dir, entry.name, key).empty()) continue;  // fresh
+    if (!sketch::thumbnailNote(dir, entry.name, key).empty()) {
+      ++noted;
+      continue;  // asked and answered
+    }
     sketch::ThumbnailRun run;
     run.out = sketch::thumbnailFile(dir, entry.name, key);
     run.maxDimension = sketch::kThumbnailWidth;
+    run.budget = budget;
+    run.heavy = heavy;
     sketch::noteSketch(entry.name);
-    if (sketch::renderThumbnail(entry, fonts, store, run) ==
-        sketch::ThumbnailOutcome::Wrote) {
-      std::printf("thumbnail %-24s wrote %s\n", entry.name,
-                  run.out.string().c_str());
-      ++rendered;
-    } else {
-      std::fprintf(stderr, "thumbnail %-24s FAILED to render\n", entry.name);
-      failed.push_back(entry.name);
+    switch (sketch::renderThumbnail(entry, fonts, store, run)) {
+      case sketch::ThumbnailOutcome::Wrote:
+        std::printf("thumbnail %-24s wrote %s\n", entry.name,
+                    run.out.string().c_str());
+        ++rendered;
+        break;
+      case sketch::ThumbnailOutcome::Heavy:
+        sketch::noteThumbnail(dir, entry.name, key, "declared a plate");
+        std::printf("thumbnail %-24s [noted: declared a plate]\n", entry.name);
+        ++noted;
+        break;
+      case sketch::ThumbnailOutcome::OverBudget:
+        sketch::noteThumbnail(dir, entry.name, key,
+                              "still ran past its budget");
+        std::printf("thumbnail %-24s [noted: ran past its budget]\n",
+                    entry.name);
+        ++noted;
+        break;
+      case sketch::ThumbnailOutcome::Stopped:
+      case sketch::ThumbnailOutcome::Failed:
+        std::fprintf(stderr, "thumbnail %-24s FAILED to render\n", entry.name);
+        failed.push_back(entry.name);
+        break;
     }
   }
-  std::printf("thumbnails: %d rendered, %zu skipped, %zu failed\n", rendered,
-              skipped, failed.size());
+  std::printf("thumbnails: %d rendered, %zu noted, %zu skipped, %zu failed\n",
+              rendered, noted, skipped, failed.size());
   for (const std::string& name : failed)
     std::fprintf(stderr, "  failed: %s\n", name.c_str());
   std::fflush(stdout);
@@ -790,6 +819,8 @@ int main(int argc, char* argv[]) {
   bool headless = false, list = false, catalog = false, gpu = false;
   bool noGpu = false;
   bool warmThumbnails = false;
+  bool thumbnailHeavy = false;
+  std::chrono::milliseconds thumbnailBudget = sketch::kThumbnailBudget;
   std::string thumbnailDirArg;
   std::optional<bool> deterministic;
 
@@ -845,6 +876,11 @@ int main(int argc, char* argv[]) {
       warmThumbnails = true;
     } else if (arg == "--thumbnails-dir" && i + 1 < argc) {
       thumbnailDirArg = argv[++i];
+    } else if (arg == "--thumbnail-budget" && i + 1 < argc) {
+      thumbnailBudget = std::chrono::milliseconds(
+          (long long)std::lround(std::strtod(argv[++i], nullptr) * 1000.0));
+    } else if (arg == "--thumbnail-heavy") {
+      thumbnailHeavy = true;
     } else if (arg == "--window-bench") {
       // The stretch is optional: a bare flag takes the default, and only
       // a following token that reads as a number is consumed.
@@ -979,7 +1015,7 @@ int main(int argc, char* argv[]) {
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);
     return runThumbnails(chosen, kind, thumbnailStoreDir(thumbnailDirArg),
-                         fonts(), assets());
+                         thumbnailBudget, thumbnailHeavy, fonts(), assets());
   }
 
   if (!storyOptions.out.empty() && storyOptions.framesPerSketch > 0) {
@@ -1132,6 +1168,8 @@ int main(int argc, char* argv[]) {
   // asset store, on the CPU, so it shares no graphics context with the
   // live canvas.
   SketchCatalog::thumbnailDir = thumbnailStoreDir(thumbnailDirArg);
+  SketchCatalog::thumbnailBudget = thumbnailBudget;
+  SketchCatalog::thumbnailHeavy = thumbnailHeavy;
   SketchCatalog::thumbnailFonts = &fonts();
   SketchCatalog::thumbnailAssets = &assets();
   SketchbookView::assetsDir = options.assetsDir;
@@ -1147,6 +1185,16 @@ int main(int argc, char* argv[]) {
     SketchCatalog::externals.push_back(std::filesystem::absolute(sketchFile));
     openAt = (int)sketch::registry().size();
   }
+  // WHAT THE CANVAS OPENS ON, AND WHEN. Left alone, the window comes up
+  // on the browser and fills in the thumbnails nothing has drawn yet,
+  // opening this sketch once that is done — the machine is the fill's
+  // for exactly as long as nothing is being presented. A run that named
+  // a sketch, or that is here to photograph or measure one, is not
+  // browsing: it opens at once and no fill starts.
+  SketchCatalog::opensAt = openAt >= 0 ? openAt : 0;
+  SketchCatalog::opensWithoutFill = !shotPath.empty() ||
+                                    windowBench.seconds > 0.0 || fileGiven ||
+                                    chosen >= 0;
   sketch::installCrashReporter(sketchFile.empty() ? sketchDir : sketchFile);
 
   QGuiApplication application(argc, argv);
@@ -1183,7 +1231,7 @@ int main(int argc, char* argv[]) {
         view = child;
         break;
       }
-  if (view && openAt >= 0) view->setProperty("sketchIndex", openAt);
+
 
   if (windowBench.seconds > 0.0) {
     if (!window || !view) {

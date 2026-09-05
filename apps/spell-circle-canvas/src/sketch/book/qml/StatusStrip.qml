@@ -14,6 +14,14 @@ Rectangle {
      *  line beside it. */
     property string hostState: "waiting"
     property string status: ""
+    /** THE LOADING PHASE, WHILE IT LASTS: how many stills are still to
+     *  be drawn, and the last sketch that was left without one. It
+     *  stands where the running sketch's line stands, because until a
+     *  sketch is opened that is what the app is doing. */
+    property bool filling: false
+    property int fillDone: 0
+    property int fillTotal: 0
+    property string fillNote: ""
     property string sketch: ""
     property string path: ""
     property string hints: ""
@@ -50,12 +58,13 @@ Rectangle {
             Layout.preferredWidth: 8
             Layout.preferredHeight: 8
             radius: 4
-            color: strip.hostState === "live" ? Theme.good
+            color: strip.filling ? Theme.warn
+                 : strip.hostState === "live" ? Theme.good
                  : strip.hostState === "compiling" ? Theme.warn
                  : strip.hostState === "failed" ? "#ff5a6e"
                  : "#5a5f73"
             SequentialAnimation on opacity {
-                running: strip.hostState === "compiling"
+                running: strip.filling || strip.hostState === "compiling"
                 loops: Animation.Infinite
                 NumberAnimation { to: 0.25; duration: 350 }
                 NumberAnimation { to: 1.0; duration: 350 }
@@ -63,17 +72,22 @@ Rectangle {
             }
         }
         Label {
-            text: strip.sketch
+            text: strip.filling
+                ? "thumbnails " + strip.fillDone + "/" + strip.fillTotal + " …"
+                : strip.sketch
             color: Theme.text
             font.pixelSize: 12
             visible: text.length > 0
         }
         Label {
-            text: strip.status
-            color: strip.hostState === "failed" ? Theme.bad
+            text: strip.filling ? strip.fillNote : strip.status
+            color: strip.filling ? Theme.muted
+                 : strip.hostState === "failed" ? Theme.bad
                  : strip.hostState === "compiling" ? "#ffd9a0" : Theme.good
             font.family: Theme.mono
             font.pixelSize: 11
+            elide: Text.ElideRight
+            Layout.maximumWidth: 280
         }
         // WHERE THE THING ON SCREEN LIVES: the file you would open to
         // change what you are looking at. Elided from the left, because

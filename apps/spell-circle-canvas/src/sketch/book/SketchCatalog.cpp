@@ -29,6 +29,10 @@ namespace sketch = sigil::sketch;
 fs::path SketchCatalog::sketchDir;
 std::vector<fs::path> SketchCatalog::externals;
 fs::path SketchCatalog::thumbnailDir;
+std::chrono::milliseconds SketchCatalog::thumbnailBudget = sketch::kThumbnailBudget;
+bool SketchCatalog::thumbnailHeavy = false;
+int SketchCatalog::opensAt = 0;
+bool SketchCatalog::opensWithoutFill = false;
 sigil::weave::FontContext* SketchCatalog::thumbnailFonts = nullptr;
 sigil::sketch::Assets* SketchCatalog::thumbnailAssets = nullptr;
 
@@ -363,6 +367,66 @@ bool SketchCatalog::fillFromDisk(int index) {
   return true;
 }
 
+namespace {
+
+/** True when the sketch at @p index still owes the store a still: it is
+ *  a registry sketch this machine can run, nothing fresh is on disk for
+ *  it, and no note says why there never will be. */
+bool wantsThumbnail(int index) {
+  const auto& entries = sketch::registry();
+  if (index < 0 || index >= (int)entries.size()) return false;
+  if (!entries[index].available()) return false;
+  if (SketchCatalog::thumbnailDir.empty()) return false;
+  const sketch::Entry& entry = entries[index];
+  const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+  const std::string key = sketch::thumbnailKey(file);
+  if (!sketch::freshThumbnail(SketchCatalog::thumbnailDir, entry.name, key)
+           .empty())
+    return false;
+  return sketch::thumbnailNote(SketchCatalog::thumbnailDir, entry.name, key)
+      .empty();
+}
+
+}  // namespace
+
+void SketchCatalog::fillThumbnails() {
+  if (m_filling || m_abandon.load(std::memory_order_relaxed)) return;
+  if (SketchCatalog::thumbnailDir.empty() ||
+      SketchCatalog::thumbnailFonts == nullptr ||
+      SketchCatalog::thumbnailAssets == nullptr)
+    return;
+  std::deque<int> wanted;
+  for (int i = 0; i < (int)sketch::registry().size(); ++i)
+    if (wantsThumbnail(i)) wanted.push_back(i);
+  if (wanted.empty()) return;
+  m_fillTotal = (int)wanted.size();
+  m_fillDone = 0;
+  m_fillNote.clear();
+  m_filling = true;
+  {
+    const std::lock_guard lock(m_mutex);
+    m_queued.insert(wanted.begin(), wanted.end());
+    m_pending = std::move(wanted);
+  }
+  m_wake.notify_one();
+  emit fillChanged();
+}
+
+void SketchCatalog::endFill() {
+  // The stop stands whether or not a fill was running: what it says is
+  // that this worker will not be asked for another still, and opening a
+  // sketch says that whenever it happens.
+  m_abandon.store(true, std::memory_order_relaxed);
+  {
+    const std::lock_guard lock(m_mutex);
+    m_pending.clear();
+    m_queued.clear();
+  }
+  if (!m_filling) return;
+  m_filling = false;
+  emit fillChanged();
+}
+
 void SketchCatalog::requestThumbnail(int index) {
   const auto& entries = sketch::registry();
   // A file opened by path would have to be built to be rendered; the row
@@ -370,14 +434,20 @@ void SketchCatalog::requestThumbnail(int index) {
   if (index < 0 || index >= (int)entries.size()) return;
   if (!entries[index].available()) return;
   if (fillFromDisk(index)) return;  // already on disk
-  if (SketchCatalog::thumbnailDir.empty() ||
-      SketchCatalog::thumbnailFonts == nullptr ||
-      SketchCatalog::thumbnailAssets == nullptr)
-    return;
+  // A ROW ON SCREEN IS WHAT THE ONE RENDER SHOULD BE SPENT ON, so asking
+  // moves the sketch to the front of the fill's queue rather than adding
+  // to it. Outside the fill nothing is queued at all: the canvas is
+  // presenting, and a second renderer beside it is what makes opening a
+  // sketch feel slow.
+  if (!m_filling) return;
   const std::lock_guard lock(m_mutex);
-  if (m_failed.count(index) || m_queued.count(index)) return;
+  if (m_failed.count(index) || m_inFlight == index) return;
+  const auto at = std::find(m_pending.begin(), m_pending.end(), index);
+  if (at != m_pending.end()) m_pending.erase(at);
+  else if (m_queued.count(index))
+    return;  // already in flight elsewhere
   m_queued.insert(index);
-  m_pending.push_back(index);
+  m_pending.push_front(index);
   m_wake.notify_one();
 }
 
@@ -388,6 +458,8 @@ void SketchCatalog::cancelThumbnail(int index) {
   if (at != m_pending.end()) m_pending.erase(at);
   m_queued.erase(index);
 }
+
+void SketchCatalog::adoptThumbnail(int index) { fillFromDisk(index); }
 
 void SketchCatalog::renderLoop() {
   for (;;) {
@@ -408,10 +480,13 @@ void SketchCatalog::renderLoop() {
     run.out =
         sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name, key);
     run.maxDimension = sketch::kThumbnailWidth;
+    run.budget = SketchCatalog::thumbnailBudget;
+    run.heavy = SketchCatalog::thumbnailHeavy;
     run.stop = &m_abandon;
     const sketch::ThumbnailOutcome outcome =
         sketch::renderThumbnail(entry, *SketchCatalog::thumbnailFonts,
                                 *SketchCatalog::thumbnailAssets, run);
+    int remaining = 0;
     {
       const std::lock_guard lock(m_mutex);
       m_inFlight = -1;
@@ -419,21 +494,55 @@ void SketchCatalog::renderLoop() {
       // A render that was let go says nothing about the sketch, so it is
       // not remembered as one that cannot be drawn.
       if (outcome == sketch::ThumbnailOutcome::Failed) m_failed.insert(index);
+      remaining = (int)m_pending.size();
     }
     if (outcome == sketch::ThumbnailOutcome::Stopped) continue;
-    const bool wrote = outcome == sketch::ThumbnailOutcome::Wrote;
+
+    // ONE LINE PER SKETCH THAT HAS NO STILL, written beside where the
+    // still would have gone so the next launch does not spend the budget
+    // finding out again. A failure is the exception: it says nothing
+    // about how long the sketch takes, only that this host could not
+    // draw it, and it is remembered for this run alone.
+    std::string note;
+    switch (outcome) {
+      case sketch::ThumbnailOutcome::Heavy:
+        note = "declared a plate";
+        break;
+      case sketch::ThumbnailOutcome::OverBudget:
+        note = "still ran past its budget";
+        break;
+      case sketch::ThumbnailOutcome::Failed:
+        note = "could not be drawn";
+        break;
+      case sketch::ThumbnailOutcome::Wrote:
+      case sketch::ThumbnailOutcome::Stopped:
+        break;
+    }
+    if (!note.empty() && outcome != sketch::ThumbnailOutcome::Failed)
+      sketch::noteThumbnail(SketchCatalog::thumbnailDir, entry.name, key, note);
     const QString name = QString::fromUtf8(entry.name);
+    const QString why = QString::fromStdString(note);
     // Back to the GUI thread to touch the model.
     QMetaObject::invokeMethod(
         this,
-        [this, index, wrote, name] {
-          if (wrote)
-            fillFromDisk(index);
-          else
-            emit thumbnailFailed(name);
+        [this, index, name, why, remaining] {
+          finished(index, name, why, remaining);
         },
         Qt::QueuedConnection);
   }
+}
+
+void SketchCatalog::finished(int index, const QString& name,
+                             const QString& note, int remaining) {
+  if (note.isEmpty())
+    fillFromDisk(index);
+  else
+    emit thumbnailNoted(name, note);
+  if (!m_filling) return;
+  m_fillDone = std::max(m_fillDone + 1, m_fillTotal - remaining);
+  if (!note.isEmpty()) m_fillNote = name + QStringLiteral(" — ") + note;
+  if (remaining <= 0) m_filling = false;
+  emit fillChanged();
 }
 
 void SketchCatalog::frame(int index) {

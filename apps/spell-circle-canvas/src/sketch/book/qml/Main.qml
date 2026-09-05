@@ -71,6 +71,9 @@ ApplicationWindow {
      *  that is view.sketchIndex, and the two part company the moment
      *  someone starts browsing. */
     property int selectedIndex: -1
+    /** The sketch the canvas opens on — named on the command line, or the
+     *  first row. */
+    readonly property int openAt: catalog.openIndex
     property var collapsedGroups: ({})
     property var rows: []
     property var cards: []
@@ -340,10 +343,15 @@ ApplicationWindow {
         window.selectedIndex = index;
     }
 
-    /** Present it. The one action that moves the canvas. */
+    /** Present it. The one action that moves the canvas — and the one
+     *  that ends the thumbnail fill, because from here on the canvas is
+     *  what draws and a second renderer beside it is what would make
+     *  this feel slow. */
     function activate(index) {
-        if (index >= 0)
-            view.sketchIndex = index;
+        if (index < 0)
+            return;
+        catalog.endFill();
+        view.sketchIndex = index;
     }
 
     /** Brings the selection into view — opening the folder holding it
@@ -459,17 +467,34 @@ ApplicationWindow {
         }
     }
 
-    // A thumbnail landed, or could not be drawn. The row is overlaid by
-    // index so exactly one card changes — the reason learn() and the
-    // thumbnail worker both route through here rather than resetting the
-    // whole model, which would remount every other thumbnail.
+    // A thumbnail landed, or a sketch has none and there is a line
+    // saying why. The row is overlaid by index so exactly one card
+    // changes — the reason learn() and the fill both route through here
+    // rather than resetting the whole model, which would remount every
+    // other thumbnail.
     Connections {
         target: catalog
         function onThumbnailReady(index, row) { window.overlayRow(row); }
-        function onThumbnailFailed(name) {
-            window.captureLine = "thumbnail failed — " + name;
+        function onThumbnailNoted(name, why) {
+            window.captureLine = name + " — " + why;
             captureHide.restart();
         }
+        // THE FILL IS OVER AND NOTHING IS PRESENTED YET: the canvas opens
+        // on what this run was pointed at. A sketch opened while the fill
+        // was running got here first and ended it, and the canvas is
+        // already showing that one.
+        function onFillChanged() {
+            if (!catalog.filling && view.sketchIndex < 0)
+                window.activate(window.openAt);
+        }
+    }
+
+    // The sketch on screen reached the moment it declared and left its
+    // still in the store: the row reads it back, so browsing is what
+    // keeps the thumbnails current.
+    Connections {
+        target: view
+        function onThumbnailCaptured(index) { catalog.adoptThumbnail(index); }
     }
 
     /** Overlays one row by its sketch index without disturbing the rest. */
@@ -492,15 +517,23 @@ ApplicationWindow {
         // thirteen rows: every folder shut but the one holding what the
         // canvas is presenting is one screen that says what is here.
         const all = catalog.sketches;
-        const current = window.sketchAt(view.sketchIndex);
+        const current = window.sketchAt(window.openAt);
         let next = ({});
         for (let i = 0; i < all.length; ++i)
             next[all[i].folder] =
                 current === undefined || all[i].folder !== current.folder;
         window.collapsedGroups = next;
-        window.selectedIndex = view.sketchIndex;
+        window.selectedIndex = window.openAt;
         window.rebuild();
         window.reveal();
+        // THE LOADING PHASE. Every sketch with no still gets one while
+        // nothing is being presented, which is the only stretch in which
+        // the machine is the fill's alone; opening a sketch ends it, and
+        // the canvas opens by itself when it finishes.
+        if (!catalog.openAtOnce)
+            catalog.fillThumbnails();
+        if (!catalog.filling)
+            window.activate(window.openAt);
     }
 
     // ---- The window ------------------------------------------------------
@@ -794,6 +827,10 @@ ApplicationWindow {
             Layout.fillWidth: true
             hostState: view.state
             status: view.status
+            filling: catalog.filling
+            fillDone: catalog.fillDone
+            fillTotal: catalog.fillTotal
+            fillNote: catalog.fillNote
             sketch: view.metrics.sketch ?? ""
             path: window.sketchAt(view.sketchIndex)?.path ?? ""
             hints: "↑↓ select · ⏎ open · / filter"

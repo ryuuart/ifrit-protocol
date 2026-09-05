@@ -11,6 +11,7 @@
 #include <QtCore/QVariantList>
 #include <QtCore/QVariantMap>
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <filesystem>
@@ -67,12 +68,30 @@ class SketchCatalog : public QObject {
    *  for a subprocess: these runs answer in one line by design. */
   Q_PROPERTY(QString taskLine READ taskLine NOTIFY taskChanged)
   Q_PROPERTY(bool taskRunning READ taskRunning NOTIFY taskChanged)
+  /** THE FILL, WHILE IT IS HAPPENING: whether it is, how many stills it
+   *  set out to draw, how many of them are answered, and the last thing
+   *  it had to say about a sketch it could not draw. */
+  Q_PROPERTY(bool filling READ filling NOTIFY fillChanged)
+  Q_PROPERTY(int fillTotal READ fillTotal NOTIFY fillChanged)
+  Q_PROPERTY(int fillDone READ fillDone NOTIFY fillChanged)
+  Q_PROPERTY(QString fillNote READ fillNote NOTIFY fillChanged)
+  /** WHICH SKETCH THIS RUN OPENS ON, and whether it opens before the
+   *  thumbnails are filled rather than after. Constant: both are decided
+   *  from the command line before any of this exists. */
+  Q_PROPERTY(int openIndex READ openIndex CONSTANT)
+  Q_PROPERTY(bool openAtOnce READ openAtOnce CONSTANT)
 
  public:
   explicit SketchCatalog(QObject* parent = nullptr);
   ~SketchCatalog() override;
 
   [[nodiscard]] QVariantList sketches() const { return m_rows; }
+  [[nodiscard]] bool filling() const { return m_filling; }
+  [[nodiscard]] int fillTotal() const { return m_fillTotal; }
+  [[nodiscard]] int fillDone() const { return m_fillDone; }
+  [[nodiscard]] QString fillNote() const { return m_fillNote; }
+  [[nodiscard]] int openIndex() const { return opensAt; }
+  [[nodiscard]] bool openAtOnce() const { return opensWithoutFill; }
   [[nodiscard]] QString taskLine() const { return m_taskLine; }
   [[nodiscard]] bool taskRunning() const {
     return m_task.state() != QProcess::NotRunning;
@@ -90,17 +109,37 @@ class SketchCatalog : public QObject {
                                 const QString& background,
                                 const QString& runtime);
 
+  /** THE FILL: draw a still for every sketch that has none.
+   *
+   *  Sketchbook's one stretch of background rendering, taken while
+   *  nothing is being presented — before the reader has opened anything,
+   *  which is the only time the machine is free. It queues every
+   *  registry sketch whose thumbnail is missing or stale and that has no
+   *  note saying why it has none, and renders them one at a time under a
+   *  per-sketch budget. Nothing happens when the store, the fonts or the
+   *  assets were never handed over. */
+  Q_INVOKABLE void fillThumbnails();
+  /** ENDS THE FILL, which opening a sketch does. Whatever was in flight
+   *  is let go at its next frame and the queue is dropped: from here on
+   *  the canvas is what draws, and a thumbnail is refreshed by looking at
+   *  the sketch rather than by a second renderer competing with it. Once
+   *  ended it does not begin again. */
+  Q_INVOKABLE void endFill();
+
   /** ASK FOR THE THUMBNAIL of the sketch at @p index — what a browser row
    *  calls as it comes on screen. A fresh one already on disk fills the
-   *  row at once; a missing or stale one is queued for the background
-   *  worker, which renders one at a time in the order rows asked. A row
-   *  that is unavailable, or a file opened by path (which would have to be
-   *  built to be seen), is left with its runtime glyph. */
+   *  row at once. While the fill is running, a missing one is moved to
+   *  the front of its queue, so what is on screen is drawn first; after
+   *  it, nothing is queued — the sketch gets its still by being opened. */
   Q_INVOKABLE void requestThumbnail(int index);
   /** Drops a pending request — what a row calls as it scrolls away, so
-   *  the worker spends its one render on what is still on screen. A
-   *  render already in flight is left to finish. */
+   *  the fill spends its one render on what is still on screen. A render
+   *  already in flight is left to finish. */
   Q_INVOKABLE void cancelThumbnail(int index);
+  /** THE LIVE CANVAS LEFT A STILL for the sketch at @p index: read it off
+   *  disk into the row. What the window calls after the sketch it is
+   *  presenting has reached the moment it named. */
+  Q_INVOKABLE void adoptThumbnail(int index);
 
   /** Render one still of the sketch through this same binary's `--frame`
    *  path, into `captures/` beside the file. */
@@ -125,6 +164,18 @@ class SketchCatalog : public QObject {
    *  cache location unless the command line or an environment variable
    *  named another. Set by main() before QML loads. */
   static std::filesystem::path thumbnailDir;
+  /** What one still of the fill is allowed, and whether a sketch that
+   *  declared itself a plate is walked at all. Set by main() before QML
+   *  loads. */
+  static std::chrono::milliseconds thumbnailBudget;
+  static bool thumbnailHeavy;
+
+  /** THE SKETCH THE CANVAS OPENS ON, and whether it waits for the fill.
+   *  A run that named a sketch, or that is here to photograph or measure
+   *  one, is not browsing: it opens at once and no fill starts. Set by
+   *  main() before QML loads. */
+  static int opensAt;
+  static bool opensWithoutFill;
   /** What the background worker renders a still with — the process's one
    *  font context and asset store. Set by main() before QML loads; the
    *  worker renders nothing until both are here. */
@@ -133,12 +184,15 @@ class SketchCatalog : public QObject {
 
  signals:
   void taskChanged();
+  void fillChanged();
   /** A thumbnail landed for @p index: the row, with its plate filled in,
    *  for QML to overlay without remounting every other thumbnail. */
   void thumbnailReady(int index, QVariantMap row);
-  /** A sketch could not be rendered — named once, for the status strip,
-   *  and never retried, so a broken sketch is not a render storm. */
-  void thumbnailFailed(const QString& name);
+  /** A sketch has no still and @p why is the one line saying so — it ran
+   *  past its budget, it declared itself a plate, or it could not be
+   *  drawn at all. Said once and written down, so it is neither a render
+   *  storm nor a question asked again at every launch. */
+  void thumbnailNoted(const QString& name, const QString& why);
 
  private:
   /** Runs this binary against one sketch file and keeps one line of what
@@ -151,6 +205,10 @@ class SketchCatalog : public QObject {
   /** The background worker loop: one render at a time, in the order rows
    *  asked, marshalling each result back to the GUI thread. */
   void renderLoop();
+  /** What the worker reports after one still, on the GUI thread: the row
+   *  or the note, and how much of the fill is left. */
+  void finished(int index, const QString& name, const QString& note,
+                int remaining);
   /** Fills @p index's row plate from a fresh thumbnail already on disk,
    *  emitting thumbnailReady when it changes. True when one was there. */
   bool fillFromDisk(int index);
@@ -171,9 +229,21 @@ class SketchCatalog : public QObject {
   std::set<int> m_failed;   // rendered once and failed — never retried
   int m_inFlight = -1;
   bool m_stop = false;
+
+  // The fill, touched only on the GUI thread.
+  bool m_filling = false;
+  int m_fillTotal = 0;
+  int m_fillDone = 0;
+  QString m_fillNote;
+
   /** RAISED TO LET GO OF THE RENDER ITSELF, and read by it between
    *  frames. Outside the mutex because the render reads it while the
    *  worker holds nothing, and because whoever raises it is about to
-   *  wait for the worker to answer. */
+   *  wait for the worker to answer.
+   *
+   *  It is never lowered. Both things that raise it — the fill ending
+   *  and this object going — are one-way: after either, no still is
+   *  wanted from this worker again, and a flag that could be lowered
+   *  would have to be raised again by whoever races it. */
   std::atomic_bool m_abandon{false};
 };

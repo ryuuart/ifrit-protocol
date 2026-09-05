@@ -25,6 +25,7 @@
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
+#include <sigilsketch/plate/Thumbnails.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -42,6 +43,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -177,6 +179,7 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
  private:
   void drawSketch(SkCanvas& canvas, QSize pixelSize);
   void runPendingCaptures();   // hostMutex must be held
+  void refreshThumbnail();     // hostMutex must be held
   void openSketch(int index);  // hostMutex must be held
   void publishMetrics();       // hostMutex must be held
   /** Routes a session's captures through this renderer's own context.
@@ -200,6 +203,11 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   int m_index = -1;
   int m_pendingCaptures = 0;
   int m_frameCount = 0;
+  /** How far into its own clock the presented session has run, and
+   *  whether it has already been photographed for the thumbnail store.
+   *  Both start over when a sketch is opened. */
+  double m_sceneSeconds = 0.0;
+  bool m_thumbnailTaken = false;
   bool m_paused = false;
   bool m_metricsDirty = true;
   double m_timeScale = 1.0;
@@ -307,6 +315,8 @@ void SketchbookRenderer::openSketch(int index) {
   // inert when revisited.
   if (!presented.opened) SketchbookView::host->restartSession();
   m_frameCount = 0;
+  m_sceneSeconds = 0.0;
+  m_thumbnailTaken = false;
   m_submitMsAverage = 0.0;
   m_metricsDirty = true;
   m_clock = motion::FrameClock{};  // a new sketch starts at its own zero
@@ -425,10 +435,60 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.clear(host->background().toSkColor());
   // Wall time, scaled, pausable and stall-clamped: the frame the reader
   // sees advances by what actually elapsed, not by a nominal step.
-  host->frame(canvas, m_clock.tick());
+  const double step = m_clock.tick();
+  host->frame(canvas, step);
+  m_sceneSeconds += step;
   canvas.restore();
   host->markPresented();
   if (++m_frameCount % 15 == 0) m_metricsDirty = true;
+}
+
+void SketchbookRenderer::refreshThumbnail() {
+  // ONCE PER SKETCH OPENED, AT THE MOMENT THE SKETCH NAMED. A sketch
+  // states from inside its own setup when a still of it is worth taking;
+  // a sketch that names none is photographed after a second, by which
+  // time whatever it mounts with has arrived. What the store then holds
+  // is the frame the reader was looking at, which is why nothing needs
+  // to be re-rendered in the background to keep it current.
+  constexpr double kSettledSeconds = 1.0;
+  if (m_thumbnailTaken || SketchCatalog::thumbnailDir.empty()) return;
+  const auto& entries = sketch::registry();
+  // A file opened by path has no row in the store: the store is keyed by
+  // a registry sketch's filed name, and two drafts may share a stem.
+  if (m_index < 0 || m_index >= (int)entries.size()) return;
+  sketch::Host* host = SketchbookView::host;
+  if (!host || !host->live()) return;
+  sketch::Session* session = host->session();
+  if (!session) return;
+  const sketch::CanvasSpec& spec = session->canvas();
+  const double moment =
+      spec.captureSeconds > 0 ? spec.captureSeconds : kSettledSeconds;
+  if (m_sceneSeconds < moment) return;
+  // Taken whether or not it lands: a sketch whose still cannot be
+  // written is not one to try again on every frame after its moment.
+  m_thumbnailTaken = true;
+
+  const sketch::Entry& entry = entries[m_index];
+  const std::filesystem::path source =
+      sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+  const std::string key = sketch::thumbnailKey(source);
+  const std::filesystem::path out = sketch::thumbnailFile(
+      SketchCatalog::thumbnailDir, entry.name, key);
+  const SkSize size = spec.size;
+  const float longest = std::max(size.width(), size.height());
+  if (!(longest > 0)) return;
+  const float scale =
+      std::min(1.0f, (float)sketch::kThumbnailWidth / longest);
+  std::error_code code;
+  std::filesystem::create_directories(out.parent_path(), code);
+  if (!host->capture(out, scale)) return;
+  sketch::pruneThumbnails(SketchCatalog::thumbnailDir, entry.name, out);
+  if (m_view)
+    QMetaObject::invokeMethod(
+        m_view, [view = m_view, index = m_index] {
+          emit view->thumbnailCaptured(index);
+        },
+        Qt::QueuedConnection);
 }
 
 void SketchbookRenderer::runPendingCaptures() {
@@ -531,6 +591,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
         m_submitMsAverage = m_submitMsAverage == 0.0
                                 ? submitMs
                                 : m_submitMsAverage * 0.95 + submitMs * 0.05;
+        refreshThumbnail();
         runPendingCaptures();
         if (m_metricsDirty) {
           m_metricsDirty = false;
@@ -584,6 +645,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
       openSketch(m_index);
     }
     drawSketch(*surface->getCanvas(), pixelSize);
+    refreshThumbnail();
     runPendingCaptures();
     if (m_metricsDirty) {
       m_metricsDirty = false;

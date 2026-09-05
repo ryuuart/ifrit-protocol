@@ -125,12 +125,22 @@ class SketchbookView : public QQuickRhiItem {
   void orbitChanged();
   void stateChanged();
   void captureReady(const QString& path);
+  /** THE SKETCH ON SCREEN HAS BEEN PHOTOGRAPHED for the thumbnail store,
+   *  at @p index, under the key its source stands at now. Emitted once
+   *  per sketch opened, as the presented session reaches the moment it
+   *  declared, so the browser's stills refresh as sketches are looked at
+   *  and nothing renders in the background to keep them current. */
+  void thumbnailCaptured(int index);
 
  private:
   friend class SketchbookRenderer;
 
   QTimer m_timer;
-  int m_sketchIndex = 0;
+  /** NOTHING IS PRESENTED UNTIL SOMETHING IS OPENED. The window comes up
+   *  on the browser, and the canvas stays dark until a sketch is chosen —
+   *  which is what leaves the machine to the thumbnail fill while the
+   *  reader is still reading rows. */
+  int m_sketchIndex = -1;
   bool m_paused = false;
   bool m_orbitable = false;
   double m_timeScale = 1.0;

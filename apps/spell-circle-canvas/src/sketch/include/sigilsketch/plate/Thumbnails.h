@@ -17,6 +17,7 @@
 #include <sigilsketch/core/Registry.h>
 
 #include <atomic>
+#include <chrono>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -34,6 +35,16 @@ class Assets;
  *  large enough for the widest of them and each scales it down from the
  *  image decoder's cache. */
 inline constexpr int kThumbnailWidth = 640;
+
+/** HOW LONG ONE STILL MAY TAKE before the sketch is left with its
+ *  placeholder.
+ *
+ *  A still is a walk from zero to the sketch's declared moment at a fixed
+ *  rate, so its cost is the sketch's own frame cost times a number the
+ *  sketch chose — and a sketch that names a late moment can be walking
+ *  for minutes. The budget is what keeps one such sketch from being the
+ *  whole of a fill: it is abandoned, noted, and the fill moves on. */
+inline constexpr std::chrono::milliseconds kThumbnailBudget{8000};
 
 /** THE STALENESS KEY for the sketch whose entry file is @p entrySource.
  *
@@ -58,6 +69,27 @@ inline constexpr int kThumbnailWidth = 640;
     const std::filesystem::path& dir, std::string_view stem,
     std::string_view key);
 
+/** LEAVES ONE LINE SAYING WHY THIS SKETCH HAS NO STILL, beside where the
+ *  still would have gone and under the same key.
+ *
+ *  A sketch that ran past the budget, or that declared itself a plate,
+ *  costs its whole budget to find out — every launch, forever, if the
+ *  finding is not written down. The note carries the key, so editing the
+ *  sketch or rebuilding the host asks the question again. */
+bool noteThumbnail(const std::filesystem::path& dir, std::string_view stem,
+                   std::string_view key, std::string_view why);
+
+/** The note left for @p stem at @p key, or empty when there is none. */
+[[nodiscard]] std::string thumbnailNote(const std::filesystem::path& dir,
+                                        std::string_view stem,
+                                        std::string_view key);
+
+/** Removes everything @p dir holds for @p stem except @p keep — the
+ *  stills and the notes of every other key, so a sketch that changed
+ *  leaves no spent answer behind. */
+void pruneThumbnails(const std::filesystem::path& dir, std::string_view stem,
+                     const std::filesystem::path& keep);
+
 /** HOW ONE RENDER ENDED. */
 enum class ThumbnailOutcome {
   /** The still is on disk under the key it was asked for. */
@@ -66,15 +98,30 @@ enum class ThumbnailOutcome {
    *  is on disk and nothing is known about the sketch: a stopped render
    *  is not a sketch that cannot be drawn. */
   Stopped,
+  /** The sketch declared itself a plate and the run was not asked to
+   *  walk those. Setup ran; the walk did not. */
+  Heavy,
+  /** The walk ran past the run's budget and was abandoned. */
+  OverBudget,
   /** No kind, an empty canvas, no surface, or the write failed. */
   Failed,
 };
 
-/** ONE RENDER: where the still goes, how large, and what stops it. */
+/** ONE RENDER: where the still goes, how large, how long it may take and
+ *  what stops it. */
 struct ThumbnailRun {
   std::filesystem::path out;
   /** The still's larger side in pixels. */
   int maxDimension = kThumbnailWidth;
+  /** How long the frame walk may take. Zero waits for the walk however
+   *  long it is. */
+  std::chrono::milliseconds budget = kThumbnailBudget;
+  /** WALK A SKETCH THAT DECLARED ITSELF A PLATE. Such a sketch states
+   *  that its subject is the sheet it draws rather than a scene it holds
+   *  a frame rate at, which is the sketch most likely to spend a whole
+   *  budget and answer nothing; it is stood down by that declaration
+   *  unless this says otherwise. */
+  bool heavy = false;
   /** READ BETWEEN FRAMES, and raising it abandons the walk at the next
    *  one. A still is a walk from zero to the sketch's moment, which for
    *  a sketch that names a late one is thousands of frames — long enough

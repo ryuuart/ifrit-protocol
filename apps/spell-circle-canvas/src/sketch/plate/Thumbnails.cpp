@@ -19,7 +19,9 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cmath>
+#include <fstream>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
@@ -48,6 +50,9 @@ constexpr double kDefaultMoment = 6.0;
  *  A stem cannot contain it, so a glob for `<stem>__` finds exactly this
  *  stem's thumbnails whatever key each carries. */
 constexpr std::string_view kKeyMark = "__";
+
+/** What a note is called beside the still it stands in for. */
+constexpr std::string_view kNoteSuffix = ".note";
 
 void hashInto(std::uint64_t& seed, std::uint64_t value) {
   // A plain mixing step — the key only has to differ when the source or
@@ -109,11 +114,42 @@ fs::path freshThumbnail(const fs::path& dir, std::string_view stem,
 
 namespace {
 
-/** Removes the stale thumbnails of @p stem under @p dir — every
- *  `<stem>__*.png` that is not @p keep — so a source that changed does
- *  not leave a spent still behind. */
-void pruneStale(const fs::path& dir, std::string_view stem,
-                const fs::path& keep) {
+/** Where the note for @p stem at @p key stands. */
+fs::path noteFile(const fs::path& dir, std::string_view stem,
+                  std::string_view key) {
+  return dir / (std::string(stem) + std::string(kKeyMark) + std::string(key) +
+                std::string(kNoteSuffix));
+}
+
+}  // namespace
+
+bool noteThumbnail(const fs::path& dir, std::string_view stem,
+                   std::string_view key, std::string_view why) {
+  if (dir.empty()) return false;
+  std::error_code ec;
+  fs::create_directories(dir, ec);
+  const fs::path file = noteFile(dir, stem, key);
+  if (!io::writeBytes(file, why.data(), why.size())) return false;
+  pruneThumbnails(dir, stem, file);
+  return true;
+}
+
+std::string thumbnailNote(const fs::path& dir, std::string_view stem,
+                          std::string_view key) {
+  if (dir.empty()) return {};
+  const fs::path file = noteFile(dir, stem, key);
+  std::error_code ec;
+  if (!fs::exists(file, ec)) return {};
+  std::ifstream stream(file);
+  std::string line;
+  std::getline(stream, line);
+  // A note that says nothing still says there is one, so an empty file
+  // reads back as a note rather than as no answer at all.
+  return line.empty() ? std::string("no still") : line;
+}
+
+void pruneThumbnails(const fs::path& dir, std::string_view stem,
+                     const fs::path& keep) {
   std::error_code ec;
   const std::string prefix = std::string(stem) + std::string(kKeyMark);
   for (auto it = fs::directory_iterator(dir, ec);
@@ -121,14 +157,13 @@ void pruneStale(const fs::path& dir, std::string_view stem,
     const fs::path& p = it->path();
     if (p == keep) continue;
     const std::string name = p.filename().string();
-    if (name.rfind(prefix, 0) == 0 && p.extension() == ".png") {
-      std::error_code rm;
-      fs::remove(p, rm);
-    }
+    if (name.rfind(prefix, 0) != 0) continue;
+    const std::string extension = p.extension().string();
+    if (extension != ".png" && extension != kNoteSuffix) continue;
+    std::error_code rm;
+    fs::remove(p, rm);
   }
 }
-
-}  // namespace
 
 namespace {
 
@@ -155,6 +190,10 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   const CanvasSpec& spec = session->canvas();
   const SkSize size = spec.size;
   if (size.width() <= 0 || size.height() <= 0) return ThumbnailOutcome::Failed;
+  // A SKETCH THAT SAID IT IS A PLATE SAID IT COSTS WHAT A PLATE COSTS.
+  // Only setup was needed to learn that, which is the cheap half; the
+  // walk is what is stood down.
+  if (spec.plateOnly && !run.heavy) return ThumbnailOutcome::Heavy;
   const SkColor4f background = spec.background;
 
   // Step from zero to the sketch's declared moment on a working surface
@@ -166,12 +205,16 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
       SkImageInfo::MakeN32Premul((int)size.width(), (int)size.height());
   sk_sp<SkSurface> work = SkSurfaces::Raster(workInfo);
   if (!work) return ThumbnailOutcome::Failed;
+  const auto started = std::chrono::steady_clock::now();
   for (int f = 0; f < frames; ++f) {
     // BETWEEN FRAMES IS WHERE THIS WALK CAN BE LET GO. Nothing inside a
-    // frame is interruptible, so the stop is read here and nowhere else,
-    // which bounds how long raising it takes to be obeyed by one frame
-    // of this sketch rather than by the whole walk.
+    // frame is interruptible, so the stop and the budget are read here
+    // and nowhere else, which bounds how long either takes to be obeyed
+    // by one frame of this sketch rather than by the whole walk.
     if (stopped(run.stop)) return ThumbnailOutcome::Stopped;
+    if (run.budget.count() > 0 &&
+        std::chrono::steady_clock::now() - started > run.budget)
+      return ThumbnailOutcome::OverBudget;
     work->getCanvas()->clear(background);
     session->frame(*work->getCanvas(), kStep);
   }
@@ -199,10 +242,10 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
       image::encodeImage(bitmap.pixmap(), image::Format::Png);
   if (!png || !io::writeBytes(run.out, png->data(), png->size()))
     return ThumbnailOutcome::Failed;
-  pruneStale(run.out.parent_path(),
-             run.out.stem().string().substr(
-                 0, run.out.stem().string().find(kKeyMark)),
-             run.out);
+  pruneThumbnails(run.out.parent_path(),
+                  run.out.stem().string().substr(
+                      0, run.out.stem().string().find(kKeyMark)),
+                  run.out);
   return ThumbnailOutcome::Wrote;
 }
 
