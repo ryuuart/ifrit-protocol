@@ -4,10 +4,12 @@
 # public header names one of its types — and it is also where the tag a
 # shaper is told a run's script in comes from, so nothing here names a
 # HarfBuzz type. The one Boost container inside a Word hides behind opaque
-# bytes in WordSegmentList.
+# bytes in WordSegmentList. Beside the document: RichText, the same content
+# said as runs and styles in one comparable value, and Unit, the
+# granularity a passage is addressed by.
 sigil_library(SigilWeaveParagraph
-  SOURCES Paragraph.cpp WordSegmentList.cpp
-  HEADERS Paragraph.h Word.h
+  SOURCES Paragraph.cpp WordSegmentList.cpp RichText.cpp
+  HEADERS Paragraph.h Word.h RichText.h Unit.h
   PUBLIC SigilWeaveFonts
   PRIVATE SigilWeaveUnicode Boost::container)
 
@@ -21,7 +23,7 @@ sigil_library(SigilWeaveParagraph
 # which cannot be asked without the machine having faces for them.
 sigil_test(weave_paragraph_test
   SOURCES test/ShapingTest.cpp test/ParagraphTest.cpp test/CorrectnessTest.cpp
-          test/TypographyTest.cpp
+          test/TypographyTest.cpp test/RichTextTest.cpp
   LIBRARIES SigilWeaveParagraph SigilWeavePorts Boost::container
             Boost::unordered
   LABELS fonts)

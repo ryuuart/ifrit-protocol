@@ -160,6 +160,11 @@ text (its own section below).
   `StyleSpan`s, `CharRange`, inline `Placeholder`s, writing mode, the edit
   log, sentence boundaries, and the analysis entry points;
   `ParagraphBuilder` for the push/pop idiom.
+- **`paragraph/RichText.h`** — the same content said as a VALUE:
+  `RichText`, `rich()`, runs of text with the styles or style NAMES they
+  are set in, and `RichText::slot` for a box reserved in the flow.
+- **`paragraph/Unit.h`** — `Unit` and the `unit::` constants: the
+  granularity a passage is addressed by.
 
 **`layout`** — `SigilWeaveLayout`, with `SigilGeometryPath` public because
 a contour interval carries a `geometry::path::Contour`:
@@ -173,6 +178,8 @@ a contour interval carries a `geometry::path::Contour`:
   `LineMetrics` and `ColumnMetrics` bands derived from placed runs.
 - **`layout/ParagraphLayout.h`** — `ParagraphLayout`, `layoutParagraph()`
   and `layoutSingleLine()`. Includes the three above.
+- **`layout/Story.h`** — `Story`: a `RichText` and the `ParagraphStyle`s
+  its blocks are set under, the value a chain of frames is filled from.
 
 **`decoration`** — `SigilWeaveDecoration`:
 
@@ -211,7 +218,8 @@ this archive.
 
 **`query`** — `SigilWeaveQuery`, optional: `query/Query.h` finds ranges by
 substring, word, or ICU regex; `MarkerSet` tracks named ranges across
-edits, DOM-Range style.
+edits, DOM-Range style. `query/Selector.h` is the same question written
+down rather than asked: `Selector` and the `sel::` vocabulary.
 
 **`cache`** — `SigilWeaveCache`, optional:
 `cache/SingleLineParagraphCache.h` caches single-style paragraphs by text,

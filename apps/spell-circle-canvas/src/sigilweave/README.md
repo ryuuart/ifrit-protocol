@@ -133,7 +133,7 @@ catalogue of those values.
 | **Break decision** | where lines end — the breaker, its demerits, which hyphenation points it takes, how far it may spend on justification, and the budget past which it gives up for a frame | `LineBreakStrategy`, `KnuthPlassOptions`, `HyphenationOptions`, `JustificationOptions` |
 | **Line placement** | where a line's words sit — the intervals a geometry hands back for a band, the indents that inset them, the tab stops inside them, the edge a character may hang past, and where a frame seats its first baseline | `FlowGeometry`, `IndentOptions`, `TabStop`, `HangingTable`, `FrameOptions` |
 | **Strut** | a block's pitch — its leading mode, and every band something set beside the type reserved | `Leading`, `ReservedBand` |
-| **Story** | the shaped-once text and where a fill stopped, so the next frame begins there | `Paragraph`, `layoutParagraph`'s resume word, `ParagraphLayout::firstUnplacedWord` |
+| **Story** | the shaped-once text and where a fill stopped, so the next frame begins there | `Story`, `Paragraph`, `layoutParagraph`'s resume word, `ParagraphLayout::firstUnplacedWord` |
 | **Segmentation** | where a break may happen at all — the language's own tailoring, and a house's prohibitions on top of it | `Paragraph::setLineBreakLocale`, `KinsokuTable`, `Hyphenator` |
 
 Two rules run through all five and are worth stating once.
@@ -167,6 +167,21 @@ threaded frames, tabs with leaders, vertical CJK with the line-edge and
 full-width tables a printed page is set under, readings beside the type,
 per-glyph choreography over any of it, and a live composer built to run
 every frame.
+
+Three of the values are worth naming here because they are what a caller
+writes rather than what the engine produces. **`RichText`** says a mixed
+passage as runs and the styles — or the style NAMES — they are set in, and
+two of them describing the same runs are EQUAL, which is how a caller that
+rebuilds its text every frame shapes nothing when nothing changed.
+**`Story`** is one of those plus the block styles its paragraphs are set
+under, and a chain of frames fills from it. **`Selector`** is a selection
+written down and not yet asked: `sel::word(3)`, `sel::regex(u8"[0-9]+")`,
+`sel::each(unit::Cluster).take(1)`, combined with `|`, `&` and `!`. What a
+selector means as glyphs depends on a layout, so RESOLVING one is the
+caller's — this library hands its layout out rather than owning a
+canonical one — and the two kinds a caller defines for itself,
+`Kind::Named` and `Kind::Scope`, ride the same value and compose with the
+rest.
 
 ## Targets and dependencies
 
