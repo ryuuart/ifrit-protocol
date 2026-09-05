@@ -165,7 +165,10 @@ for a host that clears a hub between scenes.
 
 Every decode is a registered decoder. The constructor registers
 SigilImage's two — `ImageAsset` and `ChannelData` — and
-`registerDecoder<T>()` adds any other; registering a type again replaces
+`registerDecoder<T>()` adds any other: SigilDrawBrush's
+`format::BrushDecoder` is one such, answering a `brush::Tool` from a
+native brush archive, a Photoshop `.abr` or a Procreate `.brush`, and it
+lives in the brush library because a brush is that library's type; registering a type again replaces
 the decoder later asks run, while a view already decoded keeps its value
 and the decoder that made it, which is what `poll()` re-runs for it.
 `load<T>()` with no decoder registered for `T` answers null without

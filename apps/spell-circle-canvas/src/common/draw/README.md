@@ -322,20 +322,18 @@ field moves with the frame and stands still on a plate.
 
 | word | what it is |
 | --- | --- |
-| `Tool` | one procedural tool, plain data: tip, colour, width, spacing, opacity, scatter, grain, bristles, pressure envelope, blend, rotation, aspect, the jitters, the speed, pressure and tilt responses, `sharpness`, `noise`, `markerTip`, an image tip and its mask, a custom tip |
-| `Tip` | `Grain` (dry particles around the centreline), `Fibres` (parallel hairs, intermittently dry), `Nib` (one pressure-width mark), `Scatter` (particles around each dab), `Image` (a mask stamped per dab), `Custom` (a callback per dab) |
-| `Rotation` | how an image or custom tip turns: `Fixed`, `Natural` (with the heading), `Random`, `Tilt` (with the stylus azimuth) |
+| `Tool` | one tool, plain data: tip, colour, width, spacing, opacity, scatter, density, bristles, pressure envelope, blend, rotation, aspect, the jitters, the speed, pressure and tilt responses, `sharpness`, `noise`, `markerTip`, a shape source, a grain source, the dynamics, a custom tip |
+| `Tip` | `Dust` (dry particles around the centreline), `Fibres` (parallel hairs, intermittently dry), `Nib` (one pressure-width mark), `Scatter` (particles around each dab), `Image` (the tool's shape source stamped per dab), `Custom` (a callback per dab) |
+| `Rotation` | how a shape or custom tip turns: `Fixed`, `Natural` (with the heading), `Random`, `Tilt` (with the stylus azimuth) |
 | `Pressure` | the envelope along a stroke: a three-point start/middle/end, or a bell (`gaussianProfile`), or a caller's `curve`; `variation` and the bell's jitters are re-rolled per stroke by `prepareStroke`, which is what makes two strokes with one tool differ |
 | `pencil`, `charcoal`, `marker`, `watercolor`, `spray` | stock values; every field stays public |
 | `Catalogue` | named tools; `Catalogue::stock()` holds `2B`, `HB`, `2H`, `cpencil`, `pen`, `rotring`, `spray`, `marker`, `marker2`, `charcoal`, `hatch_brush`, `pastel`, `crayon`; `scale` multiplies width, scatter AND spacing |
 | `weightedChoice(pen, {{value, weight}…})` | a value in proportion to its weight from the pen's stream; empty answers nothing |
 
 Opacity is the tool's load and the colour's own alpha multiplies it.
-Grain is a deposit density: the probability a grain lands and the share
-of fibres and scatter particles that deposit, so a value above one only
-lets a light pressure keep depositing. An image tip reads dark artwork on
-white as its mask (`ImageMask::InvertedLuminance`); `ImageMask::Alpha`
-reads an authored alpha channel. A custom tip is called with the pen
+Density is how much a dry tip deposits: the probability a dust particle
+lands and the share of fibres and scatter particles that deposit, so a
+value above one only lets a light pressure keep depositing. A custom tip is called with the pen
 translated to the dab, rotated to its angle, scaled to its size and
 aspect, the pigment as fill and stroke, and the default rect and ellipse
 modes; the transform is restored after every dab, and those four style
@@ -349,7 +347,8 @@ words are reset before the next.
 | `Dab` | one deposition event: position, pressure, tilt, barrel, direction, speed, distance, unit progress, tilt direction |
 | `Sampler` | live input resampled one spacing apart on `geometry::path::Stride`, which carries the unspent part of an interval across events; speed through a first-order filter of `kSpeedFilterSeconds`; the first dab is held until the first movement gives it a heading, and a stroke that never moves is one dab at direction zero |
 | `dabs(input, spacing)` | a whole recorded path resampled, with progress assigned |
-| `deposit(pen, tool, dabs, options)` | THE EXECUTOR SEAM: a stored path, a live stylus and generated geometry all reach it. Grain, nib and scatter dabs go down as one sprite batch per stroke; fibres, image and custom tips and the SUBTRACT blend draw through the pen's verbs dab by dab. `markerTip` pools pigment at the ends the options name |
+| `deposit(pen, tool, dabs, options)` | THE EXECUTOR SEAM: a stored path, a live stylus and generated geometry all reach it. Dust, nib and scatter dabs go down as one sprite batch per stroke; fibres, shape and custom tips and the SUBTRACT blend draw through the pen's verbs dab by dab. `markerTip` pools pigment at the ends the options name; a standing grain puts the whole run of dabs in one layer and takes its coverage out of that |
+| `spacingOf(tool)` | how far apart the tool lays its dabs, in canvas units. Every resampling in the library asks this rather than reading `spacing`, because a tool with a shape states its spacing against the stamp |
 | `paint(pen, tool, stroke)` | rolls the tool's randomness once, then deposits along a stroke. The dabs carry no speed: a stored path has no clock, so `speedSize` and `speedOpacity` act on live input only |
 | `line`, `spline`, `flowLine` | the conveniences over `segment`, `spline` and `trace` |
 
@@ -425,6 +424,76 @@ the drift the bends accumulate is taken back out along the way, so the
 outline sits on the wash's edge and the shape closes. Two engines draw
 through one pen without seeing each other's state.
 
+### Custom brushes
+
+A tool built from pictures is the brush a painting program means by the
+word: an artwork stamped along the stroke, a texture the mark is laid
+through, and curves the device drives. Three values on `Tool` say it,
+and a tool that sets none of them behaves exactly as a tool without
+them.
+
+| word | what it is |
+| --- | --- |
+| `Shape` | the SHAPE SOURCE: the artwork stamped at every dab, its `mask` saying whether coverage is the alpha channel or one minus the luminance — so dark artwork on white works as drawn — plus `spacing`, `scatter` and `angleJitter`. Those three are FRACTIONS OF THE STAMP, not canvas units, which is how a brush that travels between programs states them: a `spacing` of a tenth is a dense continuous mark and one is a chain of separate stamps |
+| `Grain` | the GRAIN SOURCE: a texture tiled in both axes whose LUMINANCE is coverage — the mark survives where the texture is white and is taken away where it is black — with `scale` in the pen's space and `depth` for how much may be taken |
+| `GrainSpace` | `Stroke`, the texture fixed in the pen's space, so two marks crossing one place meet one surface; `Dab`, the texture riding each stamp, turning and travelling with it. A dab-space grain needs a stamp to ride, so it applies to a shape tip; every other tip deposits as one sprite batch and takes its grain standing still whichever space it asks for |
+| `Curve` | one response curve, `minimum` at zero to `maximum` at one with a `bend` between them, or a caller's own function. The answer is a MULTIPLIER on what the tool already decided, so a flat curve at one changes nothing |
+| `Drive` | what a curve reads, each arriving as a unit value: `Pressure` (the stylus with the tool's envelope already applied), `Velocity` (one at `speedReference` units per second and above), `Tilt` |
+| `Dynamics` | a `Response` — a curve and its drive — for `size`, `opacity` and `flow`. Opacity is the tool's load and flow is the one dab's; nothing buffers a dab before the canvas here, so the two multiply into the same alpha, and they are separate because one may follow the stylus while the other follows the hand |
+
+```cpp
+brush::Tool ink = brush::marker({0.1f, 0.1f, 0.12f, 1}, 26.0f);
+ink.tip = brush::Tip::Image;
+ink.shape = brush::Shape{.image = tipArtwork, .spacing = 0.08f,
+                         .scatter = 0.15f, .angleJitter = 0.4f};
+ink.grain = brush::Grain{.image = paperTexture, .scale = 1.5f, .depth = 0.7f};
+ink.dynamics.size =
+    brush::Response{.drive = brush::Drive::Pressure,
+                    .curve = {.minimum = 0.25f, .maximum = 1.0f}};
+brush::line(pen, ink, {30, 200}, {570, 240});
+```
+
+**The native format is a directory.** `<name>.sigilbrush/` holds
+`brush.json`, `shape.png` and an optional `grain.png`, so the artwork
+stays a picture a painting program can open and edit in place and the
+numbers stay a text file a person can read. `brush.json` names the tool's
+own fields, a `shape` and a `grain` object, and a `dynamics` object of up
+to three responses; every key it leaves out keeps the library's default.
+`format::encodeBrush(tool)` writes that text back.
+
+**Loading is `SigilDrawBrushFormat`, and it never opens a file.**
+Everything there takes bytes — from a hub, a fixture or a caller's own
+array — and the pictures inside them are decoded by SigilImage:
+
+```cpp
+#include <sigildraw/brush/format/Load.h>
+namespace format = sigil::draw::brush::format;
+
+hub.registerDecoder<brush::Tool>(format::BrushDecoder{});
+auto ink = format::loadBrush(hub, "res://brushes/ink.sigilbrush");   // a directory
+auto abr = hub.load<brush::Tool>("res://brushes/library.abr");       // one file
+```
+
+A directory has no bytes of its own, which is why loading one goes
+through a byte source: the three parts are three ordinary resources
+under it. Anything that is ONE file — a packed `.sigilbrush` archive, a
+Photoshop `.abr`, a Procreate `.brush` — is what `decodeBrush` sniffs and
+what a hub's registered decoder runs, so one decoder answers for every
+form a brush arrives as.
+
+**The two importers are bounded, and each header states its bounds.**
+`decodePhotoshopBrushes` reads `.abr` versions 6, 7 and 10 and answers
+every SAMPLED tip's bitmap, raw or PackBits-compressed, 8 or 16 bits
+deep. It does not parse the Photoshop DESCRIPTOR those versions keep the
+names, spacing, scattering, shape dynamics, texture, dual brush and
+transfer in, and computed brushes — the ones with no bitmap — are left
+out; an imported tool is its shape and this library's defaults for
+everything else. `decodeProcreateBrush` reads the shape and grain
+pictures out of the zip a `.brush` is. It does not read `Brush.archive`,
+the NSKeyedArchiver property list in Apple's binary encoding that holds
+every number the brush states, so the same applies: the pictures are the
+file's and the numbers are this library's.
+
 ### Sketches
 
 `brush_live_tutorial` moves through field lines, the stock-tool wheel,
@@ -497,7 +566,10 @@ src/common/draw/
     Math.h        the pure calculations
     brush/
       Brush.h     the brush library's umbrella
-      Tool.h      Tool, Tip, Rotation, ImageMask, the stock tools, prepareStroke
+      Tool.h      Tool, Tip, Rotation, the stock tools, prepareStroke, spacingOf
+      Shape.h     Shape and ImageMask, the shape source
+      Grain.h     Grain and GrainSpace, the grain source
+      Dynamics.h  Curve, Drive, Response, Dynamics
       Pressure.h  the pressure envelope
       Catalogue.h named tools and the stock catalogue
       Choice.h    weightedChoice
@@ -514,15 +586,23 @@ src/common/draw/
       Plot.h      Plot and PlacedPlot
       Position.h  the cursor
       Engine.h    the engine
+      format/
+        Load.h       assembleBrush, decodeBrush, encodeBrush, BrushDecoder,
+                     loadBrush over any byte source
+        Photoshop.h  the .abr reader and what it honours
+        Procreate.h  the .brush reader and what it honours
   Pen.cpp         the frame, the style, the shapes, the transform, the streams
   Graphics.cpp    the offscreen buffer
   Text.cpp        text through SigilWeave
   Color.cpp       the colour models and the CSS string
   Noise.cpp       the layered field
   brush/          one source per header above; the executors (Stamps, Fibres,
-                  Tips) and the engine's strokes and surfaces in their own
-                  files; the private seams DabStyle.h, Executors.h,
+                  Tips, Grain) and the engine's strokes and surfaces in their
+                  own files; the private seams DabStyle.h, Executors.h,
                   HatchLines.h, PenUnits.h, PolygonMath.h; test/ and bench/
+  brush/format/   the native reader and writer (Native), the two importers
+                  (Photoshop, Procreate), and the private Zip and Images;
+                  test/
   test/           draw_test, draw_text_test and the Paper fixture in support/
   bench/          draw_bench
 ```
@@ -550,6 +630,14 @@ src/common/draw/
   tested with is `path::lattice` and `path::containsEvenOdd`. What stays
   here is what a device and a tool know and geometry does not: pressure,
   tilt and speed, the pen's random stream, the grain and the pigment.
+* **A brush is decoded where the brush lives, and only from bytes.**
+  `SigilDrawBrushFormat` is a target of its own beside the tools, so a
+  consumer that paints links `SigilDrawBrush` alone. It speaks
+  SigilIOSource's byte vocabulary, which is what lets a loader run
+  against a fixture and behind a hub unchanged, and it hands the
+  artwork inside a brush to SigilImage. Where the bytes came from —
+  URIs, mounts, caching, reload — is SigilIO's, and no file is opened
+  here in either direction.
 * **Never reads the wall.** Every number a pen answers about time comes
   from the frame it was given.
 
@@ -559,7 +647,7 @@ From `apps/spell-circle-canvas`:
 
 ```sh
 cmake --build build --config Release --target draw_test draw_text_test \
-  draw_brush_test draw_bench draw_brush_bench
+  draw_brush_test draw_brush_format_test draw_bench draw_brush_bench
 ctest --test-dir build -C Release -R 'draw_' --output-on-failure
 ./build/bin/Release/draw_bench
 ./build/bin/Release/draw_brush_bench
@@ -599,5 +687,15 @@ bounds; and the engine — selection and state, the pen's units and clock,
 one clip over every interior and the outline, a closed shape's outline
 on its bent interior, plots placed where they were drawn, live input
 across event batches, the first live dab's heading, and cancel.
+`draw_brush_format_test` builds every fixture in memory — a tip drawn
+and encoded to PNG, a zip written entry by entry, an `.abr` written
+field by field — so no case reads a file this repository ships: a native
+directory through a table and through a hub, the packed archive, the
+`.brush` giving up its two pictures, the `.abr` giving up both its
+sampled tips at either subversion, and bytes that are no brush answering
+nothing.
+
 `draw_brush_bench` measures sampling, a field-traced watercolor mark,
-hatching, a curved dry mass and a pigment wash.
+hatching, a curved dry mass, a pigment wash, and one stroke of an
+imported brush — the shape stamped per dab, alone and under each of the
+two grain spaces.
