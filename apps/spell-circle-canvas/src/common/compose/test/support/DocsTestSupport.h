@@ -7,7 +7,7 @@
 #include <sigilcompose/kit/Kit.h>
 // The one SigilWeave header no compose header pulls in and the README
 // still names: the OpenType feature presets a style spells by name.
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 // The blend feature's header, for the same reason from the other side:
 // nothing here calls it, but `path::blend` declares types whose SIMPLE
 // names the documents also use, and the probe's candidate set spans every

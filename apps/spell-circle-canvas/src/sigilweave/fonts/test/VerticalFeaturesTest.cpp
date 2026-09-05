@@ -17,7 +17,7 @@
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/fonts/Shaper.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 
 #include <string>
 #include <vector>

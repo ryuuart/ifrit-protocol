@@ -6,8 +6,12 @@
  * Named OpenType feature presets — CSS font-variant-* vocabulary as
  * ready-made FontFeature values, so styles read
  * `style.shaping.fontFeatures = {features::tabularNumbers}` instead of
- * hand-spelled four-cc tag lists. Header-only; every constant is a plain
- * FontFeature and combines freely with hand-rolled features.
+ * hand-spelled four-cc tag lists.
+ *
+ * Every one is a chosen four-cc tag and a value, which is why they are
+ * stock rather than engine: nothing here is a mechanism, and a caller
+ * spelling the tag by hand reaches the same shaping. Header-only, and
+ * every constant combines freely with a hand-rolled feature.
  */
 
 #include "sigilweave/style/Style.h"

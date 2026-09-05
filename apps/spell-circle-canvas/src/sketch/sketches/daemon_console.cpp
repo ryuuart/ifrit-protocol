@@ -64,9 +64,9 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 #include <sigilweave/style/Type.h>
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 
 #include <include/core/SkPaint.h>
 

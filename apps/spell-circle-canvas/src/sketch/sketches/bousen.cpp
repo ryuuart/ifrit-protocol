@@ -41,7 +41,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 
 #include <utility>
 

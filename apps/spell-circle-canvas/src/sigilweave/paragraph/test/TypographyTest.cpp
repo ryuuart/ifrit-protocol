@@ -5,7 +5,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 
 #include <string>
 #include <utility>

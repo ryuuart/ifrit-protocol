@@ -58,7 +58,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>

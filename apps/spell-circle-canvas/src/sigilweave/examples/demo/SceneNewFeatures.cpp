@@ -12,7 +12,7 @@
 #include <include/effects/SkGradient.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 
 #include <cstdio>
 

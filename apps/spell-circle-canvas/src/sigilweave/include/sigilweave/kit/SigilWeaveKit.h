@@ -9,6 +9,7 @@
  * with the per-situation variation expressed as callables.
  */
 
+#include "sigilweave/kit/Features.h"
 #include "sigilweave/kit/GlyphBuckets.h"
 #include "sigilweave/kit/Hyphenation.h"
 #include "sigilweave/kit/Labels.h"

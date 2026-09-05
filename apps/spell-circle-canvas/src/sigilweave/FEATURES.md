@@ -133,7 +133,7 @@ text (its own section below).
   `TextStyle` they build. It decides nothing — there is no type scale and
   no opinion about which face stands in for which. The face itself comes
   from `ports::pickTypeface()`, which walks the system font manager.
-- **`style/Features.h`** — named OpenType presets
+- **`kit/Features.h`** — named OpenType presets
   (`features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, …) so
   styles need not hand-spell four-cc tags, including the ones a COLUMN
   asks for: `verticalRotatedForms`, `verticalAlternates`,
@@ -462,7 +462,7 @@ them rather than the only one.
   else a column may want from the face — the wider `vrt2` rotation set,
   punctuation recentred (`valt`) or fitted (`vpal`, `vhal`), kana cut for a
   column (`vkna`), vertical kerning (`vkrn`) — is a feature a style names,
-  spelled in `style/Features.h`. A named feature is not gated on the
+  spelled in `kit/Features.h`. A named feature is not gated on the
   direction: it runs whichever way the run is set, so those belong on the
   styles a passage sets vertically. `columnMetrics()` measures the result, and a
   dressed glyph in a column sets `GlyphDress::centreOffset` because half its
@@ -550,7 +550,7 @@ and the ones that name nothing say so.
 | Character: optical kerning | done, as a STATED APPROXIMATION: every adjacent pair of a word is measured — the narrowest distance between the left glyph's right edge and the right glyph's left, in bands off the outlines — and closed to the distance the FACE'S OWN even pair leaves, with the face's kerning table switched off because the two are answers to one question. A designer kerns by judging the white as an area and as a rhythm; this measures a distance, so a pair a designer would have opened for legibility comes out tighter. The library decides nothing about how tight type should be — the reference is the face's own — and no pair moves further than a stated bound | `ShapingStyle::opticalKerning` | the same field on the style a run carries; `Element::spanStyle` |
 | Character: baseline shift | done | `PaintStyle::baselineShift` | the same field; `Element::spanPaint` |
 | Character: skew | **not started** | — | — |
-| OpenType features, small caps, figures, sets | exists | `style/Features.h` | `ShapingStyle::fontFeatures` on the style a run carries |
+| OpenType features, small caps, figures, sets | exists | `kit/Features.h` | `ShapingStyle::fontFeatures` on the style a run carries |
 | Underline / strikethrough / overline / highlight options | exists | `Decoration` | `PaintStyle::decorations`; `Element::spanPaint` |
 | Frame: columns, gutter | done as compose kit — a Western column is a FRAME | `kit::columns` | `kit::columns` |
 | Frame: balance columns | **not started** | — | — |

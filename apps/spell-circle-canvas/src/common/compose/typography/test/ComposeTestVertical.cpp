@@ -9,7 +9,7 @@
  * geometry and nothing else can check it.
  */
 
-#include <sigilweave/style/Features.h>
+#include <sigilweave/kit/Features.h>
 
 #include <algorithm>
 #include <array>

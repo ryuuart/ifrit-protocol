@@ -45,7 +45,7 @@
 /** @defgroup shaping Shaping & fonts
  *  Word shaping, the shape cache, font management, fallback, and the style
  *  vocabulary that keys it all (style/Style.h, fonts/FontContext.h,
- *  fonts/Shaper.h, style/Features.h). */
+ *  fonts/Shaper.h, kit/Features.h). */
 /** @defgroup document Document model
  *  Styled UTF-16 text with incremental analysis: Paragraph, spans,
  *  placeholders, words, and the edit history (paragraph/Paragraph.h,
@@ -77,6 +77,5 @@
 #include "sigilweave/paint/Paint.h"
 #include "sigilweave/paragraph/Paragraph.h"
 #include "sigilweave/query/Query.h"
-#include "sigilweave/style/Features.h"
 #include "sigilweave/style/Style.h"
 #include "sigilweave/unicode/Unicode.h"

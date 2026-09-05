@@ -6,7 +6,7 @@
 # Header-only over Skia's paint and typeface types; a paint layer names a
 # SigilMaterial instance by pointer and links nothing for it.
 sigil_library(SigilWeaveStyle
-  HEADERS Decoration.h Features.h PaintLayer.h PaintStyle.h ShapingStyle.h
+  HEADERS Decoration.h PaintLayer.h PaintStyle.h ShapingStyle.h
           Style.h StyleSet.h Type.h TextStyle.h
   INTERFACE unofficial::skia::skia)
 
