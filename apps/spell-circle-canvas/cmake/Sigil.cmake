@@ -63,18 +63,16 @@ function(sigil_library_root name)
     STRIP ${root}/include)
 endfunction()
 
-# sigil_library(<Target> [PIC] [SOURCES <file>...] [HEADERS <file>...]
+# sigil_library(<Target> [SOURCES <file>...] [HEADERS <file>...]
 #               [PUBLIC <item>...] [PRIVATE <item>...] [INTERFACE <item>...]
 #               [INCLUDE_PRIVATE <dir>...])
 #   A STATIC archive, or an INTERFACE target when there are no SOURCES,
 #   carrying SIGIL_INCLUDE_DIR on its public include path and the links the
 #   call names. SOURCES are relative to the calling directory; HEADERS to
 #   include/<namespace>/<calling directory relative to the root>/, so a
-#   feature names its own headers bare and a sibling's through `..`. PIC
-#   marks the archive position-independent, for a host that force-loads it
-#   into a dylib's flat namespace.
+#   feature names its own headers bare and a sibling's through `..`.
 function(sigil_library target)
-  cmake_parse_arguments(ARG "PIC" ""
+  cmake_parse_arguments(ARG "" ""
     "SOURCES;HEADERS;PUBLIC;PRIVATE;INTERFACE;INCLUDE_PRIVATE" ${ARGN})
   if(NOT SIGIL_LIBRARY_ROOT)
     message(FATAL_ERROR
@@ -99,9 +97,6 @@ function(sigil_library target)
     if(ARG_INCLUDE_PRIVATE)
       target_include_directories(${target} PRIVATE ${ARG_INCLUDE_PRIVATE})
     endif()
-    if(ARG_PIC)
-      set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    endif()
     if(ARG_PUBLIC)
       target_link_libraries(${target} PUBLIC ${ARG_PUBLIC})
     endif()
@@ -112,7 +107,7 @@ function(sigil_library target)
       target_link_libraries(${target} INTERFACE ${ARG_INTERFACE})
     endif()
   else()
-    if(ARG_PUBLIC OR ARG_PRIVATE OR ARG_INCLUDE_PRIVATE OR ARG_PIC)
+    if(ARG_PUBLIC OR ARG_PRIVATE OR ARG_INCLUDE_PRIVATE)
       message(FATAL_ERROR
         "sigil_library(${target}): a target with no SOURCES is INTERFACE "
         "and takes INTERFACE links only")

@@ -4,7 +4,7 @@
 # lands: a composer kept in the pen for the call site, reconciled every
 # frame. Links the kernel it makes nodes with and SigilDraw, the pen; the
 # clock and ticker a guest composer runs on are read in its source alone.
-sigil_library(SigilComposeDraw PIC
+sigil_library(SigilComposeDraw
   SOURCES Draw.cpp
   HEADERS Draw.h
   PUBLIC SigilComposeCore SigilDraw

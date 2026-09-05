@@ -9,7 +9,7 @@
 # and to SigilSkia's direct drawing for the sprite batch a round tip goes
 # down as; a caller with its own tools links SigilDraw alone.
 find_package(boost_unordered CONFIG REQUIRED)
-sigil_library(SigilDrawBrush PIC
+sigil_library(SigilDrawBrush
   SOURCES Catalogue.cpp Choice.cpp Deposit.cpp Dynamics.cpp Engine.cpp
           EngineStrokes.cpp EngineSurfaces.cpp Fibres.cpp Fields.cpp
           Grain.cpp Hatch.cpp Mass.cpp Plot.cpp Polygon.cpp Position.cpp
