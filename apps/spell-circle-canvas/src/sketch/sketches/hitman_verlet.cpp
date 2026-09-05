@@ -494,6 +494,11 @@ struct HitmanVerlet final : sketch::DrawSketch {
   bool didHit = false, didBomb = false;
   int phase = 0;  // 0 SPAWN 1 HIT 2 BOMB 3 SETTLE 4 DRAG 5 RELEASE
   SkPoint dragTarget{0, 0}, dragFrom{0, 0};
+  // Where the hand IS on the drag's last constraint pass, before the pin
+  // puts it on the target: the sticks and the floor have had their say
+  // and the pin has not. The leader is drawn from here, so it shows the
+  // pull — drawn from the pinned position it would be a point.
+  SkPoint handBeforePin{0, 0};
   bool dragging = false;
   float chainPhase = 0;
 
@@ -690,7 +695,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
       for (const Stick& s : b.sticks) satisfyStick(b, s);
       for (const Ineq& q : b.ineqs) satisfyIneq(b, q);
       // §7 IK: keep setting the position INSIDE the loop.
-      if (&b == &rig && dragging) b.x[LHA] = dragTarget;
+      if (&b == &rig && dragging) {
+        if (rec) handBeforePin = b.x[LHA];
+        b.x[LHA] = dragTarget;
+      }
     }
   }
 
@@ -1244,7 +1252,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     // and the accent head stay solid, which is what makes the marching
     // legible.
     if (dragging) {
-      const SkPoint h = drawn(rig, LHA), tgt = toStage(dragTarget);
+      const SkPoint h = toStage(handBeforePin), tgt = toStage(dragTarget);
       pen.strokeWeight(2.0f + 2.0f * 4.0f);
       pen.stroke(kInk);
       pen.line(h.fX, h.fY, tgt.fX, tgt.fY);
