@@ -1931,12 +1931,10 @@ struct RotaConvocationis : sketch::Sketch {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
 
-    faceRing =
-        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    faceRing = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
     faceRingBold =
-        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
-    faceMono =
-        weave::ports::pickTypeface({"Menlo", "SF Mono", "Courier New"}, 500);
+        weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
+    faceMono = weave::ports::face({"Menlo", "SF Mono", "Courier New"}, 500);
 
     // ---- content, fitted to its own bands --------------------------------
     voxText = "+ ";

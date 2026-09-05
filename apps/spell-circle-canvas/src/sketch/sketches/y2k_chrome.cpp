@@ -27,21 +27,21 @@
 //                     measured and the wrapping phase comes from the ticker
 
 #include <include/core/SkMaskFilter.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Chrome.h>
-#include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Gloss.h>
-#include <sigilmaterial/skia/Paint.h>
-#include <sigilcompose/core/Pattern.h>
-#include <sigilmaterial/pattern/Patterns.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Kinetic.h>
-#include <sigilmaterial/skia/Color.h>
-#include <sigilweave/style/Type.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/style/Type.h>
 
 #include <cmath>
 #include <string>
@@ -260,9 +260,9 @@ struct Y2kChrome final : sketch::Sketch {
   float wrapLen = 1;  // marquee wrap length = unitW + gap
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.captureAt(6.0);
-    ctx.background({0, 0, 0, 1});
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 6.0,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace yc = y2k_chrome;

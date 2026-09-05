@@ -214,6 +214,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -240,7 +241,6 @@ using namespace std::chrono_literals;
 using sigil::material::skia::Effect;
 using sigil::material::skia::Paint;
 using sigil::material::skia::toColor;
-using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace slit {
@@ -344,7 +344,7 @@ constexpr float kPanelStripW = 432;  // 144 in at 3.0 px/in, exact
 // Type
 
 sk_sp<SkTypeface> face(const char* family, SkFontStyle style) {
-  return pickTypeface({family}, style);
+  return weave::ports::face({family}, style);
 }
 sk_sp<SkTypeface> uiFace() {
   static sk_sp<SkTypeface> f = face("Helvetica Neue", SkFontStyle::Normal());
@@ -1970,11 +1970,11 @@ void SlitScan2001::drawMeasuredPoints(SkCanvas& c, const PaintContext& ctx) {
 void SlitScan2001::setup(sketch::SketchContext& ctx) {
   deterministic_ = ctx.deterministic;
   using namespace slit;
-  ctx.canvas(kCanvasW, kCanvasH);
-  ctx.background(kInk);
   // tau lands on 0.60 here, which is the carriage two thirds down its
   // fourteen feet, mid-exposure — what the +0.60 phase offset is for.
-  ctx.captureAt(6.0);
+  sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
+                           .captureAt = 6.0,
+                           .background = kInk});
 
   // ---- bake the artwork ONCE. These are static images made at setup and
   // never mutated afterwards, so they are plain baked SkImages; a live

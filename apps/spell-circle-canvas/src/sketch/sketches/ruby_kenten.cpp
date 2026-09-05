@@ -42,6 +42,7 @@
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <string>
@@ -100,9 +101,9 @@ inline Element column(const char* caption, const char* note, Element specimen) {
 
 struct RubyKenten final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background(furigana::kKinari);
-    ctx.captureAt(0.4);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 0.4,
+                             .background = furigana::kKinari});
     ctx.composer.render(describe());
   }
 

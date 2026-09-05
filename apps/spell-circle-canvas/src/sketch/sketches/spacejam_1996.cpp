@@ -110,18 +110,19 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilmotion/bind/Bind.h>
-#include <sigilgeometry/kit/Generators.h>
-#include <sigilmaterial/skia/Effect.h>
-#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/core/Pattern.h>
-#include <sigilmaterial/kit/Patterns.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
-#include <sigilcompose/brush/Adaptors.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/kit/Patterns.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -1410,15 +1411,16 @@ struct SpaceJam1996 : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     using namespace sj;
-    ctx.canvas(S(640), S(800));
-    ctx.background(kPageBlack);  // <body bgcolor="#000000">, literally
+    // <body bgcolor="#000000">, literally
     // The still is taken mid-hold: the load finishes around 7.96 s of sketch
     // time and the reload wipes the page around 11.46 s, so 9.5 s is the one
     // window where every asset is present. Anything earlier catches the page
     // mid-load and misses the logotype, which is dead last in the byte
     // schedule — and the reference this study is diffed against is the
     // FINISHED page.
-    ctx.captureAt(9.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(S(640), S(800)),
+                             .captureAt = 9.5,
+                             .background = kPageBlack});
 
     bakeArt(ctx);
     reportGrid();

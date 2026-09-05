@@ -70,9 +70,9 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Paint.h>
@@ -91,6 +91,7 @@
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -1320,14 +1321,14 @@ struct WinampBase : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // Inside the llama beat, which runs 7.0-7.8 s: past its bounce and
     // before its fade. Every other second of the loop is missing it.
-    ctx.captureAt(7.4);
     using namespace wa;
-    ctx.canvas(1320, 1947);
     // The plate at exactly 2x. One native skin pixel is three canvas px and
     // six device px, so every BMP cell — the 5x6 TEXT.BMP glyph included —
     // keeps its edges on whole pixels.
-    ctx.oversample(2);
-    ctx.background(kDesk);
+    sketch::kit::stage(ctx, {.size = {1320, 1947},
+                             .captureAt = 7.4,
+                             .background = kDesk,
+                             .oversample = 2});
     buildMaterials();
 
     // Declaring again runs this on the same instance over an empty tree, so

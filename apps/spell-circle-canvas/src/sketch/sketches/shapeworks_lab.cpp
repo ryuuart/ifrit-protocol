@@ -43,12 +43,12 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/kit/Sections.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
-#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Surfaces.h>
@@ -59,6 +59,7 @@
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <cmath>
 #include <optional>
@@ -295,9 +296,10 @@ struct ShapeworksLab : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(1280, 780);
-    ctx.background({0.05f, 0.048f, 0.088f, 1});
-    ctx.captureAt(2.6);
+    sketch::kit::stage(ctx,
+                       {.size = {1280, 780},
+                        .captureAt = 2.6,
+                        .background = SkColor4f{0.05f, 0.048f, 0.088f, 1}});
 
     material::skia::install();
     studio = material::kit::studioEnvironment();

@@ -159,6 +159,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -179,7 +180,6 @@ using namespace sigil::compose;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace thaum {
@@ -1248,8 +1248,7 @@ struct Thaumonomicon : sketch::Sketch {
   PixText tipTitle, tipMissing, tipParent;
 
   static sk_sp<SkTypeface> systemFace() {
-    return pickTypeface(
-        {"Menlo", "Monaco", "Courier New", "Helvetica"});
+    return weave::ports::face({"Menlo", "Monaco", "Courier New", "Helvetica"});
   }
 
   // -------------------------------------------------------------------------
@@ -1726,12 +1725,12 @@ struct Thaumonomicon : sketch::Sketch {
   // -------------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
-    ctx.canvas(kCanvasW, kCanvasH);
     // The plate at exactly 2x. One GUI px is two canvas px and four device
     // px, so every stamped tile on the 24-px lattice lands whole.
-    ctx.oversample(2);
-    ctx.background(hex(0x0B0906));
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
+                             .captureAt = 6.0,
+                             .background = hex(0x0B0906),
+                             .oversample = 2});
 
     face = systemFace();
     if (ctx.fonts) {

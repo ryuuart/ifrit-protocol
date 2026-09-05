@@ -210,9 +210,10 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-#include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
 #include <array>
@@ -236,7 +237,6 @@ using namespace sigil::compose;
 namespace motion = sigil::motion;
 using namespace sigil::motion;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -2065,28 +2065,30 @@ struct SigillumAemeth : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kVitrine);
     // The plate is the finished object, and this piece arrives in stages: the
     // last Name is solved at tSolve + 7 tSolveEach, the birds' square lands
     // 2.6 s after tBirds, and the rings start turning at tSpin. Only the
     // window between the two shows every part of it at once.
-    ctx.captureAt(14.0);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 14.0,
+                             .background = kVitrine});
 
     // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceSerif = pickTypeface({"Hoefler Text", "Baskerville"});
-    faceItalic =
-        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceMono = pickTypeface({"Menlo", "Courier New"});
-    faceSeal = pickTypeface({"Herculanum", "Optima", "Baskerville"});
-    faceRing = pickTypeface({"Trattatello", "Hoefler Text", "Baskerville"},
-                        SkFontStyle::Italic());
-    faceQuill =
-        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceDisplay = pickTypeface({"Luminari", "Herculanum", "Optima", "Baskerville"});
+    faceSerif = sigil::weave::ports::face({"Hoefler Text", "Baskerville"});
+    faceItalic = sigil::weave::ports::face({"Hoefler Text", "Baskerville"},
+                                           SkFontStyle::Italic());
+    faceMono = sigil::weave::ports::face({"Menlo", "Courier New"});
+    faceSeal =
+        sigil::weave::ports::face({"Herculanum", "Optima", "Baskerville"});
+    faceRing = sigil::weave::ports::face(
+        {"Trattatello", "Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
+    faceQuill = sigil::weave::ports::face({"Hoefler Text", "Baskerville"},
+                                          SkFontStyle::Italic());
+    faceDisplay = sigil::weave::ports::face(
+        {"Luminari", "Herculanum", "Optima", "Baskerville"});
 
     waxGrain = Paint::recipe(field::grain(1.6f, 4, 1582.0f, 0.34f));
     waxSpeck = patterns::speckle(520, 18, 1.4f, 4.4f, {skia::toColor(hex(0x6a4a20, 0.10f))});

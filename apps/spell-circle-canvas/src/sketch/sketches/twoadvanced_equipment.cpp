@@ -60,6 +60,7 @@
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <algorithm>
 #include <array>
@@ -400,14 +401,14 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     using namespace teq;
-    ctx.canvas(kPageW * 2, kPageH * 2);
     // The plate at exactly 2x. One page pixel is two canvas px and four
     // device px, so the 10 px Verdana and every GIF edge land whole.
-    ctx.oversample(2);
-    ctx.background(kWhite);
     // Before the auto-scroll leaves the top and while the first button
     // shows its rollover lift.
-    ctx.captureAt(2.5);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kPageW * 2, kPageH * 2),
+                             .captureAt = 2.5,
+                             .background = kWhite,
+                             .oversample = 2});
 
     // --- every bitmap the frameset names, from the restoration host ------
     {

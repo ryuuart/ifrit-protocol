@@ -34,6 +34,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
 
 #include <cstdio>
@@ -143,9 +144,9 @@ struct Zellige final : sketch::Sketch {
   // setup recipes — the ones the captions describe.
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(1.5);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 1.5,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     namespace zw = zellige_wall;
     nextSwap = zw::kSwapPeriod;

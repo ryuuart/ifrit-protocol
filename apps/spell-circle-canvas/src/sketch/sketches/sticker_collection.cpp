@@ -21,6 +21,7 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/IO.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>
 #include <sigilweave/style/Type.h>
 
@@ -148,9 +149,9 @@ struct StickerCollection final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kWidth, kHeight);
-    ctx.background({0.97f, 0.97f, 0.95f, 1});
-    ctx.captureAt(2.35);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
+                             .captureAt = 2.35,
+                             .background = SkColor4f{0.97f, 0.97f, 0.95f, 1}});
 
     io::Hub& hub = ctx.assets.hub();
     const Shelf shelf{

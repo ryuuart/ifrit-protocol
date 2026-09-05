@@ -218,6 +218,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -1796,17 +1797,17 @@ struct XcomBattlescape : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     using namespace xcom;
-    ctx.canvas(kCanvasW, kCanvasH);
-    ctx.background(C(blk(0, 15)));
     // The still is captured inside the 9.6 s state cycle below, at the phase
     // that matches the reference screen: the 14-tile path preview with TU 58
     // intact, which runs [3.2, 4.8). 4.0 s is its midpoint. Later phases open
     // the fire-mode popup, which covers most of the battlescape.
-    ctx.captureAt(4.0);
     // The plate at exactly 2x. One 1994 pixel is four canvas px, so eight
     // device px in every column and every row, and an integer downsample of
     // the capture lays it over the reference.
-    ctx.oversample(2);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
+                             .captureAt = 4.0,
+                             .background = C(blk(0, 15)),
+                             .oversample = 2});
 
     bakeAtlas();
     terrain = std::make_shared<Pool>();

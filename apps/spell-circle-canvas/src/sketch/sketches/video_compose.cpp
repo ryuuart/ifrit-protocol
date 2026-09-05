@@ -15,6 +15,7 @@
 #include <sigilcompose/video/Video.h>
 #include <sigilio/IO.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilvideo/decode/Decode.h>
 #include <sigilvideo/decode/Playback.h>
 #include <sigilweave/style/Type.h>
@@ -98,9 +99,9 @@ struct VideoCompose final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kWidth, kHeight);
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(4.25);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kWidth, kHeight),
+                             .captureAt = 4.25,
+                             .background = SkColor4f{0, 0, 0, 1}});
 
     Documents documents;
     io::Hub& hub = ctx.assets.hub();

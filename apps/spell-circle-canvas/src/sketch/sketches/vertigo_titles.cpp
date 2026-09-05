@@ -139,7 +139,9 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
@@ -149,7 +151,6 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include <sigilweave/kit/PaintLayers.h>
 
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
@@ -162,7 +163,6 @@ namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
 using sigil::material::skia::Paint;
 using sigil::material::skia::Stop;
-using sigil::weave::ports::pickTypeface;
 namespace ch = choreograph;
 
 namespace {
@@ -723,20 +723,20 @@ struct VertigoTitles : sketch::Sketch {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(5.2);
-    ctx.canvas(kW, kH);
-    ctx.background(kInk);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 5.2, .background = kInk});
 
     // Clarendon is REAL here: macOS ships Apple's SuperClarendon. The
     // rest of the list is what this plate will accept instead of it, in
     // order — which is the whole reason the face verb takes a chain.
-    faceDisplay =
-        pickTypeface({"SuperClarendon", "Super Clarendon", "Rockwell", "Bodoni 72"},
-                 SkFontStyle::Bold());
+    faceDisplay = weave::ports::face(
+        {"SuperClarendon", "Super Clarendon", "Rockwell", "Bodoni 72"},
+        SkFontStyle::Bold());
     // News Gothic is NOT installed — Helvetica Neue stands in, condensed.
-    faceGothic = pickTypeface({"Helvetica Neue", "Helvetica"});
-    faceGothicBold =
-        pickTypeface({"Helvetica Neue", "Helvetica"}, SkFontStyle::kBold_Weight);
+    faceGothic = weave::ports::face({"Helvetica Neue", "Helvetica"});
+    faceGothicBold = weave::ports::face({"Helvetica Neue", "Helvetica"},
+                                        SkFontStyle::kBold_Weight);
 
     // ---- the iris: TWO gradient kinds flattened into one shader ----
     // radial sepia ramp (pupil → bright inner iris → limbus → dark) with

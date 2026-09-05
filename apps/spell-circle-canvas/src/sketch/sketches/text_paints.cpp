@@ -70,8 +70,8 @@ sketch::kit::Theme sheetTheme() {
  *  letterforms to be seen inside. */
 weave::TextStyle display() {
   static const sk_sp<SkTypeface> face =
-      weave::ports::pickTypeface({"Avenir Next Heavy", "Helvetica Neue Bold",
-                                  "Arial Black", "Impact", "sans-serif"});
+      weave::ports::face({"Avenir Next Heavy", "Helvetica Neue Bold",
+                          "Arial Black", "Impact", "sans-serif"});
   return weave::textStyle(
       {.face = face, .size = kSize, .color = kInk, .track = 3.0f});
 }

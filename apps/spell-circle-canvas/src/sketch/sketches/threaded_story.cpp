@@ -41,6 +41,7 @@
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -76,14 +77,11 @@ const SkColor4f kMark{0.643f, 0.310f, 0.157f, 1};
 const SkColor4f kDisc{0.643f, 0.310f, 0.157f, 0.16f};
 
 sk_sp<SkTypeface> serif() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  return weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
-  return face;
 }
 sk_sp<SkTypeface> grotesque() {
-  static sk_sp<SkTypeface> face = weave::ports::pickTypeface(
-      {"Helvetica Neue", "Inter", "Helvetica", "Arial"});
-  return face;
+  return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 
 weave::TextStyle body(float size = 13.0f) {
@@ -155,9 +153,9 @@ Story article() {
 
 struct ThreadedStory final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background(story::kPaper);
-    ctx.captureAt(0.4);
+    sketch::kit::stage(
+        ctx,
+        {.size = kSceneSize, .captureAt = 0.4, .background = story::kPaper});
     ctx.composer.render(describe());
   }
 

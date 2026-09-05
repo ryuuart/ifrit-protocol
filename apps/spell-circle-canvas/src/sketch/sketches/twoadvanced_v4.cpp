@@ -80,9 +80,10 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <shared/TwoAdvanced.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Paint.h>
@@ -108,6 +109,7 @@
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilworld/frame/Frame.h>
 
 #include <algorithm>
@@ -119,8 +121,6 @@
 #include <glm/vec4.hpp>
 #include <string>
 #include <vector>
-
-#include <shared/TwoAdvanced.h>
 
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
@@ -2436,10 +2436,10 @@ struct TwoAdvancedV4 : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
     using namespace tav;
-    ctx.canvas(1940, 1560);
-    ctx.background(hex(0x0A0000));
+    sketch::kit::stage(
+        ctx,
+        {.size = {1940, 1560}, .captureAt = 6.0, .background = hex(0x0A0000)});
 
     // The hero's world, baked at twice the panel's pixels because a plate
     // is taken at up to twice the canvas.

@@ -66,17 +66,18 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilcompose/kit/Layouts.h>
+#include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/pattern/Patterns.h>
-#include <sigilcompose/kit/Strokes.h>
-#include <sigilcompose/kit/Layouts.h>
-#include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilcompose/typography/Typography.h>
-#include <sigilgeometry/kit/Shapers.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -122,9 +123,10 @@ struct Faces {
 };
 const Faces& faces() {
   static const Faces f{
-      .mono = weave::ports::pickTypeface({"Menlo", "Courier New"}),
-      .roman = weave::ports::pickTypeface({"Palatino", "Georgia"}),
-      .romanBold = weave::ports::pickTypeface({"Palatino", "Georgia"}, SkFontStyle::kBold_Weight),
+      .mono = weave::ports::face({"Menlo", "Courier New"}),
+      .roman = weave::ports::face({"Palatino", "Georgia"}),
+      .romanBold = weave::ports::face({"Palatino", "Georgia"},
+                                      SkFontStyle::kBold_Weight),
   };
   return f;
 }
@@ -1129,9 +1131,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.captureAt(6.0);
-    ctx.canvas(1600, 1990);
-    ctx.background(kPaper);
+    sketch::kit::stage(
+        ctx, {.size = {1600, 1990}, .captureAt = 6.0, .background = kPaper});
 
     // The one moving thing on the sheet: the marching-ants frame. A specimen
     // plate should still prove that a rule can be alive.

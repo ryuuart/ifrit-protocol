@@ -85,6 +85,7 @@
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 #include <algorithm>
 #include <array>
@@ -1171,11 +1172,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   void setup(sketch::SketchContext& ctx) override {
     using namespace tv3;
-    ctx.canvas(kW, kH);
-    ctx.background(kPage);
     // Everything has entered by ~3.3 s; 7.6 s puts the discord orb loop
     // (20 fps, 102 frames) on its bright crest, frame 50.
-    ctx.captureAt(7.6);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 7.6, .background = kPage});
 
     diag = patterns::stripes(2, 9, mskia::toColor(alpha(kSteelHi, 0.5f)));
     diag.rotate(45);

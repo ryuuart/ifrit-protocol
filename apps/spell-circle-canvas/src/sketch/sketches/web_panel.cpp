@@ -36,13 +36,14 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
-#include <sigilsketch/scry/SettledPage.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/web/Web.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/platform/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilsketch/scry/SettledPage.h>
 #include <sigilsketch/scry/SharedEngine.h>
 
 #include <cmath>
@@ -183,9 +184,9 @@ struct WebPanelSketch final : sketch::Sketch {
   static bool available(std::string* why) { return scry::available(why); }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(980, 660);
-    ctx.background(hex(0x0b0a16));
-    ctx.captureAt(1.0);
+    sketch::kit::stage(
+        ctx,
+        {.size = {980, 660}, .captureAt = 1.0, .background = hex(0x0b0a16)});
 
     std::string why;
     const std::shared_ptr<scry::WebEngine> engine =

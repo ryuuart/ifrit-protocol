@@ -175,9 +175,10 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
-#include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
 #include <array>
@@ -198,7 +199,6 @@ namespace weave = sigil::weave;
 using namespace sigil::compose;
 using namespace sigil::motion;
 using sigil::material::skia::Paint;
-using sigil::weave::ports::pickTypeface;
 namespace geometry = sigil::geometry;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
@@ -2203,26 +2203,26 @@ struct ThunderFulu : sketch::Sketch {
   // =========================================================================
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kNight);
     // The single frame this sketch is photographed at, chosen on the 27 s
     // score: everything through the 19.65 s tap is complete and the foot is
     // about half way through its flying-white sweep, so one still shows both
     // a finished talisman and a stroke being written. Anything before ~8 s
     // catches an almost blank plate; 26.0 gives the fully settled plate with
     // nothing in motion.
-    ctx.captureAt(20.6);
+    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
+                             .captureAt = 20.6,
+                             .background = kNight});
 
     // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceSerif = pickTypeface({"Hoefler Text", "Baskerville"});
-    faceItalic =
-        pickTypeface({"Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceMono = pickTypeface({"Menlo", "Courier New"});
-    faceDisplay =
-        pickTypeface({"Optima", "Baskerville"}, SkFontStyle::kBold_Weight);
+    faceSerif = weave::ports::face({"Hoefler Text", "Baskerville"});
+    faceItalic = weave::ports::face({"Hoefler Text", "Baskerville"},
+                                    SkFontStyle::Italic());
+    faceMono = weave::ports::face({"Menlo", "Courier New"});
+    faceDisplay = weave::ports::face({"Optima", "Baskerville"},
+                                     SkFontStyle::kBold_Weight);
 
     ironGrain = Paint::recipe(field::grain(2.2f, 4, 1356.0f, 0.55f, 2.6f));
     ironSpeck = patterns::speckle(420, 26, 0.7f, 2.6f,

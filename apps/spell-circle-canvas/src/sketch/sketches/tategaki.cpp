@@ -38,6 +38,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 
 namespace sketch = sigil::sketch;
 
@@ -76,9 +77,9 @@ struct Tategaki final : sketch::Sketch {
   /// a frame of its entrance.
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kSceneSize.fWidth, kSceneSize.fHeight);
-    ctx.background({0, 0, 0, 1});
-    ctx.captureAt(2.4);
+    sketch::kit::stage(ctx, {.size = kSceneSize,
+                             .captureAt = 2.4,
+                             .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     composer.render(describe());
   }

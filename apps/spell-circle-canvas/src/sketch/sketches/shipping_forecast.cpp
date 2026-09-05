@@ -149,6 +149,7 @@
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
@@ -904,8 +905,6 @@ struct ShippingForecast : sketch::Sketch {
 
   // ------------------------------------------------------------------
   void setup(sketch::SketchContext& ctx) override {
-    ctx.canvas(kW, kH);
-    ctx.background(kSea);
     // EVERY SCRAMBLE HAS RESOLVED. The barometer's readout runs an
     // `fx::hold(fx::scramble(...))` to 4.10 s and the forecast paragraph's
     // initials converge on their bodies after that, so a still taken
@@ -913,23 +912,21 @@ struct ShippingForecast : sketch::Sketch {
     // defines the real one, and a paragraph that reads as a rendering
     // fault. The grade swell peaks every 7.2 s, so the second peak is the
     // frame where the swell is at its height AND nothing is mid-decode.
-    ctx.captureAt(10.8);
+    sketch::kit::stage(
+        ctx,
+        {.size = SkSize::Make(kW, kH), .captureAt = 10.8, .background = kSea});
 
     // The system grotesque is the face that carries GRAD, the
     // advance-invariant weight axis the swell needs. The stand-ins keep the
     // sheet legible where it is absent; the swell then simply does not
     // happen, and says so once.
     faceDisplay =
-        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
-    faceBold =
-        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
-    faceBody =
-        weave::ports::pickTypeface({".SF NS", "SF Pro", "Helvetica Neue"}, 400);
-    faceTerm =
-        weave::ports::pickTypeface({"Iowan Old Style", "Charter", "Georgia"},
-                                   400, SkFontStyle::kItalic_Slant);
-    faceMono =
-        weave::ports::pickTypeface({"Menlo", "SF Mono", "Courier New"}, 400);
+        weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
+    faceBold = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
+    faceBody = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 400);
+    faceTerm = weave::ports::face({"Iowan Old Style", "Charter", "Georgia"},
+                                  400, SkFontStyle::kItalic_Slant);
+    faceMono = weave::ports::face({"Menlo", "SF Mono", "Courier New"}, 400);
 
     // The hero's ink: a ramp pinned to the metric band, warm at the
     // baseline and bone at the cap line, so a letter arriving from below

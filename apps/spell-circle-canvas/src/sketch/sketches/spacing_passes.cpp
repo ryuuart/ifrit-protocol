@@ -73,7 +73,7 @@ constexpr float kGlyphScale = 0.92f;     // what the third pass scales across
 constexpr SkColor4f kBody{0.86f, 0.87f, 0.90f, 1};
 
 weave::TextStyle body() {
-  static const sk_sp<SkTypeface> face = weave::ports::pickTypeface(
+  static const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle({.face = face, .size = 12, .color = kBody});
 }
