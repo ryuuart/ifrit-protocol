@@ -3338,7 +3338,7 @@
     "repetitions": 4
    }
   },
-  "sigilcore_cache_bench": {
+  "core_cache_bench": {
    "StillTree/64": {
     "real_ns": 295.97449944537084,
     "cpu_ns": 295.55345840940214,
@@ -3412,7 +3412,7 @@
     "repetitions": 4
    }
   },
-  "sigilcore_comparable_bench": {
+  "core_comparable_bench": {
    "BM_DirectEqual": {
     "real_ns": 0.31883184981252033,
     "cpu_ns": 0.3158561835777458,
@@ -3462,7 +3462,7 @@
     "repetitions": 4
    }
   },
-  "sigilcore_compute_bench": {
+  "core_compute_bench": {
    "BM_NoiseHash": {
     "real_ns": 3.414070416362506,
     "cpu_ns": 3.4135704491619414,
@@ -3506,7 +3506,7 @@
     "repetitions": 4
    }
   },
-  "sigilcore_reconcile_bench": {
+  "core_reconcile_bench": {
    "ColdMount/100": {
     "real_ns": 16339.448721735196,
     "cpu_ns": 16335.825254059111,

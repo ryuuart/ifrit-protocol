@@ -13,12 +13,12 @@ sigil_library(SigilCoreCache
 
 # Over a fake host, so a link edge that pulled a drawing or rasterizing
 # library in would show up as a build failure here.
-sigil_test(sigilcore_cache_test
+sigil_test(core_cache_test
   SOURCES test/FakeCacheHost.h test/VolatilityTest.cpp test/SettleTest.cpp
           test/BakeTest.cpp
   LIBRARIES SigilCoreCache)
 
-sigil_bench(sigilcore_cache_bench
+sigil_bench(core_cache_bench
   SOURCES bench/CacheBench.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test
   LIBRARIES SigilCoreCache)

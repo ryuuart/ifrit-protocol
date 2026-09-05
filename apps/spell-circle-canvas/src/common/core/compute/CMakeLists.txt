@@ -7,12 +7,14 @@
 # because every function is inline by nature.
 sigil_library(SigilCoreCompute)
 
-# The outputs are the contract, so the test pins them: exact words, and
-# floats compared as bits. Links only the library it exercises.
-sigil_test(sigilcore_compute_test
+# The outputs are the contract — a second implementation of one of these
+# bodies is correct only when it answers the same numbers — so the test
+# pins them: exact words, and floats compared as bits. Links only the
+# library it exercises.
+sigil_test(core_compute_test
   SOURCES test/HashTest.cpp test/NoiseTest.cpp
   LIBRARIES SigilCoreCompute)
 
-sigil_bench(sigilcore_compute_bench
+sigil_bench(core_compute_bench
   SOURCES bench/ComputeBench.cpp
   LIBRARIES SigilCoreCompute)

@@ -1,12 +1,15 @@
 /** @file
  * The seeded mixers, pinned to the words and floats they produce.
  *
- * Stored renders are seeded through these functions, and a GPU kernel
- * reproduces the PCG three word for word. A body that drifts therefore
- * cannot be caught by a property — "in range", "not equal to its
- * neighbour" and "the same twice" all survive a different mixer. Only
- * the exact outputs catch it, so exact outputs are what this file
- * asserts, floats compared as bits so a value one ulp away fails.
+ * These bodies exist so that a second implementation of them agrees to
+ * the bit: a GPU kernel reproduces the PCG three word for word, and a
+ * point cook, a jitter and a shader's CPU twin all have to draw the same
+ * number for the same index. A body that drifts cannot be caught by a
+ * property — "in range", "not equal to its neighbour" and "the same
+ * twice" all survive a different mixer, and every one of them is still
+ * true of the wrong stream. Only the exact outputs catch it, so exact
+ * outputs are what this file asserts, floats compared as bits so a value
+ * one ulp away fails.
  */
 
 #include <gtest/gtest.h>
@@ -14,6 +17,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <functional>
+#include <string>
 
 namespace {
 
@@ -25,9 +30,26 @@ uint32_t bits(float f) {
   return b;
 }
 
+/** One draw a header states a range for: how to take the next value, and
+ *  the interval it promised. `highIncluded` says whether the top of the
+ *  range is reachable — a signed hash reaches 1, a unit float does not. */
+struct Draw {
+  const char* name;
+  std::function<float(uint32_t)> next;
+  float low;
+  float high;
+  bool highIncluded;
+};
+
+std::string drawName(const testing::TestParamInfo<Draw>& info) {
+  return info.param.name;
+}
+
+struct Draws : testing::TestWithParam<Draw> {};
+
 }  // namespace
 
-TEST(Noise, TheAvalancheIsPinnedToItsExactWords) {
+TEST(Noise, TheAvalancheIsTheSameWordsInEveryImplementation) {
   EXPECT_EQ(noise::mix64(1u), 0x5692161d100b05e5ull);
   EXPECT_EQ(noise::mix64(42u), 0xa759ea27d4727622ull);
   EXPECT_EQ(noise::mix64(0xdeadbeefu), 0x4e062702ec929eeaull);
@@ -40,7 +62,7 @@ TEST(Noise, TheAvalancheIsPinnedToItsExactWords) {
   EXPECT_NE(noise::mix64(noise::kMix64Gamma), 0ull);
 }
 
-TEST(Noise, HashIsPinnedToItsExactFloats) {
+TEST(Noise, TheStatelessHashIsTheSameFloatsInEveryImplementation) {
   EXPECT_EQ(bits(noise::hash(0u, 0u)), 0xbf4464a2u);
   EXPECT_EQ(bits(noise::hash(7u, 1u)), 0x3f430f78u);
   EXPECT_EQ(bits(noise::hash(7u, 2u)), 0xbf70191au);
@@ -48,15 +70,48 @@ TEST(Noise, HashIsPinnedToItsExactFloats) {
   EXPECT_EQ(bits(noise::hash(0xffffffffu, 0xffffffffu)), 0xbf4f494au);
 }
 
-TEST(Noise, HashLandsInItsStatedRange) {
+TEST_P(Draws, LandInTheRangeTheHeaderStatesForThem) {
+  Draw draw = GetParam();  // copied: a stream carries its state in here
   for (uint32_t i = 0; i < 4096; ++i) {
-    const float v = noise::hash(11u, i);
-    EXPECT_GE(v, -1.0f);
-    EXPECT_LE(v, 1.0f);
+    const float v = draw.next(i);
+    EXPECT_GE(v, draw.low) << "draw " << i;
+    if (draw.highIncluded)
+      EXPECT_LE(v, draw.high) << "draw " << i;
+    else
+      EXPECT_LT(v, draw.high) << "draw " << i;
   }
 }
 
-TEST(Noise, ThePcgStepsArePinned) {
+INSTANTIATE_TEST_SUITE_P(
+    Ranges, Draws,
+    testing::Values(
+        Draw{"TheStatelessHash",
+             [](uint32_t i) { return noise::hash(11u, i); }, -1.0f, 1.0f, true},
+        Draw{"ThePcgUnit", [](uint32_t i) { return noise::pcgUnit(i); }, 0.0f,
+             1.0f, false},
+        Draw{"TheXorshiftUnit",
+             [state = uint32_t{1}](uint32_t) mutable {
+               return noise::xorshiftUnitNext(state);
+             },
+             0.0f, 1.0f, false},
+        Draw{"TheMix64StreamsUnit",
+             [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
+               return stream.unit();
+             },
+             0.0f, 1.0f, false},
+        Draw{"TheMix64StreamsSignedUnit",
+             [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
+               return stream.signedUnit();
+             },
+             -1.0f, 1.0f, false},
+        Draw{"TheMix64StreamsNamedRange",
+             [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
+               return stream.range(-3.0f, 5.0f);
+             },
+             -3.0f, 5.0f, false}),
+    drawName);
+
+TEST(Noise, EachPcgStepIsTheSameWordsInEveryImplementation) {
   EXPECT_EQ(noise::pcgAdvance(0u), 2891336453u);
   EXPECT_EQ(noise::pcgAdvance(1u), 3639132858u);
   EXPECT_EQ(noise::pcgAdvance(42u), 4234014391u);
@@ -78,15 +133,11 @@ TEST(Noise, PcgHashIsTheAdvanceThenTheMix) {
     EXPECT_EQ(noise::pcgHash(x), noise::pcgMix(noise::pcgAdvance(x)));
 }
 
-TEST(Noise, PcgUnitIsPinnedToItsExactFloats) {
+TEST(Noise, ThePcgUnitFloatIsTheSameFloatsInEveryImplementation) {
   EXPECT_EQ(bits(noise::pcgUnit(0u)), 0x3f3b2fe2u);
   EXPECT_EQ(bits(noise::pcgUnit(1u)), 0x3f3eea3cu);
   EXPECT_EQ(bits(noise::pcgUnit(42u)), 0x3f7432ffu);
   EXPECT_EQ(bits(noise::pcgUnit(0xdeadbeefu)), 0x3e2665c8u);
-  for (uint32_t x = 0; x < 4096; ++x) {
-    EXPECT_GE(noise::pcgUnit(x), 0.0f);
-    EXPECT_LT(noise::pcgUnit(x), 1.0f);
-  }
 }
 
 TEST(Noise, TheStreamCarriesItsStateAndItsFirstWordIsTheStatelessHash) {
@@ -97,7 +148,7 @@ TEST(Noise, TheStreamCarriesItsStateAndItsFirstWordIsTheStatelessHash) {
   EXPECT_EQ(state, 1561666408u);
 }
 
-TEST(Noise, TheXorshiftStepIsPinnedToItsExactWords) {
+TEST(Noise, TheXorshiftStepIsTheSameWordsInEveryImplementation) {
   uint32_t state = 1u;
   EXPECT_EQ(noise::xorshiftNext(state), 270369u);
   EXPECT_EQ(noise::xorshiftNext(state), 67634689u);
@@ -119,17 +170,11 @@ TEST(Noise, TheXorshiftStreamAdvancesInPlaceAndReturnsWhatItAdvancedTo) {
   EXPECT_EQ(noise::xorshiftNext(zero), 0u);
 }
 
-TEST(Noise, XorshiftUnitIsPinnedToItsExactFloats) {
+TEST(Noise, TheXorshiftUnitFloatIsTheSameFloatsInEveryImplementation) {
   uint32_t state = 0x9E3779B9u;
   EXPECT_EQ(bits(noise::xorshiftUnitNext(state)), 0x3ea2188cu);
   EXPECT_EQ(bits(noise::xorshiftUnitNext(state)), 0x3f602e55u);
   EXPECT_EQ(bits(noise::xorshiftUnitNext(state)), 0x3ef7731eu);
-  state = 1u;
-  for (int draw = 0; draw < 4096; ++draw) {
-    const float u = noise::xorshiftUnitNext(state);
-    EXPECT_GE(u, 0.0f);
-    EXPECT_LT(u, 1.0f);
-  }
 }
 
 TEST(Noise, TheMix64StreamIsTheCounterSteppedByTheGammaAndAvalanched) {
@@ -142,23 +187,11 @@ TEST(Noise, TheMix64StreamIsTheCounterSteppedByTheGammaAndAvalanched) {
   EXPECT_EQ(stream.bits(), 0x47526757u);
 }
 
-TEST(Noise, TheMix64StreamsUnitFloatsArePinnedAndStayInRange) {
+TEST(Noise, TheMix64StreamsUnitFloatsAreTheSameFloatsInEveryImplementation) {
   noise::Mix64Stream stream(42u);
   EXPECT_EQ(bits(stream.unit()), 0x3f3dd732u);
   EXPECT_EQ(bits(stream.unit()), 0x3e23bf8cu);
   EXPECT_EQ(bits(stream.unit()), 0x3e8ea4ceu);
-  noise::Mix64Stream walk(1u);
-  for (int draw = 0; draw < 4096; ++draw) {
-    const float u = walk.unit();
-    EXPECT_GE(u, 0.0f);
-    EXPECT_LT(u, 1.0f);
-    const float s = walk.signedUnit();
-    EXPECT_GE(s, -1.0f);
-    EXPECT_LT(s, 1.0f);
-    const float r = walk.range(-3.0f, 5.0f);
-    EXPECT_GE(r, -3.0f);
-    EXPECT_LT(r, 5.0f);
-  }
 }
 
 TEST(Noise, TwoMix64StreamsOnOneSeedDrawTheSameSequence) {

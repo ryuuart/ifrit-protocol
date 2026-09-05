@@ -7,20 +7,10 @@
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
-
 #include "FakeHost.h"
 
 using namespace sigil::core;
 using namespace sigil::core::test::reconcile;
-
-namespace {
-
-bool logged(const FakeHost& host, const std::string& entry) {
-  return std::find(host.log.begin(), host.log.end(), entry) != host.log.end();
-}
-
-}  // namespace
 
 TEST(Reconciler, MountsTheTreeAndCountsIt) {
   FakeHost host;
@@ -34,9 +24,15 @@ TEST(Reconciler, MountsTheTreeAndCountsIt) {
   EXPECT_EQ(s.mounted, 3);
   EXPECT_EQ(s.retired, 0);
   EXPECT_EQ(host.reconciler.frame(), 1u);
-  EXPECT_TRUE(logged(host, "patch a (mount)"));
-  EXPECT_TRUE(logged(host, "create a #2 0/2"));
-  EXPECT_TRUE(logged(host, "create b #3 1/2"));
+  ASSERT_TRUE(host.first(Op::Patch, "a"));
+  EXPECT_TRUE(host.first(Op::Patch, "a")->mount) << "the first patch mounts";
+  // Each child is created knowing where it stands among its siblings.
+  ASSERT_TRUE(host.first(Op::Create, "a"));
+  ASSERT_TRUE(host.first(Op::Create, "b"));
+  EXPECT_EQ(host.first(Op::Create, "a")->ordinal, 0u);
+  EXPECT_EQ(host.first(Op::Create, "b")->ordinal, 1u);
+  EXPECT_EQ(host.first(Op::Create, "a")->count, 2u);
+  EXPECT_EQ(host.first(Op::Create, "b")->count, 2u);
 }
 
 TEST(Reconciler, IdenticalRedescribePrunesEveryNode) {
@@ -48,9 +44,9 @@ TEST(Reconciler, IdenticalRedescribePrunesEveryNode) {
   EXPECT_EQ(s.describedNodes, 3);
   EXPECT_EQ(s.patchedNodes, 0);
   EXPECT_EQ(s.mounted, 0);
-  EXPECT_FALSE(logged(host, "patch a"));
-  EXPECT_TRUE(logged(host, "reorder root"));  // never "changed"
-  EXPECT_FALSE(logged(host, "reorder root changed"));
+  EXPECT_FALSE(host.asked(Op::Patch, "a"));
+  ASSERT_TRUE(host.first(Op::Reorder, "root"));
+  EXPECT_FALSE(host.first(Op::Reorder, "root")->structureChanged);
 }
 
 TEST(Reconciler, AChangedValuePatchesThatNodeAlone) {
@@ -59,8 +55,8 @@ TEST(Reconciler, AChangedValuePatchesThatNodeAlone) {
   host.log.clear();
   host.render(description("root", 0, {description("a", 1), description("b", 3)}));
   EXPECT_EQ(host.reconciler.stats().patchedNodes, 1);
-  EXPECT_TRUE(logged(host, "patch b"));
-  EXPECT_FALSE(logged(host, "patch a"));
+  EXPECT_TRUE(host.asked(Op::Patch, "b"));
+  EXPECT_FALSE(host.asked(Op::Patch, "a"));
 }
 
 TEST(Reconciler, KeyedReorderKeepsEveryHandle) {
@@ -74,7 +70,8 @@ TEST(Reconciler, KeyedReorderKeepsEveryHandle) {
   EXPECT_EQ(host.child(2), b);
   EXPECT_EQ(host.reconciler.stats().patchedNodes, 0);
   EXPECT_EQ(host.reconciler.stats().retired, 0);
-  EXPECT_TRUE(logged(host, "reorder root changed"));
+  ASSERT_TRUE(host.first(Op::Reorder, "root"));
+  EXPECT_TRUE(host.first(Op::Reorder, "root")->structureChanged);
 }
 
 TEST(Reconciler, UnkeyedChildrenMatchByPosition) {
@@ -103,7 +100,7 @@ TEST(Reconciler, IdentityChangeKeepsTheHandleAndItsLanes) {
   EXPECT_EQ(a->kind, "text");
   EXPECT_EQ(a->lane, 42);
   EXPECT_EQ(host.reconciler.stats().retired, 0);
-  EXPECT_TRUE(logged(host, "patch a"));
+  EXPECT_TRUE(host.asked(Op::Patch, "a"));
 }
 
 TEST(Reconciler, ARemovedChildRetiresStampedWithThePass) {
@@ -118,12 +115,12 @@ TEST(Reconciler, ARemovedChildRetiresStampedWithThePass) {
   EXPECT_EQ(host.childKeys(), (std::vector<std::string>{"a", "c"}));
   // Retirement follows the reorder, so the host has detached the node
   // from whatever it keeps children attached to before it is destroyed.
-  const auto reorder =
-      std::find(host.log.begin(), host.log.end(), "reorder root changed");
-  const auto destroy = std::find(host.log.begin(), host.log.end(),
-                                 "destroy #" + std::to_string(idB));
-  ASSERT_NE(reorder, host.log.end());
-  ASSERT_NE(destroy, host.log.end());
+  const size_t reorder = host.indexOf(Op::Reorder, "root");
+  const size_t destroy = host.indexOf(Op::Destroy, "b");
+  ASSERT_NE(reorder, host.log.size());
+  ASSERT_NE(destroy, host.log.size());
+  EXPECT_EQ(host.log[destroy].id, idB);
+  EXPECT_TRUE(host.log[reorder].structureChanged);
   EXPECT_LT(reorder, destroy);
 }
 
@@ -241,8 +238,9 @@ TEST(Reconciler, SlotContentIsNotWalkedAndReplaceContentFillsIt) {
   ASSERT_EQ(slotNode->children.size(), 1u);
   FakeNode* content = slotNode->children.front().get();
   EXPECT_EQ(content->parent, slotNode);
-  EXPECT_TRUE(logged(host, "reorder slot changed"));
-  EXPECT_TRUE(logged(host, "invalidate slot"));
+  ASSERT_TRUE(host.first(Op::Reorder, "slot"));
+  EXPECT_TRUE(host.first(Op::Reorder, "slot")->structureChanged);
+  EXPECT_TRUE(host.asked(Op::Invalidate, "slot"));
   EXPECT_EQ(host.reconciler.frame(), 2u);
 
   // The single child is patched in place next time, and the slot is
@@ -251,8 +249,8 @@ TEST(Reconciler, SlotContentIsNotWalkedAndReplaceContentFillsIt) {
   host.reconciler.replaceContent(*slotNode, description("content", 2));
   EXPECT_EQ(slotNode->children.front().get(), content);
   EXPECT_EQ(content->description->value, 2);
-  EXPECT_TRUE(logged(host, "patch content"));
-  EXPECT_TRUE(logged(host, "invalidate slot"));
+  EXPECT_TRUE(host.asked(Op::Patch, "content"));
+  EXPECT_TRUE(host.asked(Op::Invalidate, "slot"));
 }
 
 TEST(Reconciler, TheKeyIndexAddressesAMemoShellByTheShellsKeyElseThePayloads) {
@@ -278,7 +276,7 @@ TEST(Reconciler, TheKeyIndexAddressesAMemoShellByTheShellsKeyElseThePayloads) {
   EXPECT_EQ(host.reconciler.matchKeyOf(*host.child(2)), "");
 }
 
-TEST(Reconciler, StatsReportIntoNamedCounters) {
+TEST(Reconciler, EveryCountItKeepsIsPublishedUnderItsOwnName) {
   FakeHost host;
   host.render(description("root", 0, {description("a"), description("b")}));
   sigil::measure::Counters counters;

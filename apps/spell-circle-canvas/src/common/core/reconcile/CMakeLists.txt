@@ -17,12 +17,12 @@ sigil_library(SigilCoreReconcile
 
 # Over a fake host, so a link edge that pulled a drawing or layout
 # library in would show up as a build failure here.
-sigil_test(sigilcore_reconcile_test
+sigil_test(core_reconcile_test
   SOURCES test/FakeHost.h test/ReconcilerTest.cpp test/EnvTest.cpp
           test/PhasesTest.cpp test/ReadsTest.cpp
   LIBRARIES SigilCoreReconcile)
 
-sigil_bench(sigilcore_reconcile_bench
+sigil_bench(core_reconcile_bench
   SOURCES bench/ReconcileBench.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test
   LIBRARIES SigilCoreReconcile)

@@ -618,71 +618,80 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release
-ctest --test-dir build -C Release -R 'sigilcore|core_' --output-on-failure
+ctest --test-dir build -C Release -R '^core_' --output-on-failure
 ```
 
-`sigilcore_comparable_test` (`comparable/test/`) covers the erased value
-— empty, copies of one value, two comparable models compared by type and
-by value, and the escape hatch that is equal to nothing but its own
-copies — and the field pin over aggregates of the shapes a comparable
-value takes. `sigilcore_comparable_bench` (`comparable/bench/`) times
-each of those comparisons against the same question asked of the model
-directly, so what erasure costs is the difference between two arms.
+A binary here exists where it links a **strictly smaller** set of targets
+than its neighbours, or where a runner has to supply something the others
+do not; two binaries over one closure with nothing to tell a runner are
+one binary. Every one of them links only the feature it exercises, so an
+edge that pulled a drawing, layout or animation library in would show up
+as a build failure rather than as a test that still passed:
 
-`sigilcore_compute_test` (`compute/test/`) pins the mixers to the exact
-words and floats they produce, floats compared as bits: a body that
-drifted by one operation fails there rather than in a stored render
-weeks later. `sigilcore_compute_bench` (`compute/bench/`) times each
-mixer one call at a time, which is how they are spent.
+| binary | what it proves | label |
+|---|---|---|
+| `core_comparable_test` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes | — |
+| `core_compute_test` | the mixers and folds, pinned to the exact words and floats they produce | — |
+| `core_schedule_test` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once, two at a time, and joining every thread even when one item fails | — |
+| `core_reconcile_test` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering | — |
+| `core_cache_test` | the settled-subtree proof, the stability release and the bake seam over a fake host | — |
+| `core_hardware_test` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows | — |
+| `core_hardware_device_test` | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, and the levels a texture is built with | `gpu` |
 
-`core_schedule_test` (`schedule/test/`) asks what the seam promises and
-nothing about how fast it is: that the chunks of a divided range are
-disjoint and cover it exactly once, that a count no larger than the grain
-runs on the calling thread and a larger one does not, that a zero grain
-is one item and an empty range calls the body not at all, that a body's
-exception reaches the caller, and — for the blocking fan-out — that every
-item runs exactly once, that two items are in flight together, and that
-one item's failure still leaves the batch run and every thread joined.
-`core_schedule_bench` (`schedule/bench/`) times a divided range over a
-body that does nothing but touch its item, at three sizes, so what is
-measured is the split rather than any consumer's arithmetic.
+`core_hardware_device_test` exists on Apple alone and every case in it
+skips where there is no GPU, which is why it carries a label: a case that
+skips is not coverage on the machine it skipped on, and the label is how
+a runner is told. The same questions on the Vulkan backend are asked in
+`geometry_device_test`, since that is where a Vulkan device exists to ask
+them of.
 
-`sigilcore_reconcile_test` (`reconcile/test/`) exercises the reconciler
-over a fake host — `FakeHost.h`, a host with nothing behind it that logs
-every operation — alongside the environment channel and the phase
-runner; it links `SigilCoreReconcile` alone, so an edge that pulled a
-drawing or animation library in would fail there. The
-benchmark, `sigilcore_reconcile_bench` (`reconcile/bench/`), times the
-reconciler over the same fake host at several node counts; it builds
-through the `benches` target and runs through `scripts/bench_ledger.py`,
-which is where any number about it belongs.
+One file per subject, named for what it asserts: `HashTest` and
+`NoiseTest` in `compute/test/`; `ErasedTest` in `comparable/test/` (the
+erasure and the field pin are one subject — what a value needs before
+anything can decide it did not change — and a consumer takes both or
+neither); `ReconcilerTest`, `EnvTest`, `PhasesTest` and `ReadsTest` in
+`reconcile/test/`; `VolatilityTest`, `SettleTest` and `BakeTest` in
+`cache/test/`; `HandleTest`, `MipChainTest` and `DeviceTest` in
+`hardware/test/`.
 
-`sigilcore_cache_test` (`cache/test/`) does the same for the caching
-kernel over `FakeCacheHost.h` — nodes that declare volatility, hold a
+A case asserts one thing a public header promises and is named that
+promise as a sentence, so a failure line reads as the claim that broke.
+It pins only what editing this library could falsify. The exact words and
+floats in `compute/test/` are exactly that: these bodies exist so a
+second implementation of one of them agrees to the bit — a GPU kernel
+reproduces the PCG three word for word, and a jitter, a point cook and a
+shader's CPU twin all have to draw the same number for the same index —
+and no property catches a drifted mixer, because "in range", "the same
+twice" and "different for different seeds" are all still true of the
+wrong stream. A claim made N times with one thing varying is one `TEST_P`
+whose parameter is that thing, with its rows named: the FNV folds are one
+over seven inputs, and the ranges the headers state for their draws are
+one over six draws.
+
+Each kernel is exercised over a fake host: `reconcile/test/FakeHost.h`, a
+host with nothing behind it that records every operation the reconciler
+asks of it as a structured event — the operation, whose key, and that
+operation's own arguments — so a claim about what was asked and in what
+order survives any rewording of what a host would print; and
+`cache/test/FakeCacheHost.h`, whose nodes declare volatility, hold a
 numbered artefact instead of pixels and count every operation asked of
-them: a still tree, one driven lane deep in a subtree unsettling every
-ancestor, a declared opt-out, the three sides of the release, and the
-counts that say a settled tree bakes once and replays after. It links
-`SigilCoreCache` alone. `sigilcore_cache_bench` (`cache/bench/`) times
-the proof over the same fake host at several node counts.
+them. A fake host is the subject of a measurement as much as of a test,
+so each feature's benchmark compiles with its own `test/` on its include
+path and drives the host defined there — one definition, and the two
+binaries cannot disagree about what they are exercising. Each fake lives
+in its own `sigil::core::test::<feature>` namespace, which is what lets
+every one of them spell the plainest name for what it is — `FakeHost`,
+`FakeNode` — with no feature's test reaching into another's directory to
+find out.
 
-A fake host is the subject of a measurement as much as of a test, so
-each of those two benchmarks compiles with its own feature's `test/` on
-its include path and drives the host defined there — one definition, and
-the two binaries cannot disagree about what they are exercising. Each
-fake lives in its own `sigil::core::test::<feature>` namespace, which is
-what lets every one of them spell the plainest name for what it is —
-`FakeHost`, `FakeNode` — with no feature's test reaching into another's
-directory to find out.
-
-`core_hardware_test` (`hardware/test/`) needs a GPU, so it exists on
-Apple alone: it proves the handles go stale and a reused slot rejects the
-old name, that destruction retires at frame + 3, that a borrowed import
-and an owned one differ in who releases the texture, that a mip chain is
-as deep as the size allows, and that a fence signals and holds — the last
-of those by waiting, since a queue held by a fence has no other way of
-saying so. The same questions on
-the Vulkan backend are asked in `geometry_device_test`, since that is
-where a Vulkan device exists to ask them of. `core_hardware_bench`
-(`hardware/bench/`) is the benchmark, through the `benches` target and
-`scripts/bench_ledger.py`.
+The benchmarks are executables, not tests: `core_comparable_bench` times
+each erased comparison against the same question asked of the model
+directly, so what erasure costs is the difference between two arms;
+`core_compute_bench` times each mixer one call at a time, which is how
+they are spent; `core_schedule_bench` times a divided range over a body
+that does nothing but touch its item, at three sizes, so what is measured
+is the split rather than any consumer's arithmetic; `core_reconcile_bench`
+and `core_cache_bench` time the reconciler and the proof over the fake
+hosts at several node counts; and `core_hardware_bench` times the device.
+They build through the `benches` target and run through
+`scripts/bench_ledger.py`, which is where any number about them belongs.
