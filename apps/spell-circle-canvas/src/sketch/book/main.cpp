@@ -691,8 +691,8 @@ std::vector<int> windowBenchSelection(int only, const std::string& kind) {
 
 /** WHERE SKETCHBOOK KEEPS ITS THUMBNAILS. The command line names one; an
  *  environment variable names one for a test; otherwise the platform
- *  cache location, under this app's own name. The store is the app's —
- *  the plate ledger no longer writes it. */
+ *  cache location, under this app's own name. The store is the app's
+ *  alone: no ledger and no sweep writes into it. */
 std::filesystem::path thumbnailStoreDir(const std::string& override) {
   if (!override.empty()) return override;
   if (const char* env = std::getenv("SIGIL_SKETCHBOOK_THUMBNAILS");

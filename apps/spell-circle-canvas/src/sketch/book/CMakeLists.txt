@@ -67,8 +67,8 @@ qt_add_qml_module(Sketchbook
     SketchbookView.cpp SketchbookView.h
 )
 # The browser's thumbnails are THIS APP'S OWN, kept under the platform
-# cache location and filled on demand — the plate ledger no longer writes
-# them, so there are no compiled-in store directories. `--thumbnails-dir`
+# cache location and filled on demand — nothing else writes them, so
+# there are no compiled-in store directories. `--thumbnails-dir`
 # and the SIGIL_SKETCHBOOK_THUMBNAILS environment variable name another.
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Sketchbook PRIVATE

@@ -38,7 +38,7 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
   // rasterized at each end of the range must differ.
   float gradeMin = 0, gradeMax = 0;
   const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
-  ASSERT_TRUE(ui) << "the instrument's GRAD axis no longer holds advances "
+  ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
                      "over a range";
   {
     const sigil::weave::FontVariation vLo("GRAD", gradeMin),
@@ -110,7 +110,7 @@ TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
   // simply did nothing. One draw now places both, so it does.
   float gradeMin = 0, gradeMax = 0;
   const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
-  ASSERT_TRUE(ui) << "the instrument's GRAD axis no longer holds advances "
+  ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
                      "over a range";
 
   choreograph::Output<float> grade{gradeMin};
@@ -221,7 +221,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   // hide the drive entirely.
   float gradeMin = 0, gradeMax = 0;
   const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
-  ASSERT_TRUE(ui) << "the instrument's GRAD axis no longer holds advances "
+  ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
                      "over a range";
 
   sigil::weave::TextStyle style = styleAt(48);
@@ -291,7 +291,7 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
   // distinct value on every one of the frames below.
   float gradeMin = 0, gradeMax = 0;
   const sk_sp<SkTypeface> ui = gradeInstrument(gradeMin, gradeMax);
-  ASSERT_TRUE(ui) << "the instrument's GRAD axis no longer holds advances "
+  ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
                      "over a range";
 
   constexpr float kSize = 48.0f;

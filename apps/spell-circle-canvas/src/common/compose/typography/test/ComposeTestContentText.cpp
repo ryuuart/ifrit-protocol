@@ -2942,7 +2942,7 @@ int pixelsDiffering(const SkBitmap& a, const SkBitmap& b, int w, int h) {
 TEST(TextSpanAxis, AnInvariantAxisRedrawsWithoutReshaping) {
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);
-  ASSERT_TRUE(face) << "the instrument's GRAD axis no longer holds advances "
+  ASSERT_TRUE(face) << "the instrument's GRAD axis must hold advances "
                        "while moving ink";
 
   Host host(400, 120);
@@ -2982,7 +2982,7 @@ TEST(TextSpanAxis, AnAxisRestyleKeepsAnEarlierSpanPaintAndFoldsAnyway) {
   // nothing.
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);
-  ASSERT_TRUE(face) << "the instrument's GRAD axis no longer holds advances "
+  ASSERT_TRUE(face) << "the instrument's GRAD axis must hold advances "
                        "while moving ink";
 
   sigil::weave::TextStyle base = coloredStyle(40, SK_ColorWHITE);
@@ -3068,7 +3068,7 @@ TEST(TextSpanAxis, AnAdvanceVariantAxisReshapesInstead) {
 TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);
-  ASSERT_TRUE(face) << "the instrument's GRAD axis no longer holds advances "
+  ASSERT_TRUE(face) << "the instrument's GRAD axis must hold advances "
                        "while moving ink";
 
   // A FIXED WINDOW of design space, swept at a fixed number of samples, at
@@ -3120,7 +3120,7 @@ TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
 TEST(TextSpanAxis, ALaterDeclarationWinsOnOverlap) {
   float lo = 0, hi = 0;
   const sk_sp<SkTypeface> face = gradFace(lo, hi);
-  ASSERT_TRUE(face) << "the instrument's GRAD axis no longer holds advances "
+  ASSERT_TRUE(face) << "the instrument's GRAD axis must hold advances "
                        "while moving ink";
 
   Host host(400, 120);
