@@ -552,10 +552,10 @@ and the ones that name nothing say so.
 | Tabs: position, leaders, alignment on a character | done | `TabStop` | `Element::tabStops`; per block through `Element::paragraphs` |
 | Paragraph rules above / below, shading | done as compose kit | `kit::rules` | `kit::rules` |
 | Paragraph border | **not started** | — | — |
-| Nested styles, GREP styles, line styles | exists | `sel::regex`, `sel::line`, `sel::style`, span restyling | `Element::spanStyle`, `Element::spanPaint` over the same selectors |
-| Named character styles | exists — a registry whose lookup always answers | `StyleSet` | `rich().add(text, name)` against `env::Provide<weave::StyleSet>` |
+| Nested styles, GREP styles, line styles | exists | `sel::regex`, `sel::line`, span restyling | `Element::spanStyle`, `Element::spanPaint` over the same selectors, plus compose's own `sel::style` for a named run |
+| Named character styles | exists — a registry whose lookup always answers | `StyleSet`, `RichText::add(text, name)`, `RichText::styles` | `weave::rich().add(text, name)`, with `env::Provide<weave::StyleSet>` supplying the set a value did not name |
 | Named paragraph styles | exists — the same registry shape for blocks | `ParagraphStyleSet` | `Element::paragraphs(names)` against `env::Provide<weave::ParagraphStyleSet>`; a name no set carries warns |
-| Character: size, tracking, horizontal scale | exists | `ShapingStyle` | the `TextStyle` a `text()` or `rich()` run carries; `Element::spanStyle` |
+| Character: size, tracking, horizontal scale | exists | `ShapingStyle` | the `TextStyle` a `text()` or `weave::rich()` run carries; `Element::spanStyle` |
 | Character: metric kerning | exists (HarfBuzz) | shaping | the same style |
 | Character: optical kerning | done, as a STATED APPROXIMATION: every adjacent pair of a word is measured — the narrowest distance between the left glyph's right edge and the right glyph's left, in bands off the outlines — and closed to the distance the FACE'S OWN even pair leaves, with the face's kerning table switched off because the two are answers to one question. A designer kerns by judging the white as an area and as a rhythm; this measures a distance, so a pair a designer would have opened for legibility comes out tighter. The library decides nothing about how tight type should be — the reference is the face's own — and no pair moves further than a stated bound | `ShapingStyle::opticalKerning` | the same field on the style a run carries; `Element::spanStyle` |
 | Character: baseline shift | done | `PaintStyle::baselineShift` | the same field; `Element::spanPaint` |
@@ -568,11 +568,11 @@ and the ones that name nothing say so.
 | Frame: vertical justification | done | `FrameOptions::distribute` | `Element::distribute` |
 | Frame: first-baseline offset | done | `FrameOptions::firstBaseline` | `Element::firstBaseline` |
 | Frame: auto-size | exists | compose measure | a leaf given no width measures its own content |
-| Threading (in and out ports) | done | `layoutParagraph`'s resume word; the chain also states the next frame's measure through `ParagraphLayoutOptions::nextMeasure` | `Story`, `frame`, `Element::key` and `Element::thread` |
-| Story-wide addressing | done — a story's words, characters, sentences and named runs are the story's already, and the LINE is what a frame chain renumbers | — | `sel::line` addresses the story, `sel::inFrame` is the frame-local address beside it, and a cascade's beats span the chain on one master progress |
+| Threading (in and out ports) | done | `Story`; `layoutParagraph`'s resume word; the chain also states the next frame's measure through `ParagraphLayoutOptions::nextMeasure` | `weave::Story`, `frame`, `Element::key` and `Element::thread` |
+| Story-wide addressing | done — a story's words, characters, sentences and named runs are the story's already, and the LINE is what a frame chain renumbers | `sel::line` | `weave::sel::line` addresses the story, compose's `sel::inFrame` is the frame-local address beside it, and a cascade's beats span the chain on one master progress |
 | Text wrap: bounding box, object shape, offsets | exists | `ExclusionFlow`, compose `flowAround` | `Element::flowAround` |
 | Text wrap: jump object, wrap to one side | **not started** | — | — |
-| Anchored objects: inline | exists | `Placeholder`, `RichText::slot` | `rich().slot(name, size)` with `slot(name)` |
+| Anchored objects: inline | exists | `Placeholder`, `RichText::slot` | `weave::rich().slot(name, size)` with a child keyed for that name |
 | Anchored objects: above line | done, for a READING — a band reserved above the line and filled with set text | compose `Element::annotate` | `Element::annotate` |
 | Anchored objects: custom position | done as compose kit — an object tied to a text unit and placed at an offset the caller states, with the x and y references named separately (the unit, its line, or the frame) | compose `kit::annotate` with `kit::Anchored` | `kit::annotate` with `kit::Anchored` |
 | Room reserved beside every line | done — a layout input, in the strut before anything is broken | `ReservedBand`, `ParagraphStyle::reserved` | `Element::reserve`; `Element::annotate` reserves its own on top |
