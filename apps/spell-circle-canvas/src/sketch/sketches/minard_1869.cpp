@@ -1595,10 +1595,10 @@ struct Minard1869 : sketch::Sketch {
     jaw(r.x, r.y, r.halfPx, "jaw1");
     const float rx = kFrameL + 10, ry = 686.0f;
     g.child(
-        text(toU8(kit::format("%.2f mm", r.mm)), type(faceUiBold, 17, kBlue))
+        text(toU8(kit::formatted("%.2f mm", r.mm)), type(faceUiBold, 17, kBlue))
             .at({rx, ry})
             .key("calread"));
-    g.child(text(toU8(kit::format("÷ %.0f = %.4f mm / 10.000", r.men,
+    g.child(text(toU8(kit::formatted("÷ %.0f = %.4f mm / 10.000", r.men,
                                   r.mm / (r.men / 10000.0f))),
                  type(faceUi, 9.5f, kBlue))
                 .at({rx, ry + 20})
@@ -2050,7 +2050,7 @@ struct Minard1869 : sketch::Sketch {
               .transformOrigin(dx < 0 ? 1.0f : 0.0f, 0.5f)
               .opacity(beat(tDistort + 0.2f + 0.05f * (float)i,
                             tDistort + 0.4f + 0.05f * (float)i)));
-      g.child(text(toU8(kit::format("%.3f", legs[i].ratio)),
+      g.child(text(toU8(kit::formatted("%.3f", legs[i].ratio)),
                    type(faceUi, 9.5f, bad ? kAmber : kGrey))
                   .at({bx + bw + 20, y - 2})
                   .key("legv" + std::to_string(i))
@@ -2101,10 +2101,10 @@ struct Minard1869 : sketch::Sketch {
            i == 4 ? std::string(t.label) + "   (NO DATE ENGRAVED)"
                   : std::string(t.label),
            i == 4 ? kAmber : col, cold ? 11.0f : 10.0f);
-      cell(1, kit::format("%.0f", t.reaumur), col, cold ? 11.5f : 10.0f);
-      cell(2, kit::format("%.2f", t.reaumur * 1.25f), col,
+      cell(1, kit::formatted("%.0f", t.reaumur), col, cold ? 11.5f : 10.0f);
+      cell(2, kit::formatted("%.2f", t.reaumur * 1.25f), col,
            cold ? 11.5f : 10.0f);
-      cell(3, kit::format("%.2f", t.reaumur * 2.25f + 32.0f), col,
+      cell(3, kit::formatted("%.2f", t.reaumur * 2.25f + 32.0f), col,
            cold ? 11.5f : 10.0f);
       cell(4, i == 0 ? std::string("—") : std::to_string(t.daysSincePrev),
            kGrey, 10.0f);
@@ -2256,7 +2256,7 @@ struct Minard1869 : sketch::Sketch {
     chk(colA, "20,000 + 30,000 at the Berezina", 20000 + 30000, 50000);
     chk(colA, " 4,000 +  6,000 at the Niemen", 4000 + 6000, 10000);
     say(colA,
-        kit::format("  Berezina 50,000−28,000=22,000 in 4 days · campaign "
+        kit::formatted("  Berezina 50,000−28,000=22,000 in 4 days · campaign "
                     "%.2f%% survived",
                     100.0 * 10000.0 / 422000.0),
         "dim");
@@ -2273,13 +2273,13 @@ struct Minard1869 : sketch::Sketch {
         const bool bobr = std::fabs(all[i].lon - 29.2f) < 0.01f;
         if (all[i].men > all[i - 1].men && !bobr) {
           ++violations;
-          viol = kit::format("  → %.0f → %.0f westward: the army GAINS men",
+          viol = kit::formatted("  → %.0f → %.0f westward: the army GAINS men",
                              all[i - 1].men, all[i].men);
         }
       }
     }
     say(colA,
-        kit::format("  junctions checked %.0f      violations %.0f",
+        kit::formatted("  junctions checked %.0f      violations %.0f",
                     (double)junctions, (double)violations),
         violations ? "fail" : "pass");
     say(colA, viol + " (Molodezno→Smorgoni, +2,000, unexplained)", "fail");
@@ -2296,11 +2296,11 @@ struct Minard1869 : sketch::Sketch {
         "dim");
     say(colA, "  → the one place he smooths.  Δ 1,000", "dim");
     say(colA,
-        kit::format("  Hannibal 218 BC   96,000 → 26,000   survived %.2f%%",
+        kit::formatted("  Hannibal 218 BC   96,000 → 26,000   survived %.2f%%",
                     100.0 * 26.0 / 96.0),
         "dim");
     say(colA,
-        kit::format("  Napoleon 1812    422,000 → 10,000   survived %.2f%%",
+        kit::formatted("  Napoleon 1812    422,000 → 10,000   survived %.2f%%",
                     100.0 * 10.0 / 422.0),
         "dim");
     say(colA, "", "dim");
@@ -2321,7 +2321,7 @@ struct Minard1869 : sketch::Sketch {
                              3945.0 / 3423.0, 0.01));
     say(colB, "  frame 3685 px = 579.14 mm ⇒ 3.4482 px/mm on that scan", "dim");
     say(colB,
-        kit::format("  from the regression                        %.3f mm/10k",
+        kit::formatted("  from the regression                        %.3f mm/10k",
                     3.828 / 3.4482),
         "measured");
     say(colB, "  four direct BnF spot reads             1.1258 ± 0.013 mm",
@@ -2336,7 +2336,7 @@ struct Minard1869 : sketch::Sketch {
         "continent",
         "fail");
     say(colB,
-        kit::format(
+        kit::formatted(
             "  half a French ligne (2.2558/2) = 1.1279 mm  — %.2f%% away  "
             "[SPECULATION]",
             100.0 * std::fabs(kLigneHalf - kMmPer10k) / kMmPer10k),
@@ -2377,10 +2377,10 @@ struct Minard1869 : sketch::Sketch {
       const float rms = std::sqrt(ss / (float)km.size());
       const float med = (sorted[9] + sorted[10]) * 0.5f;
       say(colC,
-          kit::format("  20 cities, haversine:  mean %.2f km   median %.2f km",
+          kit::formatted("  20 cities, haversine:  mean %.2f km   median %.2f km",
                       mean, med),
           "measured");
-      say(colC, kit::format("                         rms  %.2f km", rms),
+      say(colC, kit::formatted("                         rms  %.2f km", rms),
           "measured");
       say(colC, "  0.1° digitisation quantum, diagonal        6.41 km", "dim");
       say(colC, "  rms expected from quantisation alone      3.70 km", "dim");
@@ -2399,7 +2399,7 @@ struct Minard1869 : sketch::Sketch {
       const float kmM = haversineKm(kCities[0].lon, kCities[0].lat,
                                     kCities[17].lon, kCities[17].lat);
       say(colC,
-          kit::format("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM,
+          kit::formatted("  Kowno→Moscou  real %.1f km   Minard %.1f km", kmKM,
                       kmM),
           "measured");
       say(colC,
@@ -2687,13 +2687,13 @@ struct Minard1869 : sketch::Sketch {
     say(colE, "THE SKETCH'S OWN GEOMETRY — the same auditor, turned round",
         "heading");
     say(colE,
-        kit::format(
+        kit::formatted(
             "  advance band, min-chord every 4 px:  max |err| %.2f px = %.3f "
             "mm",
             auditAdvance.maxError, auditAdvance.maxError / kPxPerMm),
         auditAdvance.within(2.0f) ? "pass" : "fail");
     say(colE,
-        kit::format(
+        kit::formatted(
             "    rms %.2f px · worst at arc %.0f px: %.0f px of ink read "
             "across a %.0f px law",
             (double)auditAdvance.rmsError,
@@ -2708,7 +2708,7 @@ struct Minard1869 : sketch::Sketch {
                 : (double)auditAdvance.worst.front().intended),
         "measured");
     say(colE,
-        kit::format(
+        kit::formatted(
             "  AND THE INK IS THERE: ∫w ds %.0f · the band fills %.0f px² — "
             "%.2f%% apart",
             advanceInk, advanceArea,
@@ -2719,13 +2719,13 @@ struct Minard1869 : sketch::Sketch {
         "about. A min-chord",
         "dim");
     say(colE,
-        kit::format(
+        kit::formatted(
             "  raycasts the band RESOLVED, and resolving its %.0f steps "
             "leaves %.0f contours",
             (double)advSteps, (double)outlineContours),
         "measured");
     say(colE,
-        kit::format(
+        kit::formatted(
             "  whose longest walks %.0f px around %.0f px of band perimeter "
             "— the boundary",
             (double)outlineWalk, (double)advPerimeter),
@@ -2739,7 +2739,7 @@ struct Minard1869 : sketch::Sketch {
         "CROSSES. Reported, not fudged.",
         "fail");
     say(colE,
-        kit::format(
+        kit::formatted(
             "  retreat band: max |err| %.2f px = %.3f mm · fills %.0f px²",
             auditRetreat.maxError, auditRetreat.maxError / kPxPerMm,
             retreatArea),
@@ -2753,28 +2753,28 @@ struct Minard1869 : sketch::Sketch {
         "inside fills as a union.",
         "pass");
     say(colE,
-        kit::format("  coverage(advance ∪ retreat) doubled %.4f — they touch "
+        kit::formatted("  coverage(advance ∪ retreat) doubled %.4f — they touch "
                     "near Wizma, as on the plate",
                     coverDoubled),
         coverDoubled > 0.0005f ? "fail" : "pass");
     say(colE,
-        kit::format(
+        kit::formatted(
             "  components()  advance as Minard draws it %.0f, as Wilkinson "
             "encodes it %.0f",
             (double)advComponentsDrawn, (double)advComponentsWilkinson),
         "measured");
     say(colE,
-        kit::format("  components()  retreat %.0f   — one army came back",
+        kit::formatted("  components()  retreat %.0f   — one army came back",
                     (double)retComponents),
         retComponents == 1 ? "pass" : "fail");
     say(colE,
-        kit::format(
+        kit::formatted(
             "  risers, indexed by ARC LENGTH  max %.3f px off station    "
             "PASS",
             riserArcErr),
         riserArcErr < 0.5f ? "pass" : "fail");
     say(colE,
-        kit::format(
+        kit::formatted(
             "  risers, indexed by FRACTION    max %.1f px off station    "
             "FAIL",
             riserFracErr),

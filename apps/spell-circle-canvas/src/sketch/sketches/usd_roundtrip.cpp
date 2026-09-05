@@ -188,7 +188,7 @@ struct UsdRoundtrip final : sketch::Sketch {
     kit::Cells shelf{.gap = 18, .divider = Fill::color(kRule)};
     shelf.cells.push_back(cell(
         "source", "the set, as values",
-        kit::format("%zu vertices \xc2\xb7 %zu triangles \xc2\xb7 no colour "
+        kit::formatted("%zu vertices \xc2\xb7 %zu triangles \xc2\xb7 no colour "
                     "lane\n%s light \xc2\xb7 fovY %.1f\xc2\xb0 \xc2\xb7 "
                     "%zu instancer points",
                     source.positions.size(), source.indices.size() / 3,
@@ -231,7 +231,7 @@ struct UsdRoundtrip final : sketch::Sketch {
 
       shelf.cells.push_back(cell(
           extension, extension,
-          kit::format(
+          kit::formatted(
               "%.1f KiB \xc2\xb7 %zu parts \xc2\xb7 %zu vertices\n"
               "%zu light%s (%s) \xc2\xb7 %zu camera%s \xc2\xb7 fovY %.1f"
               "\xc2\xb0",
@@ -246,7 +246,7 @@ struct UsdRoundtrip final : sketch::Sketch {
           back, readLens));
     }
 
-    std::string foot = kit::format(
+    std::string foot = kit::formatted(
         "Writer(metersPerUnit = %g) \xc2\xb7 UsdGeomMesh + "
         "UsdGeomPointInstancer + UsdLuxDistantLight + UsdGeomCamera "
         "under /World",

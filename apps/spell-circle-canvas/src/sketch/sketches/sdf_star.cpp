@@ -119,7 +119,7 @@ struct SdfStar final : sketch::Sketch {
     Element content = kit::cells(
         {.cells = {kit::cells(
                        {.cells = {cell("sdf::star(6, 2)",
-                                       kit::format(
+                                       kit::formatted(
                                            "the clamp's lower end \xc2\xb7 "
                                            "the notch between two arms is "
                                            "shallowest here \xc2\xb7 pad "
@@ -145,7 +145,7 @@ struct SdfStar final : sketch::Sketch {
                    kit::cells({.cells =
                                    {cell("\xe2\x80\xa6"
                                          ".glowRadius = 14",
-                                         kit::format("exp(\xe2\x88\x92"
+                                         kit::formatted("exp(\xe2\x88\x92"
                                                      "d / radius), "
                                                      "not a blurred copy "
                                                      "\xc2\xb7 pad "
@@ -155,7 +155,7 @@ struct SdfStar final : sketch::Sketch {
                                          glowing),
                                     cell("\xe2\x80\xa6"
                                          ".glowRadius = 22",
-                                         kit::format("the falloff is the "
+                                         kit::formatted("the falloff is the "
                                                      "radius and "
                                                      "nothing else \xc2\xb7 "
                                                      "pad %.0f "
@@ -170,7 +170,7 @@ struct SdfStar final : sketch::Sketch {
                                     cell("\xe2\x80\xa6"
                                          ".shadowOffset, "
                                          ".shadowBlur",
-                                         kit::format("the layer BEHIND the "
+                                         kit::formatted("the layer BEHIND the "
                                                      "fill "
                                                      "\xc2\xb7 pad %.0f px, "
                                                      "which is "

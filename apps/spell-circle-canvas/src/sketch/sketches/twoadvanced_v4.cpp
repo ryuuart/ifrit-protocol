@@ -188,16 +188,16 @@ inline SkColor4f dark(SkColor4f c, float k) { return scaleRgb(c, 1 - k); }
 // weight, and Arial is the only thing prose is ever set in.
 
 inline sigil::weave::TextStyle micro(float size, SkColor4f c, float tr = 200) {
-  return weave::kit::tracked(condBlack(), size, c, tr, 0.92f);
+  return sigil::weave::kit::tracked(condBlack(), size, c, tr, 0.92f);
 }
 inline sigil::weave::TextStyle label(float size, SkColor4f c, float tr = 100) {
-  return weave::kit::tracked(condBlack(), size, c, tr, 0.88f);
+  return sigil::weave::kit::tracked(condBlack(), size, c, tr, 0.88f);
 }
 inline sigil::weave::TextStyle heavy(float size, SkColor4f c, float tr = 40) {
-  return weave::kit::tracked(blackFace(), size, c, tr, 0.94f);
+  return sigil::weave::kit::tracked(blackFace(), size, c, tr, 0.94f);
 }
 inline sigil::weave::TextStyle prose(float size, SkColor4f c) {
-  return weave::kit::tracked(arial(), size, c, 0);
+  return sigil::weave::kit::tracked(arial(), size, c, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -516,7 +516,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                     stroke(1, Fill::color(alpha(kCyan, 0.35f)),
                                            PathFormat::Align::Inner)))
         .child(t(boldHalf, heavy(17, kNear, 40)))
-        .child(t(restHalf, weave::kit::tracked(arial(), 15, kHeadDim, 40, 0.95f)))
+        .child(t(restHalf, sigil::weave::kit::tracked(arial(), 15, kHeadDim, 40, 0.95f)))
         .child(box().width(12))
         .child(box().width(1).height(12).fill(alpha(kCyan, 0.4f)))
         .child(box().width(10))
@@ -685,7 +685,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                   stroke(2, Fill::color(sel ? kCyan : alpha(kDust, 0.35f)),
                          PathFormat::Align::Inner)))
               .child(t(sel ? "\xe2\x96\xb8" : " ", micro(11, kCyan, 0)))
-              .child(t(tracks[i], weave::kit::tracked(blackFace(), 13,
+              .child(t(tracks[i], sigil::weave::kit::tracked(blackFace(), 13,
                                           sel ? kNear : kHeadDim, 60, 0.92f))));
     }
 
@@ -832,7 +832,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                      .stroke(stroke(1, Fill::color(alpha(kCyanRing, 0.75f))))
                      .justify(Justify::Center)
                      .alignItems(Align::Center)
-                     .child(t("2", weave::kit::tracked(blackFace(), 32, kCyan, 0, 0.85f))));
+                     .child(t("2", sigil::weave::kit::tracked(blackFace(), 32, kCyan, 0, 0.85f))));
     }
 
     return box()
@@ -855,7 +855,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                            .column()
                            .gap(6)
                            .child(t("2ADVANCED STUDIOS",
-                                    weave::kit::tracked(blackFace(), 25, kCyan, 80, 0.90f))
+                                    sigil::weave::kit::tracked(blackFace(), 25, kCyan, 80, 0.90f))
                                       .effect(styles::textGlow(
                                           alpha(kGlow, 0.55f), 6)))
                            .child(t("PROGRESSIVE DESIGN TECHNOLOGY",
@@ -1383,7 +1383,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .gap(2)
         .child(t(k, micro(9, alpha(hex(0x123B3D), 0.75f), 260)))
         .child(box().height(1).fill(alpha(kDate, 0.28f)))
-        .child(t(v, weave::kit::tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)));
+        .child(t(v, sigil::weave::kit::tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)));
   }
 
   Element featureSystem() {
@@ -1427,10 +1427,10 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                .shape(shapes::polygon(3, 90))
                                .fill(kDate))
                     .child(t("01.30.06",
-                             weave::kit::tracked(blackFace(), 14, kDate, 40, 0.95f)))
+                             sigil::weave::kit::tracked(blackFace(), 14, kDate, 40, 0.95f)))
                     .child(box().grow(1).height(1).fill(alpha(kDate, 0.35f))))
             .child(t("N.O.-XPLODE TV COMMERCIAL",
-                     weave::kit::tracked(blackFace(), 17, hex(0x0E3234), 40, 0.92f)))
+                     sigil::weave::kit::tracked(blackFace(), 17, hex(0x0E3234), 40, 0.92f)))
             .child(box()
                        .height(84)
                        .padding(9)
@@ -1494,11 +1494,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                 .child(box().height(1).fill(alpha(kDate, 0.28f)))
                 .child(t("DIRECTION", micro(9, kDate, 200)))
                 .child(t("ERIC JORDAN",
-                         weave::kit::tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)))
+                         sigil::weave::kit::tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)))
                 .child(box().height(3))
                 .child(t("STUDIO", micro(9, kDate, 200)))
                 .child(t("2ADVANCED",
-                         weave::kit::tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)))
+                         sigil::weave::kit::tracked(blackFace(), 11, hex(0x0E3234), 40, 0.92f)))
                 .child(box().grow(1))
                 .child(box()
                            .row()
@@ -1586,11 +1586,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                       .fill(alpha(kPanelSh, 0.55f))
                       .padding(6, 3)
                       .child(
-                          t(e.date, weave::kit::tracked(blackFace(), 13, kDate, 40, 0.95f)))
+                          t(e.date, sigil::weave::kit::tracked(blackFace(), 13, kDate, 40, 0.95f)))
                       .child(box().grow(1).height(1).fill(alpha(kDate, 0.3f)))
                       .child(t("\xe2\x96\xb8", micro(9, kDate, 0))))
               .child(t(e.headline,
-                       weave::kit::tracked(blackFace(), 13, hex(0x0E3234), 50, 0.92f)))
+                       sigil::weave::kit::tracked(blackFace(), 13, hex(0x0E3234), 50, 0.92f)))
               .child(t(e.body, prose(12.5f, hex(0x0C2E30)))));
     return list;
   }
@@ -1779,9 +1779,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
                             .padding(7, 6)
                             .gap(2)
                             .child(t("Photoshop",
-                                     weave::kit::tracked(arial(), 15, hex(0x2A4A7A), 0)))
+                                     sigil::weave::kit::tracked(arial(), 15, hex(0x2A4A7A), 0)))
                             .child(t("Secrets of the Pros",
-                                     weave::kit::tracked(arial(), 10, hex(0x333333), 0))))
+                                     sigil::weave::kit::tracked(arial(), 10, hex(0x333333), 0))))
                     .child(t("Eric Jordan appears in \"Photoshop: Secrets "
                              "of the Pros\", a book featuring 20 top "
                              "designers with insights on their "
@@ -1943,7 +1943,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
             animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3650ms}))
         .foreground(styles::TickRail{alpha(kDust, 0.35f), 9, 4, 8, 1, 4, 0.5f, path::Edge::Top})
         .child(t("SUB", heavy(15, kNear, 40)))
-        .child(t("SYSTEM", weave::kit::tracked(arial(), 14, kHeadDim, 40, 0.95f)))
+        .child(t("SYSTEM", sigil::weave::kit::tracked(arial(), 14, kHeadDim, 40, 0.95f)))
         .child(box().width(1).height(30).fill(alpha(kDust, 0.35f)))
         .child(t("PARTNERS:", micro(11, kDust, 240)))
         .child(chip("A"))
@@ -2143,7 +2143,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                      .row()
                      .alignItems(Align::Center)
                      .gap(6)
-                     .child(t(title, weave::kit::tracked(blackFace(), 12, kD7, 60, 0.92f)))
+                     .child(t(title, sigil::weave::kit::tracked(blackFace(), 12, kD7, 60, 0.92f)))
                      .child(box().grow(1).height(1).fill(kD4))
                      .child(t("\xc2\xbb", micro(11, kD5, 0))))
           .child(t(a, micro(10, kD6, 220)))
@@ -2197,7 +2197,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        .alignItems(Align::Center)
                        .gap(6)
                        .child(t("SIGNAL",
-                                weave::kit::tracked(blackFace(), 12, kD7, 60, 0.92f)))
+                                sigil::weave::kit::tracked(blackFace(), 12, kD7, 60, 0.92f)))
                        .child(box().grow(1).height(1).fill(kD4))
                        .child(t("\xc2\xbb", micro(11, kD5, 0))))
             .child(box()
@@ -2369,8 +2369,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .row()
         .alignItems(Align::Baseline)
         .gap(6)
-        .child(t(buf, weave::kit::tracked(blackFace(), 46, kCyan, 40, 0.9f)))
-        .child(t("%", weave::kit::tracked(blackFace(), 20, alpha(kCyan, 0.6f), 40, 0.9f)));
+        .child(t(buf, sigil::weave::kit::tracked(blackFace(), 46, kCyan, 40, 0.9f)))
+        .child(t("%", sigil::weave::kit::tracked(blackFace(), 20, alpha(kCyan, 0.6f), 40, 0.9f)));
   }
 
   // =========================================================================

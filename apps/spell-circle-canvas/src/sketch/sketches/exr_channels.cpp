@@ -224,7 +224,7 @@ struct ExrChannels final : sketch::Sketch {
           cell("plane" + planes.names[i], planes.makeImage(c, c, c, -1),
                "makeImage(i, i, i, -1)",
                "index(\"" + planes.names[i] + "\") = " + std::to_string(c) +
-                   "   peak " + kit::format("%.2f", (double)peak)));
+                   "   peak " + kit::formatted("%.2f", (double)peak)));
     }
     shelf.cells.push_back(cell("layer", planes.makeImage(), "makeImage()",
                                "the default layer \xe2\x80\x94 R, G and B "

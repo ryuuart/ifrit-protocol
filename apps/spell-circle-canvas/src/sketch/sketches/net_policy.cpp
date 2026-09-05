@@ -132,9 +132,9 @@ struct NetPolicy final : sketch::Sketch {
 
     const auto verdict = [](const char* name,
                             const std::shared_ptr<const img::ImageAsset>& a) {
-      return kit::format(
+      return kit::formatted(
           "%s \xc2\xb7 %s", name,
-          a ? kit::format("served %d\xc3\x97%d", a->width(), a->height())
+          a ? kit::formatted("served %d\xc3\x97%d", a->width(), a->height())
                   .c_str()
             : "null");
     };

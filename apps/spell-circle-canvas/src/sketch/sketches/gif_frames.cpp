@@ -136,7 +136,7 @@ struct GifFrames final : sketch::Sketch {
     for (size_t i = 0; i < gif.frames().size(); ++i)
       shelf.cells.push_back(cell(
           "frame" + std::to_string(i), gif.frames()[i].image, w, h, "frames()",
-          kit::format("%.0f ms", (double)gif.frames()[i].durationMs)));
+          kit::formatted("%.0f ms", (double)gif.frames()[i].durationMs)));
     return kit::cells(std::move(shelf));
   }
 
@@ -149,7 +149,7 @@ struct GifFrames final : sketch::Sketch {
     for (double at : kSamples)
       shelf.cells.push_back(cell("at" + std::to_string((int)at),
                                  gif.frameAt(at).image, w, h, "frameAt(ms)",
-                                 kit::format("%.0f ms", at)));
+                                 kit::formatted("%.0f ms", at)));
     return kit::cells(std::move(shelf));
   }
 
@@ -167,7 +167,7 @@ struct GifFrames final : sketch::Sketch {
       foot += "nothing (the hub could not sniff this resource)";
     foot += "   \xc2\xb7   decoded \xe2\x80\x94 " +
             std::to_string(gif.frames().size()) + " frames, " +
-            kit::format("%.0f ms", (double)gif.totalDurationMs()) +
+            kit::formatted("%.0f ms", (double)gif.totalDurationMs()) +
             " a loop, " +
             (gif.repetitionCount() == image::ImageAsset::kInfinite
                  ? std::string("repeating forever")

@@ -178,14 +178,14 @@ struct TickerLanes final : sketch::Sketch {
       timelineLane.push_back(ramped);
     }
 
-    readouts[0] = kit::format("add \xc2\xb7 %d ticks \xc2\xb7 active %s", steps,
+    readouts[0] = kit::formatted("add \xc2\xb7 %d ticks \xc2\xb7 active %s", steps,
                               stillActive ? "true" : "false");
-    readouts[1] = kit::format("addFixed %.0f Hz \xc2\xb7 %d steps in %.0f s",
+    readouts[1] = kit::formatted("addFixed %.0f Hz \xc2\xb7 %d steps in %.0f s",
                               kFixedHz, fixedSteps, kSpan);
     readouts[2] =
-        kit::format("derive \xc2\xb7 quantize(%d) \xc2\xb7 registered %s",
+        kit::formatted("derive \xc2\xb7 quantize(%d) \xc2\xb7 registered %s",
                     kLevels, derived_ok ? "true" : "false");
-    readouts[3] = kit::format("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
+    readouts[3] = kit::formatted("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("THE TICKER'S LANES \xc2\xb7 Ticker::add, "

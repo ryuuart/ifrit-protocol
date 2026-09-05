@@ -153,11 +153,11 @@ struct LaneRetarget final : sketch::Sketch {
     reshaped = run(Change::Reshaped);
 
     readouts[0] =
-        kit::format("one description \xc2\xb7 0 \xe2\x86\x92 %.2f", kFirst);
+        kit::formatted("one description \xc2\xb7 0 \xe2\x86\x92 %.2f", kFirst);
     readouts[1] =
-        kit::format("retargetSlots at %.2f s \xe2\x86\x92 %.2f", kAt, kSecond);
-    readouts[2] = kit::format("retargetFamily \xc2\xb7 same shape");
-    readouts[3] = kit::format("retargetFamily \xc2\xb7 shape 1 \xe2\x86\x92 2");
+        kit::formatted("retargetSlots at %.2f s \xe2\x86\x92 %.2f", kAt, kSecond);
+    readouts[2] = kit::formatted("retargetFamily \xc2\xb7 same shape");
+    readouts[3] = kit::formatted("retargetFamily \xc2\xb7 shape 1 \xe2\x86\x92 2");
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("RETARGETING A LANE \xc2\xb7 motion::"

@@ -76,9 +76,9 @@ using namespace sigil::compose::kit::ornament;
 
 namespace {
 
-const weave::kit::PatternHyphenator& hyphenator() {
-  static const weave::kit::PatternHyphenator table(
-      "en", weave::kit::englishHyphenationPatterns());
+const sigil::weave::kit::PatternHyphenator& hyphenator() {
+  static const sigil::weave::kit::PatternHyphenator table(
+      "en", sigil::weave::kit::englishHyphenationPatterns());
   return table;
 }
 

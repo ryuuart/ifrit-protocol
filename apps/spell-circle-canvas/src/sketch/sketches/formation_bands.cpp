@@ -149,7 +149,7 @@ struct FormationBands final : sketch::Sketch {
                  {kit::cells(
                       {.cells =
                            {cell("profileOffset(spine, profile::self())",
-                                 kit::format(
+                                 kit::formatted(
                                      "across \xe2\x89\xa1 0 \xc2\xb7 "
                                      "max() %.0f px \xe2\x80\x94 the "
                                      "boundary itself, which is the "
@@ -165,7 +165,7 @@ struct FormationBands final : sketch::Sketch {
                                  }),
                             cell("profileOffset(spine, "
                                  "profile::offset(15))",
-                                 kit::format(
+                                 kit::formatted(
                                      "across \xe2\x89\xa1 15 \xc2\xb7 "
                                      "max() %.0f px \xc2\xb7 a "
                                      "constant law delegates to "
@@ -184,7 +184,7 @@ struct FormationBands final : sketch::Sketch {
                                  }),
                             cell("profileOffset(spine, "
                                  "profile::wave(11, 54))",
-                                 kit::format(
+                                 kit::formatted(
                                      "one rail of the wave law \xc2\xb7 "
                                      "max() %.0f px, which is what "
                                      "bleed and cull are sized from",

@@ -135,13 +135,13 @@ constexpr SkColor4f kHost = hex(0xE8920A);     // the ONE saturated mark
 // and loose for the prose.
 
 inline sigil::weave::TextStyle micro(float size, SkColor4f c, float tr = 160) {
-  return weave::kit::tracked(grotBold(), size, c, tr, 0.96f);
+  return sigil::weave::kit::tracked(grotBold(), size, c, tr, 0.96f);
 }
 inline sigil::weave::TextStyle title(float size, SkColor4f c, float tr = 80) {
-  return weave::kit::tracked(grotBold(), size, c, tr, 1.0f);
+  return sigil::weave::kit::tracked(grotBold(), size, c, tr, 1.0f);
 }
 inline sigil::weave::TextStyle prose(float size, SkColor4f c) {
-  return weave::kit::tracked(grot(), size, c, 30);
+  return sigil::weave::kit::tracked(grot(), size, c, 30);
 }
 
 // ---------------------------------------------------------------------------
@@ -504,7 +504,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
           .stroke(stroke(3, Fill::color(kNear), PathFormat::Align::Inner))
           .justify(Justify::Center)
           .alignItems(Align::Center)
-          .child(t("2a", weave::kit::tracked(grotBold(), 18, kNear, 0, 1.0f)));
+          .child(t("2a", sigil::weave::kit::tracked(grotBold(), 18, kNear, 0, 1.0f)));
     }
     Element panel =
         at(box().row().alignItems(Align::Center).padding(30, 0).gap(16),
@@ -524,11 +524,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
                                   .alignItems(Align::Start)
                                   .gap(4)
                                   .child(t("2 A D V A N C E D",
-                                           weave::kit::tracked(grotBold(), 27, kNear, 80,
+                                           sigil::weave::kit::tracked(grotBold(), 27, kNear, 80,
                                                    1.02f)))
                                   .child(t("\xc2\xae", micro(9, kNear, 0))))
                        .child(t("S T U D I O S",
-                                weave::kit::tracked(grotBold(), 12, kNear, 560, 1.0f))))
+                                sigil::weave::kit::tracked(grotBold(), 12, kNear, 560, 1.0f))))
             .child(box().grow(1));
     return panel
         .translateY(animate(motion::from(-60.0f).to(0.0f),
@@ -861,11 +861,11 @@ struct TwoAdvancedV3 : sketch::Sketch {
     if (logoMark)
       row.child(box().width(34).height(34).fill(kNear).mask(
           by::alpha(stretchFill(logoMark, 34, 34))));
-    row.child(t("+", weave::kit::tracked(grotBold(), 13, alpha(kNear, 0.9f), 0)));
+    row.child(t("+", sigil::weave::kit::tracked(grotBold(), 13, alpha(kNear, 0.9f), 0)));
     if (riveLogo)
       row.child(box().width(44).height(44).fill(stretchFill(riveLogo, 44, 44)));
     else
-      row.child(t("R", weave::kit::tracked(grotBold(), 26, kNear, 0)));
+      row.child(t("R", sigil::weave::kit::tracked(grotBold(), 26, kNear, 0)));
     return row;
   }
 
@@ -942,7 +942,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
             .child(thumbPlate(
                 dddLogo ? box().width(56).height(72).fill(
                               stretchFill(dddLogo, 56, 72))
-                        : t("DDD", weave::kit::tracked(grotBold(), 20, kNear, 100)),
+                        : t("DDD", sigil::weave::kit::tracked(grotBold(), 20, kNear, 100)),
                 "VISIT DDD"))
             .child(
                 box()
@@ -1090,7 +1090,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     else
       lockup.justify(Justify::Center)
           .alignItems(Align::Center)
-          .child(t("2ADVANCED", weave::kit::tracked(grotBold(), 24, kNear, 200, 1.0f)));
+          .child(t("2ADVANCED", sigil::weave::kit::tracked(grotBold(), 24, kNear, 200, 1.0f)));
 
     Element o = stack().inset(0).zIndex(90);
     o.child(box().inset(0).fill(kPreBg).opacity(animate(
@@ -1102,7 +1102,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                 {{0ms, 0.0f}, {150ms, 1.0f}, {1200ms, 1.0f}, {1350ms, 0.0f}})))
             .child(lockup)
             .child(t("SOLACE IN TECHNOLOGY. BELIEF IN THE FUTURE.",
-                     weave::kit::tracked(grot(), 10, kPreInk, 400, 1.0f)))
+                     sigil::weave::kit::tracked(grot(), 10, kPreInk, 400, 1.0f)))
             .child(slot("bootpct")));
     o.opacity(animate(motion::through({{1400ms, 1.0f}, {1450ms, 0.0f}})));
     return o;
@@ -1112,7 +1112,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
     using namespace tv3;
     char buf[8];
     std::snprintf(buf, sizeof buf, "%d", bootPct);
-    return t(buf, weave::kit::tracked(grot(), 150, hex(0x7183A5), 0, 1.0f));
+    return t(buf, sigil::weave::kit::tracked(grot(), 150, hex(0x7183A5), 0, 1.0f));
   }
 
   ch::Output<float> beaconAlpha{1.0f};

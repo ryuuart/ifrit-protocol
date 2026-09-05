@@ -198,7 +198,7 @@ struct MaterialAtlas final : sketch::Sketch {
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("MATERIAL ATLAS \xc2\xb7 Atlas grid, "
                        "fromTexturePacker, fromAseprite, region, frame"),
-         .subtitle = toU8(kit::format(
+         .subtitle = toU8(kit::formatted(
              "dials \xc2\xb7 the grid (%d by %d of %d px) \xc2\xb7 the "
              "source JSON \xc2\xb7 the sequence \xc2\xb7 the playhead "
              "(%zu, past the end of a four-frame run)",
@@ -213,7 +213,7 @@ struct MaterialAtlas final : sketch::Sketch {
                  {kit::cells(
                       {.cells =
                            {cell("the sheet, whole",
-                                 kit::format("%d by %d cells of %d px \xc2\xb7 "
+                                 kit::formatted("%d by %d cells of %d px \xc2\xb7 "
                                              "each wedge sweeps 45\xc2\xb0 "
                                              "further than the last, so a run "
                                              "read out of order shows it",
@@ -226,7 +226,7 @@ struct MaterialAtlas final : sketch::Sketch {
                                        {kCols * kCellSide, kRows * kCellSide});
                                  }),
                             cell("Atlas::grid(sheet, 4, 2)",
-                                 kit::format("equal cells, row-major, named by "
+                                 kit::formatted("equal cells, row-major, named by "
                                              "index \xc2\xb7 sequences: %s",
                                              sequenceNames(grid).c_str()),
                                  strip(grid, "all", 4, 0)),
@@ -240,7 +240,7 @@ struct MaterialAtlas final : sketch::Sketch {
                   kit::cells(
                       {.cells =
                            {cell("Atlas::fromTexturePacker(sheet, json)",
-                                 packed ? kit::format(
+                                 packed ? kit::formatted(
                                               "a sequence per NAME STEM "
                                               "\xc2\xb7 %s \xc2\xb7 "
                                               "walk_01\xe2\x80\xa6"
@@ -250,7 +250,7 @@ struct MaterialAtlas final : sketch::Sketch {
                                  packed ? strip(*packed, "walk", 4, 0)
                                         : std::function<void(SkCanvas&)>{}),
                             cell("Atlas::fromAseprite(sheet, json)",
-                                 tagged ? kit::format(
+                                 tagged ? kit::formatted(
                                               "a sequence per frame TAG "
                                               "\xc2\xb7 %s \xc2\xb7 the "
                                               "names carry nothing here",
@@ -259,7 +259,7 @@ struct MaterialAtlas final : sketch::Sketch {
                                  tagged ? strip(*tagged, "shut", 4, 0)
                                         : std::function<void(SkCanvas&)>{}),
                             cell("frame(\"walk\", 6) \xc2\xb7 wrapping",
-                                 packed ? kit::format(
+                                 packed ? kit::formatted(
                                               "index %zu of a four-frame run "
                                               "\xc2\xb7 past the end "
                                               "wraps, so the strip reads "

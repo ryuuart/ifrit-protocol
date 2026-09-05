@@ -2009,9 +2009,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
         .width(pw - 32)
         .column()
         .gap(4)
-        .child(row(kit::format("\xce\xb4 = %+7.3f\xc2\xb0", dec), kInk, 14))
+        .child(row(kit::formatted("\xce\xb4 = %+7.3f\xc2\xb0", dec), kInk, 14))
         .child(
-            row(kit::format("r = R_eq\xc2\xb7tan((90\xe2\x88\x92\xce\xb4)/2) = "
+            row(kit::formatted("r = R_eq\xc2\xb7tan((90\xe2\x88\x92\xce\xb4)/2) = "
                             "%.6f R",
                             rOfDec(dec)),
                 kInk, 14))
@@ -2378,7 +2378,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
       g.child(
           text(toU8(kStars[i].modern), type(faceItalic, 12.5f, hex(0x6b5a44)))
               .at({px + 168, y}));
-      g.child(text(toU8(kit::format("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
+      g.child(text(toU8(kit::formatted("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
                                     kStars[i].dec1326, r)),
                    type(faceMono, 11.5f, kInk))
                   .at({px + 276, y + 1}));
@@ -2479,7 +2479,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
       float ly = by - h - 9;
       if (h < 84.0f * 30.0f / maxSpan && ly - 5.0f < y30r)
         ly = 0.5f * ((by - h) + y30r);
-      g.child(text(toU8(kit::format("%.1f", span)), type(faceMono, 9.5f, kInk))
+      g.child(text(toU8(kit::formatted("%.1f", span)), type(faceMono, 9.5f, kInk))
                   .width(w)
                   .textAlign(sigil::weave::TextAlignment::kCenter)
                   .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, ly}));
@@ -2573,14 +2573,14 @@ struct ChaucerAstrolabe : sketch::Sketch {
           .child(text(toU8(k), type(faceLimb, 10, hex(0x8a99b0), 1.4f)))
           .child(text(toU8(v), type(faceMono, 19, c)));
     };
-    g.child(cell("LOCAL APPARENT TIME", kit::format("%02d:%04.1f", hh, mm),
+    g.child(cell("LOCAL APPARENT TIME", kit::formatted("%02d:%04.1f", hh, mm),
                  hex(0xffdc8b)));
-    g.child(cell("HOVR ANGLE", kit::format("%+8.3f\xc2\xb0", hourAngle.value()),
+    g.child(cell("HOVR ANGLE", kit::formatted("%+8.3f\xc2\xb0", hourAngle.value()),
                  hex(0xd8c79c)));
     g.child(cell("SONNE ALTITVDE",
-                 kit::format("%+7.3f\xc2\xb0", sunAlt.value()), hex(0xd8c79c)));
+                 kit::formatted("%+7.3f\xc2\xb0", sunAlt.value()), hex(0xd8c79c)));
     g.child(cell("SONNE IN",
-                 kit::format("\xce\xbb %6.2f\xc2\xb0", sunLam.value()),
+                 kit::formatted("\xce\xbb %6.2f\xc2\xb0", sunLam.value()),
                  hex(0xd8c79c)));
     g.child(cell("LETTRE IN THE BORDVRE",
                  std::string(kLetters[letter - 1]) + "  (" +
@@ -2957,13 +2957,13 @@ struct ChaucerAstrolabe : sketch::Sketch {
                      std::sin(kPhiD * kDD) * std::sin(dec * kDD)) /
                     (std::cos(kPhiD * kDD) * std::cos(dec * kDD))) /
           kDD;
-      chaucerH = kit::format(
+      chaucerH = kit::formatted(
           "graphical (two DRAWN circles cut)  H = %.9f\xc2\xb0", Hg);
-      chaucerA = kit::format(
+      chaucerA = kit::formatted(
           "analytic  (cos H = (sin h \xe2\x88\x92 s\xcf\x86 s"
           "\xce\xb4)/(c\xcf\x86 c\xce\xb4))   %.9f\xc2\xb0",
           Ha);
-      chaucerDelta = kit::format(
+      chaucerDelta = kit::formatted(
           "agreement  %.2e\xc2\xb0 \xe2\x80\x94 the DRAWN "
           "geometry encodes the trigonometry",
           std::abs(Hg - Ha));

@@ -132,7 +132,7 @@ struct PopMath final : sketch::Sketch {
             {.cells = {kit::cells(
                            {.cells = {cell(
                                           "the cloud, uncut",
-                                          kit::format(
+                                          kit::formatted(
                                               "pop::on(torus, %d) with a "
                                               "two-stop "
                                               "Lookup on T \xc2\xb7 every cell "
@@ -196,7 +196,7 @@ struct PopMath final : sketch::Sketch {
                                                          {0, 58, 0, 0}})),
                                     cell("Fill{\"anchor\"} \xe2\x86\x92 "
                                          "Mix{P, anchor, P, 0.55}",
-                                         kit::format(
+                                         kit::formatted(
                                              "to = a + (b - a) * factor "
                                              "\xc2\xb7 Fill invented the lane "
                                              "on first write and Mix drew the "
@@ -217,7 +217,7 @@ struct PopMath final : sketch::Sketch {
                                             .normal(1.0f, {0, 0, 0})
                                             .peak(34)),
                                     cell("Delete{.mask = \"core\", .keep}",
-                                         kit::format(
+                                         kit::formatted(
                                              "the count is what this op moves: "
                                              "%zu kept, %zu dropped, of %d "
                                              "\xc2\xb7 every lane compacted "

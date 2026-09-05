@@ -140,7 +140,7 @@ struct PatternSequence final : sketch::Sketch {
                       {.cells =
                            {swatch(
                                 "pattern::sequence(runs)",
-                                kit::format("four runs along +x \xc2\xb7 the "
+                                kit::formatted("four runs along +x \xc2\xb7 the "
                                             "period is their sum, %.0f px",
                                             (double)period(sett())),
                                 pattern::sequence(sett())),

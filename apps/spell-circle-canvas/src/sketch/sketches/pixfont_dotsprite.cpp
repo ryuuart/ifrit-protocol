@@ -150,7 +150,7 @@ struct PixFontDotSprite final : sketch::Sketch {
               .row()
               .gap(10)
               .alignItems(Align::Center)
-              .child(text(toU8(kit::format("%2.0f", kBakeSizes[i])),
+              .child(text(toU8(kit::formatted("%2.0f", kBakeSizes[i])),
                           mono(9, kAsh)))
               .child(kit::masked(sweep[i], {.colour = kOn, .scale = 2})));
     return cell("bakeRun(\"3.eg\", fonts, aliased(size))",
@@ -209,7 +209,7 @@ struct PixFontDotSprite final : sketch::Sketch {
                  // run mixing figures, an x-height and a descender
                  // stands on one baseline.
                  const std::string run =
-                     kit::format("%04.0fpx", 1100.0 + t * 111.0);
+                     kit::formatted("%04.0fpx", 1100.0 + t * 111.0);
                  canvas.save();
                  canvas.scale(2, 2);
                  kit::blit(canvas, *f, {0, 0}, run, kOn,

@@ -141,7 +141,7 @@ struct HalfFloat final : sketch::Sketch {
     };
 
     const size_t hot = (size_t)(kSide / 4) * (size_t)kSide + (size_t)kSide - 4;
-    const std::string readout = kit::format(
+    const std::string readout = kit::formatted(
         "isFloatImage \xc2\xb7 %s\nhalves %zu words \xc2\xb7 bytes %zu\n"
         "hot texel R \xc2\xb7 half %.2f \xc2\xb7 byte %.2f\n"
         "peak asked for \xc2\xb7 %.2f",

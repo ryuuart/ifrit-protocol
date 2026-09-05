@@ -157,7 +157,7 @@ struct EncodeWrite final : sketch::Sketch {
     const std::shared_ptr<const img::ImageAsset> read =
         wrote ? hub.image(uri) : nullptr;
     const std::string written =
-        kit::format("write %s\nread back %s \xc2\xb7 %d\xc3\x97%d",
+        kit::formatted("write %s\nread back %s \xc2\xb7 %d\xc3\x97%d",
                     wrote ? "true" : "false", read ? "true" : "false",
                     read ? read->width() : 0, read ? read->height() : 0);
 
@@ -180,29 +180,29 @@ struct EncodeWrite final : sketch::Sketch {
                        "\xc2\xb7 the pair of things the lossy codecs "
                        "disagree about",
                        art,
-                       kit::format("N32 premul \xc2\xb7 %d\xc3\x97%d", kSide,
+                       kit::formatted("N32 premul \xc2\xb7 %d\xc3\x97%d", kSide,
                                    kSide)),
                   cell("encodeImage(art, Png)",
                        "lossless at every setting, and the quality is "
                        "ignored \xc2\xb7 the bytes decode back to the "
                        "pixels that went in",
-                       png, kit::format("png \xc2\xb7 %zu bytes", pngBytes)),
+                       png, kit::formatted("png \xc2\xb7 %zu bytes", pngBytes)),
                   cell("Webp, quality 100",
                        "100 selects the LOSSLESS codec rather than lossy "
                        "at maximum \xc2\xb7 two codecs in one container, "
                        "and this is the one that keeps everything",
                        webpLossless,
-                       kit::format("webp \xc2\xb7 %zu bytes", losslessBytes)),
+                       kit::formatted("webp \xc2\xb7 %zu bytes", losslessBytes)),
                   cell("Webp, quality 24",
                        "the same container, the other codec \xc2\xb7 the "
                        "ramp survives and the fine rules go soft",
                        webpLossy,
-                       kit::format("webp \xc2\xb7 %zu bytes", lossyBytes)),
+                       kit::formatted("webp \xc2\xb7 %zu bytes", lossyBytes)),
                   cell("Jpeg, quality 24",
                        "the quantisation quality \xc2\xb7 the blocks are "
                        "the codec's own, and they land where the edges "
                        "are",
-                       jpeg, kit::format("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
+                       jpeg, kit::formatted("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
                   cell("hub.write(uri, bytes)",
                        "the bytes out through the mount table, then "
                        "asked back for as an image \xc2\xb7 the write "

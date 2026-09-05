@@ -776,7 +776,7 @@ the body, or both lines above it, or both below, and `labelMeasure` and
 `noteMeasure` wrap either line at a stated width so a long one does not
 widen the cell it captions), `kit::well`, the fixed, clipped surface a
 specimen is drawn into with every size, fill and padding supplied by the
-caller, `kit::format`, the dynamically sized printf-style reading those
+caller, `kit::formatted`, the dynamically sized printf-style reading those
 captions use, `kit::cells`, a run of
 them along one axis with a hairline between neighbours, and
 `kit::sheet`, the titled and footed page that rules its header and

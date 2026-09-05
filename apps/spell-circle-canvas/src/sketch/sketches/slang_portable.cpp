@@ -153,7 +153,7 @@ struct SlangPortable final : sketch::Sketch {
 
     // THE LAYOUT, as the compiler reported it. Nothing here computes an
     // offset; every number is read back.
-    std::string layout = kit::format(
+    std::string layout = kit::formatted(
         "stages   vertex %zu words \xc2\xb7 fragment %zu words\n"
         "buffer   %zu bytes\n"
         "textures %s\n\n"
@@ -161,7 +161,7 @@ struct SlangPortable final : sketch::Sketch {
         built.vertex.size(), built.fragment.size(), built.uniformBytes,
         built.textures.empty() ? "none" : built.textures.front().c_str());
     for (const auto& [name, slot] : built.uniforms)
-      layout += kit::format("%-13s %6zu %6zu %6zu %7zu\n", name.c_str(),
+      layout += kit::formatted("%-13s %6zu %6zu %6zu %7zu\n", name.c_str(),
                             slot.offset, slot.bytes, slot.count, slot.stride);
 
     // ONE DRAW'S BYTES, written at those offsets and read straight back
@@ -181,11 +181,11 @@ struct SlangPortable final : sketch::Sketch {
       if (!slot) return std::string("(not in the layout)");
       float v[4] = {0, 0, 0, 0};
       std::memcpy(v, values.bytes().data() + slot->offset + extra, sizeof v);
-      return kit::format("%.2f %.2f %.2f %.2f", (double)v[0], (double)v[1],
+      return kit::formatted("%.2f %.2f %.2f %.2f", (double)v[0], (double)v[1],
                          (double)v[2], (double)v[3]);
     };
     const slang::UniformSlot* stops = built.uniform("uStops");
-    bytes = kit::format(
+    bytes = kit::formatted(
         "uModel  row 0     %s\n"
         "  the shader reads ROWS, so what was\n"
         "  written is the transpose\n\n"
@@ -213,7 +213,7 @@ struct SlangPortable final : sketch::Sketch {
           recipe->source(material::Target::Slang) + kScaffold;
       const bool made = slang::compileModule(source, "vsCover", "fsCover", kLit,
                                              &surface, &why);
-      surfaces += kit::format("%-9s %11zu %9zu  %s\n", recipe->name().c_str(),
+      surfaces += kit::formatted("%-9s %11zu %9zu  %s\n", recipe->name().c_str(),
                               surface.uniformBytes, surface.uniforms.size(),
                               made ? "compiled" : "FAILED");
     }
@@ -232,7 +232,7 @@ struct SlangPortable final : sketch::Sketch {
         {.title = toU8("SLANG PORTABLE \xc2\xb7 compileModule, the "
                        "reported layout, and the two modules every "
                        "session carries"),
-         .subtitle = toU8(kit::format(
+         .subtitle = toU8(kit::formatted(
              "dials \xc2\xb7 the module source \xc2\xb7 lit (%s, which "
              "defines SIGIL_LIT) \xc2\xb7 the entry point names "
              "\xc2\xb7 this module compiled: %s",

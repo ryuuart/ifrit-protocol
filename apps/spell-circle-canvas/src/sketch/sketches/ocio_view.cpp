@@ -203,7 +203,7 @@ struct OcioView final : sketch::Sketch {
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("OCIO VIEW \xc2\xb7 ocio::exponent, convert, "
                        "viewTransform \xe2\x80\x94 each a baked 3D LUT"),
-         .subtitle = toU8(kit::format(
+         .subtitle = toU8(kit::formatted(
              "dials \xc2\xb7 the exponent (%.1f) \xc2\xb7 the LUT side "
              "(%d) \xc2\xb7 the config (\"%s\") \xc2\xb7 the display "
              "and view names \xc2\xb7 available() is %s here",

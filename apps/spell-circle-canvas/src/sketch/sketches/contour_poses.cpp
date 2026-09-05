@@ -153,7 +153,7 @@ struct ContourPoses final : sketch::Sketch {
                  {kit::cells(
                       {.cells =
                            {cell("Contour::of(path)",
-                                 kit::format(
+                                 kit::formatted(
                                      "%zu contour \xc2\xb7 closed %s "
                                      "\xc2\xb7 totalLength %.1f px "
                                      "\xc2\xb7 seam ringed",
@@ -179,7 +179,7 @@ struct ContourPoses final : sketch::Sketch {
                                  }),
                             cell("poseAlong(contours, d) \xc2\xb7 "
                                  "Pose::normal",
-                                 kit::format(
+                                 kit::formatted(
                                      "%d stations by arrange::along(0, "
                                      "%.0f, i, n, Turn::Closed) "
                                      "\xc2\xb7 each tick on the pose's "
@@ -205,7 +205,7 @@ struct ContourPoses final : sketch::Sketch {
                                    }
                                  }),
                             cell("Wrap::Clamp vs Wrap::Around",
-                                 kit::format("the same 12 distances from "
+                                 kit::formatted("the same 12 distances from "
                                              "\xe2\x88\x92"
                                              "0.2 to 1.2 of "
                                              "totalLength, joined in order "
@@ -251,7 +251,7 @@ struct ContourPoses final : sketch::Sketch {
                   kit::cells(
                       {.cells =
                            {cell("Contour::corners(30\xc2\xb0)",
-                                 kit::format(
+                                 kit::formatted(
                                      "%zu corners \xc2\xb7 sharpest turn "
                                      "%.0f\xc2\xb0 \xc2\xb7 each drawn "
                                      "as its in tangent and its out "

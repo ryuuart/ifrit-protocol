@@ -229,7 +229,7 @@ struct FrameInputs final : sketch::Sketch {
                       {.cells =
                            {cell("bind(\"uBars\", block) \xc2\xb7 "
                                  "contentScale 1",
-                                 kit::format("twelve floats read LIVE at every "
+                                 kit::formatted("twelve floats read LIVE at every "
                                              "resolve \xc2\xb7 the hairlines "
                                              "are 1 / uContentScale wide, so "
                                              "here they are 1 px"),

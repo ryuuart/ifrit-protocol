@@ -73,9 +73,9 @@ const SkColor4f kMark{0.78f, 0.30f, 0.20f, 1};
 
 /// The one hyphenator on the sheet: the justified panel asks for it, and
 /// a table borrowed by a layout has to outlive it.
-const weave::kit::PatternHyphenator& hyphenator() {
-  static const weave::kit::PatternHyphenator table(
-      "en", weave::kit::englishHyphenationPatterns());
+const sigil::weave::kit::PatternHyphenator& hyphenator() {
+  static const sigil::weave::kit::PatternHyphenator table(
+      "en", sigil::weave::kit::englishHyphenationPatterns());
   return table;
 }
 

@@ -834,7 +834,7 @@ struct OverUnder final : sketch::Sketch {
                                                                             "ip"
                                                                             "ly"
                                                                             ")",
-                                                                            kit::format(
+                                                                            kit::formatted(
                                                                                 "a stack over a stack \xc2\xb7 "
                                                                                 "stackDepth %d, and under() walks "
                                                                                 "back down to the stone",

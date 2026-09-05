@@ -175,7 +175,7 @@ struct PopBillboards final : sketch::Sketch {
                       {.cells =
                            {cell("pop::Builder::billboards(canvas, "
                                  "camera, viewport)",
-                                 kit::format("%d points \xc2\xb7 size and tint "
+                                 kit::formatted("%d points \xc2\xb7 size and tint "
                                              "lanes picked up unnamed \xc2\xb7 "
                                              "the default soft dot, additive",
                                              kMotes),
@@ -186,7 +186,7 @@ struct PopBillboards final : sketch::Sketch {
                                                       style);
                                  }),
                             cell("BillboardStyle{.sprite = ring}",
-                                 kit::format(
+                                 kit::formatted(
                                      "one sprite for the whole splat "
                                      "\xc2\xb7 pop::Atlas wrote Tex "
                                      "cell (%.2f, %.2f) on point 0 for "
@@ -221,7 +221,7 @@ struct PopBillboards final : sketch::Sketch {
                   kit::cells(
                       {.cells =
                            {cell("no Relax",
-                                 kit::format("noise(%.0f, 0.075) straight off "
+                                 kit::formatted("noise(%.0f, 0.075) straight off "
                                              "the loop scatter \xc2\xb7 "
                                              "consecutive points jump, so a "
                                              "frame threaded through them "
@@ -240,7 +240,7 @@ struct PopBillboards final : sketch::Sketch {
                                        canvas, stage(), size, strandStyle());
                                  }),
                             cell("smooth(0.9, 12)",
-                                 kit::format("strength 0.9 over %d passes "
+                                 kit::formatted("strength 0.9 over %d passes "
                                              "\xc2\xb7 the run is continuous "
                                              "again \xe2\x80\x94 the "
                                              "amplitude survives, only the "

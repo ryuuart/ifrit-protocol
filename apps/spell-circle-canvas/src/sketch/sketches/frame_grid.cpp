@@ -222,7 +222,7 @@ struct FrameGrid final : sketch::Sketch {
                       {.cells =
                            {cell("arrange::onRing(i, n, \xe2\x80\xa6"
                                  ", Turn)",
-                                 kit::format(
+                                 kit::formatted(
                                      "seven items over 270\xc2\xb0 "
                                      "\xc2\xb7 Turn::Open steps "
                                      "%.1f\xc2\xb0 and lands on both "

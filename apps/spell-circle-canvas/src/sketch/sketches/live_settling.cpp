@@ -122,7 +122,7 @@ struct LiveSettling final : sketch::Sketch {
       for (float w = kWide; w >= kNarrow; w -= 1) step(w);
       step(endAt);
       const TextSettling settled = probe.settling("para");
-      return kit::format("live %s \xc2\xb7 reused %d \xc2\xb7 degraded %d",
+      return kit::formatted("live %s \xc2\xb7 reused %d \xc2\xb7 degraded %d",
                          settled.live ? "true" : "false", settled.reused,
                          settled.degraded);
     };

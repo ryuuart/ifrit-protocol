@@ -197,14 +197,14 @@ struct NoiseShelf final : sketch::Sketch {
     const size_t mixed = core::hash::combine(0, 7u);
     Element column = box().column().gap(8);
     for (const std::string& row :
-         {kit::format("fnv1a(offset, 7)"),
-          kit::format("  %016llx", (unsigned long long)a),
-          kit::format("fnv1a(offset, \"stamp\")"),
-          kit::format("  %016llx", (unsigned long long)text),
-          kit::format("fnv1a(that, 7)"),
-          kit::format("  %016llx", (unsigned long long)both),
-          kit::format("combine(0, 7)"),
-          kit::format("  %016llx", (unsigned long long)mixed)})
+         {kit::formatted("fnv1a(offset, 7)"),
+          kit::formatted("  %016llx", (unsigned long long)a),
+          kit::formatted("fnv1a(offset, \"stamp\")"),
+          kit::formatted("  %016llx", (unsigned long long)text),
+          kit::formatted("fnv1a(that, 7)"),
+          kit::formatted("  %016llx", (unsigned long long)both),
+          kit::formatted("combine(0, 7)"),
+          kit::formatted("  %016llx", (unsigned long long)mixed)})
       column.child(text_(row));
     return cell("fnv1a \xc2\xb7 combine",
                 "one-way folds over a word and over text \xc2\xb7 an address "

@@ -561,11 +561,11 @@ TEST(KitSpecimen, AWellClipsByDefaultAndCanBeOpened) {
 }
 
 TEST(KitSpecimen, FormatReturnsTheWholeReading) {
-  EXPECT_EQ(kit::format("plain"), "plain");
-  EXPECT_EQ(kit::format("%s %d %.2f", "row", 17, 0.25), "row 17 0.25");
+  EXPECT_EQ(kit::formatted("plain"), "plain");
+  EXPECT_EQ(kit::formatted("%s %d %.2f", "row", 17, 0.25), "row 17 0.25");
   const std::string payload(4096, 'x');
-  EXPECT_EQ(kit::format("[%s]", payload.c_str()), "[" + payload + "]");
-  EXPECT_TRUE(kit::format(nullptr).empty());
+  EXPECT_EQ(kit::formatted("[%s]", payload.c_str()), "[" + payload + "]");
+  EXPECT_TRUE(kit::formatted(nullptr).empty());
 }
 
 TEST(KitSpecimen, ARunSpacesItsCellsAndRulesBetweenThem) {

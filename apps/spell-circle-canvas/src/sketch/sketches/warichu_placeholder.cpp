@@ -116,10 +116,10 @@ struct WarichuPlaceholder final : sketch::Sketch {
     second = narrow(std::u16string_view(text).substr(cut));
 
     oneLine = ctx.measure(box().child(text_(kNote))).width();
-    report[0] = kit::format("one line \xc2\xb7 advance %.1f px", oneLine);
-    report[1] = kit::format("split \xc2\xb7 advance %.1f \xc2\xb7 band %.1f",
+    report[0] = kit::formatted("one line \xc2\xb7 advance %.1f px", oneLine);
+    report[1] = kit::formatted("split \xc2\xb7 advance %.1f \xc2\xb7 band %.1f",
                             split.advance, split.band);
-    report[2] = kit::format("cut at word %u \xc2\xb7 \"%s\"", split.cutWord,
+    report[2] = kit::formatted("cut at word %u \xc2\xb7 \"%s\"", split.cutWord,
                             reinterpret_cast<const char*>(second.c_str()));
 
     ctx.composer.render(sketch::kit::page(

@@ -166,16 +166,18 @@ struct Well {
   return well(spec, box());
 }
 
-/** A formatted specimen reading, sized to its result rather than to a
- *  guessed stack buffer. This is printf's formatting contract because the
- *  readings it replaces already carry printf format strings. */
-[[nodiscard]] inline std::string format(const char* text) {
+/** A SPECIMEN READING, filled in and sized to its result rather than to a
+ *  guessed stack buffer. printf's grammar, because the readings it
+ *  replaces already carry printf format strings — which is also why it is
+ *  not spelled `format`: `std::format` is a different grammar, and one
+ *  name for two of them is a trap every time a reading is edited. */
+[[nodiscard]] inline std::string formatted(const char* text) {
   return text != nullptr ? std::string(text) : std::string{};
 }
 
 template <typename... Args>
   requires(sizeof...(Args) > 0)
-[[nodiscard]] std::string format(const char* pattern, Args... args) {
+[[nodiscard]] std::string formatted(const char* pattern, Args... args) {
   if (pattern == nullptr) return {};
   const int length = std::snprintf(nullptr, 0, pattern, args...);
   if (length <= 0) return {};

@@ -149,12 +149,12 @@ struct CjkRules final : sketch::Sketch {
                             "OPEN a column \xc2\xb7 identical to the "
                             "reference, because the segmentation had already "
                             "refused those boundaries",
-                            column().kinsoku(weave::kit::kinsoku::japanese())),
+                            column().kinsoku(sigil::weave::kit::kinsoku::japanese())),
                        cell("hanging(kit::hanging::japanese())",
                             "burasagari \xc2\xb7 the sentence marks alone, "
                             "at a column's END \xc2\xb7 no column of this "
                             "setting closes on one, so nothing hangs",
-                            column().hanging(weave::kit::hanging::japanese())),
+                            column().hanging(sigil::weave::kit::hanging::japanese())),
                        cell("mojikumi(brackets(-0.5))",
                             "half an em taken out of the gap between a "
                             "closing mark and an opening one \xc2\xb7 two "

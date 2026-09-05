@@ -218,7 +218,7 @@ struct EnvFaces final : sketch::Sketch {
                                      studio),
                             panorama(
                                 "fromFaces(six)",
-                                kit::format(
+                                kit::formatted(
                                     "six cube faces resampled into "
                                     "one equirect \xc2\xb7 average "
                                     "(%.2f %.2f %.2f)",

@@ -93,7 +93,7 @@ constexpr SkColor4f kSbArrow = hex(0x666666);  // SCROLLBAR-ARROW-COLOR
  *  set in, bold only in the product headers. Untracked, because an HTML
  *  table cell had no way to say otherwise. */
 inline sigil::weave::TextStyle verdana(SkColor4f color, bool bold = false) {
-  return weave::kit::tracked(verdanaFace(bold), 10, color);
+  return sigil::weave::kit::tracked(verdanaFace(bold), 10, color);
 }
 
 // Frameset geometry, in the page's own CSS pixels.
