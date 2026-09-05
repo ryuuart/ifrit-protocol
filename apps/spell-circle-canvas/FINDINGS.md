@@ -5,7 +5,7 @@ evidently intended to do, and what a test should assert once intent is
 restored. A work queue: delete an entry when it is fixed, and delete this
 file when it is empty.
 
-## A node carrying rotate(±90°) bakes at the wrong resolution
+## A node carrying rotate(±90°) under a recording ancestor bakes in local space
 
 `eva_magi_defense`'s `art()` promotes each mark to `Cache::Texture`
 individually, except at ±90°, where it falls back to `Cache::Auto`
@@ -13,103 +13,93 @@ because the bake comes back non-uniformly resampled — on the LEFT SIDE
 BARRIER pill (196×33, rotate −90) the type is destroyed. 0, 45 and 180
 are all clean, so the failure is exactly the quarter-turn.
 
-Intended: a texture bake samples at the device resolution the node is
-drawn at, whatever transform stands above it.
+Resolution is not the cause: every raster decision reads the transform's
+singular values, and a quarter turn reports a scale of one. The cause is
+the SPACE the bake is held in. The device-space bake, exact at any angle,
+is taken only at recording depth zero; the local-space bake bakes the
+node's local bounds and blits them through the rotation with linear
+sampling. Eva's pills stand under `camera(...)`'s `box().inset(0)` and
+`art()`'s `box().inset(0)`, and any static container with children takes
+the automatic picture branch and bumps the recording depth, so every pill
+falls to the local bake. At −90° the local axes swap onto device axes and
+rotating a 196×33 rect about its centre (98, 16.5) puts a half-texel
+offset onto the axis carrying the type's stroke detail; 0 and 180 land it
+on the low-detail axis, and 45 shares it.
 
-Assert once fixed: bake a node at each of 0/45/90/180/−90 and compare
-each against the same node drawn uncached; the quarter-turns must agree
-to the same tolerance as the others. `eva_magi_defense` then drops its
-`bakeable()` guard.
+Intended: a texture bake samples at the device grid the node is drawn on,
+whatever transform stands above it.
 
-## Six mutable function-local statics survive a reload
+Awaiting the owner's decision: should a subtree containing an explicit
+`Cache::Texture` veto its ancestor's AUTOMATIC `Cache::Picture`, so the
+node reaches recording depth zero and takes the device-space bake? The
+alternative is to expand the local bake rect to the pre-image of an
+integral device rect. Separately worth the owner's eye: the device-space
+bake is unreachable for almost any nested node.
 
-`fallout2_charsheet` writes six function-local statics from `setup()` and
-reads them from every describe. A second instance, or a reload that
-reuses a loaded dylib's statics, sees another sketch instance's probe
-results. `winamp_base` has the same shape in `monoEm()`, `boldEm()` and
-`pushSlots`'s `lastNow`/`lastSel`; `cde_motif`'s `g_liveColors` is a
-mutable global written in `setup()`.
+Assert once fixed: a text node at each of 0/45/90/180/−90, NESTED ONE
+LEVEL UNDER A STATIC CONTAINER, compared against the same node drawn
+uncached; the quarter-turns must agree to the same tolerance as the
+others (a root-level node passes today and proves nothing). Then
+`eva_magi_defense` drops its `bakeable()` guard and its plate is rebased.
+
+## Eight mutable function-local statics survive a reload
+
+`fallout2_charsheet` writes six function-local statics from `setup()`
+(`bodyEm`, `titleCondense`, `engravedCondense`, `bodyRise`, `titleRise`,
+`engravedRiseFrac`) and reads them from every describe. A second
+instance, or a reload that reuses a loaded dylib's statics, sees another
+sketch instance's probe results. `winamp_base` has the same shape in
+`monoEm()` and `boldEm()`, and `pushSlots`'s `static int lastNow,
+lastSel` is a change-detector in the frame loop that misbehaves even in
+one session after a reload.
 
 Intended: a sketch's state lives on the sketch instance, so two live
-sessions of one sketch cannot see each other's.
+sessions of one sketch cannot see each other's. The free helpers
+(`bodySize()`, `engravedRise()`) become members; `lastNow`/`lastSel` join
+`volSprite`/`balSprite` on the instance.
 
-Assert once fixed: open two sessions of one sketch in one process with
-different probe inputs and render both; neither plate may change when the
-other is opened.
+Assert once fixed: open two `CanvasSession`s of one sketch in one process
+with different probe inputs and render both; neither plate may change
+when the other is opened.
 
-## web_panel's settled() is a real wall-clock deadline in setup()
+## Two sketches print numbers they measure about themselves, and two route them by hand
 
-`steady_clock::now() + 15s`, `sleep_for(16ms)`, 8 stable ticks. On a
-machine where the engine takes longer than 15 s the sketch renders
-`unavailable(...)` — a different plate from the same code, decided by
-machine speed. The header explains why a settled page is reproducible and
-says nothing about this.
+`ctx.measured` (`sigilsketch/canvas/Sketch.h`) is the `--stability`
+contract: a self-measured number reaches the plate through it so a
+deterministic capture substitutes a fixed value. `chevreul_circle` draws
+pixel-readback deviations into its own plate with no deterministic branch
+at all; `minard_1869` prints numbers measured off its own path-ops
+geometry, which will move under a Skia upgrade. `psx_doom_fire` and
+`genesis_fire` pin their own figures against `ctx.deterministic` with a
+hand-written ternary — correct, but the routing belongs to `measured`.
 
-Assert once fixed: the settle loop counts engine ticks rather than
-seconds, and a run under an artificially slowed engine produces the same
-plate as a fast one.
+Intended: chevreul and minard through `ctx.measured(value, pinned)`, with
+chevreul's pass/fail colour pinned to the "exact" value rather than to
+zero; psx and genesis replace the ternaries and drop the members.
 
-## ds2_bench quantises onto a capture boundary
-
-`quantizeTime(6.0f)` lands on multiples of 1/6 s, and its declared moment
-(2.5 s) is one of them, as is the quick tier's uniform 2.0 s. The scene
-clock is a sum of steps of 1/60, which is not exactly a multiple of 1/6
-in float, so a tie-break decides whether `uTime` is one quantum or the
-next — a shift of every scanline by 1.17 px across the 984×690 panel and
-two cards. Stable across three renders of one build; not stable by
-construction.
-
-Assert once fixed: the declared moment is not a multiple of the
-quantiser's period, and the plate holds under `--stability`.
-
-## Numbers a sketch measures about itself are not routed through ctx.measured
-
-`ctx.measured` (`sigilsketch/canvas/Sketch.h`) has zero users anywhere in
-`sketches/`, while `chevreul_circle` draws pixel-readback deviations into
-its own plate, `psx_doom_fire` draws a measured draw rate, `matrix_rain`
-draws a measured glyph count, `substance_swatches` draws the machine's
-SDK version, `genesis_fire` and `hitman_verlet` pin their own µs figures
-against `ctx.deterministic` by hand, and `minard_1869` prints numbers
-measured off its own geometry.
-
-Intended: a self-measured number reaches the plate through `ctx.measured`
-so a deterministic capture substitutes a fixed value.
-
-Assert once fixed: a deterministic render of each of those sketches is
-byte-identical to a second one taken on a machine of a different speed.
-
-## Each public compose header is not known to be self-sufficient
-
-`spacejam_1996` carried an include-order workaround: `Material.h` first,
-because `Decorations.h`'s `Wash` holds a `Material` by value while
-`Compose.h` only forward-declares it. `brush/Decorations.h` now includes
-`core/Material.h` itself, so the workaround is gone — but nothing pins
-the property.
-
-Assert: a translation unit that includes exactly one public compose
-header, first and alone, compiles. One test per header, generated from
-the header list.
+Assert once fixed: `plate_ledger.py --stability N` holds over the four
+scenes. Do not take this sweep in the same pass as the eva rebase above,
+or a genuine mover and a pinned number are indistinguishable.
 
 ## blur_falloff does not hold 60 FPS at its own canvas
 
-`--bench` reports p99 ≈ 18.8 ms at 1080×372, and one node is all of it:
-the rack-focus panel re-runs a 240×240 blur every frame because its
-sigma breathes, at 17.4 ms of a 18.0 ms frame. The other three panels
-hold a fixed sigma and cost hundredths of a millisecond each, so the
-cost is a full-resolution Gaussian at up to 14 px of sigma re-evaluated
-per frame rather than anything about the sheet.
+`--bench` reports p50 ≈ 21 ms at 1080×430, and one node is all of it: the
+rack-focus panel binds `maxSigma` on `Effect::blur(dofMap(), 0)`. A
+declared range of 0 holds no pyramid, so the bound sigma builds every
+Gaussian pass at every paint — the one case the held pyramid does not
+cover, and the header says so.
 
-Intended: a sketch holds 60 FPS at the canvas it declares, and a blur
-whose only changing input is one scalar does not re-read every source
-pixel to answer it.
+Intended: the sketch declares the largest sigma its binding reaches —
+`Effect::blur(dofMap(), kMaxSigma)` — and the breathing sigma rides the
+held passes.
 
-Assert once fixed: `--bench --sketch blur_falloff` verdicts PASS, and
-the rack panel's per-frame cost tracks the panel's area rather than its
-area times the sigma.
+Assert once fixed: `--bench --sketch blur_falloff` verdicts PASS, and the
+rack panel's per-frame cost tracks the panel's area rather than its area
+times the sigma.
 
 ## daemon_console does not hold 60 FPS at its own canvas
 
-`--bench` reports p50 ≈ 32.8 ms at 900×640, and the frame is drawing
+`--bench` reports p50 ≈ 30 ms at 900×640, and the frame is drawing
 rather than describing: the full-screen scanline-and-refresh-band overlay
 is one live SkSL shader over every pixel of the canvas, re-run each
 frame, and it is the only node in the sketch that costs anything like
@@ -119,65 +109,66 @@ header claims.
 
 Intended: a sketch holds 60 FPS at the canvas it declares, and a scanline
 overlay whose only per-frame input is a phase is a texture crept by a
-bound translate rather than a per-pixel program. The sketch already does
-that for its CRT vignette.
+bound translate rather than a per-pixel program. The shader is
+`f(p.y, uTime)` and splits into a `Pattern::tile` scanline band with the
+live `Pattern::offset(x, y)` that already exists, plus a 128-px gradient
+box `.translateY(&sweep)` under `Cache::Texture`, both under `kScreen`;
+`eva_magi_defense`'s CRT vignette is the idiom. No library gap.
 
 Assert once fixed: `--bench --sketch daemon_console` verdicts PASS, and
-no node in the report is a full-canvas live paint.
+no node in the report is a full-canvas live paint. The band's phase
+quantises to a texel, so the plate moves; rebase with the cause.
 
-## eva_magi_defense spikes past the budget on its re-describe frames
+## eva_magi_defense paints a full-canvas bloom live, and re-describes its funnel
 
-`--bench` reports p50 2.8 ms and p99 22.9 ms at 1920×1080 — a frame in
-twenty costs eight times the median. The front advances by re-describing
-the funnel slot six times a second, and that re-describe re-records the
-funnel's ribbons and re-bakes what stood under them, which lands whole
-inside one frame.
+`--bench` reports p50 785 ms at 1920×1080: `Effect::phosphorBloom` is
+applied over the whole assembled picture, on a subtree that is live, so
+twenty-four taps per pixel run over every pixel of the canvas every
+frame. Underneath, the front advances by re-describing the funnel slot
+six times a second with a fresh `rampMaterial(front)`, so `propsEqual`
+misses and everything under the bloom dirties.
 
-Intended: a sketch holds 60 FPS at the canvas it declares, and work
-scheduled at a fixed rate is spread or made cheap rather than paid in one
-frame.
+The owner wants the full-canvas glow KEPT, made cheap, with a hue-shifted
+falloff — which the effect now carries: `phosphorBloom(radius,
+threshold, intensity, chroma, hueDrift, tail)`, with a negative
+`hueDrift` taking warm halos toward red and cool ones toward cyan-green,
+and a layer effect on a `Cache::Texture` node bakes with it once.
 
-Assert once fixed: `--bench --sketch eva_magi_defense` verdicts PASS,
-with p99 inside the budget rather than the median alone.
+Intended: the glow sources (rims, numerals, type) on their own node under
+`Cache::Texture` with the bloom on that node, so the halo is paid once
+per change rather than once per frame; and one static ramp panned
+through `Material::offset`'s bound channel, so `renderSlot` runs only on
+the five `fall` events. Riders for the owner: continuous front or the
+6 Hz step (recommended continuous — the pan makes re-describes free).
+
+Assert once fixed: `--bench --sketch eva_magi_defense` verdicts PASS with
+p99 inside the budget; the declared moment (2.5 s) precedes the sweep
+(3.0 s), so the plate must not move under the ramp change alone.
 
 ## Two of the historical plates do not hold 60 FPS at their own canvas
 
 `chaucer_astrolabe` reports p50 ≈ 37.7 ms at 2400×1600 and
 `nightingale_coxcomb` p50 7.1 ms with p99 27.7 ms at 1900×1032 — the
 second is a spike rather than a level, so one frame in twenty costs four
-times the median.
+times the median. Chaucer is a level: nine `Cache::Texture` passes under
+one live `rotate(&reteRot)` over the whole rete subtree inside a clip
+band, so no descendant bake is stable under it. Nightingale is a cache
+being invalidated: the `custom()` raw-Skia leaf redraws unconditionally
+over a base already cached.
 
 Intended: a sketch holds 60 FPS at the canvas it declares. Both are
 large sheets over expensive material stacks — but a declared canvas the
 sketch cannot present at is a different statement from a sweep that
-takes a while.
+takes a while. Awaiting the owner: does "60 FPS at its declared canvas"
+bind a plate whose subject is the sheet's size as strictly as a live
+sketch? Recommended: no for chaucer (an explicit "plate, not live"
+registry mark that `--bench`'s verdict reads, never a timeout override),
+yes for nightingale (diagnose the re-bake; if it is a composer rule it
+joins `ComposeTestContentCore.cpp`).
 
-Assert once fixed: `--bench` verdicts PASS for both, `nightingale_coxcomb`
-with p99 inside the budget rather than the median alone.
-
-## A cube map in a container file cannot be loaded
-
-`material::EnvironmentMap::fromCubeMap` takes an ordinary image — a
-cross or a strip — because that is what SigilImage decodes. DDS and KTX,
-the two container formats that hold six faces and a mip chain in one
-file and the two every capture tool writes, decode nowhere in this tree,
-so a cube map has to be unpacked to a sheet or to six files by hand
-before it reaches the library.
-
-Intended: the six named sources the design lists reach the value from
-the forms they actually ship in.
-
-Both containers are already readable by a dependency this build
-installs: DiligentTools' `Image` names `IMAGE_FILE_FORMAT_DDS` and
-`IMAGE_FILE_FORMAT_KTX`, and `CreateTextureFromFile` reads them. It is
-reachable only from a target that links Diligent, and the material kit
-is asserted by a boundary probe to link no renderer — so the door is in
-`world/diligent` or in SigilImage's decode feature beside the
-OpenImageIO backend, not in the value itself.
-
-Assert once fixed: a six-face cube written to a DDS and to a KTX loads
-to the same panorama a sheet of the same faces does, texel for texel at
-the six face-centre directions.
+Assert once fixed: `--bench` verdicts PASS for `nightingale_coxcomb`
+with p99 inside the budget rather than the median alone, and chaucer's
+mark is read by the verdict.
 
 ## The environment's ground projection is carried and never read
 
@@ -212,26 +203,6 @@ Assert once fixed: render a Variant pass on both tiers over a body under
 one directional light and compare the two plates within the tier
 ceiling; the overlay's shading must agree, not just its coverage.
 
-## The mesh painter's agreement with the host is asserted nowhere
-
-`world_diligent_test` compared a lit mesh and its normal buffer drawn on
-the host against the same drawn through `diligent::painterRuntime`,
-against a mean and a p99 chosen for those two cases with no baseline
-behind them. That comparison belongs to `plate_ledger.py --tier
-world-gpu`, which judges the same question against a committed baseline
-and a per-sketch tolerance — but no sketch in the registry draws through
-`painterRuntime`, so no tier renders it. The painter's own behaviour is
-still asserted (a panel is the same pixels on both executors, an unlit
-surface is brighter than a lit one); its whole-picture parity with the
-host is not.
-
-Intended: every claim a promoted case made is judged by the instrument it
-was promoted to.
-
-Assert once fixed: a set sketch stands a lit mesh through
-`painterRuntime`, and `--tier world-gpu` holds it against the CPU tier's
-plate within that sketch's stated tolerance.
-
 ## The paragraph paint's whole-page render is judged by nothing
 
 `weave_paint_test` rendered two thousand words under three runtime
@@ -247,18 +218,26 @@ owns pictures.
 Assert once fixed: a canvas sketch lays a long paragraph under the
 shader presets, and the full plate tier holds it byte for byte.
 
-## Three READMEs name sketches the registry does not have
+## Nothing checks that a README's sketch stems exist
 
-`src/common/geometry/README.md` names `blend_keys`, `blend_smooth_color`,
-`mesh_primitives`, `spline_stations`, `pop_lanes` and `easel_playground`
-as the studies that exercise it; `src/common/material/README.md` names
-`easel_playground`; `src/common/world/README.md` names `woven_card` and
-`panel_console`, counts "ten" studies, and omits `reflection_lab`, which
-exists. None of the named stems is a file under `src/sketch/sketches/`.
-Each README evidently intends to point a reader at the sketch that draws
-the feature beside it. A test (or the docs build) should resolve every
-sketch stem a README names against the registry and fail on a stem with
-no file — the same check the compose README already gets for API names.
+Each library README points a reader at the sketches that draw the
+feature beside it, and the stems it names are hand-typed: a rename in
+the registry leaves a README pointing at a file that is not there, and
+nothing fails. The compose README already gets this check for API
+names; the stems get none.
+
+Intended: a test resolves every sketch stem a README names against the
+registry and fails on a stem with no file — a backticked
+`^[a-z][a-z0-9]*(_[a-z0-9]+)+$` token that is not a test, bench or probe
+target and whose paragraph mentions a sketch, study or studies must
+resolve under `src/sketch/sketches/`; a cardinal within two lines of a
+study list is refused (or the count deleted). It is the registry's test,
+so it lives under `src/sketch/test/`, registered from
+`src/sketch/CMakeLists.txt`, with a `--self-test` like the compose API
+probe generator's.
+
+Assert: the check passes over every README, FEATURES and TYPOGRAPHY
+under `src/`, and fails when one stem is misspelt.
 
 ## A workspace row's runtime stays "not yet compiled" after it has compiled
 
@@ -272,34 +251,28 @@ learns everything a session can tell it, the runtime included, the first
 time that session runs. A test should open a file by path, drive one
 frame, and assert the row's `kind` names the session's runtime.
 
-## A memo subtree under Cache::Picture reports no picture recorded
-
-`Composer::Stats::picturesRecorded` stayed 0 for a memo subtree marked
-`Cache::Picture` while its props changed every frame and it was
-repainted each time; either the explicit cache is not honoured on a memo
-node or the counter misses that write. The stat evidently intends to
-count every picture the composer records. A test should mutate a memo
-node under `Cache::Picture` and assert `picturesRecorded` advances.
-
 ## hitman_verlet's drag leader can never have a length
 
-`stepPhysics` starts the §7 drag at `dragTarget = dragFrom = rig.x[LHA]`
-and then pins the hand to `dragTarget` on every step, so the hand and the
-target are the same point for the whole 3.2 s of the phase. The leader
+`stepPhysics` pins the hand to `dragTarget` as the last operation of the
+constraint loop on every step of the drag phase. `dragTarget` itself is
+not frozen — it eases from `dragFrom` to its destination over the 3.2 s
+of the phase — but the pin puts the hand exactly on it each step, so the
+hand and the target are the same point at every moment. The leader
 `simulation()` draws between them — a wide casing, a narrow core and an
 accent head over its last eighth, which the header names as one of the
 things the pen draws — is a few pixels of round cap around the target
 ring at every moment of the loop, and the accent head and the core's dash
-are invisible inside it.
+are invisible inside it. The only surviving separation is `drawnWorld`'s
+interpolant, a couple of pixels inside the 10 px casing.
 
 Intended: the leader shows the pull, so it is drawn between where the
-hand IS and where the target has moved to — the projection the drag is
-asking for, before the pin resolves it.
+hand IS — its position before the pin resolves it, captured into a
+member — and where the target has moved to.
 
 Assert once fixed: at a moment inside the drag phase, the distance
-between `drawn(rig, LHA)` and `toStage(dragTarget)` is greater than the
-casing's width, and the plate at that moment carries accent pixels
-outside the target ring.
+between the captured hand position and `toStage(dragTarget)` is greater
+than the casing's width, and the plate at that moment carries accent
+pixels outside the target ring. Moves the plate; rebase with the cause.
 
 ## A sketch that fails to load leaves the window unable to load any other
 
