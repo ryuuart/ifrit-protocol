@@ -12,12 +12,14 @@ sigil_library(SigilSketchScry PIC
 
 sigil_test(sketch_scry_test
   SOURCES test/SharedEngineTest.cpp
-  LIBRARIES SigilSketchScry)
+  LIBRARIES SigilSketchScry
+  LABELS ultralight)
 ultralight_copy_resources(sketch_scry_test)
 
 # A binary of its own because the engine allows one renderer per process
 # and the shared-engine case above ends by shutting its one down for good.
 sigil_test(sketch_settled_test
   SOURCES test/SettledPageTest.cpp
-  LIBRARIES SigilSketchScry)
+  LIBRARIES SigilSketchScry
+  LABELS ultralight)
 ultralight_copy_resources(sketch_settled_test)

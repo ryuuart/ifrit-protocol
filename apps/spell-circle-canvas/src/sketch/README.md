@@ -574,7 +574,7 @@ live; the montage adds no border, progress chrome, pulse, scan, or reveal wipe.
 
 Before the first selected session opens, Sketchbook preloads the stock shader
 directories through SigilIO and warms their SkSL programs concurrently. The
-story, headless sweep, capture path and live browser all cross that loading
+montage, headless sweep, capture path and live browser all cross that loading
 barrier before they render, so compilation does not become a captured loading
 frame or the first interactive frame.
 
@@ -846,9 +846,12 @@ forms its frame at that many pixels, and puts the result back on the
 declared canvas — which on a plate's canvas is the identity, and is why
 the two hosts agree to the byte.
 
-`scripts/plate_ledger.py` drives this: four tiers over one binary, each
-with its own baseline. The four tiers — quick, full, world, world-gpu —
-are `scripts/README.md`'s.
+`scripts/plate_ledger.py` drives this: two tiers over one binary. The
+CPU tier judges every sketch, canvas and set alike, on byte identity
+against one baseline manifest; the device tier renders the same sketches
+through the device and judges each against the CPU plate of the same
+run, per colour channel, so it keeps no baseline at all. The judgement
+itself is `scripts/README.md`'s.
 
 ## The live host
 
@@ -1030,10 +1033,13 @@ src/sketch/
   canvas/     the 2D runtime: a clock, a ticker and a Composer
   set/        the 3D runtime: a ticker and a retained Scene
   draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
+  kit/        the sheet a sketch stands on: the theme, the page and the furniture over it
   live/       the reload engine and the resident set
   scry/       the opt-in shared Ultralight engine a web sketch borrows
   plate/      the headless sweep, the montage, the plate comparison
-  book/       Sketchbook: the app, and the headless entry point
+  book/       Sketchbook: the app, and the headless entry point — with the browser's
+              rows and its thumbnail store in SigilSketchBook, which needs no window
+  cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
   sketches/   every sketch, one file or one directory each; shared/ beside them
 ```
 
@@ -1121,10 +1127,13 @@ and where a sketch stands on disk; `sketch_canvas_test`,
 `sketch_set_test` and `sketch_draw_test` the three sessions;
 `sketch_kit_test` the sheet a specimen stands on; `sketch_live_test` the
 host and the resident set; `sketch_plate_test` the sweep, the comparison
-of two directories of plates and the Story MP4 exporter;
-`sketch_book_test` the catalog seam with no window; and
-`sketch_scry_test` the shared web engine, which is the one binary here
-that is absent altogether without its SDK. The `sketch_*_bench` binaries
+of two directories of plates and the montage MP4 exporter;
+`sketch_book_test` the catalog and the thumbnail store with no window;
+and `sketch_scry_test` the shared web engine beside
+`sketch_settled_test`, which takes a page's still — two binaries because
+the engine allows one renderer per process and the shared-engine case
+ends by shutting its one down for good. Both are labelled `ultralight`
+and are absent altogether without that SDK. The `sketch_*_bench` binaries
 beside them are Google Benchmark executables, not tests, built through
 the `benches` target.
 
