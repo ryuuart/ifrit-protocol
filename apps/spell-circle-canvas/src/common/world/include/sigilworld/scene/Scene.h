@@ -91,7 +91,7 @@ class Scene {
   [[nodiscard]] std::optional<geometry::mesh::camera::Camera> camera() const;
   /** The emitters the tree declared, each carried by its node's
    *  placement. */
-  [[nodiscard]] std::vector<Light> lights() const;
+  [[nodiscard]] std::vector<light::Light> lights() const;
 
   /** THE HOST HANDLE of the node addressed by @p key, opaque and
    *  non-zero; 0 when no node answers to that key. It is the pin on a

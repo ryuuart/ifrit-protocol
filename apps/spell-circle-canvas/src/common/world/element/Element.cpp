@@ -197,7 +197,7 @@ Element& Element::tag(std::string word) {
   return *this;
 }
 
-Element& Element::light(Light l) {
+Element& Element::light(light::Light l) {
   m_node->light = l;
   return *this;
 }

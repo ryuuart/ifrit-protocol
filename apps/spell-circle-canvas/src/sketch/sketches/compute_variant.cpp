@@ -136,7 +136,7 @@ struct ComputeVariant final : sketch::Set {
 
     world::Element root;
     root.key("set")
-        .child(world::Element().key("sun").light(world::sun(
+        .child(world::Element().key("sun").light(world::light::sun(
             {-0.42f, -0.82f, -0.38f}, {0.96f, 0.97f, 1.0f, 1.0f}, 1.0f)))
         .child(world::Element()
                    .key("plate")

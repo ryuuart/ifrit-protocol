@@ -552,9 +552,9 @@ struct WorldHud final : sketch::Set {
     driveTo((double)seconds);
 
     world::Element scene = world::Element().key("vale");
-    scene.child(world::Element().key("sun").light(world::sun(
+    scene.child(world::Element().key("sun").light(world::light::sun(
         {-0.44f, -0.78f, -0.44f}, {1.00f, 0.94f, 0.80f, 1.0f}, 1.05f)));
-    scene.child(world::Element().key("sky").light(world::sun(
+    scene.child(world::Element().key("sky").light(world::light::sun(
         {
             0.26f,
             0.52f,

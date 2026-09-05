@@ -36,7 +36,7 @@ struct Bodies {
   std::vector<std::string> none;
   std::vector<std::string> glow = {"glow"};
   std::vector<Draw> draws;
-  std::vector<Light> lights;
+  std::vector<light::Light> lights;
 
   Bodies() {
     Draw left;

@@ -83,7 +83,7 @@ struct ElementNode {
    *  the other, never both. */
   std::vector<::sigil::material::Material> slots;
   std::vector<std::string> tags;
-  std::optional<Light> light;
+  std::optional<light::Light> light;
   /** …and the dials on it, when the tree put any there. */
   std::optional<Emission> emission;
   /** The panorama this node places, and its own dials. */

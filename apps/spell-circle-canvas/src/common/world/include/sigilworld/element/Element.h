@@ -39,14 +39,6 @@ struct ElementNode;
  *  the viewpoint passes behind it. */
 enum class Backface { Hidden, Visible };
 
-// The emitters, under the name a tree spells them.
-/** The emitter value, unchanged — `point`, `spot` and `sun` build one. */
-using Light = light::Light;
-/** The stock emitters, reached by the word a tree is written in. */
-using light::point;
-using light::spot;
-using light::sun;
-
 /** ONE NODE OF A 3D SCENE, as a value.
  *
  *  An Element is built fresh every frame and thrown away: it holds no
@@ -157,7 +149,7 @@ class Element {
   /** An emitter standing where this node stands: the light's position
    *  and direction are carried by the node's transform, so `at()` and
    *  `along()` move it. */
-  Element& light(Light l);
+  Element& light(light::Light l);
   /** THE EMITTER'S STRENGTH, as a lane: it scales what `light()`
    *  declared, so binding it dims and lifts a lamp without describing a
    *  new one. A node with no emitter ignores it. */

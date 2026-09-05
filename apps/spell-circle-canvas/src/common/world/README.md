@@ -55,7 +55,7 @@ choreograph::Output<float> spin = 0.0f;   // written by whatever drives it
 scene.render(
     Element()
         .key("set")
-        .child(Element().key("sun").light(sun({-0.4f, -0.8f, -0.4f})))
+        .child(Element().key("sun").light(light::sun({-0.4f, -0.8f, -0.4f})))
         .child(Element().key("eye").along(rail, travelled).camera(lens))
         .child(Element()
                    .key("tube")

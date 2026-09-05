@@ -35,7 +35,7 @@ struct Bodies {
   std::vector<std::string> keys;
   std::vector<std::vector<std::string>> tags;
   std::vector<Draw> draws;
-  std::vector<Light> lights;
+  std::vector<light::Light> lights;
 
   explicit Bodies(int count) {
     keys.reserve((size_t)count);

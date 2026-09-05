@@ -104,8 +104,8 @@ const Field kFields[] = {
      [](Element e) { return e.transform(glm::mat4(3.0f)); }},
     {"ATag", [](Element e) { return e.tag("glow"); },
      [](Element e) { return e.tag("dim"); }},
-    {"AnEmitter", [](Element e) { return e.light(sun({0, -1, 0})); },
-     [](Element e) { return e.light(sun({0, 1, 0})); }},
+    {"AnEmitter", [](Element e) { return e.light(light::sun({0, -1, 0})); },
+     [](Element e) { return e.light(light::sun({0, 1, 0})); }},
     {"AViewpoint",
      [](Element e) { return e.camera(geometry::mesh::camera::Camera{}); },
      [](Element e) {
@@ -129,21 +129,21 @@ const Field kFields[] = {
     {"AWindowOnTheRail", [](Element e) { return e.window(0.5f, 0.2f); },
      [](Element e) { return e.window(0.5f, 0.4f); }},
     {"AnIntensityDial",
-     [](Element e) { return e.light(point({0, 0, 0})).intensity(2.0f); },
-     [](Element e) { return e.light(point({0, 0, 0})).intensity(1.0f); }},
+     [](Element e) { return e.light(light::point({0, 0, 0})).intensity(2.0f); },
+     [](Element e) { return e.light(light::point({0, 0, 0})).intensity(1.0f); }},
     {"AnEmissionDial",
      [](Element e) {
-       return e.light(point({0, 0, 0})).emission(1.0f, 1.0f, 1.0f);
+       return e.light(light::point({0, 0, 0})).emission(1.0f, 1.0f, 1.0f);
      },
      [](Element e) {
-       return e.light(point({0, 0, 0})).emission(1.0f, 1.0f, 0.5f);
+       return e.light(light::point({0, 0, 0})).emission(1.0f, 1.0f, 0.5f);
      }},
     // A dial that is there and one that is not are different
     // descriptions, because the emitter's own field stands where the
     // dial is absent.
     {"ADialAtAllAgainstNone",
-     [](Element e) { return e.light(point({0, 0, 0})).intensity(1.0f); },
-     [](Element e) { return e.light(point({0, 0, 0})); }},
+     [](Element e) { return e.light(light::point({0, 0, 0})).intensity(1.0f); },
+     [](Element e) { return e.light(light::point({0, 0, 0})); }},
 };
 
 }  // namespace
@@ -243,7 +243,7 @@ TEST(WorldElement, AnEmitterLaneStandsWhereTheEmitterStands) {
 
   // An emitter with no dials: each row stands at the emitter's own
   // field, so a dropped dial ramps back to the light rather than to one.
-  const Light lamp = point({0, 0, 0}, {0.2f, 0.4f, 0.8f, 1.0f}, 0.6f);
+  const light::Light lamp = light::point({0, 0, 0}, {0.2f, 0.4f, 0.8f, 1.0f}, 0.6f);
   lanesOf(*Element().light(lamp).node(), lanes);
   EXPECT_EQ(lanes[kIntensity].value, nullptr);
   EXPECT_FLOAT_EQ(lanes[kIntensity].standing, 0.6f);

@@ -19,7 +19,7 @@ namespace {
 
 /** An emitter as the mesh painter takes it: the one directional reading
  *  every tier that shades without a per-pixel position works from. */
-geometry::mesh::render::Light painterLight(const Light& light) {
+geometry::mesh::render::Light painterLight(const light::Light& light) {
   const light::Directional value = light::directional(light);
   geometry::mesh::render::Light out;
   out.direction = value.direction;
@@ -33,7 +33,7 @@ geometry::mesh::render::MeshStyle litStyle(const View& view) {
   style.runtime = geometry::mesh::render::Runtime::cpu();
   if (!view.lights.empty()) {
     style.lights.clear();
-    for (const Light& light : view.lights)
+    for (const light::Light& light : view.lights)
       style.lights.push_back(painterLight(light));
   }
   // THE SET'S PANORAMA, once for the whole list: it is a property of the

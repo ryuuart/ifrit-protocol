@@ -1019,9 +1019,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
     // The lights: a cold key from behind the city, so the pods are read
     // as silhouettes against the halo, and a dim fill from the front so
     // their metal is not black.
-    scene.child(world::Element().key("key").light(world::sun(
+    scene.child(world::Element().key("key").light(world::light::sun(
         {0.16f, -0.30f, 0.94f}, {0.36f, 0.86f, 0.92f, 1.0f}, 1.05f)));
-    scene.child(world::Element().key("fill").light(world::sun(
+    scene.child(world::Element().key("fill").light(world::light::sun(
         {-0.34f, -0.52f, -0.78f}, {0.44f, 0.72f, 0.82f, 1.0f}, 0.95f)));
 
     // THE SKY is a body: one unlit backdrop far behind everything, with

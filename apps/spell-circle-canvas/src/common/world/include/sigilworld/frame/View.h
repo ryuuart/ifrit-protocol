@@ -114,7 +114,7 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material);
  *  one view drawing the same picture. */
 struct View {
   std::span<const Draw> draws;
-  std::span<const Light> lights;
+  std::span<const light::Light> lights;
   /** THE SET'S ENVIRONMENT MAP, oriented — the panorama every lit body
    *  samples for what reaches it from every direction. `orientation`
    *  carries a world-space direction into the panorama's own frame, so

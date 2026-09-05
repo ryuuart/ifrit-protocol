@@ -22,7 +22,7 @@ namespace {
 
 /** An emitter as the mesh painter takes it: the one directional reading
  *  every tier that shades without a per-pixel position works from. */
-geometry::mesh::render::Light painterLight(const Light& light) {
+geometry::mesh::render::Light painterLight(const light::Light& light) {
   const light::Directional value = light::directional(light);
   geometry::mesh::render::Light out;
   out.direction = value.direction;
@@ -81,7 +81,7 @@ void Scene::draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
   style.runtime = runtime;
   if (!impl.lights.empty()) {
     style.lights.clear();
-    for (const Light& light : impl.lights)
+    for (const light::Light& light : impl.lights)
       style.lights.push_back(painterLight(light));
   }
   style.environment =

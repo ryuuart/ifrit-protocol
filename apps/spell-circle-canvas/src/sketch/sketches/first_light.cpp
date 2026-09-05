@@ -86,12 +86,12 @@ struct FirstLight final : sketch::Set {
 
     return world::Element()
         .key("set")
-        .child(world::Element().key("sun").light(world::sun(
+        .child(world::Element().key("sun").light(world::light::sun(
             {-0.45f, -0.8f, -0.4f}, {1.0f, 0.96f, 0.9f, 1.0f}, 0.95f)))
         .child(world::Element()
                    .key("lamp")
                    .at({180, 150, 220})
-                   .light(world::point({0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f},
+                   .light(world::light::point({0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f},
                                        0.9f, 900.0f)))
         .child(world::kit::turntable(kTable, seconds))
         .child(world::Element()

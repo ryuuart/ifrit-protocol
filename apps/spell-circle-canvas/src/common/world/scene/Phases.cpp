@@ -61,7 +61,7 @@ glm::vec4 baseColorOf(const material::Material* material) {
 }
 
 /** The emitter, carried by the placement of the node that declared it. */
-Light placeLight(Light light, const glm::mat4& world) {
+light::Light placeLight(light::Light light, const glm::mat4& world) {
   const glm::mat3 basis(world);
   light.direction = basis * light.direction;
   if (glm::dot(light.direction, light.direction) > 0.0f)
@@ -341,7 +341,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   // every node every frame — a bake replays a draw order, and a light
   // inside one must not go missing with it.
   if (node.light) {
-    Light emitter = *node.light;
+    light::Light emitter = *node.light;
     emitter.intensity = inst.intensity;
     emitter.color = {inst.emission.r, inst.emission.g, inst.emission.b,
                      emitter.color.a};

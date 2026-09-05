@@ -74,7 +74,7 @@ world::Element set(float seconds) {
 
   world::Element root;
   root.key("set")
-      .child(world::Element().key("sun").light(world::sun(
+      .child(world::Element().key("sun").light(world::light::sun(
           {-0.4f, -0.85f, -0.35f}, {0.95f, 0.96f, 1.0f, 1.0f}, 0.9f)))
       .child(world::Element()
                  .key("plate")

@@ -43,7 +43,7 @@ struct Ring : Set {
   world::Frame describe(float seconds) override {
     world::Element root =
         world::Element().key("set").child(world::Element().key("sun").light(
-            world::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)));
+            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)));
     for (int i = 0; i < 24; ++i) {
       const float angle = (float)i * 15.0f + seconds * 30.0f;
       root =

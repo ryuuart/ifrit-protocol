@@ -267,7 +267,7 @@ TEST_F(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
   const auto describe = [] {
     return Element()
         .key("root")
-        .child(Element().key("sun").light(sun({-0.4f, -0.7f, -0.6f})))
+        .child(Element().key("sun").light(light::sun({-0.4f, -0.7f, -0.6f})))
         .child(Element().key("body").mesh(card(60)).rotateY(20.0f));
   };
   scene.render(describe());
@@ -288,14 +288,14 @@ TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
           .key("rig")
           .at({50, 0, 0})
           .child(Element().key("eye").camera(declared))
-          .child(Element().key("lamp").light(point({0, 20, 0})))));
+          .child(Element().key("lamp").light(light::point({0, 20, 0})))));
 
   const std::optional<geometry::mesh::camera::Camera> camera = scene.camera();
   ASSERT_TRUE(camera.has_value());
   EXPECT_FLOAT_EQ(camera->eye.x, 50.0f);
   EXPECT_FLOAT_EQ(camera->eye.z, 100.0f);
 
-  const std::vector<Light> lights = scene.lights();
+  const std::vector<light::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().position.x, 50.0f);
   EXPECT_FLOAT_EQ(lights.front().position.y, 20.0f);
@@ -309,13 +309,13 @@ TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
     return Element().key("root").child(
         Element()
             .key("lamp")
-            .light(point({0, 0, 0}, {0.1f, 0.2f, 0.3f, 1.0f}, 0.6f))
+            .light(light::point({0, 0, 0}, {0.1f, 0.2f, 0.3f, 1.0f}, 0.6f))
             .intensity(&strength)
             .emission(&red, 0.5f, 0.5f));
   };
 
   scene.render(describe());
-  std::vector<Light> lights = scene.lights();
+  std::vector<light::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().intensity, 0.25f);
   EXPECT_FLOAT_EQ(lights.front().color.r, 1.0f);
@@ -333,8 +333,8 @@ TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
 
 TEST_F(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
   scene.render(Element().key("root").child(Element().key("lamp").light(
-      point({0, 0, 0}, {0.3f, 0.6f, 0.9f, 1.0f}, 0.4f))));
-  const std::vector<Light> lights = scene.lights();
+      light::point({0, 0, 0}, {0.3f, 0.6f, 0.9f, 1.0f}, 0.4f))));
+  const std::vector<light::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().intensity, 0.4f);
   EXPECT_FLOAT_EQ(lights.front().color.b, 0.9f);

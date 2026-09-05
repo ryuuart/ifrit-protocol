@@ -48,7 +48,7 @@ struct Spun : Set {
     return world::Element()
         .key("set")
         .child(world::Element().key("sun").light(
-            world::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)))
+            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)))
         .child(world::Element()
                    .key("body")
                    .rotateY(seconds * 90.0f)
@@ -107,7 +107,7 @@ struct Framed : Set {
     return world::Element()
         .key("set")
         .child(world::Element().key("sun").light(
-            world::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)))
+            world::light::sun({-0.4f, -0.8f, -0.3f}, {1, 1, 1, 1}, 1.0f)))
         .child(world::Element().key("lens").camera(framedLens()))
         .child(world::Element()
                    .key("body")

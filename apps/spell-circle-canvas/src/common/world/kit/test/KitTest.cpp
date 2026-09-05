@@ -35,7 +35,7 @@ const ElementNode* childOf(const Element& element, const std::string& key) {
 
 /** The emitter a keyed child of @p element carries, or null. Reached
  *  as a pointer so a case that asserts on one says so first. */
-const Light* lightOf(const Element& element, const std::string& key) {
+const light::Light* lightOf(const Element& element, const std::string& key) {
   const ElementNode* node = childOf(element, key);
   return node && node->light ? &*node->light : nullptr;
 }
@@ -65,9 +65,9 @@ TEST(WorldKit, TheRigIsThreeKeyedEmitters) {
   EXPECT_EQ(nodeOf(rig).key, "rig");
   EXPECT_EQ(keysOf(rig), (std::vector<std::string>{"key", "fill", "back"}));
 
-  const Light* key = lightOf(rig, "key");
-  const Light* fill = lightOf(rig, "fill");
-  const Light* back = lightOf(rig, "back");
+  const light::Light* key = lightOf(rig, "key");
+  const light::Light* fill = lightOf(rig, "fill");
+  const light::Light* back = lightOf(rig, "back");
   ASSERT_NE(key, nullptr);
   ASSERT_NE(fill, nullptr);
   ASSERT_NE(back, nullptr);
@@ -178,7 +178,7 @@ TEST(WorldKit, ARigWithNoExtentStandsAtTheSubject) {
   const Element rig = kit::threePoint(flat);
   EXPECT_EQ(keysOf(rig), (std::vector<std::string>{"key", "fill", "back"}));
   for (const std::string& key : {"key", "fill", "back"}) {
-    const Light* lamp = lightOf(rig, key);
+    const light::Light* lamp = lightOf(rig, key);
     ASSERT_NE(lamp, nullptr) << key;
     EXPECT_NEAR(glm::length(lamp->position - flat.at), 0.0f, 1e-4f) << key;
   }

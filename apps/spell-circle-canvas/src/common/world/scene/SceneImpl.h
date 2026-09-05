@@ -185,7 +185,7 @@ struct Scene::Impl {
   core::Reconciler<Impl, Instance, Description>::KeyIndex byKey;
   /** The extracted draw order, in tree order. */
   std::vector<entt::entity> order;
-  std::vector<Light> lights;
+  std::vector<light::Light> lights;
   /** The one environment map the frame described, with its dials
    *  resolved and the node's placement folded into its orientation. A
    *  frame holds one; a second is a warning naming both keys. */

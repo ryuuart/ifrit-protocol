@@ -142,7 +142,7 @@ void writeScaffold(material::slang::Uniforms& uniforms,
                    const material::slang::Compiled& program,
                    const glm::mat4& viewProj, const glm::mat4& view,
                    const glm::mat4& model, glm::vec4 baseColor,
-                   std::span<const Light> lights, const Environment& sky,
+                   std::span<const light::Light> lights, const Environment& sky,
                    const glm::mat3& orientation, int levels, bool lit) {
   uniforms.set("uViewProj", viewProj);
   uniforms.set("uModel", model);
@@ -197,7 +197,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               uint64_t artefact, const geometry::mesh::Mesh& mesh,
               const glm::mat4& model, glm::vec4 baseColor,
               const material::Material* material, const material::Texture* map,
-              std::span<const Light> lights, const Environment& sky,
+              std::span<const light::Light> lights, const Environment& sky,
               const glm::mat3& orientation, bool lit, bool depthWrite,
               bool cull) {
   const MeshBuffers* buffers = gpu.upload(artefact, mesh);
