@@ -58,6 +58,7 @@
 #include <iterator>
 #include <string>
 #include <vector>
+#include <sigilweave/kit/PaintLayers.h>
 
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
@@ -325,7 +326,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
                                            .size = 186,
                                            .color = hex(0xC23A1C),
                                            .track = 34.0f});
-    s.paint.addUnderlay(weave::PaintLayer::outline(
+    s.paint.addUnderlay(sigil::weave::kit::outline(
         hex(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
     return compose::text(compose::toU8("DOOM"), std::move(s))
         .width(kPanelW)

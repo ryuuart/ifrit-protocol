@@ -15,4 +15,5 @@
 #include "sigilweave/kit/Labels.h"
 #include "sigilweave/kit/LayoutGuard.h"
 #include "sigilweave/kit/LineTables.h"
+#include "sigilweave/kit/PaintLayers.h"
 #include "sigilweave/kit/SampleText.h"

@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <type_traits>
+#include <sigilweave/kit/PaintLayers.h>
 
 using namespace sigil::weave;
 
@@ -42,9 +43,9 @@ TEST(TextStyle, TheFluentSugarAppendsInTheOrderItWasCalled) {
 
 TEST(PaintStyle, PaintLayersExposeCompletePaintAndExplicitOrder) {
   PaintStyle style(SK_ColorWHITE);
-  style.addUnderlay(PaintLayer::dropShadow(0x66000000, {3, 4}, 2.0f))
-      .addUnderlay(PaintLayer::glow(0x550000FF, 5.0f))
-      .addUnderlay(PaintLayer::outline(SK_ColorBLACK, 3.0f));
+  style.addUnderlay(sigil::weave::kit::dropShadow(0x66000000, {3, 4}, 2.0f))
+      .addUnderlay(sigil::weave::kit::glow(0x550000FF, 5.0f))
+      .addUnderlay(sigil::weave::kit::outline(SK_ColorBLACK, 3.0f));
 
   SkPaint customOverlay;
   customOverlay.setAntiAlias(true);

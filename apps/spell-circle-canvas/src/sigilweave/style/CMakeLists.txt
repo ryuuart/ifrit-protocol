@@ -14,4 +14,4 @@ sigil_library(SigilWeaveStyle
 # needs nothing of the machine it runs on.
 sigil_test(weave_style_test
   SOURCES test/StyleTest.cpp
-  LIBRARIES SigilWeaveStyle)
+  LIBRARIES SigilWeaveStyle SigilWeaveKit)

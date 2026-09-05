@@ -30,6 +30,7 @@
 #include "support/Paints.h"
 #include "support/Paragraphs.h"
 #include "support/Pixels.h"
+#include <sigilweave/kit/PaintLayers.h>
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -56,7 +57,7 @@ TEST(PaintPasses, ShadowAndShaderDrawWithoutRelayout) {
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   PaintStyle fancy(SK_ColorWHITE);
-  fancy.addUnderlay(PaintLayer::dropShadow(0x80000000, {3, 3}, 2.5f));
+  fancy.addUnderlay(sigil::weave::kit::dropShadow(0x80000000, {3, 3}, 2.5f));
   fancy.foreground.setShader(
       horizontalGradient(0, 180, SK_ColorRED, SK_ColorBLUE));
   paragraph.setPaint(0, 7, fancy);

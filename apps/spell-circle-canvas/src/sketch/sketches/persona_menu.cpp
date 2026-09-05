@@ -64,6 +64,7 @@
 #include <cmath>
 #include <cstdio>
 #include <functional>
+#include <sigilweave/kit/PaintLayers.h>
 
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
@@ -216,7 +217,7 @@ inline sigil::weave::TextStyle menuType(float size, SkColor4f fill, float ringW,
   s.paint.foreground.setColor(fill.toSkColor());
   s.paint.foreground.setAntiAlias(true);
   if (ringW > 0)
-    s.paint.addUnderlay(sigil::weave::PaintLayer::outline(
+    s.paint.addUnderlay(sigil::weave::kit::outline(
         kRing.toSkColor(), ringW, SkPaint::kRound_Join));
   return s;
 }

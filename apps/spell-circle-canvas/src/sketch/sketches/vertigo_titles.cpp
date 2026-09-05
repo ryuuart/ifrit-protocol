@@ -149,6 +149,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <sigilweave/kit/PaintLayers.h>
 
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
@@ -267,7 +268,7 @@ weave::TextStyle faced(sk_sp<SkTypeface> face, float size,
                                .condense = condense});
 }
 
-/** The OUTLINE register: PaintLayer::outline()'s stroked paint installed
+/** The OUTLINE register: sigil::weave::kit::outline()'s stroked paint installed
  *  as the node's ENTIRE foreground pass — no fill underneath, so the
  *  spiral is visible straight through the counters. Typotheque: "outline
  *  type through which the image beneath can be seen." */
@@ -276,7 +277,7 @@ weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
                                float tracking = 0) {
   weave::TextStyle s = faced(std::move(face), size, color, tracking);
   s.paint.foreground =
-      weave::PaintLayer::outline(color.toSkColor(), width).paint;
+      sigil::weave::kit::outline(color.toSkColor(), width).paint;
   s.paint.foreground.setAntiAlias(true);
   return s;
 }

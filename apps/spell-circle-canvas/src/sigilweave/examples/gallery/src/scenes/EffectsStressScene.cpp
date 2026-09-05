@@ -12,6 +12,7 @@
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilcore/cache/Rebuild.h>
+#include <sigilweave/kit/PaintLayers.h>
 
 using namespace sigil::weave;
 
@@ -110,13 +111,13 @@ class StressPart final : public Scene {
             // opens up once the text is large enough to take it.
             const float cappedSpread =
                 std::min(m_glowSpread, stressFontSize * 0.06f);
-            m_effect.addUnderlay(PaintLayer::glow(
+            m_effect.addUnderlay(sigil::weave::kit::glow(
                 0x882A77FF, std::max(1.2f, stressFontSize * 0.28f),
                 cappedSpread, m_glowIntensity));
           }
           if (m_effectOutline)
             m_effect.addUnderlay(
-                PaintLayer::outline(SkColors::kBlue.toSkColor(),
+                sigil::weave::kit::outline(SkColors::kBlue.toSkColor(),
                                     std::max(0.55f, stressFontSize * 0.03f)));
           if (m_effectStars) {
             SkPaint stars;

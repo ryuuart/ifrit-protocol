@@ -14,4 +14,4 @@ sigil_library(SigilWeaveChoreograph
 # the committed instrument, so nothing here skips on what a machine has.
 sigil_test(weave_choreograph_test
   SOURCES test/ChoreographTest.cpp test/GlyphBatchesTest.cpp
-  LIBRARIES SigilWeaveChoreograph SigilWeavePorts)
+  LIBRARIES SigilWeaveChoreograph SigilWeavePorts SigilWeaveKit)

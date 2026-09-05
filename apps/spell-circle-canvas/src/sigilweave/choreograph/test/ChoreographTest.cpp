@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "support/ChoreographSupport.h"
+#include <sigilweave/kit/PaintLayers.h>
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -145,7 +146,7 @@ TEST_F(Choreography, EveryGlyphReportsTheColourOfTheSpanThatCoversIt) {
   // A paint declared after the placement is resolved on the next walk of
   // the SAME layout: new colour, new passes, nothing re-placed.
   PaintStyle blue(SK_ColorBLUE);
-  blue.addUnderlay(PaintLayer::outline(SK_ColorBLACK, 2.0f));
+  blue.addUnderlay(sigil::weave::kit::outline(SK_ColorBLACK, 2.0f));
   m_paragraph.setPaint(0, 7, blue);
   int blueGlyphs = 0;
   for (const PlacedGlyph& glyph : walk())

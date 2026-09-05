@@ -19,9 +19,11 @@ sigil_library(SigilWeavePaint
 # shades them are both linked.
 sigil_test(weave_paint_test
   SOURCES test/PaintTest.cpp test/DecorationPaintTest.cpp
-  LIBRARIES SigilWeavePaint SigilWeavePorts SigilMaterialKit SigilMaterialSkia)
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialKit
+            SigilMaterialSkia)
 
 # draw and drawBatched per glyph on a raster surface.
 sigil_bench(weave_paint_bench
   SOURCES bench/PaintBench.cpp
-  LIBRARIES SigilWeavePaint SigilWeavePorts SigilMaterialKit SigilMaterialSkia)
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialKit
+            SigilMaterialSkia)

@@ -121,7 +121,9 @@ text (its own section below).
   `opticalKerning`), `style/PaintLayer.h`
   (`PaintLayer` — a pass's `SkPaint`, its offset, and optionally a
   SigilMaterial instance it shades with, held by pointer and resolved at
-  draw time through `paint/Paint.h`'s resolver), `style/Decoration.h`
+  draw time through `paint/Paint.h`'s resolver, plus `blurred()` for
+  attaching a blur mask to one; the three arrangements everyone writes
+  are `kit/PaintLayers.h`), `style/Decoration.h`
   (`Decoration`), `style/PaintStyle.h` (`PaintStyle`, draw-time),
   `style/TextStyle.h` (`TextStyle` = the two halves) and
   `style/StyleSet.h` (`StyleSet`, a small ordered registry of named
@@ -440,7 +442,7 @@ them rather than the only one.
   second side; nor does a decoration with an explicit `offset`, which
   names the near edge outright.
 - **Paint layers** — ordered underlays and overlays around the foreground,
-  each a complete `SkPaint` plus an offset; `PaintLayer::dropShadow`, `glow`,
+  each a complete `SkPaint` plus an offset; `kit::dropShadow`, `glow`,
   and `outline` are presets over that. Each layer costs one more draw per
   bucket.
 - **Variable fonts** — `shaping.variations = {{"wght", 700}}`, or the fluent

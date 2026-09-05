@@ -21,6 +21,7 @@
 #include "support/ChoreographSupport.h"
 #include "support/Paints.h"
 #include "support/Pixels.h"
+#include <sigilweave/kit/PaintLayers.h>
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -33,7 +34,7 @@ PaintStyle outlinedGradient(float left, float right) {
   style.foreground.setAntiAlias(true);
   style.foreground.setShader(
       horizontalGradient(left, right, SK_ColorRED, SK_ColorGREEN));
-  style.addUnderlay(PaintLayer::outline(SK_ColorBLUE, 6.0f));
+  style.addUnderlay(sigil::weave::kit::outline(SK_ColorBLUE, 6.0f));
   return style;
 }
 

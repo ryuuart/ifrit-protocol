@@ -125,6 +125,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <sigilweave/kit/PaintLayers.h>
 
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
@@ -324,7 +325,7 @@ struct MatrixRain : sketch::Sketch {
       // glyphs are sixteen pixels tall spends that budget without
       // changing the picture.
       style.paint.addUnderlay(
-          sigil::weave::PaintLayer::glow(0xC040FF70, glowSigma, 1.9f));
+          sigil::weave::kit::glow(0xC040FF70, glowSigma, 1.9f));
     return style;
   }
 
