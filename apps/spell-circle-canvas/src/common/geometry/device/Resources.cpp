@@ -19,6 +19,8 @@
 
 namespace sigil::geometry::device {
 
+namespace dg = Diligent;
+
 Resources::Resources(Device& device) : m_device(&device) {
   if (!device.renderDevice()) return;
 
