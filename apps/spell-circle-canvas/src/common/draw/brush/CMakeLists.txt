@@ -33,3 +33,5 @@ sigil_test(draw_brush_test
 sigil_bench(draw_brush_bench
   SOURCES bench/BrushBench.cpp
   LIBRARIES SigilDrawBrush)
+
+add_subdirectory(format)

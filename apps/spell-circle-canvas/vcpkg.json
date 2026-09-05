@@ -39,6 +39,7 @@
       ]
     },
     "icu",
+    "minizip-ng",
     "openimageio",
     "shader-slang",
     {
