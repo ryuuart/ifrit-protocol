@@ -207,7 +207,6 @@ namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
-namespace weave = sigil::weave;
 namespace ch = choreograph;
 
 namespace eva {
