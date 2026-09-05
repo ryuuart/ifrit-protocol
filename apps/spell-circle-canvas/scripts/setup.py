@@ -11,7 +11,7 @@ Besides the primary `main` preset (build/), the file carries one
 configure, build and test preset for each secondary tree — `coverage`,
 `asan`, `tsan` — so coverage.py and sanitize.py configure with
 `cmake --preset <name>` and CMake composes the toolchain, the Qt prefix
-and the instrumentation switch itself.
+and the instrumentation flags itself.
 """
 
 import argparse
@@ -158,11 +158,32 @@ def find_substance() -> Path | None:
     return best[1]
 
 
-# The secondary trees: each is the `main` composition plus one cache
-# switch, in its own build-<name>/ directory, reading the primary tree's
-# vcpkg_installed/ as-is with the manifest install disabled so it never
-# writes there and never duplicates the dependency archives. Their test
-# presets carry the runtime options the tools need.
+# The secondary trees: each is the `main` composition plus the compile and
+# link flags of one instrumentation, in its own build-<name>/ directory,
+# reading the primary tree's vcpkg_installed/ as-is with the manifest
+# install disabled so it never writes there and never duplicates the
+# dependency archives. Their test presets carry the runtime options the
+# tools need. Switching a tree's flags recompiles every object in it,
+# which is why each lane is a tree of its own; and vcpkg archives arrive
+# prebuilt and uninstrumented, so a coverage report covers this
+# repository's sources and a check that needs both sides instrumented
+# misfires across that boundary.
+#
+# Only the C++ flags are set. Every .mm in this tree compiles through the
+# C++ compiler, and SpellCircleMac's Swift sources go through swiftc,
+# which rejects these; src/spellcircle/mac/CMakeLists.txt takes them back
+# off that one executable's link line.
+#
+# -fno-omit-frame-pointer: reports unwind through frame pointers, and
+# without them the stacks in a report degrade to unusable fragments.
+#
+# -fno-sanitize-recover=undefined: UBSan's default is print-and-continue,
+# which lets a finding scroll past inside a passing test. Aborting makes a
+# UBSan finding fail the test that triggered it.
+#
+# workaround: -include cmake/SkiaSanitizerAbi.h, for instrumented Skia
+# headers meeting an uninstrumented archive. The header states what the
+# pin is and what it costs.
 #
 # ASan runtime options:
 #   detect_leaks=0 — LeakSanitizer does not support macOS on Apple
@@ -193,9 +214,23 @@ def find_substance() -> Path | None:
 # Coverage: %p (process id) keeps concurrently running tests from
 # clobbering one profile; %m (module signature) keeps profiles from
 # differently instrumented binaries apart so the merge stays well-formed.
+def instrumented(compile_flags: str, link_flags: str) -> dict[str, str]:
+    """The cache variables that carry one instrumentation into a tree: the
+    compile flags on C++, the link flags on every kind of binary."""
+    return {
+        "CMAKE_CXX_FLAGS": compile_flags,
+        "CMAKE_EXE_LINKER_FLAGS": link_flags,
+        "CMAKE_SHARED_LINKER_FLAGS": link_flags,
+        "CMAKE_MODULE_LINKER_FLAGS": link_flags,
+    }
+
+
 SECONDARY_TREES = {
     "coverage": {
-        "cacheVariables": {"SPELLCIRCLE_COVERAGE": "ON"},
+        "cacheVariables": instrumented(
+            "-fprofile-instr-generate -fcoverage-mapping",
+            "-fprofile-instr-generate",
+        ),
         "environment": {
             "LLVM_PROFILE_FILE": (
                 "${sourceDir}/build-coverage/coverage/raw/%p-%m.profraw"
@@ -203,14 +238,22 @@ SECONDARY_TREES = {
         },
     },
     "asan": {
-        "cacheVariables": {"SPELLCIRCLE_SANITIZE": "address;undefined"},
+        "cacheVariables": instrumented(
+            "-fsanitize=address,undefined -fno-omit-frame-pointer "
+            "-fno-sanitize-recover=undefined "
+            "-include ${sourceDir}/cmake/SkiaSanitizerAbi.h",
+            "-fsanitize=address,undefined",
+        ),
         "environment": {
             "ASAN_OPTIONS": "detect_leaks=0:detect_container_overflow=0",
             "UBSAN_OPTIONS": "print_stacktrace=1",
         },
     },
     "tsan": {
-        "cacheVariables": {"SPELLCIRCLE_SANITIZE": "thread"},
+        "cacheVariables": instrumented(
+            "-fsanitize=thread -fno-omit-frame-pointer",
+            "-fsanitize=thread",
+        ),
         "environment": {
             "TSAN_OPTIONS": (
                 "halt_on_error=1:second_deadlock_stack=1:"

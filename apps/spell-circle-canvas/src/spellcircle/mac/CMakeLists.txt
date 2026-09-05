@@ -11,6 +11,17 @@
 #            (CAMetalLayer + pan/zoom). Pure-ObjC headers exported to Swift
 #            via module.modulemap.
 #   app/     SwiftUI executable importing that Clang module.
+# SpellCircleMac is the one executable in this tree linked by swiftc
+# rather than clang++, and swift-driver rejects the clang instrumentation
+# flags an instrumented tree carries in CMAKE_EXE_LINKER_FLAGS. They are
+# taken back off in this directory's scope — before the Swift compiler is
+# probed with them — and the instrumented C++ still reaches the app
+# through SpellCircleMacBridge, which is a C++ link and carries the
+# runtime with it.
+string(REGEX REPLACE
+  "-f(sanitize|no-sanitize-recover|no-omit-frame-pointer|profile-instr-generate|coverage-mapping)[^ ]*"
+  "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+
 include(CheckLanguage)
 check_language(Swift)
 if(NOT CMAKE_Swift_COMPILER)

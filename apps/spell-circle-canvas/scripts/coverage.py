@@ -3,7 +3,7 @@
 
 Configures a dedicated instrumented tree (build-coverage/) through the
 `coverage` preset that scripts/setup.py writes into CMakeUserPresets.json
-(SPELLCIRCLE_COVERAGE=ON over the `main` composition), builds the test
+(the `main` composition plus the coverage flags), builds the test
 targets, runs ctest through the matching test preset — whose environment
 points every test process at its own raw profile — merges the raw
 profiles with llvm-profdata, and prints the llvm-cov summary plus an HTML
@@ -223,7 +223,7 @@ def main() -> int:
     if not raw_profiles:
         fail(
             f"no raw profiles in {RAW_DIR} — did every test skip, or was "
-            "the tree configured without SPELLCIRCLE_COVERAGE?"
+            "the tree configured without the coverage flags?"
         )
     print(f"\n{len(raw_profiles)} raw profiles")
     run(

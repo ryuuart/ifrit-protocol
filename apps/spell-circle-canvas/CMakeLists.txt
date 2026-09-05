@@ -39,10 +39,6 @@ if(APPLE)
   add_link_options("LINKER:-no_warn_duplicate_libraries")
 endif()
 
-# SPELLCIRCLE_COVERAGE and SPELLCIRCLE_SANITIZE, each for a build tree of
-# its own.
-include(Instrumentation)
-
 # Opt-in network fetch of open-licensed demo assets into the build tree;
 # nothing here runs during a normal build, and configuring the project
 # never touches the network. The manifest and the downloader are
