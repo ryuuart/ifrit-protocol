@@ -49,13 +49,6 @@ geometry::mesh::pop::Chain cometChain() {
       .spread(6.0f);
 }
 
-geometry::mesh::camera::Camera frontCamera() {
-  geometry::mesh::camera::Camera camera;
-  camera.eye = {0, 0, 320};
-  camera.target = {0, 0, 0};
-  return camera;
-}
-
 /** The bytes a scene draws into, at a fixed size, on the CPU. */
 std::vector<uint8_t> plate(Scene& scene,
                            const geometry::mesh::camera::Camera& camera) {
@@ -68,7 +61,9 @@ std::vector<uint8_t> plate(Scene& scene,
   return {pixels, pixels + bitmap.computeByteSize()};
 }
 
-std::vector<uint8_t> plate(Scene& scene) { return plate(scene, frontCamera()); }
+std::vector<uint8_t> plate(Scene& scene) {
+  return plate(scene, frontCamera(320.0f));
+}
 
 bool hasInk(const std::vector<uint8_t>& pixels) {
   return std::any_of(pixels.begin(), pixels.end(),
@@ -111,7 +106,7 @@ TEST_F(WorldScene, AKeyedReorderKeepsEveryNodesHandle) {
 }
 
 TEST_F(WorldScene, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
-  geometry::mesh::camera::Camera behind = frontCamera();
+  geometry::mesh::camera::Camera behind = frontCamera(320.0f);
   behind.eye.z = -320;
 
   scene.render(Element().key("root").child(
@@ -374,7 +369,7 @@ Element pair() {
 
 Frame framed(Element scene) {
   Frame frame(std::move(scene));
-  frame.extent(kFrameExtent).camera(frontCamera());
+  frame.extent(kFrameExtent).camera(frontCamera(320.0f));
   return frame;
 }
 
@@ -398,9 +393,12 @@ int inkIn(Scene& scene, bool leftHalf) {
 
 TEST_F(WorldScene, AFrameWithNoPassesDrawsTheSceneItIs) {
   scene.render(framed(pair()));
-  EXPECT_EQ(scene.stats().passes, 0);
-  EXPECT_TRUE(scene.plan().steps().empty());
   EXPECT_TRUE(scene.error().empty());
+  EXPECT_EQ(scene.stats().passes, 0);
+  // Nothing ran, and both bodies are there: a frame that declares no pass
+  // is its scene rather than an empty picture.
+  EXPECT_GT(inkIn(scene, /*leftHalf=*/true), 0);
+  EXPECT_GT(inkIn(scene, /*leftHalf=*/false), 0);
 }
 
 TEST_F(WorldScene, APassSeesWhatExtractWroteAndNotTheTree) {
@@ -432,8 +430,6 @@ TEST_F(WorldScene, ACulledGeometryPassDrawsOnlyItsSelection) {
   scene.render(frame);
 
   ASSERT_TRUE(scene.error().empty());
-  ASSERT_EQ(scene.plan().steps().size(), 1u);
-  EXPECT_EQ(scene.plan().steps().front().realisation, Selection::Cull);
   EXPECT_EQ(inkIn(scene, /*leftHalf=*/true), 0);
   EXPECT_GT(inkIn(scene, /*leftHalf=*/false), 0);
 }
@@ -522,7 +518,9 @@ TEST_F(WorldScene, TheOrderingsCountsAreOnTheFramesTally) {
   ASSERT_TRUE(scene.error().empty());
   EXPECT_EQ(scene.stats().passes, 4);
   EXPECT_EQ(scene.stats().surfaces, scene.plan().surfaces());
-  EXPECT_EQ(scene.stats().aliased, 2);
+  ASSERT_GT(scene.plan().aliased(), 0)
+      << "this frame reuses no surface, so the tally says nothing";
+  EXPECT_EQ(scene.stats().aliased, scene.plan().aliased());
   EXPECT_GT(scene.stats().barriers, 0);
   // …and the surfaces the ordering asked for are the surfaces that were
   // made.

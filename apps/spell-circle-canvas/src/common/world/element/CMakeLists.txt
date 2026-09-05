@@ -16,8 +16,11 @@ sigil_library(SigilWorldElement
 
 # Links only the library it exercises, so a link edge that pulled the
 # retained side or a device in would show up as a build failure here.
+# The emitter values are here too: this target links the light feature,
+# so a binary over the emitters alone would draw no boundary — the
+# description and the emitters it carries are one closure.
 sigil_test(world_element_test
-  SOURCES test/ElementTest.cpp test/SelectorTest.cpp
+  SOURCES test/ElementTest.cpp test/LightTest.cpp test/SelectorTest.cpp
   LIBRARIES SigilWorldElement)
 
 sigil_bench(world_element_bench

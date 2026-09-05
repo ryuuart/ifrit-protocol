@@ -4,7 +4,6 @@
 # The device itself is not made here. Diligent cannot attach to a device
 # that already exists, so the one creation point has to sit below every
 # consumer of one — which is SigilGeometryDevice, and this links it.
-find_package(unofficial-diligent-engine CONFIG REQUIRED)
 
 # The shader modules. Each one's text is compiled into the archive, and
 # each is compiled by slangc when this library is built, which makes a
@@ -53,7 +52,7 @@ sigil_library(SigilWorldDiligent
           Programs.cpp Programs.h Runtime.cpp
           ${SIGIL_WORLD_SURFACE_PROOF} ${SIGIL_WORLD_PAINTER_PROOF}
           ${SIGIL_WORLD_POST_PROOF}
-  HEADERS Import.h Painter.h Runtime.h
+  HEADERS Import.h Maps.h Painter.h Runtime.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilCoreHardware SigilGeometryMeshRender
@@ -61,8 +60,13 @@ sigil_library(SigilWorldDiligent
 sigil_shader_sources(SigilWorldDiligent
   DIR ${_shaders} NAMESPACE sigil::world::diligent)
 
-# The runtime test reads the compiled program the compiler registration
-# produced, which is this feature's own header rather than a public one.
+# Every case here reads this feature through its public headers alone —
+# the source directory is not on the test's include path — and the seam
+# values, the cameras and the readings they share sit in
+# test/DeviceSeams.h, over the one device a test process brings up, which
+# is SigilGeometryDevice's fixture because that is where a device can be
+# created at all.
+#
 # HALF THIS BINARY IS A NO-OP WITHOUT A VULKAN RUNTIME, and it reports
 # pass either way, because a case that cannot ask its question skips
 # rather than fails. The label is what makes that visible from outside:
@@ -70,8 +74,9 @@ sigil_shader_sources(SigilWorldDiligent
 # it is a run nobody should read a device verdict out of.
 sigil_test(world_diligent_test
   SOURCES test/PainterTest.cpp test/RuntimeTest.cpp test/StackTest.cpp
-          test/SurfaceTest.cpp test/Distance.h test/OnDevice.h
-  SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_SHADER_GENERATED_DIR}
+          test/SurfaceTest.cpp test/DeviceSeams.h
+  SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
+               ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
   LIBRARIES SigilWorldDiligent SigilMaterialKit SigilGeometryKit
   LABELS gpu)

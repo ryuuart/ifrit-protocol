@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-#include "OnDevice.h"
+#include "DeviceSeams.h"
 
 using namespace sigil;
 namespace gm = sigil::geometry::mesh;

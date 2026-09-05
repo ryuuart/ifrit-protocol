@@ -10,6 +10,7 @@
 
 #include <glm/vec4.hpp>
 #include <memory>
+#include <string>
 
 #include "TestMaterial.h"
 
@@ -57,99 +58,113 @@ TEST(WorldElement, TwoDescribesOfTheSameNodePrune) {
   EXPECT_TRUE(propsEqual(*a.node(), *b.node()));
 }
 
-TEST(WorldElement, EveryFieldADescriptionCarriesReachesThePrune) {
-  const auto base = [] { return Element().key("body"); };
-  /** ONE FIELD, SAID TWO WAYS. A description carrying the first differs
-   *  from one carrying neither and from one carrying the second, and
-   *  compares equal to a second description of itself — which is what a
-   *  field being IN the comparison means, as against being left out of
-   *  it and never patching again. */
-  struct Case {
-    const char* what;
-    Element (*one)(Element);
-    Element (*other)(Element);
-  };
-  const Case cases[] = {
-      {"translateX", [](Element e) { return e.translateX(1.0f); },
-       [](Element e) { return e.translateX(2.0f); }},
-      {"translateY", [](Element e) { return e.translateY(1.0f); },
-       [](Element e) { return e.translateY(2.0f); }},
-      {"translateZ", [](Element e) { return e.translateZ(1.0f); },
-       [](Element e) { return e.translateZ(2.0f); }},
-      {"rotateX", [](Element e) { return e.rotateX(1.0f); },
-       [](Element e) { return e.rotateX(2.0f); }},
-      {"rotateY", [](Element e) { return e.rotateY(1.0f); },
-       [](Element e) { return e.rotateY(2.0f); }},
-      {"rotateZ", [](Element e) { return e.rotateZ(1.0f); },
-       [](Element e) { return e.rotateZ(2.0f); }},
-      {"scaleX", [](Element e) { return e.scaleX(2.0f); },
-       [](Element e) { return e.scaleX(3.0f); }},
-      {"scaleY", [](Element e) { return e.scaleY(2.0f); },
-       [](Element e) { return e.scaleY(3.0f); }},
-      {"scaleZ", [](Element e) { return e.scaleZ(2.0f); },
-       [](Element e) { return e.scaleZ(3.0f); }},
-      {"origin", [](Element e) { return e.transformOrigin({1, 1, 1}); },
-       [](Element e) { return e.transformOrigin({2, 2, 2}); }},
-      {"axis", [](Element e) { return e.rotate({1, 0, 0}, 15.0f); },
-       [](Element e) { return e.rotate({0, 1, 0}, 15.0f); }},
-      {"matrix", [](Element e) { return e.transform(glm::mat4(2.0f)); },
-       [](Element e) { return e.transform(glm::mat4(3.0f)); }},
-      {"tag", [](Element e) { return e.tag("glow"); },
-       [](Element e) { return e.tag("dim"); }},
-      {"light", [](Element e) { return e.light(sun({0, -1, 0})); },
-       [](Element e) { return e.light(sun({0, 1, 0})); }},
-      {"camera",
-       [](Element e) { return e.camera(geometry::mesh::camera::Camera{}); },
-       [](Element e) {
-         geometry::mesh::camera::Camera lens;
-         lens.eye = {0, 0, 10};
-         return e.camera(lens);
-       }},
-      {"cache", [](Element e) { return e.cache(core::Cache::Never); },
-       [](Element e) { return e.cache(core::Cache::Always); }},
-      {"along",
-       [](Element e) {
-         geometry::mesh::curve::Spline3 spline;
-         spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
-         return e.along(spline, 10.0f);
-       },
-       [](Element e) {
-         geometry::mesh::curve::Spline3 spline;
-         spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
-         return e.along(spline, 20.0f);
-       }},
-      {"window", [](Element e) { return e.window(0.5f, 0.2f); },
-       [](Element e) { return e.window(0.5f, 0.4f); }},
-      {"intensity",
-       [](Element e) { return e.light(point({0, 0, 0})).intensity(2.0f); },
-       [](Element e) { return e.light(point({0, 0, 0})).intensity(1.0f); }},
-      {"emission",
-       [](Element e) {
-         return e.light(point({0, 0, 0})).emission(1.0f, 1.0f, 1.0f);
-       },
-       [](Element e) {
-         return e.light(point({0, 0, 0})).emission(1.0f, 1.0f, 0.5f);
-       }},
-      // A dial that is there and one that is not are different
-      // descriptions, because the emitter's own field stands where the
-      // dial is absent.
-      {"a dial at all",
-       [](Element e) { return e.light(point({0, 0, 0})).intensity(1.0f); },
-       [](Element e) { return e.light(point({0, 0, 0})); }},
-  };
-  for (const Case& c : cases) {
-    const Element one = c.one(base());
-    const Element other = c.other(base());
-    EXPECT_FALSE(propsEqual(*base().node(), *one.node()))
-        << c.what << " does not reach the prune";
-    EXPECT_FALSE(propsEqual(*base().node(), *other.node()))
-        << c.what << " does not reach the prune";
-    EXPECT_FALSE(propsEqual(*one.node(), *other.node()))
-        << c.what << " compares equal at two different values";
-    EXPECT_TRUE(propsEqual(*one.node(), *c.one(base()).node()))
-        << c.what << " compares unequal to a second description of itself";
-  }
+namespace {
+
+/** ONE FIELD, SAID TWO WAYS. A description carrying the first differs
+ *  from one carrying neither and from one carrying the second, and
+ *  compares equal to a second description of itself — which is what a
+ *  field being IN the comparison means, as against being left out of it
+ *  and never patching again. */
+struct Field {
+  const char* what;
+  Element (*one)(Element);
+  Element (*other)(Element);
+};
+
+class DescribedField : public testing::TestWithParam<Field> {};
+
+std::string fieldName(const testing::TestParamInfo<Field>& info) {
+  return info.param.what;
 }
+
+const Field kFields[] = {
+    {"TranslateX", [](Element e) { return e.translateX(1.0f); },
+     [](Element e) { return e.translateX(2.0f); }},
+    {"TranslateY", [](Element e) { return e.translateY(1.0f); },
+     [](Element e) { return e.translateY(2.0f); }},
+    {"TranslateZ", [](Element e) { return e.translateZ(1.0f); },
+     [](Element e) { return e.translateZ(2.0f); }},
+    {"RotateX", [](Element e) { return e.rotateX(1.0f); },
+     [](Element e) { return e.rotateX(2.0f); }},
+    {"RotateY", [](Element e) { return e.rotateY(1.0f); },
+     [](Element e) { return e.rotateY(2.0f); }},
+    {"RotateZ", [](Element e) { return e.rotateZ(1.0f); },
+     [](Element e) { return e.rotateZ(2.0f); }},
+    {"ScaleX", [](Element e) { return e.scaleX(2.0f); },
+     [](Element e) { return e.scaleX(3.0f); }},
+    {"ScaleY", [](Element e) { return e.scaleY(2.0f); },
+     [](Element e) { return e.scaleY(3.0f); }},
+    {"ScaleZ", [](Element e) { return e.scaleZ(2.0f); },
+     [](Element e) { return e.scaleZ(3.0f); }},
+    {"TransformOrigin", [](Element e) { return e.transformOrigin({1, 1, 1}); },
+     [](Element e) { return e.transformOrigin({2, 2, 2}); }},
+    {"AnAxisAndAnAngle", [](Element e) { return e.rotate({1, 0, 0}, 15.0f); },
+     [](Element e) { return e.rotate({0, 1, 0}, 15.0f); }},
+    {"AWholeMatrix", [](Element e) { return e.transform(glm::mat4(2.0f)); },
+     [](Element e) { return e.transform(glm::mat4(3.0f)); }},
+    {"ATag", [](Element e) { return e.tag("glow"); },
+     [](Element e) { return e.tag("dim"); }},
+    {"AnEmitter", [](Element e) { return e.light(sun({0, -1, 0})); },
+     [](Element e) { return e.light(sun({0, 1, 0})); }},
+    {"AViewpoint",
+     [](Element e) { return e.camera(geometry::mesh::camera::Camera{}); },
+     [](Element e) {
+       geometry::mesh::camera::Camera lens;
+       lens.eye = {0, 0, 10};
+       return e.camera(lens);
+     }},
+    {"TheCacheWord", [](Element e) { return e.cache(core::Cache::Never); },
+     [](Element e) { return e.cache(core::Cache::Always); }},
+    {"ARailAndADistanceAlongIt",
+     [](Element e) {
+       geometry::mesh::curve::Spline3 spline;
+       spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
+       return e.along(spline, 10.0f);
+     },
+     [](Element e) {
+       geometry::mesh::curve::Spline3 spline;
+       spline.points = {{0, 0, 0}, {100, 0, 0}, {100, 100, 0}};
+       return e.along(spline, 20.0f);
+     }},
+    {"AWindowOnTheRail", [](Element e) { return e.window(0.5f, 0.2f); },
+     [](Element e) { return e.window(0.5f, 0.4f); }},
+    {"AnIntensityDial",
+     [](Element e) { return e.light(point({0, 0, 0})).intensity(2.0f); },
+     [](Element e) { return e.light(point({0, 0, 0})).intensity(1.0f); }},
+    {"AnEmissionDial",
+     [](Element e) {
+       return e.light(point({0, 0, 0})).emission(1.0f, 1.0f, 1.0f);
+     },
+     [](Element e) {
+       return e.light(point({0, 0, 0})).emission(1.0f, 1.0f, 0.5f);
+     }},
+    // A dial that is there and one that is not are different
+    // descriptions, because the emitter's own field stands where the
+    // dial is absent.
+    {"ADialAtAllAgainstNone",
+     [](Element e) { return e.light(point({0, 0, 0})).intensity(1.0f); },
+     [](Element e) { return e.light(point({0, 0, 0})); }},
+};
+
+}  // namespace
+
+TEST_P(DescribedField, ReachesThePruneAndTellsItsTwoValuesApart) {
+  const auto base = [] { return Element().key("body"); };
+  const Field& field = GetParam();
+  const Element one = field.one(base());
+  const Element other = field.other(base());
+  EXPECT_FALSE(propsEqual(*base().node(), *one.node()))
+      << "does not reach the prune";
+  EXPECT_FALSE(propsEqual(*base().node(), *other.node()))
+      << "does not reach the prune";
+  EXPECT_FALSE(propsEqual(*one.node(), *other.node()))
+      << "compares equal at two different values";
+  EXPECT_TRUE(propsEqual(*one.node(), *field.one(base()).node()))
+      << "compares unequal to a second description of itself";
+}
+
+INSTANTIATE_TEST_SUITE_P(EveryFieldADescriptionCarries, DescribedField,
+                         testing::ValuesIn(kFields), fieldName);
 
 TEST(WorldElement, BackfaceVisibilityReachesThePrune) {
   const Element hidden = Element().key("body");

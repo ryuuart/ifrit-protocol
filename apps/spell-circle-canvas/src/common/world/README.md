@@ -1080,9 +1080,23 @@ such a machine is the CPU executor, not a second GPU path.
 ctest --test-dir build -C Release -R world_
 ```
 
+A case here asserts one thing this library promises through its public
+headers and is named that promise as a sentence, so a failure line reads
+as the claim that broke. It pins only what editing this library could
+falsify — a comparator's field walk, a derived ordering, a closed form,
+one description drawn two ways — never an anti-aliased byte, a fitted
+tolerance or elapsed time: how close two rasterisers stand is the plate
+ledger's to judge and how long anything takes is the bench ledger's. A
+claim made N times with one thing varying is one `TEST_P` whose
+parameter is that thing, with a name per row. **A binary exists where it
+links a strictly smaller set of targets than its neighbours and that
+boundary is a promise somebody could read**; two binaries over one
+closure are one binary.
+
 **The fixtures every one of these binaries shares live in `test/`**, and
 there is one: `test/TestMaterial.h` — the throwaway comparable surface a
-test paints with, in a plain build and a Slang-bodied one, and the
+test paints with, in a plain build and a Slang-bodied one, the camera
+square on to the origin at whatever distance the case wants, and the
 half-plate ink count a selection is read by. A test target adds that one
 directory and includes the header by name; no library's include path
 carries it, so nothing shipped can reach a fixture. A body that needs a
@@ -1090,39 +1104,84 @@ shape takes SigilGeometry's `quad()` rather than building one, and the
 one hand-built mesh left is a single TRIANGLE, kept because a stamp
 standing at every point of a cloud is counted in triangles.
 
+| binary | what it proves | label |
+|---|---|---|
+| `world_element_test` | the description and the emitters it carries | — |
+| `world_frame_test` | the declarations and the CPU executor | — |
+| `world_graph_test` | the ordering derived from the declarations | — |
+| `world_scene_test` | the retained side | — |
+| `world_kit_test` | the presets | — |
+| `world_diligent_test` | the device executor | `gpu` |
+
 `world_element_test` covers the description: copy-on-write, the
-structural prune field by field — one table over every field a
-description carries, each said two ways, so a field is shown to tell two
+structural prune **field by field as one `TEST_P` whose parameter is the
+field**, each said two ways, so every row shows a field to tell two
 values apart as well as to be in the comparison at all — the geometry
 slot's value type standing in for a kind, the lane list including the
-emitter rows standing where the emitter stands, the cook, and the
-selectors. `world_kit_test` covers the presets: what tree each returns,
-that the rig is stated in the subject's own extents and puts every lamp
-at the subject when there are none, that a whole turn of the turntable is
-where it started and a rail asked for fewer than three stations is still
-a closed loop, that the wave alternates between its two radii and two
-heights round its centre and the winding stays on its shell while
-crossing its own plane twice a wrap and turning the laps it was asked
-for, and that the one colour this library states is the ground's.
-`world_scene_test` covers the retained side, every case over
-one fixture holding a clock and a scene reading it: an emitter dial
-reaching the light it scales while the tree stands still, identity across
-a keyed reorder, the three lifetimes pulling apart under a geometry-slot
-change, the store sharing one cooked artefact, a lane ramping a
-placement, the bake taken once and lost to a driven lane below it, a
-culled pass and a narrowed post pass each reaching only their selection —
-with the plan shown to have DERIVED that realisation, which is what makes
-it the library's answer and not the test's — and a draw that is a
-function of the description alone. `world_light_test` runs anywhere.
+emitter rows standing where the emitter stands, the cook, the selectors,
+and the emitter values themselves: what each factory fixes, the windowed
+falloff reaching exactly zero at the range, and the spot's cone. The
+emitters are here rather than in a binary of their own because this
+target links the light feature — every target that reaches the emitters
+reaches the description too, so there is no boundary for a second binary
+to draw.
 
-`world_diligent_test` covers the device side, and **the whole directory
-brings up ONE device for the process** — `diligent/test/OnDevice.h` holds it,
-along with the two seam values that stand on it, the two cameras every
-case looks through, the card it photographs and the texture the 2D path
-paints on the device. `diligent/test/PainterTest.cpp` is the mesh painter: the
-runtime as a value, a surface that is its own light standing brighter
-than a lit one on both executors, and a panel that is the same bytes on
-either. `diligent/test/SurfaceTest.cpp` is the sampled slots and the import door —
+`world_kit_test` covers the presets: what tree each returns, that the rig
+is stated in the subject's own extents and puts every lamp at the subject
+when there are none, that a whole turn of the turntable is where it
+started and a rail asked for fewer than three stations is still a closed
+loop, that the wave alternates between its two radii and two heights
+round its centre and the winding stays on its shell while crossing its
+own plane twice a wrap and turning the laps it was asked for, and that
+the one colour this library states is the ground's.
+
+`world_scene_test` covers the retained side, every case over one fixture
+holding a clock and a scene reading it: an emitter dial reaching the
+light it scales while the tree stands still, identity across a keyed
+reorder, the three lifetimes pulling apart under a geometry-slot change,
+the store sharing one cooked artefact, a lane ramping a placement, the
+bake taken once and lost to a driven lane below it, a culled pass and a
+narrowed post pass each reaching only their selection — read off the
+pixels, since which realisation the ordering DERIVED is the graph
+binary's claim rather than this one's — and a draw that is a function of
+the description alone.
+
+`world_frame_test` covers the declarations and the CPU executor without
+anything retained: a pass compares field by field, a mask realisation
+writes the coverage and a variant realisation redraws the selection in
+its surface, a post pass reads what stands and what stood last frame, a
+compute pass cooks, a still point set is stamped once however many frames
+draw it, two names on one slot share the surface, and a declared body is
+handed the extracted view. It is handed the realisation rather than
+deriving one.
+
+`world_graph_test` covers the ordering: the order from the declarations
+and its independence from the order they were written in, a cycle named,
+`previous()` breaking one, the surfaces counted and shared, the hazards
+stated, and **every selection realisation as one `TEST_P` whose parameter
+is the declaration** — a narrowed geometry pass culled, a pass that
+narrows nothing addressing every body, a narrowed post pass masked, a
+narrowed pass carrying a surface redrawn in it, and a pass that says how
+it wants to be realised overriding the rule. The coverage a masked pass
+reads and the pass ahead of it writes is its own case beside them.
+
+`world_diligent_test` covers the device side. Every case reads this
+feature through its public headers alone — the source directory is not on
+the binary's include path — so a claim about a compiled program or an
+uploaded map is a claim somebody outside can make: how deep a chain a map
+of a given size is uploaded with is `mapMipLevels`, asserted as a closed
+form with no device in reach. `diligent/test/DeviceSeams.h` holds the two
+seam values that stand on a device, the two cameras every case looks
+through, the card it photographs, the texture the 2D path paints on the
+device, and the worst channel two plates differ by; **the device itself
+is SigilGeometryDevice's**, whose `test/support/OnDevice.h` brings up ONE
+for the process, because that library is the one point in the tree where
+a device can be created at all.
+
+`diligent/test/PainterTest.cpp` is the mesh painter: the runtime as a
+value, a surface that is its own light standing brighter than a lit one
+on both executors, and a panel that is the same bytes on either.
+`diligent/test/SurfaceTest.cpp` is the sampled slots and the import door —
 an occlusion map darkening only where it is dark, an emissive map
 carrying its own colour, a cutout dropping texels outright, a normal map
 tilting the two halves of one flat card apart, a surface dressed with
@@ -1131,20 +1190,28 @@ texture painted with the graphics API on this device coming in through
 `importNative` with no host image at all — so a picture carrying its
 colour cannot have come from a copy — standing where a raster one of the
 same colour would, and an import of nothing answering no texture rather
-than one that lies. `diligent/test/StackTest.cpp` is the stack shading
-cases. `diligent/test/RuntimeTest.cpp` covers the frame: a pipeline
+than one that lies. `diligent/test/StackTest.cpp` is what `material::over`
+composes for this target: that the composed recipe compiles, and that
+what it shades where the mask is half is a picture neither operand alone
+produces. `diligent/test/RuntimeTest.cpp` covers the frame: a pipeline
 off a recipe's Slang body with its parameter at a reflected offset and
 the lit build carrying shading the unlit one does not, a cooked chain
 that matches the host's cook exactly, a readback that arrives the frame
 after, a masked pass that lifts the selection and leaves the ground where
-it stood, and a map whose pixels already stand on this device being bound
-where they are. **A claim a picture has to make whichever rasteriser drew
-it is written once with the TIER as a parameter** and answered on both:
-the map a body is dressed with reaching the pixels, a nearest-filtered
-map being two colours and one edge, a linear one being a gradient, a map
-asked to repeat being as many of itself as it was asked for, and a
-surface that is its own light standing at its base colour while a lit one
-of the same colour under a sun aimed away stands darker.
+it stood, the mip rule, and a map whose pixels already stand on this
+device being bound where they are. **A claim a picture has to make
+whichever rasteriser drew it is written once with the TIER as a
+parameter** and answered on both: the map a body is dressed with reaching
+the pixels, a nearest-filtered map being two colours and one edge, a
+linear one being a gradient, a map asked to repeat being as many of
+itself as it was asked for, and a surface that is its own light standing
+at its base colour while a lit one of the same colour under a sun aimed
+away stands darker.
+
+That every recipe this repository ships compiles is not asked here:
+`material_slang_test` compiles the kit's own surfaces through the same
+backend and `material_gpu_test` draws every recipe the material library
+ships on a device, so a sweep here would be a third reading of one fact.
 
 **How far the two tiers stand apart is asked nowhere in these binaries.**
 Two rasterisers are not the same bytes, the distance between them is a
@@ -1158,28 +1225,14 @@ SigilGeometry's, and `geometry_mesh_pop_test` is where every chain and
 every sweep the device says it can do is done both ways and compared bit
 for bit.
 
-**What this binary checks on a machine with no Vulkan runtime**, which is
-why it carries the ctest label `gpu`: the two Slang compiles — a recipe's
-own body and the kit's two surfaces — the scaffold and post program list,
-and the host half of every claim written over the tier parameter. Every
-other case skips, and a skip is not coverage: `ctest -L gpu` is the run a
-device verdict may be read out of, and a run that excludes the label has
-asked the device nothing. A device wants `brew install molten-vk
-vulkan-loader`.
-
-`world_frame_test` covers the declarations and the CPU executor without
-anything retained: a pass compares field by field, a mask realisation
-writes the coverage and a variant realisation redraws the selection in
-its surface, a post pass reads what stands and what stood last frame, a
-compute pass cooks, a still point set is stamped once however many frames
-draw it, two names on one slot share the surface, and a declared body is
-handed the extracted view. What a realisation is DERIVED to be is the
-scene binary's, which is where a culled pass and a narrowed post pass are
-asserted with the plan that chose them rather than with one handed in.
-`world_graph_test` covers the ordering: the order from the declarations
-and its independence from the order they were written in, a cycle named,
-`previous()` breaking one, the surfaces counted, the hazards stated, and
-each selection realisation ruled on.
+**What `world_diligent_test` checks on a machine with no Vulkan runtime**,
+which is why it carries the ctest label `gpu`: the Slang compile of a
+recipe's own body, the mip rule, and the host half of every claim written
+over the tier parameter. Every other case skips, and a skip is not
+coverage: `ctest -L gpu` is the run a device verdict may be read out of,
+and a run that excludes the label has asked the device nothing. A device
+wants `brew install molten-vk vulkan-loader`. No other binary here skips
+or vanishes, and none of them needs a font or a network.
 
 Nothing puts a world source directory on the kit's include path, so the
 retained side's own header is unreachable from kit code — which is what

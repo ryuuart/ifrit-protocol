@@ -16,6 +16,7 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 
@@ -23,6 +24,17 @@
 #include <memory>
 
 namespace sigil::world::test {
+
+/** SQUARE ON TO THE ORIGIN from @p distance away down +z, which is where
+ *  a body standing at the origin faces the camera. The distance is the
+ *  caller's because it is what decides how much of the frame a body of a
+ *  given size fills, and that is a reading each case makes for itself. */
+inline geometry::mesh::camera::Camera frontCamera(float distance) {
+  geometry::mesh::camera::Camera camera;
+  camera.eye = {0, 0, distance};
+  camera.target = {0, 0, 0};
+  return camera;
+}
 
 /** One colour, which is the whole of what a test surface has to say. */
 struct Paint {

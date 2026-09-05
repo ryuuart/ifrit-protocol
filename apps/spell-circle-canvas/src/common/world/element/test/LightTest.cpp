@@ -1,5 +1,5 @@
 /** @file
- * world_light_test — the emitter values: what each factory fixes, the
+ * The emitter values a description carries: what each factory fixes, the
  * windowed distance falloff reaching exactly zero at the range, the
  * spot's cone, and equality by value.
  */

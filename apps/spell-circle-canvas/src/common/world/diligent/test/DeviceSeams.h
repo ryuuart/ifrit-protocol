@@ -1,16 +1,16 @@
 #pragma once
 
 /** @file
- * THE ONE DEVICE THIS BINARY BRINGS UP, the seam values that stand on
- * it, and the small set of things every case here photographs.
+ * THE SEAM VALUES THAT STAND ON THE PROCESS'S DEVICE, the small set of
+ * things every case here photographs, and how far apart two pictures
+ * stand.
  *
- * A device is made ONCE for the process. Creating one costs more the
- * more of them a process has already made, and a case that made its own
- * would be paying that for every case after it; nothing here needs a
- * device nobody else has touched. A case that needs the device and finds
- * none SKIPS rather than fails, so a machine with no Vulkan runtime
- * stays green — and says so through the binary's `gpu` label rather than
- * through a passing test.
+ * The device itself is not made here: SigilGeometryDevice owns the one
+ * creation point, and its `test/support/OnDevice.h` holds the one device
+ * a test process brings up. A case that needs it and finds none SKIPS
+ * rather than fails, so a machine with no Vulkan runtime stays green —
+ * and says so through the binary's `gpu` label rather than through a
+ * passing test.
  */
 
 #include <include/core/SkBitmap.h>
@@ -20,6 +20,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmotion/clock/Ticker.h>
@@ -29,22 +30,14 @@
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 #include <string>
 
-namespace sigil::world::diligent {
+#include "OnDevice.h"
 
-/** The device every case in this binary shares, or null with @p error
- *  saying why there is none. */
-inline geometry::device::Device* sharedDevice(std::string* error) {
-  static std::string reason;
-  static const std::unique_ptr<geometry::device::Device> device = [] {
-    const geometry::device::DeviceConfig config;
-    return geometry::device::Device::create(config, &reason);
-  }();
-  if (error) *error = reason;
-  return device.get();
-}
+namespace sigil::world::diligent {
 
 /** A DEVICE AND ONE SEAM VALUE STANDING ON IT, or the reason there is
  *  neither. The runtime type is the parameter because two seams stand on
@@ -60,16 +53,22 @@ struct OnDevice {
 
 /** The runtime that performs a frame's passes. */
 inline OnDevice<::sigil::world::Runtime> onDevice() {
+  const geometry::device::test::OnDevice shared =
+      geometry::device::test::onDevice();
   OnDevice<::sigil::world::Runtime> out;
-  out.device = sharedDevice(&out.error);
+  out.device = shared.device;
+  out.error = shared.error;
   if (out.device) out.runtime = ::sigil::world::diligent::runtime(*out.device);
   return out;
 }
 
 /** The runtime that draws a mesh onto a canvas. */
 inline OnDevice<::sigil::geometry::mesh::render::Runtime> onPainterDevice() {
+  const geometry::device::test::OnDevice shared =
+      geometry::device::test::onDevice();
   OnDevice<::sigil::geometry::mesh::render::Runtime> out;
-  out.device = sharedDevice(&out.error);
+  out.device = shared.device;
+  out.error = shared.error;
   if (out.device)
     out.runtime = ::sigil::world::diligent::painterRuntime(*out.device);
   return out;
@@ -131,6 +130,38 @@ inline SkBitmap photograph(const Frame& frame,
   canvas.clear(SK_ColorBLACK);
   scene.draw(canvas, camera);
   return bitmap;
+}
+
+/** HOW FAR @p a STANDS FROM @p b at the channel they disagree about
+ *  most, in 0..255. Two plates of different sizes are as far apart as two
+ *  plates can be.
+ *
+ *  It is read as an INEQUALITY and never as a tolerance. What a case here
+ *  asks of two pictures is whether an operation reached the pixels AT
+ *  ALL, which is a lower bound on the disagreement and is false only if
+ *  the operation did nothing. How CLOSE two rasterisers stand is a
+ *  different question — its answer is a different number per subject, it
+ *  moves with the scene rather than with this code, and it is asked of
+ *  the whole registry against a committed baseline by the plate ledger's
+ *  device tier. */
+inline int worstChannel(const SkBitmap& a, const SkBitmap& b) {
+  if (a.width() != b.width() || a.height() != b.height()) return 255;
+  int worst = 0;
+  for (int y = 0; y < a.height(); ++y) {
+    for (int x = 0; x < a.width(); ++x) {
+      const SkColor4f left = a.getColor4f(x, y);
+      const SkColor4f right = b.getColor4f(x, y);
+      const float channels[4][2] = {{left.fR, right.fR},
+                                    {left.fG, right.fG},
+                                    {left.fB, right.fB},
+                                    {left.fA, right.fA}};
+      for (const auto& pair : channels) {
+        const int diff = (int)std::lround(std::abs(pair[0] - pair[1]) * 255.0f);
+        worst = std::max(worst, std::clamp(diff, 0, 255));
+      }
+    }
+  }
+  return worst;
 }
 
 /** A pixel of @p plate at fractions of its width and height, so a case

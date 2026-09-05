@@ -6,6 +6,8 @@
 
 #include "Gpu.h"
 
+#include <sigilworld/diligent/Maps.h>
+
 #include <sigilskia/graphite/Pixels.h>
 
 // clang-format off
@@ -33,6 +35,12 @@
 #include <vector>
 
 namespace sigil::world::diligent {
+
+int mapMipLevels(int width, int height) {
+  if (width <= 0 || height <= 0) return 1;
+  return (int)Diligent::ComputeMipLevelsCount((Diligent::Uint32)width,
+                                              (Diligent::Uint32)height);
+}
 
 namespace {
 
@@ -134,26 +142,15 @@ dg::TextureDesc wrappedMapDesc(const char* label, int width, int height) {
 }
 
 /** …and the description an UPLOADED one is given: the same texture with
- *  a whole chain under it. A map is minified whenever the surface
- *  wearing it is smaller on screen than the map is in texels, and a
- *  sampler with one level to read then walks the texels of a shrinking
- *  triangle and answers a different one every frame — which is what
- *  aliasing is. The render-target bind and the generate flag are what
- *  let the device fill the levels below zero, which nothing else here
- *  asks it for.
- *
- *  A MAP CAN BE TOO SMALL TO HAVE A CHAIN. Halving one texel arrives
- *  nowhere, so a flat colour handed over as a single texel — which is
- *  how an emissive tint or any other constant slot is spelled — is the
- *  whole texture at its one level. The count is stated rather than left
- *  to the device to work out, so that the same arithmetic decides both
- *  what is asked for here and whether there is anything to derive: a
- *  device asked to generate mips into a view with one level in it has
- *  nowhere to put them, and says so. */
+ *  whatever chain `mapMipLevels` says it has. The render-target bind and
+ *  the generate flag are what let the device fill the levels below zero,
+ *  which nothing else here asks it for, and they are asked for only
+ *  where there is a level to fill: the count is stated rather than left
+ *  to the device to work out, so one piece of arithmetic decides both
+ *  what is asked for and whether there is anything to derive. */
 dg::TextureDesc uploadedMapDesc(const char* label, int width, int height) {
   dg::TextureDesc desc = wrappedMapDesc(label, width, height);
-  desc.MipLevels =
-      dg::ComputeMipLevelsCount((dg::Uint32)width, (dg::Uint32)height);
+  desc.MipLevels = (dg::Uint32)mapMipLevels(width, height);
   if (desc.MipLevels > 1) {
     desc.BindFlags = dg::BIND_SHADER_RESOURCE | dg::BIND_RENDER_TARGET;
     desc.MiscFlags = dg::MISC_TEXTURE_FLAG_GENERATE_MIPS;

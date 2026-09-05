@@ -30,13 +30,6 @@ namespace {
 
 constexpr SkISize kExtent{80, 80};
 
-geometry::mesh::camera::Camera frontCamera() {
-  geometry::mesh::camera::Camera camera;
-  camera.eye = {0, 0, 260};
-  camera.target = {0, 0, 0};
-  return camera;
-}
-
 /** Two squares side by side, the right one tagged "glow". */
 struct Bodies {
   geometry::mesh::Mesh mesh = geometry::mesh::quad(80.0f, 80.0f);
@@ -64,7 +57,7 @@ struct Bodies {
     View v;
     v.draws = draws;
     v.lights = lights;
-    v.camera = frontCamera();
+    v.camera = frontCamera(260.0f);
     v.extent = kExtent;
     return v;
   }
@@ -93,7 +86,7 @@ int inkIn(const sk_sp<SkImage>& image, bool leftHalf) {
 }
 
 /** …and over the whole of it. */
-int painted(const sk_sp<SkImage>& image) {
+int inkOver(const sk_sp<SkImage>& image) {
   const SkBitmap plate = read(image);
   return test::paintedIn(plate, true) + test::paintedIn(plate, false);
 }
@@ -235,13 +228,13 @@ TEST(WorldFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
   // The first frame has no previous, so the trail is only the picture.
   Runtime::cpu()->execute(workOf(main), bodies.view(), targets);
   Runtime::cpu()->execute(workOf(trail), bodies.view(), targets);
-  const int first = painted(targets.image("trail"));
+  const int first = inkOver(targets.image("trail"));
   targets.endFrame();
 
   // The second adds last frame's trail to it, and the ink can only grow.
   Runtime::cpu()->execute(workOf(main), bodies.view(), targets);
   Runtime::cpu()->execute(workOf(trail), bodies.view(), targets);
-  EXPECT_GE(painted(targets.image("trail")), first);
+  EXPECT_GE(inkOver(targets.image("trail")), first);
 
   const SkBitmap once = read(targets.previous("trail"));
   const SkBitmap twice = read(targets, "trail");
@@ -273,7 +266,7 @@ TEST(WorldFrame, AGeometryPassStampsThePointSetsItReads) {
       geometryPass("beads").reads("motes").writes("colour").stamp(
           geometry::mesh::quad(6.0f, 6.0f));
   Runtime::cpu()->execute(workOf(beads), empty, targets);
-  EXPECT_GT(painted(targets.image("colour")), 0);
+  EXPECT_GT(inkOver(targets.image("colour")), 0);
 }
 
 // A STAMPED SET IS FORMED ONCE per distinct (cloud, stamp). A pass
@@ -328,7 +321,7 @@ TEST(WorldFrame, ADeclaredBodyIsHandedTheExtractedViewAndTheTargets) {
   EXPECT_EQ(seen, 2u);
   EXPECT_EQ(firstKey, "left");
   EXPECT_EQ(extent, kExtent);
-  EXPECT_EQ(painted(targets.image("colour")),
+  EXPECT_EQ(inkOver(targets.image("colour")),
             kExtent.width() * kExtent.height());
 }
 
@@ -338,7 +331,7 @@ TEST(WorldFrame, TwoNamesOnOneSlotShareTheSurface) {
   targets.bind("second", 0);
   targets.canvas("first")->clear(SkColor4f{0.0f, 1.0f, 0.0f, 1.0f});
   EXPECT_EQ(targets.surfaces(), 1);
-  EXPECT_EQ(painted(targets.image("second")),
+  EXPECT_EQ(inkOver(targets.image("second")),
             kExtent.width() * kExtent.height());
 }
 

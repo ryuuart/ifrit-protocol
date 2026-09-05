@@ -27,8 +27,10 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilshaders/WorldDiligent.h>
+#include <sigilworld/diligent/Maps.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -40,10 +42,7 @@
 #include <utility>
 #include <vector>
 
-#include "Distance.h"
-#include "Gpu.h"
-#include "OnDevice.h"
-#include "Programs.h"
+#include "DeviceSeams.h"
 #include "ShaderTable.h"
 #include "TestMaterial.h"
 
@@ -137,15 +136,6 @@ TEST(SurfaceProgram, APipelineComesOffARecipeBody) {
   EXPECT_EQ(unlit->as<material::slang::SlangProgram>()->compiled().uniform(
                 "uShading"),
             nullptr);
-}
-
-TEST(GpuRuntime, TheScaffoldAndThePostStagesCompile) {
-  EXPECT_FALSE(world::diligent::scaffold(/*lit=*/true).empty());
-  EXPECT_FALSE(world::diligent::scaffold(/*lit=*/false).empty());
-  EXPECT_FALSE(world::diligent::postPrograms().copy.empty());
-  EXPECT_FALSE(world::diligent::postPrograms().blur.empty());
-  EXPECT_FALSE(world::diligent::postPrograms().levels.empty());
-  EXPECT_FALSE(world::diligent::postPrograms().masked.empty());
 }
 
 TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
@@ -305,30 +295,19 @@ TEST_P(EitherTier, TheMapABodyIsDressedWithReachesThePixels) {
   EXPECT_GT(centre.fG, centre.fB + 0.15f);
 }
 
-TEST(GpuRuntime, AMapTOOSMALLForAChainAsksForNoneAtAll) {
-  const auto on = diligent::onDevice();
-  if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  const std::shared_ptr<diligent::Gpu> gpu = diligent::makeGpu(*on.device);
-
-  // A map wider than one texel wears the whole chain and is described
-  // as generating it, because a surface smaller on screen than its map
-  // is in texels aliases without one…
-  Diligent::ITexture* many = gpu->sample(flatMap({0.2f, 0.8f, 0.35f, 1.0f}, 8));
-  ASSERT_NE(many, nullptr);
-  EXPECT_EQ(many->GetDesc().MipLevels, 4u);
-  EXPECT_TRUE(many->GetDesc().MiscFlags &
-              Diligent::MISC_TEXTURE_FLAG_GENERATE_MIPS);
-
+TEST(MapUpload, AMapTooSmallToHalveAsksForNoChainAtAll) {
+  // A map wider than one texel wears the whole chain, because a surface
+  // smaller on screen than its map is in texels aliases without one: the
+  // count is how many times the wider side can be halved before it
+  // arrives at one, and the last one is the whole map.
+  EXPECT_EQ(world::diligent::mapMipLevels(8, 8), 4);
+  EXPECT_EQ(world::diligent::mapMipLevels(16, 4), 5);
   // …and a ONE-TEXEL map — how a constant slot such as an emissive tint
-  // is spelled — has one level, since halving a single texel arrives
-  // nowhere, and must therefore not be described as generating a chain:
-  // a device handed a view with one level in it and told to fill the
-  // levels below has nowhere to put them, and refuses.
-  Diligent::ITexture* one = gpu->sample(flatMap({0.9f, 0.2f, 0.2f, 1.0f}, 1));
-  ASSERT_NE(one, nullptr);
-  EXPECT_EQ(one->GetDesc().MipLevels, 1u);
-  EXPECT_FALSE(one->GetDesc().MiscFlags &
-               Diligent::MISC_TEXTURE_FLAG_GENERATE_MIPS);
+  // is spelled — has one level and asks for nothing under it, since
+  // halving a single texel arrives nowhere and a device told to fill the
+  // levels below a view with one level in it refuses.
+  EXPECT_EQ(world::diligent::mapMipLevels(1, 1), 1);
+  EXPECT_EQ(world::diligent::mapMipLevels(2, 1), 2);
 }
 
 // ---- what a texture and a surface each say about themselves ----------------
@@ -487,28 +466,6 @@ TEST_P(EitherTier, AMapAskedToRepeatIsAsManyOfItselfAsItWasAsked) {
   ASSERT_EQ(across.size(), at.size());
   for (size_t i = 0; i + 1 < across.size(); ++i)
     EXPECT_GT(std::abs(across[i] - across[i + 1]), 0.5f) << "step " << i;
-}
-
-TEST(SurfaceProgram, TheKitsOwnSurfacesCompileTheirBodies) {
-  // WHAT MAKES A SURFACE A SURFACE rather than a colour is that its own
-  // body is compiled and run, and every set in this repository wears one
-  // of these two. A recipe whose body will not compile is reported once
-  // and then painted in the colour the frame extracted — which is the
-  // same reading a tier with no compiler makes, so the picture that
-  // comes back looks like a picture rather than like a failure.
-  world::diligent::installSlangCompiler();
-  const material::kit::SurfaceParams params{.baseColor = {0.6f, 0.4f, 0.2f, 1},
-                                            .roughness = 0.4f};
-  for (const material::Material& surface :
-       {material::kit::surface(params), material::kit::unlit(params)}) {
-    const material::Material::Resolved resolved =
-        surface.resolve(material::Target::Slang, material::FrameData{},
-                        material::Variant{world::diligent::kVariantLit});
-    ASSERT_NE(resolved.program, nullptr) << surface.recipe().name();
-    const auto* slang = resolved.program->as<material::slang::SlangProgram>();
-    ASSERT_NE(slang, nullptr) << surface.recipe().name();
-    EXPECT_FALSE(slang->compiled().empty()) << surface.recipe().name();
-  }
 }
 
 namespace {

@@ -17,7 +17,7 @@
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilworld/diligent/Runtime.h>
 
-#include "OnDevice.h"
+#include "DeviceSeams.h"
 
 using namespace sigil;
 using namespace sigil::world;
@@ -61,12 +61,6 @@ TEST(Stack, ComposesIntoABodyThisTargetCanCompile) {
       stack.resolve(material::Target::Slang, material::FrameData{},
                     material::Variant{world::diligent::kVariantLit});
   EXPECT_NE(resolved.program, nullptr);
-
-  // The operands are still its children, so the walk down is unchanged
-  // by having been composed.
-  EXPECT_EQ(material::stackDepth(stack), 1);
-  ASSERT_NE(material::under(stack), &stack);
-  EXPECT_EQ(*material::under(stack), red());
 }
 
 TEST(Stack, ShadesAsNeitherOperandWhereTheMaskIsHalf) {

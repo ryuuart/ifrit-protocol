@@ -28,7 +28,7 @@
 #include <utility>
 #include <vector>
 
-#include "OnDevice.h"
+#include "DeviceSeams.h"
 
 using namespace sigil;
 using namespace sigil::world;
@@ -38,9 +38,9 @@ namespace {
 
 constexpr SkISize kExtent{120, 120};
 
-/** A texture of @p width x @p height, painted by @p paint. Named by a
- *  key so two identical asks are one texture. */
-material::Texture painted(const std::string& key, int width, int height,
+/** A texture of @p width x @p height, drawn by @p paint. Named by a key
+ *  so two identical asks are one texture. */
+material::Texture drawnTexture(const std::string& key, int width, int height,
                           const std::function<void(SkCanvas&)>& paint) {
   return material::Texture::produce(key, [width, height, paint] {
     sk_sp<SkSurface> surface =
@@ -53,7 +53,7 @@ material::Texture painted(const std::string& key, int width, int height,
 
 /** One flat colour, one texel. */
 material::Texture flat(const std::string& key, SkColor4f colour) {
-  return painted(key, 1, 1,
+  return drawnTexture(key, 1, 1,
                  [colour](SkCanvas& canvas) { canvas.clear(colour); });
 }
 
@@ -80,7 +80,7 @@ TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
   material::Material occluded = plain;
   // Two texels: the left half black, the right half white.
   occluded.child(material::kit::kOcclusionSlot,
-                 painted("world.test.occlusion", 2, 1, [](SkCanvas& canvas) {
+                 drawnTexture("world.test.occlusion", 2, 1, [](SkCanvas& canvas) {
                    canvas.clear(SK_ColorWHITE);
                    SkPaint paint;
                    paint.setColor(SK_ColorBLACK);
@@ -130,7 +130,7 @@ TEST(SurfaceSlots, AnOpacityCutoutDropsTexelsOutright) {
   params.alphaCutoff = 0.5f;
   material::Material cut = material::kit::surface(params);
   cut.child(material::kit::kOpacitySlot,
-            painted("world.test.opacity", 2, 1, [](SkCanvas& canvas) {
+            drawnTexture("world.test.opacity", 2, 1, [](SkCanvas& canvas) {
               canvas.clear(SK_ColorWHITE);
               SkPaint paint;
               paint.setColor(SK_ColorBLACK);
@@ -155,7 +155,7 @@ TEST(SurfaceSlots, ANormalMapTiltsTheShading) {
   // the two halves of one flat card face two different directions and
   // the sun reaches them differently.
   bumped.child(material::kit::kNormalSlot,
-               painted("world.test.normal", 2, 1, [](SkCanvas& canvas) {
+               drawnTexture("world.test.normal", 2, 1, [](SkCanvas& canvas) {
                  SkPaint paint;
                  paint.setColor(SkColor4f{0.05f, 0.5f, 0.6f, 1}.toSkColor());
                  canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
@@ -177,7 +177,7 @@ TEST(SurfaceSlots, ANormalMapTiltsTheShading) {
   EXPECT_GT(split, falloff + 0.05f);
 }
 
-TEST(SurfaceSlots, WhiteIsTheNEUTRALEverySlotFallsBackTo) {
+TEST(SurfaceSlots, ASlotDressedInWhiteIsTheSamePictureAsOneDressedInNothing) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
@@ -329,7 +329,7 @@ Frame skyAlone(const world::Environment& sky) {
 
 }  // namespace
 
-TEST(Environment, TheBackdropPutsTheZENITHAtTheTOP) {
+TEST(Environment, TheBackdropPutsTheZenithAtTheTopOfTheFrame) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
   // v = 0 is the zenith, and a camera looking along -z from above the
