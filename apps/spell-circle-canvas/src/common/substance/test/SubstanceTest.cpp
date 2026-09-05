@@ -187,11 +187,10 @@ TEST(Substance, SetsAParameterItHasAndRefusesOneItDoesNot) {
       knob = &p;
       break;
     }
-  if (knob) {
-    const float far = knob->values[0] == knob->maximum[0] ? knob->minimum[0]
-                                                          : knob->maximum[0];
-    EXPECT_TRUE(graph.set(knob->identifier, far)) << knob->identifier;
-  }
+  ASSERT_TRUE(knob) << "the sample graph declares no movable float slider";
+  const float far = knob->values[0] == knob->maximum[0] ? knob->minimum[0]
+                                                        : knob->maximum[0];
+  EXPECT_TRUE(graph.set(knob->identifier, far)) << knob->identifier;
 
   // A wrong identifier and a wrong arity are refused, not applied.
   EXPECT_FALSE(graph.set("no_such_parameter", 1.0f));
@@ -210,19 +209,37 @@ TEST(Substance, ResetReturnsEveryParameterToItsAuthoredValue) {
       EXPECT_EQ(p.values, p.defaults) << p.identifier;
 }
 
-TEST(Substance, RefusesBytesThatAreNotAnArchive) {
+// The two doors a package is loaded through, each given something that
+// is not one. Neither needs a sample, so both run wherever the SDK is.
+struct BadLoad {
+  std::unique_ptr<substance::Package> (*load)(std::string* error);
+  const char* label;
+};
+
+class RefusedLoad : public ::testing::TestWithParam<BadLoad> {};
+
+TEST_P(RefusedLoad, AnswersNoPackageAndSaysWhy) {
   std::string error;
-  const char junk[] = "this is not an archive";
-  EXPECT_FALSE(substance::Package::load(junk, sizeof(junk), &error));
+  EXPECT_FALSE(GetParam().load(&error));
   EXPECT_FALSE(error.empty());
 }
 
-TEST(Substance, RefusesAFileThatIsNotThere) {
-  std::string error;
-  EXPECT_FALSE(substance::Package::load(
-      std::filesystem::path("/nonexistent/x.sbsar"), &error));
-  EXPECT_FALSE(error.empty());
-}
+INSTANTIATE_TEST_SUITE_P(
+    Substance, RefusedLoad,
+    ::testing::Values(
+        BadLoad{[](std::string* error) {
+                  const char junk[] = "this is not an archive";
+                  return substance::Package::load(junk, sizeof(junk), error);
+                },
+                "BytesThatAreNotAnArchive"},
+        BadLoad{[](std::string* error) {
+                  return substance::Package::load(
+                      std::filesystem::path("/nonexistent/x.sbsar"), error);
+                },
+                "AFileThatIsNotThere"}),
+    [](const ::testing::TestParamInfo<BadLoad>& info) {
+      return std::string(info.param.label);
+    });
 
 TEST(Substance, TakesAnImageInputWhoseSizeIsNotTheGraphsOwn) {
   // An image input carries its own dimensions in; nothing about it has to

@@ -39,6 +39,7 @@ set_property(TARGET SigilSubstance PROPERTY INTERFACE_LINK_OPTIONS
 sigil_test(substance_test
   SOURCES test/SubstanceTest.cpp
   LIBRARIES SigilSubstance
+  LABELS substance
   DEFINITIONS SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 
 sigil_bench(substance_bench

@@ -167,12 +167,15 @@ renders every output at the resolution it was set to and again at the
 next one, the normal-format input selects the green convention it
 reports back, a parameter it has is set and one it does not have is
 refused, `reset()` returns every parameter to its authored value, an
-image input takes an image whose size is not the graph's own, two
-graphs compose through image inputs, and bytes that are not an archive
-— and a file that is not there — are refused. When a sample is not
+image input takes an image whose size is not the graph's own, and two
+graphs compose through image inputs. What is not a package is one
+parameterised case over the two doors a package is loaded through —
+bytes that are not an archive, and a file that is not there — each
+answering no package and saying why. When a sample is not
 there the case skips with a message naming the file and the benchmark
 registers nothing, so an SDK installed without its samples reports the
-fact rather than failing; the two refusal cases and the engine version
-need no sample and run either way. The engine dylib itself is a
+fact rather than failing; the binary carries the `substance` ctest
+label for exactly that reason. The refusal rows and the engine
+version need no sample and run either way. The engine dylib itself is a
 link-time dependency: a binary built against the SDK does not start
 without it.
