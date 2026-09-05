@@ -8,6 +8,7 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -94,7 +95,7 @@ class LoopScene final : public Scene {
   };
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
-  kit::CachedValue<Rail, SkISize> m_rail;
+  sigil::core::CachedValue<Rail, SkISize> m_rail;
 };
 
 SceneDescriptor makeLoopDescriptor() {

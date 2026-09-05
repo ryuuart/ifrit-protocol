@@ -13,6 +13,7 @@ add_executable(weave_demo
   SceneFallback.cpp
   SceneNewFeatures.cpp
 )
+target_include_directories(weave_demo PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../shared)
 target_link_libraries(weave_demo PRIVATE SigilWeave
                                             SigilMaterialKit SigilMaterialSkia
                                             SigilWeavePorts SigilWeaveKit

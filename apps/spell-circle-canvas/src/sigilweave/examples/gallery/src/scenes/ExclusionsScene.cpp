@@ -8,6 +8,7 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -137,7 +138,7 @@ class ExclusionsScene final : public Scene {
  private:
   BodyCache m_body;
   sk_sp<SkTypeface> m_serif;
-  kit::CachedValue<SkPath, SkISize> m_donut;
+  sigil::core::CachedValue<SkPath, SkISize> m_donut;
 };
 
 SceneDescriptor makeExclusionsDescriptor() {

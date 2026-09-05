@@ -19,6 +19,8 @@
 
 #include "../include/GalleryScenes.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include "Palette.h"
+#include <sigilcore/cache/Rebuild.h>
 
 namespace gallery {
 
@@ -29,16 +31,16 @@ namespace kit = sigil::weave::kit;
 using Clock = std::chrono::steady_clock;
 using sigil::measure::toMicroseconds;
 
-inline constexpr SkColor kInk = kit::palette::kInk;
-inline constexpr SkColor kAccent = kit::palette::kAccent;
-inline constexpr SkColor kBlue = kit::palette::kBlue;
-inline constexpr SkColor kShape = kit::palette::kShape;
-inline constexpr SkColor kPaper = kit::palette::kPaper;
+inline constexpr SkColor kInk = sigil::weave::examples::palette::kInk;
+inline constexpr SkColor kAccent = sigil::weave::examples::palette::kAccent;
+inline constexpr SkColor kBlue = sigil::weave::examples::palette::kBlue;
+inline constexpr SkColor kShape = sigil::weave::examples::palette::kShape;
+inline constexpr SkColor kPaper = sigil::weave::examples::palette::kPaper;
 
 using kit::makeStyle;
 
 /// Caches a scene body paragraph until one of its shaping inputs changes:
-/// the gallery's SceneParams front-end to a kit::RebuildGuard, resolving
+/// the gallery's SceneParams front-end to a sigil::core::RebuildGuard, resolving
 /// empty panel values to the scene's defaults before they enter the key.
 struct BodyCache {
   sigil::weave::Paragraph paragraph;
@@ -49,7 +51,7 @@ struct BodyCache {
               const sk_sp<SkTypeface>& fallbackTypeface);
 
  private:
-  kit::RebuildGuard<QString, const SkTypeface*, float> m_guard;
+  sigil::core::RebuildGuard<QString, const SkTypeface*, float> m_guard;
 };
 
 /// Resolves the preferred body serif, falling back to the context default.

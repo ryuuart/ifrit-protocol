@@ -1,16 +1,17 @@
 #pragma once
 
 /** @file
- * The showcase palette the gallery and demo targets share: warm paper,
- * near-black ink, and the accent colors that read on it.
+ * The showcase palette the gallery and the demo share: warm paper,
+ * near-black ink, and the accent colours that read on it.
+ *
+ * A chosen set of colours, which is a picture rather than a piece of the
+ * engine — so it stands with the examples that draw it.
  */
 
 #include <include/core/SkColor.h>
 
-namespace sigil::weave::kit {
+namespace sigil::weave::examples {
 
-/// The showcase palette shared by the gallery and demo targets: warm paper,
-/// near-black ink, and two accent colors that read on it.
 namespace palette {
 inline constexpr SkColor kInk = 0xFF23252B;
 inline constexpr SkColor kAccent = 0xFFC63D2F;
@@ -19,4 +20,4 @@ inline constexpr SkColor kShape = 0x33808A99;
 inline constexpr SkColor kPaper = 0xFFFAF7F0;
 }  // namespace palette
 
-}  // namespace sigil::weave::kit
+}  // namespace sigil::weave::examples

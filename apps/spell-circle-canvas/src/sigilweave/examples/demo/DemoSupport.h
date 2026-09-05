@@ -11,17 +11,19 @@
 #include <sigilweave/SigilWeave.h>
 #include <sigilweave/kit/SigilWeaveKit.h>
 
+#include "Palette.h"
+
 #include <chrono>
 #include <filesystem>
 #include <sigilmeasure/time/Stopwatch.h>
 
 using Clock = std::chrono::steady_clock;
 
-inline constexpr SkColor kInk = sigil::weave::kit::palette::kInk;
-inline constexpr SkColor kAccent = sigil::weave::kit::palette::kAccent;
-inline constexpr SkColor kBlue = sigil::weave::kit::palette::kBlue;
-inline constexpr SkColor kShape = sigil::weave::kit::palette::kShape;
-inline constexpr SkColor kPaper = sigil::weave::kit::palette::kPaper;
+inline constexpr SkColor kInk = sigil::weave::examples::palette::kInk;
+inline constexpr SkColor kAccent = sigil::weave::examples::palette::kAccent;
+inline constexpr SkColor kBlue = sigil::weave::examples::palette::kBlue;
+inline constexpr SkColor kShape = sigil::weave::examples::palette::kShape;
+inline constexpr SkColor kPaper = sigil::weave::examples::palette::kPaper;
 
 using sigil::measure::toMicroseconds;
 

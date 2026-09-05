@@ -15,6 +15,7 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -281,7 +282,7 @@ class LayerShowcasePart final : public Scene {
   ParagraphLayout m_paragraphBlockLayout;
   std::array<PaintStyle, 5> m_paragraphPaints;
   std::array<CharRange, 5> m_paragraphSpans{};
-  kit::RebuildGuard<QString, const SkTypeface*, float, float, SkISize>
+  sigil::core::RebuildGuard<QString, const SkTypeface*, float, float, SkISize>
       m_rebuild;
   sk_sp<SkTypeface> m_serif;
 };

@@ -33,19 +33,21 @@ One header per utility under `include/sigilweave/kit/`, and
 
 | Header | Utility | The trap it prevents |
 | --- | --- | --- |
-| `RebuildGuard.h` | `RebuildGuard<Keys...>` | Rebuild-on-input-change caches whose key is smeared across members and an if-condition; the key becomes one declared tuple. |
-| `CachedValue.h` | `CachedValue<Value, Keys...>` | Expensive derived objects (paths, shaders) rebuilt per frame because caching them was boilerplate. |
 | `LayoutGuard.h` | `LayoutGuard<Keys...>` | Re-laying text out every frame — or forgetting `revision()`/`needsShaping()` in a hand-rolled guard and freezing edits. Both are baked in; you declare only the inputs the library can't see. |
-| `Quantize.h` | `quantize()` | Animated layout inputs (a breathing measure) that change sub-pixel per frame and defeat the guard above. |
 | `GlyphBuckets.h` | `GlyphBuckets<Key, Placement>` | Per-glyph choreography turning into per-glyph draw calls; generalizes `sigil::weave::GlyphRSXformBatches` to arbitrary bucket keys and draw passes. |
 | `Labels.h` | `makeStyle()` / `drawLabel()` | Ten-line single-span style and caption rituals, reinvented per tool. |
 | `SampleText.h` | `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
-| `Palette.h` | `palette::kInk`, `kPaper`, … | Every showcase picking its own near-black and off-white. |
 | `Hyphenation.h` | `PatternHyphenator`, `englishHyphenationPatterns()` | The engine growing an opinion about where a language's words break. |
 | `LineTables.h` | `kinsoku::japanese()`, `hanging::latin()`, `hanging::japanese()` | The engine growing an opinion about which marks may stand at a line's edge, and how far one may hang past it. |
 
 `sigil::weave::SingleLineParagraphCache` (the engine's `cache` feature) is the companion for
 high-frequency short labels; `drawLabel()` documents when to graduate to it.
+
+The plain keyed guard the layout guard is built on knows nothing about
+text, so it is not here: `sigil::core::RebuildGuard`,
+`sigil::core::CachedValue` and `sigil::core::quantizeKey`, in
+`<sigilcore/cache/Rebuild.h>`, are what a scene declares its non-text
+derived values against.
 
 ## The tables: data the engine asks for and does not hold
 
@@ -135,7 +137,7 @@ additions are a value rather than a patch.
 ```cpp
 class MyScene {
   sigil::weave::Paragraph m_paragraph;
-  sigil::weave::kit::RebuildGuard<std::u16string, const SkTypeface *, float> m_content;
+  sigil::core::RebuildGuard<std::u16string, const SkTypeface *, float> m_content;
   sigil::weave::kit::LayoutGuard<SkISize, sigil::weave::TextAlignment> m_layoutGuard;
   sigil::weave::ParagraphLayout m_layout;
 

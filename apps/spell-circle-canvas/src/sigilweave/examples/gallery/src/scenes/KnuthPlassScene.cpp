@@ -7,6 +7,7 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -43,7 +44,7 @@ class KnuthPlassScene final : public Scene {
     // frame, so most frames pose the *same* problem as the last — quantize
     // and reuse the cached layouts instead of re-breaking 2× per frame.
     // Sub-pixel measure changes are invisible anyway.
-    const float measure = kit::quantize(
+    const float measure = sigil::core::quantizeKey(
         canvasWidth * 0.36f *
         (1.0f + 0.10f * std::sin(static_cast<float>(elapsedSeconds) * 0.5f)));
 

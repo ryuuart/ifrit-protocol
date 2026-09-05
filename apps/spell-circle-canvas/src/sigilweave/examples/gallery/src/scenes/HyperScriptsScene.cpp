@@ -14,6 +14,7 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -228,7 +229,7 @@ class HyperScriptsScene final : public Scene {
 
   std::array<Paragraph, 7> m_paragraphs;
   std::array<float, 7> m_lineHeights{};
-  kit::RebuildGuard<float, const SkTypeface*> m_built;
+  sigil::core::RebuildGuard<float, const SkTypeface*> m_built;
 };
 
 SceneDescriptor makeHyperScriptsDescriptor() {

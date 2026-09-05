@@ -9,6 +9,7 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -171,7 +172,7 @@ class SlotsScene final : public Scene {
   std::vector<float> m_pillWidths;
   sk_sp<SkTypeface> m_serif;
   sk_sp<SkTypeface> m_sansTypeface;
-  kit::RebuildGuard<float> m_built;
+  sigil::core::RebuildGuard<float> m_built;
 };
 
 SceneDescriptor makeSlotsDescriptor() {

@@ -11,6 +11,7 @@
 #include "EffectsParts.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -164,8 +165,8 @@ class StressPart final : public Scene {
   Paragraph m_paragraph;
   ParagraphLayout m_layout;
   PaintStyle m_effect;
-  kit::RebuildGuard<SkISize, const SkTypeface*, float> m_layoutBuild;
-  kit::RebuildGuard<bool, bool, bool, float, float, float> m_effectBuild;
+  sigil::core::RebuildGuard<SkISize, const SkTypeface*, float> m_layoutBuild;
+  sigil::core::RebuildGuard<bool, bool, bool, float, float, float> m_effectBuild;
   sk_sp<SkTypeface> m_serif;
   uint32_t m_textLength = 0;
   int m_glyphCount = 0;

@@ -9,6 +9,7 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -226,7 +227,7 @@ class VerticalScene final : public Scene {
 
   Paragraph m_verticalParagraph;
   Paragraph m_horizontalParagraph;
-  kit::RebuildGuard<float> m_paragraphsBuilt;
+  sigil::core::RebuildGuard<float> m_paragraphsBuilt;
   sk_sp<SkTypeface> m_mincho;
   float m_fontSize = 0;  // display size the ruby/kenten helpers scale from
 };

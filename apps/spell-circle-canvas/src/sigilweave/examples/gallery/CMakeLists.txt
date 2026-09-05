@@ -62,7 +62,8 @@ qt_add_qml_module(WeaveGallery
     src/scenes/OverflowScene.cpp
 )
 
-target_include_directories(WeaveGallery PRIVATE include)
+target_include_directories(WeaveGallery PRIVATE include
+                                                 ${CMAKE_CURRENT_LIST_DIR}/../shared)
 
 target_link_libraries(WeaveGallery
   PRIVATE
@@ -76,6 +77,7 @@ target_link_libraries(WeaveGallery
     SigilMaterialSkia # and the Skia backend that shades them
     SigilWeavePorts # systemFontManager()
     SigilMeasure # the stopwatch each scene times its layout with
+    SigilCoreCache # the rebuild guard each scene keys its derived values on
     Boost::container
 )
 

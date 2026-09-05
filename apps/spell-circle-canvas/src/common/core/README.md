@@ -60,7 +60,7 @@ catalog. One target per directory:
 | `SigilCoreCompute` | `compute/` | the seeded mixers, the identifying folds |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
-| `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam |
+| `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
 | `SigilCoreHardware` | `hardware/` | the GPU device and its queue, owned or adopted; textures and fences by generation-checked handle; deferred destruction |
 
 `SigilCoreComparable` and `SigilCoreCompute` are header-only, so they are
@@ -104,6 +104,7 @@ include their own directory's headers. The hardware feature's are
 | `cache/Volatility.h` | `NodeVolatility`, `SubtreeVerdict`, `ChildVolatility` and `foldSubtree` — the settled-subtree proof |
 | `cache/Settle.h` | `Settle<Values>` — the stability release: `observe`, `release`, `moved`, `frames`, `held`, `restart` |
 | `cache/Bake.h` | `BakeOps<Target>`, `Bake<Target>`, `BakeState`, `BakeAction`, `decideBake`, `runBake` — the bake seam |
+| `cache/Rebuild.h` | `RebuildGuard<Keys...>`, `CachedValue<Value, Keys...>` and `quantizeKey` — rebuild on change, with the key one declared tuple rather than a row of members and an if |
 | `hardware/GpuDevice.h` | `GpuDevice`, `Backend`, `NativeDevice`, `VulkanHandles`, `NativeTexture`, `TextureDesc`, `TextureFormat`, `TextureUsage`, `mipLevelsFor` — the device, what it is made of, and what a texture on it is |
 | `hardware/Handle.h` | `Handle`, `TypedHandle<Tag>`, `TextureHandle`, `BufferHandle`, `FenceHandle`, `HandleTable<T, H>` — a name that goes stale, and the slot store behind it |
 | `hardware/Fence.h` | `FenceValue`, `FenceWait`, `kFenceInitialValue`, `kFenceDefaultTimeout` — a timeline and what waiting on one answers |

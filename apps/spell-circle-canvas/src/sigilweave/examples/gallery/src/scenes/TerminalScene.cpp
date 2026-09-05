@@ -36,6 +36,7 @@
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 #include <sigilmeasure/time/Stopwatch.h>
+#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -447,9 +448,9 @@ class TerminalScene final : public Scene {
   kit::GlyphBuckets<const ShapedWord*> m_splitBuckets;  // RGB-split glitches
   std::vector<uint32_t> m_segmentCounters;
   Paragraph m_footer;
-  kit::CachedValue<sk_sp<SkShader>, SkISize> m_background;
-  kit::CachedValue<sk_sp<SkShader>> m_scanlines;
-  kit::CachedValue<sk_sp<SkShader>, SkISize> m_vignette;
+  sigil::core::CachedValue<sk_sp<SkShader>, SkISize> m_background;
+  sigil::core::CachedValue<sk_sp<SkShader>> m_scanlines;
+  sigil::core::CachedValue<sk_sp<SkShader>, SkISize> m_vignette;
 };
 
 SceneDescriptor makeTerminalDescriptor() {
