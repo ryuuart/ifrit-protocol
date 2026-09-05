@@ -262,7 +262,7 @@ void BM_Sweep_Rings(benchmark::State& state) {
                                     .scale = 6};
   const std::vector<curve::Frame3> rail =
       curve::frames(spline, options.segments, options.up);
-  pop::kernel::Dispatch work;
+  mesh::kernel::SweepDispatch work;
   pop::describe(rail, profile, options, &work);
   std::vector<glm::vec4> positions(work.vertices());
   std::vector<glm::vec4> normals(work.vertices());

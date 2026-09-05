@@ -53,7 +53,7 @@ struct Buffer {
 /** The kernel's global parameters, member for member as it declares
  *  them: the argument block first, then one binding per role. */
 struct Globals {
-  Args args;
+  OpArgs args;
   Buffer dst;
   Buffer a;
   Buffer b;
@@ -93,9 +93,9 @@ bool has(const pop::Op& op) {
       op);
 }
 
-bool describe(const pop::Op& op, size_t count, Dispatch* out) {
+bool describe(const pop::Op& op, size_t count, OpDispatch* out) {
   if (!has(op) || !out) return false;
-  Dispatch work;
+  OpDispatch work;
   work.args.code.x = (uint32_t)op.index();
   work.args.code.y = (uint32_t)count;
 
@@ -206,7 +206,7 @@ bool describe(const pop::Op& op, size_t count, Dispatch* out) {
   return true;
 }
 
-void run(const Dispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
+void run(const OpDispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
          glm::vec4* c, glm::vec4* mask) {
   const size_t count = dispatch.args.code.y;
   if (count == 0 || !dst) return;
@@ -233,7 +233,7 @@ void run(const Dispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
       });
 }
 
-std::span<const uint32_t> spirv() {
+std::span<const uint32_t> opSpirv() {
   // Decorated HERE, beside the kernel, rather than by whichever runtime
   // dispatches it: a module that means one thing on one device and
   // another on the next is not a single source, and a second backend

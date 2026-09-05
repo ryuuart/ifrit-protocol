@@ -98,7 +98,7 @@ struct SweepGpu {
   /** @p values uploaded into @p lane, which is grown to hold them. */
   dg::IBufferView* upload(LaneBuffer& lane, const char* label,
                           const std::vector<glm::vec4>& values);
-  bool dispatch(const kernel::Dispatch& work);
+  bool dispatch(const kernel::SweepDispatch& work);
   /** The two output lanes, read back in one crossing. */
   void readBack(size_t count, glm::vec4* positions, glm::vec4* normals);
 };
@@ -116,7 +116,7 @@ bool SweepGpu::ready() {
   // Asked of the kernel and not of the build's raw output: the words a
   // driver may fuse a multiply-add in are not the words this dispatch is
   // held to agree with the host about.
-  const std::span<const uint32_t> words = kernel::spirv();
+  const std::span<const uint32_t> words = kernel::sweepSpirv();
   ci.ByteCode = words.data();
   ci.ByteCodeSize = words.size() * sizeof(uint32_t);
   renderDevice->CreateShader(ci, &cs);
@@ -135,7 +135,7 @@ bool SweepGpu::ready() {
 
   dg::BufferDesc desc;
   desc.Name = "sweep kernel arguments";
-  desc.Size = sizeof(kernel::Args);
+  desc.Size = sizeof(kernel::SweepArgs);
   desc.BindFlags = dg::BIND_UNIFORM_BUFFER;
   // Written with UpdateBuffer rather than mapped: a sweep is not
   // necessarily inside a frame, and a default buffer's write does not
@@ -156,7 +156,7 @@ dg::IBufferView* SweepGpu::upload(LaneBuffer& lane, const char* label,
   return view;
 }
 
-bool SweepGpu::dispatch(const kernel::Dispatch& work) {
+bool SweepGpu::dispatch(const kernel::SweepDispatch& work) {
   const size_t count = work.vertices();
   dg::IDeviceContext* context = device->context();
   dg::IRenderDevice& renderDevice = *device->renderDevice();
@@ -175,7 +175,7 @@ bool SweepGpu::dispatch(const kernel::Dispatch& work) {
   if (!railPos || !railNor || !railBin || !contour || !outPos || !outNor)
     return false;
 
-  context->UpdateBuffer(arguments, 0, sizeof(kernel::Args), &work.args,
+  context->UpdateBuffer(arguments, 0, sizeof(kernel::SweepArgs), &work.args,
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
   const auto bind = [&](const char* name, dg::IDeviceObject* object) {
@@ -196,8 +196,8 @@ bool SweepGpu::dispatch(const kernel::Dispatch& work) {
                                  dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   dg::DispatchComputeAttribs attribs;
   attribs.ThreadGroupCountX =
-      (dg::Uint32)((count + kernel::kGroupSize - 1) /
-                   kernel::kGroupSize);
+      (dg::Uint32)((count + kernel::kSweepGroupSize - 1) /
+                   kernel::kSweepGroupSize);
   context->DispatchCompute(attribs);
   return true;
 }
@@ -255,7 +255,7 @@ class DeviceSweepExecutor : public SweepExecutor {
 
   std::string name() const override { return "diligent"; }
 
-  void rings(const kernel::Dispatch& work, glm::vec4* positions,
+  void rings(const kernel::SweepDispatch& work, glm::vec4* positions,
              glm::vec4* normals) const override {
     const size_t count = work.vertices();
     if (count == 0) return;

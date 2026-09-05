@@ -30,9 +30,7 @@
 extern "C" void sigilSweepKernel(void* varying, void* entryPointParams,
                                  void* globalParams);
 
-namespace sigil::geometry::mesh::pop {
-
-namespace kernel {
+namespace sigil::geometry::mesh::kernel {
 
 namespace {
 
@@ -56,7 +54,7 @@ struct Buffer {
 /** The kernel's global parameters, member for member as it declares
  *  them: the argument block first, then one binding per lane. */
 struct Globals {
-  Args args;
+  SweepArgs args;
   Buffer railPosition;
   Buffer railNormal;
   Buffer railBinormal;
@@ -72,7 +70,8 @@ struct Globals {
  *  entering the generated kernel is the small part of it. */
 constexpr uint32_t kGroupsPerTask = 32;
 
-void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals) {
+void run(const SweepDispatch& dispatch, glm::vec4* positions,
+         glm::vec4* normals) {
   const size_t count = dispatch.vertices();
   if (count == 0 || !positions || !normals) return;
   Globals globals;
@@ -89,7 +88,8 @@ void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals) {
   globals.outPosition = {positions, count};
   globals.outNormal = {normals, count};
 
-  const uint32_t groupCount = (uint32_t)((count + kGroupSize - 1) / kGroupSize);
+  const uint32_t groupCount =
+      (uint32_t)((count + kSweepGroupSize - 1) / kSweepGroupSize);
   // A worker takes a run of groups rather than one, so it enters the
   // generated kernel once per run; the kernel owns the group size and
   // clips its last group against the lane count either way.
@@ -100,14 +100,16 @@ void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals) {
       });
 }
 
-std::span<const uint32_t> spirv() {
+std::span<const uint32_t> sweepSpirv() {
   static const std::vector<uint32_t> module = noContraction(
       {slangmodule::Sweep::kSpirv, sizeof(slangmodule::Sweep::kSpirv) /
                                        sizeof(slangmodule::Sweep::kSpirv[0])});
   return {module.data(), module.size()};
 }
 
-}  // namespace kernel
+}  // namespace sigil::geometry::mesh::kernel
+
+namespace sigil::geometry::mesh::pop {
 
 namespace profile {
 
@@ -133,7 +135,7 @@ struct HostExecutor : SweepExecutor {
 
   std::string name() const override { return "host"; }
 
-  void rings(const kernel::Dispatch& work, glm::vec4* positions,
+  void rings(const kernel::SweepDispatch& work, glm::vec4* positions,
              glm::vec4* normals) const override {
     kernel::run(work, positions, normals);
   }
@@ -148,12 +150,12 @@ SweepRuntime SweepRuntime::cpu() {
 
 bool describe(const std::vector<curve::Frame3>& rail,
               const path::Polyline& profile, const SweepOptions& options,
-              kernel::Dispatch* out) {
+              kernel::SweepDispatch* out) {
   if (!out) return false;
   const uint32_t ring = (uint32_t)profile.points.size();
   if (rail.size() < 2 || ring < 2) return false;
 
-  kernel::Dispatch work;
+  kernel::SweepDispatch work;
   // A closed profile wraps back onto its first point; an open one ends,
   // so it spans one quad fewer and its u reaches 1.
   const uint32_t span = profile.closed ? ring : ring - 1;
@@ -187,7 +189,7 @@ bool describe(const std::vector<curve::Frame3>& rail,
 Mesh sweep(const std::vector<curve::Frame3>& rail,
            const path::Polyline& profile, const SweepOptions& options) {
   Mesh out;
-  kernel::Dispatch work;
+  kernel::SweepDispatch work;
   if (!describe(rail, profile, options, &work)) return out;
 
   const uint32_t ring = work.args.code.y;

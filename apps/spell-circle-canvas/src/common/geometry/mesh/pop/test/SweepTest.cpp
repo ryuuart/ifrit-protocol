@@ -55,10 +55,10 @@ struct CountingExecutor : pop::SweepExecutor {
     return label == other.label;
   }
   std::string name() const override { return label; }
-  void rings(const pop::kernel::Dispatch& work, glm::vec4* positions,
+  void rings(const mesh::kernel::SweepDispatch& work, glm::vec4* positions,
              glm::vec4* normals) const override {
     ++*calls;
-    pop::kernel::run(work, positions, normals);
+    mesh::kernel::run(work, positions, normals);
   }
 };
 
@@ -87,7 +87,7 @@ TEST(MeshSweep, DescribePacksTheRailAndTheProfile) {
   options.scale = 2.0f;
   options.taper = [](float t) { return 1.0f + t; };
 
-  pop::kernel::Dispatch work;
+  mesh::kernel::SweepDispatch work;
   ASSERT_TRUE(pop::describe(r, p, options, &work));
   EXPECT_EQ(work.args.code.x, 5u);
   EXPECT_EQ(work.args.code.y, p.points.size());
@@ -102,7 +102,7 @@ TEST(MeshSweep, DescribePacksTheRailAndTheProfile) {
   EXPECT_FLOAT_EQ(work.railNormal.back().w, 1.0f) << "the frame's t";
 
   // Nothing to sweep is said by the answer, not by an empty mesh.
-  pop::kernel::Dispatch none;
+  mesh::kernel::SweepDispatch none;
   EXPECT_FALSE(pop::describe(rail(1), p, options, &none));
   EXPECT_FALSE(pop::describe(r, path::Polyline{}, options, &none));
 }

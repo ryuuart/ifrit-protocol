@@ -156,7 +156,7 @@ InstanceOptions stampOptions(const Cloud& cloud);
  *  does not carry is filled here with what it would have been read as,
  *  once, rather than asked about per vertex. */
 bool describe(const Cloud& cloud, const Mesh& stamp,
-              const InstanceOptions& options, kernel::Dispatch* out);
+              const InstanceOptions& options, kernel::StampDispatch* out);
 
 /** Stamp @p stamp at every point into one merged Mesh — dir orients,
  *  size scales, tint colours, and the cloud's "Tex" window remaps each

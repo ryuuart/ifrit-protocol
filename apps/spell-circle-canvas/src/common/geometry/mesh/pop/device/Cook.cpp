@@ -37,8 +37,8 @@ namespace dg = Diligent;
 
 namespace {
 
-using kernel::Args;
-using kernel::Dispatch;
+using kernel::OpArgs;
+using kernel::OpDispatch;
 
 /** How many lanes one dispatched group covers. It is the kernel's own
  *  `numthreads`, and the kernel drops the lanes past the point count
@@ -98,7 +98,7 @@ struct PopGpu {
    *  elements is not a buffer a binding can take, and the kernel does
    *  not read a table it was told is empty. */
   dg::IBufferView* stopTable(const std::vector<glm::vec4>& stops);
-  void dispatch(const Dispatch& work, size_t count);
+  void dispatch(const OpDispatch& work, size_t count);
   /** Every lane read back into @p into. */
   void readBack(pop::Lanes& into, size_t count);
 };
@@ -116,7 +116,7 @@ bool PopGpu::ready() {
   // Asked of the kernel and not of the build's raw output: the words a
   // driver may fuse a multiply-add in are not the words this dispatch is
   // held to agree with the host about.
-  const std::span<const uint32_t> words = kernel::spirv();
+  const std::span<const uint32_t> words = kernel::opSpirv();
   ci.ByteCode = words.data();
   ci.ByteCodeSize = words.size() * sizeof(uint32_t);
   renderDevice->CreateShader(ci, &cs);
@@ -135,7 +135,7 @@ bool PopGpu::ready() {
 
   dg::BufferDesc desc;
   desc.Name = "pop kernel arguments";
-  desc.Size = sizeof(Args);
+  desc.Size = sizeof(OpArgs);
   desc.BindFlags = dg::BIND_UNIFORM_BUFFER;
   // Written with UpdateBuffer rather than mapped: a cook is not
   // necessarily inside a frame, and a default buffer's write does not
@@ -213,7 +213,7 @@ dg::IBufferView* PopGpu::stopTable(const std::vector<glm::vec4>& stops) {
   return table->GetDefaultView(dg::BUFFER_VIEW_UNORDERED_ACCESS);
 }
 
-void PopGpu::dispatch(const Dispatch& work, size_t count) {
+void PopGpu::dispatch(const OpDispatch& work, size_t count) {
   dg::IDeviceContext* context = device->context();
   LaneBuffer* dst = lane(work.dst, count, nullptr);
   if (!dst) return;
@@ -229,7 +229,7 @@ void PopGpu::dispatch(const Dispatch& work, size_t count) {
   dg::IBufferView* stops = stopTable(work.table);
   if (!stops) return;
 
-  context->UpdateBuffer(arguments, 0, sizeof(Args), &work.args,
+  context->UpdateBuffer(arguments, 0, sizeof(OpArgs), &work.args,
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
   const auto bind = [&](const char* name, dg::IDeviceObject* object) {
@@ -361,7 +361,7 @@ class DeviceExecutor : public pop::Executor {
     for (const auto& [name, values] : lanes) m_gpu->lane(name, count, &values);
 
     for (size_t opIndex = 1; opIndex < chain.size(); ++opIndex) {
-      Dispatch work;
+      OpDispatch work;
       if (!kernel::describe(chain[opIndex], count, &work)) continue;
       m_gpu->dispatch(work, count);
     }

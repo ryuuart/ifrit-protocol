@@ -106,7 +106,7 @@ struct StampGpu {
   /** @p values uploaded into @p lane, which is grown to hold them. */
   dg::IBufferView* upload(LaneBuffer& lane, const char* label,
                           const std::vector<glm::vec4>& values);
-  bool dispatch(const kernel::Dispatch& work);
+  bool dispatch(const kernel::StampDispatch& work);
   /** The three output lanes, read back in one crossing. */
   void readBack(size_t count, glm::vec4* positions, glm::vec4* normals,
                 glm::vec4* colors);
@@ -125,7 +125,7 @@ bool StampGpu::ready() {
   // Asked of the kernel and not of the build's raw output: the words a
   // driver may fuse a multiply-add in are not the words this dispatch is
   // held to agree with the host about.
-  const std::span<const uint32_t> words = kernel::spirv();
+  const std::span<const uint32_t> words = kernel::stampSpirv();
   ci.ByteCode = words.data();
   ci.ByteCodeSize = words.size() * sizeof(uint32_t);
   renderDevice->CreateShader(ci, &cs);
@@ -144,7 +144,7 @@ bool StampGpu::ready() {
 
   dg::BufferDesc desc;
   desc.Name = "stamp kernel arguments";
-  desc.Size = sizeof(kernel::Args);
+  desc.Size = sizeof(kernel::StampArgs);
   desc.BindFlags = dg::BIND_UNIFORM_BUFFER;
   // Written with UpdateBuffer rather than mapped: a stamping is not
   // necessarily inside a frame, and a default buffer's write does not
@@ -165,7 +165,7 @@ dg::IBufferView* StampGpu::upload(LaneBuffer& lane, const char* label,
   return view;
 }
 
-bool StampGpu::dispatch(const kernel::Dispatch& work) {
+bool StampGpu::dispatch(const kernel::StampDispatch& work) {
   const size_t count = work.vertices();
   dg::IDeviceContext* context = device->context();
   dg::IRenderDevice& renderDevice = *device->renderDevice();
@@ -191,7 +191,7 @@ bool StampGpu::dispatch(const kernel::Dispatch& work) {
       !outNor || !outCol)
     return false;
 
-  context->UpdateBuffer(arguments, 0, sizeof(kernel::Args), &work.args,
+  context->UpdateBuffer(arguments, 0, sizeof(kernel::StampArgs), &work.args,
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
   const auto bind = [&](const char* name, dg::IDeviceObject* object) {
@@ -217,7 +217,7 @@ bool StampGpu::dispatch(const kernel::Dispatch& work) {
                                  dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   dg::DispatchComputeAttribs attribs;
   attribs.ThreadGroupCountX =
-      (dg::Uint32)((count + kernel::kGroupSize - 1) / kernel::kGroupSize);
+      (dg::Uint32)((count + kernel::kStampGroupSize - 1) / kernel::kStampGroupSize);
   context->DispatchCompute(attribs);
   return true;
 }
@@ -277,7 +277,7 @@ class DeviceStampExecutor : public StampExecutor {
 
   std::string name() const override { return "diligent"; }
 
-  void vertices(const kernel::Dispatch& work, glm::vec4* positions,
+  void vertices(const kernel::StampDispatch& work, glm::vec4* positions,
                 glm::vec4* normals, glm::vec4* colors) const override {
     const size_t count = work.vertices();
     if (count == 0) return;

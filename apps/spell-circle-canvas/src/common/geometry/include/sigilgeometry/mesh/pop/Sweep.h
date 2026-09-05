@@ -73,15 +73,22 @@ enum class SweepNormals : uint8_t {
   Geometric,  ///< averaged from the formed triangles — any profile
 };
 
+}  // namespace sigil::geometry::mesh::pop
+
 /** THE RING ARITHMETIC AS ONE PIECE, and the description a run of it
  *  is. Everything a ring vertex is a function of, packed the way the
  *  kernel declares it: every buffer four floats wide, so the bytes the
  *  host fills are the bytes a device binds — there is no layout to
- *  report and none to guess. */
-namespace kernel {
+ *  report and none to guess.
+ *
+ *  It stands in the one namespace every kernel this library compiles
+ *  stands in, beside the point operators' and the stamping's, so a
+ *  reader looking for what a device dispatches finds all of them in one
+ *  place and no two of them under the same name. */
+namespace sigil::geometry::mesh::kernel {
 
 /** ONE SWEEP'S PARAMETERS, in the layout the kernel declares. */
-struct Args {
+struct SweepArgs {
   /** x: how many rings; y: how many points the profile has; z: 1 when a
    *  vertex normal is the profile's own offset and 0 when it is the
    *  rail's; w: how many spans u is divided across. */
@@ -95,8 +102,8 @@ struct Args {
  *  arguments because it is per ring, and it is a HOST answer: a taper is
  *  an arbitrary function of t, so it is evaluated once per ring on the
  *  side that can call it and carried across as a number. */
-struct Dispatch {
-  Args args;
+struct SweepDispatch {
+  SweepArgs args;
   /** Per ring: xyz the frame's position, w the size. */
   std::vector<glm::vec4> railPosition;
   /** Per ring: xyz the frame's normal, w the frame's t. */
@@ -117,22 +124,25 @@ struct Dispatch {
  *  values, and each spends all four floats: a position carries u in its
  *  fourth and a normal carries v in its. Two lanes rather than three,
  *  because a uv is two numbers and both of those floats were spare. */
-void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals);
+void run(const SweepDispatch& dispatch, glm::vec4* positions,
+         glm::vec4* normals);
 
 /** THE KERNEL AS A DEVICE RUNS IT: the SPIR-V this build compiled from
  *  the same source `run` came out of, with one `NoContraction`
  *  decoration per arithmetic result — see `mesh/Spirv.h` for why that
  *  decoration is not optional. The words stand for the life of the
  *  process. */
-std::span<const uint32_t> spirv();
+std::span<const uint32_t> sweepSpirv();
 
 /** How many vertices one dispatched group covers. It is the kernel's own
  *  `numthreads`, and the kernel drops the lanes past the vertex count
  *  itself, so a count that is not a multiple of it needs no second
  *  path. */
-inline constexpr uint32_t kGroupSize = 64;
+inline constexpr uint32_t kSweepGroupSize = 64;
 
-}  // namespace kernel
+}  // namespace sigil::geometry::mesh::kernel
+
+namespace sigil::geometry::mesh::pop {
 
 /** The one step a sweep runs through: the ring vertices. An
  *  implementation owns whatever device it needs; the dispatch carries
@@ -148,7 +158,7 @@ class SweepExecutor {
    *  `work.vertices()` long, in ring-major order: ring 0's profile
    *  points first, then ring 1's. A position carries u in its fourth
    *  float and a normal carries v in its. */
-  virtual void rings(const kernel::Dispatch& work, glm::vec4* positions,
+  virtual void rings(const kernel::SweepDispatch& work, glm::vec4* positions,
                      glm::vec4* normals) const = 0;
 };
 
@@ -196,7 +206,7 @@ struct SweepOptions {
  *  here, once per ring. */
 bool describe(const std::vector<curve::Frame3>& rail,
               const path::Polyline& profile, const SweepOptions& options,
-              kernel::Dispatch* out);
+              kernel::SweepDispatch* out);
 
 /**
  * THE DEVICE EXECUTOR, beside the CPU one: the `SweepRuntime` that forms

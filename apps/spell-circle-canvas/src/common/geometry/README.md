@@ -239,7 +239,16 @@ what lets two tiers be held to bit identity rather than to a tolerance.
 place rather than once per kernel. `kernel::has(op)` is the one
 answer to whether an operator has a kernel, `kernel::describe()` packs
 one into the argument block both ends read, `kernel::run()` is the host
-call, and `kernel::spirv()` is the module a device runs.
+call, and `kernel::opSpirv()` is the module a device runs.
+
+**One namespace holds every kernel here.** `mesh::kernel` is where the
+point operators' arithmetic, the swept ring's and the stamping's are all
+declared, each naming its own subject — `OpArgs`/`OpDispatch`,
+`SweepArgs`/`SweepDispatch`, `StampArgs`/`StampDispatch`, and
+`opSpirv()`/`sweepSpirv()`/`stampSpirv()` — so no two of them answer to
+one name and a reader looking for what a device dispatches finds all of
+them together. `kernel::run()` is one overload set the dispatch type
+decides.
 
 Not every operator has one, and each absence is a boundary rather than a
 gap: a generator makes the points rather than mapping over them (every
@@ -264,7 +273,7 @@ targets. Two things outside the source decide the rest. The generated C++
 is compiled with `-ffp-contract=off`, which is also what makes a Debug
 build and a Release one produce the same bits; and the SPIR-V carries one
 `NoContraction` decoration per arithmetic result, added by
-`kernel::spirv()` because the emitter puts none there — without it a
+`kernel::opSpirv()` because the emitter puts none there — without it a
 driver fuses a multiply and the add after it and rounds once where the
 source rounds twice.
 
@@ -278,7 +287,7 @@ closes an end, the averaging that forms a geometric normal — is integer
 or a reduction over triangles that do not exist until the vertices do.
 The topology is the same wherever the vertices were formed, so it is
 written once and the seam is narrow: an executor is handed a
-`pop::kernel::Dispatch` and fills two lanes — a position carrying u
+`kernel::SweepDispatch` and fills two lanes — a position carrying u
 in its fourth float and a normal carrying v in its, because both of
 those floats were spare and a lane of its own for two numbers is a
 third of everything this seam moves. The TAPER never crosses
@@ -620,10 +629,11 @@ implementations of the same dispatch seams.
   are `Cook.cpp`; the mesh-forming sinks `pop::cookMesh()` and
   `cookSweep()` are `Sinks.cpp`.
 - **`mesh/pop/Kernel.h`** — the seam between the two ends of one piece of
-  arithmetic: `kernel::Args` (the argument block, every member a
+  arithmetic: `kernel::OpArgs` (the argument block, every member a
   four-component vector so its bytes stand at the same offsets in a
-  uniform buffer), `kernel::Dispatch` (which lane fills each binding
-  role), `has()`, `describe()`, `run()` and `spirv()`. `Kernel.cpp` packs
+  uniform buffer), `kernel::OpDispatch` (which lane fills each binding
+  role), `has()`, `describe()`, `run()` and `opSpirv()`. It also names
+  the namespace every kernel here shares. `Kernel.cpp` packs
   and calls; `Spirv.cpp` decorates the module.
 - **`mesh/pop/Sweep.h`** — the swept operator as a subject: the
   door from an arbitrary outline, `pop::profile::fromPath()` (the two
@@ -634,8 +644,8 @@ implementations of the same dispatch seams.
   spline that builds one; and the seam a device replaces —
   `pop::SweepExecutor` (one call, `rings()`), `pop::SweepRuntime`
   holding one, `pop::describe()` turning a rail and a profile into a
-  `pop::kernel::Dispatch`, and `kernel::run()` and `kernel::spirv()` as
-  the two ends of the one arithmetic. `Sweep.cpp` holds the profiles, the
+  `kernel::SweepDispatch`, and `kernel::run()` and `kernel::sweepSpirv()`
+  as the two ends of the one arithmetic. `Sweep.cpp` holds the profiles, the
   packing, the topology and the built-in executor; `mesh/pop/device/Sweep.cpp`
   the device one.
 
@@ -667,9 +677,9 @@ implementations of the same dispatch seams.
 - **`mesh/pop/Stamp.h`** — the stamping operator as a subject —
   TouchDesigner's Copy, Houdini's copy-to-points — and the seam a device
   replaces: `points::StampExecutor` (one call, `vertices()`),
-  `points::StampRuntime` holding one, `points::kernel::Dispatch` (the
+  `points::StampRuntime` holding one, `kernel::StampDispatch` (the
   stamp's lanes and the points', each four floats wide), and
-  `kernel::run()` and `kernel::spirv()` as the two ends of the one
+  `kernel::run()` and `kernel::stampSpirv()` as the two ends of the one
   arithmetic. `points::describe()` and `points::instance()` are in
   `Points.h`, because they are where a Cloud and a Mesh become one;
   `Stamp.cpp` is the packing, the index runs and the built-in executor,

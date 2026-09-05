@@ -31,7 +31,7 @@ namespace points {
 void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
   const size_t n = cloud.size();
   if (n == 0) return;
-  mesh::kernel::Dispatch work;
+  mesh::kernel::OpDispatch work;
   if (!mesh::kernel::describe(pop::Op{pop::Jitter{pop::Lane::P, amplitude, seed}}, n,
                         &work))
     return;

@@ -37,12 +37,13 @@ namespace sigil::geometry::device {
 class Device;
 }  // namespace sigil::geometry::device
 
-namespace sigil::geometry::mesh::points {
-
-namespace kernel {
+/** THE STAMPING ARITHMETIC AS ONE PIECE, in the one namespace every
+ *  kernel this library compiles stands in, beside the point operators'
+ *  and the swept rings'. */
+namespace sigil::geometry::mesh::kernel {
 
 /** ONE STAMPING'S PARAMETERS, in the layout the kernel declares. */
-struct Args {
+struct StampArgs {
   /** x: how many vertices one stamp has; y: how many points; z: flags;
    *  w: how many vertices in all. */
   glm::uvec4 code{0, 0, 0, 0};
@@ -50,7 +51,7 @@ struct Args {
   glm::vec4 up{0, 1, 0, 0};
 };
 
-/** The flag bits `Args::code.z` carries. */
+/** The flag bits `StampArgs::code.z` carries. */
 enum : uint32_t {
   /** A direction lane orients each stamp; without it every stamp keeps
    *  the axes it was authored on. */
@@ -66,8 +67,8 @@ enum : uint32_t {
  *  vertex. What the mesh at the end does with the answer is a separate
  *  question: a stamp with no normals still has its normal lane formed,
  *  and the caller drops it. */
-struct Dispatch {
-  Args args;
+struct StampDispatch {
+  StampArgs args;
   /** Per stamp vertex: xyz the position. */
   std::vector<glm::vec4> stampPosition;
   /** Per stamp vertex: xyz the normal. */
@@ -95,23 +96,25 @@ struct Dispatch {
  *  carries u in its fourth float and a normal carries v in its — two
  *  lanes rather than three, because a uv is two numbers and both of
  *  those floats were spare. */
-void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals,
-         glm::vec4* colors);
+void run(const StampDispatch& dispatch, glm::vec4* positions,
+         glm::vec4* normals, glm::vec4* colors);
 
 /** THE KERNEL AS A DEVICE RUNS IT: the SPIR-V this build compiled from
  *  the same source `run` came out of, with one `NoContraction`
  *  decoration per arithmetic result — see `pop/Spirv.h` for why that
  *  decoration is not optional. The words stand for the life of the
  *  process. */
-std::span<const uint32_t> spirv();
+std::span<const uint32_t> stampSpirv();
 
 /** How many vertices one dispatched group covers. It is the kernel's own
  *  `numthreads`, and the kernel drops the lanes past the vertex count
  *  itself, so a count that is not a multiple of it needs no second
  *  path. */
-inline constexpr uint32_t kGroupSize = 64;
+inline constexpr uint32_t kStampGroupSize = 64;
 
-}  // namespace kernel
+}  // namespace sigil::geometry::mesh::kernel
+
+namespace sigil::geometry::mesh::points {
 
 /** The one step a stamping runs through: the vertices. An implementation
  *  owns whatever device it needs; the dispatch carries none, so a
@@ -126,7 +129,7 @@ class StampExecutor {
   /** The vertices @p work describes, into three lanes each at least
    *  `work.vertices()` long, in point-major order: point 0's whole stamp
    *  first, then point 1's. */
-  virtual void vertices(const kernel::Dispatch& work, glm::vec4* positions,
+  virtual void vertices(const kernel::StampDispatch& work, glm::vec4* positions,
                         glm::vec4* normals, glm::vec4* colors) const = 0;
 };
 

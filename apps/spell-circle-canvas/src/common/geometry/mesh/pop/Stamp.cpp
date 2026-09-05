@@ -27,9 +27,7 @@
 extern "C" void sigilStampKernel(void* varying, void* entryPointParams,
                                  void* globalParams);
 
-namespace sigil::geometry::mesh::points {
-
-namespace kernel {
+namespace sigil::geometry::mesh::kernel {
 
 namespace {
 
@@ -53,7 +51,7 @@ struct Buffer {
 /** The kernel's global parameters, member for member as it declares
  *  them: the argument block first, then one binding per lane. */
 struct Globals {
-  Args args;
+  StampArgs args;
   Buffer stampPosition;
   Buffer stampNormal;
   Buffer stampUv;
@@ -74,8 +72,8 @@ struct Globals {
  *  entering the generated kernel is the small part of it. */
 constexpr uint32_t kGroupsPerTask = 32;
 
-void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals,
-         glm::vec4* colors) {
+void run(const StampDispatch& dispatch, glm::vec4* positions,
+         glm::vec4* normals, glm::vec4* colors) {
   const size_t count = dispatch.vertices();
   if (count == 0 || !positions || !normals || !colors) return;
   Globals globals;
@@ -97,7 +95,8 @@ void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals,
   globals.outNormal = {normals, count};
   globals.outColor = {colors, count};
 
-  const uint32_t groupCount = (uint32_t)((count + kGroupSize - 1) / kGroupSize);
+  const uint32_t groupCount =
+      (uint32_t)((count + kStampGroupSize - 1) / kStampGroupSize);
   // A worker takes a run of groups rather than one, so it enters the
   // generated kernel once per run; the kernel owns the group size and
   // clips its last group against the lane count either way.
@@ -108,14 +107,16 @@ void run(const Dispatch& dispatch, glm::vec4* positions, glm::vec4* normals,
       });
 }
 
-std::span<const uint32_t> spirv() {
+std::span<const uint32_t> stampSpirv() {
   static const std::vector<uint32_t> module = noContraction(
       {slangmodule::Stamp::kSpirv, sizeof(slangmodule::Stamp::kSpirv) /
                                        sizeof(slangmodule::Stamp::kSpirv[0])});
   return {module.data(), module.size()};
 }
 
-}  // namespace kernel
+}  // namespace sigil::geometry::mesh::kernel
+
+namespace sigil::geometry::mesh::points {
 
 namespace {
 
@@ -130,7 +131,7 @@ struct HostExecutor : StampExecutor {
 
   std::string name() const override { return "host"; }
 
-  void vertices(const kernel::Dispatch& work, glm::vec4* positions,
+  void vertices(const kernel::StampDispatch& work, glm::vec4* positions,
                 glm::vec4* normals, glm::vec4* colors) const override {
     kernel::run(work, positions, normals, colors);
   }
@@ -144,7 +145,7 @@ StampRuntime StampRuntime::cpu() {
 }
 
 bool describe(const Cloud& cloud, const Mesh& stamp,
-              const InstanceOptions& options, kernel::Dispatch* out) {
+              const InstanceOptions& options, kernel::StampDispatch* out) {
   if (!out) return false;
   const size_t points = cloud.size();
   const size_t verts = stamp.vertexCount();
@@ -158,7 +159,7 @@ bool describe(const Cloud& cloud, const Mesh& stamp,
       options.orientLane.empty() ? nullptr : cloud.vectorIf(options.orientLane);
   const std::vector<glm::vec4>* texLane = cloud.colorIf("Tex");
 
-  kernel::Dispatch work;
+  kernel::StampDispatch work;
   work.args.code = {(uint32_t)verts, (uint32_t)points,
                     orientLane ? kernel::kOriented : 0u,
                     (uint32_t)(verts * points)};
@@ -210,7 +211,7 @@ bool describe(const Cloud& cloud, const Mesh& stamp,
 Mesh instance(const Cloud& cloud, const Mesh& stamp,
               const InstanceOptions& options) {
   Mesh out;
-  kernel::Dispatch work;
+  kernel::StampDispatch work;
   if (!describe(cloud, stamp, options, &work)) return out;
 
   // THE VERTICES, on whichever executor the options carry. This is the

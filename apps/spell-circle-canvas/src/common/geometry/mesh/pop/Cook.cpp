@@ -68,7 +68,7 @@ struct Attrs {
  *  dispatch named, created if this is where they first appear, and the
  *  kernel called over them. A role the operator does not read is handed
  *  the destination, which the kernel never looks at. */
-void runKernel(Attrs& attrs, const kernel::Dispatch& work) {
+void runKernel(Attrs& attrs, const kernel::OpDispatch& work) {
   glm::vec4* const dst = attrs.ensure(work.dst).data();
   const auto lane = [&](const std::string& name) -> glm::vec4* {
     return name.empty() ? dst : attrs.ensure(name).data();
@@ -349,7 +349,7 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
     // THE KERNEL FIRST. An operator that has one is arithmetic this file
     // does not hold a second copy of, and the dispatch is the same
     // description a device executor is handed.
-    kernel::Dispatch work;
+    kernel::OpDispatch work;
     if (kernel::describe(chain[opIndex], count, &work)) {
       runKernel(attrs, work);
       continue;
