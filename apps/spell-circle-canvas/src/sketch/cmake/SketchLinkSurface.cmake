@@ -16,20 +16,30 @@
 # except the ones a sketch calls directly, which the caller names as
 # EXTRA.
 #
-# The walk is deferred to the end of the top-level directory because a
-# link line may name a target defined after the host's directory; walked
-# then, a name that is not a target is a plain library name.
+# The walk runs from the top-level directory once every subdirectory has
+# been added, because a link line may name a target defined after the
+# host's directory; walked then, a name that is not a target is a plain
+# library name.
 #
 #   sigil_sketch_link_surface(<host> <sketches> [EXTRA <target>…])
+#     in the host's directory, records the walk to make
+#   sigil_finalize_sketch_link_surfaces()
+#     in the top-level directory, after every add_subdirectory(), makes
+#     every recorded walk
 
 function(sigil_sketch_link_surface host sketches)
-  # A deferred call's arguments are expanded where it RUNS, and it runs
-  # in the top-level directory, where nothing of this function's scope
-  # exists — so the call is written out with its arguments already
-  # spelled, and what is deferred is a line of literal text.
-  cmake_language(EVAL CODE
-    "cmake_language(DEFER DIRECTORY \"${CMAKE_SOURCE_DIR}\"
-       CALL _sigil_sketch_link_surface_now ${host} ${sketches} ${ARGN})")
+  # One record per host, its arguments joined on a character no target
+  # name carries, so the list of records survives being a list itself.
+  string(REPLACE ";" "|" record "${host};${sketches};${ARGN}")
+  set_property(GLOBAL APPEND PROPERTY SIGIL_SKETCH_LINK_SURFACES "${record}")
+endfunction()
+
+function(sigil_finalize_sketch_link_surfaces)
+  get_property(records GLOBAL PROPERTY SIGIL_SKETCH_LINK_SURFACES)
+  foreach(record IN LISTS records)
+    string(REPLACE "|" ";" arguments "${record}")
+    _sigil_sketch_link_surface_now(${arguments})
+  endforeach()
 endfunction()
 
 function(_sigil_sketch_link_surface_now host sketches)

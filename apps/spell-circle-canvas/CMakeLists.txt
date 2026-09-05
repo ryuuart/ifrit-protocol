@@ -55,11 +55,16 @@ add_custom_target(fetch_assets
 
 add_subdirectory(src)
 
-# Every library root and every test binary has registered by now: the
-# first lets each Doxyfile name all the others, the second lets a
-# binary's ctest entries be written over its whole set of cases.
+# Every library root, every test binary and every hot-reload host has
+# registered by now: the first lets each Doxyfile name all the others,
+# the second lets a binary's ctest entries be written over its whole set
+# of cases, the third lets a host's force-load list be read off targets
+# defined after its own directory.
 sigil_finalize_docs()
 sigil_finalize_tests()
+if(COMMAND sigil_finalize_sketch_link_surfaces)
+  sigil_finalize_sketch_link_surfaces()
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS SpellCircle
