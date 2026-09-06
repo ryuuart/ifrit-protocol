@@ -237,6 +237,12 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   Pattern diag;            // faint 45° sheen for the fallback steel panels
   sk_sp<SkImage> gapMask;  // feathered coverage of the plate's sky opening
+  /** The sky footage's grade — a saturation-and-gain matrix, built once
+   *  per declaration and held HERE. A function-local static would outlive
+   *  the dylib a hot-reloaded sketch is compiled into, and a filter
+   *  compared by pointer after that reload points into code that is
+   *  gone. */
+  sk_sp<SkImageFilter> cloudLook;
   Pattern dots;    // the dot-matrix filling every title bar's right half
   Pattern vticks;  // the tick-dash rail under the navbar
 
@@ -264,6 +270,37 @@ struct TwoAdvancedV3 : sketch::Sketch {
   // COVERAGE is what melts the overlay's boundary into the art while the
   // footage inside stays crisp — blurring the layer itself would smear
   // the clouds.
+
+  /** The sky footage's grade: 0.60 saturation at 0.90 gain, so the
+   *  62-frame loop sits in the plate's own exposure rather than in its
+   *  own. */
+  static sk_sp<SkImageFilter> buildCloudLook() {
+    const float sat = 0.60f, gain = 0.90f;
+    const float lr = 0.2126f * (1 - sat), lg = 0.7152f * (1 - sat),
+                lb = 0.0722f * (1 - sat);
+    const float m[20] = {gain * (lr + sat),
+                         gain * lg,
+                         gain * lb,
+                         0,
+                         0,
+                         gain * lr,
+                         gain * (lg + sat),
+                         gain * lb,
+                         0,
+                         0,
+                         gain * lr,
+                         gain * lg,
+                         gain * (lb + sat),
+                         0,
+                         0,
+                         0,
+                         0,
+                         0,
+                         1,
+                         0};
+    return SkImageFilters::ColorFilter(SkColorFilters::Matrix(m),
+                                       nullptr);
+  }
 
   void buildGapMask() {
     static const SkPoint kGap[] = {
@@ -659,33 +696,6 @@ struct TwoAdvancedV3 : sketch::Sketch {
         // drawn behind the structure through the feathered opening
         // coverage, slightly desaturated and dimmed so the footage
         // sits in the plate's own exposure.
-        static const sk_sp<SkImageFilter> kCloudLook = [] {
-          const float sat = 0.60f, gain = 0.90f;
-          const float lr = 0.2126f * (1 - sat), lg = 0.7152f * (1 - sat),
-                      lb = 0.0722f * (1 - sat);
-          const float m[20] = {gain * (lr + sat),
-                               gain * lg,
-                               gain * lb,
-                               0,
-                               0,
-                               gain * lr,
-                               gain * (lg + sat),
-                               gain * lb,
-                               0,
-                               0,
-                               gain * lr,
-                               gain * lg,
-                               gain * (lb + sat),
-                               0,
-                               0,
-                               0,
-                               0,
-                               0,
-                               1,
-                               0};
-          return SkImageFilters::ColorFilter(SkColorFilters::Matrix(m),
-                                             nullptr);
-        }();
         art.child(box()
                       .inset(0)
                       .child(at(box().clip().child(slot("clouds")), 415, 35,
@@ -694,7 +704,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
                           gapMask, SkTileMode::kClamp, SkTileMode::kClamp,
                           SkMatrix::Scale(kStageW / (float)gapMask->width(),
                                           kArtH / (float)gapMask->height()))))
-                      .effect(mskia::Effect::filter(kCloudLook))
+                      .effect(mskia::Effect::filter(cloudLook))
                       .opacity(0.95f));
       }
       // Idle beacon on the art's readout cluster: the one light that
@@ -1202,6 +1212,7 @@ struct TwoAdvancedV3 : sketch::Sketch {
       if (auto blob = hub.blob(site + "v3expansionsreboot/mainstage.riv"))
         extractRivImages(blob->bytes);
       buildGapMask();
+      cloudLook = buildCloudLook();
     }
 
     // --- idle motion ------------------------------------------------------
