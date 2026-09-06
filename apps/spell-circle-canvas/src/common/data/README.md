@@ -3,7 +3,10 @@
 Tabular data, and the one value that maps it onto a drawing. A `Table`
 holds named, typed columns — numbers, text, flags, instants — as
 contiguous spans a drawing walks straight down, and reshapes by
-selecting, filtering, sorting and grouping into new tables. A `Scale`
+selecting, filtering, sorting and grouping into new tables. It arrives
+by URI: registering this library's decoders on a resource hub makes a
+`.csv`, `.tsv` or `.json` file `hub.load<Table>(uri)`, cached and
+reloaded like anything else. A `Scale`
 carries a domain, a range and the transform between them and answers
 where a value lands, which value a position came from, and which values
 deserve a label. Everything that would otherwise be a family of
@@ -21,6 +24,7 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `tableFromJson()`; and `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub |
 
 `SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
 the umbrella header.
@@ -28,10 +32,20 @@ the umbrella header.
 ## Using it
 
 ```cpp
+#include <sigildata/decode/Decoders.h>
 #include <sigildata/scale/Scale.h>
 #include <sigildata/table/Table.h>
 
 using namespace sigil::data;
+
+// Once, wherever the host builds its hub. After it, a data file is a
+// resource like an image is.
+registerDecoders(hub);
+
+const std::shared_ptr<const Table> deaths =
+    hub.load<Table>("res://data/nightingale.csv");
+const std::shared_ptr<const Json> tree =
+    hub.load<Json>("res://data/passives.json");
 
 // A linear axis, and the two questions a drawing asks of it.
 const Scale x{.domain = {0, 1000}, .range = {40, 760}};
@@ -189,6 +203,48 @@ answer through it. So they compose without knowing about each other, the
 table they came from is untouched, and a group is a list of row indices
 the caller feeds back to `take()` rather than a second kind of table.
 
+**A file is a resource, and its meaning is this library's.** A hub
+answers a URI with bytes and hands them to whichever decoder is
+registered for the type asked for; `registerDecoders(hub)` registers
+`TableDecoder` for `Table` and `JsonDecoder` for `Json`, and everything
+after that — the cache, the hot reload, the mount table — is the hub's
+as it is for an image. `registerDecoders` is a template over the hub, so
+this library speaks the byte vocabulary and never links the hub itself.
+
+One decoder answers `Table`, not one per format, because a hub keeps one
+decoder per type. Which format a resource is in is read from its name
+where it has one — `.csv`, `.tsv`, `.json` — and otherwise from its
+first character that is not a space, since a JSON document begins with a
+bracket or a brace and a row of fields does not.
+
+**A column's type is what every cell in it turns out to be.** Numbers
+make a number column, the words true, false, yes and no in any case a
+boolean column, instants a time column, and anything else a text
+column. An empty cell is a missing cell, and in a number column it is
+also not a number, so a gap reads as a gap whichever way it is asked
+about. An `Instant` is read from a date, `2019-03-08`, or a date and a
+time, `2019-03-08T14:25:00`, with optional fractional seconds and an
+optional `Z`; no zone offset is read, because a file that meant a local
+time did not say which local time it meant.
+
+Quoting is the rule every such file is written by: a field may be
+wrapped in double quotes, a quoted field may hold the delimiter, a
+newline and a quote written twice. An unquoted field's surrounding space
+is layout and is dropped — `a, b` is two fields, not one of them
+beginning with a space — and a quoted field's is its own and is kept. A
+thousands separator is read only in the exact shape `1,234,567`, because
+a lone comma between digits is a decimal point in half the world and
+guessing which would silently multiply a value by a thousand.
+
+**A rectangle is a table; a nesting is a `Json`.** JSON is published in
+three rectangular shapes and `tableFromJson` reads all three: a list of
+records (one row each, columns the union of their keys), a record of
+lists (one column each), and a list of lists (columns named by
+position). A cell holding a list or a record of its own has no place in
+a rectangle and is missing — that document is a `Json`, which is
+nested, ordered, comparable and copyable, and whose lookups answer a
+shared null rather than crashing when a member is not there.
+
 **The table is as long as its longest column.** A column shorter than
 that reads as missing past its end rather than as a row that is not
 there, so a file with a short last line is still a table.
@@ -214,6 +270,17 @@ because a discrete scale has no domain to answer with. On `Quantize` and
 `Threshold` it answers where the slot begins, and a `Threshold` scale's
 first slot begins at negative infinity because nothing bounds it below.
 
+A decoder answers NOTHING rather than an empty table when a resource
+holds no rectangle, so `load<Table>` on a file that is not one answers
+null and a caller can tell "no data" from "no file". A header line with
+no rows under it is a different thing and is a table with no rows.
+
+Type inference is per column and per FILE. A number column in one file
+and a text column in another, both called `men`, are what those two
+files hold; nothing here carries a schema from one to the next. A
+column that must be text whatever it looks like is read as a column and
+converted by its caller.
+
 `overflow` is applied in both directions, so a `Clamp` scale's
 `invert()` cannot answer a value outside the domain. That is what a
 cursor readout wants; a caller who needs the extrapolation back keeps a
@@ -236,7 +303,18 @@ projection — answers in points and belongs beside the path vocabulary in
 SigilGeometry, not here.
 
 `SigilDataScale` and `SigilDataTable` depend on the standard library
-alone.
+alone. `SigilDataDecode` adds `SigilIOSource` — the byte vocabulary, and
+nothing else of SigilIO — and a JSON parser that reaches no public
+header. It does NOT link the hub: `registerDecoders` is a template over
+it, so the dependency runs one way and SigilIO gains nothing, which is
+what its own boundary asks for.
+
+A delimiter-separated reader is written here rather than taken from a
+package because what is wanted is a run of fields under the quoting rule
+feeding this library's own type inference and missing-cell bit, and the
+readers on offer answer a document model of strings with per-cell
+converters that throw, which would be wrapped straight back into the
+optionals these functions answer.
 
 ## Build and test
 
@@ -248,7 +326,13 @@ cmake --build build --config Release --target data_test
 ctest --test-dir build -C Release -R '^Data' --output-on-failure
 ```
 
-Targets: `SigilDataTable` (`table/`) with `table/test/`, which pins what
+Targets: `SigilDataDecode` (`decode/`) with `decode/test/`, which reads
+the awkward parts of a real file — a quoted field holding the delimiter,
+a newline and a doubled quote; a short row and a long one; a thousands
+separator and a decimal comma — and puts the decoders on a real hub over
+a scratch directory, because one `registerDecoders()` call answering
+`load<Table>` is the whole of what that call promises;
+`SigilDataTable` (`table/`) with `table/test/`, which pins what
 each reshaping answers and what it leaves alone — a filtered table's
 source unchanged, a tie keeping its order, a missing cell last both ways
 — and `SigilDataScale` (`scale/`) with `scale/test/`, whose every
@@ -258,4 +342,9 @@ ladder's ends are the ends of a niced domain, a lone entry stands where
 its transform says it stands — rather than against whatever the code
 happens to answer; and `data_bench`, which times one mapping per call on
 each transform a per-mark loop runs through and the tick ladder a redraw
-rebuilds along with the reshapings a redraw runs.
+rebuilds, the reshapings a redraw runs, and both formats read from bytes
+already in memory so no disk is inside a timed loop.
+
+Both binaries take their scratch directory from `src/test/ScratchDir.h`,
+the repository-level test support header: a directory named after the
+case and the process, emptied on the way in and removed on the way out.
