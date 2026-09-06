@@ -38,6 +38,16 @@ find_package(slang CONFIG REQUIRED)
 set(SIGIL_SLANG_GENERATED_DIR "${CMAKE_BINARY_DIR}/generated/slang"
     CACHE INTERNAL "generated Slang module headers")
 
+# The two module directories every importing shader searches: the
+# portable subset, whose transcendentals a host and a device answer
+# alike, and the core's shading terms. They are named here, where every
+# Slang user already looks, because a renderer's library can be added to
+# the build before the material tree is and must still find them.
+get_filename_component(SIGIL_MATERIAL_SLANG_SHADER_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../slang/shaders" ABSOLUTE)
+get_filename_component(SIGIL_MATERIAL_TERMS_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../core/shaders" ABSOLUTE)
+
 # sigil_slang_module(
 #   NAME    <stem>              names the artifacts this emits
 #   SOURCE  <file.slang>

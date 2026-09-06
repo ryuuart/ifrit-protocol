@@ -17,8 +17,6 @@
 # definition of a term. Slang itself is PRIVATE — the public header names
 # none of its types.
 include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
-set(SIGIL_MATERIAL_SLANG_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
-    CACHE INTERNAL "the material Slang backend's shader modules")
 sigil_slang_module(NAME Portable
   SOURCE ${SIGIL_MATERIAL_SLANG_SHADER_DIR}/Portable.slang
   PROOF_VAR SIGIL_MATERIAL_PORTABLE_PROOF)

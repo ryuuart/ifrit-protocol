@@ -20,9 +20,7 @@
 # surprise. A renderer's own shaders import it, so their compilers search
 # this directory: SIGIL_MATERIAL_TERMS_DIR is where they find it.
 include("${CMAKE_SOURCE_DIR}/src/common/material/cmake/Slang.cmake")
-set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
-set(SIGIL_MATERIAL_TERMS_DIR "${_shaders}"
-    CACHE INTERNAL "the directory holding the shading terms module")
+set(_shaders ${SIGIL_MATERIAL_TERMS_DIR})
 sigil_slang_module(NAME Shading SOURCE ${_shaders}/Shading.slang
   PROOF_VAR SIGIL_MATERIAL_SHADING_PROOF)
 
