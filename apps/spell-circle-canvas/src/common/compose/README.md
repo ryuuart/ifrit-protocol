@@ -444,7 +444,8 @@ sound model; nothing below them changes kernel semantics.
   holds the paragraph, lays it out and draws it at rest by itself.
 - `core/Shape.h` — the comparable seam values `Shape` (with
   `ShapeScheme`), `MotionPath`, `Decoration` and its declared-volatility
-  concepts, and `LayerStyle`.
+  concepts, and `LayerStyle`; and `Boundary`, which outline a node hands
+  its decorations.
 - `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Across`,
   `Around`, `StrandPath` and `strand::`. The path arithmetic under it is
   SigilGeometry's — the width law `geometry::path::Profile` with
@@ -506,7 +507,12 @@ sound model; nothing below them changes kernel semantics.
   `Element::tether`), `band`, `bandPointAt`, and the `derive::` namespace
   that gathers the family. A tether resolves in the derive pass before the
   routes, so a connector that ends on a tethered box routes to where it
-  came to rest; when no place fits, the stated one stands.
+  came to rest; when no place fits, the stated one stands, and a key that
+  names nothing places nothing. The two ROUTE seam values are here too —
+  `Router` over a pair of rects (with `RouteScheme`) and `RailRouter`
+  over an ordered anchor run (with `RailScheme`) — each a comparable
+  value, with `Router::comparable` and `RailRouter::comparable` reporting
+  whether the one a node holds can prune.
 - `core/Composer.h` — `Composer`, and `TextSettling`, what
   `Composer::settling` reports about a live passage's last layout.
 - `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
@@ -567,21 +573,50 @@ could have written out. `core/Table.h` stands beside the seam instead,
 because the auto table is an algorithm and not a formula, and so does
 `kit/Grid.h`.
 
-`layouts::Grid` is the one arrangement a page divides into. A track
-carries a SIZING FUNCTION rather than a width — `layouts::px`,
-`layouts::content`, `layouts::fr` and `layouts::minmax`, a floor under a
-ceiling — and the grid draws a picture of itself out of names in `areas`
-that a child claims a region of with `Element::area`. The rule is
-initialize from the floors, resolve the content narrowest-span-first,
-maximize toward the ceilings, and divide the remainder among the shares;
-what makes a share behave is that weights summing under one take only
-their own share and a share that would fall under its floor freezes there
-and leaves the division, so a squeezed container never resolves negative
-widths. What is still free after that stays free, which is why a row of
-`content()` tracks packs at the start of its container instead of
-stretching to fill it. A child that claims nothing flows into the next
-free cell, never backtracking past the cursor unless `dense` is set, in
-which case it fills the earliest hole that will take it.
+`layouts::Grid` is the one arrangement a page divides into — equal
+shares, unequal columns sized by what is in them, a fixed rail beside a
+flexible body — because a `layouts::Track` carries a SIZING FUNCTION
+rather than a width. There are four of them: `layouts::px`, a length
+that neither grows nor shrinks; `layouts::content`, as wide as the widest
+thing in the track and no wider; `layouts::fr`, a weighted share of what
+is left over and no floor of its own; and `layouts::minmax`, one under
+the other. `layouts::repeat` is n copies of one track, which is how "four
+equal columns" is spelled.
+
+The rule, per axis, is initialize from the floors, resolve the content
+narrowest-span-first, maximize toward the ceilings, and divide the
+remainder among the shares. What makes a share behave is that weights
+summing under one take only their own share and a share that would fall
+under its floor freezes there and leaves the division, so a squeezed
+container never resolves negative widths. What is still free after that
+stays free, which is why a row of `layouts::content` tracks packs at the
+start of its container instead of stretching to fill it. Both axes run
+that one rule — a row span's deficit is shared across its rows in
+proportion exactly as a column span's is, where the auto table beside it
+drops a rowspan's whole deficit on its last row — and what differs
+between them is only the DEFAULT track: an unstated column is a share of
+the width and an unstated row is as tall as what is in it, so a grid
+fills its container across and grows down the page. A track past the end
+of a list that was given is content-sized.
+
+`Grid::areas` is a picture of the grid drawn out of names, one string per
+row and one token per cell, and `Element::area` is how a child claims one
+of those regions. A name survives what four integers do not: insert a row
+into the picture and every child stays in the region it named, where
+every numbered child after the insertion would have moved a cell. A name
+the picture does not carry is silent, as an unknown key is everywhere
+here, and the child flows instead: into the next free cell, never
+backtracking past the cursor unless `Grid::dense` is set, in which case
+it fills the earliest hole that will take it. A name scattered over cells
+that do not form a rectangle is reported once and placed at the rectangle
+that bounds it: a picture the author can see is wrong is worth saying so
+about, and refusing to lay the page out at all is not.
+`Grid::across` and `Grid::down` say how a child sits in the box its cells
+make when the child itself said nothing with `Element::cellAlign`.
+`Grid::solve` hands back a `Grid::Resolved` — the track sizes and origins
+the rule arrived at — for the same reason the auto table exposes its own:
+a track nothing fills leaves no trace in the placed rects, so a study
+reproducing a printed page cannot read the grid back off them.
 
 A content floor is the second intrinsic contribution, and it is
 `LayoutInput::childMinSizes`: a text leaf's longest unbreakable run,
@@ -595,20 +630,25 @@ them measures every one at its own width, so the track would be sized by
 the container the content is about to be fitted into and the two would
 chase each other.
 
-**A scheme sees one thing about a child it could not measure: the cells
-the child claimed.** `LayoutInput` carries the container's size, every
+**A scheme sees one thing about a child it could not measure: what the
+child CLAIMED of it.** `LayoutInput` carries the container's size, every
 child's measured size and every child's first baseline — all facts a
-layout pass established — plus `childCells`, one `CellSpan` per child,
-written by `Element::cells` and `Element::cellAlign`. It is on the CHILD
-and not in a list the scheme carries beside it, because a parallel list
+layout pass established — plus `LayoutInput::childCells`, one `CellSpan`
+per child, written by `Element::cells` and `Element::cellAlign`, and
+`LayoutInput::childAreas`, the region name `Element::area` wrote, empty
+for a child that named none. The name sits beside the span rather than in
+it because a string on the props of every node in the tree is what the
+node's size budget forbids, and a named region is rare. Both are on the
+CHILD and not in a list the scheme carries beside it, because a parallel list
 has nothing to check itself against: insert or reorder one child and
 every entry after it silently addresses the wrong one, taking another
 cell's span, alignment and origin, with no error and a picture that still
 looks plausible. `CellSpan::declared` is what a scheme reads to tell
 "cell (0,0)" from "wherever you like", so a table can flow the children
-that said nothing into the cells no child claimed. `Table` is
-placed entirely by it; `ModularGrid` reads it too and falls back to its
-own parallel `spans` list for a child that named no cells.
+that said nothing into the cells no child claimed. `Table` and
+`layouts::Grid` are placed entirely by it — the grid resolving a name to
+one first; `ModularGrid` reads it too and falls back to its own parallel
+`spans` list for a child that named no cells.
 
 `Table` is the HTML automatic table layout: unequal columns
 sized by what is in them, spans, and a surplus shared out in proportion.
@@ -626,16 +666,26 @@ drags everything below it down the page. `Table::solve` hands the
 resolved column widths, row heights and origins back, so a study
 reproducing a published table can print what it resolved and diff it
 against what the original measured — numbers no placed rect carries,
-since a column nothing fills leaves no trace in the rects at all. `kit/Routers.h` holds the stock connector and
-rail routers (`routers::straight`, `orthogonal`, `polyline`,
-`octilinear`, `orbit`). Every one of them is a comparable VALUE, the
-same seam a `Shape` rides: `Router` and `RailRouter` hold either a
-scheme — a value with `route(...)` and `==`, which is what each stock
-factory answers — or a raw callable. Two routers built from the same
-parameters are equal, so a connector or rail re-described with an
-unchanged route prunes and replays the recording it already made; a
-raw callable compares equal to nothing but its own copies and
-re-patches every describe, which is what the escape hatch costs.
+since a column nothing fills leaves no trace in the rects at all.
+
+`kit/Routers.h` holds the stock routers. `routers::straight`,
+`routers::orthogonal` (with `routers::Bend` saying whether the leg turns
+at the midpoint or at either end) and `routers::arc` are `Router`s,
+between one pair of rects; `routers::manhattan`, `routers::polyline`,
+`routers::octilinear` and `routers::orbit` are `RailRouter`s, over a
+whole run of anchors, and `routers::fromPairwise` adapts a `Router` into
+one by stitching its legs into a single contour, so terminal caps and
+casings fire at the run's ends rather than at every waypoint. Every one
+of them is a comparable VALUE, the same seam a `Shape` rides: a `Router`
+or a `RailRouter` holds either a scheme — a value with `route(…)` and
+`==`, which is what each stock factory answers — or a raw callable. Two
+routers built from the same parameters are equal, so a connector or rail
+re-described with an unchanged route SETTLES: it prunes and replays the
+recording it already made. A raw callable compares equal to nothing but
+its own copies and re-patches every describe, which is what the escape
+hatch costs; holding one Router and re-using it — rather than re-minting
+the lambda each describe — restores the prune, since copies of one value
+share their state.
 
 Neither the schemes nor the pool fillers of `kit/Placers.h` derive a ring
 or a grid for themselves. Where item i of n falls on a ring, and which
@@ -882,14 +932,24 @@ radial ramp measured to the CORNER so it meets all four at one value on
 a surface that is not square, and `kit::grained`, value noise collapsed
 to one channel and soft-lit so a coloured ground takes a grain as light
 rather than as speckled hue, with mid grey soft light's identity and so
-the strength linear and zero exact — and,
+the strength linear and zero exact — the furniture a page of set text
+carries in `kit/Typeset.h` (`kit::ruby` and `kit::kenten`, the two stock
+`Annotation`s; `kit::bullets`, whose markers hang in the indent;
+`kit::rules`, cut to the extent a block's lines occupy;
+`kit::NestedStyle` with `kit::nestedRun`, where a block's opening words
+stop; and `kit::columns` over a `kit::ColumnSet`, N frames of one story
+threaded in order, with the `kit::Spanner`s that break the chain),
+what stands BESIDE that text in `kit/Annotations.h` (`kit::annotate`
+under `kit::Beside`, which does the arithmetic of the reading direction,
+or `kit::Anchored`, which takes the offset the author states) — and,
 shipped with the tiers whose
 types they are spelled in, `kit/Strokes.h`'s finished lines, braid,
 bracket spans, brush presets and `kit::groove` — the engraved cut across a disc's stroke, a
 radial ramp concentric with the circle so it is dark on the inner wall
 and lit on the outer, as the comparable `kit::grooveRamp` paint or the
-`PathFormat` that wears it — and `kit/Plate.h`'s bordered feed plate
-(Brush), and
+`PathFormat` that wears it — with `kit/Plate.h`'s bordered feed plate and
+`kit/Ornament.h` and `kit/Flourish.h`, the pieces a manuscript border is
+made of (Brush), and
 `kit/Legibility.h` (Typography). The kit
 is a **separate CMake library** (`SigilComposeKit`) whose only include
 path is compose's public headers, which is how the public/internal
@@ -1001,6 +1061,29 @@ sample could have read. A solid bake is refused a grid and blitted whole,
 as is a small one and a bake carrying a deferred effect — a filter
 spreads content outside the pixels that carry it, which is the one thing
 the grid does not describe.
+
+The region is device pixels, so it is bound to a device. A blit made
+inside a recording is replayed under a matrix of its own, and a region
+ignores that matrix the way it ignores every other — so the region is
+computed through the replay, and a recording that holds one is pinned to
+the matrix it was made under, remade when that matrix moves, exactly as a
+recording holding a device-space bake is. A recording that cannot be
+pinned — one under a declared motion, which replays under a matrix nobody
+knows yet — blits the bake whole.
+
+**A PROMOTED NODE PAINTS THE PICTURE ITS LIVE PAINT PAINTS**, within one
+code value per channel, and that is the whole of what automatic promotion
+may cost. The one value is not slack for a bake to be approximately
+right: a device bake is taken under the live matrix post-translated by an
+integer, and inverting that matrix at a scale whose reciprocal is inexact
+does not cancel the integer to the last bit, so a shaded pixel may land
+one code value from the live paint and nothing may land further. Every
+condition the promoter is held to follows from that — the bake carries
+the canvas's own clip, so an edge that leaves the canvas is cut the same
+way in both; the node must be upright, since off-axis the same inversion
+does not cancel; and nothing live may be inside the bake. A scene whose
+promoted frame differs from its unpromoted one by more than a value is a
+defect in this library, never a plate to rebase.
 
 ---
 
@@ -1245,8 +1328,9 @@ motion clock),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
-shelves: the silhouette catalog spelled for a node, the layout schemes,
-the routers and the kinetic type presets). Each directory holds the target's sources,
+shelves: the silhouette catalog spelled for a node, the layout schemes
+and the grid, the routers, the placers, the typesetting furniture and the
+kinetic type presets). Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. A harness several features
 compose against belongs to none of them, so the shared ones sit at the
@@ -1269,19 +1353,20 @@ ctest --test-dir build -C Release --output-on-failure
 Registered tests. The library has ONE test binary, `compose_test`, built
 from every feature's `test/` directory; ctest discovers one entry per
 CASE out of it, so `ctest -R 'ComposeKinetic\.'` selects a suite and
-`ctest -R 'ComposeContent.AKeyedShapeSettles'` one case, with no target
-behind either. Feature tiers were once separate binaries so that a test
-reaching past its tier failed to link; that proof is deliberately gone —
-what remains is that a suite is named for the feature it covers and its
-file sits in that feature's directory. The kernel's suites are in
-`core/test/` (elements, the reconciler, layout, paint, transitions, text,
-the feed, the instanced leaf, masks and the field walks), the text
-engine's in `typography/test/` (text data, the text pass, vertical
-writing, motion along paths, the text-fx presets, rich spans, the
-variation drive), the stroke and decoration engine's in `brush/test/`
-(decorations, lines, brushes, the stroke grammar, the mask gates, the
-paint values this tier spells over SigilMaterial, the pixel styles and
-the kit's stroke presets), the kit's in `kit/test/` (silhouettes, layout
+`ctest -R 'ComposeContent.AKeyedShapeSettlesOnTheValueItClosesOver'` one
+case, with no target behind either. What locates a case is that a suite
+is named for the feature it covers and its file sits in that feature's
+directory. The kernel's suites are in `core/test/` (elements, the
+reconciler, layout, paint, transitions, text at rest, the feed, the
+instanced leaf, masks, the depth lanes and the shared space, tethers and
+the field walks), the text engine's in `typography/test/` (text data, the
+text pass, vertical writing, motion along paths, the paragraph controls,
+rich spans, the variation drive), the stroke and decoration engine's in
+`brush/test/` (decorations on shapes and on type, lines, the brush kinds
+and the engine under them, the stroke grammar, stamps and strips, the
+mask gates, the paint values this tier spells over SigilMaterial, the
+pixel styles and the kit's stroke presets), the kit's in `kit/test/` (the
+kit's own values, the grid, columns of one story, silhouettes and layout
 schemes, routers, placers, travel, and the queries, studio and
 instruments over them), and one apiece in `texture/test/` (textures as
 element content), `draw/test/` (a pen program hosted in a node),
@@ -1289,7 +1374,9 @@ element content), `draw/test/` (a pen program hosted in a node),
 Ultralight leaf, present only where the SDK was found). The library's own
 sit at the root: the generated probes over this page and `TYPOGRAPHY.md`,
 the GPU read-backs, and `compose_api_doc_probes_self_test`, which is a
-Python run rather than a case.
+Python run rather than a case. `compose_header_self_test` is the other
+one: every public header compiled first and alone, which is what makes
+"each header stands on its own" a build fact rather than a claim.
 
 One file per subject, named for what it asserts — a case is found by
 opening the file its subject names, not by searching for its case name.
@@ -1298,9 +1385,13 @@ composer-in-a-raster-surface harness — through a support header of their
 own that includes only what they use, and the font context that harness
 holds is the tree-wide `src/test/Fonts.h`. A case that skips or vanishes
 without something says so with a ctest label, and the label is attached
-to the suites that need it rather than to the binary: `gpu` on
+to the cases that need it rather than to the binary: `gpu` on
 `ComposeGpu`, `DirectImageDraw` and `ComposeTexture`, `ultralight` on
-`ComposeWeb`, and `fonts` on everything else.
+`ComposeWeb`, and `fonts` on the two that ask the MACHINE for a face —
+the vertical suite, whose Japanese prose needs a whole CJK family, and
+the one case that asks the installed italics whether their ink overhangs
+the advance. Every other case sets its faces from the instruments this
+repository ships, so it answers the same on any machine.
 
 A case here asserts one thing a header promises and is named that
 promise as a sentence. It pins only what editing this library could

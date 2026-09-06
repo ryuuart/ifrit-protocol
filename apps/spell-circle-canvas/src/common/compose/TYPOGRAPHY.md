@@ -874,8 +874,10 @@ threads nowhere. A frame's own geometry is its business: it may flow
 around a silhouette or carry exclusions like any other text leaf.
 `kit::columns` is N frames side by side threaded in order, which is what a
 Western multi-column measure is — the vertical writing mode keeps the word
-column for the thing it already meant. Its last argument is the ellipsis
-that ends the chain: the last column threads nowhere, so without one what
+column for the thing it already meant. It is spelled either positionally,
+for a plain run of columns, or as a `kit::ColumnSet`, which is the same
+run plus the things that straddle it. Both take an ellipsis, and it ends
+the chain: the last column threads nowhere, so without one what
 it cannot hold draws past its box, and the marker lands on that column's
 last line instead. The columns before it take none whatever is passed,
 because a mark at every cut would read as three texts rather than one
@@ -911,10 +913,16 @@ columns, the element runs the full measure under it, and what is left
 resumes in the next run. All of it is ONE story and ONE chain — the frames
 below the spanner pick up the word the frames above ran out on — so a
 selector, and never a y coordinate, is what says where the break falls.
-Where each selector landed is read back from the layout the last draw left
-standing, on the same terms as everything else here that reads a resolved
-layout, so the first draw holds what it can and the spanners settle on the
-draw after.
+`ColumnSet::height` is then the DEEPEST a row of columns may be rather
+than the depth it will take, since every row above a spanner is balanced
+down to what it must carry; the last row keeps the full depth, because
+what follows it is the rest of the story.
+
+Where each selector landed is read back from the layout the last draw
+left standing, which is why `ColumnSet::composer` is passed, and on the
+same terms as everything else here that reads a resolved layout: the
+first draw has none, so it holds what it can and the spanners settle on
+the draw after.
 
 ### Beside the text
 
