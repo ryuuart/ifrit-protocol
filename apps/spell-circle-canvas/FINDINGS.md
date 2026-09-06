@@ -89,41 +89,72 @@ float (`penrose_paving`).
 Assert once fixed: the converted sketch's placement is `arrange::`, and
 its plate is rebased in the same commit that converts it.
 
-## Automatic texture promotion moves 26 plates past the one code value it may cost
+## Automatic texture promotion still moves 23 plates past one code value
 
 `scripts/plate_ledger.py --tier promotion` renders every scene with
 automatic texture promotion held off and again with it on and differences
-the pair. A promoted node is baked under the live matrix post-translated
-by an integer, and inverting that matrix at a scale whose reciprocal is
-inexact does not cancel the integer to the last bit, so a shaded pixel
-may land ONE code value from the live paint and nothing may land
-further. Over the registry, 134 of 160 comparable scenes stand within
-that. Twenty-six do not, worst channel first:
+the pair. The rule the promoter is held to is now stated in
+`src/common/compose/README.md`: a promoted node paints the picture its
+live paint paints, within one code value per channel, and a scene that
+moves further is a defect in compose rather than a plate to rebase.
 
-    eva_magi_deliberation 253 (mean 31.34, p99 253) · volatility_cost 228
-    · spacejam_1996 213 · eva_magi_interior 191 · aero desktop 127 ·
-    thunder_fulu 88 · blur_falloff 70 · ksp_mapview 68 · lain_navi 62 ·
-    chladni_tab1 28 · ds2_bench 16 · thaumonomicon 13 · winamp_base 5 ·
-    twoadvanced_v4 5 · kumiko_asanoha 4 · vertigo_titles 3 ·
-    twoadvanced_v3 3 · sigillum_aemeth 3 · fallout2_charsheet 3 ·
-    world hud 2 · pop_stamps 2 · path_booleans 2 · gerstner grid 2 ·
-    floating_panels 2 · daemon console 2 · chevreul_circle 2
+Over the twenty-five filed scenes, judged again on one binary with five
+jobs, twenty-three still move. Worst channel first:
 
-`eva_magi_deliberation` is the one whose MEAN moves: the two pictures
-differ over the whole frame rather than at a few pixels, which is a
-different fault from the rest and the place to start.
+    spacejam_1996 213 (mean 0.58, p99 11) · eva_magi_interior 189 ·
+    blur_falloff 70 · ksp_mapview 68 · lain_navi 62 · chladni_tab1 28 ·
+    ds2_bench 16 · thaumonomicon 13 · winamp_base 5 · twoadvanced_v4 5 ·
+    kumiko_asanoha 4 · sigillum_aemeth 3 · fallout2_charsheet 3 ·
+    vertigo_titles 3 · twoadvanced_v3 3 · aero desktop 2 ·
+    chevreul_circle 2 · daemon console 2 · floating_panels 2 ·
+    gerstner grid 2 · path_booleans 2 · pop_stamps 2 · thunder_fulu 2
 
-`volatility_cost` is not a defect and should be excluded by name once
-the rest are understood: the study DRAWS the runtime's own caching
-verdicts, so a promoted run is meant to read differently.
+`eva_magi_deliberation` (253, and the only mean that moved) came within
+the rule when the ink clip stopped being computed in a recording's own
+space, which is a different defect: the UNPROMOTED render was the wrong
+one, losing whole blocks of every bake blitted inside a recording, and
+its plate was the picture of that. `world hud` reports 0 on this run.
 
-Intended: a promotion is invisible but for rounding. What the tier
-measures is the promoter's whole correctness surface, and until now
-nothing headless exercised it at all — every plate is rendered with the
-feature switched out.
+WHAT THE PROMOTER'S NUMBERS DEPEND ON. Promotion fires on a stopwatch —
+a node must cost more than a millisecond to replay for eight consecutive
+frames — so an idle machine promotes nothing and the tier reads 0 for
+every scene. Every number here was taken with the machine loaded, which
+is what five concurrent jobs do, and a scene's max moves by a few code
+values between runs because a different set of nodes crosses the bar.
+The tier is therefore a floor on the drift, never a measurement of it,
+and nothing headless can pin a scene until the promoter can be asked to
+promote everything it is allowed to.
+
+WHAT IS ESTABLISHED ABOUT `spacejam_1996`, the largest that is left, and
+the shape the rest are likely to share. A per-key kill switch on the
+promoter (temporary, not committed) attributes ALL of its difference to
+whole-subtree promotion: with every promotion refused the plate is byte
+identical to the held-off one, and with only the `starfield` node
+refused the difference collapses from 1.26 M pixels to 188 k, all of it
+inside the `table` node's own rect. The starfield's bake is taken at
+device rect 0,0,2400,3000 under a matrix identical to the live one —
+scale 1.875, translation zero, so not even an integer offset separates
+them — and its pixels still differ by up to 42 where the tile it samples
+is partially transparent, and not at all where the tile is opaque. The
+diff is a ring around every star, repeating once per 416 px tile: the
+same difference in every repeat of one image, which is a different read
+of that image rather than noise.
+
+Two cases in `core/test/ComposeTestKernel.cpp` pin the shape that does
+NOT reproduce it — a magnified tile of hard-edged marks under a
+promoted node, at a fractional host scale and over the plate's own
+warm-then-photograph path, both exact. So the next experiment is the
+node itself: dump the bake's PREMULTIPLIED pixels (a PNG round-trip
+loses them wherever alpha is partial, which is exactly where the
+difference is) and compare against the same node painted live into a
+raster surface of the same size.
+
+`volatility_cost` is not a defect and wants an exclusion by name: the
+study DRAWS the runtime's own caching verdicts, so a promoted run is
+meant to read differently. It is left out of the list above.
 
 Assert once fixed: `--tier promotion` reports every scene within one
-code value, and each cause gets a case in `compose_test` beside the four
+code value, and each cause gets a case in `compose_test` beside the six
 in `core/test/ComposeTestKernel.cpp` that already pin the rule.
 
 ## chaucer_astrolabe cannot finish a plate under the sweep's ceiling
