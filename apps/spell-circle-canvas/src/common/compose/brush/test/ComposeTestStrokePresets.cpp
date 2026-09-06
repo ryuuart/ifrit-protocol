@@ -470,3 +470,38 @@ TEST(ComposeKitStrokes, TheGrooveIsDarkOnTheInnerWallAndLitOnTheOuter) {
   EXPECT_FALSE(kit::groove(30, 8, dark, lite) ==
                kit::groove(31, 8, dark, lite));
 }
+
+TEST(ComposeKitStrokes, TheGrooveShoulderIsHowFarTheTwoWallsTakeToMeet) {
+  const SkColor4f dark{0.0f, 0.0f, 0.0f, 1};
+  const SkColor4f lite{1.0f, 1.0f, 1.0f, 1};
+  // The two walls of a 16 px cut about a disc of radius 30, read four
+  // pixels either side of the floor. A hard shoulder puts the two tones
+  // themselves there; a shoulder the whole width across is still climbing
+  // at both samples.
+  auto walls = [&](float shoulder) {
+    Element disc = kit::disc(SkPoint{50, 50}, 30)
+                       .shape(geometry::shapes::circle())
+                       .fill(Fill::none())
+                       .stroke(kit::groove(30, 16, dark, lite, shoulder));
+    const sk_sp<SkPicture> picture =
+        snapshot(box().width(100).height(100).child(std::move(disc)), fonts(),
+                 {100, 100});
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    surface->getCanvas()->drawPicture(picture);
+    const auto read = [&](int x) {
+      SkBitmap bm;
+      bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
+      surface->readPixels(bm.pixmap(), x, 50);
+      return (int)SkColorGetR(bm.getColor(0, 0));
+    };
+    return std::pair<int, int>{read(78), read(82)};
+  };
+  const auto hard = walls(0.0f);
+  const auto wide = walls(0.5f);
+  EXPECT_LT(hard.first, 40);
+  EXPECT_GT(hard.second, 215);
+  EXPECT_GT(wide.first, hard.first + 20);
+  EXPECT_LT(wide.second, hard.second - 20);
+}

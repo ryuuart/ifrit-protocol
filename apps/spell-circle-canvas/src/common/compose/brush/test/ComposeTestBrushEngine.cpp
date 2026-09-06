@@ -497,3 +497,65 @@ TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
   EXPECT_EQ(plain.pixel(100, 100), glossed.pixel(100, 100));  // not a wash
   EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));      // and clipped out
 }
+
+// ---------------------------------------------------------------------------
+// The numbers a brush is asked for, and the ones it refuses
+
+TEST(ComposeBrushEngine, AnAuthoredAdvanceIsFlooredAtAPixel) {
+  // A tile a ten-thousandth of a pixel long would be a million tiles on
+  // any run long enough to see, so the authored advance is floored where
+  // the intrinsic one is. Without the floor this case does not finish.
+  brush::Pattern p;
+  p.side = box().width(10).height(4).fill(red());
+  p.advance = 1e-4f;
+  Host host;
+  host.composer.render(straightRun(Decoration(p)));
+  host.frame();
+  int inked = 0;
+  for (int x = 25; x < 175; ++x)
+    if (host.pixel(x, 100) == SK_ColorRED) ++inked;
+  EXPECT_GT(inked, 0);
+}
+
+TEST(ComposeBrushEngine, AStepThatCannotAdvanceSkipsItsContour) {
+  // A contour of no length gives a fractional interval a step of zero, and
+  // an offset before its start then never reaches its end: the walk stands
+  // still. The degenerate contour is skipped and the real one is stamped.
+  brush::Scatter s;
+  s.art = box().width(6).height(6).fill(red());
+  s.place = {.mode = brush::Placement::Mode::Interval,
+             .interval = 0.25f,
+             .offset = -5.0f};
+  Host host;
+  host.composer.render(box().child(box()
+                                       .absolute()
+                                       .inset(20, 80, 20, 80)
+                                       .shape([](SkSize s) {
+                                         SkPathBuilder b;
+                                         b.moveTo(0, s.height() / 2);
+                                         b.close();  // no length at all
+                                         b.moveTo(0, s.height() / 2);
+                                         b.lineTo(s.width(), s.height() / 2);
+                                         return b.detach();
+                                       })
+                                       .stroke(Decoration(s))));
+  host.frame();
+  SUCCEED();  // it finished
+}
+
+TEST(ComposeBrushEngine, AGeometryOpComparesByTheShaperItHolds) {
+  // The op a restyle carries is comparable when it was built from a
+  // comparable shaper, and never when it was built from a raw callable —
+  // which is the whole difference between the two doors.
+  const GeometryOp wave{
+      geometry::shapers::Wave{.amplitude = 8, .wavelength = 24}};
+  const GeometryOp same{
+      geometry::shapers::Wave{.amplitude = 8, .wavelength = 24}};
+  const GeometryOp wider{
+      geometry::shapers::Wave{.amplitude = 12, .wavelength = 24}};
+  const GeometryOp raw{
+      geometry::path::ops::PathOp([](const SkPath& p) { return p; })};
+  EXPECT_TRUE(wave == same);
+  EXPECT_FALSE(wave == wider);
+  EXPECT_FALSE(raw == raw);
+}

@@ -49,6 +49,7 @@ sigil_test(compose_test
           test/ComposeTestColumns.cpp
           test/ComposeTestLayoutsAndShapes.cpp
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
+          test/ComposeTestEras.cpp
           test/ComposeTestPlacers.cpp test/ComposeTestQueries.cpp
           test/ComposeTestStudio.cpp
   LIBRARIES SigilComposeKit SigilComposeBrush SigilMeasure

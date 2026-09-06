@@ -1272,3 +1272,51 @@ TEST(ComposePatternPan, ThePanBindingIsRecipe) {
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
       << "an identical bound re-describe did not prune";
 }
+
+// ---- the seam, on a path of several contours ------------------------------
+
+TEST(ComposeSpans, EachContourStitchesItsOwnSeamOnAMultiContourPath) {
+  // Spans are fractions of the WHOLE path, so a two-circle boundary
+  // interleaves both circles' claims in one sorted list. The claim below
+  // takes a slice of the FIRST circle and a window straddling the
+  // SECOND's own seam — and that seam must still be stitched, or the two
+  // halves are emitted as separate subpaths and their round caps land on
+  // top of each other.
+  //
+  // An additive pass is what makes the difference visible: two marks over
+  // one run sum, and one mark does not.
+  LayeredBrush additive;
+  additive.layers.push_back({.width = 8.0f,
+                             .color = {1, 1, 1, 0.4f},
+                             .blend = SkBlendMode::kPlus,
+                             .roundCap = true});
+
+  Host host(200, 200);
+  host.composer.render(box()
+                           .absolute()
+                           .inset(0)
+                           .fill(Fill::none())
+                           .shape([](SkSize) {
+                             SkPathBuilder b;
+                             b.addCircle(50, 100, 30);
+                             b.addCircle(150, 100, 30);
+                             return b.detach();
+                           })
+                           .stroke(spans::range(0.0f, 0.10f) |
+                                       spans::range(0.5f, 0.6f) |
+                                       spans::range(0.9f, 1.0f),
+                                   Decoration(additive)));
+  host.frame();
+
+  // 0.4 white on black is 102 wherever the mark is drawn once. Anything
+  // half again as bright is a run drawn twice.
+  int drawn = 0, doubled = 0;
+  for (int y = 60; y < 140; ++y)
+    for (int x = 100; x < 200; ++x) {
+      const int v = (int)SkColorGetR(host.pixel(x, y));
+      if (v > 80) ++drawn;
+      if (v > 150) ++doubled;
+    }
+  EXPECT_GT(drawn, 50) << "the claim drew nothing on the second circle";
+  EXPECT_EQ(doubled, 0) << "the second circle's seam was hit twice";
+}

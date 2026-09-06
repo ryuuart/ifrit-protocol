@@ -396,17 +396,6 @@ struct StampMod {
 using StampModFn =
     std::function<StampMod(const PathSample&, size_t index, size_t count)>;
 
-/** Is `held` the node `now`, by IDENTITY rather than by address? A cache
- *  that remembers a bare pointer cannot tell a destroyed art node from a
- *  new one handed the same address by the allocator, and would stamp the
- *  old bake for the new art. A weak handle expires with the node it
- *  names, so the two can never be confused. Two empty handles are the
- *  same nothing, which is what "no art here" means. */
-inline bool bakedFromNode(const std::weak_ptr<detail::ElementNode>& held,
-                          const std::shared_ptr<detail::ElementNode>& now) {
-  return !held.owner_before(now) && !now.owner_before(held);
-}
-
 /** The SCATTER brush: an Element instanced along the path at `spacing`,
  *  with seeded jitter and the StampMod hook. The art bakes ONCE via
  *  snapshot() (its own decorations and all) and replays per slot. Keep

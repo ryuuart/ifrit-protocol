@@ -9,12 +9,12 @@
  * cache like any static chrome; attach with `.stroke()` to dress any
  * outline, rail, or connector route.
  *
- * Extension-point note: Skia's own seam here would be a custom
- * SkPathEffect, but the public API seals subclassing (onFilterPath lives
- * in src/). This header mirrors that contract at OUR seam instead — the
- * geometry ops run on the outline before stroking, as comparable values —
- * and PathFormat::effect stays the raw sk_sp<SkPathEffect> escape hatch
- * for effects Skia does ship (dash, corner, discrete, 1D, trim).
+ * Skia's own seam here would be a custom SkPathEffect, but its public API
+ * seals subclassing. This header mirrors that contract at OUR seam
+ * instead — the geometry ops run on the outline before stroking, as
+ * comparable values — and PathFormat::effect stays the raw
+ * sk_sp<SkPathEffect> escape hatch for the effects Skia does ship (dash,
+ * corner, discrete, 1D, trim).
  *
  *   rail(stops, routers::octilinear())
  *       .stroke(lines::Line{.width = 3, .fill = ink,

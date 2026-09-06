@@ -35,7 +35,7 @@ namespace sigil::compose::styles {
 
 /** THE BEVEL PAIR: a light edge on the top and left of the outline and a
  *  dark edge on the bottom and right, each a stroke kept inside the
- *  silhouette — the raised panel of every interface from 1995 to 2005.
+ *  silhouette — the raised panel of the beveled-desktop era.
  *  SUNKEN IS NOT A SECOND DRAWING: the same two tones on the far edges,
  *  which is what a well, a trough and a pressed button have always been,
  *  and why it is one bool on one value rather than a twin type.

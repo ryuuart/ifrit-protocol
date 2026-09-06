@@ -380,6 +380,21 @@ void drawStamp(SkCanvas& c, const SkPicture& pic, const PathSample& sample,
 
 }  // namespace
 
+namespace {
+
+/** Is `held` the node `now`, by IDENTITY rather than by address? A cache
+ *  that remembers a bare pointer cannot tell a destroyed art node from a
+ *  new one handed the same address by the allocator, and would stamp the
+ *  old bake for the new art. A weak handle expires with the node it
+ *  names, so the two can never be confused. Two empty handles are the
+ *  same nothing, which is what "no art here" means. */
+bool bakedFromNode(const std::weak_ptr<detail::ElementNode>& held,
+                   const std::shared_ptr<detail::ElementNode>& now) {
+  return !held.owner_before(now) && !now.owner_before(held);
+}
+
+}  // namespace
+
 void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (spacing <= 0 || !ctx.fonts) return;
   // Prefer the instance-side store, so a brush value rebuilt every

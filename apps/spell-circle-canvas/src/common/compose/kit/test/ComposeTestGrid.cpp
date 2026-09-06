@@ -379,3 +379,21 @@ TEST(KitGrid, AGridEmbeddedInAColumnTakesItsHeightFromWhatItPlaced) {
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 60);
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).width(), 300);
 }
+
+TEST(KitGrid, RepeatTrackIsNCopiesOfOneTrack) {
+  const std::vector<layouts::Track> four =
+      layouts::repeatTrack(4, layouts::fr(1));
+  ASSERT_EQ(four.size(), 4u);
+  EXPECT_EQ(four[0], layouts::fr(1));
+  EXPECT_EQ(four[3], layouts::fr(1));
+  // …and a grid built from it divides its container four ways.
+  const Grid grid{.columns = four};
+  const std::vector<SkRect> at =
+      grid.place(given({400, 100}, boxes(4, {10, 10})));
+  ASSERT_EQ(at.size(), 4u);
+  for (int i = 0; i < 4; ++i)
+    EXPECT_FLOAT_EQ(at[(size_t)i].left(), (float)i * 100.0f);
+  // A count of none is no tracks at all, not one.
+  EXPECT_TRUE(layouts::repeatTrack(0, layouts::px(10)).empty());
+  EXPECT_TRUE(layouts::repeatTrack(-3, layouts::px(10)).empty());
+}
