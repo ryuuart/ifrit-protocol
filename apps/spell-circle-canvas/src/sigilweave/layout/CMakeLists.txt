@@ -8,7 +8,9 @@
 # for a standoff measures an exact distance field over its own coverage,
 # and that primitive belongs where image meaning lives. The Unicode leaf is
 # private: a reading set beside its base is split at grapheme boundaries
-# in one source file and nowhere in a header.
+# in one source file and nowhere in a header. SigilCoreCompute is private
+# too: the fold a break decision is cached under is the fold every cache
+# key in this repository is accumulated with.
 find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
@@ -20,8 +22,8 @@ sigil_library(SigilWeaveLayout
           ParagraphLayout.h
           Story.h
   PUBLIC SigilWeaveParagraph SigilGeometryPath
-  PRIVATE SigilWeaveUnicode SigilImageField harfbuzz::harfbuzz ICU::uc
-          Boost::unordered)
+  PRIVATE SigilWeaveUnicode SigilImageField SigilCoreCompute
+          harfbuzz::harfbuzz ICU::uc Boost::unordered)
 
 # Everything that places runs and reads where they landed, one subject to a
 # file named for it: both breakers and the live composer over them, the

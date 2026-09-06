@@ -122,23 +122,22 @@ sk_sp<SkTextBlob> buildTransformedBlob(const ShapedWord& shapedWord,
   return builder.make();
 }
 
-/** HOW A JUSTIFIED LINE SPENDS WHAT ITS WORD GAPS COULD NOT: extra advance
- *  between the glyphs, and a horizontal scale on the glyphs themselves. The
- *  identity is neither, which is a shared word blob and the only path a
- *  text that never asks for the other two ever takes. It rides on every run
- *  it shaped, because everything that reads the glyphs back has to apply
- *  the same numbers the blob was baked with. */
-using LineFit = GlyphFit;
+// HOW A JUSTIFIED LINE SPENDS WHAT ITS WORD GAPS COULD NOT — `GlyphFit`:
+// extra advance between the glyphs, and a horizontal scale on the glyphs
+// themselves. The identity is neither, which is a shared word blob and the
+// only path a text that never asks for the other two ever takes. It rides
+// on every run it shaped, because everything that reads the glyphs back
+// has to apply the same numbers the blob was baked with.
 
 /** The advance `word` takes under @p fit. */
-[[nodiscard]] float advanceUnder(const LineFit& fit, const ShapedWord& word) {
+[[nodiscard]] float advanceUnder(const GlyphFit& fit, const ShapedWord& word) {
   return fit.advanceOf(word.advance, word.glyphs.size());
 }
 
 /** Per-glyph positioned blob for a run a justified line respaced or scaled:
  *  the shared blob bakes one set of positions and this line needs another. */
 sk_sp<SkTextBlob> buildFittedBlob(const ShapedWord& shapedWord,
-                                  const LineFit& fit) {
+                                  const GlyphFit& fit) {
   SkTextBlobBuilder builder;
   const SkFont font =
       makeFont(shapedWord.typeface, shapedWord.fontSize,
@@ -159,7 +158,7 @@ sk_sp<SkTextBlob> buildFittedBlob(const ShapedWord& shapedWord,
 void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
                  const WordSegment& segment, uint32_t wordIndex,
                  float penOffset, const ParagraphLayoutOptions& options,
-                 const LineFit& fit = {}, float baselineShift = 0) {
+                 const GlyphFit& fit = {}, float baselineShift = 0) {
   const ShapedWord& shapedWord = *segment.shaped;
   if (shapedWord.glyphs.empty()) return;
   // THE RUN IS SETTLED BEFORE IT IS APPENDED, and then written straight
@@ -170,7 +169,7 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
   SkPoint origin = {0, 0};
   bool transformed = false;
   float advance = shapedWord.advance;
-  LineFit runFit;
+  GlyphFit runFit;
   const bool straight = !flatInterval.interval.contour.valid();
   const bool horizontal = straight &&
                           flatInterval.interval.direction.x() == 1 &&
@@ -646,7 +645,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
   float startOffset = 0;
   float spaceAdjustment = 0;
   float ideographicAdjustment = 0;
-  LineFit fit;
+  GlyphFit fit;
   switch (resolvedAlignment) {
     case TextAlignment::kStart:
       break;

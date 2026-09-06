@@ -5,12 +5,15 @@
  * on uniform geometry that keeps the active list bounded by the measure.
  */
 
+#include <sigilcore/compute/Hash.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <limits>
 #include <optional>
 #include <span>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -37,15 +40,13 @@ struct Node {
   int32_t previousNode = -1;  // arena index of the predecessor node
 };
 
-// Folds one more value into a running hash.
+// Folds one more value into a running hash, through the fold every cache
+// key in this repository is accumulated with.
 template <typename T>
 void foldInto(uint64_t& hash, const T& value) {
   static_assert(std::is_trivially_copyable_v<T>);
-  const auto* bytes = reinterpret_cast<const unsigned char*>(&value);
-  for (size_t index = 0; index < sizeof(T); ++index) {
-    hash ^= bytes[index];
-    hash *= 0x100000001B3ull;  // FNV-1a
-  }
+  hash = core::hash::fnv1a(
+      hash, std::string_view(reinterpret_cast<const char*>(&value), sizeof(T)));
 }
 
 }  // namespace
@@ -57,7 +58,7 @@ BreakStore& breakStore() {
 
 uint64_t breakSetting(const Block& block) {
   const ParagraphLayoutOptions& options = *block.options;
-  uint64_t hash = 0xCBF29CE484222325ull;
+  uint64_t hash = core::hash::kFnvOffset;
   foldInto(hash, options.alignment);
   foldInto(hash, options.justification.wordSpacing);
   foldInto(hash, options.justification.spaceStretch);

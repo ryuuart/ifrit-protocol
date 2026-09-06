@@ -201,6 +201,14 @@ struct Span {
   float end = 0;
 };
 
+/// ONE BAND, measured ACROSS the flow: where a line's own depth begins and
+/// ends, which is where a column's width begins and ends when the flow is
+/// turned a quarter turn.
+struct Band {
+  float start = 0;
+  float end = 0;
+};
+
 /// A SILHOUETTE TEXT STANDS OFF. One question: which stretches of a band
 /// this shape occupies, along the flow axis — the same shape of answer for
 /// a rectangle, a photograph's alpha and anything a caller writes, which is
@@ -218,11 +226,11 @@ struct Span {
 class Silhouette {
  public:
   virtual ~Silhouette() = default;
-  /** Appends the stretches of the band [@p bandStart, @p bandEnd] measured
-   * ACROSS the flow that this shape occupies, dilated by @p margin. The
-   * spans need not be sorted or disjoint; the flow merges them. */
-  virtual void bandSpans(FlowAxis axis, float bandStart, float bandEnd,
-                         float margin, std::vector<Span>& spans) = 0;
+  /** Appends the stretches of @p band that this shape occupies, dilated by
+   * @p margin, which is never negative. The spans need not be sorted or
+   * disjoint; the flow merges them. */
+  virtual void bandSpans(FlowAxis axis, Band band, float margin,
+                         std::vector<Span>& spans) = 0;
   /** The shape's own extent, margin excluded. */
   virtual SkRect bounds() const = 0;
 };

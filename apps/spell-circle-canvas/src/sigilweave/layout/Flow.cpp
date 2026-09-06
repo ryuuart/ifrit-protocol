@@ -268,14 +268,14 @@ float acrossGap(float bandStart, float bandEnd, float near, float far) {
 class RectangleSilhouette final : public Silhouette {
  public:
   explicit RectangleSilhouette(const SkRect& bounds) : m_bounds(bounds) {}
-  void bandSpans(FlowAxis axis, float bandStart, float bandEnd, float margin,
+  void bandSpans(FlowAxis axis, Band band, float margin,
                  std::vector<Span>& spans) override {
     const float near = acrossMin(axis, m_bounds);
     const float far = acrossMax(axis, m_bounds);
     const float reach =
-        discReach(margin, acrossGap(bandStart, bandEnd, near, far));
+        discReach(margin, acrossGap(band.start, band.end, near, far));
     if (margin > 0 && reach < 0) return;
-    if (margin <= 0 && (bandEnd <= near || bandStart >= far)) return;
+    if (margin <= 0 && (band.end <= near || band.start >= far)) return;
     spans.push_back({alongMin(axis, m_bounds) - std::max(reach, 0.0f),
                      alongMax(axis, m_bounds) + std::max(reach, 0.0f)});
   }
@@ -290,7 +290,7 @@ class CircleSilhouette final : public Silhouette {
   explicit CircleSilhouette(const SkRect& bounds)
       : m_center{bounds.centerX(), bounds.centerY()},
         m_radius(std::min(bounds.width(), bounds.height()) * 0.5f) {}
-  void bandSpans(FlowAxis axis, float bandStart, float bandEnd, float margin,
+  void bandSpans(FlowAxis axis, Band band, float margin,
                  std::vector<Span>& spans) override {
     // A disc offset of a circle IS a circle, so the margin is a larger
     // radius and the answer stays one square root a band.
@@ -300,7 +300,7 @@ class CircleSilhouette final : public Silhouette {
     // Widest chord within the band: at the centre when the band contains
     // it, else at the nearest band edge.
     const float distance =
-        acrossGap(bandStart, bandEnd, centerAcross, centerAcross);
+        acrossGap(band.start, band.end, centerAcross, centerAcross);
     if (distance >= radius) return;
     const float halfChord = std::sqrt(radius * radius - distance * distance);
     spans.push_back({centerAlong - halfChord, centerAlong + halfChord});
@@ -366,7 +366,7 @@ class DilatedCoverage {
   bool ready() const { return !m_field.empty(); }
 
   /// The runs of the dilated coverage inside the band, in flow coordinates.
-  void spans(FlowAxis axis, float bandStart, float bandEnd, float margin,
+  void spans(FlowAxis axis, Band band, float margin,
              std::vector<Span>& out) const {
     if (m_field.empty()) return;
     const float marginPixels = margin * m_scale;
@@ -376,8 +376,8 @@ class DilatedCoverage {
     const int alongCount = columns ? m_field.height : m_field.width;
     const float acrossOrigin = columns ? m_area.left() : m_area.top();
     const float alongOrigin = columns ? m_area.top() : m_area.left();
-    int firstBand = (int)std::floor((bandStart - acrossOrigin) * m_scale);
-    int lastBand = (int)std::ceil((bandEnd - acrossOrigin) * m_scale);
+    int firstBand = (int)std::floor((band.start - acrossOrigin) * m_scale);
+    int lastBand = (int)std::ceil((band.end - acrossOrigin) * m_scale);
     firstBand = std::max(firstBand, 0);
     lastBand = std::min(lastBand, acrossCount - 1);
     int runStart = -1;
@@ -441,7 +441,7 @@ class PathSilhouette final : public Silhouette {
     flattenInto(m_path, m_contours);
   }
 
-  void bandSpans(FlowAxis axis, float bandStart, float bandEnd, float margin,
+  void bandSpans(FlowAxis axis, Band band, float margin,
                  std::vector<Span>& spans) override {
     if (m_contours.empty()) return;
     const std::vector<std::vector<glm::vec2>>& contours =
@@ -450,7 +450,7 @@ class PathSilhouette final : public Silhouette {
     const bool evenOdd = margin > 0 ? m_dilatedEvenOdd : m_evenOdd;
     static thread_local std::vector<std::pair<float, float>> occupied;
     occupied.clear();
-    bandOccupancy(contours, evenOdd, axis, bandStart, bandEnd, occupied);
+    bandOccupancy(contours, evenOdd, axis, band.start, band.end, occupied);
     mergeSpans(occupied);
     for (const auto& [start, end] : occupied) spans.push_back({start, end});
   }
@@ -512,7 +512,7 @@ class CoverageSilhouette final : public Silhouette {
     m_dilated.setThreshold(threshold);
   }
 
-  void bandSpans(FlowAxis axis, float bandStart, float bandEnd, float margin,
+  void bandSpans(FlowAxis axis, Band band, float margin,
                  std::vector<Span>& spans) override {
     if (!m_image) return;
     m_dilated.ensure(m_box, margin, [&](SkCanvas& canvas) {
@@ -521,7 +521,7 @@ class CoverageSilhouette final : public Silhouette {
                            m_box, SkSamplingOptions(SkFilterMode::kLinear),
                            nullptr, SkCanvas::kStrict_SrcRectConstraint);
     });
-    m_dilated.spans(axis, bandStart, bandEnd, margin, spans);
+    m_dilated.spans(axis, band, margin, spans);
   }
 
   SkRect bounds() const override { return m_box; }
@@ -630,8 +630,9 @@ bool ExclusionFlow::lineIntervals(const LineRequest& request,
         acrossMin(axis, shapeBounds) + offsetAcross - margin >= bandEnd)
       continue;
     occupiedSpans.clear();
-    exclusion.shape->bandSpans(axis, bandStart - offsetAcross,
-                               bandEnd - offsetAcross, margin, occupiedSpans);
+    exclusion.shape->bandSpans(
+        axis, Band{bandStart - offsetAcross, bandEnd - offsetAcross}, margin,
+        occupiedSpans);
     for (const Span& span : occupiedSpans)
       subtractSpan(availableSpans, span.start + offsetAlong,
                    span.end + offsetAlong);

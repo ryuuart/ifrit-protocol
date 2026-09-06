@@ -18,6 +18,10 @@ enum class ImageMask { InvertedLuminance, Alpha };
  *  a stroke a travelling brush states against the stamp rather than in
  *  canvas units.
  *
+ *  These are FRACTIONS OF THE TOOL'S WIDTH, where the tool's own
+ *  `spacing` and `scatter` are canvas units; a tool that carries a shape
+ *  is spaced and scattered by these.
+ *
  *  `spacing` is the distance between two stamps as a fraction of the
  *  tool's width — a tenth is a dense continuous mark, one is a chain of
  *  separate stamps — and it is what the tool's own `spacing` in canvas

@@ -53,7 +53,10 @@ enum class Rotation {
  *  the two ends of a nib, image or custom stroke.
  *
  *  `shape` is what a Tip::Image stamps and what states the stroke's
- *  spacing and scatter against the stamp; `grain` is the texture the
+ *  spacing and scatter against the stamp — a tool carrying one takes its
+ *  spacing and scatter from the SHAPE's fractions of the width and not
+ *  from the two canvas-unit fields above, which is the one place the two
+ *  spellings meet and what `spacingOf` answers; `grain` is the texture the
  *  whole mark is laid through, whatever the tip; `dynamics` are the
  *  curves the device drives, each multiplying the scalar responses above
  *  it. All three are what an imported brush arrives as, and all three are
