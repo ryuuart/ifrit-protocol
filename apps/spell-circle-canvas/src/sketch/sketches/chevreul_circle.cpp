@@ -130,6 +130,8 @@
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -379,7 +381,33 @@ inline sk_sp<SkTypeface> serifBold() {
                             SkFontStyle::Bold());
 }
 inline sk_sp<SkTypeface> mono() {
-  return weave::ports::face({"Menlo", "Courier New"}, SkFontStyle::Normal());
+  return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
+}
+
+// THE PLATE'S OWN SHEET. Every kit component reads the theme in scope, and
+// this plate is letterpress on laid paper rather than the house sheet's pale
+// ink on black, so the study binds its own: the plate's two faces, its ink,
+// and the tight row a machine-read table is set at. The faces are resolved
+// once and held, because a style is compared by face POINTER.
+inline const sketch::kit::Theme& sheet() {
+  static const sketch::kit::Theme look = [] {
+    sketch::kit::Theme t;
+    t.palette.ground = kPaper;
+    t.palette.cellGround = kWell;
+    t.palette.ink = kInk;
+    t.palette.ash = kInk2;
+    t.palette.rule = kRule;
+    t.palette.figure = kInk;
+    t.type.sans = serif();
+    t.type.mono = mono();
+    t.type.captionLabel = {8, 0.05f, true};
+    t.type.captionNote = {8, 0.05f, true};
+    t.spacing.rowGap = 1.6f;
+    t.spacing.labelGap = 5;
+    t.spacing.swatchSide = 4;
+    return t;
+  }();
+  return look;
 }
 
 // The plate's four registers, each one library `type()` call: the roman it
@@ -1678,12 +1706,13 @@ struct ChevreulCircle : sketch::Sketch {
     if (lawPara)
       g.child(at(x0, y0, 380, 96).child(text(lawPara, o).width(Dim(380))));
 
-    // Each row of the table, revealed on its own beat. The LINE is the
-    // table's — computed from the two values the row reports — and it
-    // carries its own verdict, so there is no second hand-typed one beside
-    // it. What the plate adds is the INK: a claim that failed is set in
-    // red, a finding that failed in red too (its failing is Chevreul's, and
-    // the summary counts the two apart), a reading in the quiet grey.
+    // The words are the run's own — the label each claim was made under,
+    // the figure it came to, and the verdict `measure::Check` computed from
+    // the two, so there is no second hand-typed one beside it. What the
+    // plate adds is the MARK before each row, which carries that verdict as
+    // colour: a claim that failed is red, a finding that failed is red too
+    // (its failing is Chevreul's, and the summary counts the two apart), a
+    // reading is the quiet rule grey it has no verdict to earn.
     const float ty0 = y0 + 88, lh = 11.0f;
     const size_t rows = verdict.rows.size();
     g.child(at(x0 - 8, ty0 - 8, W - 4, (float)rows * lh + 16)
@@ -1692,15 +1721,22 @@ struct ChevreulCircle : sketch::Sketch {
                     stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
     g.child(label("VERIFIED AT STARTUP, NOT ASSERTED", mn(7.5f, kInk2, 0.5f),
                   x0, ty0 - 22, W));
+    std::vector<sketch::kit::Row> lines;
+    lines.reserve(rows);
     for (size_t i = 0; i < rows; ++i) {
       const measure::Check& c = verdict.rows[i];
-      const SkColor4f ink = !c.judged() ? kInk2 : (c.pass ? kInk : kRed);
-      const float lo = 0.30f + 0.034f * (float)i;
-      g.child(at(x0, ty0 + (float)i * lh, W - 20, lh)
-                  .key("vr" + std::to_string(i))
-                  .opacity(bind(&demo).window(lo, lo + 0.012f))
-                  .child(text(U(c.line(38, 8)), mn(8.0f, ink, 0.05f))));
+      std::string verdictWord;
+      if (c.judged()) verdictWord = c.pass ? "PASS" : "FAIL want " + c.expected;
+      lines.push_back(
+          {.cells = {U(c.label), U(c.actual), U(verdictWord)},
+           .swatch = Fill::color(!c.judged() ? kRule : (c.pass ? kInk : kRed)),
+           .key = "vr" + std::to_string(i)});
     }
+    const float lo = 0.30f, hi = 0.30f + 0.034f * (float)(rows - 1) + 0.012f;
+    g.child(at(x0, ty0, W - 20, (float)rows * lh)
+                .opacity(bind(&demo).window(lo, hi))
+                .child(sketch::kit::table(
+                    std::move(lines), {.columns = {{222}, {66, true}, {}}})));
     g.child(
         label("§38: “do we know, at the present day, of two coloured "
               "bodies … Certainly not!”",
@@ -1710,6 +1746,10 @@ struct ChevreulCircle : sketch::Sketch {
 
   // ==================================================================
   Element describe(sketch::SketchContext& ctx) {
+    // The plate's sheet stands for everything described below it, so a kit
+    // component four levels down is set in the plate's ink without being
+    // handed it.
+    sketch::kit::Provide look(sheet());
     Element root = stack().width(Dim(kW)).height(Dim(kH));
 
     // the leaf: measured paper, its tooth, and the platemark
