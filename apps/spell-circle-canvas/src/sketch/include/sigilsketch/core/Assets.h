@@ -18,6 +18,10 @@
 #include <string_view>
 #include <vector>
 
+namespace sigil::data {
+class Table;
+}
+
 namespace sigil::sketch {
 
 /** THE FILES A SKETCH REACHES FOR that it did not generate.
@@ -42,6 +46,17 @@ class Assets {
    *  decoded. The clip keeps only a small presentation-frame cache. */
   std::shared_ptr<sigil::video::Video> video(
       std::string_view name, const sigil::video::DecodeOptions& options = {});
+
+  /** The table at "res://<name>", decoded from whichever rectangular
+   *  format the file is in, cached and reloaded by the hub. Null where
+   *  there is no such resource or no decoder answers for it.
+   *
+   *  A TYPED LOAD IS SPELLED HERE and not at the call site, because a
+   *  hot-reloaded sketch is its own image: the hub keys a decoder by
+   *  the asking image's type, and a sketch dylib's `data::Table` is not
+   *  the host's. Asked through this one function, a sketch reads its
+   *  data whether it was compiled in or swapped in while running. */
+  std::shared_ptr<const sigil::data::Table> table(std::string_view name);
 
   /** The full resource hub (text/blob/probe/EXR layers…) with the
    *  sketch's assets directory mounted at "res://". */

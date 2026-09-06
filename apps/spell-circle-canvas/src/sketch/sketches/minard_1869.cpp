@@ -143,7 +143,6 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Profile.h>
-#include <sigilio/IO.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -341,10 +340,10 @@ struct Sheet {
   std::vector<std::string> legend;
 };
 
-Sheet readSheet(sigil::io::Hub& hub) {
+Sheet readSheet(sketch::Assets& assets) {
   Sheet s;
-  const auto file = [&hub](const char* name) {
-    return hub.load<data::Table>("res://data/minard/" + std::string(name));
+  const auto file = [&assets](const char* name) {
+    return assets.table("data/minard/" + std::string(name));
   };
 
   if (const auto t = file("march.csv")) {
@@ -2765,7 +2764,7 @@ struct Minard1869 : sketch::Sketch {
   Sheet plate;
 
   void setup(sketch::SketchContext& ctx) override {
-    plate = readSheet(ctx.assets.hub());
+    plate = readSheet(ctx.assets);
     ctx.canvas(kW, kH);
     ctx.background(kDesk);
     fonts = ctx.fonts;

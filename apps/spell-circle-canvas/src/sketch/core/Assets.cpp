@@ -56,6 +56,10 @@ std::shared_ptr<const sigil::image::ImageAsset> Assets::image(
   return m_placeholder;
 }
 
+std::shared_ptr<const sigil::data::Table> Assets::table(std::string_view name) {
+  return m_hub.load<sigil::data::Table>(uriFor(name));
+}
+
 std::shared_ptr<sigil::video::Video> Assets::video(
     std::string_view name, const sigil::video::DecodeOptions& options) {
   for (const CachedVideo& cached : m_videos)

@@ -194,7 +194,6 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilio/IO.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -487,12 +486,18 @@ struct M13Row {
 struct Concordance {
   std::vector<M5Row> map5;
   std::vector<M13Row> map13;
+
+  /** Map 5's row @p i, and an empty row where the files answered none. */
+  const M5Row& five(int i) const {
+    static const M5Row none;
+    return i >= 0 && (size_t)i < map5.size() ? map5[(size_t)i] : none;
+  }
 };
 
-Concordance readConcordance(sigil::io::Hub& hub) {
+Concordance readConcordance(sketch::Assets& assets) {
   Concordance c;
-  const auto file = [&hub](const char* name) {
-    return hub.load<data::Table>("res://data/dunhuang/" + std::string(name));
+  const auto file = [&assets](const char* name) {
+    return assets.table("data/dunhuang/" + std::string(name));
   };
   const auto letter = [](const std::string& text) {
     return text.empty() ? ' ' : text[0];
@@ -1499,15 +1504,14 @@ struct DunhuangStarChart : sketch::Sketch {
     for (int i = 0; i < 20; ++i) {
       m5Region[(size_t)i] = 0;
       m5Cent[(size_t)i] = {0, 0};
-      astCentroid(conc.map5[(size_t)i].cid, m5Cent[(size_t)i],
-                  m5Region[(size_t)i]);
+      astCentroid(conc.five(i).cid, m5Cent[(size_t)i], m5Region[(size_t)i]);
     }
   }
 
   Element map5Labels() {
     auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH)).key("m5lab");
     for (int i = 0; i < 20; ++i) {
-      const M5Row& r = conc.map5[(size_t)i];
+      const M5Row& r = conc.five(i);
       const SkPoint c = m5Cent[(size_t)i];
       const int region = m5Region[(size_t)i];
       if (region != 5) continue;
@@ -1543,8 +1547,8 @@ struct DunhuangStarChart : sketch::Sketch {
       bool none = false;
       const std::string cid = r.cid;
       if (cid == "21A" || cid == "19P") none = true;    // Shen, Jiuliu
-      if (cid == "22I") written = conc.map5[9].native;  // Shuifu <- Sidu
-      if (cid == "22K") written = conc.map5[8].native;  // Sidu <- Shuifu
+      if (cid == "22I") written = conc.five(9).native;  // Shuifu <- Sidu
+      if (cid == "22K") written = conc.five(8).native;  // Sidu <- Shuifu
       if (cid == "21D") {
         ly = c.fY - 96;
         lx = c.fX + 26;
@@ -2389,7 +2393,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(y0 - 13)
                   .width(Dim(120)));
     for (int i = 0; i < 20; ++i) {
-      const M5Row& r = conc.map5[(size_t)i];
+      const M5Row& r = conc.five(i);
       const float y = y0 + (float)i * rowH;
       const float t = tAudit + (float)i * tAuditEach;
       auto row = box().left(0).top(y).width(Dim(880)).height(Dim(rowH)).opacity(
@@ -2781,8 +2785,8 @@ struct DunhuangStarChart : sketch::Sketch {
                                     skia::toColor(hex(0x2a2118, 0.08f))});
     paperSpeck.seed(649);
 
-    cat = catalogue(ctx.assets.hub());
-    conc = readConcordance(ctx.assets.hub());
+    cat = catalogue(ctx.assets);
+    conc = readConcordance(ctx.assets);
     nStars = cat.stars();
     nAst = cat.asterisms();
 

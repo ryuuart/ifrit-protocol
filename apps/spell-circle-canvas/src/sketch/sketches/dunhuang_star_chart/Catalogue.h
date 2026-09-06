@@ -26,8 +26,8 @@
 #include <string>
 #include <vector>
 
-namespace sigil::io {
-class Hub;
+namespace sigil::sketch {
+class Assets;
 }
 
 namespace dunhuang {
@@ -64,19 +64,34 @@ struct Catalogue {
   int stars() const { return (int)(star.size() / 3); }
   int asterisms() const { return (int)asterism.size(); }
 
-  const AstRec& ast(int i) const { return asterism[(size_t)i]; }
-  const XiuRec& xiu(int i) const { return mansion[(size_t)i]; }
+  /** The asterism, or the mansion, at @p i — and an empty record where
+   *  there is none, so a sketch reading a table its files did not
+   *  answer draws nothing rather than reading off the end. */
+  const AstRec& ast(int i) const {
+    static const AstRec none;
+    return i >= 0 && (size_t)i < asterism.size() ? asterism[(size_t)i] : none;
+  }
+  const XiuRec& xiu(int i) const {
+    static const XiuRec none;
+    return i >= 0 && (size_t)i < mansion.size() ? mansion[(size_t)i] : none;
+  }
 
-  float ra(int i) const { return star[(size_t)i * 3 + 0]; }
-  float dec(int i) const { return star[(size_t)i * 3 + 1]; }
+  /** A star's place, and zero where there is no such star, for the same
+   *  reason `ast` and `xiu` answer an empty record. */
+  float at(int i, int field) const {
+    const size_t k = (size_t)i * 3 + (size_t)field;
+    return k < star.size() ? star[k] : 0.0f;
+  }
+  float ra(int i) const { return at(i, 0); }
+  float dec(int i) const { return at(i, 1); }
   /** Read by nothing that draws: the chart does not encode magnitude,
    *  and the column stands so the catalogue is the catalogue. */
-  float mag(int i) const { return star[(size_t)i * 3 + 2]; }
+  float mag(int i) const { return at(i, 2); }
 };
 
-/** Reads the three files off @p hub. A file the hub cannot answer leaves
+/** Reads the three files off @p assets. A file the hub cannot answer leaves
  *  its table empty rather than half-built, so a sketch missing its data
  *  draws nothing instead of drawing a fragment. */
-Catalogue catalogue(sigil::io::Hub& hub);
+Catalogue catalogue(sigil::sketch::Assets& assets);
 
 }  // namespace dunhuang

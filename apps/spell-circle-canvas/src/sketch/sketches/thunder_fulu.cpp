@@ -172,7 +172,6 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Polyline.h>
-#include <sigilio/IO.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -309,11 +308,10 @@ std::vector<T> words(std::string_view run) {
   return out;
 }
 
-Font readFont(sigil::io::Hub& hub) {
+Font readFont(sketch::Assets& assets) {
   Font font;
-  const auto file = [&hub](const char* name) {
-    return hub.load<data::Table>("res://data/thunder_fulu/" +
-                                 std::string(name));
+  const auto file = [&assets](const char* name) {
+    return assets.table("data/thunder_fulu/" + std::string(name));
   };
 
   if (const auto t = file("strokes.csv")) {
@@ -2132,7 +2130,7 @@ struct ThunderFulu : sketch::Sketch {
   Font font;
 
   void setup(sketch::SketchContext& ctx) override {
-    font = readFont(ctx.assets.hub());
+    font = readFont(ctx.assets);
 
     // The single frame this sketch is photographed at, chosen on the 27 s
     // score: everything through the 19.65 s tap is complete and the foot is

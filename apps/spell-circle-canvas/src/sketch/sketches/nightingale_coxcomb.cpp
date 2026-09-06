@@ -84,7 +84,6 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
-#include <sigilio/IO.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -786,13 +785,11 @@ struct NightingaleCoxcomb : sketch::Sketch {
   std::vector<LegendLine> legendText;
 
   void setup(sketch::SketchContext& ctx) override {
-    if (const auto deaths = ctx.assets.hub().load<data::Table>(
-            "res://data/nightingale/deaths.csv")) {
+    if (const auto deaths = ctx.assets.table("data/nightingale/deaths.csv")) {
       d1 = readWheel(*deaths, 1);
       d2 = readWheel(*deaths, 2);
     }
-    if (const auto legend = ctx.assets.hub().load<data::Table>(
-            "res://data/nightingale/legend.csv")) {
+    if (const auto legend = ctx.assets.table("data/nightingale/legend.csv")) {
       const auto indent = legend->column<double>("indent");
       const auto text = legend->column<std::string>("text");
       for (size_t i = 0; i < indent.size(); ++i)

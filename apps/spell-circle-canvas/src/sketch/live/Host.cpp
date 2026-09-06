@@ -35,8 +35,17 @@ namespace sigil::sketch {
 namespace {
 
 Host::Options withDefaults(Host::Options options) {
-  if (options.assetsDir.empty())
-    options.assetsDir = options.sketchPath.parent_path() / "assets";
+  if (options.assetsDir.empty()) {
+    // A SKETCH THAT IS A DIRECTORY keeps its other units beside its
+    // entry, so the assets are NOT beside the entry: they are one level
+    // further up, in the directory every sketch shares. The entry's stem
+    // naming its own directory is what says which of the two forms this
+    // is, and it is the same rule that decides what compiles with it.
+    std::filesystem::path beside = options.sketchPath.parent_path();
+    if (beside.filename() == options.sketchPath.stem())
+      beside = beside.parent_path();
+    options.assetsDir = beside / "assets";
+  }
   return options;
 }
 
@@ -217,9 +226,7 @@ pid_t pidOfBuildDir(const std::string& name) {
  *  answer that means the process is gone; EPERM is a live one owned by
  *  another user, and anything else is an answer we did not understand,
  *  which is a reason to leave the directory standing. */
-bool processAlive(pid_t pid) {
-  return ::kill(pid, 0) == 0 || errno != ESRCH;
-}
+bool processAlive(pid_t pid) { return ::kill(pid, 0) == 0 || errno != ESRCH; }
 
 std::mutex g_buildDirMutex;
 int g_buildDirHosts = 0;
@@ -431,7 +438,8 @@ void Host::scanBeside() {
 std::vector<std::filesystem::path> Host::units() const {
   std::vector<std::filesystem::path> all = unitsOf(m_options.sketchPath);
   if (!m_options.sharedDir.empty()) {
-    std::vector<std::filesystem::path> shared = sourcesUnder(m_options.sharedDir);
+    std::vector<std::filesystem::path> shared =
+        sourcesUnder(m_options.sharedDir);
     all.insert(all.end(), std::make_move_iterator(shared.begin()),
                std::make_move_iterator(shared.end()));
   }
@@ -580,8 +588,8 @@ void Host::poll() {
     CompileResult result = m_compile.get();
     if (result.ok) {
       for (const Unit& unit : result.compiled)
-        m_built[unit.source] = Built{unit.object, unit.sourceTime,
-                                     result.headers};
+        m_built[unit.source] =
+            Built{unit.object, unit.sourceTime, result.headers};
       m_unitsCompiled = (int)result.compiled.size();
       m_unitsTotal = result.units;
       adopt(result.library);
