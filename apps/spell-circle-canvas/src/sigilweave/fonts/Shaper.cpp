@@ -26,10 +26,11 @@ SkFont makeFont(const sk_sp<SkTypeface>& typeface, float fontSize, float scaleX,
   // the only place a caller can ask for hard edges — an X11 core font, a
   // console face, any 1-bit era reconstruction.
   font.setEdging(aliased ? SkFont::Edging::kAlias : SkFont::Edging::kAntiAlias);
-  // Subpixel positioning only where it's visible (small text). At large
-  // sizes it multiplies every glyph into per-phase atlas entries, and
-  // animated layouts then re-rasterize thousands of big masks every frame
-  // — whole-pixel snapping at 48px+ is imperceptible (<2% of an em).
+  // Subpixel positioning below 48px and whole-pixel snapping at and above
+  // it: a subpixel position multiplies every glyph into one atlas strike
+  // per phase, and an animated layout then re-rasterizes thousands of big
+  // masks every frame, while the phase a large glyph loses is a fraction of
+  // an em too small to see.
   font.setSubpixel(fontSize < 48.0f);
   font.setHinting(SkFontHinting::kNone);
   font.setLinearMetrics(true);

@@ -27,10 +27,10 @@ void sceneShapes(FontContext& fontContext,
   Paragraph paragraph;
   for (int repetitionIndex = 0; repetitionIndex < 7; ++repetitionIndex)
     paragraph.appendText(
-        u8"Text no longer flows around circles and boxes alone: any SkPath — "
-        "concave stars, compound paths, cubic hearts — carves its exact "
-        "silhouette out of the line bands, and even-odd holes stay open, so "
-        "the paragraph pours right through the middle of the donut. ",
+        u8"Any SkPath carves its exact silhouette out of the line bands — "
+        "concave stars, compound paths, cubic hearts — and even-odd holes "
+        "stay open, so the paragraph pours right through the middle of the "
+        "donut. ",
         body);
 
   // Star (concave, winding fill).

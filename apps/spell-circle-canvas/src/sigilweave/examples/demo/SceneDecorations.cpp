@@ -1,9 +1,8 @@
-// Scene K — the typographic features added in the standalone-polish pass,
-// one panel each: text decorations (metric underline with ink skipping,
-// strikethrough, overline), shaded decoration fills, locale-aware
-// text-transform, word spacing, variable-font axes through
-// ShapingStyle::variations, tab stops, and line clamp. Doubles as the
-// visual-regression PNG for those features.
+// Scene K — the dressing a run carries, one panel each: text decorations
+// (metric underline with ink skipping, strikethrough, overline), shaded
+// decoration fills, locale-aware text-transform, word spacing,
+// variable-font axes through ShapingStyle::variations, tab stops, and line
+// clamp. Doubles as the visual-regression PNG for those panels.
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkShader.h>
@@ -39,7 +38,7 @@ void drawLabel(FontContext& fontContext, SkCanvas* canvas, const char8_t* label,
 
 }  // namespace
 
-void sceneNewFeatures(FontContext& fontContext,
+void sceneDecorations(FontContext& fontContext,
                       const std::filesystem::path& outputDirectory) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(980, 900));
@@ -234,6 +233,6 @@ void sceneNewFeatures(FontContext& fontContext,
         .draw(canvas, paragraph);
   }
 
-  writePng(surface.get(), outputDirectory / "new_features.png");
-  std::printf("Scene K — new-features panel written\n\n");
+  writePng(surface.get(), outputDirectory / "decorations.png");
+  std::printf("Scene K — decorations panel written\n\n");
 }

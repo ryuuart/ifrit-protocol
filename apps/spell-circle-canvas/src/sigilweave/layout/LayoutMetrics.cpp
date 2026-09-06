@@ -90,8 +90,7 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
   return lines;
 }
 
-SkPath ParagraphLayout::glyphOutline(const Paragraph& paragraph) const {
-  static_cast<void>(paragraph);
+SkPath ParagraphLayout::glyphOutline() const {
   SkPathBuilder outline;
   const SkTypeface* lastTypeface = nullptr;
   float lastFontSize = 0;

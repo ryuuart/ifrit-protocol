@@ -569,7 +569,8 @@ them rather than the only one.
   flow's pitch (also carried on `ParagraphLayout::linePitch`) and how far
   down the axis the runs reached. Exactly one of the two answers in any
   given layout.
-- **Tab stops, overflow ellipsis, line clamp** — see the options structs.
+- **Tab stops, overflow ellipsis, line clamp** — `TabStopOptions`,
+  `OverflowOptions::ellipsis` and `OverflowOptions::maxLines`.
   The clamp counts COLUMNS in a vertical flow, and the marker stands for
   the text that was cut, so it is set the way that text was set: upright
   after upright glyphs — the face's own `vert` form when it has one — and

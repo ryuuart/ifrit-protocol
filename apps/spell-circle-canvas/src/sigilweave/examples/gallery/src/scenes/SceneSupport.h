@@ -1,8 +1,8 @@
 #pragma once
 
-// Shared helpers used by every gallery scene (src/gallery/scenes/*.cpp).
+// Shared helpers used by every gallery scene.
 // The reusable machinery — rebuild/layout guards, glyph buckets, label and
-// filler helpers, timing — lives in SigilWeaveKit (src/text/kit); this header
+// filler helpers, timing — lives in SigilWeaveKit; this header
 // keeps only the gallery's specializations of it: the palette, the
 // SceneParams-aware body cache, the palette-colored caption, and a morphing
 // ring path shared by more than one scene. Scene-specific state lives in

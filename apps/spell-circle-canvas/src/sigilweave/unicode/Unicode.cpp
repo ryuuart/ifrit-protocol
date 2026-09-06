@@ -336,10 +336,9 @@ bool caseMap(std::u16string_view text, Case mapping, std::string_view locale,
       // Titlecase exactly the first code point; the remainder is untouched
       // (u_strToTitle over the whole text would lowercase it).
       int32_t firstEnd = 0;
-      UChar32 firstCodePoint;
+      [[maybe_unused]] UChar32 firstCodePoint;
       U16_NEXT(text.data(), firstEnd, static_cast<int32_t>(text.size()),
                firstCodePoint);
-      static_cast<void>(firstCodePoint);
       auto titleFirst = [](UChar* dest, int32_t destCapacity, const UChar* src,
                            int32_t srcLength, const char* mapLocale,
                            UErrorCode* status) {

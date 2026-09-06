@@ -5,8 +5,7 @@
 # `SigilWeave` is the umbrella: an interface over every engine feature,
 # for a consumer of the whole engine. Deliberately Qt-free below the qt
 # feature: the engine consumes UTF-8/UTF-16 text plus SkTypefaces and
-# produces positioned SkTextBlobs. README.md in this directory is the
-# canon.
+# produces positioned SkTextBlobs.
 #
 # Test fixtures every binary shares sit in test/support/ and the bench
 # corpus in bench/support/; a feature's test and bench binaries include

@@ -320,8 +320,9 @@ state.
 - **A layout owns its placement and nothing else.** A `PositionedRun` points
   at the paragraph's shaped words rather than sharing ownership of them, so
   reading a layout means holding the paragraph it was set from. The few
-  words a layout shapes for itself — a tab leader, an overflow marker — it
-  retains, so no run ever points at something nobody holds.
+  words a layout shapes for itself — a tab leader, an overflow marker, an
+  initial letter and the remainder of the word it split — it retains, so no
+  run ever points at something nobody holds.
 - **Bidi is per-word.** Levels are computed and UAX#9 L2 visual reordering is
   applied per word; glue between reordered runs is approximated, and
   multi-segment RTL words keep logical segment order.
@@ -492,5 +493,4 @@ parameters, so the sidebar builds their controls automatically. It renders
 through a `QQuickRhiItem` — Skia Graphite on Qt's own Metal queue, with a CPU
 raster fallback and a live GPU/CPU switch — and displays a
 reshaped-words-per-frame counter, which sits at zero while everything moves
-when the shape cache is doing its job. Judge any of it on a Release build;
-Skia's Debug recording path is dramatically slower on glyph-heavy scenes.
+when the shape cache is doing its job. Judge any of it on a Release build.

@@ -1,6 +1,6 @@
 #pragma once
 
-// Shared helpers used by every demo scene (src/text/demo/Scene*.cpp).
+// Shared helpers used by every demo scene.
 // The palette, style shorthand, filler paragraph, and timing conversion come
 // from SigilWeaveKit; this header keeps only what is demo-specific — PNG
 // output. Nothing here is scene-specific; scene-specific state lives in

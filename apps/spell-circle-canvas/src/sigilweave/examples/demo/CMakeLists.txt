@@ -12,7 +12,7 @@ add_executable(weave_demo
   SceneCjk.cpp
   SceneShapes.cpp
   SceneFallback.cpp
-  SceneNewFeatures.cpp
+  SceneDecorations.cpp
 )
 target_include_directories(weave_demo PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../shared)
 target_link_libraries(weave_demo PRIVATE SigilWeave

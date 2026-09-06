@@ -8,8 +8,7 @@
  * SkParagraph/SkShaper). It pulls in every engine feature and links
  * against the `SigilWeave` interface target, which is every engine
  * archive. A consumer of one feature includes that feature's header,
- * spelled `<sigilweave/<feature>/Name.h>`; README.md in this directory is
- * the map.
+ * spelled `<sigilweave/<feature>/Name.h>`.
  *
  * The features, dependencies pointing down:
  *   - unicode/      the text analysis leaf: transcoding, scripts, case,

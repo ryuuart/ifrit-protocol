@@ -23,9 +23,8 @@ sk_sp<SkFontMgr> systemFontManager() {
 #if defined(__APPLE__)
   static const sk_sp<SkFontMgr> manager = SkFontMgr_New_CoreText(nullptr);
 #elif defined(_WIN32)
-  // DirectWrite over the default factory and system font collection.
-  // Windows bring-up draft: compiles out on macOS, untested until the
-  // Windows port lands.
+  // DirectWrite over the default factory and system font collection,
+  // compiled only where `_WIN32` is defined.
   static const sk_sp<SkFontMgr> manager = SkFontMgr_New_DirectWrite();
 #else
   // Ports for other platforms slot in here: SkFontMgr_New_FontConfig() on

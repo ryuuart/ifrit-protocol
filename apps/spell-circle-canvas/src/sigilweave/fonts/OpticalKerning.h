@@ -25,7 +25,6 @@
 
 #include <array>
 #include <cstdint>
-#include <vector>
 
 namespace sigil::weave::detail {
 

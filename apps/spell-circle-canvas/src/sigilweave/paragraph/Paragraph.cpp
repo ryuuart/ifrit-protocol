@@ -14,8 +14,6 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <cassert>
-#include <memory>
 
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/unicode/Unicode.h"
@@ -701,9 +699,10 @@ void Paragraph::analyze(FontContext& fontContext) {
 
     // Object-replacement characters are placeholder slots (see
     // appendPlaceholder): unbreakable fixed-size words with no glyphs.
-    // UAX#14 usually isolates U+FFFC (class CB), but trailing punctuation
-    // can glue to it (e.g. "￼." via LB13), so peel slots off the front of
-    // the segment instead of requiring exact isolation.
+    // A slot is usually isolated as a break unit of its own, but trailing
+    // closing punctuation glues to the character before it (e.g. "￼."), so
+    // slots are peeled off the front of the segment rather than expected
+    // to arrive alone.
     while (segmentStart < boundary &&
            m_text[static_cast<size_t>(segmentStart)] == 0xFFFC &&
            static_cast<size_t>(placeholdersSeen) < m_placeholders.size()) {

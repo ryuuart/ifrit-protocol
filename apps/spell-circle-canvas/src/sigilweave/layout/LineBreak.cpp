@@ -375,9 +375,7 @@ float widthBeforeAlignCharacter(const Paragraph& paragraph,
 void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
                 ParagraphLayout& result, const FlatInterval& flatInterval,
                 const Word& word, uint32_t wordIndex, const TabStop& stop,
-                float gapStart, float gapEnd,
-                const ParagraphLayoutOptions& options) {
-  static_cast<void>(options);
+                float gapStart, float gapEnd) {
   if (gapEnd - gapStart <= 0 || flatInterval.interval.contour.valid()) return;
   if (flatInterval.interval.direction.x() != 1 ||
       flatInterval.interval.direction.y() != 0)
@@ -886,8 +884,7 @@ void placeWords(FontContext& fontContext, const Paragraph& paragraph,
           penPosition = std::max(penPosition, target);
           if (resolved.stop && !resolved.stop->leader.empty())
             emitLeader(fontContext, paragraph, result, flatInterval, word,
-                       wordIndex, *resolved.stop, gapStart, penPosition,
-                       options);
+                       wordIndex, *resolved.stop, gapStart, penPosition);
           continue;
         }
       }

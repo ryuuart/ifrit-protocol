@@ -199,16 +199,6 @@ tests it asks for.
 
 Should-fix:
 
-- Unused parameters kept alive by casts: `InitialLetter.cpp:342`,
-  `LineBreak.cpp:380`, `LayoutMetrics.cpp:94` (`glyphOutline(const
-  Paragraph&)`, two compose callers), `examples/demo/weave_demo.cpp:26`.
-- Comment rules: stale paths and document citations in
-  `examples/demo/DemoScenes.h:3-4`, `DemoSupport.h:3`,
-  `examples/gallery/src/scenes/SceneSupport.h:3,5`,
-  `include/sigilweave/kit/SigilWeaveKit.h:5`; a campaign name and a
-  "new features" history in `SceneNewFeatures.cpp` (rename to what it
-  shows); shipped copy "no longer flows around circles alone" in
-  `SceneShapes.cpp:30`; a prose TODO in `ports/SystemFontManager.cpp:27`.
 
 ## SigilCore, SigilData, SigilMeasure, SigilMotion, SigilIO, SigilVideo, the product, the build (findings/review-core-io-build.md)
 

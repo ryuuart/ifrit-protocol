@@ -44,13 +44,15 @@ class FontContext;
  * word and interval index a run carries reads a table on one of the two.
  * A layout is therefore only meaningful while the paragraph it was set from
  * is alive and unedited, which is what every consumer of a run already
- * assumes — the members below all take that paragraph back as an argument.
+ * assumes — and every member below that reads the text takes that
+ * paragraph back as an argument.
  */
 struct ParagraphLayout {
   std::vector<PositionedRun> runs;  ///< in logical word order, ready to draw
   /// The few words this pass shaped for itself rather than finding in the
-  /// paragraph — a tab leader, an overflow marker — held here so that the
-  /// runs pointing at them borrow from something with the layout's own
+  /// paragraph — a tab leader, an overflow marker, an initial letter and
+  /// the remainder of the word it split — held here so that the runs
+  /// pointing at them borrow from something with the layout's own
   /// lifetime. Nothing reads this list; it exists to own.
   std::vector<ShapedWordRef> shapedByTheLayout;
   /// Every flow interval the layout consumed, in the order the geometry
@@ -165,7 +167,7 @@ struct ParagraphLayout {
    * Glyphs a face reports no path for (bitmap and colour glyphs) are
    * absent, because they have no contour to give.
    */
-  [[nodiscard]] SkPath glyphOutline(const Paragraph& paragraph) const;
+  [[nodiscard]] SkPath glyphOutline() const;
 
   /** Returns per-COLUMN geometry for a vertical layout, ascending by column
    * index — what lineMetrics() is for a horizontal one, and the only one of
