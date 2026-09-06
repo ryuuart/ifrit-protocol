@@ -47,6 +47,19 @@ compose::kit::Caption Theme::voice(float noteMeasure) const {
           .noteMeasure = noteMeasure};
 }
 
+sk_sp<SkTypeface> houseFace(Voice voice, int weight, SkFontStyle::Slant slant) {
+  switch (voice) {
+    case Voice::Book:
+      return weave::ports::face({"Hoefler Text", "Baskerville"}, weight, slant);
+    case Voice::Terminal:
+      return weave::ports::face({"Menlo", "Courier New"}, weight, slant);
+    case Voice::Interface:
+      break;
+  }
+  return weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, weight,
+                            slant);
+}
+
 const Theme& houseTheme() {
   // The mono face is resolved once and held for the process, so every
   // sheet under this theme sets its calls with the same face POINTER —

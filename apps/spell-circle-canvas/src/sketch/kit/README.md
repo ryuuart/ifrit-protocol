@@ -65,6 +65,19 @@ the theme's two faces it takes — and, for the line neither of those is,
 title is a display cut standing over an eyebrow in a grotesque and a
 subtitle in the text face is three faces, and a theme carries two.
 
+The face a register takes comes from somewhere, and three fallback runs
+recur across this repository's sheets: the book face, the terminal face
+and the interface face. `houseFace(Voice, weight, slant)` answers each,
+resolved once and held, so two sheets asking for the same voice get the
+same face *pointer* — which is what a style, an inherited value and a
+memo key compare by. A sheet wanting a face no other sheet asks for
+spells its own run through `weave::ports::face`.
+
+```cpp
+paper.type.sans = sketch::kit::houseFace(sketch::kit::Voice::Book);
+paper.type.mono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
+```
+
 **It costs the prune nothing.** The theme is read during describe and
 lands in the reading node's own description, so the reconciler's
 structural comparison is already an exact dependency tracker: a node

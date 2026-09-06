@@ -8,6 +8,7 @@
  */
 
 #include <include/core/SkColor.h>
+#include <include/core/SkFontStyle.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Paint.h>
@@ -192,6 +193,36 @@ struct Theme {
    *  about the specimen and not about the look. */
   [[nodiscard]] compose::kit::Caption voice(float noteMeasure) const;
 };
+
+/** WHICH HOUSE VOICE a face is asked for in.
+ *
+ *  A reconstruction names the face it wants followed by the stand-ins it
+ *  will accept, and three of those runs recur across this repository's
+ *  sheets often enough that spelling one by hand is how two sheets end up
+ *  set in different faces by accident. Naming the VOICE instead of the
+ *  families says what the choice is FOR, and one holder means one
+ *  resolved face pointer — which is what a text style, an inherited value
+ *  and a memo key all compare by. */
+enum class Voice {
+  /** The book face: a sheet of running prose, a plate's provenance. */
+  Book,
+  /** The terminal face: a readout, a listing, a machine's own words. It
+   *  is a narrower run than the theme's default `type.mono`, which leads
+   *  with the face a CALL is set in. */
+  Terminal,
+  /** The interface face: the grotesque an operating system sets its own
+   *  chrome in. */
+  Interface,
+};
+
+/** THE HOUSE FACE for @p voice at @p weight, resolved once and held.
+ *
+ *  A sheet that wants a face no other sheet asks for spells its own run
+ *  through `weave::ports::face` — the shape is the same, and this only
+ *  states the runs that recur. */
+[[nodiscard]] sk_sp<SkTypeface> houseFace(
+    Voice voice, int weight = 400,
+    SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant);
 
 /** THE HOUSE SHEET — the values most of this repository's specimen
  *  sheets already carry, stated once. Its mono face is resolved on the
