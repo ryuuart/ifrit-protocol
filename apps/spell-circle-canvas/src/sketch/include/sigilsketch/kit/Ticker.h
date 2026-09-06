@@ -5,6 +5,7 @@
  * a scale is marked off on.
  */
 
+#include <include/core/SkColor.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
@@ -55,6 +56,10 @@ struct Timeline {
     std::u8string label;
     /** A minor mark's tick is half as long and its word is absent. */
     bool major = true;
+    /** THE WORD'S OWN COLOUR; unset leaves it in the scale's ink. It is
+     *  here because one mark of a scale is often called out — a now, a
+     *  deadline — and the rest of the words stay quiet. */
+    std::optional<SkColor4f> ink;
   };
   std::vector<Mark> marks;
   compose::Dim width;
@@ -64,7 +69,9 @@ struct Timeline {
   float tick = 5;
   /** The rail; unset is the theme's rule colour. */
   std::optional<Ground> rail;
-  /** The ticks and the words; unset is the theme's ash. */
+  /** THE INK EVERY MARK IS DRAWN IN — the ticks and the words alike,
+   *  except a word that states its own; unset is the theme's ash. A
+   *  shader shades the glyphs as it shades the ticks. */
   std::optional<compose::Fill> ink;
   /** true puts the ticks and words under the rail, false over it. */
   bool below = true;

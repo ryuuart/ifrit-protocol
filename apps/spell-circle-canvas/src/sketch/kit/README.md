@@ -334,6 +334,10 @@ sketch::kit::console({.feeds = {&checks}, .levels = {{"fail", kAlarm}}})
 A console does not place itself: a component that decides where it goes
 cannot be reused.
 
+A timeline's `ink` is the whole mark's — a tick and the word under it are
+one mark and take one colour. A mark that states its own `ink` keeps its
+word out of the scale's, the way a legend entry does.
+
 ## What is NOT here, and where it is
 
 A leaf may not invent what an ancestor should own.

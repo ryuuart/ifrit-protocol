@@ -27,6 +27,30 @@ compose::Element ticker(Ticker strip) {
   return window;
 }
 
+namespace {
+
+/** A WORD IN THE SCALE'S INK. A tick is a box and takes a Fill whole; a
+ *  word is glyphs and takes a colour, so a shader ink is carried onto the
+ *  glyph paint and an ink of none leaves the word as invisible as it
+ *  leaves the tick. */
+weave::TextStyle wordInk(const Theme& look, const Fill& ink) {
+  switch (ink.kind) {
+    case Fill::Kind::Color:
+      return look.style(look.type.eyebrow, ink.colorValue);
+    case Fill::Kind::Shader: {
+      weave::TextStyle word =
+          look.style(look.type.eyebrow, SkColors::kWhite);
+      word.paint.foreground.setShader(ink.shaderValue);
+      return word;
+    }
+    case Fill::Kind::None:
+      break;
+  }
+  return look.style(look.type.eyebrow, compose::alpha(look.palette.ash, 0));
+}
+
+}  // namespace
+
 compose::Element timeline(const Timeline& scale) {
   const Theme& look = theme();
   const float thickness = scale.height.value_or(look.spacing.barHeight);
@@ -60,6 +84,7 @@ compose::Element timeline(const Timeline& scale) {
   // which needs no measurement, and is what puts a word at 0 half outside
   // the rail, as a scale's end labels are.
   Element words = box().height(Dim(look.type.eyebrow.size * 1.6f));
+  const weave::TextStyle sharedInk = wordInk(look, inkFill);
   bool any = false;
   for (const Timeline::Mark& mark : scale.marks) {
     if (!mark.major || mark.label.empty()) continue;
@@ -72,7 +97,8 @@ compose::Element timeline(const Timeline& scale) {
             .row()
             .justify(compose::Justify::Center)
             .child(text(mark.label,
-                        look.style(look.type.eyebrow, look.palette.ash))
+                        mark.ink ? look.style(look.type.eyebrow, *mark.ink)
+                                 : sharedInk)
                        .shrink(0)));
   }
   if (!scale.below && any) {

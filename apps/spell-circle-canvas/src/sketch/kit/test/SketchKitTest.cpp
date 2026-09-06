@@ -1154,6 +1154,37 @@ TEST(SketchKitTicker, AMinorMarkIsShorterAndUnnamed) {
                      .width = compose::Dim(300)})));
 }
 
+/** THE INK IS THE MARK'S, NOT THE TICK'S: a scale given a colour of its
+ *  own sets its words in it as well as its ticks, and a mark that states
+ *  its own colour keeps its word out of it. */
+TEST(SketchKitTicker, TheInkColoursTheWordsAsWellAsTheTicks) {
+  const kit::Theme& house = kit::houseTheme();
+  kit::Timeline scale{.marks = {{0.5f, u8"half"}}, .width = compose::Dim(300)};
+
+  // Below the rail and past a tick's reach, the only thing drawn is the
+  // word, so an amber pixel in those rows is a word set in amber.
+  const int wordRows = (int)house.spacing.barHeight + (int)scale.tick + 1;
+  auto amberIn = [](const SkBitmap& shot, int fromRow) {
+    for (int y = fromRow; y < kTall; ++y)
+      for (int x = 0; x < kWide; ++x) {
+        const SkColor4f pixel = shot.getColor4f(x, y);
+        if (pixel.fR > 0.5f && pixel.fR > pixel.fB * 2) return true;
+      }
+    return false;
+  };
+
+  EXPECT_FALSE(amberIn(Host(kit::timeline(scale)).pixels(), wordRows));
+  scale.ink = Fill::color({0.95f, 0.62f, 0.15f, 1});
+  EXPECT_TRUE(amberIn(Host(kit::timeline(scale)).pixels(), wordRows));
+
+  scale.marks[0].ink = house.palette.ash;
+  const SkBitmap quieted = Host(kit::timeline(scale)).pixels();
+  EXPECT_FALSE(amberIn(quieted, wordRows));
+  // The ticks are still the scale's, which is what makes the word's own
+  // ink an exception rather than a second timeline ink.
+  EXPECT_TRUE(amberIn(quieted, 0));
+}
+
 // ---------------------------------------------------------------------------
 // The runs
 
