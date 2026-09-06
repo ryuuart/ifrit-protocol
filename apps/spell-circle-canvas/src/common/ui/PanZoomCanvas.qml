@@ -89,20 +89,28 @@ Item {
         anchors.fill: parent
         opacity: 0.25
 
-        Repeater {
-            model: Math.max(0, Math.ceil(root.width / 32)) * Math.max(0, Math.ceil(root.height / 32))
+        // The pan moves the whole lattice, not each dot in it: bound
+        // per dot, a gesture would re-evaluate one binding per pip on the
+        // viewport on every step of it. The dots themselves stand still.
+        Item {
+            x: root.horizontalPan % 32
+            y: root.verticalPan % 32
 
-            Rectangle {
-                required property int index
+            Repeater {
+                model: Math.max(0, Math.ceil(root.width / 32)) * Math.max(0, Math.ceil(root.height / 32))
 
-                readonly property int columnCount: Math.max(1, Math.ceil(root.width / 32))
-                readonly property int columnIndex: index % columnCount
-                readonly property int rowIndex: Math.floor(index / columnCount)
-                x: columnIndex * 32 + (root.horizontalPan % 32)
-                y: rowIndex * 32 + (root.verticalPan % 32)
-                width: 2
-                height: 2
-                color: Theme.secondaryText
+                Rectangle {
+                    required property int index
+
+                    readonly property int columnCount: Math.max(1, Math.ceil(root.width / 32))
+                    readonly property int columnIndex: index % columnCount
+                    readonly property int rowIndex: Math.floor(index / columnCount)
+                    x: columnIndex * 32
+                    y: rowIndex * 32
+                    width: 2
+                    height: 2
+                    color: Theme.secondaryText
+                }
             }
         }
     }

@@ -132,10 +132,39 @@ class SketchbookView : public QQuickRhiItem {
    *  and nothing renders in the background to keep them current. */
   void thumbnailCaptured(int index);
 
+ protected:
+  /** A RESIZE IS NOT A RESOLUTION CHANGE UNTIL IT HAS STOPPED. The
+   *  item's texture is sized from its geometry, so a host that animates
+   *  that geometry — a pan-zoom viewport under the wheel, a splitter
+   *  under the mouse — would otherwise reallocate the render target and
+   *  re-render the whole scene at a new resolution, re-baking every
+   *  cached raster in it, on every step of the gesture. This defers the
+   *  resolution instead: the frame is composed for the item's rectangle
+   *  and the texture holding it is stretched over the growing item, so
+   *  the picture follows the gesture at once and pays only in
+   *  sharpness. */
+  void geometryChange(const QRectF& newGeometry,
+                      const QRectF& oldGeometry) override;
+  /** A window dragged onto a screen of another density changes the pixels
+   *  behind an unchanged geometry, which no resize reports. */
+  void itemChange(ItemChange change, const ItemChangeData& data) override;
+
  private:
   friend class SketchbookRenderer;
 
+  /** Pins the render target to the item's geometry as it stands now,
+   *  in device pixels, and cancels any deferral waiting to do so. */
+  void settleRenderSize();
+
   QTimer m_timer;
+  /** HOW LONG A GESTURE MUST BE QUIET before the frame is re-rendered at
+   *  the scale it settled on. Wall clock rather than a frame count: it is
+   *  the frames themselves that stall while the resolution is wrong, so
+   *  counting them would stretch the wait exactly for the sketches that
+   *  can least afford it. Single-shot and restarted by each step, so a
+   *  burst of wheel steps leaves one resize pending and the last scale
+   *  wins. */
+  QTimer m_settle;
   /** NOTHING IS PRESENTED UNTIL SOMETHING IS OPENED. The window comes up
    *  on the browser, and the canvas stays dark until a sketch is chosen —
    *  which is what leaves the machine to the thumbnail fill while the

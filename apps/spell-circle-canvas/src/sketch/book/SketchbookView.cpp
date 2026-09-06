@@ -33,7 +33,9 @@
 #include <QtCore/QMetaObject>
 #include <QtCore/QMutexLocker>
 #include <QtCore/QSize>
+#include <QtCore/QSizeF>
 #include <QtGui/QKeySequence>
+#include <QtQuick/QQuickWindow>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -68,6 +70,12 @@ namespace {
  *  backend stays visible rather than inferred. Written on the render
  *  thread, read on the GUI thread's poll. */
 std::atomic<int> g_backend{0};  // 0 unknown, 1 Graphite GPU, 2 CPU raster
+
+/** How long a resize gesture must be quiet before the render target
+ *  follows it. Long enough that consecutive steps of one wheel spin or
+ *  one drag fall inside it, short enough that letting go and looking is
+ *  not a wait. */
+constexpr int kResizeSettleMs = 180;
 
 sigil::weave::FontContext& fonts() {
   // Leaked deliberately: it owns Skia-backed state, and a static
@@ -198,7 +206,10 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   QRhi* m_rhi = nullptr;
   bool m_initialized = false;
   std::vector<uint32_t> m_rasterPixels;
-  QSize m_logicalSize;
+  /** THE ITEM'S OWN RECTANGLE, in its own units and not rounded to
+   *  them: what the texture will be stretched over, which is only the
+   *  same shape as the texture while the render size is settled on it. */
+  QSizeF m_logicalSize;
   int m_requestedIndex = 0;
   int m_index = -1;
   int m_pendingCaptures = 0;
@@ -265,8 +276,7 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   m_requestedIndex = view->m_sketchIndex;
   m_pendingCaptures += view->m_captureRequests;
   view->m_captureRequests = 0;
-  m_logicalSize = QSize(std::max(1, (int)std::lround(view->width())),
-                        std::max(1, (int)std::lround(view->height())));
+  m_logicalSize = QSizeF(view->width(), view->height());
   if (pauseStarted) m_metricsDirty = true;
   if (view->m_orbitDirty) {
     view->m_orbitDirty = false;
@@ -417,8 +427,26 @@ void SketchbookRenderer::publishMetrics() {
 
 void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   sketch::Host* host = SketchbookView::host;
-  const int width = pixelSize.width();
-  const int height = pixelSize.height();
+  // WHAT THE SCENE GRAPH WILL DO TO THIS TEXTURE, UNDONE IN ADVANCE. The
+  // texture is stretched over the item whatever resolution it stands at,
+  // so the frame is composed into a rectangle of the ITEM'S SHAPE and
+  // that rectangle is scaled to fill the texture. A zoom grows the item
+  // without changing its shape, so the two rectangles are the same one
+  // and the matrix below is bit for bit the matrix of the frame before —
+  // which is what lets every cached raster in the scene stand while the
+  // gesture runs, since a cache asks whether its node is exactly where it
+  // was. Only a shape that has really changed is compensated, and only
+  // until the resolution settles on it.
+  float width = (float)pixelSize.width();
+  float height = (float)pixelSize.height();
+  const double itemAspect =
+      m_logicalSize.height() > 0
+          ? m_logicalSize.width() / m_logicalSize.height()
+          : 0.0;
+  const double heldAspect =
+      (double)pixelSize.width() / (double)pixelSize.height();
+  if (itemAspect > 0 && std::abs(itemAspect - heldAspect) > 0.002 * heldAspect)
+    height = (float)((double)width / itemAspect);
   // Letterbox to the SKETCH's own canvas rather than to the item: a
   // sketch declares its own dimensions and they do not share an aspect
   // ratio, so stretching one to fill would distort what it shows. The
@@ -427,8 +455,12 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.clear(SkColorSetRGB(0x0b, 0x0a, 0x14));
   if (!host || !host->live()) return;
   const SkSize size = host->canvasSize();
-  const Fit fit = fitOf(size, (float)width, (float)height);
+  const Fit fit = fitOf(size, width, height);
   canvas.save();
+  // The compensation above, applied. It is the identity whenever the item
+  // and the texture agree in shape, which is every frame of a zoom.
+  canvas.scale((float)pixelSize.width() / width,
+               (float)pixelSize.height() / height);
   canvas.translate(fit.x, fit.y);
   canvas.scale(fit.scale, fit.scale);
   canvas.clipRect(SkRect::MakeWH(size.width(), size.height()));
@@ -562,7 +594,8 @@ bool SketchbookRenderer::readbackGraphite(SkSurface& surface,
 
 void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiTexture* texture = colorTexture();
-  if (!texture || m_logicalSize.width() < 1 || m_logicalSize.height() < 1) {
+  if (!texture || !(m_logicalSize.width() > 0) ||
+      !(m_logicalSize.height() > 0)) {
     update();  // keep asking for frames until there is something to draw into
     return;
   }
@@ -675,6 +708,10 @@ SketchbookView::SketchbookView(QQuickItem* parent) : QQuickRhiItem(parent) {
   // buffer is needed for this item.
   setAutoRenderTarget(false);
   setAlphaBlending(false);
+  m_settle.setSingleShot(true);
+  m_settle.setInterval(kResizeSettleMs);
+  QObject::connect(&m_settle, &QTimer::timeout, this,
+                   [this] { settleRenderSize(); });
   m_timer.setInterval(16);
   QObject::connect(&m_timer, &QTimer::timeout, this, [this] {
     {
@@ -707,6 +744,45 @@ SketchbookView::~SketchbookView() = default;
 
 QQuickRhiItemRenderer* SketchbookView::createRenderer() {
   return new SketchbookRenderer;
+}
+
+void SketchbookView::settleRenderSize() {
+  m_settle.stop();
+  // Nothing to pin to before the item has been laid out; the first real
+  // geometry brings one.
+  if (!(width() > 0) || !(height() > 0)) return;
+  const qreal ratio = window() ? window()->effectiveDevicePixelRatio() : 1.0;
+  // Truncate then multiply, which is how the item's own automatic sizing
+  // reaches the same number, so a settle that lands on the size already
+  // held is a no-op rather than a rebuild by one pixel.
+  const int pixelWidth = std::max(1, (int)std::lround((int)width() * ratio));
+  const int pixelHeight = std::max(1, (int)std::lround((int)height() * ratio));
+  if (pixelWidth == fixedColorBufferWidth() &&
+      pixelHeight == fixedColorBufferHeight())
+    return;
+  setFixedColorBufferWidth(pixelWidth);
+  setFixedColorBufferHeight(pixelHeight);
+}
+
+void SketchbookView::geometryChange(const QRectF& newGeometry,
+                                    const QRectF& oldGeometry) {
+  QQuickRhiItem::geometryChange(newGeometry, oldGeometry);
+  // A PURE TRANSLATION COSTS NOTHING: the frame on the texture is the
+  // same frame wherever the item stands, so panning never reaches here.
+  if (newGeometry.size() == oldGeometry.size()) return;
+  // Every step defers, the first one included: a width and a height
+  // arrive as two changes, so a gesture is never one event to recognise,
+  // and the first frame of a resize is exactly the one worth not paying
+  // for. Restarting the same single-shot timer is what keeps at most one
+  // resize pending, with the last size the one that is taken.
+  m_settle.start();
+}
+
+void SketchbookView::itemChange(ItemChange change, const ItemChangeData& data) {
+  QQuickRhiItem::itemChange(change, data);
+  if (change == ItemDevicePixelRatioHasChanged ||
+      (change == ItemSceneChange && data.window))
+    settleRenderSize();
 }
 
 void SketchbookView::setSketchIndex(int index) {
