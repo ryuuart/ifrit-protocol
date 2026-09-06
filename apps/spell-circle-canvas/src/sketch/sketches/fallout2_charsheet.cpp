@@ -166,7 +166,9 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
@@ -180,7 +182,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -189,6 +190,7 @@
 namespace sketch = sigil::sketch;
 
 namespace field = sigil::material::field;
+namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -201,10 +203,17 @@ namespace ch = choreograph;
 namespace fo {
 
 // ---------------------------------------------------------------------------
-// Scale. ORIGINAL 640x480 px -> canvas px. Nothing else scales anything.
+// THE UNIT MAP. ORIGINAL 640x480 px -> canvas px. Nothing else scales
+// anything, and every number below the palette is in the artefact's own
+// pixels: divide any canvas number by the scale to recover the 1998 pixel.
+//
+// A LENGTH IS NOT A POSITION. `s()` takes no origin and `x()`/`y()` do, so
+// a width run through a position map is the one arithmetic error this
+// sheet's 200 placements cannot make.
 
-constexpr float kScale = 2.0f;
-constexpr float n(float v) { return v * kScale; }
+constexpr path::Grid kUnits{.scale = 2.0f};
+constexpr float kScale = kUnits.scale;
+constexpr float n(float v) { return kUnits.s(v); }
 constexpr float kScreenW = n(640), kScreenH = n(480);
 constexpr float kCaptionH = 128.0f;
 
@@ -352,13 +361,14 @@ inline Element t(const std::string& s, weave::TextStyle st) {
 /** Place at a DOCUMENTED (x, y) in original screen px. `y` is Fallout's draw
  *  y — the top of the glyph cell — so the rise correction lands here, once. */
 inline Element ink(Element e, float x, float y, float rise) {
-  e.left(Dim(n(x))).top(Dim(n(y) - rise));
+  e.left(Dim(kUnits.x(x))).top(Dim(kUnits.y(y) - rise));
   return e;
 }
 /** Absolute placement in the SHEET'S OWN pixels — the numbers read off
- *  the capture — scaled to canvas px on the way through. */
+ *  the capture — through the unit map on the way to the canvas. */
 inline Element at(Element e, float x, float y, float w, float h) {
-  return kit::at(std::move(e), n(x), n(y), n(w), n(h));
+  return kit::at(std::move(e), kUnits.x(x), kUnits.y(y), kUnits.s(w),
+                 kUnits.s(h));
 }
 inline Element atR(Element e, Rect r) {
   return at(std::move(e), r.x, r.y, r.w, r.h);
@@ -590,6 +600,7 @@ struct Pose {
   float armSwing;  // radians of arm splay
   float legSpread;
   int prop;  // 0 none, 1 rifle across the body, 2 raised arm
+  bool operator==(const Pose&) const = default;
 };
 
 /** The figure, drawn in the INK box's own [0,w]x[0,h].
@@ -1064,7 +1075,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       // flip-clock digit at this size. What stays is the well's own inner
       // keyline, which the sprite sheet does have.
       wheel.foreground(onEdges(
-          sigil::geometry::path::Edge::All, stroke(n(0.7f), Fill::color(hex(0x000000, 0.75f)),
+          path::Edge::All, stroke(n(0.7f), Fill::color(hex(0x000000, 0.75f)),
                                     PathFormat::Align::Inner)));
       g.child(wheel);
     }
@@ -1079,10 +1090,9 @@ struct Fallout2CharSheet : sketch::Sketch {
   Element statusBlock() {
     using namespace fo;
     Element g = box().inset(0);
-    char buf[32];
-    std::snprintf(buf, sizeof buf, "%d/%d", stats.hitPoints, stats.hitPoints);
     g.child(bodyAt("Hit Points", kGreen, 194, 46));
-    g.child(bodyAt(buf, kGreen, 263, 46));
+    g.child(bodyAt(kit::formatted("%d/%d", stats.hitPoints, stats.hitPoints),
+                   kGreen, 263, 46));
     static const char* cond[7] = {"Poisoned",          "Radiated",
                                   "Eye Damage",        "Crippled Right Arm",
                                   "Crippled Left Arm", "Crippled Right Leg",
@@ -1209,9 +1219,12 @@ struct Fallout2CharSheet : sketch::Sketch {
                       .corners(Corners{n(1)});
       a.foreground(stroke(n(0.8f), Fill::color(hex(0x1A1610)),
                           PathFormat::Align::Inner));
+      // The arrowhead spans the whole cell, so it is not the inscribed
+      // `shapes::polygon(3)` — it is a triangle keyed on the one thing it
+      // is a function of, which is the direction it points.
       a.child(at(box(), 2, 3, 7, 6)
                   .fill(Fill::color(alpha(kGold, 0.9f)))
-                  .shape([up](SkSize s) {
+                  .shape(keyedShape(up, [up](SkSize s) {
                     SkPathBuilder b;
                     if (up) {
                       b.moveTo(s.width() * 0.5f, 0);
@@ -1224,7 +1237,7 @@ struct Fallout2CharSheet : sketch::Sketch {
                     }
                     b.close();
                     return b.detach();
-                  }));
+                  })));
       g.child(a);
     }
     return g;
@@ -1355,7 +1368,10 @@ struct Fallout2CharSheet : sketch::Sketch {
     g.child(
         at(box(), inkX, 309 - 267, (613 - 345) - inkX, 128).key("card-ink"));
     Element figNode = at(box(), inkX, 309 - 267, pose.inkWidth, 128);
-    figNode.shape(figure(pose));
+    // The silhouette is a function of the pose and of nothing else, so the
+    // pose is what tells one drawing from another: keyed, the node settles
+    // between describes where a bare callable compares equal to nothing.
+    figNode.shape(keyedShape(pose, figure(pose)));
     // PathFormat exposes no cap or join, so these open contours end square and
     // mitre at the joints — fine for a 1998 blit.
     figNode.stroke(
@@ -1640,14 +1656,13 @@ struct Fallout2CharSheet : sketch::Sketch {
                            {0, 0}, {0, 1},
                            {{0.0f, hex(0x0B0D08)}, {1.0f, hex(0x050604)}}));
     band.foreground(onEdges(
-        sigil::geometry::path::Edge::Top,
+        path::Edge::Top,
         stroke(2.0f, Fill::color(hex(0x3A3020)), PathFormat::Align::Inner)));
-    char buf[192];
-    std::snprintf(buf, sizeof buf,
-                  "SEVEN NUMBERS BECOME SIXTY \xc2\xb7 %d/%d derived values "
-                  "match the shipped sheets (Narg, Mingan, Chitsa), trait "
-                  "corrections included",
-                  sheetAudit.passed, sheetAudit.total);
+    const std::string audited =
+        kit::formatted("SEVEN NUMBERS BECOME SIXTY \xc2\xb7 %d/%d derived values "
+                       "match the shipped sheets (Narg, Mingan, Chitsa), trait "
+                       "corrections included",
+                       sheetAudit.passed, sheetAudit.total);
     auto line = [&](const char* s, float size, SkColor4f c, float y,
                     float track) {
       return text(toU8(s), fo::sheetType(bodyFace(), size, c, track))
@@ -1661,7 +1676,7 @@ struct Fallout2CharSheet : sketch::Sketch {
                     fo::sheetType(bodyBold(), 17.0f, kGold, 1.8f))
                    .left(Dim(30))
                    .top(Dim(14)));
-    band.child(line(buf, 14.5f, kGreen, 41, 0.2f));
+    band.child(line(audited.c_str(), 14.5f, kGreen, 41, 0.2f));
     band.child(
         line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
              "palette has no pure green, so what reached the CRT is "
