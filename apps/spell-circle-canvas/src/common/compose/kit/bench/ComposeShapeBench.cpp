@@ -78,7 +78,7 @@ BENCHMARK(BM_Reconcile_Shapes_RawCallable)->Apply(nodeLadder);
 static void BM_HitTest_ShapedTree(benchmark::State& state) {
   const int count = (int)state.range(0);
   Host host(900, 640);
-  auto scatter = layout(layouts::Scatter{.seed = 3}).inset(0);
+  auto scatter = layout(layouts::Jittered{.seed = 3}).inset(0);
   for (int i = 0; i < count; ++i)
     scatter.child(box()
                       .key("blob" + std::to_string(i))
@@ -109,7 +109,7 @@ BENCHMARK(BM_HitTest_ShapedTree)
 static void BM_Draw_BlendField_Blobs(benchmark::State& state) {
   const int count = (int)state.range(0);
   Host host(900, 640);
-  auto scatter = layout(layouts::Scatter{.seed = 9, .jitter = 0.8f}).inset(0);
+  auto scatter = layout(layouts::Jittered{.seed = 9, .jitter = 0.8f}).inset(0);
   for (int i = 0; i < count; ++i)
     scatter.child(box()
                       .width(70)
