@@ -331,9 +331,14 @@ inline Lab toLab(SkColor4f c) {
 /** Chevreul's index n -> the sector's START angle in Skia degrees
  *  (0° = +x, sweeping clockwise). n = 0 is ROUGE, straight down. */
 inline float sectorStart(int n) {
-  return kRougeDeg - kSectorDeg * ((float)n + 0.5f);
+  return arrange::along(kRougeDeg, -360.0f, (size_t)n, kSectors,
+                        arrange::Turn::Closed) -
+         kSectorDeg * 0.5f;
 }
-inline float sectorMid(int n) { return kRougeDeg - kSectorDeg * (float)n; }
+inline float sectorMid(int n) {
+  return arrange::along(kRougeDeg, -360.0f, (size_t)n, kSectors,
+                        arrange::Turn::Closed);
+}
 inline int complementOf(int n) { return (n + 36) % kSectors; }
 inline int sepSectors(int a, int b) {
   const int d = std::abs(a - b) % kSectors;

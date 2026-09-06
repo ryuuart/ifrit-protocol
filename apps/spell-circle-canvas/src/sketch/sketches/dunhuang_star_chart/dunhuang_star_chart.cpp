@@ -776,8 +776,8 @@ struct DunhuangStarChart : sketch::Sketch {
       const float a = (kAzGain * wrap180(ra - 278.0f)) * kD;
       float xc;
       if (!scrollX(discCentreS(), xc)) return false;
-      out = {xc + rmm * kPxMm * std::cos(a),
-             kBandMid + rmm * kPxMm * std::sin(a)};
+      out = arrange::onEllipse({xc, kBandMid},
+                               {rmm * kPxMm, rmm * kPxMm}, a);
       region = 13;
       return true;
     }

@@ -205,6 +205,8 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
@@ -228,6 +230,7 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -235,6 +238,7 @@ namespace ch = choreograph;
 namespace motion = sigil::motion;
 namespace mskia = sigil::material::skia;
 namespace sdf = sigil::material::sdf;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -518,9 +522,11 @@ std::shared_ptr<const sigil::material::Recipe> chargeRecipe() {
 /** Circle-frame polar → canvas px. θ clockwise from 12 o'clock, the
  *  direction every band here is written in. */
 SkPoint P(float thDeg, float rNorm) {
-  const float a = thDeg * kDeg;
-  return {kEye.x() + rNorm * kR * std::sin(a),
-          kEye.y() - rNorm * kR * std::cos(a)};
+  // Twelve o'clock is where the ellipse's own angle starts a quarter turn
+  // back, which is what makes this wheel's clockwise-from-twelve reading
+  // the ordinary ring arithmetic.
+  return arrange::onEllipse({kEye.x(), kEye.y()}, {rNorm * kR, rNorm * kR},
+                            thDeg * kDeg - 1.5707963f);
 }
 
 /** The pitch of the twelve stations, and the angle of station k. */
@@ -581,8 +587,20 @@ enum : int {
  *  the lines running through it, and a figure this dense is mostly
  *  junctions — it would light as a constellation of bright knots instead
  *  of one circuit of even light. */
+/** ONE GRADE of a glow, cooked once: the union re-based to its own bounds'
+ *  origin, and the box that origin sits in. A node is a box with a local
+ *  shape, and a region worked out in the sheet's frame is neither — split
+ *  here rather than at describe time, because a path re-based every frame
+ *  is a new path every frame and the node it dresses re-records forever.
+ *  The box is the region's own extent, so a grade covers the light it
+ *  paints and not the whole sheet. */
+struct Grade {
+  SkPath local;
+  SkRect box = SkRect::MakeEmpty();
+};
+
 struct Glow {
-  SkPath core, halo, mid, bloom;
+  Grade core, halo, mid, bloom;
 };
 
 /** A circle of the figure as a path in canvas px. */
@@ -637,7 +655,6 @@ SkPath spokeRing(int count, float r0, float r1, float fromDeg) {
 SkPath crescentRing(float rOut, float rIn, int count, float spanDeg,
                     float fromDeg, int rungs) {
   SkPathBuilder b;
-  const float pitch = 360.0f / (float)count;
   const float ro = rOut * kR;
   const float ri = rIn * kR;
   const SkRect ovalOut = SkRect::MakeLTRB(kEye.x() - ro, kEye.y() - ro,
@@ -645,12 +662,14 @@ SkPath crescentRing(float rOut, float rIn, int count, float spanDeg,
   const SkRect ovalIn = SkRect::MakeLTRB(kEye.x() - ri, kEye.y() - ri,
                                          kEye.x() + ri, kEye.y() + ri);
   for (int k = 0; k < count; ++k) {
-    const float mid = fromDeg + pitch * (float)k;
+    const float mid = arrange::along(fromDeg, 360.0f, (size_t)k,
+                                     (size_t)count, arrange::Turn::Closed);
     const float lo = mid - spanDeg * 0.5f;
     b.addArc(ovalOut, lo - 90.0f, spanDeg);
     b.addArc(ovalIn, lo - 90.0f, spanDeg);
     for (int r = 0; r <= rungs; ++r) {
-      const float th = lo + spanDeg * (float)r / (float)rungs;
+      const float th = arrange::along(lo, spanDeg, (size_t)r,
+                                      (size_t)rungs + 1, arrange::Turn::Open);
       // The two ends are full ties; the rungs between them are stubs off
       // the inner arc, so the mark reads as a bracket and not as a grid.
       const bool end = r == 0 || r == rungs;
@@ -708,7 +727,11 @@ Glow bakeGlow(const std::vector<SkPath>& lines, float coreHalf) {
     regions.reserve(lines.size());
     for (const SkPath& line : lines)
       regions.push_back(expand(line, coreHalf * k));
-    return ops::unite(regions);
+    const SkPath united = ops::unite(regions);
+    const SkRect box = united.getBounds();
+    return Grade{
+        united.makeTransform(SkMatrix::Translate(-box.left(), -box.top())),
+        box};
   };
   return Glow{at(1.0f), at(2.8f), at(7.0f), at(18.0f)};
 }
@@ -990,40 +1013,52 @@ struct RotaConvocationis : sketch::Sketch {
                 stroke(width, Fill::color(color)));
   }
 
-  /** ONE GRADE of a lighting group's emissive stack. Each grade is a flat
-   *  fill of an already-unioned region and carries the group's own gain,
-   *  so a fill-only leaf takes the blend and the opacity straight onto its
-   *  paint: no layer opens, and the four grades add onto the sheet
-   *  directly, which is what makes the pile read as light rather than as
-   *  four translucent rings. */
-  [[nodiscard]] Element grade(const std::string& key, const SkPath& region,
-                              SkColor4f ink, float alpha,
-                              const ch::Output<float>* gain) {
-    return box()
-        .key(key)
-        .absolute()
-        .inset(0)
-        .hitTestable(false)
-        .shape(heldPath(region))
-        .fill(Fill::color({ink.fR, ink.fG, ink.fB, alpha}))
-        .blend(SkBlendMode::kPlus)
-        .opacity(gain);
-  }
-
   /** THE IGNITED LINE — white-hot core, saturated halo, two grades of
    *  bloom. The value hierarchy is the drawing: the core carries the
    *  shape, the halo carries the hue, the bloom carries the reach. */
   [[nodiscard]] Element emissive(const std::string& key, const Glow& g,
                                  const ch::Output<float>* gain) {
+    // ONE BAKE FOR THE WHOLE STACK, and the gain rides its blit. Four
+    // grades painted live are four additive fills of four complex unions
+    // over the sheet, every frame, for a stack whose shape never changes —
+    // the gain is the only thing that moves, and it moves OUTSIDE the
+    // pixels. Baked once at full strength and blitted at the gain, the
+    // stack costs one image add. Each grade is bounded by its own region
+    // too, so the bake is the light's own box and not the sheet's.
+    //
+    // THE ONE THING THAT MOVES WITH IT: the grades add inside the bake, so
+    // where all four overlap they saturate there rather than against the
+    // sheet, and a gain part way up prints that saturated sum scaled down
+    // instead of four scaled terms summed. The difference is confined to
+    // the hottest core of a group while its gain is between 0 and 1 — the
+    // grades are nested, so the outer three never reach it — and it reads
+    // as the core coming up a shade later, which is what a filament does.
+    const SkRect groupBox = g.bloom.box;
+    const auto inside = [&](const std::string& name, const Grade& r,
+                            SkColor4f ink, float alpha) {
+      return box()
+          .key(name)
+          .absolute()
+          .rect(SkRect::MakeXYWH(r.box.left() - groupBox.left(),
+                                 r.box.top() - groupBox.top(), r.box.width(),
+                                 r.box.height()))
+          .hitTestable(false)
+          .shape(heldPath(r.local))
+          .fill(Fill::color({ink.fR, ink.fG, ink.fB, alpha}))
+          .blend(SkBlendMode::kPlus);
+    };
     return box()
         .key(key)
         .absolute()
-        .inset(0)
+        .rect(groupBox)
         .hitTestable(false)
-        .child(grade(key + "-bloom", g.bloom, kBloom, 0.085f, gain))
-        .child(grade(key + "-mid", g.mid, kBloom, 0.16f, gain))
-        .child(grade(key + "-halo", g.halo, kHalo, 0.42f, gain))
-        .child(grade(key + "-core", g.core, kCore, 0.96f, gain));
+        .cache(Cache::Texture)
+        .blend(SkBlendMode::kPlus)
+        .opacity(gain)
+        .child(inside(key + "-bloom", g.bloom, kBloom, 0.085f))
+        .child(inside(key + "-mid", g.mid, kBloom, 0.16f))
+        .child(inside(key + "-halo", g.halo, kHalo, 0.42f))
+        .child(inside(key + "-core", g.core, kCore, 0.96f));
   }
 
   /** A DIVISION LADDER at one length class. `skipEvery` leaves a hole
