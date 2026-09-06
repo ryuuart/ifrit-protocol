@@ -1540,8 +1540,7 @@ struct WinampBase : sketch::Sketch {
       if (u < 0.8) {
         const float f = (float)(u / 0.8);
         llama = f < 0.12f ? f / 0.12f : (f > 0.88f ? (1.0f - f) / 0.12f : 1.0f);
-        llamaPop = 0.85f + 0.15f * ch::easeOutBounce(std::min(1.0f, f * 4.0f),
-                                                     1.70158f);
+        llamaPop = 0.85f + 0.15f * ch::easeOutBounce(std::min(1.0f, f * 4.0f));
       } else {
         llama = 0.0f;
         llamaPop = 1.0f;

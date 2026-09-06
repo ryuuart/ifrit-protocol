@@ -449,7 +449,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
     pen.noStroke();
     for (int i = 0; i < 37; ++i) {
       const float u = swatchCascade.localTime(master, (uint32_t)i, 0);
-      const float s = ch::easeOutBack(u, 1.70158f);
+      const float s = ch::easeOutBack(u);
       const float x = kPadX + (float)i * (float)(kSwatch + 2);
       const float bottom = kStripY + 34.0f;
       pen.push();
@@ -644,7 +644,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
     const float bw = (float)(kInspectCells * kInspectZoom);
     const float bh = (float)(kInspectRows * kInspectZoom);
     const float a = cue(ms, 700, 300);
-    const float s = 0.94f + 0.06f * ch::easeOutBack(cue(ms, 700, 300), 1.70158f);
+    const float s = 0.94f + 0.06f * ch::easeOutBack(cue(ms, 700, 300));
     pen.push();
     pen.translate(bx + bw * 0.5f, by + bh * 0.5f);
     pen.scale(s);

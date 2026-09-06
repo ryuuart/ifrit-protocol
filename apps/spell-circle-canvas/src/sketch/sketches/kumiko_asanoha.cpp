@@ -196,11 +196,6 @@ constexpr double kTSeat = 2.62, kDSeat = 0.24;
 constexpr double kTGlow = 2.78, kDGlow = 0.60;
 
 inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
-inline float easeOutBack(float p) {
-  const float c = 1.70158f, c3 = c + 1;
-  const float q = p - 1;
-  return 1 + c3 * q * q * q + c * q * q;
-}
 
 // ---------------------------------------------------------------------------
 // The timber material — ONE SkSL recipe, seeded per strip.
@@ -1055,7 +1050,7 @@ struct KumikoAsanoha : sketch::Sketch {
         const Strip& s = panel.strips[i];
         const float raw = clamp01((now - s.delay) / s.dur);
         fade[i] = std::min(1.0f, choreograph::easeOutCubic(raw) * 1.35f);
-        pop[i] = 0.55f + 0.45f * easeOutBack(raw);
+        pop[i] = 0.55f + 0.45f * choreograph::easeOutBack(raw);
       }
       seat = choreograph::easeOutCubic(clamp01((now - kTSeat) / kDSeat));
       glow = choreograph::easeOutCubic(clamp01((now - kTGlow) / kDGlow));
