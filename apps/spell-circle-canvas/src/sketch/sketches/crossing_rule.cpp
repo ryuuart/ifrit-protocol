@@ -26,15 +26,16 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
-#include <cmath>
 #include <string>
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace arrange = sigil::geometry::arrange;
 namespace path = sigil::geometry::path;
 
 using namespace sigil::compose;
@@ -72,10 +73,9 @@ std::vector<SkPath> heptagram() {
   const float r = kCell * 0.40f;
   const SkPoint c{kCell * 0.5f, kCell * 0.5f};
   SkPoint v[n];
-  for (int i = 0; i < n; ++i) {
-    const float a = -1.5707963f + 6.2831853f * (float)i / (float)n;
-    v[i] = {c.fX + r * std::cos(a), c.fY + r * std::sin(a)};
-  }
+  for (int i = 0; i < n; ++i)
+    v[i] = arrange::onRing((size_t)i, n, c, {r, r}, -1.5707963f, 6.2831853f,
+                           arrange::Turn::Closed);
   std::vector<SkPath> strands;
   for (int i = 0; i < n; ++i) {
     SkPathBuilder b;
@@ -92,10 +92,11 @@ std::vector<SkPath> rings() {
   const SkPoint c{kCell * 0.5f, kCell * 0.52f};
   std::vector<SkPath> strands;
   for (int i = 0; i < 3; ++i) {
-    const float a = -1.5707963f + 2.0943951f * (float)i;
+    const SkPoint at =
+        arrange::onRing((size_t)i, 3, c, {r * 0.62f, r * 0.62f}, -1.5707963f,
+                        6.2831853f, arrange::Turn::Closed);
     SkPathBuilder b;
-    b.addCircle(c.fX + r * 0.62f * std::cos(a), c.fY + r * 0.62f * std::sin(a),
-                r);
+    b.addCircle(at.fX, at.fY, r);
     strands.push_back(b.detach());
   }
   return strands;

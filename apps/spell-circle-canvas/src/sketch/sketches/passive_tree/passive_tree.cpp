@@ -59,6 +59,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -81,6 +82,7 @@
 
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace sdf = sigil::material::sdf;
 namespace weave = sigil::weave;
@@ -193,10 +195,13 @@ inline std::function<SkPath(SkSize)> notchRing(int count, float innerFrac,
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
     const float half = s.width() * 0.5f;
     for (int i = 0; i < count; ++i) {
-      const float a = 6.2831853f * (float)i / (float)count;
-      const float c = std::cos(a), sn = std::sin(a);
-      b.moveTo(cx + c * half * innerFrac, cy + sn * half * innerFrac);
-      b.lineTo(cx + c * half * outerFrac, cy + sn * half * outerFrac);
+      const float a = arrange::along(0.0f, 6.2831853f, (size_t)i,
+                                     (size_t)count, arrange::Turn::Closed);
+      const SkPoint inner = arrange::onEllipse(
+          {cx, cy}, {half * innerFrac, half * innerFrac}, a);
+      const SkPoint outer = arrange::onEllipse(
+          {cx, cy}, {half * outerFrac, half * outerFrac}, a);
+      b.moveTo(inner).lineTo(outer);
     }
     return b.detach();
   };

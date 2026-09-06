@@ -18,6 +18,7 @@
 #include <choreograph/Choreograph.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Node.h>
@@ -30,6 +31,7 @@
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
+namespace arrange = sigil::geometry::arrange;
 namespace gm = sigil::geometry::mesh;
 
 namespace {
@@ -60,10 +62,14 @@ world::Element subject() {
               {.baseColor = {0.72f, 0.70f, 0.66f, 1.0f}, .roughness = 0.45f}))
           .tag("lit"));
   for (int i = 0; i < kPosts; ++i) {
-    const float angle = (float)i * kTwoPi / (float)kPosts;
+    // The angle is wanted too, to turn each post onto its own spoke, so
+    // the ring is taken as the two halves rather than as onRing.
+    const float angle =
+        arrange::along(0.0f, kTwoPi, (size_t)i, kPosts, arrange::Turn::Closed);
+    const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
     set.child(world::Element()
                   .key("post" + std::to_string(i))
-                  .at({kRing * std::cos(angle), 0.0f, kRing * std::sin(angle)})
+                  .at({on.fX, 0.0f, on.fY})
                   .rotateY(angle * 57.2957795f)
                   .mesh(gm::superellipsoid({11, 52, 11}, 5.0f, 12, 8))
                   .fill(material::kit::surface(

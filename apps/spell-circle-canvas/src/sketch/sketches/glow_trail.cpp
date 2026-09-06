@@ -19,6 +19,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/set/Set.h>
@@ -34,6 +35,7 @@ namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace motion = sigil::motion;
+namespace arrange = sigil::geometry::arrange;
 namespace gm = sigil::geometry::mesh;
 
 namespace {
@@ -88,11 +90,15 @@ world::Element set(float seconds) {
   world::Element posts;
   posts.key("posts");
   for (int i = 0; i < kPosts; ++i) {
-    const float angle = (float)i * kTwoPi / (float)kPosts;
+    // The angle is wanted too, to turn each post onto its own spoke, so
+    // the ring is taken as the two halves rather than as onRing.
+    const float angle =
+        arrange::along(0.0f, kTwoPi, (size_t)i, kPosts, arrange::Turn::Closed);
+    const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
     posts.child(
         world::Element()
             .key("post" + std::to_string(i))
-            .at({kRing * std::cos(angle), -84.0f, kRing * std::sin(angle)})
+            .at({on.fX, -84.0f, on.fY})
             .rotateY(angle * 57.2957795f)
             .mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
             .fill(material::kit::surface(

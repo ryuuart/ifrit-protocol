@@ -33,6 +33,7 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -49,6 +50,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
@@ -130,9 +132,11 @@ inline std::function<SkPath(SkSize)> lozengeRing(int count, float rInner,
   return [count, rInner, rOuter, phase](SkSize s) {
     SkPathBuilder b;
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    const float step = 6.2831853f / (float)count;
+    const float step =
+        arrange::step(6.2831853f, (size_t)count, arrange::Turn::Closed);
     for (int i = 0; i < count; ++i) {
-      const float a = phase + step * (float)i;
+      const float a = arrange::along(phase, 6.2831853f, (size_t)i,
+                                     (size_t)count, arrange::Turn::Closed);
       const float half = step * 0.42f;
       const float c0 = std::cos(a - half), s0 = std::sin(a - half);
       const float c1 = std::cos(a + half), s1 = std::sin(a + half);

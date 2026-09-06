@@ -264,6 +264,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Curves.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -285,6 +286,7 @@
 #include <tuple>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
@@ -474,7 +476,8 @@ inline SkPath generatrices(float phiDeg, int n) {
   const float phi = phiDeg * 0.01745329f;
   SkPathBuilder b;
   for (int i = 0; i < n; ++i) {
-    const float a = 6.2831853f * (float)i / (float)n;
+    const float a = arrange::along(0.0f, 6.2831853f, (size_t)i, (size_t)n,
+                                   arrange::Turn::Closed);
     const SkPoint lo = onRim(kRim, -kHalfH, a - phi);
     const SkPoint hi = onRim(kRim, +kHalfH, a + phi);
     const SkPoint d{hi.fX - lo.fX, hi.fY - lo.fY};
