@@ -2,13 +2,13 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -62,10 +62,9 @@ class ExclusionsScene final : public Scene {
             canvasHeight * 0.24f *
                 std::sin(static_cast<float>(elapsedSeconds) * 0.53f)};
     flow.exclusions().push_back(
-        {silhouette::circle(SkRect::MakeXYWH(circleCenter.x() - circleRadius,
-                                             circleCenter.y() - circleRadius,
-                                             2 * circleRadius,
-                                             2 * circleRadius)),
+        {silhouette::circle(SkRect::MakeXYWH(
+             circleCenter.x() - circleRadius, circleCenter.y() - circleRadius,
+             2 * circleRadius, 2 * circleRadius)),
          fontSize * 0.5f});
 
     const SkPath& donutPath = m_donut.ensure({size}, [&] {
@@ -83,7 +82,8 @@ class ExclusionsScene final : public Scene {
         spikyRingPath(static_cast<float>(elapsedSeconds),
                       std::min(canvasWidth, canvasHeight) * 0.19f);
     flow.exclusions().push_back(
-        {silhouette::path(spiky), fontSize * 0.4f,
+        {silhouette::path(spiky),
+         fontSize * 0.4f,
          {canvasWidth * 0.6f +
               canvasWidth * 0.18f *
                   std::cos(static_cast<float>(elapsedSeconds) * 0.4f),
@@ -94,7 +94,8 @@ class ExclusionsScene final : public Scene {
     // silhouette answers from what it already measured and every frame is
     // still a full live relayout around it.
     flow.exclusions().push_back(
-        {silhouette::path(donutPath), fontSize * 0.4f,
+        {silhouette::path(donutPath),
+         fontSize * 0.4f,
          {canvasWidth * 0.05f *
               std::sin(static_cast<float>(elapsedSeconds) * 0.6f),
           canvasHeight * 0.06f *

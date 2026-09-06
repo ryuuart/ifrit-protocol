@@ -3,9 +3,9 @@
  * formation, the clip, and what the node's decorations dress.
  */
 
-#include "ComposeInternal.h"
-
 #include <algorithm>
+
+#include "ComposeInternal.h"
 
 namespace sigil::compose {
 

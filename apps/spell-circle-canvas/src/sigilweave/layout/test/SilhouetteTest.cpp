@@ -5,7 +5,6 @@
  */
 
 #include <gtest/gtest.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
@@ -61,7 +60,8 @@ sk_sp<SkImage> alphaRamp(int width, int height) {
 
 }  // namespace
 
-TEST(Silhouette, AMarginOnADiagonalEdgeIsTheDistanceItAsksForAndNotItsDiagonal) {
+TEST(Silhouette,
+     AMarginOnADiagonalEdgeIsTheDistanceItAsksForAndNotItsDiagonal) {
   constexpr float kMargin = 20;
   constexpr float kPitch = 4;
   constexpr int kBand = 25;  // the band [100, 104]

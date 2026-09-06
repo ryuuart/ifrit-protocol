@@ -319,13 +319,9 @@ TEST(ComposeBoundary, TheThresholdIsHowMuchPaintCountsAsInk) {
             .width(100)
             .height(100)
             .child(box().left(0).top(0).width(100).height(40).fill(red()))
-            .child(box()
-                       .left(0)
-                       .top(60)
-                       .width(100)
-                       .height(40)
-                       .fill(red())
-                       .opacity(0.3f))
+            .child(
+                box().left(0).top(60).width(100).height(40).fill(red()).opacity(
+                    0.3f))
             .foreground(flooding(SK_ColorGREEN))
             .boundary(Boundary::Coverage);
     if (threshold > 0) node.threshold(threshold);

@@ -37,10 +37,11 @@ namespace {
 /// is the whole reason the size is derived rather than chosen.
 float referenceRatio(FontContext& fontContext, const TextStyle& style,
                      InitialLetter::Align align) {
-  const float size = style.shaping.fontSize > 0 ? style.shaping.fontSize : 16.0f;
+  const float size =
+      style.shaping.fontSize > 0 ? style.shaping.fontSize : 16.0f;
   if (align == InitialLetter::Align::kIdeographic) return 1.0f;  // the em box
-  const sk_sp<SkTypeface> typeface =
-      fontContext.variedTypeface(style.shaping.typeface, style.shaping.variations);
+  const sk_sp<SkTypeface> typeface = fontContext.variedTypeface(
+      style.shaping.typeface, style.shaping.variations);
   SkFontMetrics metrics;
   makeFont(typeface, size).getMetrics(&metrics);
   const float reference = align == InitialLetter::Align::kHanging
@@ -107,13 +108,16 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
   const uint32_t styleIndex =
       segments.empty() ? 0u : segments.front().styleIndex;
   const std::vector<StyleSpan>& spans = paragraph.spans();
-  TextStyle capStyle = asked.style ? *asked.style
-                       : (styleIndex < spans.size() ? spans[styleIndex].style
-                                                    : TextStyle{});
+  TextStyle capStyle =
+      asked.style
+          ? *asked.style
+          : (styleIndex < spans.size() ? spans[styleIndex].style : TextStyle{});
   const float reference =
       asked.align == InitialLetter::Align::kIdeographic
-          ? (spans.empty() ? block.ascent : spans[std::min<size_t>(styleIndex, spans.size() - 1)]
-                                                .style.shaping.fontSize)
+          ? (spans.empty()
+                 ? block.ascent
+                 : spans[std::min<size_t>(styleIndex, spans.size() - 1)]
+                       .style.shaping.fontSize)
           : (asked.align == InitialLetter::Align::kHanging ? strut.ascent
                                                            : strut.capHeight);
   const float fontSize = initialLetterSize(fontContext, capStyle, block.pitch,
@@ -121,9 +125,8 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
   if (fontSize <= 0) return plan;
   capStyle.shaping.fontSize = fontSize;
 
-  const std::u16string_view capText =
-      std::u16string_view(text).substr(opening.textBegin,
-                                       capEnd - opening.textBegin);
+  const std::u16string_view capText = std::u16string_view(text).substr(
+      opening.textBegin, capEnd - opening.textBegin);
   UChar32 firstCodepoint = 0;
   {
     size_t unit = 0;
@@ -135,8 +138,9 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
   sk_sp<SkTypeface> typeface = fontContext.resolveTypeface(
       capStyle.shaping.typeface, firstCodepoint, languageTag);
   if (!typeface) typeface = fontContext.defaultTypeface();
-  plan.glyphs = shapeWord(fontContext, capStyle.shaping, typeface, capText,
-                          static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, false);
+  plan.glyphs =
+      shapeWord(fontContext, capStyle.shaping, typeface, capText,
+                static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, false);
   if (!plan.glyphs || plan.glyphs->glyphs.empty()) return plan;
 
   // WHAT IS LEFT OF THE WORD THE INITIAL SPLIT is set at the body's size
@@ -200,8 +204,8 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
       // band's near edge; the initial's baseline sits `sinkOffset` below
       // the first baseline, which is `ascent` below that near edge.
       for (int band = 0; band < plan.bands; ++band) {
-        const float top = static_cast<float>(band) * block.pitch - block.ascent -
-                          plan.sinkOffset;
+        const float top = static_cast<float>(band) * block.pitch -
+                          block.ascent - plan.sinkOffset;
         const float bottom = top + block.pitch;
         float reach = 0;
         // The reach is how far the outline gets into this band: the
@@ -238,8 +242,8 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
   return plan;
 }
 
-bool InitialLetterGeometry::lineIntervals(const LineRequest& request,
-                                          std::vector<LineInterval>& intervals) {
+bool InitialLetterGeometry::lineIntervals(
+    const LineRequest& request, std::vector<LineInterval>& intervals) {
   if (!m_inner.lineIntervals(request, intervals)) return false;
   if (!m_plan.active() || request.blockIndex != m_plan.blockIndex) return true;
   const int band = request.lineInBlock;
@@ -258,8 +262,8 @@ bool InitialLetterGeometry::lineIntervals(const LineRequest& request,
     if (first.contour.valid())
       first.contourStart += take * first.advanceScale;
     else
-      first.origin += SkVector{first.direction.x() * take,
-                               first.direction.y() * take};
+      first.origin +=
+          SkVector{first.direction.x() * take, first.direction.y() * take};
     first.length -= take;
     remaining -= take;
     if (first.length <= 0) intervals.erase(intervals.begin());
@@ -289,8 +293,8 @@ void placeInitialLetter(const InitialLetterPlan& plan,
       stack = {-1, 0};
     else if (direction.x() != 1 || direction.y() != 0)
       return;
-    origin += SkVector{stack.x() * plan.sinkOffset,
-                       stack.y() * plan.sinkOffset};
+    origin +=
+        SkVector{stack.x() * plan.sinkOffset, stack.y() * plan.sinkOffset};
   }
   PositionedRun cap;
   cap.shaped = plan.glyphs.get();
@@ -332,9 +336,9 @@ void placeInitialLetter(const InitialLetterPlan& plan,
   layout.initial.bands = plan.bands;
   layout.initial.notch = plan.notch;
   layout.initial.textEnd = plan.textEnd;
-  layout.initial.box =
-      SkRect::MakeXYWH(origin.x(), origin.y() + metrics.fAscent,
-                       plan.glyphs->advance, -metrics.fAscent + metrics.fDescent);
+  layout.initial.box = SkRect::MakeXYWH(
+      origin.x(), origin.y() + metrics.fAscent, plan.glyphs->advance,
+      -metrics.fAscent + metrics.fDescent);
   (void)paragraph;
 }
 

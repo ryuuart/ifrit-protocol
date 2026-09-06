@@ -419,7 +419,7 @@ struct InitialLetterPlan {
   float tail = 0;       // pen travel the split word's remainder takes on band 0
   float fontSize = 0;   // the size the rule derived
   float capSpan = 0;    // the reference metric that size was derived from
-  float sinkOffset = 0;  // px from the first baseline to the initial's own
+  float sinkOffset = 0;     // px from the first baseline to the initial's own
   ShapedWordRef glyphs;     // the initial itself
   ShapedWordRef remainder;  // what is left of the word it split
   uint32_t styleIndex = 0;

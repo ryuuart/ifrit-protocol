@@ -87,8 +87,8 @@ TEST(Vertical, TateChuYokoSetsRunUprightAcrossColumn) {
     float columnLength = 0;
     for (const PositionedRun& run : layout.runs)
       if (run.shaped)
-        columnLength = std::max(columnLength,
-                                run.origin.y() + run.shaped->advance);
+        columnLength =
+            std::max(columnLength, run.origin.y() + run.shaped->advance);
     return std::make_pair(std::move(layout), columnLength);
   };
 

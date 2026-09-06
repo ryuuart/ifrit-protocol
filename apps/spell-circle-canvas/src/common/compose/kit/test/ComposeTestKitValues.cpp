@@ -23,7 +23,6 @@
 namespace kit = sigil::compose::kit;
 namespace weave = sigil::weave;
 
-
 namespace {
 
 sigil::weave::TextStyle pixelStyle(float size) {
@@ -345,8 +344,8 @@ TEST(KitLegibility, DrawHaloedPutsGroundColourAroundTheInk) {
 
 TEST(KitAt, PinsInkAtTheAbsoluteRectAndNowhereElse) {
   Host host;
-  host.composer.render(box().width(200).height(200).child(
-      kit::at(20, 30, 40, 50).fill(red())));
+  host.composer.render(
+      box().width(200).height(200).child(kit::at(20, 30, 40, 50).fill(red())));
   host.frame();
   EXPECT_EQ(host.pixel(21, 31), SK_ColorRED);
   EXPECT_EQ(host.pixel(59, 79), SK_ColorRED);
@@ -524,10 +523,10 @@ TEST(KitSpecimen, AMeasureKeepsALongLabelFromWideningItsCell) {
 
 TEST(KitSpecimen, AWellAppliesTheCallersSizeGroundAndPadding) {
   Host host(160, 120);
-  host.composer.render(box().width(160).height(120).child(kit::well(
-      {.width = 100, .height = 80, .ground = red(), .padding = 10},
-      box().key("well").child(
-          box().key("body").width(20).height(15).fill(green())))));
+  host.composer.render(box().width(160).height(120).child(
+      kit::well({.width = 100, .height = 80, .ground = red(), .padding = 10},
+                box().key("well").child(
+                    box().key("body").width(20).height(15).fill(green())))));
   host.frame();
 
   const auto well = host.composer.bounds("well");
@@ -646,7 +645,6 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
   EXPECT_FALSE(host.composer.bounds("plain-head-rule").has_value());
 }
 
-
 // ---------------------------------------------------------------------------
 // The two fills a ground is dressed with
 
@@ -682,7 +680,8 @@ TEST(KitGround, AGrainIsNeutralAtZeroAndBrokenAboveIt) {
   EXPECT_EQ(none.pixel(60, 20), flatColor);
 
   Host rough(120, 40);
-  rough.composer.render(box().absolute().inset(0).fill(kit::grained(mid, 0.9f)));
+  rough.composer.render(
+      box().absolute().inset(0).fill(kit::grained(mid, 0.9f)));
   rough.frame();
   bool moved = false;
   const SkColor first = rough.pixel(0, 20);

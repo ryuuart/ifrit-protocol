@@ -78,9 +78,9 @@ TEST(Balance, ABlockCutIntoUnequalLinesGivesUpAProportionOfEachOfThem) {
     // Every line against the room its own top had: the cut width while the
     // line starts inside the cut, the whole measure below it.
     for (const LineMetrics& line : layout.lineMetrics(paragraph))
-      EXPECT_LE(line.right - line.left,
-                line.baseline - line.ascent < kCutBottom ? kCutWidth
-                                                         : kWholeWidth)
+      EXPECT_LE(line.right - line.left, line.baseline - line.ascent < kCutBottom
+                                            ? kCutWidth
+                                            : kWholeWidth)
           << "line " << line.lineIndex;
     return std::make_pair(layout.lineCount, lineWidths(layout, paragraph));
   };

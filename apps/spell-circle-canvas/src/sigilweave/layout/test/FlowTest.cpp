@@ -207,7 +207,8 @@ TEST_P(ExcludedFlow, NoRunEverSitsInsideAnExclusionShape) {
   for (int phase : {3, 4}) {
     ExclusionFlow flow(SkRect::MakeWH(760, 900));
     flow.exclusions().push_back(
-        {silhouette::path(donutPath), 8,
+        {silhouette::path(donutPath),
+         8,
          {60.0f * std::sin(static_cast<float>(phase) * 1.1f),
           70.0f * std::cos(static_cast<float>(phase) * 0.7f)}});
     flow.exclusions().push_back(

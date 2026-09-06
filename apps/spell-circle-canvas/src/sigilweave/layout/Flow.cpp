@@ -29,10 +29,10 @@
 #include <numbers>
 #include <utility>
 
-#include "sigilimage/field/DistanceField.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
+#include "sigilimage/field/DistanceField.h"
 
 namespace sigil::weave {
 
@@ -372,8 +372,7 @@ class DilatedCoverage {
     const int alongCount = columns ? m_field.height : m_field.width;
     const float acrossOrigin = columns ? m_area.left() : m_area.top();
     const float alongOrigin = columns ? m_area.top() : m_area.left();
-    int firstBand =
-        (int)std::floor((bandStart - acrossOrigin) * m_scale);
+    int firstBand = (int)std::floor((bandStart - acrossOrigin) * m_scale);
     int lastBand = (int)std::ceil((bandEnd - acrossOrigin) * m_scale);
     firstBand = std::max(firstBand, 0);
     lastBand = std::min(lastBand, acrossCount - 1);
@@ -464,8 +463,8 @@ class CoverageSilhouette final : public Silhouette {
                  std::vector<Span>& spans) override {
     if (!m_image) return;
     m_dilated.ensure(m_box, margin, [&](SkCanvas& canvas) {
-      canvas.drawImageRect(m_image, SkRect::MakeIWH(m_image->width(),
-                                                    m_image->height()),
+      canvas.drawImageRect(m_image,
+                           SkRect::MakeIWH(m_image->width(), m_image->height()),
                            m_box, SkSamplingOptions(SkFilterMode::kLinear),
                            nullptr, SkCanvas::kStrict_SrcRectConstraint);
     });
@@ -493,8 +492,7 @@ std::shared_ptr<Silhouette> circle(const SkRect& bounds) {
 }
 
 std::shared_ptr<Silhouette> ellipse(const SkRect& bounds) {
-  if (std::abs(bounds.width() - bounds.height()) <= kEps)
-    return circle(bounds);
+  if (std::abs(bounds.width() - bounds.height()) <= kEps) return circle(bounds);
   // A disc offset of an ellipse is not an ellipse, and scaling the axes to
   // fake one over- and under-shoots at different points of the curve. The
   // path answer is the exact one, so an oval that is not round takes it.
@@ -517,7 +515,6 @@ std::shared_ptr<Silhouette> coverage(sk_sp<SkImage> image, const SkRect& box,
 ExclusionFlow::ExclusionFlow(const SkRect& bounds, FlowAxis axis)
     : m_bounds(bounds), m_axis(axis) {}
 ExclusionFlow::~ExclusionFlow() = default;
-
 
 bool BlockFlow::lineIntervals(const LineRequest& request,
                               std::vector<LineInterval>& intervals) {
@@ -570,8 +567,10 @@ bool ExclusionFlow::lineIntervals(const LineRequest& request,
     // subtractions and a shift and never touches whatever the shape
     // cached: the band arrives moved back by the offset and the spans come
     // out moved forward by it.
-    const float offsetAlong = alongOf(axis, {exclusion.offset.x(), exclusion.offset.y()});
-    const float offsetAcross = acrossOf(axis, {exclusion.offset.x(), exclusion.offset.y()});
+    const float offsetAlong =
+        alongOf(axis, {exclusion.offset.x(), exclusion.offset.y()});
+    const float offsetAcross =
+        acrossOf(axis, {exclusion.offset.x(), exclusion.offset.y()});
     const SkRect shapeBounds = exclusion.shape->bounds();
     const float margin = std::max(exclusion.margin, 0.0f);
     if (acrossMax(axis, shapeBounds) + offsetAcross + margin <= bandStart ||

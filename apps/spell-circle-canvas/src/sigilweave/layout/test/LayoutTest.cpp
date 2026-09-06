@@ -220,7 +220,8 @@ TEST(BidiOrder, AReorderedPairRendersInVisualOrderBetweenItsNeighbours) {
 
 TEST(EditSafety, ACutThroughASurrogatePairLeavesEveryWordInsideTheText) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = machineParagraph(u8"ab 𝕏𝕐 cd");  // 𝕏/𝕐 are surrogate pairs
+  Paragraph paragraph =
+      machineParagraph(u8"ab 𝕏𝕐 cd");  // 𝕏/𝕐 are surrogate pairs
   paragraph.ensureShaped(fontContext);
   // Cut straight through the middle of the first surrogate pair.
   const size_t textOffset = paragraph.text().find(u"ab");

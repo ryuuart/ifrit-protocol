@@ -10,9 +10,9 @@
 
 #include <include/core/SkTypes.h>  // SkDebugf — the rest-of-non-text diagnostic
 #include <sigilcore/reconcile/Env.h>
+#include <sigilweave/unicode/Unicode.h>
 
 #include "ComposeInternal.h"
-#include <sigilweave/unicode/Unicode.h>
 
 namespace sigil::compose {
 

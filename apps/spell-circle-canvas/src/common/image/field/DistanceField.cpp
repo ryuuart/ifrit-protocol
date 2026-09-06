@@ -91,8 +91,7 @@ Mask coverageMask(const SkImage& image, float threshold) {
   // Not already on the CPU: one readback into an alpha raster, which is the
   // only channel the answer reads.
   SkBitmap alpha;
-  if (!alpha.tryAllocPixels(
-          SkImageInfo::MakeA8(image.width(), image.height())))
+  if (!alpha.tryAllocPixels(SkImageInfo::MakeA8(image.width(), image.height())))
     return {};
   if (!image.readPixels(nullptr, alpha.pixmap(), 0, 0)) return {};
   return coverageMask(alpha.pixmap(), threshold);

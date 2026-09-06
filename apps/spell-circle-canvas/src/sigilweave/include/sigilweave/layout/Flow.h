@@ -232,8 +232,8 @@ class Silhouette {
 /// photograph — where a rebuilt shape re-answers from scratch.
 struct Exclusion {
   std::shared_ptr<Silhouette> shape;
-  float margin = 0;             ///< the standoff, px, as a disc
-  SkPoint offset = {0, 0};      ///< translation applied per layout pass
+  float margin = 0;         ///< the standoff, px, as a disc
+  SkPoint offset = {0, 0};  ///< translation applied per layout pass
 };
 
 /// The stock silhouettes. A caller with a shape none of these describes

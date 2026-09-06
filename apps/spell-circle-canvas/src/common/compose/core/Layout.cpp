@@ -105,7 +105,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // then be placed along the path from the start again — the glyphs pile
   // up on each other. The box still sizes the path; it does not bound the
   // run.
-  if (inst.description && inst.description->textData && inst.description->textData->onPath)
+  if (inst.description && inst.description->textData &&
+      inst.description->textData->onPath)
     constraint = 1.0e6f;
   if (constraint == inst.measuredForWidth &&
       downConstraint == inst.measuredForHeight &&
@@ -136,7 +137,9 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   // column exactly as it cuts a line, so only the flow's axis differs.
   const auto addExclusions = [&](sigil::weave::ExclusionFlow& flow) {
     const float flowMargin =
-        inst.description->deriveData ? inst.description->deriveData->flowAroundMargin : 0.0f;
+        inst.description->deriveData
+            ? inst.description->deriveData->flowAroundMargin
+            : 0.0f;
     for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
       if (exclusion.circle)
         flow.exclusions().push_back(
@@ -454,8 +457,9 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   // layout() schemes are a flex-world feature; inside a positioned
   // subtree (no Yoga nodes) — or ON a positioned() container, whose
   // children have none — the placeFn is documented-unsupported.
-  if (inst.yoga && !inst.description->layout.positioned && inst.description->deriveData &&
-      inst.description->deriveData->placeFn && !inst.children.empty()) {
+  if (inst.yoga && !inst.description->layout.positioned &&
+      inst.description->deriveData && inst.description->deriveData->placeFn &&
+      !inst.children.empty()) {
     LayoutInput input;
     input.container = {YGNodeLayoutGetWidth(inst.yoga),
                        YGNodeLayoutGetHeight(inst.yoga)};
@@ -529,9 +533,9 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     // left auto by the author, a point value in the STYLE on that axis can
     // only be the one written below, so the test survives the round that
     // made the collapse go away and the container still tracks its content.
-    const bool sizesWidth =
-        l.absolute || YGNodeLayoutGetWidth(inst.yoga) <= 0.25f ||
-        YGNodeStyleGetWidth(inst.yoga).unit == YGUnitPoint;
+    const bool sizesWidth = l.absolute ||
+                            YGNodeLayoutGetWidth(inst.yoga) <= 0.25f ||
+                            YGNodeStyleGetWidth(inst.yoga).unit == YGUnitPoint;
     const bool sizesHeight =
         l.absolute || YGNodeLayoutGetHeight(inst.yoga) <= 0.25f ||
         YGNodeStyleGetHeight(inst.yoga).unit == YGUnitPoint;
@@ -673,7 +677,8 @@ SkRect Composer::Impl::positionedRect(const Instance& inst) const {
   // Text with an open extent: measure now, against the width we have.
   // The measure caches are logically mutable (measuredForWidth guards),
   // hence the casts.
-  if (inst.description->kind == Kind::Text && inst.paragraph && (!width || !height)) {
+  if (inst.description->kind == Kind::Text && inst.paragraph &&
+      (!width || !height)) {
     const_cast<Composer::Impl*>(this)->layoutText(const_cast<Instance&>(inst),
                                                   width ? *width : parentW,
                                                   height ? *height : 1.0e6f);

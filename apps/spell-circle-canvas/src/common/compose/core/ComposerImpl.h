@@ -260,7 +260,9 @@ struct Composer::Impl {
   // The ReconcileHost operations, in the reconciler's terms. Reading a
   // description:
   using Description = std::shared_ptr<detail::ElementNode>;
-  static const std::string& keyOf(const Description& description) { return description->key; }
+  static const std::string& keyOf(const Description& description) {
+    return description->key;
+  }
   static bool equal(const Description& a, const Description& b) {
     return detail::propsEqual(*a, *b);
   }
@@ -271,7 +273,9 @@ struct Composer::Impl {
   static const std::vector<Element>& children(const Description& description) {
     return description->children;
   }
-  static const Description& descriptionOf(const Element& child) { return child.node(); }
+  static const Description& descriptionOf(const Element& child) {
+    return child.node();
+  }
   static const detail::MemoData* memoOf(const Description& description) {
     return description->memoData ? &*description->memoData : nullptr;
   }
@@ -380,8 +384,8 @@ struct Composer::Impl {
    *  leaf blend and opacity into it and stamping the values it was
    *  recorded from. The bake half of the picture tier. */
   void recordPicture(detail::Instance& inst, const SkMatrix& deviceMatrix,
-                     bool matrixStable,
-                     float hostScale, SkBlendMode leafBlend, float leafOpacity,
+                     bool matrixStable, float hostScale, SkBlendMode leafBlend,
+                     float leafOpacity,
                      detail::Instance::ContentScalars&& scalars);
 
   // ---- layout (Layout.cpp) ----
@@ -716,8 +720,7 @@ struct Composer::Impl {
    *  One reading, for the node's own decorations and for anything that
    *  borrows its edge, so a node cannot be dressed along one outline and
    *  flowed around along another. */
-  SkPath boundaryOutlineOf(detail::Instance& target, float width,
-                           float height);
+  SkPath boundaryOutlineOf(detail::Instance& target, float width, float height);
   /** The node whose coverage is being traced RIGHT NOW, if any.
    *
    *  A coverage boundary is what the node drew, and the node's own marks

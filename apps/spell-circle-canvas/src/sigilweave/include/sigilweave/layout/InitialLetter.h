@@ -101,13 +101,13 @@ struct InitialLetter {
  * thing to draw.
  */
 struct PlacedInitial {
-  bool placed = false;    ///< false when the block declared none
+  bool placed = false;               ///< false when the block declared none
   SkRect box = SkRect::MakeEmpty();  ///< the initial's advance box, margin
                                      ///< excluded, in flow coordinates
-  SkPoint baseline = {0, 0};  ///< where the initial's pen sat
-  float fontSize = 0;         ///< the size the rule derived
-  int bands = 0;              ///< how many bands the notch cut
-  float notch = 0;            ///< pen travel the notch took on those bands
+  SkPoint baseline = {0, 0};         ///< where the initial's pen sat
+  float fontSize = 0;                ///< the size the rule derived
+  int bands = 0;                     ///< how many bands the notch cut
+  float notch = 0;  ///< pen travel the notch took on those bands
   /// One past the last UTF-16 unit of the text the initial took.
   uint32_t textEnd = 0;
 };

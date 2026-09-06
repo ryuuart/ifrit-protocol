@@ -5,7 +5,6 @@
  */
 
 #include <gtest/gtest.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilimage/field/DistanceField.h>
@@ -46,7 +45,8 @@ TEST(CoverageMask, TheThresholdIsWhatCountsAsInk) {
 TEST(DistanceFieldOverAMask, MeasuresTheTrueEuclideanDistanceOffTheAxes) {
   SkBitmap raster = alphaRaster(9, 9);
   *raster.getAddr8(4, 4) = 255;
-  const DistanceField field = distanceField(coverageMask(raster.pixmap(), 0.5f));
+  const DistanceField field =
+      distanceField(coverageMask(raster.pixmap(), 0.5f));
 
   EXPECT_FLOAT_EQ(field.at(4, 4), 0.0f);
   EXPECT_FLOAT_EQ(field.at(7, 4), 3.0f);
@@ -56,7 +56,8 @@ TEST(DistanceFieldOverAMask, MeasuresTheTrueEuclideanDistanceOffTheAxes) {
   EXPECT_NEAR(field.at(5, 5), std::sqrt(2.0f), 1e-5f);
 }
 
-TEST(DistanceFieldOverAMask, ThresholdingItDilatesTheShapeByADiscAndNotASquare) {
+TEST(DistanceFieldOverAMask,
+     ThresholdingItDilatesTheShapeByADiscAndNotASquare) {
   // A quarter plane, so its boundary is one 45-degree edge. Every point at
   // distance m from that edge is m of PERPENDICULAR standoff — where a
   // square dilation would put the same point m·root-two away.
@@ -65,22 +66,26 @@ TEST(DistanceFieldOverAMask, ThresholdingItDilatesTheShapeByADiscAndNotASquare) 
   for (int y = 0; y < kSize; ++y)
     for (int x = 0; x < kSize; ++x)
       if (x + y >= kSize) *raster.getAddr8(x, y) = 255;
-  const DistanceField field = distanceField(coverageMask(raster.pixmap(), 0.5f));
+  const DistanceField field =
+      distanceField(coverageMask(raster.pixmap(), 0.5f));
 
   constexpr float kMargin = 8.0f;
   // The point (32, 32) is on the edge's own diagonal; step back along the
   // perpendicular by the margin and it must be exactly inside the dilation,
   // and a step further out of it.
   const float step = kMargin / std::sqrt(2.0f);
-  const int inx = (int)std::lround(32 - step + 1), iny = (int)std::lround(32 - step + 1);
-  const int outx = (int)std::lround(32 - step - 1), outy = (int)std::lround(32 - step - 1);
+  const int inx = (int)std::lround(32 - step + 1),
+            iny = (int)std::lround(32 - step + 1);
+  const int outx = (int)std::lround(32 - step - 1),
+            outy = (int)std::lround(32 - step - 1);
   EXPECT_LE(field.at(inx, iny), kMargin);
   EXPECT_GT(field.at(outx, outy), kMargin);
 }
 
 TEST(DistanceFieldOverAMask, AMaskThatCoversNothingIsEverywhereOutside) {
   SkBitmap raster = alphaRaster(8, 8);
-  const DistanceField field = distanceField(coverageMask(raster.pixmap(), 0.5f));
+  const DistanceField field =
+      distanceField(coverageMask(raster.pixmap(), 0.5f));
   ASSERT_FALSE(field.empty());
   EXPECT_EQ(field.at(0, 0), DistanceField::kOutside);
   EXPECT_EQ(field.at(7, 7), DistanceField::kOutside);

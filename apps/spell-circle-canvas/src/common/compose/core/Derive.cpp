@@ -152,9 +152,10 @@ bool Composer::Impl::resolveThreads() {
     for (Instance* frame = head; frame;) {
       if (!visited.insert(frame).second)
         break;  // a cycle: stop where it closes
-      const detail::TextData* text = frame->description && frame->description->textData
-                                         ? &*frame->description->textData
-                                         : nullptr;
+      const detail::TextData* text =
+          frame->description && frame->description->textData
+              ? &*frame->description->textData
+              : nullptr;
       Instance* next = nullptr;
       if (text && !text->threadTo.empty()) {
         auto found = byKey.find(text->threadTo);
@@ -244,8 +245,8 @@ bool Composer::Impl::deriveFlow(Instance& inst) {
       // box when it declares none. The margin means the same thing in
       // every case — a disc of that radius round whatever edge is being
       // subtracted — so a truer edge is never a second rule.
-      SkPath boundaryPath = boundaryOutlineOf(target, box.width(),
-                                              box.height());
+      SkPath boundaryPath =
+          boundaryOutlineOf(target, box.width(), box.height());
       if (!boundaryPath.isEmpty()) {
         exclusion.path = boundaryPath.makeTransform(SkMatrix::Translate(
             box.left() - own.left(), box.top() - own.top()));

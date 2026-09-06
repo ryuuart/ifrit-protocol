@@ -6,7 +6,6 @@
  */
 
 #include <gtest/gtest.h>
-
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkPath.h>
@@ -104,8 +103,9 @@ TEST(InitialLetter, ThreeLinesOfCapReachFromTheFirstCapTopToTheThirdBaseline) {
   // alignment says and what a reader sees.
   const std::vector<float> lines = baselines(layout);
   ASSERT_GE(lines.size(), 3u);
-  EXPECT_NEAR(layout.initial.baseline.y() - capHeightAt(layout.initial.fontSize),
-              lines.front() - strut.capHeight, 0.5f);
+  EXPECT_NEAR(
+      layout.initial.baseline.y() - capHeightAt(layout.initial.fontSize),
+      lines.front() - strut.capHeight, 0.5f);
 }
 
 TEST(InitialLetter, ASinkOfOnePutsTheInitialsBaselineOnTheSecondLine) {

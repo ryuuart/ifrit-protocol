@@ -235,13 +235,13 @@ struct Manuscript final : sketch::Sketch {
                                      weave::features::capitalsToSmallCaps};
 
     const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
-                                  .delimiter = u8".",
-                                  .style = capitals};
+                                   .delimiter = u8".",
+                                   .style = capitals};
     Element initial =
-        text(letter, weave::textStyle(
-                         {.face = book,
-                          .size = px(kPitch * (float)kCapLines * 0.74f),
-                          .color = pal.gold}))
+        text(letter,
+             weave::textStyle({.face = book,
+                               .size = px(kPitch * (float)kCapLines * 0.74f),
+                               .color = pal.gold}))
             .key("versal")
             .absolute()
             .left(Dim(0.0f))

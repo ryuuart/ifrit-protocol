@@ -187,8 +187,8 @@ struct NestedStyle {
             .child(text(items[index], style)
                        .width(Dim(measure))
                        .paragraph(hanging))
-            .child(text(marker, style).absolute().left(Dim(0.0f)).top(
-                Dim(0.0f))));
+            .child(
+                text(marker, style).absolute().left(Dim(0.0f)).top(Dim(0.0f))));
   }
   return list;
 }
@@ -219,8 +219,8 @@ struct NestedStyle {
                                      std::u8string ellipsis = {}) {
   Element row = box().row().gap(gutter);
   if (count < 1) return row;
-  const float measure =
-      (width - gutter * static_cast<float>(count - 1)) / static_cast<float>(count);
+  const float measure = (width - gutter * static_cast<float>(count - 1)) /
+                        static_cast<float>(count);
   for (int index = 0; index < count; ++index) {
     Element column = frame(story)
                          .key(keyPrefix + std::to_string(index))
@@ -239,10 +239,10 @@ struct NestedStyle {
 struct BlockRule {
   enum class Where { Above, Below, Behind };
   Where where = Where::Above;
-  float thickness = 1.0f;   ///< Above/Below: the rule's own weight
-  float gap = 4.0f;         ///< Above/Below: clearance from the type
-  float inset = 0.0f;       ///< taken off both ends of the extent
-  float bleed = 0.0f;       ///< Behind: added above and below the extent
+  float thickness = 1.0f;  ///< Above/Below: the rule's own weight
+  float gap = 4.0f;        ///< Above/Below: clearance from the type
+  float inset = 0.0f;      ///< taken off both ends of the extent
+  float bleed = 0.0f;      ///< Behind: added above and below the extent
   SkColor4f colour = {0, 0, 0, 1};
 };
 

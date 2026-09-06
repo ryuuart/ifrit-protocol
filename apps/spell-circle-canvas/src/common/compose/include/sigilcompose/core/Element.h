@@ -51,7 +51,7 @@ class Selector;
 class RichText;
 class Story;
 enum class Unit : uint8_t;
-}
+}  // namespace sigil::weave
 
 namespace sigil::material::pattern {
 class Tile;

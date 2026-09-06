@@ -196,10 +196,16 @@ TEST(ComposeReconcile, EveryDepthDataFieldParticipatesInEquality) {
   // modes. A lane left out keeps the plane at the turn it was recorded at;
   // a mode left out keeps a space open, or a back drawn, that the author
   // closed.
-  static const char* const kNames[] = {
-      "rotateX",   "rotateY",   "translateZ",         "scaleZ",
-      "perspective", "perspectiveOriginX", "perspectiveOriginY", "originZ",
-      "preserve3d", "backface"};
+  static const char* const kNames[] = {"rotateX",
+                                       "rotateY",
+                                       "translateZ",
+                                       "scaleZ",
+                                       "perspective",
+                                       "perspectiveOriginX",
+                                       "perspectiveOriginY",
+                                       "originZ",
+                                       "preserve3d",
+                                       "backface"};
   static const bool kParticipates[] = {true, true, true, true, true,
                                        true, true, true, true, true};
   walkFields<cd::DepthData>(
@@ -260,17 +266,18 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {
-      "kind",          "boundary",     "coverageThreshold", "key",
-      "layout",        "paint",        "corners",           "shapeFn",
-      "clipContent",   "hitTestable",  "cacheMode",         "bakeScale",
-      "nodeTransition","backgrounds",  "foregrounds",       "textData",
-      "imageData",     "customData",   "deriveData",        "fxData",
-      "materialData",  "strokeData",   "memoData",          "motionData",
-      "depthData",     "children"};
+      "kind",           "boundary",    "coverageThreshold", "key",
+      "layout",         "paint",       "corners",           "shapeFn",
+      "clipContent",    "hitTestable", "cacheMode",         "bakeScale",
+      "nodeTransition", "backgrounds", "foregrounds",       "textData",
+      "imageData",      "customData",  "deriveData",        "fxData",
+      "materialData",   "strokeData",  "memoData",          "motionData",
+      "depthData",      "children"};
   static const bool kParticipates[] = {
       true,  true, true, true, true, true, true, true, true, true, true,
       true,  true, true, true, true, true, true, true, true, true, true,
-      false,  // memoData — resolveMemo owns it, and it never lands in description
+      false,  // memoData — resolveMemo owns it, and it never lands in
+              // description
       true,  true,
       false,  // children — reconciled by key, never compared
   };
