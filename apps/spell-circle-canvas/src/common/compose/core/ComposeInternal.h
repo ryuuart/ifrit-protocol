@@ -61,7 +61,9 @@ struct LayoutProps {
   std::optional<SkPoint> centerAt;  // absolute: center ON this point
                                     // (resolved post-measure)
   /** The cells this child claims of a layout() container's scheme, read
-   *  by nothing else. Default means unspoken, and a scheme flows it. */
+   *  by nothing else. Default means unspoken, and a scheme flows it.
+   *  `CellSpan::area` is NOT set here — a named claim is rare and its
+   *  string is in DeriveData; the layout pass merges the two. */
   CellSpan cells;
   bool operator==(const LayoutProps&) const = default;
 };
@@ -333,6 +335,15 @@ struct CustomData {
 struct DeriveData {
   // Custom layout (layout() containers)
   std::function<std::vector<SkRect>(const LayoutInput&)> placeFn;
+  /** Whether the scheme behind `placeFn` reads `LayoutInput::childMinSizes`,
+   *  which costs one extra text measure per text child of the container. */
+  bool placeReadsMinSizes = false;
+  /** Element::area(): the name of the region this child claims of the
+   *  scheme above it, merged into the CellSpan the layout pass hands that
+   *  scheme. It lives in this block rather than beside the cell numbers in
+   *  LayoutProps because a string on every node in the tree is what the
+   *  node size assertion exists to prevent, and a named region is rare. */
+  std::string cellArea;
   std::vector<std::string> flowAroundKeys;
   float flowAroundMargin = 0;
   std::string connectFrom, connectTo;
@@ -505,6 +516,17 @@ using MemoData = core::Memo<Element>;
 
 struct ElementNode {
   Kind kind = Kind::Box;
+  // Element::boundary(): what this node's decorations dress — its own
+  // shape, the outline of its glyphs on a text leaf, or the silhouette of
+  // what it DREW — and, under Coverage, how much paint counts as ink:
+  // Element::threshold() as a fraction of full opacity, defaulting to the
+  // rule an unantialiased rasteriser uses, the paint reaching at least
+  // half the pixel. Anything that borrows this node's edge reads the same
+  // pair. Both stand at the head of the struct because the kind enum
+  // leaves room for them there and this struct is allocated once per node
+  // per frame.
+  Boundary boundary = Boundary::Auto;
+  float coverageThreshold = 0.5f;
   std::string key;
   LayoutProps layout;
   PaintProps paint;
@@ -512,9 +534,6 @@ struct ElementNode {
   Shape shapeFn;  // custom silhouette; overrides corners. A comparable
                   // scheme prunes; a raw callable never compares equal, so
                   // its node re-patches on every describe.
-  // Element::boundary(): what this node's decorations dress — its own
-  // shape, or (on a text leaf) the outline of its glyphs.
-  Boundary boundary = Boundary::Auto;
   bool clipContent = false;
   // Element::hitTestable(false): the node and its own box are skipped by
   // hitTest, though its CHILDREN are still tested. A keyed full-bleed

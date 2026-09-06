@@ -473,6 +473,19 @@ class Element {
    *  resolution, and costs a raster and a trace whenever the node's layer
    *  is invalidated. Boundary states the whole bargain. */
   Element& boundary(Boundary source);
+  /** HOW MUCH PAINT COUNTS AS INK under `Boundary::Coverage` — the
+   *  tolerance the silhouette is cut at, as a fraction of full opacity.
+   *
+   *      image(photo).key("fig").boundary(Boundary::Coverage).threshold(0.35f)
+   *      text(body, bodyStyle).flowAround("fig", 12)
+   *
+   *  The default is the rule an unantialiased rasteriser uses — the paint
+   *  reached at least half the pixel — so the traced edge is where the
+   *  drawn edge is. It is the dial a soft edge needs: lower it and a wash,
+   *  a feathered cut-out or a glow becomes silhouette; raise it and only
+   *  the solid core does. Read by everything that asks this node for its
+   *  coverage — its own decorations, and any text flowing around it. */
+  Element& threshold(float coverage);
 
   /** Apply a whole LayerStyle (preset or hand-built): its `under` layers
    *  append as backgrounds, `over` as foregrounds — one call dresses the

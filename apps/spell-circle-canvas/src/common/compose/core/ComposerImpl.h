@@ -386,6 +386,7 @@ struct Composer::Impl {
 
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance& inst);
+  SkSize minimumSizeOf(detail::Instance& child);
   bool applyCenterPins(detail::Instance& inst);
   /** The passes, as the runner sees them. Each returns whether it changed
    *  geometry; the non-converging ones answer false. */
@@ -707,6 +708,16 @@ struct Composer::Impl {
    *  layer that produced it is invalidated. */
   const SkPath& coverageOutline(detail::Instance& inst, SkSize size,
                                 float contentScale);
+  /** WHAT A NODE SAYS ITS EDGE IS, in its own space — its glyph outlines
+   *  under `Boundary::Glyphs`, the silhouette of what it drew under
+   *  `Boundary::Coverage`, its declared shape otherwise. Empty when the
+   *  node declares no silhouette at all and its box is the whole answer.
+   *
+   *  One reading, for the node's own decorations and for anything that
+   *  borrows its edge, so a node cannot be dressed along one outline and
+   *  flowed around along another. */
+  SkPath boundaryOutlineOf(detail::Instance& target, float width,
+                           float height);
   /** The node whose coverage is being traced RIGHT NOW, if any.
    *
    *  A coverage boundary is what the node drew, and the node's own marks

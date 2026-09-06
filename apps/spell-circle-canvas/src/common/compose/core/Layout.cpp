@@ -128,26 +128,26 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
   const bool vertical =
       inst.paragraph &&
       inst.paragraph->writingMode() == sigil::weave::WritingMode::kVerticalRL;
-  // One weave shape per resolved target, in the form the derive pass
-  // resolved it to: an outline for a target that declared a silhouette, an
-  // analytic circle for a round one, its box for a target that declared
-  // none. The margin is the same standoff in all three, and the shapes are
-  // the same in both writing modes — an exclusion cuts a column exactly as
-  // it cuts a line, so only the flow's axis differs.
+  // One weave silhouette per resolved target, in the form the derive pass
+  // resolved it to: an outline for a target whose boundary answered one, an
+  // analytic circle for a round one, its box for a target that answered
+  // none. The margin is the same DISC standoff in all three, and the
+  // silhouettes are the same in both writing modes — an exclusion cuts a
+  // column exactly as it cuts a line, so only the flow's axis differs.
   const auto addExclusions = [&](sigil::weave::ExclusionFlow& flow) {
     const float flowMargin =
         inst.description->deriveData ? inst.description->deriveData->flowAroundMargin : 0.0f;
     for (const detail::Exclusion& exclusion : inst.exclusionsLocal) {
       if (exclusion.circle)
-        flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromCircle(
-            exclusion.bounds, flowMargin));
+        flow.exclusions().push_back(
+            {sigil::weave::silhouette::circle(exclusion.bounds), flowMargin});
       else if (!exclusion.path.isEmpty())
-        flow.shapes().push_back(sigil::weave::ExclusionFlow::Shape::fromPath(
-            exclusion.path, flowMargin));
+        flow.exclusions().push_back(
+            {sigil::weave::silhouette::path(exclusion.path), flowMargin});
       else
-        flow.shapes().push_back(
-            sigil::weave::ExclusionFlow::Shape::fromRectangle(exclusion.bounds,
-                                                              flowMargin));
+        flow.exclusions().push_back(
+            {sigil::weave::silhouette::rectangle(exclusion.bounds),
+             flowMargin});
     }
   };
   const auto layOut = [&] {
@@ -424,6 +424,31 @@ bool Composer::Impl::applyCenterPins(Instance& inst) {
   return applied;
 }
 
+/** THE SMALLEST @p child CAN BE without its content spilling — what a
+ *  track-sizing rule floors a content-sized track at.
+ *
+ *  A text leaf is asked: laid out at a nil measure it wraps at every
+ *  opportunity, so what it reports back is the widest run it cannot break,
+ *  which is exactly the minimum. The measure it was standing at is then
+ *  restored, because the layout the rest of the pass reads must be the one
+ *  the node's own box produced and not this probe.
+ *
+ *  Everything else answers with what it measured. Layout measures once and
+ *  never re-describes a child at a proposed width, so there is no honest
+ *  smaller number to give for a box: reporting zero would let a content
+ *  track collapse under content that cannot in fact shrink. */
+SkSize Composer::Impl::minimumSizeOf(Instance& child) {
+  SkSize least{YGNodeLayoutGetWidth(child.yoga),
+               YGNodeLayoutGetHeight(child.yoga)};
+  if (!child.paragraph) return least;
+  const float wasWidth = child.measuredForWidth;
+  const float wasHeight = child.measuredForHeight;
+  layoutText(child, 0.0f, 1.0e6f);
+  least.fWidth = child.measuredSize.width;
+  if (wasWidth >= 0) layoutText(child, wasWidth, wasHeight);
+  return least;
+}
+
 bool Composer::Impl::applyCustomLayouts(Instance& inst) {
   bool applied = false;
   // layout() schemes are a flex-world feature; inside a positioned
@@ -446,7 +471,15 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       }
       input.childBaselines.push_back(baseline);
       input.childCells.push_back(child->description->layout.cells);
+      // The region name is a rare field and lives in the child's derive
+      // block; the scheme reads it beside the cell numbers.
+      input.childAreas.push_back(child->description->deriveData
+                                     ? child->description->deriveData->cellArea
+                                     : std::string());
     }
+    if (inst.description->deriveData->placeReadsMinSizes)
+      for (const auto& child : inst.children)
+        input.childMinSizes.push_back(minimumSizeOf(*child));
     std::vector<SkRect> rects = inst.description->deriveData->placeFn(input);
     const size_t count = std::min(rects.size(), inst.children.size());
     for (size_t i = 0; i < count; ++i) {
@@ -475,29 +508,44 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     // parent to size it, so without this it would collapse and the scheme
     // would place its children outside a zero box. Flex-embedded layout()
     // containers are left alone: their flex/stretch sizing already holds.
+    //
+    // A FLEX-EMBEDDED container is left alone on any axis its flex parent
+    // already gave a size, and sized from the extent on an axis that
+    // resolved to NOTHING — which is what a container whose children are
+    // all absolutely placed collapses to, since none of them contributes
+    // to it. Only the collapse is caught: a container that resolved to a
+    // size has one for a reason, and overriding it here would fight
+    // whatever gave it.
     const LayoutProps& l = inst.description->layout;
-    if (l.absolute) {
-      SkRect extent = SkRect::MakeEmpty();
-      for (size_t i = 0; i < count; ++i) extent.join(rects[i]);
-      const bool widthPinned = l.hasInsets &&
-                               l.insets.left.unit != Dim::Unit::Auto &&
-                               l.insets.right.unit != Dim::Unit::Auto;
-      const bool heightPinned = l.hasInsets &&
-                                l.insets.top.unit != Dim::Unit::Auto &&
-                                l.insets.bottom.unit != Dim::Unit::Auto;
-      if (l.width.unit == Dim::Unit::Auto && !widthPinned &&
-          extent.right() > 0 &&
-          std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f) {
-        YGNodeStyleSetWidth(inst.yoga, extent.right());
-        applied = true;
-      }
-      if (l.height.unit == Dim::Unit::Auto && !heightPinned &&
-          extent.bottom() > 0 &&
-          std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) >
-              0.25f) {
-        YGNodeStyleSetHeight(inst.yoga, extent.bottom());
-        applied = true;
-      }
+    SkRect extent = SkRect::MakeEmpty();
+    for (size_t i = 0; i < count; ++i) extent.join(rects[i]);
+    const bool widthPinned = l.hasInsets &&
+                             l.insets.left.unit != Dim::Unit::Auto &&
+                             l.insets.right.unit != Dim::Unit::Auto;
+    const bool heightPinned = l.hasInsets &&
+                              l.insets.top.unit != Dim::Unit::Auto &&
+                              l.insets.bottom.unit != Dim::Unit::Auto;
+    // …and it keeps sizing an axis it once sized: with `width`/`height`
+    // left auto by the author, a point value in the STYLE on that axis can
+    // only be the one written below, so the test survives the round that
+    // made the collapse go away and the container still tracks its content.
+    const bool sizesWidth =
+        l.absolute || YGNodeLayoutGetWidth(inst.yoga) <= 0.25f ||
+        YGNodeStyleGetWidth(inst.yoga).unit == YGUnitPoint;
+    const bool sizesHeight =
+        l.absolute || YGNodeLayoutGetHeight(inst.yoga) <= 0.25f ||
+        YGNodeStyleGetHeight(inst.yoga).unit == YGUnitPoint;
+    if (l.width.unit == Dim::Unit::Auto && !widthPinned && sizesWidth &&
+        extent.right() > 0 &&
+        std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f) {
+      YGNodeStyleSetWidth(inst.yoga, extent.right());
+      applied = true;
+    }
+    if (l.height.unit == Dim::Unit::Auto && !heightPinned && sizesHeight &&
+        extent.bottom() > 0 &&
+        std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) > 0.25f) {
+      YGNodeStyleSetHeight(inst.yoga, extent.bottom());
+      applied = true;
     }
   }
   for (const auto& child : inst.children) applied |= applyCustomLayouts(*child);

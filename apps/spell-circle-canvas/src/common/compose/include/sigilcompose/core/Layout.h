@@ -14,6 +14,7 @@
 
 #include <concepts>
 #include <cstdint>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -173,6 +174,12 @@ struct CellSpan {
   Align across = Align::Start;
   Align down = Align::Start;
   bool declared = false;
+  /** Whether `across` and `down` were STATED. A scheme that carries its
+   *  own default alignment — a grid's place-items — must be able to tell
+   *  "start, because that is the default" from "start, because the child
+   *  asked for it", or its default could never apply to any child that
+   *  named a cell. */
+  bool alignDeclared = false;
   bool operator==(const CellSpan&) const = default;
 };
 
@@ -186,6 +193,31 @@ struct LayoutInput {
   std::vector<SkSize> childSizes;
   std::vector<float> childBaselines;  // NaN = no baseline (non-text)
   std::vector<CellSpan> childCells;   // .declared = false when unspoken
+  /** THE NAME OF THE REGION each child claims, when the scheme draws a
+   *  picture of itself out of names (`layouts::Grid::areas`) — empty for a
+   *  child that named none, which is the numeric spelling in `childCells`
+   *  and what a name resolves to. A name no picture carries is silent and
+   *  the child flows.
+   *
+   *  Beside `childCells` rather than in it because a string on the props
+   *  of every node in the tree is what the node size assertion forbids,
+   *  and a named region is rare. */
+  std::vector<std::string> childAreas;
+  /** THE SMALLEST EACH CHILD CAN BE without its content spilling out of
+   *  it — the second of the two intrinsic contributions a track-sizing
+   *  rule needs, where `childSizes` is the first.
+   *
+   *  A text leaf's is its longest unbreakable run, measured at a nil
+   *  width; its height is left at the measured one, because the height of
+   *  a paragraph set one word to a line is not a minimum anybody wants.
+   *  Everything else answers with its measured size, which is the
+   *  honest floor for a box compose cannot ask to be narrower: layout
+   *  measures once and never re-describes a child at a proposed width.
+   *
+   *  EMPTY unless the scheme asked for it, since the text minimum costs a
+   *  measure per text child. A scheme asks by declaring
+   *  `static constexpr bool readsChildMinSizes = true;`. */
+  std::vector<SkSize> childMinSizes;
 };
 
 /** A custom layout places children: one rect per child (position and
@@ -194,6 +226,15 @@ template <typename L>
 concept LayoutScheme = requires(const L& l, const LayoutInput& in) {
   { l.place(in) } -> std::convertible_to<std::vector<SkRect>>;
 };
+
+/** A scheme that sizes tracks from the content and therefore needs
+ *  `LayoutInput::childMinSizes` filled. Opt in, because the minimum costs
+ *  a measure per text child and most schemes place from the container and
+ *  a formula. */
+template <typename L>
+concept SizesFromContentMinima = LayoutScheme<L> && requires {
+  { L::readsChildMinSizes } -> std::convertible_to<bool>;
+} && L::readsChildMinSizes;
 
 // ---------------------------------------------------------------------------
 // Concepts (readable errors at the generic entry points)

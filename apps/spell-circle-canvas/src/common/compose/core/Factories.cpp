@@ -171,10 +171,12 @@ Element slot(std::string_view name) {
 }
 
 namespace detail {
-Element makeLayout(
-    std::function<std::vector<SkRect>(const LayoutInput&)> place) {
+Element makeLayout(std::function<std::vector<SkRect>(const LayoutInput&)> place,
+                   bool readsChildMinSizes) {
   Element e;
-  e.node()->deriveData.ensure().placeFn = std::move(place);
+  detail::DeriveData& derive = e.node()->deriveData.ensure();
+  derive.placeFn = std::move(place);
+  derive.placeReadsMinSizes = readsChildMinSizes;
   return e;
 }
 

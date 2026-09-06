@@ -210,7 +210,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   return true;
 }
 
-static_assert(kFieldCount<DeriveData> == 16,
+static_assert(kFieldCount<DeriveData> == 18,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
@@ -234,6 +234,12 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   // read differ in the field that produced it and are already unequal.
   // A verb that ever declared a read WITHOUT storing the key behind it
   // would break that, and would have to be compared here.
+  // area(): the region name a child claims of the scheme above it. Two
+  // descriptions that name different regions place the child differently
+  // and must not prune into each other. `placeReadsMinSizes` needs no rule
+  // of its own: it is a property of the scheme type behind `placeFn`, and
+  // a node carrying one is already conservatively unequal above.
+  if (a->cellArea != b->cellArea) return false;
   return a->railAnchors == b->railAnchors &&
          a->flowAroundKeys == b->flowAroundKeys &&
          a->flowAroundMargin == b->flowAroundMargin &&
@@ -456,7 +462,7 @@ namespace detail {
  *  here, because `inst.description` holds the memo's PRODUCED payload; and
  *  `children` are reconciled by key rather than compared — a node that
  *  prunes still walks them. */
-static_assert(kFieldCount<ElementNode> == 25 && kFieldCount<PaintProps> == 15 &&
+static_assert(kFieldCount<ElementNode> == 26 && kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 3 && kFieldCount<CustomData> == 2 &&
                   kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 3,
               "A struct propsEqual() compares BY HAND gained or lost a "
@@ -497,6 +503,7 @@ bool propsEqual(const ElementNode& a, const ElementNode& b) {
     if (!(a.foregrounds[i] == b.foregrounds[i])) return false;
   if (!(a.layout == b.layout) || !(a.corners == b.corners) ||
       a.clipContent != b.clipContent || a.boundary != b.boundary ||
+      a.coverageThreshold != b.coverageThreshold ||
       a.cacheMode != b.cacheMode || a.bakeScale != b.bakeScale)
     return false;
   if (!fxEqual(a.fxData, b.fxData)) return false;

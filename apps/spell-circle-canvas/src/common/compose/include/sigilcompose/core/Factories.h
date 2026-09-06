@@ -172,14 +172,18 @@ template <LayoutScheme L>
 Element layout(L scheme);
 
 namespace detail {
-Element makeLayout(
-    std::function<std::vector<SkRect>(const LayoutInput&)> place);
+Element makeLayout(std::function<std::vector<SkRect>(const LayoutInput&)> place,
+                   bool readsChildMinSizes);
 }  // namespace detail
 
 template <LayoutScheme L>
 Element layout(L scheme) {
+  // Whether the scheme wants the content minima is asked of the TYPE, so a
+  // scheme that never reads them never pays for the measure that fills
+  // them — and a scheme that does cannot forget to ask.
   return detail::makeLayout(
-      [s = std::move(scheme)](const LayoutInput& in) { return s.place(in); });
+      [s = std::move(scheme)](const LayoutInput& in) { return s.place(in); },
+      SizesFromContentMinima<L>);
 }
 
 /** A named mount point whose content is supplied independently via

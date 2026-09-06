@@ -29,9 +29,9 @@
 # Brush, and Brush links nothing here.
 sigil_library(SigilComposeKit
   SOURCES Eras.cpp Kit.cpp Routers.cpp
-  HEADERS Chrome.h Frame.h Gel.h Gloss.h Ground.h Annotations.h Typeset.h
-          Instruments.h Kinetic.h Kit.h Layouts.h PixelType.h Placers.h
-          Routers.h Specimen.h Sprites.h
+  HEADERS Chrome.h Frame.h Gel.h Gloss.h Grid.h Ground.h Annotations.h
+          Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h PixelType.h
+          Placers.h Routers.h Specimen.h Sprites.h
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
          SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave)
 
@@ -47,7 +47,8 @@ sigil_library(SigilComposeKit
 # that asks the machine's italic families whether their ink overhangs, so
 # that case alone carries the label.
 sigil_test(compose_test
-  SOURCES test/ComposeTestKitValues.cpp test/ComposeTestLayoutsAndShapes.cpp
+  SOURCES test/ComposeTestKitValues.cpp test/ComposeTestGrid.cpp
+          test/ComposeTestLayoutsAndShapes.cpp
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
           test/ComposeTestPlacers.cpp test/ComposeTestQueries.cpp
           test/ComposeTestStudio.cpp

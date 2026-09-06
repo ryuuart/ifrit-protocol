@@ -188,10 +188,20 @@ Element& Element::cells(int column, int row, int columns, int rows) {
   return *this;
 }
 
+Element& Element::area(std::string name) {
+  // The name alone is the claim: the numbers stay at their defaults until
+  // the scheme's picture resolves them, and `declared` is left to that
+  // resolution, so a name no picture carries flows exactly as an unspoken
+  // child does rather than landing on cell (0, 0).
+  m_node->deriveData.ensure().cellArea = std::move(name);
+  return *this;
+}
+
 Element& Element::cellAlign(Align across, Align down) {
   m_node->layout.cells.across = across;
   m_node->layout.cells.down = down;
   m_node->layout.cells.declared = true;
+  m_node->layout.cells.alignDeclared = true;
   return *this;
 }
 
