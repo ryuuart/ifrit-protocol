@@ -51,7 +51,7 @@ sigil_library(SigilComposeCore
     Fills.cpp
     # internal headers
     ComposeInternal.h ComposeRuntime.h Instance.h SlotSpecs.h Lanes.h
-    Transforms.h ComposerImpl.h PaintInternal.h
+    Transforms.h ComposerImpl.h PaintInternal.h BakeInk.h
   HEADERS ../Compose.h Composer.h Core.h Derive.h Element.h Factories.h
           Feed.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
           Shape.h Stroke.h Table.h TextPainter.h Tiles.h
@@ -69,10 +69,13 @@ sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)
 # The field walks include ComposeInternal.h AND ComposeRuntime.h (the
 # only test TU that does either) so the equality comparators and the
 # kSlotSpecs table can be reached DIRECTLY, which is why this binary
-# alone sees the library's source directory. yoga::yogacore is PRIVATE to
-# Core, so its headers are not on this target's path by inheritance — and
-# ComposeRuntime.h includes <yoga/Yoga.h>. Listed for the INCLUDE PATH;
-# the archive itself was already in the link closure.
+# alone sees the library's source directory; the caching cases reach
+# BakeInk.h over the same path, for the same reason — a bake's ink grid
+# decides what the blit may skip, and a grid that skips too much is
+# invisible from outside until it drops a pixel. yoga::yogacore is
+# PRIVATE to Core, so its headers are not on this target's path by
+# inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>. Listed for
+# the INCLUDE PATH; the archive itself was already in the link closure.
 sigil_test(compose_test
   SOURCES test/ComposeTestKernel.cpp test/ComposeTestMask.cpp
           test/ComposeTestFieldPins.cpp test/ComposeTestContentCore.cpp

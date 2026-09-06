@@ -7,6 +7,8 @@
 #include <include/core/SkPictureRecorder.h>
 #include <sigilcompose/core/Feed.h>
 
+#include "BakeInk.h"  // the ink grid a local bake is blitted through
+
 #include <numeric>
 
 #include "support/CoreTestSupport.h"
@@ -1085,4 +1087,152 @@ TEST(ComposeEdgeStore, IndexClearsWhenRoutesUnmount) {
   host.composer.render(describe());
   host.frame();
   EXPECT_TRUE(host.composer.routesAt("a").empty());
+}
+
+namespace {
+
+/** A RING OF TYPE turned about its own centre by a bound rotation: the
+ *  shape a bake is most worth taking for, and the shape whose bake is
+ *  mostly transparent. The letters ride a circle inscribed in the node's
+ *  box, so the ink is a band and the corners are empty. */
+Element turnedRing(Cache mode, const choreograph::Output<float>* turn) {
+  const float side = 640.0f, radius = 270.0f;
+  Element ring = box()
+                     .key("ring")
+                     .absolute()
+                     .left(10)
+                     .top(10)
+                     .width(side)
+                     .height(side)
+                     .cache(mode)
+                     .transformOrigin(0.5f, 0.5f);
+  const char8_t* letters[] = {u8"ANIMA", u8"LUMEN", u8"ORDO",  u8"SIGNUM",
+                              u8"VOX",   u8"NOMEN", u8"CIRCU", u8"TERRA",
+                              u8"AQUA",  u8"IGNIS", u8"AER",   u8"SAL"};
+  for (int i = 0; i < 12; ++i) {
+    const float a = (float)i * (float)(2 * M_PI) / 12.0f;
+    ring.child(text(letters[i], whiteStyle(18))
+                   .absolute()
+                   .left(side * 0.5f + radius * std::cos(a) - 40.0f)
+                   .top(side * 0.5f + radius * std::sin(a) - 12.0f)
+                   .width(80));
+  }
+  if (turn) ring.rotate(motion::bind(turn).target(0.0f, 360.0f));
+  return profiledUnder(std::move(ring));
+}
+
+}  // namespace
+
+TEST(ComposeCaching, ARingUnderABoundRotationBakesOnceAndBlitsEveryFrame) {
+  // A rotation about a node's own centre moves no pixel of its content —
+  // it moves where the content lands. So the bake is taken ONCE, in the
+  // node's own space, and every frame after is a blit through the turn;
+  // the ladder the local bake is quantized on cannot be moved by a
+  // rotation, so no rung is ever crossed and nothing is re-rasterized.
+  Host host(680, 680);
+  choreograph::Output<float> turn{0.0f};
+  host.composer.render(turnedRing(Cache::Texture, &turn));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the one bake";
+  for (int i = 1; i <= 12; ++i) {
+    turn = (float)i * 0.011f;  // a few degrees a frame, past every quadrant
+    host.frame(1.0 / 60.0);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "frame " << i << ": the ring was re-rasterized while it turned";
+    EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+        << "frame " << i << ": the ring re-recorded while it turned";
+  }
+}
+
+namespace {
+
+/** The brightest channel in each @p block-sized block of a host's canvas. */
+std::vector<int> blockPeaks(Host& host, int w, int h, int block) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  host.surface->readPixels(bm.pixmap(), 0, 0);
+  std::vector<int> peaks((size_t)((w + block - 1) / block) *
+                         (size_t)((h + block - 1) / block));
+  const int cols = (w + block - 1) / block;
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) {
+      const SkColor c = bm.getColor(x, y);
+      int& peak = peaks[(size_t)(y / block) * (size_t)cols + (size_t)(x / block)];
+      peak = std::max({peak, (int)SkColorGetR(c), (int)SkColorGetG(c),
+                       (int)SkColorGetB(c)});
+    }
+  return peaks;
+}
+
+}  // namespace
+
+TEST(ComposeCaching, ATurnedRingsBlitLosesNoneOfWhatItBaked) {
+  // The blit skips the parts of the canvas no ink of the bake can reach,
+  // and "no ink can reach" has to be exactly true: the failure mode is not
+  // a softened edge — a bake blitted through a rotation is resampled and
+  // its glyph edges land a fraction of a texel off the live paint's, which
+  // is what the local bake IS — it is a block of the ring going missing.
+  // So the claim tested here is the one the skipping makes: wherever the
+  // live paint is lit, the blit is lit too, at every angle, including the
+  // ones that put the bake's own grid across the device grid at 45
+  // degrees. Delete the ink test in BakeInk.h's scan and a band of the
+  // ring vanishes here.
+  const int w = 680, h = 680, block = 16;
+  for (float degrees : {0.0f, 7.0f, 45.0f, 90.0f, 137.0f, -60.0f}) {
+    choreograph::Output<float> turn{degrees / 360.0f};
+    Host cached(w, h), plain(w, h);
+    cached.composer.render(turnedRing(Cache::Texture, &turn));
+    cached.frame();
+    cached.frame();  // the second frame is the blit, not the bake
+    EXPECT_EQ(cached.composer.stats().texturesBaked, 0u) << degrees;
+    plain.composer.render(turnedRing(Cache::None, &turn));
+    plain.frame();
+    const std::vector<int> was = blockPeaks(plain, w, h, block);
+    const std::vector<int> is = blockPeaks(cached, w, h, block);
+    ASSERT_EQ(was.size(), is.size());
+    int lit = 0, lost = 0;
+    for (size_t i = 0; i < was.size(); ++i) {
+      if (was[i] < 200) continue;  // a glyph's solid interior, not its edge
+      ++lit;
+      if (is[i] < 40) ++lost;
+    }
+    EXPECT_GT(lit, 40) << "at " << degrees << ": the ring drew nothing";
+    EXPECT_EQ(lost, 0) << "at " << degrees << " degrees, " << lost << " of "
+                       << lit << " lit blocks came back empty";
+  }
+}
+
+TEST(ComposeCaching, TheInkGridSkipsAnEmptyTileAndKeepsEveryLitOne) {
+  // The grid's two halves, read off the values rather than off a picture.
+  // A band through a square leaves most tiles empty; a solid square leaves
+  // none, and is refused a grid so it does not pay for one.
+  const auto scan = [](const std::function<void(SkCanvas&)>& draw, int side) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
+    surface->getCanvas()->clear(SK_ColorTRANSPARENT);
+    draw(*surface->getCanvas());
+    SkPixmap px;
+    EXPECT_TRUE(surface->peekPixels(&px));
+    return detail::inkGridOf(px);
+  };
+  const detail::InkGrid ring = scan(
+      [](SkCanvas& c) {
+        SkPaint p;
+        p.setAntiAlias(true);
+        p.setStyle(SkPaint::kStroke_Style);
+        p.setStrokeWidth(12);
+        p.setColor(SK_ColorWHITE);
+        c.drawCircle(200, 200, 150, p);
+      },
+      400);
+  ASSERT_FALSE(ring.empty()) << "a band through a square has tiles to skip";
+  const size_t lit =
+      (size_t)std::count(ring.covered.begin(), ring.covered.end(), (uint8_t)1);
+  EXPECT_LT(lit, ring.covered.size() / 2) << "most of a ring's square is empty";
+  EXPECT_GT(lit, 0u);
+
+  EXPECT_TRUE(scan([](SkCanvas& c) { c.clear(SK_ColorWHITE); }, 400).empty())
+      << "a solid bake has nothing to skip";
+  EXPECT_TRUE(scan([](SkCanvas& c) { c.clear(SK_ColorWHITE); }, 48).empty())
+      << "a small bake is blitted in less time than the scan would take";
 }

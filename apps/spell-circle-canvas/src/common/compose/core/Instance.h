@@ -12,6 +12,7 @@
 #include <sigilmotion/values/Lanes.h>
 #include <yoga/Yoga.h>
 
+#include "BakeInk.h"
 #include "ComposeInternal.h"
 
 // markPaintDirtyUp() calls sk_sp::reset() inline, so the ref-counted payload
@@ -304,6 +305,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // flag exists so a bake taken in one mode is never blitted in the other
   // — the two store different rectangles in textureBakeRect.
   bool textureDeviceSpace = false;
+  /** Which tiles of a LOCAL bake carry ink (BakeInk.h). A local bake is
+   *  blitted through the node's own transform and resampled by it, so its
+   *  whole rect runs the sampler however little of it is ink; the grid is
+   *  what lets the blit skip the empty tiles. Empty for a device-space
+   *  bake, which blits as a literal copy and has nothing to skip. */
+  InkGrid textureInk;
   // Is this node's OWN transform animating? (Geometric slots only — opacity
   // does not move the device rect.) A device-space bake is exact but is
   // pinned to one device rect, so it re-bakes whenever the node moves;

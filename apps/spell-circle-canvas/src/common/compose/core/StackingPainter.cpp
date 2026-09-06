@@ -1811,6 +1811,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
             paintContent(inst, *lc, hostScale, leafBlend, leafOpacity);
           });
           inst.textureImage = layer->makeImageSnapshot();
+          inst.textureInk = {};
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = SkRect::Make(device);
           inst.bakedLiveShader = inst.hasPendingLiveFill
@@ -2116,6 +2117,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
             paintContent(inst, *lc, hostScale);
           }
           inst.textureImage = layer->makeImageSnapshot();
+          inst.textureInk = {};
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = want;
           inst.textureScale = maxScaleOf(totalM, localBoundsOf());
@@ -2250,6 +2252,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
             paintContent(inst, *lc, hostScale);  // no leaf blend: bakes isolate
           });
           inst.textureImage = layer->makeImageSnapshot();
+          inst.textureInk = {};
           inst.textureDeviceSpace = true;
           inst.textureBakeRect = bakeRect;
           inst.textureScale = maxScaleOf(totalM, localBounds);
@@ -2394,6 +2397,13 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         paintContent(inst, *layer->getCanvas(), scale, SkBlendMode::kSrcOver,
                      1.0f, Phase::All, deferEffect);
       });
+      // The ink grid, off the surface's own pixels — before the snapshot,
+      // so nothing is copied for it. A GPU surface answers no pixmap and
+      // the grid stays empty, which is the whole-rect blit this tier had
+      // before the grid existed.
+      SkPixmap baked;
+      inst.textureInk =
+          layer->peekPixels(&baked) ? inkGridOf(baked) : InkGrid{};
       inst.textureImage = layer->makeImageSnapshot();
       inst.textureScale = scale;
       inst.textureDeviceSpace = false;
@@ -2435,9 +2445,14 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         blit.setImageFilter(deferredFilter);
         dressed = true;
       }
-      canvas.drawImageRect(inst.textureImage, dst,
-                           SkSamplingOptions(SkFilterMode::kLinear),
-                           dressed ? &blit : nullptr);
+      // A DEFERRED EFFECT IS NOT ADMITTED BY THE INK. The filter spreads
+      // the content OUTSIDE the pixels that carry it — that is what a glow
+      // is — and the grid describes where the ink is, not where the filter
+      // will put it. Blitted whole, as it was before the grid existed.
+      drawInkedImage(canvas, inst.textureImage,
+                     deferEffect ? InkGrid{} : inst.textureInk, dst,
+                     SkSamplingOptions(SkFilterMode::kLinear),
+                     dressed ? &blit : nullptr);
     });
   } else if (!liveOnly && cacheHolds && node.cacheMode != Cache::None &&
              // A node HOSTING A SHARED SPACE never records: its children

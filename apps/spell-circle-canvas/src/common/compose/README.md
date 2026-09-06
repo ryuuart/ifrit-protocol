@@ -926,6 +926,23 @@ change of what the picture IS, not of how big it is being shown.
 `Composer::bakeDensity()` reads it back, and zero — the default — is the
 ladder.
 
+**A BAKE IS BLITTED WHERE ITS INK IS.** A bake held in local space is
+drawn through the node's own transform, and a transform that is not an
+integer translation resamples: the sampler runs over every pixel of the
+bake's rect whether the texel it reads is ink or transparent black. The
+shapes a bake is most worth taking for are the ones that waste the most
+of that — a ring of type, a turning arc layer, a glow round a figure is a
+thin band inside a square. So a bake records which coarse tiles of it
+hold any non-transparent texel, and the blit is admitted only on the
+whole device pixels those tiles can reach. Nothing about the picture
+changes: the draw is the same draw under the same matrix, the region is a
+set of whole pixels so no pixel falls between its parts, and a tile is
+kept if any texel in it or beside it is ink, so a skipped tile is one no
+sample could have read. A solid bake is refused a grid and blitted whole,
+as is a small one and a bake carrying a deferred effect — a filter
+spreads content outside the pixels that carry it, which is the one thing
+the grid does not describe.
+
 ---
 
 ## Traps
