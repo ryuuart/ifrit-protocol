@@ -12,10 +12,18 @@
 
 #include <cstdio>
 #include <mutex>
+#include <utility>
 
 namespace sigil::skia {
 
-OffscreenSurface::OffscreenSurface(OffscreenSurface&& other) noexcept = default;
+// A MOVED-FROM SURFACE DOES NOTHING. A defaulted move would leave the
+// source holding the context it was built on, so its `submit()` would go
+// on snapping and inserting the recorder's work — work that belongs to
+// whoever the surface moved into. Wraps are returned by value, so the
+// move is an ordinary path and not a corner.
+OffscreenSurface::OffscreenSurface(OffscreenSurface&& other) noexcept
+    : m_context(std::exchange(other.m_context, nullptr)),
+      m_surface(std::move(other.m_surface)) {}
 
 OffscreenSurface::~OffscreenSurface() = default;
 
@@ -26,6 +34,7 @@ SkCanvas* OffscreenSurface::canvas() const {
 SkSurface* OffscreenSurface::surface() const { return m_surface.get(); }
 
 void OffscreenSurface::submit() {
+  if (!m_context) return;
   auto* recorder = m_context->recorder();
   auto* context = m_context->context();
   if (!recorder || !context) return;

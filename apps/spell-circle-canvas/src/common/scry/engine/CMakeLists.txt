@@ -49,10 +49,15 @@ ultralight_copy_resources(scry_bench)
 # Every case here needs a device, so on a machine without one the binary
 # checks nothing; the label makes that visible as a lane not run rather
 # than as a lane that passed.
+#
+# A parameterised suite is discovered under the name its instantiation
+# gives it, so the group names `SlotDoors/SlotFillingTest`: `SlotFillingTest`
+# alone matches no case, and every case it was meant to claim would run
+# unlabelled — failing, not skipping, where there is no device.
 if(APPLE)
   sigil_test(scry_test
     SOURCES test/EngineGpuTest.mm
     LIBRARIES SigilScryEngine ${METAL_FRAMEWORK}
-    SUITES SlotFillingTest WebViewGpuTest LABELS gpu)
+    SUITES SlotDoors/SlotFillingTest WebViewGpuTest LABELS gpu)
   ultralight_copy_resources(scry_test)
 endif()

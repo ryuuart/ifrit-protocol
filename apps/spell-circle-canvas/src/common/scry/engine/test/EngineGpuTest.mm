@@ -31,6 +31,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -55,7 +57,13 @@ WebEngine &gpuEngine() {
     config.graphite = sharedGraphite();
     return WebEngine::create(config);
   }();
-  EXPECT_NE(engine, nullptr);
+  // Every case here is about a running engine, and there is no engine to
+  // dereference when the boot failed: stop the process saying so, rather
+  // than record an expectation and fault on the next line.
+  if (!engine) {
+    std::fprintf(stderr, "the GPU-mode engine did not boot\n");
+    std::abort();
+  }
   return *engine;
 }
 

@@ -42,6 +42,9 @@ OffscreenSurface::OffscreenSurface(GraphiteContext& context,
 
 core::hardware::FenceValue OffscreenSurface::submit(
     core::hardware::GpuDevice& device, core::hardware::FenceHandle fence) {
+  // A moved-from surface submits nothing, so there is nothing for a
+  // signal to stand behind and the fence keeps the value it has.
+  if (!m_context) return core::hardware::kFenceInitialValue;
   submit();
   return device.signal(fence);
 }

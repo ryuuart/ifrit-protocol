@@ -28,6 +28,7 @@
 #include <array>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -422,6 +423,42 @@ TEST(SigilSkiaGraphite, StaleHandleWrapsNothing) {
   EXPECT_EQ(surface.surface(), nullptr);
   // A fence handle that names nothing signals nothing, and says so.
   EXPECT_EQ(surface.submit(*dev, FenceHandle{}), kFenceInitialValue);
+}
+
+TEST(SigilSkiaGraphite, AMovedFromSurfaceHoldsNothingAndSubmitsNothing) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  GpuDevice *dev = adoptedDevice();
+  ASSERT_NE(dev, nullptr);
+
+  const TextureHandle handle = dev->createTexture(smallTarget());
+  ASSERT_TRUE(dev->isValid(handle));
+  OffscreenSurface source(*ctx, *dev, handle);
+  ASSERT_NE(source.canvas(), nullptr);
+
+  OffscreenSurface moved(std::move(source));
+  EXPECT_NE(moved.canvas(), nullptr);
+  EXPECT_EQ(source.canvas(), nullptr);
+  EXPECT_EQ(source.surface(), nullptr);
+
+  // The wrap that was moved out of submits nothing: it holds no context,
+  // so there is no recording of anyone else's work for it to insert and
+  // no submission for a fence to stand behind.
+  const FenceHandle fence = dev->createFence();
+  EXPECT_EQ(source.submit(*dev, fence), kFenceInitialValue);
+  EXPECT_EQ(dev->completedValue(fence), kFenceInitialValue);
+  source.submit();
+
+  // The wrap that was moved into is the whole surface, and draws.
+  moved.canvas()->clear(SkColorSetARGB(255, 0, 255, 0));
+  const FenceValue value = moved.submit(*dev, fence);
+  EXPECT_GT(value, kFenceInitialValue);
+  ASSERT_EQ(dev->waitCpu(fence, value), FenceWait::Reached);
+  const std::vector<uint8_t> bytes = readMetalBytes(*dev, handle, 8);
+  EXPECT_EQ(bytes[1], 255);
+
+  dev->destroyFence(fence);
+  dev->destroy(handle);
 }
 
 TEST(SigilSkiaGraphite, StandsOnADeviceAdoptedFromTheHost) {
