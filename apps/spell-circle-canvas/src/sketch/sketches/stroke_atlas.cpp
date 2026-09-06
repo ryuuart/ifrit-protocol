@@ -1036,13 +1036,17 @@ struct StrokeAtlasSketch : sketch::Sketch {
         return box()
             .width(17)
             .height(17)
-            .shape([](SkSize s) {
-              SkPathBuilder b;
-              b.moveTo(s.width() * 0.15f, s.height() * 0.12f);
-              b.lineTo(s.width() * 0.88f, s.height() * 0.5f);
-              b.lineTo(s.width() * 0.15f, s.height() * 0.88f);
-              return b.detach();
-            })
+            .shape(keyedShape(std::string_view("chevron"),
+                              [](SkSize s) {
+                                SkPathBuilder b;
+                                b.moveTo(s.width() * 0.15f,
+                                         s.height() * 0.12f);
+                                b.lineTo(s.width() * 0.88f,
+                                         s.height() * 0.5f);
+                                b.lineTo(s.width() * 0.15f,
+                                         s.height() * 0.88f);
+                                return b.detach();
+                              }))
             .stroke(lines::Line{.width = 1.6f, .fill = red()});
       };
       auto tick = [] {
