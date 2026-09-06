@@ -29,9 +29,9 @@ qt_add_qml_module(IfritUi
 )
 
 if(APPLE)
-  find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+  sigil_frameworks(appkit AppKit)
   target_sources(IfritUi PRIVATE WindowChrome.mm)
-  target_link_libraries(IfritUi PRIVATE ${APPKIT_FRAMEWORK})
+  target_link_libraries(IfritUi PRIVATE ${appkit})
 else()
   target_sources(IfritUi PRIVATE WindowChromeStub.cpp)
 endif()

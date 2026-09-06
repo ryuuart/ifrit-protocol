@@ -14,6 +14,8 @@
 #   sigil_header_self_test() compiles every public header first and alone
 #   sigil_shader_sources()   compiles a directory of shader text into a
 #                            target, reachable through a generated accessor
+#   sigil_frameworks()       resolves Apple frameworks by name, once for
+#                            the whole tree
 #
 # Link visibility is the caller's: nothing here decides PUBLIC against
 # PRIVATE, adds a link a call did not name, or globs a source. Each
@@ -22,6 +24,43 @@
 
 # Where gtest_discover_tests() comes from.
 include(GoogleTest)
+
+# The documentation sites, whose registration sigil_library_root() calls
+# into: everything the whole tree shares is reached through this one file.
+include(${CMAKE_CURRENT_LIST_DIR}/Docs.cmake)
+
+# sigil_frameworks(<out> <name>...)
+#   Sets <out> in the caller's scope to the paths of the named Apple
+#   frameworks, and to nothing at all off Apple, so a directory names what
+#   it links the same way on every platform. Each name is searched for once
+#   per build tree: the result is a cache entry keyed by the name, which
+#   every later call in every other directory reads instead of searching
+#   again.
+function(sigil_frameworks out)
+  set(paths)
+  if(APPLE)
+    foreach(name IN LISTS ARGN)
+      string(TOUPPER ${name} upper)
+      find_library(SIGIL_FRAMEWORK_${upper} ${name} REQUIRED)
+      list(APPEND paths ${SIGIL_FRAMEWORK_${upper}})
+    endforeach()
+  endif()
+  set(${out} ${paths} PARENT_SCOPE)
+endfunction()
+
+# Compiles every Objective-C++ source among SOURCES with automatic
+# reference counting. Named per source rather than per target because a
+# target can also carry C++ translation units that manage their own
+# CoreFoundation references.
+function(_sigil_arc_sources target)
+  foreach(source IN LISTS ARGN)
+    if(source MATCHES "\\.mm$")
+      get_filename_component(source ${source} ABSOLUTE)
+      set_source_files_properties(${source} TARGET_DIRECTORY ${target}
+        PROPERTIES COMPILE_OPTIONS -fobjc-arc)
+    endif()
+  endforeach()
+endfunction()
 
 # sigil_library_root(<Name> BRIEF "<one line>" [DOCS <file>...])
 #   Once, in a library's root CMakeLists.txt. For that directory and every
@@ -65,15 +104,21 @@ endfunction()
 
 # sigil_library(<Target> [SOURCES <file>...] [HEADERS <file>...]
 #               [PUBLIC <item>...] [PRIVATE <item>...] [INTERFACE <item>...]
-#               [INCLUDE_PRIVATE <dir>...])
+#               [INCLUDE_PRIVATE <dir>...] [FRAMEWORKS <name>...] [ARC])
 #   A STATIC archive, or an INTERFACE target when there are no SOURCES,
 #   carrying SIGIL_INCLUDE_DIR on its public include path and the links the
 #   call names. SOURCES are relative to the calling directory; HEADERS to
 #   include/<namespace>/<calling directory relative to the root>/, so a
 #   feature names its own headers bare and a sibling's through `..`.
+#   FRAMEWORKS are Apple frameworks named bare, linked PRIVATE because
+#   which system framework an implementation reaches for is nobody else's
+#   business, and resolved once for the tree; off Apple they name nothing.
+#   ARC compiles the Objective-C++ sources with automatic reference
+#   counting.
 function(sigil_library target)
-  cmake_parse_arguments(ARG "" ""
-    "SOURCES;HEADERS;PUBLIC;PRIVATE;INTERFACE;INCLUDE_PRIVATE" ${ARGN})
+  cmake_parse_arguments(ARG "ARC" ""
+    "SOURCES;HEADERS;PUBLIC;PRIVATE;INTERFACE;INCLUDE_PRIVATE;FRAMEWORKS"
+    ${ARGN})
   if(NOT SIGIL_LIBRARY_ROOT)
     message(FATAL_ERROR
       "sigil_library(${target}): no sigil_library_root() above this directory")
@@ -106,8 +151,18 @@ function(sigil_library target)
     if(ARG_INTERFACE)
       target_link_libraries(${target} INTERFACE ${ARG_INTERFACE})
     endif()
+    if(ARG_FRAMEWORKS)
+      sigil_frameworks(frameworks ${ARG_FRAMEWORKS})
+      if(frameworks)
+        target_link_libraries(${target} PRIVATE ${frameworks})
+      endif()
+    endif()
+    if(ARG_ARC)
+      _sigil_arc_sources(${target} ${ARG_SOURCES})
+    endif()
   else()
-    if(ARG_PUBLIC OR ARG_PRIVATE OR ARG_INCLUDE_PRIVATE)
+    if(ARG_PUBLIC OR ARG_PRIVATE OR ARG_INCLUDE_PRIVATE OR ARG_FRAMEWORKS
+       OR ARG_ARC)
       message(FATAL_ERROR
         "sigil_library(${target}): a target with no SOURCES is INTERFACE "
         "and takes INTERFACE links only")
@@ -154,13 +209,7 @@ function(_sigil_binary_support target kind)
     target_compile_definitions(${target} PRIVATE ${ARG_DEFINITIONS})
   endif()
   if(ARG_ARC)
-    foreach(source IN LISTS ARG_SOURCES)
-      if(source MATCHES "\\.mm$")
-        get_filename_component(source ${source} ABSOLUTE)
-        set_source_files_properties(${source} TARGET_DIRECTORY ${target}
-          PROPERTIES COMPILE_OPTIONS -fobjc-arc)
-      endif()
-    endforeach()
+    _sigil_arc_sources(${target} ${ARG_SOURCES})
   endif()
 endfunction()
 
