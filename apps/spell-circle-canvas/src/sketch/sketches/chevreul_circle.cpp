@@ -410,11 +410,15 @@ inline const sketch::kit::Theme& sheet() {
   return look;
 }
 
-// The plate's four registers, each one library `type()` call: the roman it
-// is set in, its bold, its italic, and the mono the numbers run in.
+// The plate's four registers: the roman it is set in and the mono the
+// numbers run in, both read off the plate's own sheet so every line on the
+// plate is set in one of the two faces it names, and the bold and italic
+// cuts, which name their own face at the call because a sheet holds two.
+// They read `sheet()` and not the theme in scope because a register is also
+// asked for while a paragraph is being built, which is before anything
+// binds one.
 inline weave::TextStyle sr(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle(
-      {.face = serif(), .size = sz, .color = c, .track = tr});
+  return sheet().sans(sz, c, tr);
 }
 inline weave::TextStyle sbd(float sz, SkColor4f c, float tr = 0) {
   return weave::textStyle(
@@ -425,8 +429,7 @@ inline weave::TextStyle it(float sz, SkColor4f c, float tr = 0) {
       {.face = serifIt(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle(
-      {.face = mono(), .size = sz, .color = c, .track = tr});
+  return sheet().mono(sz, c, tr);
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }

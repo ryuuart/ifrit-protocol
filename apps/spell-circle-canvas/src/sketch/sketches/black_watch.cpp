@@ -510,39 +510,6 @@ inline sk_sp<SkTypeface> serifIt() {
                             SkFontStyle::kItalic_Slant);
 }
 
-// A positional shorthand over the library's designated-init `type()`, for
-// the paragraph registers that name their own face at the call.
-inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
-                           SkColor4f color, float track = 0) {
-  return weave::textStyle(
-      {.face = tf, .size = size, .color = color, .track = track});
-}
-inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle(
-      {.face = mono(), .size = sz, .color = c, .track = tr});
-}
-inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle(
-      {.face = sansB(), .size = sz, .color = c, .track = tr});
-}
-
-inline std::u8string U(const std::string& s) { return toU8(s); }
-
-inline Element label(const std::string& s, const weave::TextStyle& st, float x,
-                     float y, float w) {
-  return at(x, y, w, st.shaping.fontSize * 1.6f).child(text(U(s), st));
-}
-inline Element centred(const std::string& s, const weave::TextStyle& st,
-                       float x, float y, float w) {
-  return at(x, y, w, st.shaping.fontSize * 1.6f)
-      .child(text(U(s), st)
-                 .textAlign(weave::TextAlignment::kCenter)
-                 .width(Dim(w)));
-}
-inline Element rule(float x, float y, float w, float h, SkColor4f c) {
-  return at(x, y, w, h).fill(c);
-}
-
 // THE CARD'S OWN SHEET. Every kit component reads the theme in scope, and
 // this card is dark ink on manila rather than the house sheet's pale ink on
 // black, so the study binds its own: the card's two faces, the card's ink,
@@ -567,6 +534,43 @@ inline const sketch::kit::Theme& sheet() {
     return t;
   }();
   return look;
+}
+
+// A positional shorthand over the library's designated-init `type()`, for
+// the paragraph registers that name their own face at the call.
+inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
+                           SkColor4f color, float track = 0) {
+  return weave::textStyle(
+      {.face = tf, .size = size, .color = color, .track = track});
+}
+// The mono register reads the card's own sheet rather than resolving a face
+// of its own, so every line a machine wrote on this card is set in the one
+// face the sheet names. It reads `sheet()` and not the theme in scope
+// because a register is also asked for while a paragraph is being built,
+// which is before anything binds one.
+inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
+  return sheet().mono(sz, c, tr);
+}
+inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
+  return weave::textStyle(
+      {.face = sansB(), .size = sz, .color = c, .track = tr});
+}
+
+inline std::u8string U(const std::string& s) { return toU8(s); }
+
+inline Element label(const std::string& s, const weave::TextStyle& st, float x,
+                     float y, float w) {
+  return at(x, y, w, st.shaping.fontSize * 1.6f).child(text(U(s), st));
+}
+inline Element centred(const std::string& s, const weave::TextStyle& st,
+                       float x, float y, float w) {
+  return at(x, y, w, st.shaping.fontSize * 1.6f)
+      .child(text(U(s), st)
+                 .textAlign(weave::TextAlignment::kCenter)
+                 .width(Dim(w)));
+}
+inline Element rule(float x, float y, float w, float h, SkColor4f c) {
+  return at(x, y, w, h).fill(c);
 }
 
 // The curves. bind()'s map() runs after from() normalises, and from() lets the
