@@ -48,7 +48,10 @@ glm::vec2 normalAt(const std::vector<glm::vec2>& pts, size_t i, bool closed) {
 template <typename Fn>
 SkPath overSamples(const SkPath& path, float segmentPx, bool smooth,
                    Fn perContour) {
-  SkPathBuilder out;
+  // The answer is the source shape moved, so it fills the way the source
+  // fills: a default builder would return an even-odd donut as winding
+  // and fill its hole solid.
+  SkPathBuilder out(path.getFillType());
   for (const Polyline& contour : flatten(path, 0.25f)) {
     const float len = contour.length();
     const int count =
@@ -351,7 +354,9 @@ SkPath roundCorners(const SkPath& path, float radius,
                     const CornerOptions& options) {
   if (radius <= 0) return path;
   if (options == CornerOptions{}) {
-    SkPathBuilder dst;
+    // A corner effect writes verbs alone and never sets a fill type, so
+    // the destination has to carry the source's.
+    SkPathBuilder dst(path.getFillType());
     SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
     if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
         fx && fx->filterPath(&dst, path, &rec))
@@ -443,7 +448,7 @@ PathOp chain(std::vector<PathOp> steps) {
 
 SkPath chamferCorners(const SkPath& path, float cut) {
   if (cut <= 0 || path.isEmpty()) return path;
-  SkPathBuilder out;
+  SkPathBuilder out(path.getFillType());
   std::vector<SkPoint> run;  // current contour's polyline vertices
   SkPathBuilder verbatim;    // the same contour, copied exactly
   bool closed = false, anyCurve = false;
@@ -568,7 +573,7 @@ SkPath chamferCorners(const SkPath& path, float cut) {
 }
 
 SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength) {
-  SkPathBuilder out;
+  SkPathBuilder out(src.getFillType());
   SkContourMeasureIter iter(src, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float len = contour->length();

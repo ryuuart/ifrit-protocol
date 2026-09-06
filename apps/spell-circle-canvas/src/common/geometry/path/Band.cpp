@@ -138,7 +138,7 @@ SkPath bandRegionImpl(const SkPath& spine, const Profile& width,
   // circles, so an outward formation exits the shape. `parallel` means
   // the same side; a helper that flipped it would turn every band inside
   // out on one code path only.
-  SkPathBuilder out;
+  SkPathBuilder out(spine.getFillType());
   float consumed = 0;
   for (const auto& [contour, len] : splitContours(spine)) {
     const float sliceStart = total > 0 ? consumed / total : 0.0f;
@@ -205,7 +205,7 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
       constant = profile.acrossAt(((float)k + 0.5f) / 97.0f, total) == first;
     if (constant) return first == 0.0f ? spine : parallel(spine, first);
   }
-  SkPathBuilder out;
+  SkPathBuilder out(spine.getFillType());
   SkContourMeasureIter iter(spine, false);
   float consumed = 0;
   while (sk_sp<SkContourMeasure> contour = iter.next()) {

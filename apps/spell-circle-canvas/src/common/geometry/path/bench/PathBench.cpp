@@ -629,7 +629,7 @@ BENCHMARK(BM_SymmetryCopies)
 void BM_CellsStep(benchmark::State& state) {
   const int edge = (int)state.range(0);
   Cells<float> sheet(edge, edge, 0.0f);
-  sheet.setEdge(Edge::Wrap);
+  sheet.setBoundary(Boundary::Wrap);
   for (int i = 0; i < edge; ++i) sheet.at(i, i) = 1.0f;
   for ([[maybe_unused]] auto iteration : state) {
     sheet.step([](const Cells<float>& from, int x, int y) {

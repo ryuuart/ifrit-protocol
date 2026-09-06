@@ -14,7 +14,7 @@
  * THE RULES ARE NOT HERE, and that is deliberate. A fire, a slime mould
  * and Conway's life share this buffer and share nothing else; a
  * catalogue of rules would be a catalogue of somebody else's pictures.
- * What is here is the buffer, the edge behaviour, and the swap.
+ * What is here is the buffer, the boundary behaviour, and the swap.
  *
  * No drawing either: a caller reads the cells and paints them however it
  * paints anything.
@@ -31,7 +31,7 @@ namespace sigil::geometry::path {
  *  picture completely — a wrapped sheet has no edge and a clamped one
  *  has a wall — so it is a property of the sheet rather than a decision
  *  each rule makes for itself. */
-enum class Edge : uint8_t {
+enum class Boundary : uint8_t {
   /** The nearest cell inside. An edge behaves as if it continued. */
   Clamp,
   /** The cell that many steps in from the other side. The sheet is a
@@ -58,9 +58,10 @@ class Cells {
   [[nodiscard]] size_t size() const { return m_front.size(); }
   [[nodiscard]] bool empty() const { return m_front.empty(); }
 
-  /** The edge rule, and the value `Edge::Constant` answers with. */
-  [[nodiscard]] Edge edge() const { return m_edge; }
-  void setEdge(Edge edge) { m_edge = edge; }
+  /** The rule for a read outside, and the value `Boundary::Constant`
+   *  answers with. */
+  [[nodiscard]] Boundary boundary() const { return m_boundary; }
+  void setBoundary(Boundary boundary) { m_boundary = boundary; }
   [[nodiscard]] const T& outside() const { return m_outside; }
   void setOutside(T value) { m_outside = std::move(value); }
 
@@ -73,18 +74,18 @@ class Cells {
   }
 
   /** THE CELL AT (x, y) THROUGH THE EDGE RULE, which a rule reading its
-   *  neighbours uses so that no rule spells the edge itself. */
+   *  neighbours uses so that no rule spells the boundary itself. */
   [[nodiscard]] const T& read(int x, int y) const {
-    switch (m_edge) {
-      case Edge::Clamp:
+    switch (m_boundary) {
+      case Boundary::Clamp:
         x = std::clamp(x, 0, m_width - 1);
         y = std::clamp(y, 0, m_height - 1);
         break;
-      case Edge::Wrap:
+      case Boundary::Wrap:
         x = ((x % m_width) + m_width) % m_width;
         y = ((y % m_height) + m_height) % m_height;
         break;
-      case Edge::Constant:
+      case Boundary::Constant:
         if (x < 0 || y < 0 || x >= m_width || y >= m_height) return m_outside;
         break;
     }
@@ -117,11 +118,11 @@ class Cells {
     m_front.swap(m_back);
   }
 
-  /** Content equality, cell for cell, including the edge rule — two
+  /** Content equality, cell for cell, including the boundary rule — two
    *  sheets that answer differently outside are not the same sheet. */
   friend bool operator==(const Cells& a, const Cells& b) {
     return a.m_width == b.m_width && a.m_height == b.m_height &&
-           a.m_edge == b.m_edge && a.m_outside == b.m_outside &&
+           a.m_boundary == b.m_boundary && a.m_outside == b.m_outside &&
            a.m_front == b.m_front;
   }
 
@@ -130,7 +131,7 @@ class Cells {
   int m_height = 0;
   std::vector<T> m_front;
   std::vector<T> m_back;
-  Edge m_edge = Edge::Clamp;
+  Boundary m_boundary = Boundary::Clamp;
   T m_outside{};
 };
 

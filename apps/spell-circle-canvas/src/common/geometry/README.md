@@ -553,7 +553,7 @@ in no header.
 - **`path/Cells.h`** — the substrate every cellular automaton and
   reaction-diffusion shares. `Cells<T>` is a rectangle of cells with a
   spare: `at()` reads and writes a cell, `read()` reads one through the
-  `Edge` rule (`Clamp`, `Wrap`, or a stated `Constant` outside), and
+  `Boundary` rule (`Clamp`, `Wrap`, or a stated `Constant` outside), and
   `step(rule)` calls `rule(sheet, x, y)` for every cell, writing the
   spare and swapping at the end — so nothing a rule reads has been
   written by its own pass and the order the cells are walked in cannot
@@ -1038,8 +1038,14 @@ with 8 shared positions returns with 36 — same positions, same winding,
 same attribute values, a different vertex count.
 
 **`Geometry.h`** at the root of the include tree includes every public
-header, for a consumer that takes the whole library rather than a tier
-of it.
+header of every feature — `path/`, `path/blend/`, `kit/`, `mesh/`,
+`mesh/camera/`, `mesh/codec/`, `mesh/curve/`, `mesh/pop/` and
+`mesh/render/` — for a consumer that takes the whole library rather than
+a tier of it. The device headers are left out on purpose: `device/
+Device.h`, `mesh/pop/device/` and `mesh/render/device/Painter.h` each
+name a GPU device that has to be brought up and handed in, so a consumer
+takes one deliberately; the residency feature's headers stand on a
+private include path and are not the library's to offer.
 
 ### The operators
 

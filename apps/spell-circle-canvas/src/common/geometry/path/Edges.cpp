@@ -31,7 +31,7 @@ SkPath edges(const SkPath& outline, Edge mask, float step) {
     return ny > 0 ? Edge::Bottom : Edge::Top;
   };
 
-  SkPathBuilder out;
+  SkPathBuilder out(outline.getFillType());
   SkContourMeasureIter iter(outline, false);
   while (sk_sp<SkContourMeasure> contour = iter.next()) {
     const float length = contour->length();

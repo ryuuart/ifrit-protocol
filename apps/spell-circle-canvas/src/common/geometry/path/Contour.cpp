@@ -148,7 +148,7 @@ SkPath parallel(const SkPath& path, float across, float step) {
   const float side = -across;
   const float stride = std::isfinite(step) ? std::max(step, 0.5f) : 0.5f;
   const float radius = std::abs(side);
-  SkPathBuilder out;
+  SkPathBuilder out(path.getFillType());
   for (const Contour& contour : Contour::of(path)) {
     const float len = contour.length();
     struct Join {
@@ -236,7 +236,7 @@ SkPath parallel(const SkPath& path, float across, float step) {
 
 SkPath displace(const SkPath& path, float amplitude, float wavelength,
                 bool zigzag) {
-  SkPathBuilder out;
+  SkPathBuilder out(path.getFillType());
   for (const Contour& contour : Contour::of(path)) {
     const float len = contour.length();
     const float lambdaMax = std::max(wavelength, 2.0f);

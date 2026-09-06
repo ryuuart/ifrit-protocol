@@ -26,3 +26,11 @@ sigil_library(SigilGeometry
             SigilGeometryMeshPopDevice
             SigilGeometryMeshCodec SigilGeometryKit SigilGeometryDevice
             SigilGeometryDeviceResidency)
+
+# The umbrella's own case: it links the whole interface and includes
+# Geometry.h, so a public header that stops compiling beside its
+# siblings — a name two features spell the same way — is a build failure
+# here rather than in whichever consumer took both.
+sigil_test(geometry_test
+  SOURCES test/UmbrellaTest.cpp
+  LIBRARIES SigilGeometry)

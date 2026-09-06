@@ -242,22 +242,6 @@ Should-fix:
 
 ## SigilGeometry path ops (findings/review-geometry-path-ops.md)
 
-Blockers:
-
-- `src/common/geometry/path/Ops.cpp:354` — `roundCorners` builds into a
-  fresh `SkPathBuilder`, so an even-odd source comes back winding and a
-  donut or a glyph with counters fills solid. The same class on every
-  rebuilding operator: `overSamples` (50), `chamferCorners` (446),
-  `displaceSquare` (571), `Edges.cpp:34`, `Band.cpp:141,208`. Seed each
-  builder from `path.getFillType()`. Assert: an even-odd donut keeps its
-  hole through each operator.
-- `include/sigilgeometry/path/Cells.h:34` — `enum class Edge {Clamp,
-  Wrap, Constant}` redefines `path::Edge` from `Edges.h:26`; the two
-  public headers cannot share a TU. Rename to `Boundary` or nest it.
-- `include/sigilgeometry/Geometry.h:9` — "every public header in one
-  include" lists 8 of 29 `path/` headers; complete it after the `Edge`
-  fix.
-
 Should-fix (correctness): `Extremes.cpp:164` a failed conic chop emits
 the curve twice; `Tidy.cpp:63` the duplicate guard is order-dependent
 (a trailing zero-length piece survives, an all-degenerate contour
@@ -292,14 +276,6 @@ Tests missing: `chamferCorners`, `displaceSquare`, `Where::MaxCurvature`,
 at front, middle and end, and the dropped `Blend.OklabMidGrayIsPerceptual`.
 
 ## SigilGeometry mesh, point operators, kit, device (findings/review-geometry-mesh-pop.md)
-
-Blockers:
-
-- `include/sigilgeometry/Geometry.h:5`, `README.md:1039` — the umbrella
-  claims every public header and omits about forty (the same finding
-  the path-ops pass makes, extended to `kit/*`, pop, curve, render and
-  device headers). Left to the path-ops pass, which renames the
-  colliding `path::Edge` first.
 
 Deferred by the rulings: the file splits by subject — `Pop.h` (1131),
 `mesh/pop/Cook.cpp` (792), `mesh/codec/Geo.cpp` (601).

@@ -252,12 +252,12 @@ TEST(Cells, TheEdgeRuleIsWhatAReadOutsideAnswers) {
   sheet.at(0, 0) = 7;
   sheet.at(2, 2) = 9;
 
-  sheet.setEdge(Edge::Clamp);
+  sheet.setBoundary(Boundary::Clamp);
   EXPECT_EQ(sheet.read(-5, -5), 7);
-  sheet.setEdge(Edge::Wrap);
+  sheet.setBoundary(Boundary::Wrap);
   EXPECT_EQ(sheet.read(-1, -1), 9);
   EXPECT_EQ(sheet.read(3, 3), 7);
-  sheet.setEdge(Edge::Constant);
+  sheet.setBoundary(Boundary::Constant);
   sheet.setOutside(-1);
   EXPECT_EQ(sheet.read(-1, 0), -1);
   EXPECT_EQ(sheet.read(0, 0), 7);
@@ -268,7 +268,7 @@ TEST(Cells, TheLifeGlidersMoves) {
   // one cell diagonally every four steps, which is the check that the
   // substrate steps every cell at once and wraps where it says it does.
   Cells<uint8_t> sheet(16, 16, 0);
-  sheet.setEdge(Edge::Wrap);
+  sheet.setBoundary(Boundary::Wrap);
   for (const auto& [x, y] :
        std::vector<std::pair<int, int>>{{1, 0}, {2, 1}, {0, 2}, {1, 2}, {2, 2}})
     sheet.at(x, y) = 1;
@@ -308,6 +308,6 @@ TEST(Cells, TwoSheetsAreEqualCellForCell) {
   b.at(2, 2) = 4;
   EXPECT_NE(a, b);
   b.at(2, 2) = 3;
-  b.setEdge(Edge::Wrap);
+  b.setBoundary(Boundary::Wrap);
   EXPECT_NE(a, b);
 }

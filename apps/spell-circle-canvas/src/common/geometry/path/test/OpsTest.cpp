@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilgeometry/path/Band.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Edges.h"
 #include "sigilgeometry/path/Noise.h"
@@ -398,6 +399,92 @@ TEST(PathNoise, ValueNoiseIsBoundedAndMovesSmoothlyWithItsInput) {
     EXPECT_LT(std::abs(v - prev), 0.1f);  // 0.01 steps never jump
     prev = v;
   }
+}
+
+// ---------------------------------------------------------------------------
+// THE FILL TYPE THROUGH A REBUILDING OPERATOR. Every operator that walks
+// a path and writes a new one has to carry the source's fill rule: an
+// even-odd donut whose answer comes back winding fills its hole solid,
+// and a glyph's counters go with it. One case per operator, all over the
+// same square donut — two nested rectangles wound the same way, which is
+// a ring under even-odd and a solid slab under winding.
+
+SkPath evenOddDonut() {
+  SkPathBuilder b(SkPathFillType::kEvenOdd);
+  b.addRect(SkRect::MakeLTRB(0, 0, 100, 100));
+  b.addRect(SkRect::MakeLTRB(30, 30, 70, 70));
+  return b.detach();
+}
+
+struct RebuildCase {
+  std::string name;
+  std::function<SkPath(const SkPath&)> apply;
+};
+
+class PathFillType : public testing::TestWithParam<RebuildCase> {};
+
+TEST_P(PathFillType, AnEvenOddDonutKeepsItsHole) {
+  const SkPath out = GetParam().apply(evenOddDonut());
+  EXPECT_EQ(out.getFillType(), SkPathFillType::kEvenOdd);
+  EXPECT_FALSE(out.contains(50, 50)) << "the hole filled in";
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    RebuildingOperators, PathFillType,
+    testing::Values(
+        RebuildCase{"roundCorners",
+                    [](const SkPath& p) { return ops::roundCorners(p, 6); }},
+        RebuildCase{"selectedCorners",
+                    [](const SkPath& p) {
+                      return ops::roundCorners(p, 6, {.minTurnDeg = 10});
+                    }},
+        RebuildCase{"chamferCorners",
+                    [](const SkPath& p) { return ops::chamferCorners(p, 5); }},
+        RebuildCase{
+            "displaceSquare",
+            [](const SkPath& p) { return ops::displaceSquare(p, 3, 20); }},
+        RebuildCase{"roughen",
+                    [](const SkPath& p) {
+                      return ops::Roughen{.amplitude = 2, .segmentPx = 5}.apply(
+                          p);
+                    }},
+        RebuildCase{
+            "zigzag",
+            [](const SkPath& p) {
+              return ops::Zigzag{.amplitude = 2, .wavelengthPx = 20}.apply(p);
+            }},
+        RebuildCase{"puckerBloat",
+                    [](const SkPath& p) {
+                      return ops::PuckerBloat{.amount = 0.2f}.apply(p);
+                    }},
+        RebuildCase{"twirl",
+                    [](const SkPath& p) {
+                      return ops::Twirl{.angleDeg = 10}.apply(p);
+                    }},
+        RebuildCase{"edges",
+                    [](const SkPath& p) { return edges(p, Edge::All); }},
+        RebuildCase{"parallel", [](const SkPath& p) { return parallel(p, 3); }},
+        RebuildCase{"displace",
+                    [](const SkPath& p) { return displace(p, 3, 20, false); }},
+        RebuildCase{"profileOffset",
+                    [](const SkPath& p) {
+                      return profileOffset(p, profile::taper(4, 8));
+                    }},
+        RebuildCase{
+            "bandRegion",
+            [](const SkPath& p) { return bandRegion(p, profile::offset(6)); }}),
+    [](const testing::TestParamInfo<RebuildCase>& info) {
+      return info.param.name;
+    });
+
+// The rule the operators carry is the one that decides the picture: the
+// same donut wound rather than even-odd IS a solid slab, and stays one.
+TEST(PathFillType, TheSameDonutWoundStaysSolid) {
+  SkPath winding = evenOddDonut();
+  winding.setFillType(SkPathFillType::kWinding);
+  const SkPath out = ops::roundCorners(winding, 6);
+  EXPECT_EQ(out.getFillType(), SkPathFillType::kWinding);
+  EXPECT_TRUE(out.contains(50, 50));
 }
 
 }  // namespace
