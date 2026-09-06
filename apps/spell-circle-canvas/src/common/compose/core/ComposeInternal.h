@@ -282,6 +282,13 @@ struct TextData {
   // over one story; the cursor each frame starts at lives on the Instance,
   // because where a fill stopped is an answer of the layout.
   std::string threadTo;
+  // balanceChain(): this frame OPENS a balanced run of the chain — itself
+  // and every frame after it up to the next frame that opens one, or the
+  // chain's end. The run is filled to the shallowest depth that still
+  // holds what it was asked to hold, which is `balanceThroughLine` lines
+  // of the story, or all of it when that is ~0u.
+  bool balanceChain = false;
+  uint32_t balanceThroughLine = ~0u;
   // THE TEXT ENGINE, as the description carries it: installed by the verbs
   // that dress type (fx, onPath, mark, spanStyle, spanPaint,
   // variationDrive), read by the kernel wherever it needs more than the

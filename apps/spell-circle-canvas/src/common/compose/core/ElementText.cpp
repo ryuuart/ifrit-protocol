@@ -207,6 +207,13 @@ Element& Element::mojikumi(sigil::weave::MojikumiTable table, float tsume) {
   return *this;
 }
 
+Element& Element::balanceChain(uint32_t throughLine) {
+  detail::TextData& text = m_node->textData.ensure();
+  text.balanceChain = true;
+  text.balanceThroughLine = throughLine;
+  return *this;
+}
+
 Element& Element::reserve(sigil::weave::ReservedBand band) {
   detail::TextOptions& options = m_node->textData.ensure().options;
   options.reserved = band;

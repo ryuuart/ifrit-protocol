@@ -392,6 +392,19 @@ struct Composer::Impl {
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance& inst);
   bool resolveTethers();
+  /** What a run of a chain came to when it was filled at one depth. */
+  struct ChainFill {
+    uint32_t lines = 0;
+    uint32_t cursor = 0;
+    bool overflowed = false;
+  };
+  ChainFill fillRun(const std::vector<detail::Instance*>& run, size_t first,
+                    size_t last, float depth, uint32_t cursor);
+  bool balanceRuns(const std::vector<detail::Instance*>& chain);
+  /** How many times a balanced run's depth is halved. A fixed count leaves
+   *  the answer a hair deeper than the tightest depth and costs the same
+   *  whatever the story is. */
+  static constexpr int kBalanceSteps = 8;
   SkSize minimumSizeOf(detail::Instance& child);
   bool applyCenterPins(detail::Instance& inst);
   /** The passes, as the runner sees them. Each returns whether it changed

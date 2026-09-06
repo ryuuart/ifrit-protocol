@@ -130,7 +130,7 @@ bool textPathEqual(const TextPath& a, const TextPath& b) {
          a.orient == b.orient && a.exactTangent == b.exactTangent;
 }
 
-static_assert(kFieldCount<TextData> == 17 && kFieldCount<TextOptions> == 21 &&
+static_assert(kFieldCount<TextData> == 19 && kFieldCount<TextOptions> == 21 &&
                   kFieldCount<SpanRestyle> == 3,
               "TextData gained or lost a field — rule on it in textEqual() "
               "below, then bump this count. (`layoutOptions` is the one "
@@ -207,6 +207,12 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // same links prunes; one that names a different frame re-fills from
   // there.
   if (ta.threadTo != tb.threadTo) return false;
+  // balanceChain(): which frame opens a balanced run, and how much of the
+  // story that run must hold. Both change the depth the run is filled to,
+  // so a re-described chain that states either differently re-bisects.
+  if (ta.balanceChain != tb.balanceChain ||
+      ta.balanceThroughLine != tb.balanceThroughLine)
+    return false;
   return true;
 }
 

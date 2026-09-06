@@ -48,6 +48,7 @@ sigil_library(SigilComposeKit
 # that case alone carries the label.
 sigil_test(compose_test
   SOURCES test/ComposeTestKitValues.cpp test/ComposeTestGrid.cpp
+          test/ComposeTestColumns.cpp
           test/ComposeTestLayoutsAndShapes.cpp
           test/ComposeTestTravel.cpp test/ComposeTestRouters.cpp
           test/ComposeTestPlacers.cpp test/ComposeTestQueries.cpp

@@ -235,6 +235,99 @@ struct NestedStyle {
   return row;
 }
 
+/** SOMETHING THAT STRADDLES A RUN OF COLUMNS: a masthead across the
+ *  three columns under a headline, a plate across the middle of a page.
+ *
+ *  WHERE IT GOES IS A SELECTOR and never a y coordinate: the chain breaks
+ *  after the unit `after` names, so the copy above it sets in columns, the
+ *  spanner runs the full measure, and the copy below resumes in columns —
+ *  all out of ONE story, because the frames above and below are links of
+ *  one chain and the second run picks up the word the first ran out on. */
+struct Spanner {
+  sigil::weave::Selector after;
+  Element what;
+};
+
+/** N COLUMNS OF ONE STORY, WITH THE THINGS THAT SPAN THEM.
+ *
+ *      root.child(kit::columns({.story = article, .count = 3,
+ *                               .gutter = 28, .width = 760, .height = 420,
+ *                               .spanners = {{weave::sel::line(11), plate()}},
+ *                               .composer = &composer}));
+ *
+ *  Each column takes an equal share of `width` after the gutters, and
+ *  `height` is the DEEPEST a row of columns may be rather than the depth
+ *  it will take: every row above a spanner is BALANCED, filled to the
+ *  shallowest depth that still carries the copy down to that spanner, so
+ *  its columns come out the same length and the spanner sits under the
+ *  copy instead of under the tallest column. The last row keeps the full
+ *  depth, because what follows it is the rest of the story.
+ *
+ *  WHERE EACH SPANNER'S SELECTOR LANDED is read back from the layout the
+ *  last draw left standing, which is why the composer is passed. The first
+ *  draw has no layout to read, so the first row holds what it can and the
+ *  spanners settle on the draw after — the same terms as everything else
+ *  here that reads a resolved layout.
+ *
+ *  @p ellipsis ENDS THE CHAIN, on its last column, exactly as the
+ *  positional spelling below says. */
+struct ColumnSet {
+  sigil::weave::Story story;
+  int count = 2;
+  float gutter = 24.0f;
+  float width = 0.0f;
+  float height = 0.0f;
+  std::vector<Spanner> spanners;
+  const Composer* composer = nullptr;
+  std::string keyPrefix = "column";
+  std::u8string ellipsis;
+};
+
+[[nodiscard]] inline Element columns(ColumnSet set) {
+  Element stack = box().column();
+  if (set.count < 1) return stack;
+  const float measure =
+      (set.width - set.gutter * static_cast<float>(set.count - 1)) /
+      static_cast<float>(set.count);
+  const int rows = static_cast<int>(set.spanners.size()) + 1;
+  const auto keyAt = [&](int index) {
+    return set.keyPrefix + std::to_string(index);
+  };
+  // The story line each spanner breaks the chain after, read off the
+  // placement the last draw left. `~0u` is "not known yet", which asks the
+  // row to hold all it can — what the first draw does.
+  std::vector<uint32_t> breakLine(set.spanners.size(), ~0u);
+  for (size_t i = 0; i < set.spanners.size() && set.composer; ++i) {
+    const std::vector<TextUnit> units = set.composer->units(
+        keyAt(0), set.spanners[i].after, sigil::weave::Unit::Line);
+    if (!units.empty())
+      breakLine[i] = static_cast<uint32_t>(units.back().lineIndex);
+  }
+  int index = 0;
+  for (int r = 0; r < rows; ++r) {
+    Element row = box().row().gap(set.gutter);
+    for (int i = 0; i < set.count; ++i, ++index) {
+      Element column = frame(set.story)
+                           .key(keyAt(index))
+                           .width(Dim(measure))
+                           .height(Dim(set.height));
+      // Every row but the last opens a balanced run that must reach the
+      // line its spanner breaks after; the last row is the remainder and
+      // keeps the depth it was given.
+      if (i == 0 && r + 1 < rows) column.balanceChain(breakLine[(size_t)r]);
+      if (index + 1 < rows * set.count)
+        column.thread(keyAt(index + 1));
+      else if (!set.ellipsis.empty())
+        column.ellipsis(set.ellipsis);
+      row.child(std::move(column));
+    }
+    stack.child(std::move(row));
+    if (r < static_cast<int>(set.spanners.size()))
+      stack.child(std::move(set.spanners[(size_t)r].what));
+  }
+  return stack;
+}
+
 /** WHERE A RULE OR A SHADE STANDS relative to the block it dresses. */
 struct BlockRule {
   enum class Where { Above, Below, Behind };

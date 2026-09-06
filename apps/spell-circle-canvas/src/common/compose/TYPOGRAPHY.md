@@ -890,6 +890,32 @@ measure the frame AFTER it resolved to, which is the one fact the widow
 rule needs and no single fill can see: the lines a widow rule counts are
 the remainder, and the remainder is set in the next frame.
 
+**A RUN OF THE CHAIN CAN BE BALANCED**, which is `Element::balanceChain`
+on the frame that opens it: that frame and every one after it up to the
+next frame that opens a run — or the chain's end — are filled to the
+SHALLOWEST depth that still holds what the run was asked to hold, and all
+of them resolve to that one depth. Three columns of one story then come
+out three columns of the same length instead of two full ones and a stub.
+The depth is found by halving, in the walk, with the depth the frames
+DECLARE as the ceiling: a run whose frames are sized by anything but
+pixels is left alone, and reading the resolved depth instead of the
+declared one would halve the last round's answer every round until the
+columns closed on nothing. The argument says what the run must hold, as a
+story-relative line number; the default is all of it.
+
+**A SPANNER BREAKS THE CHAIN**, and that is `column-span: all` stated in
+the story's own terms. `kit::columns` takes a `kit::ColumnSet` with a list
+of `kit::Spanner`s, each of which is a `weave::Selector` and an element:
+the copy down to the unit the selector names sets in one balanced run of
+columns, the element runs the full measure under it, and what is left
+resumes in the next run. All of it is ONE story and ONE chain — the frames
+below the spanner pick up the word the frames above ran out on — so a
+selector, and never a y coordinate, is what says where the break falls.
+Where each selector landed is read back from the layout the last draw left
+standing, on the same terms as everything else here that reads a resolved
+layout, so the first draw holds what it can and the spanners settle on the
+draw after.
+
 ### Beside the text
 
 `Composer::units` is what everything standing next to a passage is placed

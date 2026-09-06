@@ -499,8 +499,14 @@ sound model; nothing below them changes kernel semantics.
 - `core/Derive.h` — `connector`, `rail`, `Anchor` (a normalised point on
   a keyed node's bounds, or — with an empty `nodeKey` — a free waypoint
   at a point in the rail's own coordinates, so a bend that clears a
-  corner costs no node), `band`, `bandPointAt`, and the `derive::`
-  namespace that gathers the family.
+  corner costs no node), `Tether` (where a box hangs off a keyed one:
+  `on`, the point of the anchor it hangs from, `at`, the point of itself
+  that lands there, an `offset`, and `fallbacks`, the places tried in
+  order when the first will not fit `within` — written with
+  `Element::tether`), `band`, `bandPointAt`, and the `derive::` namespace
+  that gathers the family. A tether resolves in the derive pass before the
+  routes, so a connector that ends on a tethered box routes to where it
+  came to rest; when no place fits, the stated one stands.
 - `core/Composer.h` — `Composer`, and `TextSettling`, what
   `Composer::settling` reports about a live passage's last layout.
 - `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
@@ -558,7 +564,36 @@ node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement sche
 seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
 `BaselineGrid`, `Scatter`) — each one a placement FUNCTION an author
 could have written out. `core/Table.h` stands beside the seam instead,
-because the auto table is an algorithm and not a formula.
+because the auto table is an algorithm and not a formula, and so does
+`kit/Grid.h`.
+
+`layouts::Grid` is the one arrangement a page divides into. A track
+carries a SIZING FUNCTION rather than a width — `layouts::px`,
+`layouts::content`, `layouts::fr` and `layouts::minmax`, a floor under a
+ceiling — and the grid draws a picture of itself out of names in `areas`
+that a child claims a region of with `Element::area`. The rule is
+initialize from the floors, resolve the content narrowest-span-first,
+maximize toward the ceilings, and divide the remainder among the shares;
+what makes a share behave is that weights summing under one take only
+their own share and a share that would fall under its floor freezes there
+and leaves the division, so a squeezed container never resolves negative
+widths. What is still free after that stays free, which is why a row of
+`content()` tracks packs at the start of its container instead of
+stretching to fill it. A child that claims nothing flows into the next
+free cell, never backtracking past the cursor unless `dense` is set, in
+which case it fills the earliest hole that will take it.
+
+A content floor is the second intrinsic contribution, and it is
+`LayoutInput::childMinSizes`: a text leaf's longest unbreakable run,
+measured at a nil width, and everything else's measured size, since layout
+measures once and never re-describes a child at a proposed width. It is
+filled only for a scheme that declares `readsChildMinSizes` — the concept
+`SizesFromContentMinima` — because the text minimum costs a measure per
+child. THE ONE THING A CONTENT TRACK NEEDS FROM ITS CONTAINER is that the
+container range its children at their own size: a container that stretches
+them measures every one at its own width, so the track would be sized by
+the container the content is about to be fitted into and the two would
+chase each other.
 
 **A scheme sees one thing about a child it could not measure: the cells
 the child claimed.** `LayoutInput` carries the container's size, every

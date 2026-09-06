@@ -268,6 +268,103 @@ bool Composer::Impl::resolveThreads() {
     // every frame of the chain needs: a cascade numbered over the story
     // spans the story's units, not the ones this frame happened to hold.
     for (Instance* link : chain) link->threadStoryLines = lineOffset;
+    moved |= balanceRuns(chain);
+  }
+  return moved;
+}
+
+/** THE CHAIN FILLED FROM @p first AT ONE DEPTH: every frame of the run
+ *  re-laid out at its own measure and this depth, each resuming where the
+ *  one before it stopped.
+ *
+ *  It answers with how many lines the run placed and whether the last of
+ *  them still had something left over — the two facts a depth is judged
+ *  by — and it leaves the run laid out at that depth, so the caller ends
+ *  by filling at the depth it chose. */
+Composer::Impl::ChainFill Composer::Impl::fillRun(
+    const std::vector<Instance*>& run, size_t first, size_t last, float depth,
+    uint32_t cursor) {
+  ChainFill filled;
+  for (size_t i = first; i < last; ++i) {
+    Instance* frame = run[i];
+    const SkRect box = instanceRect(*frame);
+    if (!box.isFinite() || box.width() <= 0) continue;
+    frame->threadCursor = cursor;
+    layoutText(*frame, box.width(), depth);
+    filled.lines += (uint32_t)std::max(frame->textLayout.lineCount, 0);
+    filled.overflowed = frame->textLayout.overflowed();
+    cursor = filled.overflowed
+                 ? frame->textLayout.firstUnplacedWord
+                 : (frame->paragraph
+                        ? (uint32_t)frame->paragraph->words().size()
+                        : cursor);
+  }
+  filled.cursor = cursor;
+  return filled;
+}
+
+/** EVERY BALANCED RUN OF ONE CHAIN, SHORTENED TO WHAT IT HOLDS.
+ *
+ *  A run opens at a frame that declares it and closes before the next one
+ *  that does. Its depth is found by halving: the frames' declared depth is
+ *  the ceiling, nothing is the floor, and each trial fills the run again
+ *  and asks whether it still holds what it was asked to hold — all of the
+ *  story, or the story down to a stated line. The shallowest depth that
+ *  does is the answer, and every frame of the run resolves to it.
+ *
+ *  A FIXED NUMBER OF HALVINGS rather than the exact turnover, so the
+ *  answer is a hair deeper than the tightest one and the cost is bounded
+ *  whatever the story is. The ceiling is the DECLARED depth and never the
+ *  resolved one: read the resolved depth and each round would halve what
+ *  the round before it chose, and the columns would close on nothing. */
+bool Composer::Impl::balanceRuns(const std::vector<Instance*>& chain) {
+  bool moved = false;
+  for (size_t first = 0; first < chain.size(); ++first) {
+    const detail::TextData* opens = chain[first]->description &&
+                                            chain[first]->description->textData
+                                        ? &*chain[first]->description->textData
+                                        : nullptr;
+    if (!opens || !opens->balanceChain) continue;
+    size_t last = first + 1;
+    while (last < chain.size()) {
+      const detail::TextData* text = chain[last]->description->textData
+                                         ? &*chain[last]->description->textData
+                                         : nullptr;
+      if (text && text->balanceChain) break;
+      ++last;
+    }
+    const Dim declared = chain[first]->description->layout.height;
+    if (declared.unit != Dim::Unit::Px || declared.value <= 0) continue;
+    const uint32_t cursor = chain[first]->threadCursor;
+    const uint32_t through = opens->balanceThroughLine;
+    // The line the run is asked to reach is the STORY's, so what the run
+    // itself placed is counted from where the run starts in that
+    // numbering — which is the one thing that lets a second run be asked
+    // for a line number and not for a count of its own.
+    const uint32_t opensAt = chain[first]->threadLineOffset;
+    const auto holds = [&](float depth) {
+      const ChainFill filled = fillRun(chain, first, last, depth, cursor);
+      return through == ~0u ? !filled.overflowed
+                            : opensAt + filled.lines > through;
+    };
+    float tooShallow = 0.0f;
+    float deepEnough = declared.value;
+    if (holds(deepEnough))
+      for (int step = 0; step < kBalanceSteps; ++step) {
+        const float trial = (tooShallow + deepEnough) * 0.5f;
+        if (holds(trial))
+          deepEnough = trial;
+        else
+          tooShallow = trial;
+      }
+    fillRun(chain, first, last, deepEnough, cursor);
+    for (size_t i = first; i < last; ++i) {
+      if (!chain[i]->yoga) continue;
+      if (std::abs(instanceRect(*chain[i]).height() - deepEnough) > 0.25f)
+        moved = true;
+      YGNodeStyleSetHeight(chain[i]->yoga, deepEnough);
+    }
+    first = last - 1;
   }
   return moved;
 }
