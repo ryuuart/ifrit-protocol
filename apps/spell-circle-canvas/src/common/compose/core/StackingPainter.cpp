@@ -1642,11 +1642,41 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     }
     return localPaintBounds;
   };
+  // THE DEVICE CLIP, in the space a device blit lands in.
+  // `getDeviceClipBounds()` is in base device coordinates, which is the
+  // space `resetMatrix()` draws in, including inside a saveLayer; inside a
+  // recording the canvas's clip is in the recording's own space and is
+  // carried out through the replay, the same way the matrix is.
+  const auto deviceClipOf = [&] {
+    const SkIRect clip = canvas.getDeviceClipBounds();
+    if (recordingDepth == 0) return clip;
+    return recordingReplay.mapRect(SkRect::Make(clip)).roundOut();
+  };
   const auto deviceRectOf = [&] {
     const SkRect f = totalM.mapRect(localBoundsOf());
     return SkIRect::MakeLTRB(
         (int)std::floor(f.left()), (int)std::floor(f.top()),
         (int)std::ceil(f.right()), (int)std::ceil(f.bottom()));
+  };
+  /** EVERY DEVICE BAKE CARRIES THE CANVAS'S OWN CLIP, and this is not an
+   *  optimisation — it is the condition that makes a bake the same pixels as
+   *  the paint it replaces. Skia rasterizes an antialiased edge against the
+   *  clip it is given, so an edge that leaves the canvas is CUT in the live
+   *  paint and whole in a bake that spans the node's full paint bounds, and
+   *  the coverage the two compute for the pixels either side of it differs
+   *  by TENS of code values — not the single least-significant bit an
+   *  integer offset costs. Anything with bleed — a glow, a turned piece, a
+   *  full-bleed plane, a tile that overruns its page — leaves its canvas on
+   *  some side, which is most of what a bake is ever taken over.
+   *
+   *  Applied to the layer while its matrix is still identity, so the rect is
+   *  in the layer's own pixels: the same device-aligned integer rect, in the
+   *  same place, cutting the same coverage. The bake RECT stays the node's
+   *  full paint bounds, because that rect is also the identity a held bake
+   *  is compared against — a rect narrowed to the clip is shared by two
+   *  different pictures whenever the clip is the smaller of the two. */
+  const auto clipBakeLayer = [&](SkCanvas* lc, const SkIRect& bake) {
+    lc->clipIRect(deviceClipOf().makeOffset(-bake.left(), -bake.top()));
   };
   // The temporal rule: a node whose ONLY volatility is a live material is
   // promotable while that material is provably holding still, and re-bakes
@@ -1773,6 +1803,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
               SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (layer) {
           SkCanvas* lc = layer->getCanvas();
+          clipBakeLayer(lc, device);
           lc->translate(-(float)device.left(), -(float)device.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
           profDraw("promote bake", [&] {
@@ -1914,6 +1945,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
               SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (layer) {
           SkCanvas* lc = layer->getCanvas();
+          clipBakeLayer(lc, device);
           lc->translate(-(float)device.left(), -(float)device.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
           {
@@ -2035,24 +2067,12 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // host, a pinch zoom, an uncached ancestor's live transform). A bake
     // pinned to a rect that moves is a bake remade every frame, which costs
     // strictly more than the paint it replaces.
-    // THE BAKE RECT IS CLIPPED TO THE CANVAS, and this is not an
-    // optimisation — it is a correctness condition. A bake rect LARGER than
-    // the device clip hands Skia a different clip to rasterize antialiased
-    // edges against, and the resulting difference is many levels deep, not
-    // the single least-significant bit an integer offset under rotation
-    // costs. A lattice of rotated pieces with any bleed overruns its own
-    // canvas on all four sides, so this fires on exactly the content the
-    // feature exists for.
-    //
-    // Nothing visible is lost — content outside the device clip does not
-    // reach the canvas either way — and `getDeviceClipBounds()` is in base
-    // device coordinates, the same space the blit's resetMatrix() draws in,
-    // including inside the saveLayer an opacity/blend group opens.
+    // THE RECT ITSELF IS NARROWED TO THE CANVAS HERE, on top of the clip
+    // every bake layer carries: a lattice of rotated pieces with any bleed
+    // overruns its own canvas on all four sides, and this tier exists for
+    // exactly that content, so the pixels outside are worth not allocating.
     SkIRect device = deviceRectOf();
-    SkIRect clip = canvas.getDeviceClipBounds();
-    if (recordingDepth > 0)  // the recording's clip, carried out to the device
-      clip = recordingReplay.mapRect(SkRect::Make(clip)).roundOut();
-    if (!device.intersect(clip)) device = SkIRect::MakeEmpty();
+    if (!device.intersect(deviceClipOf())) device = SkIRect::MakeEmpty();
     // The rect history is this node's own only where it is painted every
     // frame; inside a recording the recording's matrix verdict stands in.
     bool rectStable = matrixStable;
@@ -2085,6 +2105,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
               SkImageInfo::MakeN32Premul(device.width(), device.height()));
         if (layer) {
           SkCanvas* lc = layer->getCanvas();
+          clipBakeLayer(lc, device);
           lc->translate(-(float)device.left(), -(float)device.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
           // No leaf blend and no leaf opacity: bakes isolate, and the node's
@@ -2216,6 +2237,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
               SkImageInfo::MakeN32Premul(deviceR.width(), deviceR.height()));
         if (layer) {
           SkCanvas* lc = layer->getCanvas();
+          clipBakeLayer(lc, deviceR);
           lc->translate(-(float)deviceR.left(), -(float)deviceR.top());
           lc->concat(totalM);  // identical device geometry, offset by ints
           profDraw("bake", [&] {

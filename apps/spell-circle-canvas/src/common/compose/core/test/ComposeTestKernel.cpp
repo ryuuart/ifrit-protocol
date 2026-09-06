@@ -578,6 +578,262 @@ TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
 
 namespace {
 
+/** Expensive AND sensitive, which are two different demands on one shader.
+ *  The forty-term sum is what puts a node over the promotion threshold; the
+ *  cell test on the SAME coordinates is what reads back whether the bake
+ *  sampled where the live paint sampled, since a cell boundary flips a
+ *  whole channel where a smooth ramp moves one code value. */
+sk_sp<SkRuntimeEffect> gridEffect() {
+  static sk_sp<SkRuntimeEffect> fx = [] {
+    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+half4 main(float2 p) {
+  float v = 0.0;
+  for (int i = 0; i < 40; ++i) {
+    float f = float(i) + 1.0;
+    v += sin(p.x * 0.031 * f) * cos(p.y * 0.027 * f) / f;
+  }
+  float2 cell = floor(p / 6.0);
+  float b = mod(cell.x + cell.y, 2.0);
+  return half4(half(b), half(1.0 - b), half(clamp(v * 0.5 + 0.5, 0.0, 1.0)), 1.0);
+}
+)"));
+    if (!effect) ADD_FAILURE() << err.c_str();
+    return effect;
+  }();
+  return fx;
+}
+
+/** A page the promoter will actually promote: a per-pixel shader over the
+ *  whole area, children that OVERFLOW it on every side, and a line of type.
+ *  Child count alone is far under the promotion time threshold — the shader
+ *  is what puts it over — and the overflow is the half the bake rect has to
+ *  survive, since it is what carries the node's paint bounds outside the
+ *  canvas the live paint is clipped to. */
+Element promotablePage() {
+  Element page = box().width(180).height(180).fill(
+      material::skia::Paint::sksl(gridEffect()));
+  for (int i = 0; i < 56; ++i)
+    page.child(box()
+                   .absolute()
+                   .left(-6 + (float)i * 3.3f)
+                   .top(-8)
+                   .width(2)
+                   .height(196)
+                   .fill(i % 2 ? green() : red()));
+  page.child(
+      text(u8"JAM", whiteStyle(24)).absolute().left(8).top(70).width(160));
+  return page;
+}
+
+/** The whole surface, row-major. */
+std::vector<SkColor> surfaceOf(Host& host, int w, int h) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  host.surface->readPixels(bm.pixmap(), 0, 0);
+  std::vector<SkColor> out;
+  out.reserve((size_t)w * (size_t)h);
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) out.push_back(bm.getColor(x, y));
+  return out;
+}
+
+/** WHAT PROMOTION IS ALLOWED TO CHANGE, as one number. A device-space bake
+ *  is taken under the live matrix post-translated by an INTEGER, so nothing
+ *  it draws may land on another pixel — but the matrix is inverted to find a
+ *  shader's local coordinates, and at a scale whose reciprocal is inexact
+ *  that integer does not cancel to the last bit. So a shaded pixel may land
+ *  one code value away and nothing may land further: worst > 1 is a picture
+ *  that moved, not a picture that rounded. */
+int worstDrift(const std::vector<SkColor>& live,
+               const std::vector<SkColor>& baked, size_t* differing) {
+  int worst = 0;
+  for (size_t i = 0; i < live.size(); ++i) {
+    if (live[i] == baked[i]) continue;
+    if (differing) ++*differing;
+    for (int shift : {0, 8, 16, 24})
+      worst = std::max(worst, std::abs((int)((live[i] >> shift) & 0xffu) -
+                                       (int)((baked[i] >> shift) & 0xffu)));
+  }
+  return worst;
+}
+
+/** One scene drawn thirty times under a host matrix — long enough that the
+ *  promoter's warmup is over — with promotion off and then on, and what the
+ *  two pictures differ by. `promoted` says a node really was baked, so a
+ *  promoter that stopped firing cannot pass this by comparing two identical
+ *  live renders. */
+struct PromotionDrift {
+  int worstChannel = 0;
+  size_t differingPixels = 0;
+  bool promoted = false;
+};
+
+PromotionDrift promotionDrift(const SkMatrix& hostMatrix, int w, int h) {
+  const auto render = [&](bool promotion, bool* promotedOut) {
+    Host host(w, h);
+    host.composer.setAutoTexturePromotion(promotion);
+    host.composer.setProfiling(true);
+    host.composer.render(profiledUnder(promotablePage().key("page")));
+    for (int i = 0; i < 30; ++i) {
+      SkCanvas& canvas = *host.surface->getCanvas();
+      canvas.clear(SK_ColorBLACK);
+      canvas.save();
+      canvas.concat(hostMatrix);
+      host.composer.draw(canvas);
+      canvas.restore();
+    }
+    if (promotedOut)
+      for (const Composer::NodeCost& row : host.composer.profile())
+        *promotedOut |= row.cacheState == Composer::CacheState::Promoted;
+    return surfaceOf(host, w, h);
+  };
+  PromotionDrift out;
+  const std::vector<SkColor> live = render(false, nullptr);
+  const std::vector<SkColor> baked = render(true, &out.promoted);
+  out.worstChannel = worstDrift(live, baked, &out.differingPixels);
+  return out;
+}
+
+/** The still a plate is photographed as: a scene warmed at one scale on one
+ *  surface — long enough that the promoter has baked what it is going to —
+ *  and then drawn ONCE at another, larger, fractional scale onto a surface
+ *  of its own. Everything a bake was pinned to moved between the two. */
+std::vector<SkColor> warmThenStill(bool promotion, float stillScale, int w,
+                                   int h, bool* promotedOut) {
+  Host host(w, h);
+  host.composer.setAutoTexturePromotion(promotion);
+  host.composer.setProfiling(true);
+  host.composer.render(profiledUnder(promotablePage().key("page")));
+  for (int i = 0; i < 30; ++i) host.frame();
+  if (promotedOut)
+    for (const Composer::NodeCost& row : host.composer.profile())
+      *promotedOut |= row.cacheState == Composer::CacheState::Promoted;
+  const int sw = (int)((float)w * stillScale);
+  const int sh = (int)((float)h * stillScale);
+  sk_sp<SkSurface> still =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(sw, sh));
+  still->getCanvas()->clear(SK_ColorBLACK);
+  still->getCanvas()->scale(stillScale, stillScale);
+  host.composer.draw(*still->getCanvas());
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(sw, sh));
+  still->readPixels(bm.pixmap(), 0, 0);
+  std::vector<SkColor> out;
+  out.reserve((size_t)sw * (size_t)sh);
+  for (int y = 0; y < sh; ++y)
+    for (int x = 0; x < sw; ++x) out.push_back(bm.getColor(x, y));
+  return out;
+}
+
+}  // namespace
+
+TEST(ComposeCache, AStillAtANewScaleIsUnchangedByWhatWasPromotedBeforeIt) {
+  // A plate is photographed by warming a scene at its own size and then
+  // drawing ONE more frame at a larger, fractional scale onto a surface of
+  // its own — so every bake the promoter took during the warmup is pinned
+  // to a device rect that no longer exists when the still is drawn. Nothing
+  // held from before the scale change may reach that still: every device
+  // bake is remade at the rect it is now blitted to, or dropped.
+  bool promoted = false;
+  const std::vector<SkColor> live =
+      warmThenStill(false, 1.875f, 200, 200, nullptr);
+  const std::vector<SkColor> baked =
+      warmThenStill(true, 1.875f, 200, 200, &promoted);
+  ASSERT_TRUE(promoted)
+      << "nothing was promoted during the warmup, so this compared two live "
+         "stills";
+  ASSERT_EQ(live.size(), baked.size());
+  size_t differing = 0;
+  const int worst = worstDrift(live, baked, &differing);
+  EXPECT_LE(worst, 1)
+      << differing << " pixels of the still moved, worst " << worst
+      << " code values, because the scene had been promoted at another scale";
+}
+
+TEST(ComposeCache, PromotionUnderAFractionalTranslationChangesNoPixels) {
+  // The promoter's whole argument is that a device-space bake at an
+  // integer-snapped rect, blitted with the matrix reset, cannot change
+  // rasterisation under an axis-aligned matrix. A host translation with a
+  // fraction in it is the case that argument has to survive: the bake rect
+  // rounds OUT to whole device pixels, so the bake's matrix and the live
+  // paint's differ by an integer, and an integer offset moves no sample.
+  const PromotionDrift drift =
+      promotionDrift(SkMatrix::Translate(0.37f, 0.61f), 200, 200);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 1)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when the library promoted a node under a fractional "
+         "translation";
+}
+
+TEST(ComposeCache, PromotionUnderAFractionalHostScaleChangesNoPixels) {
+  // …and the same under a host SCALE that is not a whole number, which is
+  // what a page authored at one size and photographed at another stands
+  // under. The bake rect still rounds out to whole device pixels, so the
+  // offset between the two matrices is still an integer.
+  SkMatrix host = SkMatrix::Scale(1.875f, 1.875f);
+  host.postTranslate(0.37f, 0.61f);
+  const PromotionDrift drift = promotionDrift(host, 400, 400);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 1)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when the library promoted a node under a fractional "
+         "host scale";
+}
+
+TEST(ComposeCache, APromotedEdgeThatLeavesTheCanvasLandsWhereItLandedLive) {
+  // A BAKE CARRIES THE CANVAS'S OWN CLIP, and a turned edge running off the
+  // canvas is how you read that back. Skia rasterizes an antialiased edge
+  // against the clip it is given: the live paint's edge is cut at the canvas
+  // and a bake spanning the node's full paint bounds leaves it whole, so the
+  // coverage the two compute for the pixels either side differs by TENS of
+  // code values — not the one an integer offset costs. Anything with bleed
+  // leaves its canvas on some side, so this is most of what a bake is ever
+  // taken over, and every outline on the page moves with it.
+  const auto turned = [] {
+    return profiledUnder(box().key("page").child(promotablePage()).child(
+        box()
+            .absolute()
+            .left(-30)
+            .top(-14)
+            .width(260)
+            .height(40)
+            .fill(blue())
+            .rotate(7)));
+  };
+  const auto render = [&](bool promotion, bool* promotedOut) {
+    Host host(200, 200);
+    host.composer.setAutoTexturePromotion(promotion);
+    host.composer.setProfiling(true);
+    host.composer.render(turned());
+    for (int i = 0; i < 30; ++i) {
+      SkCanvas& canvas = *host.surface->getCanvas();
+      canvas.clear(SK_ColorBLACK);
+      canvas.save();
+      canvas.translate(0.37f, 0.61f);
+      host.composer.draw(canvas);
+      canvas.restore();
+    }
+    for (const Composer::NodeCost& row : host.composer.profile())
+      *promotedOut |= row.cacheState == Composer::CacheState::Promoted;
+    return surfaceOf(host, 200, 200);
+  };
+  bool livePromoted = false, bakedPromoted = false;
+  const std::vector<SkColor> live = render(false, &livePromoted);
+  const std::vector<SkColor> baked = render(true, &bakedPromoted);
+  ASSERT_TRUE(bakedPromoted)
+      << "nothing was promoted, so this compared two live renders";
+  size_t differing = 0;
+  const int worst = worstDrift(live, baked, &differing);
+  EXPECT_LE(worst, 1)
+      << differing << " pixels moved, worst " << worst
+      << " code values, when a promoted subtree's edge left the canvas";
+}
+
+namespace {
+
 /** A lightweight grid, ~20 lines of user code. */
 struct Grid {
   int columns = 2;

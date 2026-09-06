@@ -113,29 +113,3 @@ and the fx path each already do for that face.
 `whiteStyle(40)` — the instrument face — instead of `machineStyleAt(40)`,
 with the `fonts` label and its `SUITES` entry in
 `src/common/compose/typography/CMakeLists.txt` removed.
-
-## A promoted bake of spacejam_1996 is not the picture its live paint draws
-
-`spacejam_1996` rendered `--headless` with automatic texture promotion on
-draws one plate twelve times over, and rendered `--no-promotion` draws
-another: the two differ by up to 213 code values on the outline of every
-element on the page — every disc, every label, the logo and the starfield
-alike — which is a picture shifted or resampled, not an antialiased edge
-rounded once more. Promotion is decided by a measured cost, so which of
-the two a machine draws depends on its load; the deterministic session
-now holds promotion off, so a diffed capture sees only the live one, and
-the discrepancy stands wherever promotion is on.
-
-Intended: a promoted bake is taken in device space at an integer-snapped
-rect and blitted back with the matrix reset, so under an upright matrix
-it lands on the same pixels the live paint would have produced, with
-only an antialiased edge free to differ by one code value. Something
-about this page — its host scale, or a node promoted inside a recording
-replayed under a fractional translation — carries a bake whose blit does
-not land where the live paint did.
-
-Assert once fixed: `--headless --no-deterministic --sketch spacejam_1996`
-and `--headless --no-promotion --sketch spacejam_1996` differ by at most
-one code value, and only on antialiased edges; and a compose test that
-promotes a subtree under the plate's host scale reads back the pixels
-the same subtree paints live.
