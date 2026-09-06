@@ -243,7 +243,16 @@ inline AreaPicture readAreas(const std::vector<std::string>& rows) {
  *  **When a list is empty.** No `columns` makes every column an equal
  *  share; no `rows` makes every row as tall as its content. Tracks past
  *  the end of a given list are content-sized, which is CSS's implicit
- *  row. */
+ *  row.
+ *
+ *  **THE ONE THING A CONTENT TRACK NEEDS FROM ITS CONTAINER.** A child is
+ *  measured before it is placed, and a container that stretches its
+ *  children measures every one of them at ITS OWN width — so a content
+ *  track would be sized by the container the content is about to be
+ *  fitted into rather than by the content, and the two would chase each
+ *  other. Range the container's children at their own size
+ *  (`.alignItems(Align::Start)`) whenever a track is sized by what is in
+ *  it; the grid does its own stretching, through `across` and `down`. */
 struct Grid {
   std::vector<Track> columns;
   std::vector<Track> rows;

@@ -198,9 +198,11 @@ Element& Element::area(std::string name) {
 }
 
 Element& Element::cellAlign(Align across, Align down) {
+  // An alignment says where the child sits in whatever cell it gets, and
+  // nothing about WHICH cell: `declared` stays as it is, so a child that
+  // states only this still flows.
   m_node->layout.cells.across = across;
   m_node->layout.cells.down = down;
-  m_node->layout.cells.declared = true;
   m_node->layout.cells.alignDeclared = true;
   return *this;
 }
