@@ -81,25 +81,25 @@ class ExclusionsScene final : public Scene {
     const SkPath spiky =
         spikyRingPath(static_cast<float>(elapsedSeconds),
                       std::min(canvasWidth, canvasHeight) * 0.19f);
+    const SkPoint starOffset{
+        canvasWidth * 0.6f +
+            canvasWidth * 0.18f *
+                std::cos(static_cast<float>(elapsedSeconds) * 0.4f),
+        canvasHeight * 0.3f +
+            canvasHeight * 0.1f *
+                std::sin(static_cast<float>(elapsedSeconds) * 0.7f)};
     flow.exclusions().push_back(
-        {silhouette::path(spiky),
-         fontSize * 0.4f,
-         {canvasWidth * 0.6f +
-              canvasWidth * 0.18f *
-                  std::cos(static_cast<float>(elapsedSeconds) * 0.4f),
-          canvasHeight * 0.3f +
-              canvasHeight * 0.1f *
-                  std::sin(static_cast<float>(elapsedSeconds) * 0.7f)}});
+        {silhouette::path(spiky), fontSize * 0.4f, starOffset});
     // The donut drifts too: an exclusion's offset is rigid motion, so its
     // silhouette answers from what it already measured and every frame is
     // still a full live relayout around it.
+    const SkPoint donutOffset{
+        canvasWidth * 0.05f *
+            std::sin(static_cast<float>(elapsedSeconds) * 0.6f),
+        canvasHeight * 0.06f *
+            std::cos(static_cast<float>(elapsedSeconds) * 0.45f)};
     flow.exclusions().push_back(
-        {silhouette::path(donutPath),
-         fontSize * 0.4f,
-         {canvasWidth * 0.05f *
-              std::sin(static_cast<float>(elapsedSeconds) * 0.6f),
-          canvasHeight * 0.06f *
-              std::cos(static_cast<float>(elapsedSeconds) * 0.45f)}});
+        {silhouette::path(donutPath), fontSize * 0.4f, donutOffset});
     flow.setMinIntervalWidth(fontSize * 3);
 
     ParagraphLayoutOptions options;
@@ -121,11 +121,11 @@ class ExclusionsScene final : public Scene {
     ghost.setColor(kShape);
     canvas->drawCircle(circleCenter.x(), circleCenter.y(), circleRadius, ghost);
     canvas->save();
-    canvas->translate(star.pathOffset.x(), star.pathOffset.y());
+    canvas->translate(starOffset.x(), starOffset.y());
     canvas->drawPath(spiky, ghost);
     canvas->restore();
     canvas->save();
-    canvas->translate(donut.pathOffset.x(), donut.pathOffset.y());
+    canvas->translate(donutOffset.x(), donutOffset.y());
     canvas->drawPath(donutPath, ghost);
     canvas->restore();
     layout.drawBatched(canvas, m_body.paragraph);
