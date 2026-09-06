@@ -185,6 +185,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/schedule/Cascade.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Transition.h>
@@ -409,20 +410,30 @@ struct Site {
   const char* name;  // "01" .. "06"
   SkPoint centre;    // measured bbox centre
   float rotation;    // declared, snapped to 45
-  double fallAt;     // seconds; < 0 = never (MAGI 01)
+  bool falls;        // an outer installation; MAGI 01 is never taken
 };
 
 // Centres from a colour-masked flood fill of the reference; rotations
-// DECLARED here and asserted against atan2 in runAudit().
+// DECLARED here and asserted against atan2 in runAudit(). THE FALLS ARE IN
+// THIS ORDER, which is the order the script names them.
 constexpr Site kSites[] = {
-    {"06", {357.5f, 378.0f}, -45.0f, 0.30},  // CHINA / BEIJING
-    {"03", {1582.5f, 374.0f}, 45.0f, 0.75},  // GERMANY / BERLIN
-    {"04", {193.0f, 816.5f}, -90.0f, 1.20},  // U.S.A / MASSACHUSETTS
-    {"05", {1748.5f, 813.5f}, 90.0f, 1.65},  // GERMANY / HAMBURG
-    {"02", {966.5f, 297.0f}, 0.0f, 2.10},    // MATSUSHIRO
-    {"01", {967.5f, 935.5f}, 180.0f, -1.0},  // TOKYO-3
+    {"06", {357.5f, 378.0f}, -45.0f, true},   // CHINA / BEIJING
+    {"03", {1582.5f, 374.0f}, 45.0f, true},   // GERMANY / BERLIN
+    {"04", {193.0f, 816.5f}, -90.0f, true},   // U.S.A / MASSACHUSETTS
+    {"05", {1748.5f, 813.5f}, 90.0f, true},   // GERMANY / HAMBURG
+    {"02", {966.5f, 297.0f}, 0.0f, true},     // MATSUSHIRO
+    {"01", {967.5f, 935.5f}, 180.0f, false},  // TOKYO-3
 };
 constexpr int kSiteN = (int)(sizeof(kSites) / sizeof(kSites[0]));
+constexpr int kFallN = kSiteN - 1;
+
+/** THE FALLS, AS THE ONE LAW THEY ARE: five snaps of 180 ms, 450 ms
+ *  apart, the first at 0.30 s. Stated once as a cascade rather than as a
+ *  column of five start times in the table above, which is the same
+ *  ladder written out — and a ladder written out is a ladder that can
+ *  disagree with itself. */
+constexpr double kFirstFall = 0.30;
+inline const motion::Spread kFalls{.eachMs = 450.0f, .durationMs = 180.0f};
 
 // ---------------------------------------------------------------------------
 // PILLS. Unfilled: black interior, stroked rim, text inside. The label role
@@ -895,6 +906,8 @@ struct EvaMagiDefense : sketch::Sketch {
   ch::Output<float> fallAlpha[eva::kSiteN] = {{kFallRest}, {kFallRest},
                                               {kFallRest}, {kFallRest},
                                               {kFallRest}, {kFallRest}};
+  /** The fall ladder, resolved for the five that fall. */
+  motion::Cascade falls;
   // The front: the field's pan in whole px, negative as it climbs. Bound on
   // the funnel's material and on the ribbons' halo, so nothing re-describes.
   ch::Output<float> front{0.0f};
@@ -914,7 +927,7 @@ struct EvaMagiDefense : sketch::Sketch {
     // is the hub. Same rule, one substitution.
     SkPoint centroid{0, 0};
     for (const Site& s : kSites)
-      if (s.fallAt >= 0) {
+      if (s.falls) {
         centroid.fX += unroll(s.centre).fX / 5.0f;
         centroid.fY += unroll(s.centre).fY / 5.0f;
       }
@@ -925,7 +938,7 @@ struct EvaMagiDefense : sketch::Sketch {
         "  site   centre        target        bearing   want    "
         "declared  stem_dir  err\n");
     for (const Site& s : kSites) {
-      const bool hub = s.fallAt >= 0;
+      const bool hub = s.falls;
       const SkPoint tgt = hub ? kHub : centroid;
       const SkPoint at = unroll(s.centre);
       const float bearing = deg(std::atan2(tgt.fY - at.fY, tgt.fX - at.fX));
@@ -1096,7 +1109,7 @@ struct EvaMagiDefense : sketch::Sketch {
     return box()
         .width(kW)
         .height(kH)
-        .shape([this](SkSize) { return funnel; })
+        .shape(heldPath(funnel))
         .fill(field(fieldStrip))
         .cache(Cache::Texture)
         .key("funnel");
@@ -1162,7 +1175,7 @@ struct EvaMagiDefense : sketch::Sketch {
                       [&, i](SkPoint origin) {
                         return installation(i, origin, true);
                       }));
-      if (s.fallAt >= 0)
+      if (s.falls)
         g.child(glowing(unroll(s.centre), module.barWidth,
                         module.totalHeight(), s.rotation,
                         std::string("glow#") + s.name + "#fallen",
@@ -1342,6 +1355,7 @@ struct EvaMagiDefense : sketch::Sketch {
     }
 
     // --- motion ---
+    falls.build(eva::kFalls, eva::kFallN, 1);
     ctx.ticker.add([this, &ticker = ctx.ticker](double) {
       const double t = ticker.elapsed();
       // scanlines creep one WHOLE PIXEL at a time, 4 px per 8 s: a fractional
@@ -1353,14 +1367,16 @@ struct EvaMagiDefense : sketch::Sketch {
       // COLLAPSING: hard on/off, 350 on / 250 off (ESTIMATED — a single frame
       // cannot measure a blink, so this rate is not read off the reference)
       blink = std::fmod(t, 0.6) < 0.35 ? 1.0f : 0.0f;
-      // The falls: each hostile state snaps in over 180 ms from its second.
-      for (int i = 0; i < kSiteN; ++i) {
-        const Site& s = kSites[i];
-        if (s.fallAt < 0) continue;
-        const float u =
-            std::clamp((float)((t - s.fallAt) / 0.18), 0.0f, 1.0f);
-        fallAlpha[i] = kFallRest + (1.0f - kFallRest) * ch::easeOutQuad(u);
-      }
+      // The falls: the cascade's own ladder, read one unit at a time. The
+      // master is the seconds since the first fall over the span the
+      // cascade says it needs, so the ladder and the clock cannot drift.
+      const float master = std::clamp(
+          (float)((t - kFirstFall) * 1000.0 / (double)falls.totalMs), 0.0f,
+          1.0f);
+      for (int i = 0; i < kFallN; ++i)
+        fallAlpha[i] = kFallRest + (1.0f - kFallRest) *
+                                       ch::easeOutQuad(falls.localTime(
+                                           master, (uint32_t)i, 0));
       return true;
     });
 
