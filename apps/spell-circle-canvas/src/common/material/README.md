@@ -32,14 +32,17 @@ border, glow and shadow in one pass over a signed distance), **pattern**
 (a tile baked once with a mapping and an explicit reseed, and the stock
 tiles over it), and **field** (the halftone ramp, Perlin noise, luminance
 grain, the ripple, the CRT overlay). Under the core sits **colour**, the
-leaf: the colour value a params struct holds and the OKLab round trip,
-linking nothing; above the texture feature sits **ocio**, OpenColorIO's
-view transforms baked to materials. The **kit** holds PRESETS — functions that fix
+leaf: the colour value a params struct holds, the OKLab, OKLCH and
+CIELAB round trips, the ramp as one value, the harmonies read around a
+hue, the dither threshold a pixel is rounded against and the table a run
+of pixels is made of — all of it linking nothing; above the texture
+feature sits **ocio**, OpenColorIO's view transforms baked to materials.
+The **kit** holds PRESETS — functions that fix
 colours, proportions or a named style over the primitives: the
 metallic-roughness surface and the masks that stack it; gold, chrome
 and glass over a normal map and an environment; the girih panel and its
-palettes; the gel and chrome colour tables; the six text paints and the
-chrome-type ramps.
+palettes; the named colormaps; the gel and chrome colour tables; the six
+text paints and the chrome-type ramps.
 
 The core links the colour leaf, glm (for the vector types a struct may
 hold), SigilMotionValues (for the animatable a field may bind to, and
@@ -67,7 +70,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through, with `skia::paletteImage` and `skia::paletteLookup` the palette's two beside them; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialKit` | the presets: the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
 | `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, and `stock::warmup(target)`, which compiles the list into the shared program cache before a host's first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
@@ -493,6 +496,32 @@ its option sets are its own. The text paints
 share the `TextPaintParams` ABI of a run's origin and extent, the clock
 and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`
 are the chrome-type ramps in unit space.
+
+**The named colormaps are stock ramps, and that is why they are here and
+not in the leaf.** Each answers a plain `Ramp` — a stock value over a
+seam is kit — so a caller takes one, moves its domain onto the numbers
+it is reading, reverses it or eases it, and still holds a value every
+consumer of a ramp understands. What naming them buys is that these
+particular stop lists were MEASURED rather than picked. `kit::viridis`,
+`kit::magma`, `kit::inferno` and `kit::plasma` are the sequential four:
+each rises steadily in lightness the whole way, so a difference in the
+data is a difference an eye reports and none of them puts a false edge
+where a rainbow puts one; they differ in where they spend their chroma,
+and `plasma` is the one without a black end, for a map that has to sit
+on a dark ground. `kit::turbo` is the rainbow done properly — every hue,
+and no lightness cliff at the yellow or the cyan — and it still says
+nothing about which end is more, because its lightness rises to the
+middle and falls again: it is for telling many bands apart, not for
+reading which value is larger. `kit::redBlue` and `kit::brownTeal` are
+the diverging pair, palest in the middle where the quantity is neither
+sign, so the sign reads as the hue and the magnitude as the depth of it;
+the second stays two colours for a reader who cannot tell red from
+green. `kit::cubehelix` is the one map that is GENERATED rather than
+tabulated: `CubehelixOptions` — the starting hue, the turns, how far
+from grey it strays, the lightness path and how many stops the curve is
+sampled into — is the whole definition, so the hue path moves without
+leaving the family, and the lightness still climbs evenly from black to
+white, which is what makes it readable printed in grey.
 
 **A surface is composed of TERMS.** `termsSource(target)` is one
 text holding each piece of shading arithmetic as a function with a closed
@@ -957,8 +986,9 @@ untouched source, which is one tap of each. A halo is a low-frequency
 picture and survives that; what moves is the halo's fine structure at a
 hard-edged source, never the source itself, which is composited at full
 resolution and to the bit. A reach too small for the reduction to leave
-anything behind is gathered whole, and the wider the reach the coarser
-the gather — so a wide bloom costs LESS than a narrow one, not more. The
+anything behind is gathered whole, and a wider reach is gathered coarser
+— down to a quarter, past which the bright pass would alias on its own
+sources — so a wide bloom is not the wide gather it looks like. The
 layer is still worth bounding: put the glow sources on a node of their
 own under `Cache::Texture` and the bloom is baked with them once, rather
 than gathered over a whole canvas every frame. `then()` chains effects,
@@ -1045,7 +1075,7 @@ a node's fill and routes it, and holds no paint model of its own.
 ## Building and testing
 
 ```sh
-ctest --test-dir build -C Release -R material
+ctest --test-dir build -C Release --output-on-failure
 python3 scripts/bench_ledger.py --benches material_bench
 ```
 
@@ -1063,8 +1093,10 @@ not redeclare, and the file names the texture tools write.
 
 **The library has one test binary, `material_test`**, built from every
 feature's `test/` directory; ctest discovers one entry per CASE out of
-it, so a suite or a case is selected by name with no target behind it.
-Each feature's cases are named for the feature they cover:
+it, so `ctest -R '^Ramp\.'` selects a suite and
+`ctest -R 'Dither.ARoundedRampAveragesToTheValueItWasAskedFor'` one
+case, with no target behind either. Each feature's cases are named for
+the feature they cover:
 
 | suites | what they prove | label |
 |---|---|---|
@@ -1072,8 +1104,8 @@ Each feature's cases are named for the feature they cover:
 | `color/`, `sdf/`, `pattern/`, `field/`, `ocio/` | the primitives, the colour leaf, the view transforms | `ocio` on `Ocio` |
 | `texture/test/` | the image side | — |
 | `mask/test/` | that a mask shapes what it reads, and that reshaping something that is not a mask changes nothing | — |
-| `kit/test/` | the presets and the shading terms | — |
-| `skia/test/` | the SkSL backend | — |
+| `kit/test/` | the presets, the shading terms and the named ramps | — |
+| `skia/test/` | the SkSL backend, and the palette read off a picture | — |
 | `slang/test/` | the Slang backend, with no device | — |
 | `stock/test/` | that the catalogue holds every feature catalogue, and that the warm-up compiles every program it gathered | — |
 | `MaterialGpu` | every body this library ships, on a device | `gpu` |
@@ -1099,6 +1131,40 @@ program. The view-transform cases skip where the transforms are
 unavailable, which is what the `ocio` label says; a config that cannot
 be read failing soft is asked unconditionally, because that needs no
 OpenColorIO to ask.
+
+The colour leaf's four suites hold to closed forms rather than to
+colours this code once answered. `Color` holds the transfer function and
+the OKLab round trip to their own inverses, separates the three mixes by
+where their midpoint lands, and
+pins that a palette is read exactly — `nearest` clamped at both ends and
+never a blend — where a ramp is read between. `Ramp` asks the decisions
+one at a time: the ends are the stops and outside them is flat, the
+domain is the caller's own numbers, reverse and easing move the position
+and not the stops, each space walks its own path while both ends still
+round-trip, two stops at one position are an edge with nothing across
+it, a table is read at band centres and comes back a ramp, and the value
+is an interpolator anything that takes one can call. `Harmony` pins the
+polar round trip, that a rotation gives up chroma alone and holds the
+lightness, and that each scheme is its own set of angles with the base
+first. `Dither` asserts what a threshold pattern promises rather than
+what it looks like: the ordered matrix holds every threshold once and
+averages a half, the noise averages the same with no period to find, and
+a dithered ramp comes back at the value it was asked for. `Extract`
+holds the two methods apart by what each is for — the table is the
+colours a picture actually holds, the divided boxes cover the range they
+were given — and pins the determinism and the stride, with
+`closestEntry` answering -1 for a table with no entries.
+
+The named maps are the kit's `Ramps` suite, and it asks the properties
+the maps were chosen for rather than their stop lists: the ends are the
+colours the tables are published with, every sequential map climbs in
+lightness the whole way, the rainbow is brightest in its middle and so
+says nothing about which value is larger, the diverging pair is pale in
+the middle and opposed at its ends, and the helix is its props and still
+reads as grey. `SkiaPalette` is the one crossing beside them — a
+picture's own colours coming back, a picture larger than the read size
+scaled into it rather than sampled down, and nothing to read answering
+an empty table.
 
 The texture suites cover the image side: the sources and their
 identity across the erasure, the sampling dials, the environment map, the

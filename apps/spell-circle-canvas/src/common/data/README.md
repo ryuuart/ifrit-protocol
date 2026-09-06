@@ -345,6 +345,8 @@ each transform a per-mark loop runs through and the tick ladder a redraw
 rebuilds, the reshapings a redraw runs, and both formats read from bytes
 already in memory so no disk is inside a timed loop.
 
-Both binaries take their scratch directory from `src/test/ScratchDir.h`,
-the repository-level test support header: a directory named after the
-case and the process, emptied on the way in and removed on the way out.
+`data_test` takes its scratch directory from `src/test/ScratchDir.h`, the
+repository-level test support header: a directory named after the case
+and the process, emptied on the way in and removed on the way out. No
+benchmark here touches a disk at all, which is why none of them needs
+one.

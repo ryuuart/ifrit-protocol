@@ -269,24 +269,30 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release --target image_test
-ctest --test-dir build -C Release -R image_ --output-on-failure
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-Targets: `SigilImageAsset`, `SigilImageDecode` and `SigilImageEncode`
-(static libraries, one per feature directory — `asset/`, `decode/` and
-`encode/` — each holding its sources, its `test/` and its `bench/`; the
+Targets: `SigilImageAsset`, `SigilImageDecode`, `SigilImageEncode` and
+`SigilImageField` (static libraries, one per feature directory —
+`asset/`, `decode/`, `encode/` and `field/` — each holding its sources
+and its `test/`, and `decode/` and `encode/` a `bench/` besides; the
 decode and encode backends are one translation unit each behind the
-private `Backends.h` beside them), `SigilImage` (the umbrella), one test
-per library — one binary, `image_test`, with `asset/test/`,
-`decode/test/` and `encode/test/`, the last also reaching the decoder because the
-claim a round trip makes is that what came back out is what went in — and
-two benchmarks (Google Benchmark, built by the `benches` target and run
-from a Release build through `scripts/bench_ledger.py`).
+private `Backends.h` beside them), and `SigilImage` (the umbrella). The
+library has one test binary, `image_test`, built from `asset/test/`,
+`decode/test/`, `encode/test/` — which also reaches the decoder, because
+the claim a round trip makes is that what came back out is what went in
+— and `field/test/`; ctest discovers one entry per CASE out of it, so a
+suite or a case is selected by name with no target behind it
+(`ctest -R '^ImageDecode\.'`). One benchmark binary, `image_bench`,
+carries the decode and encode arms (Google Benchmark, built by the
+`benches` target and run from a Release build through
+`scripts/bench_ledger.py`).
 
-`test/Pixels.h` beside the fixtures is what all three read a picture by:
-where a committed file stands, one pixel out of a decoded frame
-unpremultiplied, and a per-channel comparison a lossy format can pass. A
-test target adds `test/` to its include path and spells `"Pixels.h"`.
+`test/Pixels.h` beside the fixtures is what the format suites read a
+picture by: where a committed file stands, one pixel out of a decoded
+frame unpremultiplied, and a per-channel comparison a lossy format can
+pass. A test target adds `test/` to its include path and spells
+`"Pixels.h"`.
 The encode cases ask the round trip as one parameterised case over
 `{format, quality, lossless}`, because what separates PNG from WebP at 80
 is those three values and not the shape of the question: a lossless
@@ -302,6 +308,15 @@ map. A case here asserts one thing a header promises and is named that
 promise as a sentence, and it pins only what editing this library could
 falsify — a routed format, a frame count, a channel value, a round trip —
 never an exact byte a codec chose.
+
+The field suite needs no fixture at all, because a distance has a closed
+form: `CoverageMask` pins which alpha counts as ink at each end of the
+tolerance, and `DistanceFieldOverAMask` asserts the transform against
+distances worked out by hand — three across and four down reading 5 and
+not 7, a 45-degree edge dilating by a margin of perpendicular standoff
+rather than by that margin times root two, and a mask covering nothing
+answering `kOutside` everywhere. That is what "exact, not approximate"
+has to mean to be worth saying.
 
 The benchmarks:
 `image_bench`'s decode arms time `decodeImage` per megapixel over PNG and JPEG
