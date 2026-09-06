@@ -7,37 +7,35 @@ file when it is empty.
 
 ## rota_convocationis is over its budget after its opening
 
-`--bench --sketch rota_convocationis` passes on the sketch's own declared
-moment (p99 11.3 ms of a 16.6 ms budget), and the twelve sub-seals no
-longer add to the per-frame cost — the seal cycle grows the frame by 3 ms
-where it grew it by 18. What the entry that stood here did not cover:
-from about six seconds in the plate is over budget anyway, and by the
-seal cycle's end it sits near 35 ms with no single node responsible.
-`--bench --at 9`, `--at 12` and `--at 15` report p50 31.5 / 34.0 /
-35.3 ms.
+`--bench --sketch rota_convocationis --at 9`, `--at 12` and `--at 15`
+report p50 21.4 / 19.8 / 25.4 ms and p99 24.7 / 26.6 / 30.9 ms against a
+16.6 ms budget, so the plate holds 60 FPS on its own declared moment and
+nowhere in the second half of the loop. That is down from 32.6 / 34.0 /
+35.3 ms p50, and the two things that came off it are done: a bake is now
+blitted only where its ink is, and each lighting group is one bake the
+gain rides rather than four additive fills of the sheet.
 
-The cost is a long tail of full-canvas live paints — the emissive stacks
-(`stella`, `arcus`, `star-lit`, `inner-lit`, the `rim-lit` and `nom-lit`
-grades), each a `Baked` path filled at `kPlus` over the whole 1280 px
-canvas, four per glow — plus three text rings that replay a picture every
-frame (`vox`, `registrum`, `textura`) because their placement is driven
-by a live path phase. The names' band was the fourth and is fixed: it is
-turned as a body and baked. The same conversion on the other three is NOT
-a win as things stand — a ring turned by a bound rotation is
-`transformLive`, so its bake is held in local space and the blit resamples
-a 650–1000 px image through the rotation, which costs more than the
-replay it replaced.
+The entry that stood here named a cause that measurement does not
+support, and the correction is worth keeping. A ring turned by a bound
+rotation was NOT being re-baked per scale rung — a rotation cannot move
+the ladder, and the bake was taken once. Nor can such a node hold a bake
+the blit does not resample: a rotation moves every pixel of the content
+it turns, and the only bake that is not resampled is one pinned to the
+device rect, which a turning node leaves every frame. What was true is
+the cost: the resample ran over the whole square of a bake whose ink is a
+band, which is what the ink grid now skips.
 
-Intended: either the emissive grades are cheap enough that twenty of them
-fit in a frame, or a ring turned by a declared rotation can hold a bake
-the blit does not resample. The second is the library half and the more
-useful one: a device-space bake is refused to a node whose transform is
-live, and yet a rotation about the node's own centre moves no pixel of
-the bake's CONTENT — only where it lands.
+What is left is a long tail with no single owner. At 15 s the whole frame
+is 23 ms over about two hundred painted nodes, of which the largest are
+the name ring's blit (2.4 ms), three text rings replaying a picture every
+frame because a live path phase re-places their glyphs (`monogramma`
+1.6, `registrum` 1.3, `textura` 1.2), and the star compound's two visible
+morph steps, each an additive stroke of a twelve-pointed compound over
+the sheet (2.3 ms each at 9 s). Nothing there is a defect; halving it is
+a pass over the sketch, not a fix.
 
 Assert once fixed: `--bench --at 9`, `--at 12` and `--at 15` all verdict
-PASS at 1280x1280, and the per-frame report shows no full-canvas live
-paint in the emissive stacks.
+PASS at 1280x1280.
 
 ## Ring and grid placement is respelled where geometry already has it
 
