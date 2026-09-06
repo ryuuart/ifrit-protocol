@@ -186,6 +186,8 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -790,10 +792,7 @@ struct ThunderFulu : sketch::Sketch {
                     .top(f.top())
                     .width(Dim(f.width()))
                     .height(Dim(f.height()))
-                    // the callable is invoked on every layout, so its capture
-                    // must survive each return
-                    // NOLINTNEXTLINE(performance-no-automatic-move)
-                    .shape([local](SkSize) { return local; })
+                    .shape(heldPath(local))
                     .fill(Fill::none())
                     .stroke(std::move(brush))
                     .key(s.key);
@@ -888,10 +887,8 @@ struct ThunderFulu : sketch::Sketch {
     // NOT a radius — it is what a hammer leaves.
     g.child(box()
                 .inset(0)
-                .shape([](SkSize s) {
-                  return shapers::Jitter{46.0f, 2.6f, 1356}.shape(
-                      shapes::chamfered(17.0f)(s));
-                })
+                .shape(shapes::shaped(shapes::chamfered(17.0f),
+                                      shapers::Jitter{46.0f, 2.6f, 1356}))
                 // linearUnit, not linear: linear() is in NODE PIXELS, so
                 // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
                 // and clamps the whole plate to its last stop.
@@ -930,10 +927,8 @@ struct ThunderFulu : sketch::Sketch {
     g.child(
         box()
             .inset(0)
-            .shape([](SkSize s) {
-              return shapers::Jitter{38.0f, 3.1f, 46}.shape(
-                  shapes::chamfered(17.0f)(s));
-            })
+            .shape(shapes::shaped(shapes::chamfered(17.0f),
+                                  shapers::Jitter{38.0f, 3.1f, 46}))
             .fill(Fill::none())
             .stroke(Brush{}
                         .layer(lines::rails(
@@ -1194,10 +1189,8 @@ struct ThunderFulu : sketch::Sketch {
               .top(at[k].fY - 46)
               .width(92)
               .height(92)
-              .shape([p = b.detach().makeOffset(-(at[k].fX - 46),
-                                                -(at[k].fY - 46))](SkSize) {
-                return p;
-              })
+              .shape(heldPath(b.detach().makeOffset(-(at[k].fX - 46),
+                                                    -(at[k].fY - 46))))
               .fill(Fill::none())
               .stroke(brush::presets::taper(3.6f, 1.0f, Fill::color(cols[k])))
               .foreground(PathFormat{
@@ -1268,7 +1261,7 @@ struct ThunderFulu : sketch::Sketch {
       }
       g.child(box()
                   .inset(0)
-                  .shape([p = b.detach()](SkSize) { return p; })
+                  .shape(heldPath(b.detach()))
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 4.4f,
@@ -1297,12 +1290,13 @@ struct ThunderFulu : sketch::Sketch {
     g.child(
         box()
             .inset(0)
-            .shape([](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(kCol, 28);
-              b.lineTo(kCol, kPH - 24);
-              return b.detach();
-            })
+            .shape(keyedShape(std::string_view("plate-spine"),
+                              [](SkSize) {
+                                SkPathBuilder b;
+                                b.moveTo(kCol, 28);
+                                b.lineTo(kCol, kPH - 24);
+                                return b.detach();
+                              }))
             .fill(Fill::none())
             .stroke(PathFormat{.width = 0.8f,
                                .strokeFill = Fill::color(hex(0x0e0d0c, 0.26f)),
@@ -1327,12 +1321,13 @@ struct ThunderFulu : sketch::Sketch {
                   .top(regs[i].y)
                   .width(Dim(kPW - 36))
                   .height(1)
-                  .shape([w = kPW - 36](SkSize) {
-                    SkPathBuilder b;
-                    b.moveTo(0, 0.5f);
-                    b.lineTo(w, 0.5f);
-                    return b.detach();
-                  })
+                  .shape(keyedShape(kPW - 36,
+                                    [w = kPW - 36](SkSize) {
+                                      SkPathBuilder b;
+                                      b.moveTo(0, 0.5f);
+                                      b.lineTo(w, 0.5f);
+                                      return b.detach();
+                                    }))
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 0.7f,
@@ -1386,10 +1381,7 @@ struct ThunderFulu : sketch::Sketch {
     g.child(
         box()
             .inset(0)
-            // the callable is invoked on every layout, so its capture must
-            // survive each return
-            // NOLINTNEXTLINE(performance-no-automatic-move)
-            .shape([walkPath](SkSize) { return walkPath; })
+            .shape(heldPath(walkPath))
             .fill(Fill::none())
             .stroke(lines::rails({{.across = 0.0f,
                                    .width = 2.6f,
@@ -1489,10 +1481,8 @@ struct ThunderFulu : sketch::Sketch {
                     .key(kit::formatted("mini%d", i));
       mp.child(box()
                    .inset(0)
-                   .shape([](SkSize s) {
-                     return shapers::Jitter{14.0f, 1.4f, 7}.shape(
-                         shapes::chamfered(5.0f)(s));
-                   })
+                   .shape(shapes::shaped(shapes::chamfered(5.0f),
+                                         shapers::Jitter{14.0f, 1.4f, 7}))
                    .fill(Paint::linearUnit({0.18f, 0.0f}, {0.88f, 1.0f},
                                               {{0.0f, hex(0x4a443b)},
                                                {0.55f, hex(0x272522)},
@@ -1528,7 +1518,7 @@ struct ThunderFulu : sketch::Sketch {
       b.quadTo(pw * 0.5f, ph - 8, pw * 0.72f, ph - 18);
       mp.child(box()
                    .inset(0)
-                   .shape([p = b.detach()](SkSize) { return p; })
+                   .shape(heldPath(b.detach()))
                    .fill(Fill::none())
                    .stroke(brush::presets::taper(3.6f, 1.4f, Fill::color(kCinnaWet))));
       if (i < 9) {
@@ -1564,12 +1554,13 @@ struct ThunderFulu : sketch::Sketch {
             .top(24)
             .width(468)
             .height(3)
-            .shape([](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(0, 1.5f);
-              b.lineTo(468, 1.5f);
-              return b.detach();
-            })
+            .shape(keyedShape(std::string_view("rule-468"),
+                              [](SkSize) {
+                                SkPathBuilder b;
+                                b.moveTo(0, 1.5f);
+                                b.lineTo(468, 1.5f);
+                                return b.detach();
+                              }))
             .fill(Fill::none())
             .stroke(lines::rails({{.across = 0.0f,
                                    .width = 1.6f,
@@ -1699,12 +1690,13 @@ struct ThunderFulu : sketch::Sketch {
           .top(y)
           .width(Dim(w))
           .height(3)
-          .shape([w](SkSize) {
-            SkPathBuilder b;
-            b.moveTo(0, 1.5f);
-            b.lineTo(w, 1.5f);
-            return b.detach();
-          })
+          .shape(keyedShape(w,
+                            [w](SkSize) {
+                              SkPathBuilder b;
+                              b.moveTo(0, 1.5f);
+                              b.lineTo(w, 1.5f);
+                              return b.detach();
+                            }))
           .fill(Fill::none())
           .stroke(lines::rails({{.across = 0.0f,
                                  .width = 1.3f,
@@ -1754,7 +1746,7 @@ struct ThunderFulu : sketch::Sketch {
               .top(py + 6)
               .width(Dim(pw))
               .height(Dim(bh))
-              .shape([p = axis.detach()](SkSize) { return p; })
+              .shape(heldPath(axis.detach()))
               .fill(Fill::none())
               .stroke(brush::Ribbon{.fill = Fill::color(hex(0xcf3018, 0.92f)),
                                     .step = 1.5f,
@@ -1769,14 +1761,15 @@ struct ThunderFulu : sketch::Sketch {
               .top(cy)
               .width(Dim(pw))
               .height(Dim(chh))
-              .shape([pw, chh, sc](SkSize) {
-                SkPathBuilder b;
-                b.moveTo(0, chh - sc);
-                b.lineTo(pw, chh - sc);
-                b.moveTo(0, chh);
-                b.lineTo(pw, chh);
-                return b.detach();
-              })
+              .shape(keyedShape(std::tuple{pw, chh, sc},
+                                [pw, chh, sc](SkSize) {
+                                  SkPathBuilder b;
+                                  b.moveTo(0, chh - sc);
+                                  b.lineTo(pw, chh - sc);
+                                  b.moveTo(0, chh);
+                                  b.lineTo(pw, chh);
+                                  return b.detach();
+                                }))
               .fill(Fill::none())
               .stroke(PathFormat{.width = 0.7f,
                                  .strokeFill = Fill::color(hex(0x8b7f66, 0.5f)),
@@ -1859,7 +1852,7 @@ struct ThunderFulu : sketch::Sketch {
                   .top(y)
                   .width(126)
                   .height(56)
-                  .shape([p = smoothPath(kSpec[c])](SkSize) { return p; })
+                  .shape(heldPath(smoothPath(kSpec[c])))
                   .fill(Fill::none())
                   .stroke(brush::Ribbon{.fill = Fill::color(kCinnabar),
                                         .step = 1.2f,
@@ -1930,16 +1923,18 @@ struct ThunderFulu : sketch::Sketch {
                   .top(ry - 11)
                   .width(22)
                   .height(22)
-                  .shape([](SkSize s) {
-                    SkPathBuilder b;
-                    b.moveTo(s.width() * 0.5f, 0);
-                    b.lineTo(s.width() * 0.5f, s.height());
-                    b.moveTo(0, s.height() * 0.5f);
-                    b.lineTo(s.width(), s.height() * 0.5f);
-                    b.addCircle(s.width() * 0.5f, s.height() * 0.5f,
-                                s.width() * 0.30f);
-                    return b.detach();
-                  })
+                  .shape(keyedShape(
+                      std::string_view("register-mark"),
+                      [](SkSize s) {
+                        SkPathBuilder b;
+                        b.moveTo(s.width() * 0.5f, 0);
+                        b.lineTo(s.width() * 0.5f, s.height());
+                        b.moveTo(0, s.height() * 0.5f);
+                        b.lineTo(s.width(), s.height() * 0.5f);
+                        b.addCircle(s.width() * 0.5f, s.height() * 0.5f,
+                                    s.width() * 0.30f);
+                        return b.detach();
+                      }))
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 0.8f,
@@ -1953,17 +1948,19 @@ struct ThunderFulu : sketch::Sketch {
             .top(kPT)
             .width(20)
             .height(Dim(kPH))
-            .shape([](SkSize s) {
-              SkPathBuilder b;
-              for (int i = 0; i <= 50; ++i) {
-                const float y = s.height() * (float)i / 50.0f;
-                const float len =
-                    (i % 10 == 0) ? 17.0f : (i % 5 == 0 ? 10.0f : 5.0f);
-                b.moveTo(s.width(), y);
-                b.lineTo(s.width() - len, y);
-              }
-              return b.detach();
-            })
+            .shape(keyedShape(
+                std::string_view("tick-ladder"),
+                [](SkSize s) {
+                  SkPathBuilder b;
+                  for (int i = 0; i <= 50; ++i) {
+                    const float y = s.height() * (float)i / 50.0f;
+                    const float len =
+                        (i % 10 == 0) ? 17.0f : (i % 5 == 0 ? 10.0f : 5.0f);
+                    b.moveTo(s.width(), y);
+                    b.lineTo(s.width() - len, y);
+                  }
+                  return b.detach();
+                }))
             .fill(Fill::none())
             .stroke(PathFormat{.width = 0.9f,
                                .strokeFill = Fill::color(hex(0xb2914f, 0.40f))})
@@ -1991,12 +1988,13 @@ struct ThunderFulu : sketch::Sketch {
             .top(724)
             .width(830)
             .height(3)
-            .shape([](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(0, 1.5f);
-              b.lineTo(830, 1.5f);
-              return b.detach();
-            })
+            .shape(keyedShape(std::string_view("rule-830"),
+                              [](SkSize) {
+                                SkPathBuilder b;
+                                b.moveTo(0, 1.5f);
+                                b.lineTo(830, 1.5f);
+                                return b.detach();
+                              }))
             .fill(Fill::none())
             .stroke(lines::rails({{.across = 0.0f,
                                    .width = 1.3f,
@@ -2244,16 +2242,17 @@ struct ThunderFulu : sketch::Sketch {
         box()
             .width(19)
             .height(19)
-            .shape([](SkSize s) {
-              SkPathBuilder b;
-              const float w = s.width(), h = s.height();
-              b.moveTo(0, h * 0.5f);
-              b.lineTo(w * 0.42f, h * 0.16f);
-              b.lineTo(w, h * 0.44f);
-              b.lineTo(w * 0.58f, h * 0.88f);
-              b.close();
-              return b.detach();
-            })
+            .shape(keyedShape(std::string_view("hammer-corner"),
+                              [](SkSize s) {
+                                SkPathBuilder b;
+                                const float w = s.width(), h = s.height();
+                                b.moveTo(0, h * 0.5f);
+                                b.lineTo(w * 0.42f, h * 0.16f);
+                                b.lineTo(w, h * 0.44f);
+                                b.lineTo(w * 0.58f, h * 0.88f);
+                                b.close();
+                                return b.detach();
+                              }))
             .fill(Fill::color(hex(0x6b6355, 0.55f)))
             .stroke(PathFormat{.width = 0.9f,
                                .strokeFill = Fill::color(hex(0x100f0f, 0.7f))});
