@@ -21,6 +21,7 @@ them all:
 | `time/Laps.h`         | `Laps` — `mark(name)` returns the milliseconds since the previous mark and records the lap; `each()` reads them back |
 | `time/FrameTimer.h`   | `FrameTimer` — `begin()`, `composed()`, `finished()`, `presented()` feeding the `frame()`, `work()` and `present()` rings, with `headroomFps()` and `presentedFps()` read off them |
 | `stats/Samples.h`     | `Samples`, a rolling ring (`add`, `mean`, `percentile`, `min`, `max`, `last`, `size`, `samples`), and the free `quantile()` it and everything else shares |
+| `stats/Fit.h`         | `lineFit(xs, ys)` and the `LineFit` it answers — slope, intercept, `r2`, max and rms residual, with `at()` and `residual()` |
 | `stats/Counters.h`    | `Counters` — named `int64_t` counters (`add`, `get`, `reset`, `each`) |
 | `stats/FrameSample.h` | `FrameSample` — the plain numbers a frame-budget gate judges a scene by |
 | `check/Check.h`       | `Check`, the `check()` overloads, `failures()` and `Table` |
@@ -81,6 +82,20 @@ linearly between the two ranks `p` falls between, so the median of
 `p`, and `p` is clamped to [0, 1]. `Samples::percentile` is that function
 over the ring's contents; nothing else in the tree defines its own.
 
+**One line fit, in the caller's own precision.** `lineFit(xs, ys)` is
+ordinary least squares, and it answers the residuals with the slope
+because a study that quotes a slope without one has stated a preference
+rather than a measurement: `r2` says how much of the ordinate the line
+explains, `maxResidual` says how far the worst point stands off it, and
+`at()`/`residual()` are the line evaluated so a drawing and its caption
+go through one arithmetic. It is a template on the scalar and the sums
+accumulate in that scalar — a caller that has always fitted in `float`
+gets the `float` answer it had rather than a `double` one rounded back,
+which is the difference between a drawing that holds and one that moves
+by a sub-pixel. Fewer than two points, or every point at one abscissa,
+is not a line: the answer is a zero slope through the mean with `r2` at
+0, never a divide by zero.
+
 **`Samples` is a ring.** `Samples(capacity)` keeps the last `capacity`
 samples, oldest dropping first, and computes every summary on read — no
 running sums, so `clear()` is exact and a sample that fell out of the
@@ -136,7 +151,10 @@ the writer's, not this one's.
 ## Testing and benchmarks
 
 `measure_test` covers the quantile's edges (empty, one sample,
-interpolation, clamping), the ring's wrap-around, the counters, the lap
+interpolation, clamping), the line fit (an exact line found exactly, a
+lifted point read off the residual rather than off the slope, a vertical
+run answering no slope, and the float sums matching a hand-written
+accumulation term for term), the ring's wrap-around, the counters, the lap
 timer's naming and totals, `ScopedMs` leaving its target alone until
 scope exit, the frame timer's lanes, and `Check::line` formatting as one
 parameterised case per kind of claim — integral, tolerance, text, bare

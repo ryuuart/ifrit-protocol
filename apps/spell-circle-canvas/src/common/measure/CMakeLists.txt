@@ -12,8 +12,8 @@ sigil_library_root(SigilMeasure
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMeasure
   SOURCES check/Check.cpp
-  HEADERS Measure.h check/Check.h stats/Counters.h stats/FrameSample.h
-          stats/Samples.h time/FrameTimer.h time/Laps.h time/Stopwatch.h
+  HEADERS Measure.h check/Check.h stats/Counters.h stats/Fit.h
+          stats/FrameSample.h stats/Samples.h time/FrameTimer.h time/Laps.h time/Stopwatch.h
   PUBLIC Boost::container)
 
 # Links only the library it exercises, so a link edge that pulled anything

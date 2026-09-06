@@ -2,6 +2,7 @@
 #include <sigilmeasure/Measure.h>
 
 #include <chrono>
+#include <cmath>
 #include <string>
 #include <thread>
 #include <vector>
@@ -353,4 +354,76 @@ TEST(Check, ReadingsAndHeadingsStandBesideTheClaimsUnjudged) {
   EXPECT_EQ(lines[2], "  spurs   0   PASS");
   EXPECT_EQ(lines[3], "  bars   41");
   EXPECT_EQ(lines[4], "  1 checks, all passed");
+}
+
+// ---------------------------------------------------------------------------
+// The line a run of points is closest to
+
+TEST(LineFit, APerfectLineIsFoundExactlyAndExplainsEverything) {
+  const std::vector<double> xs{0, 1, 2, 3, 4};
+  std::vector<double> ys;
+  for (double x : xs) ys.push_back(3.5 + 2.25 * x);
+  const LineFit<double> fit = lineFit<double>(xs, ys);
+  EXPECT_NEAR(fit.slope, 2.25, 1e-12);
+  EXPECT_NEAR(fit.intercept, 3.5, 1e-12);
+  EXPECT_NEAR(fit.r2, 1.0, 1e-12);
+  EXPECT_NEAR(fit.maxResidual, 0.0, 1e-12);
+  EXPECT_NEAR(fit.rmsResidual, 0.0, 1e-12);
+  EXPECT_EQ(fit.samples, 5u);
+  EXPECT_NEAR(fit.at(10.0), 26.0, 1e-12);
+}
+
+TEST(LineFit, TheResidualIsWhatTurnsASlopeIntoEvidence) {
+  // One point lifted off an otherwise exact line: the slope barely moves
+  // and the residual is what says so.
+  const std::vector<double> xs{0, 1, 2, 3, 4};
+  std::vector<double> ys{0, 1, 2, 3, 4};
+  ys[2] += 1.0;
+  const LineFit<double> fit = lineFit<double>(xs, ys);
+  EXPECT_NEAR(fit.slope, 1.0, 1e-12);
+  EXPECT_GT(fit.maxResidual, 0.5);
+  EXPECT_LT(fit.r2, 1.0);
+  EXPECT_GT(fit.r2, 0.8) << "one lifted point still leaves a good line";
+  EXPECT_NEAR(fit.residual(2.0, ys[2]), fit.maxResidual, 1e-12);
+}
+
+TEST(LineFit, WhatIsNotALineAnswersNoSlopeRatherThanADivideByZero) {
+  const std::vector<double> flat{2, 2, 2, 2};
+  const std::vector<double> ys{1, 5, -3, 9};
+  const LineFit<double> vertical = lineFit<double>(flat, ys);
+  EXPECT_EQ(vertical.slope, 0.0);
+  EXPECT_NEAR(vertical.intercept, 3.0, 1e-12) << "the mean of the ordinates";
+  EXPECT_EQ(vertical.r2, 0.0);
+  EXPECT_NEAR(vertical.maxResidual, 6.0, 1e-12);
+
+  const std::vector<double> one{7};
+  const LineFit<double> single = lineFit<double>(one, one);
+  EXPECT_EQ(single.slope, 0.0);
+  EXPECT_NEAR(single.intercept, 7.0, 1e-12);
+  EXPECT_EQ(lineFit<double>({}, {}).samples, 0u);
+}
+
+TEST(LineFit, TheSumsAreAccumulatedInTheArgumentsOwnPrecision) {
+  // A caller that has always fitted in float gets the float answer it
+  // had, not a double one rounded back — which is the difference between
+  // a drawing that holds and a drawing that moves by a sub-pixel.
+  std::vector<float> xs, ys;
+  for (int i = 0; i <= 80; ++i) {
+    const float v = -27.0f + 70.0f * (float)i / 80.0f;
+    xs.push_back(v);
+    ys.push_back(std::log(std::tan((45.0f + v * 0.5f) * 0.017453293f)));
+  }
+  float sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (size_t i = 0; i < xs.size(); ++i) {
+    sx += xs[i];
+    sy += ys[i];
+    sxx += xs[i] * xs[i];
+    sxy += xs[i] * ys[i];
+  }
+  const float n = (float)xs.size();
+  const float b = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  const float a = (sy - b * sx) / n;
+  const LineFit<float> fit = lineFit<float>(xs, ys);
+  EXPECT_EQ(fit.slope, b);
+  EXPECT_EQ(fit.intercept, a);
 }
