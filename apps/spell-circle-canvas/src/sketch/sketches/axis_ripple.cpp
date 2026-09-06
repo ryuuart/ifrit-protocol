@@ -80,6 +80,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
@@ -394,8 +395,8 @@ struct AxisRipple : sketch::Sketch {
     // The system grotesque is the face here because it is the one installed
     // face that carries BOTH axes this sheet needs — a grade to drive and a
     // weight to measure against it.
-    face = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
-    faceLabel = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    face = sketch::kit::houseFace(sketch::kit::Voice::Interface, 700);
+    faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
     const float measure = kW - 2.0f * kPadX;
     const auto runAt = [&](float size) {
       return runPens(toU8(kProof),

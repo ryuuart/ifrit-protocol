@@ -111,7 +111,7 @@ sk_sp<SkTypeface> display() {
  *  which is advance-invariant and therefore the one a draw-time drive is
  *  allowed to move. */
 sk_sp<SkTypeface> graded() {
-  return weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+  return sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
 }
 
 weave::TextStyle specimen(SkColor4f colour, sk_sp<SkTypeface> face) {

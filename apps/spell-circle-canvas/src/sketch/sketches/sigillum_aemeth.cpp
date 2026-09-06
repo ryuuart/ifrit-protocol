@@ -213,6 +213,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -2098,16 +2099,16 @@ struct SigillumAemeth : sketch::Sketch {
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
     // rather than silently at Normal.
-    faceSerif = sigil::weave::ports::face({"Hoefler Text", "Baskerville"});
-    faceItalic = sigil::weave::ports::face({"Hoefler Text", "Baskerville"},
-                                           SkFontStyle::Italic());
-    faceMono = sigil::weave::ports::face({"Menlo", "Courier New"});
+    faceSerif = sketch::kit::houseFace(sketch::kit::Voice::Book);
+    faceItalic = sketch::kit::houseFace(sketch::kit::Voice::Book, 400,
+                                        SkFontStyle::kItalic_Slant);
+    faceMono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
     faceSeal =
         sigil::weave::ports::face({"Herculanum", "Optima", "Baskerville"});
     faceRing = sigil::weave::ports::face(
         {"Trattatello", "Hoefler Text", "Baskerville"}, SkFontStyle::Italic());
-    faceQuill = sigil::weave::ports::face({"Hoefler Text", "Baskerville"},
-                                          SkFontStyle::Italic());
+    faceQuill = sketch::kit::houseFace(sketch::kit::Voice::Book, 400,
+                                       SkFontStyle::kItalic_Slant);
     faceDisplay = sigil::weave::ports::face(
         {"Luminari", "Herculanum", "Optima", "Baskerville"});
 

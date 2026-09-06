@@ -153,6 +153,7 @@
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -935,10 +936,9 @@ struct ShippingForecast : sketch::Sketch {
     // advance-invariant weight axis the swell needs. The stand-ins keep the
     // sheet legible where it is absent; the swell then simply does not
     // happen, and says so once.
-    faceDisplay =
-        weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 700);
-    faceBold = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
-    faceBody = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 400);
+    faceDisplay = sketch::kit::houseFace(sketch::kit::Voice::Interface, 700);
+    faceBold = sketch::kit::houseFace(sketch::kit::Voice::Interface, 600);
+    faceBody = sketch::kit::houseFace(sketch::kit::Voice::Interface, 400);
     faceTerm = weave::ports::face({"Iowan Old Style", "Charter", "Georgia"},
                                   400, SkFontStyle::kItalic_Slant);
     faceMono = weave::ports::face({"Menlo", "SF Mono", "Courier New"}, 400);

@@ -100,6 +100,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -205,8 +206,7 @@ inline sk_sp<SkTypeface> sansB() {
                             SkFontStyle::kBold_Weight);
 }
 inline sk_sp<SkTypeface> mono() {
-  return weave::ports::face({"Menlo", "Courier New"},
-                            SkFontStyle::kNormal_Weight);
+  return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 }
 
 inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,

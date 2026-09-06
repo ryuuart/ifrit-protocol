@@ -80,6 +80,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -124,7 +125,7 @@ Fill soft() { return Fill::color(kInkSoft); }
  *  answer per site in a dylib that a reload unloads, where the host
  *  already holds one for the whole process. */
 sk_sp<SkTypeface> monoFace() {
-  return weave::ports::face({"Menlo", "Courier New"});
+  return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 }
 sk_sp<SkTypeface> romanFace() {
   return weave::ports::face({"Palatino", "Georgia"});

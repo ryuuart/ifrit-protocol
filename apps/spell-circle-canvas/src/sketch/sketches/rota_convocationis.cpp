@@ -216,6 +216,7 @@
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/query/Selector.h>
@@ -1959,9 +1960,8 @@ struct RotaConvocationis : sketch::Sketch {
 
     fringeFx = fringeEffect();
 
-    faceRing = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
-    faceRingBold =
-        weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 600);
+    faceRing = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
+    faceRingBold = sketch::kit::houseFace(sketch::kit::Voice::Interface, 600);
     faceMono = weave::ports::face({"Menlo", "SF Mono", "Courier New"}, 500);
 
     // ---- content, fitted to its own bands --------------------------------

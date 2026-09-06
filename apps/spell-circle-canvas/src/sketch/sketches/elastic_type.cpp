@@ -86,6 +86,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -423,7 +424,7 @@ struct ElasticType : sketch::Sketch {
                              .background = kPaper});
 
     face = weave::ports::face({"Avenir Next", "Futura", "Helvetica Neue"}, 700);
-    faceLabel = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
+    faceLabel = sketch::kit::houseFace(sketch::kit::Voice::Interface, 500);
 
     ctx.ticker.add([this, &ticker = ctx.ticker](double) {
       const double t = ticker.elapsed();
