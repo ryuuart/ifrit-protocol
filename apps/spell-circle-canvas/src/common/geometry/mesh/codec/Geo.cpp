@@ -105,8 +105,8 @@ Json fromDom(simdjson::dom::element element) {
     // A big integer arrives as its digit string, since it has no 64-bit
     // form, and is read as the double it rounds to, like every number.
     case simdjson::dom::element_type::BIGINT:
-      out.v = std::strtod(std::string(std::string_view(element)).c_str(),
-                          nullptr);
+      out.v =
+          std::strtod(std::string(std::string_view(element)).c_str(), nullptr);
       break;
     case simdjson::dom::element_type::BOOL:
       out.v = bool(element);

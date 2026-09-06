@@ -66,10 +66,10 @@ TEST(SingleLineParagraphCache, AReferenceStaysValidAcrossLaterInsertions) {
   const Paragraph* address = &held;
 
   for (int index = 0; index < 512; ++index)
-    std::ignore = cache.paragraphFor(u8"filler" +
-                           std::u8string(1, (char8_t)('a' + index % 26)) +
-                           std::u8string(1, (char8_t)('a' + index / 26)),
-                       nullptr, 16.0f);
+    std::ignore = cache.paragraphFor(
+        u8"filler" + std::u8string(1, (char8_t)('a' + index % 26)) +
+            std::u8string(1, (char8_t)('a' + index / 26)),
+        nullptr, 16.0f);
 
   EXPECT_EQ(held.text(), u"held") << "the held reference no longer names it";
   EXPECT_EQ(firstSpanColor(held), SK_ColorRED);

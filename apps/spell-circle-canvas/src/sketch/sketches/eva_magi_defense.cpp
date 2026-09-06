@@ -292,9 +292,7 @@ constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 // ---------------------------------------------------------------------------
 // TYPE. One condensed grotesque, with sizes selected by semantic role.
 
-inline sk_sp<SkTypeface> boldFace() {
-  return evangelion::condensedBold();
-}
+inline sk_sp<SkTypeface> boldFace() { return evangelion::condensedBold(); }
 
 // The terminal's one register, over the library's designated-init `type()`:
 // every mark on this plate is the same bold grotesque, condensed.
