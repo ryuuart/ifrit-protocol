@@ -210,6 +210,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmeasure/stats/Fit.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -231,6 +232,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace measure = sigil::measure;
 namespace patterns = sigil::material::pattern;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
@@ -398,8 +400,7 @@ Element rule(float w, SkColor4f c, float h = 1.0f) {
 // Mode::Live instancing leaf.
 
 sk_sp<SkRuntimeEffect> transferCurve() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    const char* src = R"(
+  const char* src = R"(
 uniform shader content;
 uniform float k;
 half4 main(float2 xy) {
@@ -413,11 +414,9 @@ half4 main(float2 xy) {
   return half4(half3(d), half(da));
 }
 )";
-    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-    if (!e) std::fprintf(stderr, "[slitscan] transfer sksl: %s\n", err.c_str());
-    return e;
-  }();
-  return fx;
+  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
+  if (!e) std::fprintf(stderr, "[slitscan] transfer sksl: %s\n", err.c_str());
+  return e;
 }
 
 // ---------------------------------------------------------------------------
@@ -659,6 +658,11 @@ struct SlitScan2001 : sketch::Sketch {
   double tau = 0.0, elapsed = 0.0;
 
   // ---- the machine -------------------------------------------------------
+  /** THE TRANSFER CURVE, COMPILED ONCE AND HELD. describe() runs again on
+   *  every shot cut, and a program compiled inside it is a compile per
+   *  cut; a function-local static would be worse still, since it outlives
+   *  the dylib a hot-reloaded sketch is unloaded with. */
+  sk_sp<SkRuntimeEffect> transfer;
   std::shared_ptr<instancing::Atlas> atlas, flatAtlas;
   std::shared_ptr<instancing::Pool> wallA, wallB, monA, monB;
   std::array<std::shared_ptr<instancing::Pool>, 6> s4;
@@ -872,36 +876,25 @@ struct SlitScan2001 : sketch::Sketch {
         }
         if (lx.size() < 40) continue;
         const size_t n = lx.size();
-        double mx = 0, my = 0;
-        for (size_t i = 0; i < n; ++i) {
-          mx += lx[i];
-          my += ly[i];
-        }
-        mx /= (double)n;
-        my /= (double)n;
-        double sxy = 0, sxx = 0, syy = 0;
-        for (size_t i = 0; i < n; ++i) {
-          sxy += (lx[i] - mx) * (ly[i] - my);
-          sxx += (lx[i] - mx) * (lx[i] - mx);
-          syy += (ly[i] - my) * (ly[i] - my);
-        }
-        const double slope = sxx > 0 ? sxy / sxx : 0;
-        const double inter = my - slope * mx;
-        double ss = 0;
-        for (size_t i = 0; i < n; ++i) {
-          const double e = ly[i] - (slope * lx[i] + inter);
-          ss += e * e;
-          resid.push_back((float)std::fabs(std::exp(e) - 1.0));
-        }
+        // log v against log u: the exponent this ray falls off with is the
+        // slope, and the fit reports the residuals that say whether the
+        // exponent is worth quoting. Fitted in DOUBLE because the exponent
+        // IS the finding here rather than a number a drawing rides on.
+        const measure::LineFit<double> fit = measure::lineFit<double>(lx, ly);
+        // A residual in the exponent is unreadable; the same distance as a
+        // FRACTION of the measured luminance is the reading the card wants.
+        for (size_t i = 0; i < n; ++i)
+          resid.push_back(
+              (float)std::fabs(std::exp(fit.residual(lx[i], ly[i])) - 1.0));
         // Keep the profile itself, each ray levelled by its own intercept,
         // so the plot shows MEASURED samples rather than a replay of the fit.
         for (int i = 0; i < 120; ++i)
           if (bin[(size_t)i] >= 0) {
-            out.sum[(size_t)i] += ly[(size_t)bin[(size_t)i]] - inter;
+            out.sum[(size_t)i] += ly[(size_t)bin[(size_t)i]] - fit.intercept;
             out.cnt[(size_t)i] += 1;
           }
-        sp += -slope;
-        sr2 += syy > 0 ? 1.0 - ss / syy : 0.0;
+        sp += -fit.slope;
+        sr2 += fit.r2;
         ++out.rays;
         out.pts += (int)n;
       }
@@ -1095,7 +1088,7 @@ struct SlitScan2001 : sketch::Sketch {
                                        SkBlendMode::kPlus));
     };
     Element accumulation =
-        raw().effect(Effect::shader(transferCurve(), {{"k", transferK()}}));
+        raw().effect(Effect::shader(transfer, {{"k", transferK()}}));
     // THE CORE. Where the two planes converge the camera is looking
     // straight down the corridor, and every stamp in both exposures has
     // been laid on top of every other: on the Star Gate frame the
@@ -1133,7 +1126,7 @@ struct SlitScan2001 : sketch::Sketch {
     Element halation =
         raw()
             .effect(
-                Effect::shader(transferCurve(), {{"k", transferK() * 0.55f}})
+                Effect::shader(transfer, {{"k", transferK() * 0.55f}})
                     .then(Effect::filter(
                         SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
             .blend(SkBlendMode::kPlus)
@@ -1225,6 +1218,10 @@ struct SlitScan2001 : sketch::Sketch {
         .height(Dim(kRigH))
         .shrink(0)
         .key("rig")
+        // BOTH PROGRAMS BELOW ARE KEYLESS ON PURPOSE. They read the
+        // carriage's live position and the artwork's live offset as they
+        // paint, at Cache::None, so their picture is different every
+        // frame; a key would name one drawing and replay it.
         .child(custom([this](SkCanvas& c, const PaintContext& p) {
                  drawRig(c, p);
                })
@@ -1262,8 +1259,7 @@ struct SlitScan2001 : sketch::Sketch {
                               .child(instancing::instances(
                                   atlas, monB, instancing::Mode::Live,
                                   SkBlendMode::kPlus))
-                              .effect(Effect::shader(transferCurve(),
-                                                     {{"k", 2.4f}})))
+                              .effect(Effect::shader(transfer, {{"k", 2.4f}})))
                    .child(t("THIS EXPOSURE", mono(8, al(kCold, 0.85f), 1.4f))
                               .left(Dim(8))
                               .top(Dim(5)))
@@ -1434,7 +1430,7 @@ struct SlitScan2001 : sketch::Sketch {
                       .clip()
                       .key(kit::formatted("s4_%d", idx))
                       .scaleX(animate(from(0.0f).to(1.0f),
-                                      {220ms, ease::outBack(1.70158f)}))
+                                      {220ms, ease::outBack()}))
                       .transformOrigin(0.0f, 0.5f)
                       .child(instancing::instances(flatAtlas, s4[(size_t)idx],
                                                    instancing::Mode::Data,
@@ -1972,6 +1968,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
                            .captureAt = 6.0,
                            .background = kInk});
+  transfer = transferCurve();
 
   // ---- bake the artwork ONCE. These are static images made at setup and
   // never mutated afterwards, so they are plain baked SkImages; a live
