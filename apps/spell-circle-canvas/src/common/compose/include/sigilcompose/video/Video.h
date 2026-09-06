@@ -51,7 +51,12 @@ inline double videoTime(const sigil::video::Video& clip, double seconds,
 inline void paintVideoFrame(SkCanvas& canvas,
                             const sigil::video::VideoFrame& frame,
                             const SkSize size, const VideoOptions& options) {
-  if (!frame.image || size.isEmpty()) return;
+  // Both sides are guarded: a frame whose image has no extent divides by
+  // its own height below exactly as an empty destination divides by its
+  // own.
+  if (!frame.image || frame.image->width() <= 0 || frame.image->height() <= 0 ||
+      size.isEmpty())
+    return;
   const SkRect image =
       SkRect::MakeWH(frame.image->width(), frame.image->height());
   SkRect source = image;

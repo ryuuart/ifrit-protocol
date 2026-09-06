@@ -18,13 +18,19 @@ struct Paper {
     surface->getCanvas()->clear(SK_ColorTRANSPARENT);
   }
   void begin(int count, bool withFonts = true) {
+    beginWith(count, withFonts ? &fonts() : nullptr);
+  }
+  void beginWith(int count, weave::FontContext& context) {
+    beginWith(count, &context);
+  }
+  void beginWith(int count, weave::FontContext* context) {
     Frame frame;
     frame.width = 100;
     frame.height = 100;
     frame.seconds = count / 60.0;
     frame.deltaSeconds = 1.0 / 60.0;
     frame.frameCount = count;
-    frame.fonts = withFonts ? &fonts() : nullptr;
+    frame.fonts = context;
     pen.begin(*surface->getCanvas(), frame);
   }
   SkColor pixel(int x, int y) {
@@ -129,6 +135,29 @@ TEST(RetainedElement, FollowsThePensTransform) {
   paper.pen.end();
   EXPECT_EQ(paper.pixel(60, 60), SK_ColorBLUE);
   EXPECT_EQ(paper.pixel(10, 10), SK_ColorTRANSPARENT);
+}
+
+TEST(RetainedElement, AnotherFontContextGetsAComposerBuiltOnIt) {
+  // The guest is kept across frames and the composer inside it holds the
+  // font context it was built from BY REFERENCE. A pen that draws with a
+  // different one must not be answered with that composer: it would shape
+  // against a context this pen does not hold, and one that has gone is a
+  // dangling reference. The tree is the same, so what the case can see is
+  // that the guest was remade and the drawing still lands.
+  Paper paper;
+  weave::FontContext second(sigil::weave::ports::systemFontManager());
+  // ONE call site, so one slot and one kept guest — which is what makes
+  // the second frame reach the composer the first frame built.
+  for (int frame = 1; frame <= 2; ++frame) {
+    paper.beginWith(frame, frame == 1 ? &fonts() : &second);
+    paper.pen.element(text(u8"Hi", whiteStyle(24)),
+                      SkRect::MakeXYWH(0, frame == 1 ? 0.0f : 50.0f, 90, 40));
+    paper.pen.end();
+  }
+  EXPECT_EQ(paper.pen.retained().size(), 1u) << "one slot, one guest";
+  EXPECT_TRUE(paper.anyWhiteIn(SkIRect::MakeXYWH(0, 0, 90, 40)));
+  EXPECT_TRUE(paper.anyWhiteIn(SkIRect::MakeXYWH(0, 50, 90, 40)))
+      << "the second context's text is shaped and drawn";
 }
 
 TEST(RetainedElement, PaintsNothingWithoutFonts) {
