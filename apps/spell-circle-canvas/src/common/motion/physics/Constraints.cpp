@@ -28,6 +28,31 @@ void Constraint::project(Points& points) const {
   const Vec2 offset = points.position[b] - points.position[a];
   const float length = offset.length();
   const float longest = rest + (slack > 0.0f ? slack : 0.0f);
+  // Held to [0, 1]: the fraction of the error one pass takes out. Above
+  // one a pass would move the pair PAST the band and the next pass would
+  // pull it back, so a stiffness meant to read as "rigid" would ring
+  // instead; below zero it would push the error wider.
+  const float taken =
+      stiffness < 0.0f ? 0.0f : (stiffness > 1.0f ? 1.0f : stiffness);
+
+  if (approximate) {
+    // Inside the band there is nothing to say, the same as below.
+    if (length >= rest && length <= longest) return;
+    const float restSquared = rest * rest;
+    // Negative under tension and positive under compression, which is
+    // what carries the direction here: no normalisation, so no square
+    // root and no zero-length special case — the denominator is at least
+    // `restSquared`, which a band of no length would make zero, and a
+    // band of no length has nothing to hold.
+    if (!(restSquared > 0.0f)) return;
+    const float share =
+        restSquared / (offset.lengthSquared() + restSquared) - 0.5f;
+    const Vec2 push = offset * (share * taken);
+    points.position[a] -= push * (2.0f * weightA / total);
+    points.position[b] += push * (2.0f * weightB / total);
+    return;
+  }
+
   // Inside the band there is nothing to say. A rope hanging slack, a
   // joint inside its limit and a pair that is not touching are all this
   // case, and it is why one value covers the stick and the inequality.
@@ -40,12 +65,6 @@ void Constraint::project(Points& points) const {
   if (!(length > 0.0f)) return;
 
   const Vec2 direction = offset * (1.0f / length);
-  // Held to [0, 1]: the fraction of the error one pass takes out. Above
-  // one a pass would move the pair PAST the band and the next pass would
-  // pull it back, so a stiffness meant to read as "rigid" would ring
-  // instead; below zero it would push the error wider.
-  const float taken =
-      stiffness < 0.0f ? 0.0f : (stiffness > 1.0f ? 1.0f : stiffness);
   const float correction = (length - target) * taken;
   points.position[a] += direction * (correction * weightA / total);
   points.position[b] -= direction * (correction * weightB / total);

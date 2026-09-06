@@ -68,6 +68,15 @@ the stick, the spring and the rope in one value read three ways — or
 exactly, so a scene's forces and constraints are data a describe can
 carry.
 
+A distance band is solved by normalising the offset, which costs a
+square root per constraint per pass. `approximate` (and `stick()`, which
+sets it) replaces the normalisation with `rest² / (|offset|² + rest²) −
+½` — the same number to first order around the rest length, drifting as
+the pair moves away from it, so a chain converges to the same shape by a
+different path and one pass of one is not one pass of the other. It is a
+prop rather than a second kind because it changes only how a pass is
+arrived at, never what the constraint says.
+
 **Constraints move positions; the velocity is recovered afterwards**
 from the movement the step actually achieved. That is what makes a chain
 solvable by walking the list a few times, and what makes a point stopped

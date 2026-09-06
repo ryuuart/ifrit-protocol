@@ -106,6 +106,41 @@ TEST(Physics, ABandDoesNothingUntilItIsTaut) {
   EXPECT_NEAR(apart(points, 0, 1), 100.0f, 1e-2f);
 }
 
+TEST(Physics, TheApproximateStickConvergesOnTheSameLength) {
+  // The square-root-free solve is a different path to the same band: one
+  // pass of it is not one pass of the exact solve, and a few passes bring
+  // the pair to the rest length either way.
+  auto run = [](const Constraint& held, int passes) {
+    Points points;
+    points.add({0, 0}, {}, 1.0f, true);
+    points.add({70, 0});
+    for (int pass = 0; pass < passes; ++pass) held.project(points);
+    return points;
+  };
+  // Far from the rest length the two solves do not agree: the exact one
+  // lands on the band in a single pass, the approximation overshoots and
+  // comes back.
+  EXPECT_NEAR(apart(run(distance(0, 1, 40.0f), 1), 0, 1), 40.0f, 0.001f);
+  EXPECT_GT(std::abs(apart(run(stick(0, 1, 40.0f), 1), 0, 1) - 40.0f), 1.0f);
+
+  Points points = run(stick(0, 1, 40.0f), 60);
+  const Constraint held = stick(0, 1, 40.0f);
+  EXPECT_NEAR(apart(points, 0, 1), 40.0f, 0.05f);
+  // The held point did not move: the correction is shared by inverse
+  // mass here exactly as it is in the exact solve.
+  EXPECT_FLOAT_EQ(points.position[0].x, 0.0f);
+  EXPECT_FLOAT_EQ(points.position[0].y, 0.0f);
+}
+
+TEST(Physics, TheApproximateStickPushesApartWhenTooClose) {
+  Points points;
+  points.add({0, 0});
+  points.add({4, 0});
+  const Constraint held = stick(0, 1, 40.0f);
+  for (int pass = 0; pass < 200; ++pass) held.project(points);
+  EXPECT_NEAR(apart(points, 0, 1), 40.0f, 0.05f);
+}
+
 TEST(Physics, AnImmovablePointTakesNoneOfTheCorrection) {
   const Verlet stepper{.dt = 1.0f / 60.0f, .iterations = 4};
   Points points;

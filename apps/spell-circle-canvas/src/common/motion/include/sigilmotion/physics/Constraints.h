@@ -57,6 +57,22 @@ struct Constraint {
   float stiffness = 1.0f;
   /** `Pin`: where `a` is held. */
   Vec2 at{};
+  /** `Distance`: solve the band by the SQUARE-ROOT-FREE APPROXIMATION
+   *  instead of by the exact length.
+   *
+   *  The exact solve normalises the offset, which costs a square root per
+   *  constraint per pass. The approximation replaces the normalisation
+   *  with `rest² / (|offset|² + rest²) − ½`, which is the same number to
+   *  first order around the rest length and drifts as the pair moves away
+   *  from it — so a chain converges to the same shape but by a different
+   *  path, and one pass of it is not one pass of the other.
+   *
+   *  It is a PROP rather than a second kind because it changes only how a
+   *  pass is arrived at, never what the constraint says: the same band,
+   *  the same points, the same sharing by inverse mass. Set it where the
+   *  arithmetic is the subject — a study of the rig this approximation
+   *  comes from — or where a very long chain is paid for per pass. */
+  bool approximate = false;
 
   bool operator==(const Constraint&) const = default;
 
@@ -70,6 +86,16 @@ struct Constraint {
 /** A RIGID LENGTH between two points. */
 [[nodiscard]] inline Constraint distance(size_t a, size_t b, float length) {
   return {.kind = ConstraintKind::Distance, .a = a, .b = b, .rest = length};
+}
+
+/** THE SAME RIGID LENGTH, solved by the square-root-free approximation —
+ *  the stick a position-based rig is built out of. See `approximate`. */
+[[nodiscard]] inline Constraint stick(size_t a, size_t b, float length) {
+  return {.kind = ConstraintKind::Distance,
+          .a = a,
+          .b = b,
+          .rest = length,
+          .approximate = true};
 }
 
 /** A SOFT LENGTH: the same band, pulled at @p stiffness of its error per
