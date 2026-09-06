@@ -305,34 +305,8 @@ Blockers:
   device headers). Left to the path-ops pass, which renames the
   colliding `path::Edge` first.
 
-Should-fix (API, build, docs, comments): `mesh/pop/device/Cook.cpp:355`
-a refused kernel answers an empty cloud where the sibling executors fall
-back to the host; `mesh/pop/CMakeLists.txt:64` the pop library links the
-device PUBLIC, pulling Diligent and Vulkan into every consumer, against
-the shape render has and README:1566,1582 state; `Pop.h:48,72` two
-numberings of the builtin lanes; `Pop.h:1104`, `Sweep.h:235`,
-`Stamp.h:170` "defined only with a device feature" is false;
-`kit/Divisions.h:336` `chords()` insets open runs only; `kit/Shapers.h:209`
-a kit header grows `path::profile`; `Pop.h:981,952` `deformFrame` and
-`seedCustomNames` public without a true reason or a consumer;
-`device/Resources.cpp:108` a staging texture per read against "made
-once"; citations of non-existent files (`kit/Frame.h`) and the consumer
-SigilWorld in `kit/Divisions.h:63`, `mesh/pop/Points.h:12`, `Pop.h:482`,
-`Mesh.h:100`; README:895,1094 and `mesh/CMakeLists.txt:2` wrong about
-where things live and what is exposed. Files by subject: `Pop.h` (1131),
-`mesh/pop/Cook.cpp` (792), `mesh/codec/Geo.cpp` (601) — the three file
-splits deferred by the rulings.
-
-Nits: `device/Device.cpp:98,101,56` a `fprintf` where the sibling uses
-`reportOnce`, an unsynchronised `static bool warned`, and a `setenv`
-from a library entry point; `kit/Divisions.h:339,135` a missing
-`<vector>` include and a dead ternary; `mesh/pop/kernels/Pop.slang:177` a
-dead clamp; `mesh/pop/Points.h:114` `displaceNoise`'s `uint32_t` seed
-against the operator's float; `Pop.h:576` a roadmap note;
-`README.md:1673,869,1199` history, a broken clause and a wrong count;
-`mesh/pop/Stamp.h:91` a vertex total that truncates past 2^32;
-`kit/Shapers.h:63` `Wave::bleed()` and `Wave::max()` with identical
-bodies.
+Deferred by the rulings: the file splits by subject — `Pop.h` (1131),
+`mesh/pop/Cook.cpp` (792), `mesh/codec/Geo.cpp` (601).
 
 ## SigilWorld, SigilUsd, SigilSubstance, SigilImage (findings/review-geometry-material-world.md)
 

@@ -6,6 +6,7 @@
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 
@@ -53,6 +54,12 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
   // is turned off here — before the instance exists, which is the only
   // moment it is read — and left alone when something else already set
   // it, so a caller may still ask for the faster arithmetic.
+  //
+  // IT IS A PROCESS-WIDE WRITE, and `setenv` is not safe against a
+  // concurrent read of the environment, so this call must run before any
+  // other thread reads one. The first device a process brings up is
+  // where it lands, which is why it stands at the head of the bring-up
+  // rather than beside the instance it affects.
   setenv("MVK_CONFIG_FAST_MATH_ENABLED", "0", /*overwrite=*/0);
   IEngineFactoryVk* factory = GetEngineFactoryVk();
   if (!factory) {
@@ -94,10 +101,15 @@ std::unique_ptr<Device> Device::create(const DeviceConfig& config,
   if (!device->m_impl->graphite) {
     device->m_impl->gpu.reset();
     // The reason is a property of the machine, not of this device, so
-    // one line covers every device a process brings up.
-    static bool warned = false;
-    if (!warned) {
-      warned = true;
+    // one line covers every device a process brings up — and two threads
+    // bringing devices up at once still write it once, which is what the
+    // exchange is for. It goes to stderr rather than through a report
+    // sink, because every such sink in this tree stands in a library
+    // this feature must not link: it sits under every consumer of a
+    // device and reaching a material from here would put a material on
+    // their link lines too.
+    static std::atomic<bool> warned{false};
+    if (!warned.exchange(true)) {
       fprintf(stderr, "[geometry] 2D on the 3D device is unavailable: %s\n",
               adoptError.empty() ? "Graphite declined the adopted device"
                                  : adoptError.c_str());

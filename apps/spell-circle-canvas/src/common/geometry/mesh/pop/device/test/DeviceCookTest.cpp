@@ -14,7 +14,7 @@
 #include <gtest/gtest.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/pop/Kernel.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/device/Cook.h>
 
 #include <bit>
 #include <cstdint>

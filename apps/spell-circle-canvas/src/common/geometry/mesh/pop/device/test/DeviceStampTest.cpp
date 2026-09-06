@@ -15,6 +15,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/device/Stamp.h>
 
 #include <bit>
 #include <cstdint>

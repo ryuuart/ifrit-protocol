@@ -128,8 +128,8 @@ struct Model {
   void bounds(glm::vec3* lo, glm::vec3* hi) const;
 
   /** Everything as one mesh: parts appended, any non-white baseColor
-   *  baked into the per-vertex color lane (Space's Lit mode and
-   *  SigilWorld both multiply it). */
+   *  baked into the per-vertex color lane, which every lit renderer
+   *  multiplies through. */
   Mesh merged() const;
 
   /** The transform that centers the model on the origin and uniformly

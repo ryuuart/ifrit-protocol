@@ -1,9 +1,13 @@
 #pragma once
 
 /** @file
- * The stock values over two of this library's seams: `shapers::`, what
- * bends one continuous mark, and the oscillating width law a strand that
- * trades sides is written as (`path::profile::wave`).
+ * The stock values over two of this library's seams: what bends one
+ * continuous mark, and the oscillating width law a strand that trades
+ * sides is written as. Both live in `shapers::`, because a kit composes
+ * over a seam and does not grow it — a seam's namespace whose contents
+ * changed with which kit header a consumer happened to include would be
+ * a namespace nobody could read off the seam's own directory. `Wave`
+ * answers both seams at once, so one value is both.
  *
  * Each is a comparable struct with its seam's required member, so a
  * caller's own value is indistinguishable from these at the call site,
@@ -60,8 +64,11 @@ namespace sigil::geometry::shapers {
 struct Wave {
   float amplitude = 4.0f, wavelength = 24.0f, phase = 0.0f;
   bool operator==(const Wave&) const = default;
-  float bleed() const { return std::abs(amplitude); }
+  /** The deviation seam's reading and the profile seam's are the same
+   *  number here: a wave reaches its amplitude either side of the mark,
+   *  which is both how far it bleeds past it and how wide it gets. */
   float max() const { return std::abs(amplitude); }
+  float bleed() const { return max(); }
   /** As a PROFILE: the same value read as a width across a spine, which
    *  is what makes a braid strand and a wavy band one vocabulary. */
   float across(float along) const {
@@ -181,6 +188,14 @@ struct Zigzag {
   }
 };
 
+/** The wave as a value. It answers BOTH seams: `shape()`/`bleed()` make
+ *  it a shaper, and `across()`/`max()` make it a `path::Profile` — which
+ *  a Profile takes directly, so an oscillating width law is this same
+ *  call and not a second one.
+ *
+ *  As a profile it is ZERO-MEAN, so it is a strand CENTRELINE and not a
+ *  band width: as a width it would go negative half the time and invert
+ *  the band's rails. */
 inline Wave wave(float amplitude, float wavelength, float phase = 0.0f) {
   return Wave{amplitude, wavelength, phase};
 }
@@ -199,25 +214,3 @@ inline Jitter jitter(float segLength = 8.0f, float deviation = 2.0f,
 inline Offset offset(float px, float step = 4.0f) { return Offset{px, step}; }
 
 }  // namespace sigil::geometry::shapers
-
-// ---------------------------------------------------------------------------
-// The width laws that oscillate — the profile seam's stock beyond
-// `profile::self` and `profile::offset`, which are the two the seam
-// itself ships. They land in the seam's own namespace, one library
-// directory down, because that is where a caller looks for a width law.
-
-namespace sigil::geometry::path::profile {
-
-/** The wave as a PROFILE value (`across`/`max`): a strand that trades
- *  sides. The seam itself ships only `path::profile::self()` and
- *  `path::profile::offset()`; everything that oscillates lives here.
- *
- *  ZERO-MEAN, so this is a strand CENTRELINE and not a band width — as a
- *  width it goes negative half the time and inverts the band's rails.
- *  `Wave` above states the composition an undulating band wants
- *  instead. */
-inline Profile wave(float amplitude, float wavelength, float phase = 0.0f) {
-  return Profile(shapers::Wave{amplitude, wavelength, phase});
-}
-
-}  // namespace sigil::geometry::path::profile

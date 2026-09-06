@@ -1,5 +1,6 @@
 # The mesh currency and its procedural generators — the 3D tier's root.
-# The public headers expose only Skia and glm types.
+# The public headers expose glm types and Boost.Container's map, which is
+# what a mesh holds its primitive lanes in.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMesh
   SOURCES Generators.cpp Mesh.cpp

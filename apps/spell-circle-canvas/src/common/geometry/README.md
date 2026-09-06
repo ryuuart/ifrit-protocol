@@ -865,8 +865,8 @@ CARRIES is a point operator and lives in `mesh/pop`.
   or closed) with `position()`, `tangent()`, `length()`, `sample()` and
   `sampleArcLength()`; the two rails — `curve::frames()`, parallel-transport
   `Frame3`s that do not flip at inflections, and `curve::hangFrames()`, a
-  window of a closed loop whose across-vector is held world-vertical; the
-  and `project()` to draw the curve as a 2D path under a camera.
+  window of a closed loop whose across-vector is held world-vertical; and
+  `project()` to draw the curve as a 2D path under a camera.
 - **`mesh/curve/Pose.h`** — the rail addressed by DISTANCE rather than by
   index: `curve::poseAlong()` answers the `Frame3` at an arc length, over
   a rail you hold or over a spline that builds one, under the same
@@ -890,9 +890,10 @@ implementations of the same dispatch seams.
 - **`mesh/pop/Points.h`** — `Cloud` and its lane accessors (`Cloud.cpp`);
   the generators `onSpline()`, `grid()`, `ring()`, `scatterBox()` and
   `onMesh()` (`Generators.cpp`); the modifiers `jitter()` and
-  `displaceNoise()`, the consumers `instance()` and `quads()` (stamp a
-  mesh at every point into one merged mesh) and `promoteToPrims()`
-  (`Modifiers.cpp`); and `drawBillboards()`, camera-facing sprites
+  `displaceNoise()`, `stampOptions()` and `promoteToPrims()`
+  (`Modifiers.cpp`); the consumers `instance()` and `quads()`, which
+  stamp a mesh at every point into one merged mesh (`Stamp.cpp`); and
+  `drawBillboards()`, camera-facing sprites
   (`Billboards.cpp`). `BillboardStyle::texLane` names a colour lane of
   {uOffset, vOffset, uScale, vScale} windows — what a `pop::Atlas` op
   writes into `"Tex"` — and each splat then draws THAT CELL of the
@@ -1092,7 +1093,8 @@ with the same expression.
 `spread`, `seed`, `jitter`, `noise`, `vary`, `fade`, `tint`, `lookAt`,
 `move`, `fill`, `atlas`, `rampBy`, `order`, `orderBy`, `promote`, `smooth`,
 `select`, `drop`, `keep`, `masked`, `affine`, `orient`, `peak`, `twist`,
-`taper`, `bend`, `mix`, `mixBy`, `copy`, `normal`, `op`) append operators — `masked()` sets
+`taper`, `bend`, `mix`, `mixBy`, `copy`, `normal`, `relax`, `cluster`,
+`transfer`, `op`) append operators — `masked()` sets
 the mask on the filter just added — and the builder converts to a
 `Chain`, so you can reach into any operator afterwards and re-cook. Sinks
 end a chain: `cook()` to a `Cloud`, `cookMesh()` to one mesh of stamps,
@@ -1197,14 +1199,18 @@ beneath, in `sigil::geometry::shapes`.
   "rounded except where cut", the machined-panel rule, which a rounding
   wrapped round a chamfer cannot say because it would round the cut too —
   and a `cutRise` for the cut that is not at 45°.
-- **`kit/Silhouettes.h`** — the 2D shelf, including all three.
+- **`kit/Silhouettes.h`** — the 2D shelf, including all four:
+  `Corners.h`, `Curves.h`, `Generators.h` and `Hatches.h`.
 - **`kit/Shapers.h`** — `shapers::`, the stock over the deviation seam:
   `Wave` (also the braid primitive — strands that oscillate trade sides,
   and where they trade sides they cross), `Zigzag`, `Square`, `Jitter`,
-  `Offset`, `Rounded` and `Chamfer`, with a factory each. Beside them, in
-  the seam's OWN namespace one directory down, `path::profile::wave` —
-  the oscillating width law, which is ZERO-MEAN and therefore a strand
-  centreline rather than a band width.
+  `Offset`, `Rounded` and `Chamfer`, with a factory each. `Wave` answers
+  BOTH seams: `shape()`/`bleed()` make it a shaper and
+  `across()`/`max()` make it a `path::Profile`, so the oscillating width
+  law is the same `shapers::wave` call rather than a second one. As a
+  profile it is ZERO-MEAN and therefore a strand centreline rather than
+  a band width. Both stand in `shapers::` and not in `path::profile`,
+  because a kit composes over a seam and does not grow it.
 - **`kit/Hatches.h`** — `hatchOutline()`, a silhouette filled with lines
   as one path: the outline narrowed by `ops::offset`, flattened, run
   through `path::lattice` and joined up. It is a door rather than a
@@ -1366,18 +1372,22 @@ sources and a consumer holding one of those objects puts
 path.
 
 **The device executors of this library's own seams stand beside their CPU
-ones**, in `mesh/pop/device/` and `mesh/render/device/`:
-`pop::deviceRuntime(device)` cooks a chain
-by dispatching the kernel this build compiled,
-`pop::sweepDeviceRuntime(device)` forms a sweep's rings by dispatching
-theirs, `points::deviceRuntime(device)` forms a stamping's vertices
-by dispatching the third, and `render::deviceRuntime(device)` rasterises
-a mesh draw. None of the first three computes an arithmetic of its own —
-the kernel is one Slang source compiled twice, to the C++ the host
-executor calls and to the SPIR-V dispatched here — which is what lets the
-two tiers be held to bit identity rather than to a tolerance. All four
-are absent from a build with no device feature, and
-`mesh/pop/test/DeviceCookTest.cpp`, `DeviceStampTest.cpp` and
+ones**, each its own target: `SigilGeometryMeshPopDevice` in
+`mesh/pop/device/` and `SigilGeometryMeshRenderDevice` in
+`mesh/render/device/`. `pop::deviceRuntime(device)`
+(`mesh/pop/device/Cook.h`) cooks a chain by dispatching the kernel this
+build compiled, `pop::sweepDeviceRuntime(device)`
+(`mesh/pop/device/Sweep.h`) forms a sweep's rings by dispatching theirs,
+`points::deviceRuntime(device)` (`mesh/pop/device/Stamp.h`) forms a
+stamping's vertices by dispatching the third, and
+`render::deviceRuntime(device)` (`mesh/render/device/Painter.h`)
+rasterises a mesh draw. None of the first three computes an arithmetic
+of its own — the kernel is one Slang source compiled twice, to the C++
+the host executor calls and to the SPIR-V dispatched here — which is
+what lets the two tiers be held to bit identity rather than to a
+tolerance. Each target is separate so that the feature it stands beside
+stays free of a device, and
+`mesh/pop/device/test/DeviceCookTest.cpp`, `DeviceStampTest.cpp` and
 `DeviceSweepTest.cpp` are the conformance: every chain, every stamping
 and every sweep the device runtimes say they can do, done both ways and
 compared bit for bit — and, beside that, that the backend says nothing
@@ -1580,8 +1590,11 @@ another feature, and none of them reaches a public header.
 
 `device` is the exception to all of that, and the one feature that
 brings a renderer's dependencies with it: Diligent Engine, SigilCore's
-hardware device and SigilSkia's Graphite. Nothing above it links it
-unless it wants a device, and no other feature here reaches down into it.
+hardware device and SigilSkia's Graphite. What links it is the device
+executors alone — `mesh/pop/device` and `mesh/render/device`, each its
+own target beside the CPU executor of the seam it serves — so a consumer
+that cooks a chain or draws a mesh on the host acquires none of the
+three, and no other feature here reaches down into it.
 `device/residency` is where the mesh currency and SigilMaterial's texture
 and Slang backend are named — it is the one place a geometry target names
 a material one other than `path/blend`'s private colour link, and it
@@ -1670,10 +1683,8 @@ promise. One file per subject, named for what it asserts.
 The library has ONE test binary, `geometry_test`, built from every
 feature's `test/` directory and landing in `bin/<config>/tests/`. ctest
 discovers one entry per CASE out of it, so a suite or a case is selected
-by name — `ctest -R '^PopChains\.'` — with no target behind it. The
-tiers were once separate binaries so that a test reaching past its tier
-failed to link; that proof is deliberately gone, and what is left is
-that a suite's file sits in the feature it covers.
+by name — `ctest -R '^PopChains\.'` — with no target behind it. A
+suite's file sits in the feature it covers.
 
 | Files | Proves |
 | --- | --- |
@@ -1686,7 +1697,7 @@ that a suite's file sits in the feature it covers.
 | `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
 | `device/test/DeviceTest` | one device end to end: Graphite draws on the very queue Diligent submits through, the adopted device names every Vulkan handle, and Diligent still drives it afterwards |
 | `device/residency/test/ResidencyTest` | what the device keeps between draws: a named mesh crossing once and drawn from after, a nameless one written through the streaming pair, the depth of an uploaded map's chain, and the letting go that keeps a scene from holding everything it ever cooked |
-| `mesh/pop/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
+| `mesh/pop/device/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
 | `mesh/render/device/test/PainterTest` | the mesh painter's device executor: the runtime as a value, the style's own answers read the same way on either executor, and a panel as the same BYTES on both — which it is because a panel's content is Skia's to rasterise whichever executor holds it. How far two rasterisers stand apart on everything else is a picture, judged against a committed baseline rather than here |
 
 The device suites carry the `gpu` label: every case in them brings a

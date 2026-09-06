@@ -106,11 +106,10 @@ TEST(ComposeKitStrokes, TheWaveProfileIsAKitValueOverACoreSeam) {
   // The seam itself ships profile::self()/offset() only; everything that
   // oscillates lives in the geometry kit — but it plugs the SAME Profile
   // seam, so nothing beneath it learns that a kit profile exists.
-  const geometry::path::Profile undulating =
-      geometry::path::profile::wave(9, 50);
+  const geometry::path::Profile undulating = geometry::shapers::wave(9, 50);
   EXPECT_NEAR(undulating.max(), 9.0f, 1e-4f) << "max() is required by the seam";
-  EXPECT_TRUE(undulating == geometry::path::profile::wave(9, 50));
-  EXPECT_FALSE(undulating == geometry::path::profile::wave(9, 51));
+  EXPECT_TRUE(undulating == geometry::shapers::wave(9, 50));
+  EXPECT_FALSE(undulating == geometry::shapers::wave(9, 51));
   EXPECT_FALSE(undulating == geometry::path::profile::offset(9));
 }
 
@@ -194,9 +193,11 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
     const SkPath spine = sp.detach();
 
     const std::vector<brush::Strand> strands = {
-        brush::Strand{geometry::path::profile::wave(amp, wavelength, 0.0f),
+        brush::Strand{geometry::path::Profile(
+                          geometry::shapers::wave(amp, wavelength, 0.0f)),
                       brush::solid(inkWidth, red())},
-        brush::Strand{geometry::path::profile::wave(amp, wavelength, 0.5f),
+        brush::Strand{geometry::path::Profile(
+                          geometry::shapers::wave(amp, wavelength, 0.5f)),
                       brush::solid(inkWidth, green())}};
     // Same phases braid() would hand out for n = 2.
     const std::vector<brush::Strand> viaBraid =

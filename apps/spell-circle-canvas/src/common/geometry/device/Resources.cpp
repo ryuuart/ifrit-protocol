@@ -96,18 +96,33 @@ sk_sp<SkImage> Resources::read(dg::ITexture* texture) {
   const int height = (int)texture->GetDesc().Height;
   if (width <= 0 || height <= 0) return nullptr;
 
-  dg::TextureDesc desc;
-  desc.Name = "device readback";
-  desc.Type = dg::RESOURCE_DIM_TEX_2D;
-  desc.Width = (dg::Uint32)width;
-  desc.Height = (dg::Uint32)height;
-  desc.Format = kColorFormat;
-  desc.Usage = dg::USAGE_STAGING;
-  desc.CPUAccessFlags = dg::CPU_ACCESS_READ;
-  desc.BindFlags = dg::BIND_NONE;
-  dg::RefCntAutoPtr<dg::ITexture> staging;
-  m_device->renderDevice()->CreateTexture(desc, nullptr, &staging);
-  if (!staging) return nullptr;
+  // THE STAGING COPY IS MADE ONCE and grown, not made per read: a canvas
+  // draw reads its target back every frame, and a texture allocated and
+  // freed on that beat is one allocation per frame for a size that
+  // hardly ever changes. Only a read WIDER or TALLER than the last one
+  // makes a new one, and it is then big enough for both — a smaller read
+  // copies its own rectangle into the corner of it.
+  if (!m_staging || m_stagingExtent.fWidth < width ||
+      m_stagingExtent.fHeight < height) {
+    m_stagingExtent = {std::max(m_stagingExtent.fWidth, width),
+                       std::max(m_stagingExtent.fHeight, height)};
+    m_staging.Release();
+    dg::TextureDesc desc;
+    desc.Name = "device readback";
+    desc.Type = dg::RESOURCE_DIM_TEX_2D;
+    desc.Width = (dg::Uint32)m_stagingExtent.fWidth;
+    desc.Height = (dg::Uint32)m_stagingExtent.fHeight;
+    desc.Format = kColorFormat;
+    desc.Usage = dg::USAGE_STAGING;
+    desc.CPUAccessFlags = dg::CPU_ACCESS_READ;
+    desc.BindFlags = dg::BIND_NONE;
+    m_device->renderDevice()->CreateTexture(desc, nullptr, &m_staging);
+    if (!m_staging) {
+      m_stagingExtent = {0, 0};
+      return nullptr;
+    }
+  }
+  dg::ITexture* staging = m_staging;
 
   // No queue lock here, and none anywhere in an executor on this device:
   // Diligent takes that lock from inside its own submissions, and this
@@ -115,11 +130,20 @@ sk_sp<SkImage> Resources::read(dg::ITexture* texture) {
   // mixing Graphite's submissions into the same stream.
   dg::IDeviceContext* context = m_device->context();
   {
+    // The source rectangle and the destination corner are both stated,
+    // because the staging texture may be larger than this read: a copy
+    // that named neither would ask the two extents to match.
+    dg::Box region;
+    region.MaxX = (dg::Uint32)width;
+    region.MaxY = (dg::Uint32)height;
     dg::CopyTextureAttribs copy;
     copy.pSrcTexture = texture;
+    copy.pSrcBox = &region;
     copy.SrcTextureTransitionMode =
         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
     copy.pDstTexture = staging;
+    copy.DstX = 0;
+    copy.DstY = 0;
     copy.DstTextureTransitionMode =
         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION;
     context->CopyTexture(copy);

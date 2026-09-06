@@ -29,10 +29,6 @@
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Sweep.h"
 
-namespace sigil::geometry::device {
-class Device;
-}  // namespace sigil::geometry::device
-
 namespace sigil::geometry::mesh {
 
 /** The point-operator language: a scope holding the vocabulary rather
@@ -45,7 +41,7 @@ namespace pop {
 /** Sugar for the conventional attribute names: `Lane::P` and the
  *  string "P" address the same attribute. Anything outside this set is
  *  reached by its name. */
-enum class Lane : int32_t { P = 0, Dir = 1, Color = 2, Scale = 3, T = 4 };
+enum class Lane : int32_t { P = 0, T = 1, Dir = 2, Scale = 3, Color = 4 };
 /** TouchDesigner's real superpower, adopted: operators address
  *  attributes BY NAME. The conventional lanes ("P", "T", "Dir",
  *  "Scale", "Color", plus "Tex" for texture hinting) are just
@@ -68,7 +64,9 @@ struct AttrRef {
 };
 /** Which builtin @p attr is — "Tex" included, slot 5 — and -1 for a
  *  custom name. It is how a reader tells the conventional lanes apart
- *  from the ones a chain invented, which is what the export needs. */
+ *  from the ones a chain invented, which is what the export needs. The
+ *  five it shares with `Lane` are numbered the same there: one set of
+ *  names has one numbering. */
 inline int32_t builtinIndex(const AttrRef& attr) {
   if (attr.name == "P") return 0;
   if (attr.name == "T") return 1;
@@ -481,8 +479,9 @@ struct Transfer {
   std::string mask;
   bool operator==(const Transfer&) const = default;
 };
-/** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
- *  a compute PSO. New ops are APPENDED, never inserted. */
+/** Variant ORDER IS ABI: a renderer that dispatches these on a device
+ *  maps each op's variant index to a compute pipeline. New ops are
+ *  APPENDED, never inserted. */
 using Op = std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math,
                         Smooth, MeshScatter, Fill, Atlas, Promote, Lookup, Sort,
                         Select, Affine, Peak, Deform, Mix, PointSet, Delete,
@@ -573,9 +572,9 @@ class Builder {
     m_chain.emplace_back(scatter);
   }
   /** Compose: build ON another chain — its cooked P becomes this
-   *  chain's path. Pops feed pops; positions are the currency.
-   *  (Cooked on the CPU reference at build time; a GPU-resident
-   *  chain-to-chain feed is the queued next step.) */
+   *  chain's path. Pops feed pops; positions are the currency. The
+   *  upstream chain is cooked on the CPU reference as this one is
+   *  built. */
   explicit Builder(const Chain& upstream);
   explicit Builder(MeshScatter scatter) {
     m_chain.emplace_back(std::move(scatter));
@@ -949,9 +948,6 @@ Cloud exportLanes(const Lanes& lanes, size_t count);
  *  agree lane for lane. @p lanes gains or overwrites the seeded names,
  *  every lane sized to the cloud. */
 void seedAttrs(const Cloud& cloud, Lanes& lanes);
-/** The custom attribute names seedAttrs would create for @p cloud (the
- *  lanes that are not builtins), in a stable order. */
-std::vector<std::string> seedCustomNames(const Cloud& cloud);
 
 /** PARAMETER ADDRESSING: an operator's numeric fields by name, the way
  *  a control surface or an animation lane reaches into a chain without
@@ -974,14 +970,6 @@ std::optional<float> getField(const Op& op, std::string_view field);
  *  `points::displaceNoise` — which is the same verb reached for
  *  without a chain — answer with one field rather than two. */
 glm::vec3 noiseField(glm::vec3 p, float frequency, float seed);
-
-/** The frame a Deform runs in: its axis normalized, its bend direction
- *  made perpendicular to that axis and normalized (a direction parallel
- *  to the axis, or zero, falls back to a fixed perpendicular), and
- *  side = axis x direction. One function, so the CPU cook and the GPU
- *  executor's parameter upload deform in the identical frame. */
-void deformFrame(const Deform& op, glm::vec3* axis, glm::vec3* direction,
-                 glm::vec3* side);
 
 /** THE COOK: evaluates @p chain into a Cloud with the conventional
  *  lanes — "t" (scalar), "dir" (vector), "tint" (color), "size"
@@ -1036,7 +1024,7 @@ std::vector<glm::uvec2> connectAdjacent(const Cloud& cloud,
 /** The mesh-forming sink: cook @p chain and stamp @p stamp at every
  *  point into ONE Mesh (dir orients, size scales, tint colors) — a
  *  pop-DESCRIBED 3D model, drawable by render::drawMesh on the Skia
- *  painter and place in SigilWorld alike. The cook runs on @p runtime;
+ *  painter and placeable in a 3D set alike. The cook runs on @p runtime;
  *  the stamping stands on its cloud. */
 Mesh cookMesh(const Chain& chain, const Mesh& stamp,
               const Runtime& runtime = Runtime::cpu());
@@ -1076,35 +1064,6 @@ void cookBillboards(const Chain& chain, SkCanvas& canvas,
 std::string_view attrFor(std::string_view lane);
 std::string_view cloudLaneFor(std::string_view attr);
 
-/** THE DEVICE EXECUTOR, beside the CPU one: the `Runtime` that cooks a
- *  chain on @p device by dispatching the kernel this build compiled,
- *  rather than stepping the C++ that came out of the same source. The
- *  two are held to bit identity because there is one arithmetic and
- *  neither side re-derives it.
- *
- *  WHAT RUNS WHERE. A chain's GENERATOR is not a map over points — it
- *  is what makes them — so it is run on the host and its lanes
- *  uploaded, which is what makes the seed the two tiers share
- *  bit-identical. Every operator after it that has a kernel is one
- *  compute dispatch over those lanes, in chain order, and the cooked
- *  lanes are read back once at the end.
- *
- *  WHAT IT DECLINES, and why each is a boundary rather than a gap:
- *  `Relax` reads points it does not own, so one lane cannot be both
- *  what is read and what is written; `Sort` is a permutation, which is
- *  a sorting network and not a per-point map; `Promote` addresses the
- *  primitives a sink has not formed yet; and `Noise` and `Deform` are
- *  defined in terms of a library sine, which is a different function
- *  from the polynomial a portable kernel would have to use — a kernel
- *  for either would change what the operator MEANS rather than where
- *  it runs. A chain holding one of them stops the cook with a message
- *  naming the operator and this runtime, the way any unsupported
- *  operator does.
- *
- *  Two runtimes made by one call to this compare equal; two separate
- *  calls do not, because they hold separate device state. Defined only
- *  where this library was built with a device feature. */
-Runtime deviceRuntime(::sigil::geometry::device::Device& device);
 }  // namespace pop
 
 inline Cloud pop::Builder::cloud(const Runtime& runtime) const {

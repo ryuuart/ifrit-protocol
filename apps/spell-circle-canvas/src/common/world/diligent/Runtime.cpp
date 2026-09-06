@@ -11,7 +11,7 @@
 
 #include "sigilworld/diligent/Runtime.h"
 
-#include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/device/Cook.h>
 
 #include <memory>
 #include <string>

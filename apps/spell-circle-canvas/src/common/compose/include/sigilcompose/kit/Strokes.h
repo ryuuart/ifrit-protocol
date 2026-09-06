@@ -211,8 +211,8 @@ inline std::vector<brush::Strand> braid(int n, float amplitude,
   out.reserve((size_t)count);
   for (int k = 0; k < count; ++k)
     out.push_back(
-        brush::Strand{geometry::path::profile::wave(amplitude, wavelength,
-                                                    (float)k / (float)count),
+        brush::Strand{geometry::path::Profile(geometry::shapers::wave(
+                          amplitude, wavelength, (float)k / (float)count)),
                       ink});
   return out;
 }

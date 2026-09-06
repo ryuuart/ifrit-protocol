@@ -15,7 +15,7 @@
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilgeometry/mesh/pop/Sweep.h>
+#include <sigilgeometry/mesh/pop/device/Sweep.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <cstring>

@@ -17,7 +17,7 @@
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/pop/Kernel.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/device/Cook.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <boost/container/map.hpp>
@@ -361,7 +361,12 @@ class DeviceExecutor : public pop::Executor {
     pop::Lanes lanes;
     const size_t count = pop::seedLanes(chain, &lanes);
     if (count == 0) return {};
-    if (!m_gpu->ready()) return {};
+    // A DEVICE THAT REFUSED THE KERNEL COOKS THE CHAIN ON THE HOST, the
+    // way the stamping and the swept executors beside it do. The two
+    // answers are the same bits, so this is where the chain was cooked
+    // and not what it cooked to — which is the one thing a caller
+    // holding a runtime must not have to check for.
+    if (!m_gpu->ready()) return pop::cook(chain, pop::Runtime::cpu());
 
     // The lanes the generator seeded are uploaded as they stand; every
     // other lane an operator names springs into being on the device

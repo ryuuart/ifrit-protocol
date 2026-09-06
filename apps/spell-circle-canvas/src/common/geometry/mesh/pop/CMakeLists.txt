@@ -4,11 +4,10 @@
 # mesh-forming sinks — the swept operator among them, because carrying a
 # profile along a rail is GPU-focused mesh work like the rest of it.
 #
-# AND THE DEVICE EXECUTORS BESIDE THEM, in device/: the chain cooked by
-# dispatching its kernel, and the sweep's rings formed by dispatching
-# theirs. A device executor stands beside the CPU executor of the seam it
-# serves — the ABI the chain declares is honoured in the same library
-# that declares it.
+# THE DEVICE EXECUTORS ARE NOT HERE. They stand in device/, as their own
+# target, because this feature must stay free of a device: a consumer
+# that only cooks a chain on the host links no Diligent, no Vulkan
+# loader and no Graphite. That is the shape every other seam here has.
 
 # THE KERNEL, compiled twice from one source: to the C++ this library's
 # executor calls, and to the SPIR-V a runtime that owns a device
@@ -41,19 +40,15 @@ sigil_slang_module(NAME Stamp
   SPIRV_VAR SIGIL_STAMP_KERNEL_SPV_H)
 sigil_slang_kernel_flags(${SIGIL_STAMP_KERNEL_CPP})
 
-# The Runtime seams — the cook's and the sweep's — are comparable erased
-# values, which is SigilCoreComparable's shape. The seeded mixers the
-# scatter and the generators deal from are SigilCoreCompute's, read in
-# the sources alone. The device executors dispatch the kernels this
-# feature compiled, on the device SigilGeometryDevice created; Diligent
-# arrives through that target and is never named beside it, because that
-# target's archive must come first on the link line. The built-in
-# executor divides its passes through SigilCoreSchedule, which is where
-# every divided range in this repository is decided.
+# The Runtime seams — the cook's, the sweep's and the stamping's — are
+# comparable erased values, which is SigilCoreComparable's shape. The
+# seeded mixers the scatter and the generators deal from are
+# SigilCoreCompute's, read in the sources alone. The built-in executor
+# divides its passes through SigilCoreSchedule, which is where every
+# divided range in this repository is decided.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshPop
-  SOURCES device/Cook.cpp device/Stamp.cpp device/Sweep.cpp
-          Billboards.cpp Cloud.cpp Cook.cpp Fields.cpp Generators.cpp
+  SOURCES Billboards.cpp Cloud.cpp Cook.cpp Fields.cpp Generators.cpp
           Kernel.cpp Modifiers.cpp Sinks.cpp Stamp.cpp
           Sweep.cpp
           ${SIGIL_POP_KERNEL_CPP} ${SIGIL_POP_KERNEL_SPV_H}
@@ -61,8 +56,7 @@ sigil_library(SigilGeometryMeshPop
           ${SIGIL_SWEEP_KERNEL_CPP} ${SIGIL_SWEEP_KERNEL_SPV_H}
           kernels/Pop.slang kernels/Stamp.slang kernels/Sweep.slang
   HEADERS Kernel.h Points.h Pop.h Stamp.h Sweep.h
-  PUBLIC SigilGeometryMeshCurve SigilGeometryDevice SigilCoreComparable
-         Boost::container
+  PUBLIC SigilGeometryMeshCurve SigilCoreComparable Boost::container
   PRIVATE SigilCoreCompute SigilCoreSchedule)
 # The generated headers are PUBLIC because a runtime that dispatches the
 # kernel on a device reads the words this build embedded rather than
@@ -81,19 +75,10 @@ sigil_test(geometry_test
   LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}/test/support)
 
-# THE DEVICE TIER, its own binary and labelled `gpu`: every case here
-# brings a Vulkan device up and skips with the reason when the machine
-# has none, and what they judge — that two executors of one kernel agree
-# bit for bit, and that the backend says nothing while they do — is not
-# what the cases above judge. A machine with no device runs
-# `ctest -LE gpu` and checks the host tier alone.
-sigil_test(geometry_test
-  SOURCES test/DeviceCookTest.cpp test/DeviceStampTest.cpp
-          test/DeviceSweepTest.cpp
-  LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit
-  SUPPORT_DIRS ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
-  SUITES DevicePop DeviceStamp DeviceSweep LABELS gpu)
-
 sigil_bench(geometry_bench
   SOURCES bench/PopBench.cpp
   LIBRARIES SigilGeometryMeshPop SigilGeometryKit)
+
+# …and the device executors of these three seams, their own target so
+# that this one keeps its promise to know nothing about a device.
+add_subdirectory(device)

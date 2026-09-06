@@ -9,7 +9,7 @@
  *
  *  - instance()/quads(): stamp a Mesh (or a quad) onto every point —
  *    scale/tint/orientation read from lanes — producing ONE merged
- *    Mesh for render::drawMesh or world::World. "Instance planes
+ *    Mesh for render::drawMesh or for a 3D set. "Instance planes
  *    across points" is quads() + a normal lane (or leave normals off
  *    and let billboarding face the camera at draw time).
  *  - drawBillboards(): the UI-particle path — camera-facing sprites
@@ -109,9 +109,12 @@ void jitter(Cloud& cloud, float amplitude, uint32_t seed = 7);
 
 /** Smooth sin-field displacement (the organic drift) — the `pop::Noise`
  *  operator reached for without a chain, reading the same field through
- *  `pop::noiseField`. */
+ *  `pop::noiseField`. The seed is a FLOAT, as the operator's is: the
+ *  field reads it as one, and a modifier that could not reach a
+ *  fractional seed would be a narrower verb than the operator it is the
+ *  same verb as. */
 void displaceNoise(Cloud& cloud, float amplitude, float frequency,
-                   uint32_t seed = 7);
+                   float seed = 7);
 
 // ---------------------------------------------------------------------------
 // Consumers

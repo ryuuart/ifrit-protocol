@@ -4,7 +4,8 @@
  * WHAT EVERY EXECUTOR ON THIS DEVICE STANDS ON, made once and shared:
  * the buffer a draw's uniforms go into, the samplers a map is read
  * through, the one white texel an unfilled slot reads, and the staging
- * copy that brings a texture's pixels home.
+ * copy that brings a texture's pixels home. The buffer and the staging
+ * copy are grown when a draw needs more and never remade for less.
  *
  * None of it is a frame's. A frame's targets, its meshes and its
  * pipelines belong to whatever draws frames; these four belong to the
@@ -16,6 +17,7 @@
 #include <Graphics/GraphicsEngine/interface/Texture.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkSamplingOptions.h>
+#include <include/core/SkSize.h>
 #include <sigilgeometry/device/Device.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
@@ -61,8 +63,10 @@ class Resources {
    *  multiplied by a map it was not given is the body. */
   Diligent::ITexture* white() const { return m_white.RawPtr(); }
 
-  /** @p texture's pixels, read back through a staging texture of the
-   *  texture's own size. Null when there is nothing to read. */
+  /** @p texture's pixels, read back through the one staging texture this
+   *  device holds — grown to the largest read it has been asked for, so
+   *  a canvas reading its target every frame allocates nothing after the
+   *  first. Null when there is nothing to read. */
   sk_sp<SkImage> read(Diligent::ITexture* texture);
 
  private:
@@ -70,6 +74,10 @@ class Resources {
   /** Every draw's uniforms, discarded and rewritten per draw. */
   Diligent::RefCntAutoPtr<Diligent::IBuffer> m_uniforms;
   size_t m_uniformCapacity = 0;
+  /** THE ONE STAGING COPY a read brings pixels home through, and how
+   *  large it is. A read smaller than it copies into its corner. */
+  Diligent::RefCntAutoPtr<Diligent::ITexture> m_staging;
+  SkISize m_stagingExtent{0, 0};
   /** HOW A MAP IS READ BETWEEN TEXELS, one sampler per answer. A
    *  texture states which it wants and a body's draw picks; everything
    *  with no texture to ask — a target a post stage reads, the one white

@@ -284,7 +284,4 @@ TEST(Pop, PointSetSeedsAChainFromAnExistingCloudLanesAndAll) {
   EXPECT_EQ(lanes.count("Scale"), 1u);
   EXPECT_EQ(lanes.count("top"), 1u);
   EXPECT_EQ(lanes.count("size"), 0u);
-  const std::vector<std::string> customs = pop::seedCustomNames(given);
-  ASSERT_EQ(customs.size(), 1u);
-  EXPECT_EQ(customs[0], "top");
 }

@@ -144,6 +144,11 @@ bool describe(const Cloud& cloud, const Mesh& stamp,
   const size_t points = cloud.size();
   const size_t verts = stamp.vertexCount();
   if (points == 0 || verts == 0) return false;
+  // THE TOTAL IS CARRIED AS A 32-BIT WORD, because that is what a
+  // dispatch's argument block holds. A stamping past what fits is
+  // refused here rather than truncated into a smaller count and formed
+  // silently as the wrong mesh.
+  if (verts > (size_t)UINT32_MAX / points) return false;
 
   const std::vector<float>* scaleLane =
       options.scaleLane.empty() ? nullptr : cloud.scalarIf(options.scaleLane);

@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <vector>
 
 namespace sigil::geometry::shapes {
 
@@ -60,7 +61,8 @@ struct Span {
  *
  *  Every angle is in the FRAME's units — `.from = 0` on a North/CW frame
  *  is 12 o'clock, on an East/CW frame it is 3 o'clock. That is the whole
- *  reason `Frame` exists; see `kit/Frame.h`. */
+ *  reason a `Frame` exists: it carries where zero is and which way the
+ *  angles run, so a ladder need not restate either. */
 struct Ticks {
   /** How many marks. With `sweep = 360` and `closed = false` this is the
    *  division count and mark N would coincide with mark 0, so it is not
@@ -132,7 +134,7 @@ inline SkPath ticks(const path::Frame& frame, const Ticks& t) {
   const int n = std::max(0, t.divisions);
   if (n == 0) return b.detach();
   const int count = t.closed ? n + 1 : n;
-  const float step = n > 0 ? t.sweep / (float)n : 0.0f;
+  const float step = t.sweep / (float)n;
   for (int i = 0; i < count; ++i) {
     Span s = (t.longEvery > 0 && i % t.longEvery == 0) ? t.longMark : t.mark;
     if (t.classify) s = t.classify(i, s);
@@ -303,7 +305,9 @@ inline ArcsShape arcs(const Arcs& a, path::Frame conventions = {}) {
  *
  *  @p inset shortens each chord by that many px at BOTH ends — the gap an
  *  engraver leaves at a vertex so the corner ornament reads. A chord
- *  shorter than twice the inset is dropped entirely. */
+ *  shorter than twice the inset is dropped entirely. It reaches the OPEN
+ *  form alone: a closed traversal joins the chords into one contour, and
+ *  a contour has no chord ends to trim. */
 struct Chords {
   int sides = 7;
   /** 1 = the polygon's sides. 2 = a {n/2} star polygon's chords, and so

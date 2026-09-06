@@ -33,10 +33,6 @@
 #include <string>
 #include <vector>
 
-namespace sigil::geometry::device {
-class Device;
-}  // namespace sigil::geometry::device
-
 /** THE STAMPING ARITHMETIC AS ONE PIECE, in the one namespace every
  *  kernel this library compiles stands in, beside the point operators'
  *  and the swept rings'. */
@@ -87,7 +83,10 @@ struct StampDispatch {
    *  through. */
   std::vector<glm::vec4> pointTex;
 
-  /** How many vertices a run of this writes into each output lane. */
+  /** How many vertices a run of this writes into each output lane. It
+   *  is a 32-bit word because a dispatch's argument block holds one, so
+   *  `describe` refuses a stamping whose total would not fit rather than
+   *  forming a smaller one. */
   [[nodiscard]] size_t vertices() const { return (size_t)args.code.w; }
 };
 
@@ -149,26 +148,5 @@ class StampRuntime : public core::Erased<StampExecutor> {
    *  default option sets compare equal. */
   static StampRuntime cpu();
 };
-
-/**
- * THE DEVICE EXECUTOR, beside the CPU one: the `StampRuntime` that forms
- * a stamping's vertices on @p device.
- *
- * WHAT RUNS WHERE. The VERTICES — the per-vertex arithmetic, which is
- * the whole of what stamping computes — are one compute dispatch over
- * the stamp and the points, read back once at the end. The indices stay
- * on the host and are not a second piece of arithmetic: each point
- * contributes the stamp's own indices shifted by where its vertices
- * begin, which is integer.
- *
- * THE TWO TIERS ARE HELD TO BIT IDENTITY, not to a distance, for the
- * same reason the swept rings are: one piece of Slang compiled twice
- * under a float model pinned at both ends.
- *
- * Two runtimes made by one call to this compare equal; two separate
- * calls do not, because they hold separate device state. Defined only
- * where this library was built with a device feature.
- */
-StampRuntime deviceRuntime(::sigil::geometry::device::Device& device);
 
 }  // namespace sigil::geometry::mesh::points

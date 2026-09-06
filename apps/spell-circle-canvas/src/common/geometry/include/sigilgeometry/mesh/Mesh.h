@@ -97,8 +97,8 @@ Mesh quad(float width, float height);
 
 /** The primitive layer's PORTABLE consumer: bake a primitive lane into
  *  per-vertex colors by unsharing vertices (three per triangle), so a
- *  renderer that speaks only vertex attributes — SigilWorld's Diligent
- *  pipelines, any GPU vertex buffer — shows flat per-primitive colour
+ *  renderer that speaks only vertex attributes — any GPU vertex buffer,
+ *  and every pipeline built over one — shows flat per-primitive colour
  *  with no shader change. Existing vertex colors multiply through; a
  *  missing or mis-sized lane returns the mesh unchanged. Primitive
  *  lanes survive on the result (triangle order is preserved). */

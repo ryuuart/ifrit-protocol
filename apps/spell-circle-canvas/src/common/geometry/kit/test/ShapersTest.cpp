@@ -71,10 +71,10 @@ TEST(Shapers, AChamferCutsEveryCornerOfAClosedRun) {
 }
 
 TEST(Shapers, TheOscillatingWidthLawIsZeroMeanAndPlugsTheProfileSeam) {
-  const path::Profile w = path::profile::wave(9, 50);
+  const path::Profile w = shapers::wave(9, 50);
   EXPECT_NEAR(w.max(), 9.0f, 1e-4f) << "max() is what a cull is sized from";
-  EXPECT_TRUE(w == path::profile::wave(9, 50));
-  EXPECT_FALSE(w == path::profile::wave(9, 51));
+  EXPECT_TRUE(w == shapers::wave(9, 50));
+  EXPECT_FALSE(w == shapers::wave(9, 51));
   // Zero-mean: it goes both ways, which is what makes it a centreline and
   // not a band width.
   bool positive = false, negative = false;

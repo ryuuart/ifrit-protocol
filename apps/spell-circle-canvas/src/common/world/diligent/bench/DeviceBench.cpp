@@ -18,7 +18,7 @@
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilgeometry/mesh/pop/device/Cook.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmeasure/time/Stopwatch.h>

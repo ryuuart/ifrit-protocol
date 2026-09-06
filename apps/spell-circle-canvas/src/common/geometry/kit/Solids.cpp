@@ -32,9 +32,7 @@ namespace {
 void orientTriangle(const std::vector<glm::vec3>& positions, uint32_t* tri,
                     glm::vec3 wanted) {
   const glm::vec3& p0 = positions[tri[0]];
-  const glm::vec3& p1 = positions[tri[1]];
   const glm::vec3 n = cross(positions[tri[1]] - p0, positions[tri[2]] - p0);
-  (void)p1;
   if (glm::dot(n, wanted) < 0) std::swap(tri[1], tri[2]);
 }
 

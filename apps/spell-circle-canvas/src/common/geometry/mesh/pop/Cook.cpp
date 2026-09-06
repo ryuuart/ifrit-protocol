@@ -171,28 +171,15 @@ void pop::seedAttrs(const Cloud& cloud, pop::Lanes& lanes) {
   }
 }
 
-std::vector<std::string> pop::seedCustomNames(const Cloud& cloud) {
-  std::vector<std::string> names;
-  const auto note = [&](const std::string& name) {
-    if (pop::builtinIndex(name) >= 0) return;
-    for (const std::string& existing : names)
-      if (existing == name) return;
-    names.push_back(name);
-  };
-  const size_t n = cloud.size();
-  for (const auto& [name, values] : cloud.scalars)
-    if (values.size() == n && name != "t" && name != "size") note(name);
-  for (const auto& [name, values] : cloud.vectors)
-    if (values.size() == n && name != "dir" &&
-        (name != "normal" || cloud.vectorIf("dir")))
-      note(name);
-  for (const auto& [name, values] : cloud.colors)
-    if (values.size() == n && name != "tint") note(name);
-  return names;
-}
+namespace {
 
-void pop::deformFrame(const pop::Deform& op, glm::vec3* axis,
-                      glm::vec3* direction, glm::vec3* side) {
+/** The frame a Deform runs in: its axis normalized, its bend direction
+ *  made perpendicular to that axis and normalized (a direction parallel
+ *  to the axis, or zero, falls back to a fixed perpendicular), and
+ *  side = axis x direction. `Deform` has no kernel and every device
+ *  executor declines it, so the frame is this cook's alone. */
+void deformFrame(const pop::Deform& op, glm::vec3* axis, glm::vec3* direction,
+                 glm::vec3* side) {
   glm::vec3 a = op.axis;
   const float al = glm::length(a);
   a = al > 1e-6f ? a / al : glm::vec3{0, 1, 0};
@@ -209,6 +196,8 @@ void pop::deformFrame(const pop::Deform& op, glm::vec3* axis,
   *direction = d;
   *side = glm::cross(a, d);
 }
+
+}  // namespace
 
 size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
   if (!lanes || chain.empty()) return 0;
@@ -656,7 +645,7 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
             // axis, a direction parallel to the axis) fall back the
             // same way wherever this is evaluated.
             glm::vec3 axis, dir, side;
-            pop::deformFrame(op, &axis, &dir, &side);
+            deformFrame(op, &axis, &dir, &side);
             const float span = op.high - op.low;
             const float rad = op.amount * 3.14159265f / 180.0f;
             std::vector<glm::vec4>& values = attrs.ensure(op.lane.name);

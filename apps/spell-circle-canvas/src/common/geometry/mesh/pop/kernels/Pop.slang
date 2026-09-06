@@ -174,7 +174,6 @@ void opAtlas(uint i) {
   float du = 1.0 / float(cols);
   float dv = 1.0 / float(rows);
   int cells = cols * rows;
-  if (cells < 1) cells = 1;
   int drawn = int(pcgUnit(i * 13u + args.code.z) * float(cells));
   int cell = drawn < cells - 1 ? drawn : cells - 1;
   int cellRow = cell / cols;

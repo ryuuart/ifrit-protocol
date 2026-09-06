@@ -15,7 +15,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilgeometry/mesh/pop/Sweep.h>
+#include <sigilgeometry/mesh/pop/device/Sweep.h>
 
 #include <bit>
 #include <cstdint>

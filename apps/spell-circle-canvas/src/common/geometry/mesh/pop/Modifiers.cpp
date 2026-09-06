@@ -48,10 +48,9 @@ void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
     cloud.positions[i] = {lane[i].x, lane[i].y, lane[i].z};
 }
 
-void displaceNoise(Cloud& cloud, float amplitude, float frequency,
-                   uint32_t seed) {
+void displaceNoise(Cloud& cloud, float amplitude, float frequency, float seed) {
   for (glm::vec3& p : cloud.positions)
-    p += pop::noiseField(p, frequency, (float)seed) * amplitude;
+    p += pop::noiseField(p, frequency, seed) * amplitude;
 }
 
 InstanceOptions stampOptions(const Cloud& cloud) {
