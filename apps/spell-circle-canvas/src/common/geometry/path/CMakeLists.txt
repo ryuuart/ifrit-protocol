@@ -10,18 +10,27 @@
 # outline, or place a run of things, without linking the 3D half of
 # geometry or its importers. Noise.h names the seeded mixers, which live
 # one library down so that a shader's CPU twin and a resource key reach
-# the same bodies.
+# the same bodies. The uniform grid every proximity question is answered
+# by, the scatter that fills a shape, and the triangulation, its dual and
+# the outline at a tightness stand here too, because each of them answers
+# in points and rings.
 find_package(boost_unordered CONFIG REQUIRED)
+find_package(CDT CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilGeometryPath
-  SOURCES Band.cpp Contour.cpp Crossings.cpp Edges.cpp Lattice.cpp
+  SOURCES Band.cpp Contour.cpp Crossings.cpp Edges.cpp Hull.cpp Lattice.cpp
           Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp
-          Scatter.cpp
-  HEADERS Arrange.h Band.h Contour.h Crossings.h Edges.h Frame.h Lattice.h
-          Neighbours.h Noise.h Numeric.h Ops.h Polyline.h Pose.h Profile.h
-          Scatter.h Shaper.h Skia.h Stride.h
-  PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute Boost::unordered)
+          Scatter.cpp Symmetry.cpp Trace.cpp Triangulate.cpp
+  HEADERS Arrange.h Band.h Cells.h Contour.h Crossings.h Edges.h Frame.h
+          Hull.h Lattice.h Neighbours.h Noise.h Numeric.h Ops.h Polyline.h
+          Pose.h Profile.h Scatter.h Shaper.h Skia.h Stride.h Symmetry.h
+          Trace.h Triangulate.h
+  PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute Boost::unordered
+  # CDT is the Delaunay triangulator, read in Triangulate.cpp alone: the
+  # answer crosses the boundary in this library's own points, indices and
+  # rings, so no consumer of a triangulation ever names it.
+  PRIVATE CDT::CDT)
 
 # ONE BINARY over the leaf and the shape interpolation that stands on it.
 # Blend is not a boundary anyone reads: no consumer links it without Path,
@@ -31,6 +40,7 @@ sigil_library(SigilGeometryPath
 sigil_test(geometry_test
   SOURCES test/ContoursTest.cpp test/PolylinesTest.cpp test/MarksTest.cpp
           test/NeighboursTest.cpp test/ScatterTest.cpp
+          test/TriangulateTest.cpp test/FieldsTest.cpp
           test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/BlendTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
