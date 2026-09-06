@@ -248,10 +248,20 @@ constexpr float kR = 470.0f;            // the Tropic of Capricorn, in px
 constexpr float kMaterR = 1.155f * kR;  // 542.85
 constexpr float kD = 3.14159265358979f / 180.0f;
 
-// math frame (x right, y up, R units) -> canvas px
-SkPoint MC(float mx, float my) { return {kCx + mx * kR, kCy - my * kR}; }
-// math frame -> the plate box's local px (origin at kC - (R, R))
-SkPoint PL(float mx, float my) { return {(mx + 1.0f) * kR, (1.0f - my) * kR}; }
+/** THE MATH FRAME AS A UNIT MAP: x right, y UP, one unit = the Tropic of
+ *  Capricorn's radius. `yScale = -1` IS "y counts up the page", which is
+ *  the whole of what an astrolabe's plate is drawn in — every declination,
+ *  every almucantar centre and every star position on this sheet is a
+ *  number in units of R, and negating each of them at the call site is
+ *  what the flip is there to stop.
+ *
+ *  Two origins, one frame: the canvas, and the plate box's own corner. */
+const path::Grid kMathCanvas{
+    .scale = kR, .yScale = -1.0f, .origin = {kCx, kCy}};
+const path::Grid kMathPlate{.scale = kR, .yScale = -1.0f, .origin = {kR, kR}};
+
+SkPoint MC(float mx, float my) { return kMathCanvas.at({mx, my}); }
+SkPoint PL(float mx, float my) { return kMathPlate.at({mx, my}); }
 
 // ---------------------------------------------------------------------------
 // The two constants, and everything that follows from them
@@ -1086,7 +1096,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
       auto night = box()
                        .inset(0)
                        .key("night")
-                       .shape([region](SkSize) { return region; })
+                       .shape(heldPath(region))
                        .clip(true);
       for (int k = 1; k <= 11; ++k) {
         const Circ c = seasonalLine(k);
@@ -1217,22 +1227,12 @@ struct ChaucerAstrolabe : sketch::Sketch {
       const Piece& p = pieces[i];
       if (p.kind == Part::Ecl)
         continue;  // the zodiac band below IS the ecliptic's body
-      SkRect bb = p.path.getBounds();
       const float w = (p.kind == Part::Arm    ? kBarW * kR
                        : p.kind == Part::Ring ? kRingW * kR
                                               : 0.030f * kR) +
                       3.0f;
-      bb.outset(w, w);
-      const SkPath local =
-          p.path.makeTransform(SkMatrix::Translate(-bb.left(), -bb.top()));
-      auto n = box()
-                   .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
-                                          bb.height()))
+      auto n = pathFigure(p.path, w)
                    .key("sh" + std::to_string(i))
-                   // the callable is invoked on every layout, so its capture
-                   // must survive each return
-                   // NOLINTNEXTLINE(performance-no-automatic-move)
-                   .shape([local](SkSize) { return local; })
                    .fill(Fill::none());
       if (p.kind == Part::Thorn)
         n.foreground(brush::presets::taper(w, 3.0f, dark));
@@ -1249,7 +1249,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
           box()
               .rect(SkRect::MakeXYWH(c.fX - ro, c.fY - ro, 2 * ro, 2 * ro))
               .key("shband")
-              .shape([ro, ri, c, ci](SkSize) {
+              .shape(keyedShape(std::tuple(ro, ri, c.fX, c.fY, ci.fX, ci.fY),
+                                [ro, ri, c, ci](SkSize) {
                 SkPathBuilder b;
                 b.setFillType(SkPathFillType::kEvenOdd);
                 b.addOval(SkRect::MakeWH(2 * ro, 2 * ro));
@@ -1257,7 +1258,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
                     ci.fX - c.fX + ro - ri, ci.fY - c.fY + ro - ri,
                     ci.fX - c.fX + ro + ri, ci.fY - c.fY + ro + ri));
                 return b.detach();
-              })
+              }))
               .fill(dark));
     }
     return box()
@@ -1296,7 +1297,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
           box()
               .rect(SkRect::MakeXYWH(c.fX - ro, c.fY - ro, 2 * ro, 2 * ro))
               .key("band")
-              .shape([ro, ri, c, ci](SkSize) {
+              .shape(keyedShape(std::tuple(ro, ri, c.fX, c.fY, ci.fX, ci.fY),
+                                [ro, ri, c, ci](SkSize) {
                 SkPathBuilder b;
                 b.setFillType(SkPathFillType::kEvenOdd);
                 b.addOval(SkRect::MakeWH(2 * ro, 2 * ro));
@@ -1304,7 +1306,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
                     ci.fX - c.fX + ro - ri, ci.fY - c.fY + ro - ri,
                     ci.fX - c.fX + ro + ri, ci.fY - c.fY + ro + ri));
                 return b.detach();
-              })
+              }))
               .fill(bandMat)
               .foreground(styles::BevelEmboss{.depth = 2,
                                               .size = 3,
@@ -1328,18 +1330,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
         SkPathBuilder pb;
         pb.moveTo(A);
         pb.lineTo(B);
-        const SkPath seg = pb.detach();
-        SkRect bb = seg.getBounds();
-        bb.outset(2, 2);
         clipped.child(
-            box()
-                .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
-                                       bb.height()))
+            pathFigure(pb.detach(), 2)
                 .key("zd" + std::to_string(d))
-                .shape([seg, bb](SkSize) {
-                  return seg.makeTransform(
-                      SkMatrix::Translate(-bb.left(), -bb.top()));
-                })
                 .fill(Fill::none())
                 .stroke(stroke((d % 5 == 0) ? 1.2f : 0.8f,
                                Fill::color(hex(0x4a3410, 0.62f))))
@@ -1404,25 +1397,19 @@ struct ChaucerAstrolabe : sketch::Sketch {
       for (size_t i = 0; i < pieces.size(); ++i) {
         const Piece& p = pieces[i];
         if (p.kind != want) continue;
-        SkRect bb = p.path.getBounds();
         const float w = p.kind == Part::Arm    ? kBarW * kR
                         : p.kind == Part::Ring ? kRingW * kR
                                                : 0.034f * kR;
-        bb.outset(w + 4, w + 4);
-        const SkPath local =
-            p.path.makeTransform(SkMatrix::Translate(-bb.left(), -bb.top()));
         const float delay =
             tRete * 1000 +
             (p.kind == Part::Thorn ? 1500.0f + (float)i * 26.0f : 120.0f);
+        // The box pathFigure gives this node, which the brass gradient is
+        // ranged over: a fill measured in canvas px has to know the box.
+        SkRect bb = p.path.getBounds();
+        bb.outset(w + 4, w + 4);
 
-        auto node = box()
-                        .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
-                                               bb.height()))
+        auto node = pathFigure(p.path, w + 4)
                         .key("bar" + std::to_string(i))
-                        // the callable is invoked on every layout, so its
-                        // capture must survive each return
-                        // NOLINTNEXTLINE(performance-no-automatic-move)
-                        .shape([local](SkSize) { return local; })
                         .fill(Fill::none());
         if (p.kind == Part::Thorn) {
           // a Gothic thorn: springs tangentially off its host and tapers to a
@@ -1528,20 +1515,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
       SkPathBuilder pb;
       pb.moveTo(a);
       pb.lineTo(b);
-      SkPath seg = pb.detach();
-      SkRect bb = seg.getBounds();
-      bb.outset(3, 3);
-      const SkPath local =
-          seg.makeTransform(SkMatrix::Translate(-bb.left(), -bb.top()));
       g.child(
-          box()
-              .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
-                                     bb.height()))
+          pathFigure(pb.detach(), 3)
               .key("prec" + std::to_string(i))
-              // the callable is invoked on every layout, so its capture must
-              // survive each return
-              // NOLINTNEXTLINE(performance-no-automatic-move)
-              .shape([local](SkSize) { return local; })
               .fill(Fill::none())
               .stroke(PathFormat{.width = 1.0f,
                                  .strokeFill = Fill::color(hex(0x2a1d08, 0.4f)),
@@ -1587,7 +1563,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
       Op(solid, inner, kDifference_SkPathOp, &ring);
       return kit::disc(at, rad)
           .key(key)
-          .shape([ring](SkSize) { return ring; })
+          .shape(heldPath(ring))
           .fill(brass(0.66f))
           .foreground(styles::BevelEmboss{.depth = 2,
                                           .size = 2.5f,
@@ -1970,19 +1946,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
     SkPathBuilder pb;
     pb.moveTo(S);
     pb.lineTo(Lp.fX + (Lp.fX - S.fX) * 0.06f, Lp.fY + (Lp.fY - S.fY) * 0.06f);
-    SkPath ray = pb.detach();
-    SkRect bb = ray.getBounds();
-    bb.outset(4, 4);
-    const SkPath local =
-        ray.makeTransform(SkMatrix::Translate(-bb.left(), -bb.top()));
     g.child(
-        box()
-            .rect(
-                SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
-            // the callable is invoked on every layout, so its capture must
-            // survive each return
-            // NOLINTNEXTLINE(performance-no-automatic-move)
-            .shape([local](SkSize) { return local; })
+        pathFigure(pb.detach(), 4)
             .fill(Fill::none())
             .stroke(PathFormat{.width = 1.5f,
                                .strokeFill = Fill::color(hex(0x2f6f9c, 0.9f)),
@@ -2161,17 +2126,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
       const path::Frame limb{
           .centre = c, .radius = r, .zero = path::Zero::East};
       auto ladder = [&](const shapes::Ticks& spec, float width) {
-        const SkPath path = shapes::ticks(limb, spec);
-        SkRect bb = path.getBounds();
-        bb.outset(2, 2);
-        const SkPath local =
-            path.makeTransform(SkMatrix::Translate(-bb.left(), -bb.top()));
-        g.child(box()
-                    .rect(bb)
-                    // the callable is invoked on every layout, so its capture
-                    // must survive each return
-                    // NOLINTNEXTLINE(performance-no-automatic-move)
-                    .shape([local](SkSize) { return local; })
+        g.child(pathFigure(shapes::ticks(limb, spec), 2)
                     .fill(Fill::none())
                     .stroke(stroke(width, Fill::color(hex(0x3a2a10, 0.6f)))));
       };
@@ -2208,18 +2163,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
                   c.fY + std::sin(a0 * kD) * r * 0.78f);
         pb.lineTo(c.fX + std::cos(a0 * kD) * r * 0.855f,
                   c.fY + std::sin(a0 * kD) * r * 0.855f);
-        SkPath seg = pb.detach();
-        SkRect bb = seg.getBounds();
-        bb.outset(2, 2);
-        const SkPath local =
-            seg.makeTransform(SkMatrix::Translate(-bb.left(), -bb.top()));
-        g.child(box()
-                    .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(),
-                                           bb.height()))
-                    // the callable is invoked on every layout, so its capture
-                    // must survive each return
-                    // NOLINTNEXTLINE(performance-no-automatic-move)
-                    .shape([local](SkSize) { return local; })
+        g.child(pathFigure(pb.detach(), 2)
                     .fill(Fill::none())
                     .stroke(stroke(1.1f, Fill::color(hex(0x3a2a10, 0.7f)))));
         const float am = (a0 + a1) * 0.5f;
