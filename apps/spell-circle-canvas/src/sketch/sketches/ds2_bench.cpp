@@ -154,9 +154,10 @@ inline sk_sp<SkTypeface> uiFace(bool bold) {
 inline weave::TextStyle benchType(float size, SkColor4f color,
                                   float trackEm = 0.07f, bool bold = true,
                                   float stretch = 1.16f) {
-  static const sk_sp<SkTypeface> faceB = uiFace(true);
-  static const sk_sp<SkTypeface> faceR = uiFace(false);
-  return weave::textStyle({.face = bold ? faceB : faceR,
+  // The port holds the face, so asking it per style hands back the one
+  // pointer every style and every memo below compares against — where a
+  // static here would hold it in a dylib that is unloaded on reload.
+  return weave::textStyle({.face = uiFace(bold),
                            .size = size,
                            .color = color,
                            .track = trackEm * size,
@@ -380,8 +381,7 @@ inline float steppedTime(double t) {
 
 inline Paint scanField(SkColor4f tint, float period,
                           const choreograph::Output<float>* clock) {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform float2 uResolution;
       uniform float  uTime;
       uniform float  uPeriod;
@@ -397,10 +397,10 @@ inline Paint scanField(SkColor4f tint, float period,
         return half4(half3(uColor.rgb) * a, a);
       }
     )"));
-    if (!effect) SkDebugf("ds2 scanField: %s\n", err.c_str());
-    return effect;
-  }();
-  if (!fx) return Paint::solid({0, 0, 0, 0});
+  if (!fx) {
+    SkDebugf("ds2 scanField: %s\n", err.c_str());
+    return Paint::solid({0, 0, 0, 0});
+  }
   return Paint::sksl(fx, {{"uPeriod", period}})
       .uniform("uColor", tint)
       .uniform("uTime", clock);
@@ -1032,6 +1032,11 @@ struct Ds2Bench : sketch::Sketch {
 
   // -------------------------------------------------------------------
   // legend: bracket-framed stat rows with instanced chevron pips
+  //
+  // NOT a readout and not a table: between the specification and its value
+  // stand a kind marker whose fill is a radial ramp and a load bar that is
+  // an instanced pool, and a table's columns carry words. What is shared
+  // between the rows is the four widths, which is what the row says.
 
   Element statRow(int r) {
     const StatRow& s = kStats[r];
