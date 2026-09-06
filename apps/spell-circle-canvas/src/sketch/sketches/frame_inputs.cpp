@@ -143,23 +143,24 @@ std::shared_ptr<const Recipe> make(const char* name, const char* body) {
                                             .body(Target::SkSL, body));
 }
 
-const std::shared_ptr<const Recipe>& barsRecipe() {
-  static const std::shared_ptr<const Recipe> r = make("cover.bars", kBarsBody);
-  return r;
+/** THE THREE RECIPES THIS SHEET COVERS ITS CELLS WITH. Each is BUILT
+ *  where it is asked for, which is once: this sheet is complete at setup
+ *  and never described again. A memo in a function-local static would
+ *  hold a recipe in a dylib a hot reload unloads, and hold it for the
+ *  process rather than for the sketch. */
+std::shared_ptr<const Recipe> barsRecipe() {
+  return make("cover.bars", kBarsBody);
 }
-const std::shared_ptr<const Recipe>& dotsRecipe() {
-  static const std::shared_ptr<const Recipe> r = make("cover.dots", kDotsBody);
-  return r;
+std::shared_ptr<const Recipe> dotsRecipe() {
+  return make("cover.dots", kDotsBody);
 }
-const std::shared_ptr<const Recipe>& flatRecipe() {
-  static const std::shared_ptr<const Recipe> r = make("cover.flat", kFlatBody);
-  return r;
+std::shared_ptr<const Recipe> flatRecipe() {
+  return make("cover.flat", kFlatBody);
 }
 
+/** The cell's whole face, as the path a material is filled through. */
 SkPath whole() {
-  static const SkPath path =
-      SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
-  return path;
+  return SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
 }
 
 Element cell(const char* call, const std::string& note, material::Material m,
@@ -168,10 +169,11 @@ Element cell(const char* call, const std::string& note, material::Material m,
       kCell, toU8(call), toU8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          custom(call, [m = std::move(m), contentScale, world](
-                           SkCanvas& canvas, const PaintContext& pc) {
+          custom(call, [m = std::move(m), contentScale, world,
+                        face = whole()](SkCanvas& canvas,
+                                        const PaintContext& pc) {
             material::skia::fill(
-                canvas, whole(), m,
+                canvas, face, m,
                 {.resolution = {pc.size.width(), pc.size.height()},
                  .contentScale = contentScale,
                  .world = world});
@@ -204,10 +206,13 @@ struct FrameInputs final : sketch::Sketch {
     const BarsParams stock{
         .uGain = kGain, .uTint = {0.42f, 0.80f, 0.92f, 1}, .uBars = {}};
 
-    material::Material bars(barsRecipe(), stock);
+    // ONE recipe pointer for the two materials that share a body: a
+    // recipe is compared by pointer wherever a material is.
+    const std::shared_ptr<const Recipe> cover = barsRecipe();
+    material::Material bars(cover, stock);
     bars.bind("uBars", spectrum);
 
-    material::Material ramped(barsRecipe(), stock);
+    material::Material ramped(cover, stock);
     ramped.bind("uBars", second);
     ramped.set("uTint", Color{0.96f, 0.68f, 0.34f, 1});
 
