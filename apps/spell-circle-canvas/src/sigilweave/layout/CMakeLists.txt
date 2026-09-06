@@ -56,5 +56,6 @@ sigil_test(weave_test
 
 # layoutParagraph per word over a warm shape cache.
 sigil_bench(weave_bench
-  SOURCES bench/LayoutBench.cpp
+  SOURCES bench/LayoutBench.cpp bench/UpdateBench.cpp
+          bench/ConfettiBench.cpp bench/LiveComposerBench.cpp
   LIBRARIES SigilWeaveLayout SigilWeavePorts)

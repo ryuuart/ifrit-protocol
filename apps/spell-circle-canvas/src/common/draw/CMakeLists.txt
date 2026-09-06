@@ -37,7 +37,10 @@ add_subdirectory(brush)
 # when no face is named. Only the case that names none reads the
 # machine's own families, so it alone carries the `fonts` label.
 sigil_test(draw_test
-  SOURCES test/DrawTest.cpp test/DrawTextTest.cpp
+  SOURCES test/PenShapeTest.cpp test/PenStyleTest.cpp
+          test/PenTransformTest.cpp test/PenImageTest.cpp
+          test/PenValuesTest.cpp test/GraphicsTest.cpp
+          test/DrawTextTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_DRAW_SHADER_DIR="${_shaders}"
   LIBRARIES SigilDraw SigilWeavePorts)
