@@ -54,8 +54,7 @@ sigil_library(SigilComposeTypography
 # because a path baseline and an upright column are exercised on `shapes::`
 # silhouettes. Every case sets the instrument faces from src/test/assets/
 # except the vertical suite, whose Japanese prose needs a whole CJK face
-# from the machine, and the track-reach case, which the machine's face
-# alone can carry for now; those carry the label.
+# from the machine; that one carries the label.
 sigil_test(compose_test
   SOURCES test/ComposeTestTextData.cpp test/ComposeTestTextPass.cpp
           test/ComposeTestVertical.cpp test/ComposeTestPathMotion.cpp
@@ -64,7 +63,7 @@ sigil_test(compose_test
   LIBRARIES SigilComposeTypography SigilComposeKit SigilComposeTesting
             SigilWeavePorts
   LABELS fonts
-  SUITES TextVertical ComposeTextFx.ATrackReachKeepsAWideThrowInsideTheCull)
+  SUITES TextVertical)
 
 # Dense text replayed, baked and projected; kinetic text every frame. The
 # kit is here for the stock effect the kinetic arms drive.

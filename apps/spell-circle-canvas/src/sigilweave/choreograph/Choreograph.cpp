@@ -9,6 +9,7 @@
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkSpan.h>
+#include <include/core/SkTextBlob.h>
 #include <include/effects/SkColorMatrix.h>
 
 #include <algorithm>
@@ -16,6 +17,7 @@
 #include <bit>
 #include <boost/container/flat_map.hpp>
 #include <cmath>
+#include <cstring>
 #include <list>
 #include <numbers>
 #include <utility>
@@ -247,11 +249,28 @@ int GlyphRSXformBatches::drawBatch(SkCanvas* canvas, const Batch& batch,
   font.setSubpixel(subpixel);
   if (!batch.glyphs.empty()) {
     total += static_cast<int>(batch.glyphs.size());
-    canvas->drawGlyphsRSXform(
-        SkSpan<const SkGlyphID>(batch.glyphs.data(), batch.glyphs.size()),
-        SkSpan<const SkRSXform>(batch.transforms.data(),
-                                batch.transforms.size()),
-        {batch.offset.x(), batch.offset.y()}, font, batch.paint);
+    // workaround: a turned-and-placed glyph run handed to the canvas
+    // directly is quick-rejected against bounds Skia computes with the
+    // rotation and the translation swapped over, so the bounds describe a
+    // rectangle the run is nowhere near and the WHOLE batch draws nothing.
+    // Whether it fires depends on the face's own bounding box, where the
+    // glyphs sit and how big the device is, so it comes and goes with the
+    // font, the size and the surface — a run that draws on the canvas
+    // vanishes when the same node is baked into a texture the size of its
+    // own paint bounds. A blob carries bounds its builder computed with
+    // those fields the right way round and replays as the same run through
+    // the same draw inside the device, so this is the identical pixels with
+    // bounds that hold.
+    SkTextBlobBuilder builder;
+    const int count = static_cast<int>(batch.glyphs.size());
+    const SkTextBlobBuilder::RunBuffer& run =
+        builder.allocRunRSXform(font, count);
+    std::memcpy(run.glyphs, batch.glyphs.data(),
+                batch.glyphs.size() * sizeof(SkGlyphID));
+    std::memcpy(run.xforms(), batch.transforms.data(),
+                batch.transforms.size() * sizeof(SkRSXform));
+    canvas->drawTextBlob(builder.make(), batch.offset.x(), batch.offset.y(),
+                         batch.paint);
   }
   // The bucket's matrix lane, inside the bucket's own place in the pass
   // order: one save/concat and one draw per glyph, but still one font

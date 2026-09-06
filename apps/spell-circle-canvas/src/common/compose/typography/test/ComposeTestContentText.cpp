@@ -771,6 +771,47 @@ TEST(ComposeTextFx, TwoTracksComposeByAddingOffsets) {
       << "two 30 px tracks did not add to 60 px";
 }
 
+TEST(ComposeTextFx, ATrackedRunSurvivesTheBakeItIsCachedInto) {
+  // A run of turned-and-placed glyphs is handed to the canvas with bounds
+  // beside it, and those bounds decide whether the canvas draws the run at
+  // all. Get them wrong and the failure is TOTAL and silent: the batch is
+  // rejected whole and the node paints nothing, no diagnostic, at some sizes
+  // and not others, for some faces and not others — because whether the
+  // wrong rectangle happens to overlap the clip depends on the face's own
+  // bounding box, on where the glyphs sit and on how big the surface is.
+  //
+  // A texture bake is the surface that exposes it: it is the size of the
+  // node's own paint bounds rather than the canvas's, so the same run that
+  // draws live can vanish once the node is cached. All three spellings must
+  // paint the same letter in the same place.
+  Host host(220, 200);
+  const auto tracked = [](bool cached) {
+    Element leaf = text(u8"I", whiteStyle(40)).key("k").fx(
+        {.effect = fx::effect(
+             "drop",
+             [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
+               GlyphMod m;
+               m.dy = 60;
+               return m;
+             },
+             /*reach=*/80.0f)});
+    if (cached) leaf.cache(Cache::Texture);
+    return box().padding(10).child(std::move(leaf));
+  };
+  const auto ink = [&](bool cached) {
+    host.composer.render(tracked(cached));
+    host.frame();
+    auto b = host.composer.bounds("k");
+    EXPECT_TRUE(b.has_value());
+    return anyWhiteIn(host,
+                      SkIRect::MakeLTRB((int)b->left(), (int)b->top() + 60,
+                                        (int)b->right(), (int)b->bottom() + 60));
+  };
+  EXPECT_TRUE(ink(false)) << "the track alone drew nothing";
+  EXPECT_TRUE(ink(true))
+      << "the same track drew nothing once the node was baked into a texture";
+}
+
 TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
   // ownPaintBounds has no idea what an effect will do, so a track that
   // throws a glyph out of the element's box must SAY how far. Under-report
@@ -789,16 +830,9 @@ TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
     t.reach = reach;
     return t;
   };
-  // Set in the machine's default face, which is what the label on this
-  // case says: a face read out of a file draws nothing at all through a
-  // texture-cached fx track, while it draws through the cache alone and
-  // through the track alone, so the instrument face cannot yet carry this
-  // claim.
-  sigil::weave::TextStyle machineWhite = machineStyleAt(40);
-  machineWhite.paint.foreground.setColor(SK_ColorWHITE);
   const auto inkBelow = [&](float reach) {
     host.composer.render(
-        box().padding(10).child(text(u8"I", machineWhite)
+        box().padding(10).child(text(u8"I", whiteStyle(40))
                                     .key("k")
                                     .cache(Cache::Texture)
                                     .fx(drop(reach))));
