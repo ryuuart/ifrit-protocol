@@ -1510,6 +1510,11 @@ struct HitmanVerlet final : sketch::DrawSketch {
              y0 + h - 17);
   }
 
+  /** The ramp's five steps and what they stand for, IN THE PEN'S WORDS.
+   *  Every key on this canvas is drawn rather than composed: the stage is
+   *  one pen program over a live solver, and a component hands back an
+   *  Element, which would want a second surface over the one being
+   *  painted. */
   void errorLegend(Pen& pen, float x0, float y0, float a) {
     constexpr float w = 336, h = 48;
     pen.noStroke();
@@ -1641,6 +1646,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
                                                  .delay = 1400ms})),
                   f);
     };
+    // A COLUMN PER ITERATION COUNT, growing from its own base — not a
+    // fraction along a rail with its name over it, which is what a meter
+    // is. What each column says is a MEASURED error against the four
+    // beside it, and the reading is the run of them.
     auto bar = [&](int i, const char* label, float h) {
       return box()
           .column()
@@ -1655,7 +1664,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
                      .fill(i == 4 ? kBlue : hex(0x6FA8DC, 0.42f))
                      .scaleY(animate(from(0.0f).to(1.0f),
                                      {.duration = 220ms,
-                                      .ease = ease::outBack(1.70158f),
+                                      .ease = ease::outBack(),
                                       .delay = 1600ms}))
                      .transformOrigin(0.5f, 1.0f))
           .child(t(label, mono(7.0f, kSteel)));
