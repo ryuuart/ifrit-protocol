@@ -2219,10 +2219,15 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // node's own matrix, which is the matrix the effect's saveLayer stood
     // under, so the filter is applied in exactly the space it was declared
     // in.
+    //  - and no declared bake density. A device-space bake IS a bake at
+    //    the view's own scale, pinned to the view's own grid; a host that
+    //    has said what density its rasters are taken at has said this
+    //    path is not what it wants, and the local bake below is the one
+    //    that honours it.
     const bool deviceEligible =
         !deferEffect && !inst.transformLive && unpinnedRecordingDepth == 0 &&
         node.bakeScale >= 1.0f && !totalM.hasPerspective() &&
-        deviceR.width() > 0 && deviceR.height() > 0 &&
+        bakeDensity <= 0 && deviceR.width() > 0 && deviceR.height() > 0 &&
         deviceArea <= int64_t{16} * 1024 * 1024;
     if (deviceEligible && !deviceRectStable && recordingDepth > 0)
       recordingDeviceDeferred = true;
@@ -2285,16 +2290,30 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         return;
       }
     }
-    // Rasterize at the canvas's current scale so zoomed hosts stay crisp — but
-    // quantized UP to a coarse step, so a continuously changing scale (window
-    // resize, pinch zoom) reuses one bake per step instead of re-rasterizing
-    // every frame. Between steps the draw minifies slightly, which stays sharp.
-    // The DEVICE matrix (composed out through any recording), so a bake
-    // taken inside a replayed-at-scale recording is rasterized at the
-    // scale it will be shown at.
+    // WHAT RESOLUTION A BAKE IS TAKEN AT, and there are two answers.
+    //
+    // A DECLARED DENSITY is a picture of the canvas: the host has said how
+    // many device pixels a layout unit is worth, the bake is taken at that
+    // and at nothing else, and the blit carries it through whatever the
+    // view does afterwards — sharp at the density it was taken for,
+    // magnified past it, exactly as an image node's pixels are. Nothing
+    // about the frame's matrix reaches the decision, so a reader zooming
+    // walks no ladder and waits on no re-rasterization; only a change of
+    // what the picture IS re-takes it.
+    //
+    // NO DECLARED DENSITY is a picture of the view: rasterize at the
+    // canvas's current scale so a zoomed host stays crisp — quantized UP
+    // to a coarse step, so a continuously changing scale reuses one bake
+    // per step instead of re-rasterizing every frame. Between steps the
+    // draw minifies slightly, which stays sharp. The DEVICE matrix
+    // (composed out through any recording), so a bake taken inside a
+    // replayed-at-scale recording is rasterized at the scale it will be
+    // shown at.
     const SkMatrix& total = totalM;
     // A SCALE MOTION THAT NAMES ITS DESTINATION IS BAKED AT THE
-    // DESTINATION, ONCE. The ladder quantizes so that a scale nobody
+    // DESTINATION, ONCE — a ladder question, so a declared density skips
+    // it: that bake is not at a scale the motion can move. The ladder
+    // quantizes so that a scale nobody
     // declared — a window resize, a pinch zoom — reuses one bake per step
     // instead of re-rasterizing per frame. An entrance is the opposite
     // case: it is not an unknown scale drifting, it is a known scale being
@@ -2311,7 +2330,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // or stands in a shared space is placed by a 4x4 whose own producer
     // owns that composition.
     SkMatrix destTotal = total;
-    if (!flat && !spaceHost) {
+    if (bakeDensity <= 0 && !flat && !spaceHost) {
       NodeTransform destTf = tf;
       bool declared = false;
       const auto lane = [&](Instance::Slot slot,
@@ -2340,16 +2359,19 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // samples when the CTM carries a host perspective. This ladder feeds
     // the re-bake test below, so an underestimate here means a stale,
     // blurry bake rather than a wasted one.
-    const float raw =
-        std::clamp(maxScaleOf(destTotal, localBounds), 0.25f, 4.0f);
     static constexpr float kBakeSteps[] = {0.25f, 0.5f, 0.75f, 1.0f,
                                            1.5f,  2.0f, 3.0f,  4.0f};
-    float scale = kBakeSteps[std::size(kBakeSteps) - 1];
-    for (float step : kBakeSteps)
-      if (step >= raw) {
-        scale = step;
-        break;
-      }
+    float scale = bakeDensity;
+    if (bakeDensity <= 0) {
+      const float raw =
+          std::clamp(maxScaleOf(destTotal, localBounds), 0.25f, 4.0f);
+      scale = kBakeSteps[std::size(kBakeSteps) - 1];
+      for (float step : kBakeSteps)
+        if (step >= raw) {
+          scale = step;
+          break;
+        }
+    }
     // bakeScale(): opt-in reduced raster scale — the bake evaluates fewer
     // pixels and the blit below linear-upscales through the same dst rect.
     scale = std::max(0.1f, scale * node.bakeScale);

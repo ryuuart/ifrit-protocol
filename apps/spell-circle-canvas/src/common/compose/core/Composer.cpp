@@ -566,6 +566,27 @@ void Composer::setAutoTexturePromotion(bool on) {
 
 bool Composer::autoTexturePromotion() const { return m_impl->autoPromote; }
 
+void Composer::setBakeDensity(float devicePixelsPerUnit) {
+  const float density =
+      devicePixelsPerUnit > 0 ? devicePixelsPerUnit : 0.0f;
+  if (density == m_impl->bakeDensity) return;
+  m_impl->bakeDensity = density;
+  // Every bake standing was taken at the old density, and none of them
+  // will be re-taken by a scale change any more — so they go now, or the
+  // scene keeps rasters nothing will ever revise.
+  if (!m_impl->root) return;
+  const auto clear = [](auto&& self, detail::Instance& inst) -> void {
+    inst.textureImage.reset();
+    inst.ownImage.reset();
+    inst.paintDirty = true;
+    inst.ownPaintDirty = true;
+    for (auto& child : inst.children) self(self, *child);
+  };
+  clear(clear, *m_impl->root);
+}
+
+float Composer::bakeDensity() const { return m_impl->bakeDensity; }
+
 const char* Composer::promotionReason(Promotion p) {
   switch (p) {
     case Promotion::Cheap:

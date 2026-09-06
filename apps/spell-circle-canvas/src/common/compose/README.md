@@ -909,6 +909,23 @@ going, so the bake is taken there once and the blit minifies through the
 entrance, which is the sharp direction. A scale driven by a binding names
 nothing and keeps the ladder.
 
+**A DECLARED DENSITY MAKES A BAKE A PICTURE OF THE CANVAS.** The ladder
+above is right for a host that draws its canvas at one scale and wants
+the sharpest raster for it, and wrong for a host whose reader can zoom:
+a wheel spin walks the rungs, and each one re-rasterizes every generated
+material in the scene at a new resolution while the reader waits.
+`Composer::setBakeDensity(devicePixelsPerUnit)` names the density every
+pixel bake is taken at instead, whatever matrix the frame is drawn
+under. The bake is then taken ONCE and blitted through the view's
+transform ever after — exactly as an image node's pixels are: sharp at
+the density it was baked for, magnified beyond it, and never re-taken
+for a change of view scale. `Element::bakeScale` still multiplies it, so
+a node that needs more resolution than the canvas carries asks for it and
+gets it once. Content that changes still re-bakes, because that is a
+change of what the picture IS, not of how big it is being shown.
+`Composer::bakeDensity()` reads it back, and zero — the default — is the
+ladder.
+
 ---
 
 ## Traps

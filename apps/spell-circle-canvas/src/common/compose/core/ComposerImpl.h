@@ -169,6 +169,10 @@ struct Composer::Impl {
   // second traversal.
   bool profileEnabled = false;
   bool autoPromote = true;  // Composer::setAutoTexturePromotion (the INTENT)
+  /** Composer::setBakeDensity: device pixels per layout unit every pixel
+   *  bake is taken at, whatever the frame's matrix says. Zero is the
+   *  coarse ladder read off that matrix. */
+  float bakeDensity = 0.0f;
   bool promotionExplicit = false;  // did the host call the setter?
   // The value paint() actually reads, recomputed each draw(). Differs from
   // `autoPromote` only under the backend-aware default: automatic promotion

@@ -525,6 +525,32 @@ class Composer {
   void setAutoTexturePromotion(bool on);
   bool autoTexturePromotion() const;
 
+  /** A PIXEL BAKE IS A PICTURE OF THE CANVAS, NOT OF THE VIEW.
+   *
+   *  Left alone, a `Cache::Texture` bake is rasterized at the scale the
+   *  frame's matrix carries, quantized up to a coarse ladder, and it is
+   *  re-baked at every rung a changing scale passes. That is right for a
+   *  host that draws its canvas at one scale and wants the sharpest
+   *  raster for it, and wrong for a host whose reader can zoom: a wheel
+   *  spin walks the ladder, and each rung re-rasterizes every generated
+   *  material in the scene at the new resolution while the reader waits.
+   *
+   *  Declared here, @p devicePixelsPerUnit is the density every pixel
+   *  bake is taken at, whatever matrix the frame is drawn under. The
+   *  bake is then taken ONCE and blitted through the view's transform
+   *  ever after, exactly as an image node's pixels are — sharp at the
+   *  density it was baked for, magnified beyond it, and never re-taken
+   *  for a change of view scale. Content that changes still re-bakes,
+   *  because that is a change of what the picture IS.
+   *
+   *  A node that needs more resolution than the canvas carries says so
+   *  with `Element::bakeScale`, which multiplies this density as it
+   *  multiplies the ladder's rung.
+   *
+   *  Zero, the default, is the ladder. */
+  void setBakeDensity(float devicePixelsPerUnit);
+  float bakeDensity() const;
+
   /** @private */
   struct Impl;
 

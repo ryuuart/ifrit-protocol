@@ -548,6 +548,77 @@ TEST(ComposeCache, ARecordedLeafKeepsItsBoundOpacityOutOfTheRecording) {
       << "the recording froze the alpha it was taken at";
 }
 
+TEST(ComposeCache, ADeclaredBakeDensityHoldsOneBakeAcrossViewScales) {
+  // A DECLARED DENSITY MAKES A BAKE A PICTURE OF THE CANVAS. Without one
+  // a bake is a picture of the VIEW: a reader who zooms walks the coarse
+  // ladder, and every rung re-rasterizes the node at the new resolution
+  // while they wait. With one the node is baked at the density the host
+  // named and blitted through whatever the view does afterwards, exactly
+  // as an image node's pixels are — which is why three view scales cost
+  // one bake and two blits.
+  const auto drawAt = [](Host& host, float viewScale) {
+    SkCanvas* canvas = host.surface->getCanvas();
+    canvas->clear(SK_ColorBLACK);
+    canvas->save();
+    canvas->scale(viewScale, viewScale);
+    host.composer.draw(*canvas);
+    canvas->restore();
+  };
+  const auto panel = [] {
+    return box().key("panel").width(60).height(60).fill(green()).cache(
+        Cache::Texture);
+  };
+  // Three scales a wheel would pass through, none of them a rung apart
+  // from the last by less than the ladder's own step.
+  const float viewScales[] = {1.0f, 1.4f, 2.744f};
+
+  Host pinned;
+  pinned.composer.setBakeDensity(2.0f);
+  pinned.composer.render(profiledUnder(panel()));
+  drawAt(pinned, viewScales[0]);
+  EXPECT_EQ(pinned.composer.stats().texturesBaked, 1u) << "the one bake";
+  for (int step = 1; step < 3; ++step) {
+    drawAt(pinned, viewScales[step]);
+    EXPECT_EQ(pinned.composer.stats().texturesBaked, 0u)
+        << "re-baked at view scale " << viewScales[step];
+    EXPECT_EQ(pinned.composer.stats().texturesLive, 1u) << "still one image";
+  }
+  // …and it is still the panel that is on screen, blitted up.
+  EXPECT_EQ(pinned.pixel(60, 60), SK_ColorGREEN);
+
+  // The control: the ladder is exactly what the density opts out of.
+  Host laddered;
+  size_t ladderBakes = 0;
+  laddered.composer.render(profiledUnder(panel()));
+  for (float viewScale : viewScales) {
+    drawAt(laddered, viewScale);
+    ladderBakes += laddered.composer.stats().texturesBaked;
+  }
+  EXPECT_GT(ladderBakes, 1u);
+}
+
+TEST(ComposeCache, ADeclaredBakeDensityStillReBakesChangedContent) {
+  // The density answers "at what resolution", never "is this still the
+  // same picture". A node whose content changed is a different picture
+  // and is taken again.
+  Host host;
+  host.composer.setBakeDensity(2.0f);
+  const auto panel = [](Fill fill) {
+    return profiledUnder(
+        box().key("panel").width(60).height(60).fill(fill).cache(
+            Cache::Texture));
+  };
+  host.composer.render(panel(green()));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 0u) << "nothing changed";
+  host.composer.render(panel(red()));
+  host.frame();
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the fill changed";
+  EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);
+}
+
 TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
   // A `from(a).to(b)` on a scale lane NAMES b, so the coarse bake ladder
   // takes the bake there and the blit minifies through the entrance. The
