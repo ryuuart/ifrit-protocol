@@ -25,6 +25,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Composer.h>
+#include <sigilcompose/core/Derive.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/typography/Selector.h>
@@ -178,7 +179,14 @@ struct Beside {
  *  object's size is decided by its content after this places it, so there
  *  is nothing here to measure it against — an object hung by its right
  *  edge is given a width and an offset carrying that width, the same way
- *  `Beside::measure` is stated rather than measured. */
+ *  `Beside::measure` is stated rather than measured.
+ *
+ *  It is the box-to-box positioning value with a text unit in the place of
+ *  the anchor: `at` and `offset` ARE `Tether::on` and `Tether::offset`,
+ *  and the arithmetic below is `Tether::place`, so an object tied to a
+ *  word and an object tied to a box come to rest by one rule. What this
+ *  adds is the pair of references, which no box has: a margin figure takes
+ *  its x from the frame and its y from the word. */
 struct Anchored {
   /** WHAT one axis is measured from: the unit the selector named, the
    *  whole flow line (or column) that unit landed on, or the text node's
@@ -244,10 +252,13 @@ struct Anchored {
     };
     const SkRect& across = rectFor(anchored.horizontal);
     const SkRect& down = rectFor(anchored.vertical);
-    const float left =
-        across.left() + anchored.at.x() * across.width() + anchored.offset.x();
-    const float top =
-        down.top() + anchored.at.y() * down.height() + anchored.offset.y();
+    // One tether per axis, because the two axes may be measured from
+    // different rects; each answers for its own coordinate. `at` is left
+    // at the object's top-left, which is what lands on the point.
+    const Tether hang{.on = anchored.at, .at = {0.0f, 0.0f},
+                      .offset = anchored.offset};
+    const float left = hang.place(across, SkSize::MakeEmpty()).left();
+    const float top = hang.place(down, SkSize::MakeEmpty()).top();
     overlay.child(box()
                       .key(std::string(baseKey) + "-anchored" +
                            std::to_string(entry.index))

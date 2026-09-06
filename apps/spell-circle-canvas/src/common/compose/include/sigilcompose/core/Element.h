@@ -73,6 +73,9 @@ class Pattern;
 struct Track;
 struct Annotation;
 struct TextPath;
+// <sigilcompose/core/Derive.h>: the positioning value, declared beside the
+// rest of the derive family because it is resolved by the same pass.
+struct Tether;
 
 // ---------------------------------------------------------------------------
 // Element — a cheap value description
@@ -133,6 +136,22 @@ class Element {
   Element& top(Dim d);
   Element& right(Dim d);
   Element& bottom(Dim d);
+  /** HANG THIS NODE OFF A KEYED ONE, at a stated pair of points, with a
+   *  list of places to try when the first will not fit (implies
+   *  absolute()).
+   *
+   *      tooltip().tether({.key = "port",
+   *                        .on = {0.5f, 0.0f}, .at = {0.5f, 1.0f},
+   *                        .offset = {0, -6},
+   *                        .fallbacks = {{.key = "port",
+   *                                       .on = {0.5f, 1.0f},
+   *                                       .at = {0.5f, 0.0f},
+   *                                       .offset = {0, 6}}}})
+   *
+   *  Resolved after layout, against the geometry the anchor resolved to,
+   *  and re-resolved whenever it moves. The value states the rule; see
+   *  `Tether` for what fits means and what an unknown key does. */
+  Element& tether(Tether t);
   /** Center this absolute node ON a parent-space point — the dominant
    *  placement in node-graph scenes (sockets on orbit positions, badges
    *  on markers). Resolved after measurement, so intrinsic-size nodes

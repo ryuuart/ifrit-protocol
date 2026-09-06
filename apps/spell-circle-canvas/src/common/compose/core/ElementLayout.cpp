@@ -1,7 +1,8 @@
 /** @file
  * Element's layout verbs — the flex direction, gaps, padding and margin,
  * the dims, the flex factors and alignment, the absolute placement
- * longhand, and the two placement shorthands written over it.
+ * longhand, the two placement shorthands written over it, and the tether
+ * that hangs a node off another one's finished geometry.
  */
 
 #include <algorithm>
@@ -185,6 +186,20 @@ Element& Element::cells(int column, int row, int columns, int rows) {
   m_node->layout.cells.columns = std::max(columns, 1);
   m_node->layout.cells.rows = std::max(rows, 1);
   m_node->layout.cells.declared = true;
+  return *this;
+}
+
+Element& Element::tether(Tether t) {
+  m_node->layout.absolute = true;
+  detail::DeriveData& derive = m_node->deriveData.ensure();
+  // Every place the box may end up is a node whose finished geometry this
+  // one waits for, so every one of them is declared — a fallback that
+  // named a node nothing waited for would be resolved a pass late, and
+  // the box would flick into it a frame after the anchor moved.
+  derive.reads.push_back({t.key, sigil::core::Facet::Bounds});
+  for (const Tether& fallback : t.fallbacks)
+    derive.reads.push_back({fallback.key, sigil::core::Facet::Bounds});
+  derive.tether = std::move(t);
   return *this;
 }
 

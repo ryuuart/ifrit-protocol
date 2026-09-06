@@ -80,6 +80,7 @@ sigil_test(compose_test
   SOURCES test/ComposeTestKernel.cpp test/ComposeTestMask.cpp
           test/ComposeTestFieldPins.cpp test/ComposeTestContentCore.cpp
           test/ComposeTestDepth.cpp test/ComposeTestInstances.cpp
+          test/ComposeTestTether.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore)

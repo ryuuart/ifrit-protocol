@@ -101,6 +101,7 @@ struct Composer::Impl {
   // queries ("which edges touch this node") in O(routes-at-node).
   std::vector<detail::Instance*> routedInstances;
   std::vector<detail::Instance*> flowInstances;  // flowAround() text nodes
+  std::vector<detail::Instance*> tetheredInstances;  // tether() nodes
   // Text nodes carrying mark() on a path-laid run. Their curve resolves
   // against the node's FINAL box, which measurement never sees, so their
   // marks resolve in a post-layout pass over this flat list instead of
@@ -390,6 +391,7 @@ struct Composer::Impl {
 
   // ---- layout (Layout.cpp) ----
   bool applyCustomLayouts(detail::Instance& inst);
+  bool resolveTethers();
   SkSize minimumSizeOf(detail::Instance& child);
   bool applyCenterPins(detail::Instance& inst);
   /** The passes, as the runner sees them. Each returns whether it changed

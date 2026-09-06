@@ -210,7 +210,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   return true;
 }
 
-static_assert(kFieldCount<DeriveData> == 18,
+static_assert(kFieldCount<DeriveData> == 19,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
@@ -240,6 +240,10 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   // of its own: it is a property of the scheme type behind `placeFn`, and
   // a node carrying one is already conservatively unequal above.
   if (a->cellArea != b->cellArea) return false;
+  // tether(): where the node hangs and everywhere it may hang instead. A
+  // re-described tether that names the same places and the same points
+  // prunes; one that moves either re-resolves the position.
+  if (a->tether != b->tether) return false;
   return a->railAnchors == b->railAnchors &&
          a->flowAroundKeys == b->flowAroundKeys &&
          a->flowAroundMargin == b->flowAroundMargin &&
@@ -922,6 +926,7 @@ void Composer::Impl::rebuildKeyIndex() {
   bySlot.clear();
   routedInstances.clear();
   flowInstances.clear();
+  tetheredInstances.clear();
   pathMarkInstances.clear();
   threadedInstances.clear();
   routesByAnchor.clear();
@@ -940,6 +945,7 @@ void Composer::Impl::rebuildKeyIndex() {
       if (node.deriveData) {
         const DeriveData& derive = *node.deriveData;
         if (!derive.flowAroundKeys.empty()) flowInstances.push_back(&inst);
+        if (derive.tether) tetheredInstances.push_back(&inst);
         const bool isConnector =
             !derive.connectFrom.empty() && !derive.connectTo.empty();
         const bool isRail = derive.railAnchors.size() >= 2;
@@ -983,7 +989,7 @@ void Composer::Impl::rebuildKeyIndex() {
       if (node.layout.centerAt) hasCenterPins = true;
     });
   hasDerived = !routedInstances.empty() || !flowInstances.empty() ||
-               !threadedInstances.empty();
+               !threadedInstances.empty() || !tetheredInstances.empty();
   orderDerivedByReads();
 }
 
@@ -1024,6 +1030,7 @@ void Composer::Impl::orderDerivedByReads() {
     list.swap(sorted);
   };
   reorder(flowInstances);
+  reorder(tetheredInstances);
   reorder(routedInstances);
   reorder(threadedInstances);
 }

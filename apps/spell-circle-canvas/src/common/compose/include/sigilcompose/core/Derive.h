@@ -179,6 +179,54 @@ struct Anchor {
   bool operator==(const Anchor&) const = default;
 };
 
+/** WHERE A BOX HANGS OFF ANOTHER ONE — the positioning value, stated as a
+ *  pair of normalized points and a list of places to try.
+ *
+ *  `on` is the point of the ANCHOR's resolved rect the box hangs from;
+ *  `at` is the point of the BOX that lands there; `offset` is how far
+ *  from there, in px, in the composition's axes. The pair covers every
+ *  arrangement of two boxes there is — `{on = {0.5, 0}, at = {0.5, 1}}`
+ *  is "centred above", `{on = {1, 0.5}, at = {0, 0.5}}` is "to the right,
+ *  middles level" — and it is normalized rather than absolute for the
+ *  same reason an Anchor is: it survives layout, drag and reflow, where
+ *  coordinates lifted off one frame do not.
+ *
+ *  `fallbacks` is what makes it a position rather than an offset. The
+ *  stated tether is tried first; if the box it places leaves `within`,
+ *  each fallback is tried in the order given, and the first that FITS is
+ *  taken. When none fits the stated one stands, so a box that cannot be
+ *  placed anywhere is still placed where it was asked for. A fallback's
+ *  own `fallbacks` are not read — the list is the list.
+ *
+ *  `within` empty is the composer's own bounds, which is what "on screen"
+ *  means when nothing narrower is stated.
+ *
+ *  AN UNKNOWN KEY IS SILENT, the family's rule: a tether naming a node
+ *  that is not there places nothing and the box stays where layout left
+ *  it. So is a key naming this node or one of its descendants, which
+ *  would derive the box from itself. */
+struct Tether {
+  std::string key;
+  SkPoint on = {0.5f, 0.5f};
+  SkPoint at = {0.5f, 0.5f};
+  SkVector offset = {0.0f, 0.0f};
+  SkRect within = SkRect::MakeEmpty();
+  std::vector<Tether> fallbacks;
+  bool operator==(const Tether&) const = default;
+
+  /** Where a box of @p size lands when this tether ties it to @p anchor.
+   *  Both rects are in ONE space and the answer is in that space; which
+   *  space that is belongs to the caller. */
+  SkRect place(const SkRect& anchor, SkSize size) const {
+    return SkRect::MakeXYWH(
+        anchor.left() + anchor.width() * on.x() + offset.x() -
+            size.width() * at.x(),
+        anchor.top() + anchor.height() * on.y() + offset.y() -
+            size.height() * at.y(),
+        size.width(), size.height());
+  }
+};
+
 /** A rail-route scheme: `SkPath route(std::span<const SkPoint>) const`,
  *  plus equality — the pointwise seam's half of the same convention
  *  `RouteScheme` states. Equal values must route identical paths through
