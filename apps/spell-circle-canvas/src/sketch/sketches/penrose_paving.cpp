@@ -116,17 +116,19 @@
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
 #include <array>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cmath>
-#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -136,6 +138,7 @@ namespace matkit = sigil::material::kit;
 namespace mat = sigil::material;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
+namespace measure = sigil::measure;
 namespace skia = sigil::material::skia;
 namespace weave = sigil::weave;
 
@@ -205,7 +208,6 @@ constexpr double kArcT0 = 1.20, kArcSweep = 1.05, kArcDur = 0.58;
 constexpr double kSheen0 = 2.55, kSheenDur = 1.10;
 const double kGenAt[4] = {0.70, 1.55, 2.45, 3.35};
 
-inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
 // ---------------------------------------------------------------------------
 // de Bruijn's pentagrid
 
@@ -709,6 +711,12 @@ struct PenrosePaving : sketch::Sketch {
   double genArea0 = 0;
   int genAreaFails = 0;
 
+  /** THE VERIFICATION, as one table. `Audit` holds what was measured; this
+   *  holds the CLAIMS made about it, and every row's verdict is computed
+   *  from the two values it reports — so a line that reads PASS cannot
+   *  disagree with the arithmetic printed beside it. */
+  measure::Table verdict;
+
   // -------------------------------------------------------------------------
   // One sett: an absolutely-placed box whose OUTLINE is the rhomb, inset by
   // half the saw-cut joint. No rotate() anywhere — the shape carries its own
@@ -930,6 +938,63 @@ struct PenrosePaving : sketch::Sketch {
     return group;
   }
 
+  /** THE VERIFICATION, ENGRAVED BESIDE THE PLAQUE. A dualization that is
+   *  subtly wrong still renders a plausible field of rhombs, so the tiling
+   *  is checked numerically before any of the surface treatment is worth
+   *  looking at — and a check nobody can see is a check nobody reads. Each
+   *  row's verdict is computed from the two values it reports; the ratio of
+   *  the two prototiles is a statement about the PAVING and stands apart
+   *  from the claims about the construction. */
+  Element verificationCard() const {
+    sketch::kit::Theme look;
+    look.palette.ash = kCaption;
+    look.palette.figure = hex(0xDCE0E2);
+    look.type.captionNote = {9.5f, 0.3f};
+    look.type.captionLabel = {9.5f, 0.3f, true};
+    look.spacing.rowGap = 4;
+    const SkColor4f held = hex(0x7FA87F), broken = hex(0xC0564B);
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (c.standing == measure::Standing::Heading) {
+        rows.push_back({{toU8(c.label)}, {}});
+        continue;
+      }
+      // A reading has no verdict to mark, but it keeps the mark's WIDTH:
+      // an unmarked row that also loses the indent reads as a heading.
+      if (!c.judged()) {
+        rows.push_back(
+            {{toU8(c.label), toU8(c.actual), u8""}, Fill::color({0, 0, 0, 0})});
+        continue;
+      }
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual),
+            toU8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+           Fill::color(c.pass ? held : broken)});
+    }
+    const std::string summary = kit::formatted(
+        "VERIFIED AT STARTUP \xc2\xb7 %d CHECKS, %s", verdict.checks(),
+        verdict.pass() ? "ALL PASSED" : "ONE OR MORE FAILED");
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(1096)
+        .top(944)
+        .width(448)
+        .height(236)
+        .fill(Fill::color(hex(0x121517, 0.84f)))
+        .stroke(stroke(1.0f, Fill::color(hex(0x5E6163, 0.55f)),
+                       PathFormat::Align::Inner))
+        .background(styles::dropShadow(hex(0x000000, 0.55f), {0, 6}, 22))
+        .column()
+        .padding(14)
+        .gap(9)
+        .child(text(toU8(summary), weave::textStyle({.size = 10.5f,
+                                                     .color = hex(0x8E9295),
+                                                     .track = 1.0f})))
+        .child(sketch::kit::table(
+            std::move(rows),
+            {.columns = {{202}, {92, true}, {}}, .gap = 8, .swatchSide = 7}));
+  }
+
   Element inset() {
     const SkRect r = SkRect::MakeXYWH(1178, 76, 348, 268);
     return box()
@@ -1077,7 +1142,8 @@ struct PenrosePaving : sketch::Sketch {
                         {.size = 10.5f, .color = hex(0x8E9598), .track = 1.3f}))
                    .left(76)
                    .top(1152)
-                   .opacity(1.0f));
+                   .opacity(1.0f))
+        .child(verificationCard());
   }
 
   // -------------------------------------------------------------------------
@@ -1092,18 +1158,29 @@ struct PenrosePaving : sketch::Sketch {
     tiles = buildField(kModule, kModule * 1.2f);
     audit = verify(tiles, kModule);
 
-    std::printf(
-        "\n[penrose] pentagrid gamma=%.3f  module=%.1f px\n"
-        "[penrose] tiles=%d  fat=%d  thin=%d  fat:thin=%.4f  (phi=1.6180)\n"
-        "[penrose] interior vertices=%d  angle-sum failures=%d  worst err=%.4f "
-        "deg\n"
-        "[penrose] arc nodes=%d  chained(deg 2)=%d  dangling interior=%d\n"
-        "[penrose] worst |endpoint-midpoint| = %.6f px   worst tangent dot = "
-        "%.2e\n",
-        kOffset, kModule, audit.tiles, audit.fat, audit.thin, audit.ratio,
-        audit.interiorVerts, audit.badVerts, audit.worstVertErr, audit.arcNodes,
-        audit.chained, audit.danglingInterior, audit.worstMidErr,
-        audit.worstTangentErr);
+    verdict = {};
+    verdict.add(measure::heading("THE PAVING"));
+    verdict.add(measure::reading(
+        kit::formatted("setts  %d fat + %d thin", audit.fat, audit.thin),
+        (long)audit.tiles));
+    // The ratio of the two prototiles tends to phi over the WHOLE tiling; a
+    // finite patch of a few hundred setts only approaches it, so this is a
+    // statement about the paving rather than about the dualization that
+    // drew it, and its verdict is never counted against the run.
+    verdict.add(measure::finding(measure::check("fat : thin, tends to \xcf\x86",
+                                                1.6180, audit.ratio, 0.02)));
+    verdict.add(
+        measure::reading("interior vertices", (long)audit.interiorVerts));
+    verdict.add(measure::check("vertices not closing at 360\xc2\xb0", 0,
+                               audit.badVerts));
+    verdict.add(measure::check("worst angle-sum error, deg", 0.0,
+                               audit.worstVertErr, 0.5));
+    verdict.add(measure::check("arc endpoints left unchained", 0,
+                               audit.danglingInterior));
+    verdict.add(measure::check("worst endpoint off its midpoint, px", 0.0,
+                               audit.worstMidErr, 1e-3));
+    verdict.add(measure::check("worst arc tangent \xc2\xb7 its edge", 0.0,
+                               audit.worstTangentErr, 1e-4));
 
     // --- the deflation vignette's own construction + area audit ------------
     {
@@ -1186,17 +1263,21 @@ struct PenrosePaving : sketch::Sketch {
             else if (n > 1)
               doubled++;
           }
-        std::printf(
-            "[penrose] deflation coverage @gen3: %d samples in the seed,"
-            " %d uncovered, %d double-covered\n",
-            inside, uncovered, doubled);
+        verdict.add(measure::heading("THE DEFLATION"));
+        verdict.add(measure::reading(
+            "rhombs, seed \xe2\x86\x92 gen 3",
+            kit::formatted("%zu \xe2\x86\x92 %zu \xe2\x86\x92 %zu "
+                           "\xe2\x86\x92 %zu",
+                           gens[0].size() / 2, gens[1].size() / 2,
+                           gens[2].size() / 2, gens[3].size() / 2)));
+        verdict.add(
+            measure::check("generations off the seed's area", 0, genAreaFails));
+        verdict.add(
+            measure::check("children outside their parent", 0, genOutside));
+        verdict.add(measure::reading("seed samples", (long)inside));
+        verdict.add(measure::check("of them uncovered at gen 3", 0, uncovered));
+        verdict.add(measure::check("of them double-covered", 0, doubled));
       }
-      std::printf(
-          "[penrose] deflation rhombs: %zu -> %zu -> %zu -> %zu   "
-          "area failures=%d  children outside their parent=%d\n",
-          gens[0].size() / 2, gens[1].size() / 2, gens[2].size() / 2,
-          gens[3].size() / 2, genAreaFails, genOutside);
-      std::fflush(stdout);
     }
 
     grow = std::vector<choreograph::Output<float>>(tiles.size());
@@ -1214,11 +1295,12 @@ struct PenrosePaving : sketch::Sketch {
       for (size_t i = 0; i < tiles.size(); ++i) {
         const double u = (double)tiles[i].radius / (double)kCorner;
         // the ripple front: a raw linear progress, nothing shaped here
-        grow[i] = clamp01((now - (kTileT0 + kTileSweep * u)) / kTileDur);
-        arcT[i] = choreograph::easeOutCubic(
-            clamp01((now - (kArcT0 + kArcSweep * u)) / kArcDur));
+        grow[i] = (float)std::clamp(
+            (now - (kTileT0 + kTileSweep * u)) / kTileDur, 0.0, 1.0);
+        arcT[i] = choreograph::easeOutCubic((float)std::clamp(
+            (now - (kArcT0 + kArcSweep * u)) / kArcDur, 0.0, 1.0));
       }
-      const float sp = clamp01((now - kSheen0) / kSheenDur);
+      const float sp = (float)std::clamp((now - kSheen0) / kSheenDur, 0.0, 1.0);
       sheen = std::sin(sp * 3.14159265f);  // one pass, then gone
       return true;
     });
