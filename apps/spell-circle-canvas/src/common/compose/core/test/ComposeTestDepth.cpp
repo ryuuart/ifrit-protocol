@@ -8,6 +8,9 @@
 // plane where the projection put it.
 
 #include <include/core/SkM44.h>
+#include <include/effects/SkImageFilters.h>
+
+#include <functional>
 
 #include "support/CoreTestSupport.h"
 
@@ -44,7 +47,7 @@ TEST(ComposeDepth, AQuarterTurnAboutYHasNoWidth) {
   host.composer.render(turnedAboutY(60));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
-  EXPECT_EQ(host.pixel(80, 100), SK_ColorRED);   // inside the 50 px band
+  EXPECT_EQ(host.pixel(80, 100), SK_ColorRED);  // inside the 50 px band
   EXPECT_EQ(host.pixel(120, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(60, 100), SK_ColorBLACK);  // where the flat box was
   EXPECT_EQ(host.pixel(140, 100), SK_ColorBLACK);
@@ -58,12 +61,12 @@ TEST(ComposeDepth, PerspectiveScalesAPlaneMovedInDepth) {
   // z = −400; at z = 0 the view leaves it exactly where it was.
   Host host(200, 200);
   const auto scene = [](float z) {
-    return box().perspective(400).child(box()
-                                            .absolute()
-                                            .rect(SkRect::MakeXYWH(75, 75, 50,
-                                                                   50))
-                                            .fill(red())
-                                            .translateZ(z));
+    return box().perspective(400).child(
+        box()
+            .absolute()
+            .rect(SkRect::MakeXYWH(75, 75, 50, 50))
+            .fill(red())
+            .translateZ(z));
   };
   host.composer.render(scene(0));
   host.frame();
@@ -173,6 +176,70 @@ TEST(ComposeDepth, ASharedSpaceDrawsItsPlanesBackToFront) {
       << "pitched down, the top face is nearest";
 }
 
+TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
+  // Every property that composites the node as ONE layer makes it a plane:
+  // its children rasterise into that layer and cannot keep a depth past
+  // it, so they project one by one in TREE order. The cube then shows its
+  // last-declared face at the centre — the back one, magenta — where a
+  // space shows the nearest, the front one, red. One case per refusal,
+  // because each is a separate reading of the description and a missed
+  // one is invisible until a scene draws the wrong face.
+  const auto centreOf = [](const std::function<void(Element&)>& grouping) {
+    const auto face = [](Fill fill) {
+      return box()
+          .absolute()
+          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+          .fill(std::move(fill));
+    };
+    Element space = box()
+                        .absolute()
+                        .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+                        .preserve3d()
+                        .child(face(red()).translateZ(50))
+                        .child(face(Fill::color({1, 0, 1, 1})).translateZ(-50));
+    grouping(space);
+    Host host(200, 200);
+    host.composer.render(box().perspective(800).child(std::move(space)));
+    host.frame();
+    return host.pixel(100, 100);
+  };
+  const auto flattened = [&](const char* what,
+                             const std::function<void(Element&)>& grouping) {
+    const SkColor centre = centreOf(grouping);
+    EXPECT_GT(SkColorGetB(centre), 200u) << what << " must flatten the space";
+    EXPECT_GT(SkColorGetR(centre), 200u) << what;
+    EXPECT_LT(SkColorGetG(centre), 60u) << what;
+  };
+
+  // The control: nothing grouping, and the space stands.
+  EXPECT_EQ(centreOf([](Element&) {}), SK_ColorRED);
+
+  flattened("clip()", [](Element& e) { e.clip(true); });
+  flattened("a mask", [](Element& e) {
+    e.mask(by::shape(Region::rect(SkRect::MakeWH(200, 200))));
+  });
+  flattened("a layer effect", [](Element& e) {
+    e.effect(
+        material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)));
+  });
+  flattened("a backdrop effect", [](Element& e) {
+    e.backdrop(
+        material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)));
+  });
+  // Additive, so the flattened pair is still readable: a blend that took
+  // the faces to black would say nothing about which one is on top.
+  flattened("a blend mode", [](Element& e) { e.blend(SkBlendMode::kPlus); });
+  flattened("a coverage boundary",
+            [](Element& e) { e.boundary(Boundary::Coverage); });
+  flattened("Cache::Texture", [](Element& e) { e.cache(Cache::Texture); });
+  flattened("Cache::Group", [](Element& e) { e.cache(Cache::Group); });
+  // Opacity is read as the frame resolves it, so anything under 1 is a
+  // layer — and the flattened faces are then washed toward the page.
+  const SkColor faded = centreOf([](Element& e) { e.opacity(0.99f); });
+  EXPECT_GT(SkColorGetB(faded), 200u) << "opacity below 1 must flatten it";
+  EXPECT_LT(SkColorGetG(faded), 60u);
+}
+
 TEST(ComposeDepth, TheHostsOwnPlaneNeverHidesItsSpace) {
   // The host is edge-on at a quarter turn about y: its own plane has no
   // width, yet the faces it hosts stand where the space puts them — the
@@ -240,13 +307,13 @@ TEST(ComposeDepth, AHitLandsWhereTheProjectionPutThePlane) {
   // projection is built by hand, and every local point of the card hits
   // the card where that projection puts it — and paints red there.
   Host host(200, 200);
-  host.composer.render(box().perspective(500).child(
-      box()
-          .key("card")
-          .absolute()
-          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
-          .fill(red())
-          .rotateY(50)));
+  host.composer.render(
+      box().perspective(500).child(box()
+                                       .key("card")
+                                       .absolute()
+                                       .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+                                       .fill(red())
+                                       .rotateY(50)));
   host.frame();
   const SkM44 projection = cssPerspective(500, {100, 100}) *
                            SkM44::Translate(50, 50) * SkM44::Translate(50, 50) *
@@ -390,14 +457,14 @@ TEST(ComposeDepth, AFlippingCardShowsOneFaceAtATime) {
           .rotateY(ry)
           .backface(Backface::Hidden);
     };
-    return box().perspective(600).child(box()
-                                            .absolute()
-                                            .rect(SkRect::MakeXYWH(0, 0, 200,
-                                                                   200))
-                                            .preserve3d()
-                                            .rotateY(turn)
-                                            .child(face("front", red(), 0))
-                                            .child(face("back", blue(), 180)));
+    return box().perspective(600).child(
+        box()
+            .absolute()
+            .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+            .preserve3d()
+            .rotateY(turn)
+            .child(face("front", red(), 0))
+            .child(face("back", blue(), 180)));
   };
   Host host(200, 200);
   for (float turn : {0.0f, 30.0f, 80.0f}) {
@@ -416,6 +483,34 @@ TEST(ComposeDepth, AFlippingCardShowsOneFaceAtATime) {
   }
 }
 
+TEST(ComposeDepth, AHingeBehindThePlaneIsATransformOriginWithADepth) {
+  // The pivot a lane turns about carries a z: a card on a hinge BEHIND it
+  // swings about a negative one, which pushes the whole plane away as it
+  // turns where a pivot in the plane would keep its centre still. The two
+  // are the same quarter turn and land in different places.
+  const auto centreAfterAQuarterTurn = [](float pivotZ) {
+    Host host(200, 200);
+    host.composer.render(box().perspective(600).child(
+        box()
+            .absolute()
+            .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+            .fill(red())
+            .transformOrigin3d(0.5f, 0.5f, pivotZ)
+            .rotateY(45)));
+    host.frame();
+    int painted = 0;
+    for (int x = 0; x < 200; ++x)
+      if (host.pixel(x, 100) == SK_ColorRED) ++painted;
+    return painted;
+  };
+  const int inThePlane = centreAfterAQuarterTurn(0.0f);
+  const int onAHingeBehind = centreAfterAQuarterTurn(-120.0f);
+  EXPECT_GT(inThePlane, 0);
+  EXPECT_GT(onAHingeBehind, 0);
+  EXPECT_NE(inThePlane, onAHingeBehind)
+      << "the pivot's depth is part of the turn";
+}
+
 TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {
   // The lanes are Instance::Slot rows, so a re-described rotateY with a
   // transition ramps from the turn it is at: halfway through a 0 → 90
@@ -432,9 +527,10 @@ TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {
           .absolute()
           .rect(SkRect::MakeXYWH(50, 50, 100, 100))
           .fill(red())
-          .rotateY(animate(motion::to(90.0f), motion::Transition{
-                                          .duration = 200ms,
-                                          .ease = &choreograph::easeNone}))));
+          .rotateY(
+              animate(motion::to(90.0f),
+                      motion::Transition{.duration = 200ms,
+                                         .ease = &choreograph::easeNone}))));
   host.frame(0.1);  // 45°: cos(45°) · 100 ≈ 71 px about the centre
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(70, 100), SK_ColorRED);

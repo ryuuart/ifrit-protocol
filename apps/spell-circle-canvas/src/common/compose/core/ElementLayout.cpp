@@ -218,12 +218,16 @@ Element& Element::tether(Tether t) {
   return *this;
 }
 
-Element& Element::area(std::string name) {
+Element& Element::cells(CellSpan span) {
+  return cells(span.column, span.row, span.columns, span.rows);
+}
+
+Element& Element::area(std::string_view name) {
   // The name alone is the claim: the numbers stay at their defaults until
   // the scheme's picture resolves them, and `declared` is left to that
   // resolution, so a name no picture carries flows exactly as an unspoken
   // child does rather than landing on cell (0, 0).
-  m_node->deriveData.ensure().cellArea = std::move(name);
+  m_node->deriveData.ensure().cellArea = std::string(name);
   return *this;
 }
 

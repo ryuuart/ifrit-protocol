@@ -341,9 +341,10 @@ bool Composer::Impl::balanceRuns(const std::vector<Instance*>& chain) {
     if (!opens || !opens->balanceChain) continue;
     size_t last = first + 1;
     while (last < chain.size()) {
-      const detail::TextData* text = chain[last]->description->textData
-                                         ? &*chain[last]->description->textData
-                                         : nullptr;
+      const detail::TextData* text =
+          chain[last]->description && chain[last]->description->textData
+              ? &*chain[last]->description->textData
+              : nullptr;
       if (text && text->balanceChain) break;
       ++last;
     }

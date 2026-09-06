@@ -446,6 +446,57 @@ TEST(ComposeInstances, AFlightLaneCarriesTheEntranceThePoolCannot) {
   EXPECT_NE(pool.revision(), before);
 }
 
+TEST(ComposeInstances, ACellRegisteredAfterTheFirstDrawIsDrawn) {
+  // The cached mode memoizes the leaf, and the pool is not the only thing
+  // the picture was recorded from: registering a cell re-bakes the sheet,
+  // so a leaf keyed on the pool alone would replay the picture it recorded
+  // from the sheet before that cell and the new frame would never appear.
+  using namespace sigil::compose::instancing;
+  Host host;
+  auto atlas = std::make_shared<Atlas>();
+  atlas->cell(box().fill(Fill::color({1, 1, 1, 1})), {16, 16});
+  auto pool = std::make_shared<Pool>();
+  pool->add({40, 40});
+  const auto describe = [&] { return box().child(instances(atlas, pool)); };
+  host.composer.render(describe());
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);
+
+  // A second cell, and an instance that names it. The pool moved, so a
+  // pool-keyed memo would repaint — the atlas is what the cell changed,
+  // and it must be as much of the key.
+  const int red = atlas->cell(box().fill(Fill::color({1, 0, 0, 1})), {16, 16});
+  pool->add({120, 40}, red);
+  pool->commit();
+  host.composer.render(describe());
+  host.frame();
+  EXPECT_EQ(host.pixel(120, 40), SK_ColorRED);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE) << "the first cell still draws";
+}
+
+TEST(ComposeInstances, AResizeLeavesItsNewInstancesWhereTheyWerePut) {
+  // A flight materialises at rest where its instance STANDS, and where an
+  // instance appended by resize() stands is not known until the caller
+  // has placed it. A lane grown at the resize with a default flight would
+  // fly every one of them in from the origin at the next step.
+  using namespace sigil::compose::instancing;
+  Pool pool;
+  pool.add({10, 10});
+  std::span<Pool::Flight> flights = pool.flights();
+  flights[0] = {.from = {0, 0}, .to = {10, 10}, .duration = 1.0f};
+
+  pool.resize(3);
+  EXPECT_TRUE(pool.hasFlights()) << "the lane is still this pool's";
+  pool.positions()[1] = {70, 70};
+  pool.positions()[2] = {90, 90};
+
+  pool.fly(1.0f);
+  EXPECT_FLOAT_EQ(pool.positions()[1].fX, 70.0f);
+  EXPECT_FLOAT_EQ(pool.positions()[2].fY, 90.0f);
+  // …and the flight that was authored is still the authored one.
+  EXPECT_FLOAT_EQ(pool.positions()[0].fX, 10.0f);
+}
+
 TEST(ComposeInstances, AFlightMaterialisesAtRestAndKeepsStepWithTheLanes) {
   using namespace sigil::compose::instancing;
   Pool pool;

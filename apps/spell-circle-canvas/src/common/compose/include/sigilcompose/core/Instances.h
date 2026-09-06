@@ -141,7 +141,11 @@ class Pool {
   /** Per-instance FLIGHT, opt-in like `sizes()`. A pool that never asks
    *  for it costs nothing and stamps exactly as before. */
   std::span<Flight> flights();
-  bool hasFlights() const { return m_flights.size() == m_positions.size(); }
+  /** Does this pool carry the flight lane at all? A lane the pool has
+   *  grown past is still the pool's: the instances appended to it
+   *  materialise at rest at the next read or step. `clear()` is what
+   *  drops it. */
+  bool hasFlights() const { return !m_flights.empty(); }
   std::span<const Flight> flights() const { return m_flights; }
 
   /** STEP EVERY FLIGHT to @p seconds, writing the position, rotation,

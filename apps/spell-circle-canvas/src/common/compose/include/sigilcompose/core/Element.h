@@ -167,6 +167,9 @@ class Element {
    *  an inserted or reordered child silently shifts every entry after it
    *  onto the wrong cell. */
   Element& cells(int column, int row, int columns = 1, int rows = 1);
+  /** The same claim as one value — the shape a scheme reads it back as,
+   *  so a caller computing a span passes what it computed. */
+  Element& cells(CellSpan span);
   /** WHICH NAMED REGION of the `layout()` scheme above it this child
    *  claims — the same statement as `cells()` with the numbers left to the
    *  scheme's own picture of itself (`layouts::Grid::areas`).
@@ -180,7 +183,7 @@ class Element {
    *  numbered child after the insertion would have moved one cell up. A
    *  name the picture does not carry is silent, and the child flows into
    *  the next free cell like any child that claimed nothing. */
-  Element& area(std::string name);
+  Element& area(std::string_view name);
   /** Where this child sits INSIDE the cell box its span makes.
    *  `Align::Stretch` sizes it to the box instead of placing it in one. */
   Element& cellAlign(Align across, Align down);

@@ -66,20 +66,13 @@ void Pool::resize(size_t n) {
   if (!m_sizes.empty()) m_sizes.resize(n, {1.0f, 1.0f});
   if (!m_alphas.empty()) m_alphas.resize(n, 1.0f);
   if (!m_texWindows.empty()) m_texWindows.resize(n, SkRect::MakeWH(1.0f, 1.0f));
-  // A flight lane grown with default flights would fly every appended
-  // instance from the origin: an appended instance is at rest where it
-  // stands, exactly as add() and flights() leave one.
-  if (!m_flights.empty()) {
-    const size_t was = m_flights.size();
-    m_flights.resize(n, {});
-    for (size_t i = was; i < m_flights.size(); ++i)
-      m_flights[i] = Flight{.from = m_positions[i],
-                            .to = m_positions[i],
-                            .rotateFrom = m_rotations[i],
-                            .rotateTo = m_rotations[i],
-                            .scaleFrom = m_scales[i],
-                            .scaleTo = m_scales[i]};
-  }
+  // The flight lane is TRUNCATED and never grown here: a flight
+  // materialises at rest where its instance stands, and where an appended
+  // instance stands is not known until the caller has placed it. The lane
+  // is filled out for the new length at the first read or step after
+  // that, which is what keeps a resize from flying every appended
+  // instance in from the origin.
+  if (!m_flights.empty() && n < m_flights.size()) m_flights.resize(n);
   ++m_revision;
 }
 
@@ -105,9 +98,12 @@ std::span<Pool::Flight> Pool::flights() {
   if (m_flights.size() != m_positions.size()) {
     // A flight materialises AT REST where the instance already is, so a
     // pool that asks for the lane and fills only some of it does not
-    // teleport the rest to the origin on the first step.
+    // teleport the rest to the origin on the first step. Only the entries
+    // that are missing are filled: the flights already authored are the
+    // caller's.
+    const size_t was = m_flights.size();
     m_flights.resize(m_positions.size());
-    for (size_t i = 0; i < m_flights.size(); ++i)
+    for (size_t i = was; i < m_flights.size(); ++i)
       m_flights[i] = {.from = m_positions[i],
                       .to = m_positions[i],
                       .rotateFrom = m_rotations[i],
@@ -119,7 +115,10 @@ std::span<Pool::Flight> Pool::flights() {
 }
 
 void Pool::fly(float seconds, const std::function<float(float)>& ease) {
-  if (!hasFlights()) return;
+  if (m_flights.empty()) return;
+  // A resize leaves the lane short; the instances it appended fly from
+  // where they stand, which is only known now.
+  (void)flights();
   std::span<float> alpha = alphas();
   for (size_t i = 0; i < m_flights.size(); ++i) {
     const Flight& f = m_flights[i];

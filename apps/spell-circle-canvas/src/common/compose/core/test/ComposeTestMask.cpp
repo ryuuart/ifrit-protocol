@@ -224,6 +224,50 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
       << "the live effect moved and the live-material memo replayed stale";
 }
 
+TEST(ComposeCaching, AMovingEffectOverStillContentBakesTheContentOnce) {
+  // The deferred-effect tier. A node whose ONLY volatility is its own
+  // layer effect's bound parameters paints static content under a moving
+  // filter: the content is baked once with the effect left out, and the
+  // effect is run over that one image at every blit. What that buys is
+  // the image's identity — a filter over an image it has filtered before
+  // finds its passes already made, where a freshly rasterised layer is a
+  // new image every frame.
+  static sk_sp<SkRuntimeEffect> fx = [] {
+    auto [e, err] = SkRuntimeEffect::MakeForShader(
+        SkString("uniform shader content; uniform float amt;"
+                 "half4 main(float2 p) { half4 c = content.eval(p);"
+                 "  return half4(c.r * half(amt), c.g, c.b, c.a); }"));
+    if (!e) ADD_FAILURE() << err.c_str();
+    return e;
+  }();
+  choreograph::Output<float> amt{1.0f};
+  Host host(200, 200);
+  const auto describe = [&] {
+    return box().child(
+        maskBox()
+            .cache(Cache::Texture)
+            .fill(red())
+            .effect(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
+                        .uniform("amt", &amt)));
+  };
+  host.composer.render(describe());
+  host.frame();
+  EXPECT_GE(host.composer.stats().texturesBaked, 1u) << "the content is baked";
+
+  // Four frames of a moving filter over content that never moves. The
+  // count is per draw, so every one of them must bake nothing.
+  for (int i = 0; i < 4; ++i) {
+    amt = 1.0f - 0.2f * (float)i;
+    host.frame(0.016);
+    EXPECT_EQ(host.composer.stats().texturesBaked, 0u)
+        << "the content was re-baked under a filter that alone moved";
+  }
+  // …and the filter is really running over the blit.
+  amt = 0.0f;
+  host.frame(0.016);
+  EXPECT_LT(SkColorGetR(host.pixel(60, 60)), 60u);
+}
+
 // ---- what a decoration dresses: the coverage boundary --------------------
 
 namespace {
@@ -339,6 +383,40 @@ TEST(ComposeBoundary, TheThresholdIsHowMuchPaintCountsAsInk) {
   // The wash is ink only under the lower one.
   EXPECT_NE(strict.pixel(70, 100), SK_ColorGREEN);
   EXPECT_EQ(lenient.pixel(70, 100), SK_ColorGREEN);
+}
+
+TEST(ComposeBoundary, AZeroThresholdIsAnyInkAndNotTheWholeBox) {
+  // Zero is a legal tolerance and the most permissive one: every pixel the
+  // node put any paint at all into is silhouette. What it must not become
+  // is the node's box — a pixel no paint reached is outside the boundary
+  // whatever the tolerance says, and a trace that answered the box would
+  // silently undo the whole boundary.
+  Host host;
+  host.composer.render(positioned()
+                           .inset(0, 0, 0, 0)
+                           .child(positioned()
+                                      .left(20)
+                                      .top(20)
+                                      .width(100)
+                                      .height(100)
+                                      .threshold(0.0f)
+                                      .boundary(Boundary::Coverage)
+                                      // Half the box drawn, at an alpha well
+                                      // under the default tolerance: ink under
+                                      // this threshold and under no other.
+                                      .child(box()
+                                                 .left(0)
+                                                 .top(0)
+                                                 .width(100)
+                                                 .height(40)
+                                                 .fill(red())
+                                                 .opacity(0.1f))
+                                      .foreground(flooding(SK_ColorGREEN))));
+  host.frame();
+  // The faint band is silhouette…
+  EXPECT_EQ(host.pixel(70, 40), SK_ColorGREEN);
+  // …and the empty half of the box is not.
+  EXPECT_NE(host.pixel(70, 100), SK_ColorGREEN);
 }
 
 TEST(ComposeBoundary, ANodeThatDrewNothingKeepsItsShapeUnderCoverage) {

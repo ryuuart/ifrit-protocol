@@ -277,6 +277,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   bool selectionsStale =
       textStateOf(inst).selectionRev != inst.contentRev ||
       textStateOf(inst).selectionWidth != inst.measuredForWidth ||
+      textStateOf(inst).selectionHeight != inst.measuredForHeight ||
       textStateOf(inst).selectionKeys.size() != tracks.size();
   if (!selectionsStale)
     for (size_t i = 0; i < tracks.size(); ++i)
@@ -302,6 +303,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     }
     textStateOf(inst).selectionRev = inst.contentRev;
     textStateOf(inst).selectionWidth = inst.measuredForWidth;
+    textStateOf(inst).selectionHeight = inst.measuredForHeight;
   }
 
   // Each track's cascade, numbered against whichever list its stagger names

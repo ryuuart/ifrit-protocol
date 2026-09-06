@@ -80,7 +80,7 @@ position: every run a `weave::rich()` value added under a style name
 ```cpp
 text(weave::rich(base).styles(set)
          .add(u8"gusting ").add(u8"soon", "term").add(u8", then rain"))
-    .fx({.where = !sel::style("term"), .effect = TextEffect::variableAxis("GRAD", 900)});
+    .fx({.where = !sel::style("term"), .effect = fx::variableAxis("GRAD", 900)});
 ```
 
 A glossary set in one registered style stays addressable when the copy
@@ -454,7 +454,7 @@ where the replacement has the original's advance ALONG THE AXIS ITS RUN
 ADVANCES ON — the width along a line, the height down an upright column; a
 swap that differs there would move every letter after it, which is a
 reshape and not a redraw.
-`TextEffect::variableAxis` holds a coordinate and `fx::variableAxisSweep` sweeps between
+`fx::variableAxis` holds a coordinate and `fx::variableAxisSweep` sweeps between
 two across local progress
 and `fx::scramble` is the decoding-text preset built on the substitution:
 each glyph churns through a charset and resolves to the true letter by
@@ -717,7 +717,7 @@ graded.variation("GRAD", 780);
 text(copy, base).spanStyle(weave::sel::regex(u8"[0-9]+"), graded);
 ```
 
-Such a restyle is carried as a track holding `TextEffect::variableAxis`,
+Such a restyle is carried as a track holding `fx::variableAxis`,
 and inherits what that means. The coordinate is a `GlyphMod::axis`, so it
 goes through the same size-scaled ladder a driven axis does and composes
 with entrances and loops instead of being hidden by them; and the leaf
@@ -942,7 +942,10 @@ report it; this needs none, and carries the baseline (or the column's
 axis), the pitch, the face's band, the writing mode, the vertical form,
 the text range and the style beside each rect. It is read off the
 placement rather than measured again, so a unit whose base broke across
-two lines reports TWO entries, on the two lines.
+two lines reports TWO entries, on the two lines — and the pieces are
+known to be one base by the unit they came from, not by their text
+ranges, because the space a line breaks at is placed on neither side of
+the break.
 
 Two things are built on it, and which one a case wants is decided by one
 question — does the annotation need ROOM?
@@ -954,7 +957,8 @@ question — does the annotation need ROOM?
   UNIT choice and nothing else. `kit::ruby` and `kit::kenten` are the two
   stock spellings. The PLACEMENT is SigilWeave's — the band a reading
   needs, where it stands against its base, and how a broken base shares
-  it — and this tier only says which units are annotated with what.
+  it out over its pieces — and this tier only says which units are
+  annotated with what.
 - **`kit::annotate`** is a sibling that reserves nothing and stands beside
   the finished text — marginalia, word labels, callouts. It resolves at
   describe time from the layout the last draw left standing, on the same

@@ -115,7 +115,11 @@ struct TextState {
   std::vector<sigil::weave::Selector> selectionKeys;
   std::vector<std::vector<uint8_t>> selectionMasks;
   uint32_t selectionRev = ~0u;
+  // BOTH MEASURES LAYOUT KEYS ON: a line selector moves with the break,
+  // and a vertical or depth-bounded passage breaks on its height exactly
+  // as a horizontal one breaks on its width.
   float selectionWidth = -1.0f;
+  float selectionHeight = -1.0f;
   // spanStyle() restyles that differ from the text they cover ONLY in
   // advance-invariant variable-font axes, carried as tracks instead of
   // re-shaping: the paragraph keeps the glyphs and pen positions it shaped,
