@@ -103,7 +103,7 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
   host.composer.render(box().padding(10).child(
       text(u8"ALPHA BETA GAMMA", whiteStyle(24))
           .key("line")
-          .fx({.effect = fx::rise(4), .over = sigil::weave::unit::Word})
+          .fx({.effect = fx::rise(4), .over = sigil::weave::Unit::Word})
           .mark(sigil::weave::sel::word(1), box().key("caret").fill(green()))));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("line", 0);
@@ -195,7 +195,7 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .width(180)
           .height(180)
           .onPath({.path = geometry::shapes::circle()})
-          .fx({.effect = fx::rise(4), .over = sigil::weave::unit::Word})
+          .fx({.effect = fx::rise(4), .over = sigil::weave::Unit::Word})
           .mark(sigil::weave::sel::word(2), box().key("caret").fill(green()))));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
@@ -215,7 +215,7 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
           .key("ring")
           .width(180)
           .height(180)
-          .fx({.effect = fx::rise(4), .over = sigil::weave::unit::Word})
+          .fx({.effect = fx::rise(4), .over = sigil::weave::Unit::Word})
           .mark(sigil::weave::sel::word(2), box().key("caret").fill(green()))));
   straight.frame();
   const SkRect flow = markRect(straight, "caret");

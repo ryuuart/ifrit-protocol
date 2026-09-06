@@ -68,9 +68,9 @@ struct Track {
    *  rather than over a set's children or a feed's rows. */
   motion::Spread stagger;
   /** Which units get a beat. It is what makes the remap above more than
-   *  per-glyph spacing: `over = weave::unit::Word` beats once per word, and
+   *  per-glyph spacing: `over = weave::Unit::Word` beats once per word, and
    *  every glyph of that word shares its beat. The default,
-   *  `weave::unit::Cluster`, is per-glyph for ordinary Latin text and keeps a
+   *  `weave::Unit::Cluster`, is per-glyph for ordinary Latin text and keeps a
    *  base letter attached to its combining marks everywhere else. */
   sigil::weave::Unit over = sigil::weave::Unit::Cluster;
   /** Which units the NESTED cascade — `stagger.then({…})` — beats over

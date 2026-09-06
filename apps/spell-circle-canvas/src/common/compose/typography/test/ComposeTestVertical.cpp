@@ -174,7 +174,7 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::rise(30),
                .stagger = {.eachMs = 90},
-               .over = sigil::weave::unit::Cluster,
+               .over = sigil::weave::Unit::Cluster,
                .progress = &progress})
           .key("t")));
   host.frame();
@@ -365,7 +365,7 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::rise(10),
                .stagger = {.eachMs = 40},
-               .over = sigil::weave::unit::Cluster})));
+               .over = sigil::weave::Unit::Cluster})));
   host.frame();
 
   const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
@@ -488,8 +488,8 @@ TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
   host.frame();
 
   const std::vector<TextUnit> units = host.composer.units(
-      "t", sigil::weave::sel::each(sigil::weave::unit::Cluster),
-      sigil::weave::unit::Cluster);
+      "t", sigil::weave::sel::each(sigil::weave::Unit::Cluster),
+      sigil::weave::Unit::Cluster);
   ASSERT_FALSE(units.empty());
   int upright = 0, level = 0;
   for (const TextUnit& unit : units) {
@@ -571,7 +571,7 @@ TEST(TextVertical, ASpanStyleReshapesOnlyTheRunItNames) {
 }
 
 TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
-  // `weave::unit::Line` IS a column here. Mid-cascade the first column has
+  // `weave::Unit::Line` IS a column here. Mid-cascade the first column has
   // arrived whole and the next has not — the two halves of the same
   // passage separated by the geometry, not by the text.
   choreograph::Output<float> progress{0.35f};
@@ -583,7 +583,7 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
           .writingMode(sigil::weave::WritingMode::kVerticalRL)
           .fx({.effect = fx::typeOn(),
                .stagger = {.eachMs = 400},
-               .over = sigil::weave::unit::Line,
+               .over = sigil::weave::Unit::Line,
                .progress = &progress})
           .key("t")));
   host.frame();
@@ -627,7 +627,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
             .spanPaint(sigil::weave::sel::text(u8"三四五六"), sidelined)
             .fx({.effect = fx::rise(24),
                  .stagger = {.eachMs = 90},
-                 .over = sigil::weave::unit::Cluster,
+                 .over = sigil::weave::Unit::Cluster,
                  .progress = &progress})
             .key("t"));
   };

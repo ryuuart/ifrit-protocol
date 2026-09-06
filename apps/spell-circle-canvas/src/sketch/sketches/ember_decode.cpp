@@ -14,7 +14,7 @@
 //
 //     text(u8"EMBER DECODE", display)
 //         .fx({.effect = fx::pass(burn),
-//              .stagger = stagger(weave::unit::Cluster, {.eachMs = 260})});
+//              .stagger = stagger(weave::Unit::Cluster, {.eachMs = 260})});
 //
 // `fx::pass` makes the track's effect a PASS rather than a per-glyph
 // deviation. The runtime renders the track's units into a layer, hands it to
@@ -234,7 +234,7 @@ struct EmberDecode : sketch::Sketch {
                    .key("burn-display")
                    .fx({.effect = fx::pass(burn),
                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                        .over = weave::unit::Cluster,
+                        .over = weave::Unit::Cluster,
                         .progress = &display}));
     root.child(
         text(toU8("uUnitRect[N] \xc2\xb7 uUnitPhase[N] \xe2\x80\x94 a LETTER "
@@ -246,7 +246,7 @@ struct EmberDecode : sketch::Sketch {
                    .key("burn-words")
                    .fx({.effect = fx::pass(burn),
                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
-                        .over = weave::unit::Word,
+                        .over = weave::Unit::Word,
                         .progress = &words}));
     root.child(text(toU8("the same pass, the same source at another count "
                          "\xe2\x80\x94 a WORD is a unit here, and the "

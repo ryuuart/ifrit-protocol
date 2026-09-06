@@ -187,8 +187,8 @@ text (its own section below).
 - **`paragraph/RichText.h`** — the same content said as a VALUE:
   `RichText`, `rich()`, runs of text with the styles or style NAMES they
   are set in, and `RichText::slot` for a box reserved in the flow.
-- **`paragraph/Unit.h`** — `Unit` and the `unit::` constants: the
-  granularity a passage is addressed by.
+- **`paragraph/Unit.h`** — `Unit`: the granularity a passage is
+  addressed by.
 
 **`layout`** — `SigilWeaveLayout`, with `SigilGeometryPath` public because
 a contour interval carries a `geometry::path::Contour`:

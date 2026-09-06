@@ -111,9 +111,9 @@ TEST(RichText, EqualityIsTheBaseTheRunsAndTheirResolvedStyles) {
 }
 
 TEST(Unit, TheConstantsNameTheEnumerators) {
-  EXPECT_EQ(unit::Glyph, Unit::Glyph);
-  EXPECT_EQ(unit::Cluster, Unit::Cluster);
-  EXPECT_EQ(unit::Word, Unit::Word);
-  EXPECT_EQ(unit::Line, Unit::Line);
-  EXPECT_EQ(unit::Sentence, Unit::Sentence);
+  EXPECT_EQ(Unit::Glyph, Unit::Glyph);
+  EXPECT_EQ(Unit::Cluster, Unit::Cluster);
+  EXPECT_EQ(Unit::Word, Unit::Word);
+  EXPECT_EQ(Unit::Line, Unit::Line);
+  EXPECT_EQ(Unit::Sentence, Unit::Sentence);
 }

@@ -6,7 +6,7 @@
  * reports and what every annotation is placed from.
  *
  * The granularity itself — glyph, cluster, word, line, sentence — is
- * SigilWeave's `weave::Unit`, spelled `weave::unit::Word`, because the
+ * SigilWeave's `weave::Unit`, spelled `weave::Unit::Word`, because the
  * segmentation that produces those units is the paragraph engine's.
  */
 

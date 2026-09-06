@@ -245,7 +245,7 @@ rebuilds its text every frame shapes nothing when nothing changed.
 **`Story`** is one of those plus the block styles its paragraphs are set
 under, and a chain of frames fills from it. **`Selector`** is a selection
 written down and not yet asked: `sel::word(3)`, `sel::regex(u8"[0-9]+")`,
-`sel::each(unit::Cluster).take(1)`, combined with `|`, `&` and `!`. What a
+`sel::each(Unit::Cluster).take(1)`, combined with `|`, `&` and `!`. What a
 selector means as glyphs depends on a layout, so RESOLVING one is the
 caller's — this library hands its layout out rather than owning a
 canonical one — and the two kinds a caller defines for itself,

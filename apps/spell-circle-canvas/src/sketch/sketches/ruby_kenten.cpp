@@ -13,10 +13,10 @@
 //
 // The four columns, and the one thing each is for:
 //
-//   · MONO — one reading per character (weave::unit::Cluster). The pitch
+//   · MONO — one reading per character (weave::Unit::Cluster). The pitch
 //     of the column opens by the reading's own line height, which is why
 //     the bare column beside it is narrower.
-//   · GROUP — one reading per word (weave::unit::Word), centred on the whole
+//   · GROUP — one reading per word (weave::Unit::Word), centred on the whole
 //     compound rather than distributed over its characters.
 //   · JUKUGO — the compound annotated per cluster with the readings its
 //     characters take, which is the same verb with a different unit and
@@ -134,7 +134,7 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
             .annotate(kit::ruby(
                 weave::sel::text(u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e"),
-                weave::unit::Cluster,
+                weave::Unit::Cluster,
                 {u8"\xe3\x81\xab", u8"\xe3\x81\xbb", u8"\xe3\x81\x94"},
                 rubyType(), 1.0f));
 
@@ -144,7 +144,7 @@ struct RubyKenten final : sketch::Sketch {
             u8"\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe3\x81\xae"
             u8"\xe6\x9b\xb8\xe7\x89\xa9\xe3\x80\x82")
             .annotate(kit::ruby(weave::sel::text(u8"\xe6\x9b\xb8\xe7\x89\xa9"),
-                                weave::unit::Word,
+                                weave::Unit::Word,
                                 {u8"\xe3\x81\x97\xe3\x82\x87"
                                  u8"\xe3\x82\x82\xe3\x81\xa4"},
                                 rubyType(), 1.0f));
@@ -157,7 +157,7 @@ struct RubyKenten final : sketch::Sketch {
             .annotate(kit::ruby(
                 weave::sel::text(
                     u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
-                weave::unit::Cluster,
+                weave::Unit::Cluster,
                 {u8"\xe3\x81\x93\xe3\x81\x8f", u8"\xe3\x81\x94",
                  u8"\xe3\x81\x98", u8"\xe3\x81\xa6\xe3\x82\x93"},
                 rubyType(), 1.0f));
@@ -174,7 +174,7 @@ struct RubyKenten final : sketch::Sketch {
             .annotate(kit::ruby(
                 weave::sel::text(
                     u8"\xe5\x9b\xbd\xe8\xaa\x9e\xe8\xbe\x9e\xe5\x85\xb8"),
-                weave::unit::Word,
+                weave::Unit::Word,
                 {u8"\xe3\x81\x93\xe3\x81\x8f\xe3\x81\x94\xe3\x81\x98"
                  u8"\xe3\x81\xa6\xe3\x82\x93"},
                 rubyType(), 1.0f));

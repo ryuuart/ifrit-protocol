@@ -1116,13 +1116,13 @@ struct RotaConvocationis : sketch::Sketch {
                  .autoFlip = false})
         .fx({.effect = fx::hold(fx::rise(voxSize * 1.1f)),
              .stagger = voxCascade(),
-             .over = weave::unit::Word,
-             .innerOver = weave::unit::Cluster,
+             .over = weave::Unit::Word,
+             .innerOver = weave::Unit::Cluster,
              .progress = beat(tVox, tVox + voxSpanS)})
         .fx({.effect = fx::tint(kEmber, kBone),
              .stagger = voxCascade(),
-             .over = weave::unit::Word,
-             .innerOver = weave::unit::Cluster,
+             .over = weave::Unit::Word,
+             .innerOver = weave::Unit::Cluster,
              .progress = beat(tVox, tVox + voxSpanS)})
         // THE STRIKE, per word: a letter does not fade up, it arrives lit
         // and cools. The screen term lifts each channel by the headroom it
@@ -1134,8 +1134,8 @@ struct RotaConvocationis : sketch::Sketch {
                                  {1.00f, {}}},
                                 &ch::easeOutQuad),
              .stagger = voxCascade(),
-             .over = weave::unit::Word,
-             .innerOver = weave::unit::Cluster,
+             .over = weave::Unit::Word,
+             .innerOver = weave::Unit::Cluster,
              .progress = beat(tVox, tVox + voxSpanS)});
   }
 
@@ -1233,12 +1233,12 @@ struct RotaConvocationis : sketch::Sketch {
                      .autoFlip = false})
             .fx({.effect = fx::hold(fx::rise(nomSize * 0.8f)),
                  .stagger = form,
-                 .over = weave::unit::Word,
-                 .innerOver = weave::unit::Cluster,
+                 .over = weave::Unit::Word,
+                 .innerOver = weave::Unit::Cluster,
                  .progress = beat(tNames, tNames + nomSpanS)})
             .fx({.effect = std::move(swell),
                  .stagger = {.eachMs = 130, .durationMs = 900},
-                 .over = weave::unit::Word,
+                 .over = weave::Unit::Word,
                  .progress = beat(tIgnite, tIgnite + 2.6)})
             // The charge reaching a name flashes it, on the pass's own
             // cascade so the letters and the shader open together.
@@ -1247,14 +1247,14 @@ struct RotaConvocationis : sketch::Sketch {
                                      {1.00f, {}}},
                                     &ch::easeInOutQuad),
                  .stagger = {.eachMs = 170, .durationMs = 820},
-                 .over = weave::unit::Word,
+                 .over = weave::Unit::Word,
                  .progress = beat(tIgnite, tIgnite + 2.6)});
     names.fx({.effect = fx::pass(mskia::Paint::recipe(
                                      sigil::material::Material(chargeRecipe()))
                                      .uniform("uGold", kGold))
                             .restsAt(0.0f, 1.0f),
               .stagger = {.eachMs = 170, .durationMs = 820},
-              .over = weave::unit::Word,
+              .over = weave::Unit::Word,
               .progress = beat(tIgnite, tIgnite + 2.6),
               .reach = kReach});
     return names;

@@ -800,7 +800,7 @@ class Element {
    *  part of the sentence; mark the type that is already there.
    *
    *  A SELECTOR RESOLVING SEVERAL UNITS GIVES ONE RECT, the union of every
-   *  glyph it addressed — `weave::sel::each(weave::unit::Word)` therefore
+   *  glyph it addressed — `weave::sel::each(weave::Unit::Word)` therefore
    * anchors a mark to the whole paragraph, which is a rect and rarely the
    * intent. One mark is one element with one identity and one box; to mark each
    * of several units, write one mark per unit. A selector resolving NOTHING —
@@ -884,7 +884,7 @@ class Element {
    *      text(passage, body)
    *          .writingMode(WritingMode::kVerticalRL)
    *          .annotate({.where = weave::sel::text(u8"漢字"),
-   *                     .unit = weave::unit::Word,          // group ruby
+   *                     .unit = weave::Unit::Word,          // group ruby
    *                     .readings = {u8"かんじ"},
    *                     .style = furigana})
    *

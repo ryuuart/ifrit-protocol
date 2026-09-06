@@ -399,8 +399,8 @@ struct MatrixRain : sketch::Sketch {
         .opacity(f.alpha)
         .fx({.effect = streak(),
              .stagger = cascade,
-             .over = weave::unit::Line,
-             .innerOver = weave::unit::Cluster,
+             .over = weave::Unit::Line,
+             .innerOver = weave::Unit::Cluster,
              .progress = &fall[j]})
         .fx({.where = !westCells(), .effect = mirrorLift()})
         .fx({.where = westCells(), .effect = westLift()})

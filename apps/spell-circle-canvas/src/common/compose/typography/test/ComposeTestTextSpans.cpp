@@ -87,7 +87,7 @@ TEST(TextRich, NamedRunsResolveThroughTheAmbientStyleSet) {
         box().padding(6).child(text(std::move(content)).key("t")));
     host.frame();
     const std::vector<TextUnit> units = host.composer.units(
-        "t", sel::style("accent"), sigil::weave::unit::Cluster);
+        "t", sel::style("accent"), sigil::weave::Unit::Cluster);
     return units.empty() ? SK_ColorTRANSPARENT
                          : units[0].style.paint.foreground.getColor();
   };
@@ -246,7 +246,7 @@ TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
         text(copy).key("t").fx({.where = std::move(where),
                                 .effect = fx::rise(0),
                                 .stagger = {.eachMs = 1, .durationMs = 1},
-                                .over = sigil::weave::unit::Word})));
+                                .over = sigil::weave::Unit::Word})));
     host.frame();
     return host.composer.beatsOf("t", 0);
   };
@@ -275,7 +275,7 @@ TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
         text(copy).key("t").fx({.where = std::move(where),
                                 .effect = fx::rise(0),
                                 .stagger = {.eachMs = 1, .durationMs = 1},
-                                .over = sigil::weave::unit::Glyph})));
+                                .over = sigil::weave::Unit::Glyph})));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };
@@ -308,7 +308,7 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
             .fx({.where = sel::style("unregistered-register"),
                  .effect = fx::rise(0),
                  .stagger = {.durationMs = 1},
-                 .over = sigil::weave::unit::Glyph}));
+                 .over = sigil::weave::Unit::Glyph}));
   };
   host.composer.render(describe());
   host.frame();
@@ -323,7 +323,7 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
           .fx({.where = sel::style("unregistered-register"),
                .effect = fx::rise(0),
                .stagger = {.durationMs = 1},
-               .over = sigil::weave::unit::Glyph})));
+               .over = sigil::weave::Unit::Glyph})));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
   size_t seen = 0;
@@ -347,7 +347,7 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
       text(copy).key("t").fx({.where = sigil::weave::sel::text(u8"beta"),
                               .effect = fx::rise(0),
                               .stagger = {.eachMs = 1, .durationMs = 1},
-                              .over = sigil::weave::unit::Word})));
+                              .over = sigil::weave::Unit::Word})));
   host.frame();
   const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
   ASSERT_EQ(betas.size(), 3u);
@@ -405,7 +405,7 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
             .fx({.where = sel::style("term"),
                  .effect = fx::rise(0),
                  .stagger = {.eachMs = 1, .durationMs = 1},
-                 .over = sigil::weave::unit::Glyph})));
+                 .over = sigil::weave::Unit::Glyph})));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
   };

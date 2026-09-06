@@ -66,8 +66,8 @@ struct Beside {
  *  beside it.
  *
  *      root.child(kit::annotate(composer, "verse",
- *                               weave::sel::each(weave::unit::Word),
- *                               weave::unit::Word,
+ *                               weave::sel::each(weave::Unit::Word),
+ *                               weave::Unit::Word,
  *                               {.side = Beside::Side::End, .gap = 14},
  *                               [&](const TextUnit &u) {
  *                                 return text(gloss(u.range), small);
@@ -204,7 +204,7 @@ struct Anchored {
  *
  *      root.child(kit::annotate(composer, "verse",
  *                               weave::sel::text(u8"Ishmael"),
- *                               weave::unit::Word,
+ *                               weave::Unit::Word,
  *                               {.horizontal = kit::Anchored::From::Frame,
  *                                .offset = {-44, 0}},
  *                               [&](const TextUnit &u) { return figure(u); })

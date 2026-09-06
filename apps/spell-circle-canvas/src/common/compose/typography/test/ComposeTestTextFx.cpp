@@ -57,14 +57,14 @@ TEST(ComposeTextFx, AWordCascadeBeatsOncePerWordAndInOrder) {
   // The stagger runs over the track's UNITS, so a word-unit cascade gives
   // every glyph of a word one shared local time and delays the next word by
   // a whole beat. Per-glyph spacing inside a word would be a different
-  // effect entirely, and is what `weave::unit::Glyph` is for.
+  // effect entirely, and is what `weave::Unit::Glyph` is for.
   Host host(300, 120);
   std::vector<FxSample> samples;
   host.composer.render(box().padding(10).child(
       text(u8"AAA BBB CCC", whiteStyle(20))
           .key("k")
           .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100}, 0.5f,
-                         sigil::weave::unit::Word))));
+                         sigil::weave::Unit::Word))));
   host.frame();
   ASSERT_EQ(samples.size(), 9u) << "the probe did not see every glyph";
 
@@ -89,7 +89,7 @@ TEST(ComposeTextFx, ASentenceCascadeBeatsOncePerSentence) {
           .key("k")
           .width(pct(100))
           .fx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100}, 0.5f,
-                         sigil::weave::unit::Sentence))));
+                         sigil::weave::Unit::Sentence))));
   host.frame();
   ASSERT_FALSE(samples.empty());
   EXPECT_EQ(samples.front().info.unitCount, 3u)
@@ -134,7 +134,7 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
           << "a combining mark was staggered away from its base letter";
     }
 
-  // THE CONTROL: the same text over weave::unit::Glyph, which is the raw
+  // THE CONTROL: the same text over weave::Unit::Glyph, which is the raw
   // shaping unit and DOES separate a mark from its base. Without it the check
   // above is satisfied by a cascade that never beat at all.
   std::vector<FxSample> raw;
@@ -142,7 +142,7 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
       text(u8"x́ýz", markStyle(28))
           .key("k")
           .fx(probeTrack(&raw, {}, {.eachMs = 100, .durationMs = 400}, 0.5f,
-                         sigil::weave::unit::Glyph))));
+                         sigil::weave::Unit::Glyph))));
   host.frame();
   ASSERT_EQ(raw.size(), samples.size());
   EXPECT_EQ(raw.front().info.unitCount, (uint32_t)raw.size());
@@ -151,7 +151,7 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
     if (raw[i].info.textIndex == raw[i - 1].info.textIndex &&
         raw[i].t != raw[i - 1].t)
       anySplit = true;
-  EXPECT_TRUE(anySplit) << "weave::unit::Glyph did not split the cluster, so "
+  EXPECT_TRUE(anySplit) << "weave::Unit::Glyph did not split the cluster, so "
                            "the cluster case above "
                            "proves nothing";
 }
@@ -260,9 +260,9 @@ TEST(ComposeTextFx, EachTakeAndDropPartitionEveryUnitExactly) {
     return addressed(samples);
   };
   const std::vector<size_t> firsts =
-      run(sigil::weave::sel::each(sigil::weave::unit::Word).take(1));
+      run(sigil::weave::sel::each(sigil::weave::Unit::Word).take(1));
   const std::vector<size_t> rest =
-      run(sigil::weave::sel::each(sigil::weave::unit::Word).drop(1));
+      run(sigil::weave::sel::each(sigil::weave::Unit::Word).drop(1));
   EXPECT_EQ(firsts, (std::vector<size_t>{0, 3, 6}));
   EXPECT_EQ(rest, (std::vector<size_t>{1, 2, 4, 5, 7, 8}));
   std::vector<size_t> both = firsts;
@@ -370,7 +370,7 @@ TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
       box().padding(10).child(text(u8"AAA BBB", whiteStyle(20))
                                   .key("k")
                                   .fx(probeTrack(&samples, {}, cascade, 0.3f,
-                                                 sigil::weave::unit::Word))));
+                                                 sigil::weave::Unit::Word))));
   host.frame();
   ASSERT_EQ(samples.size(), 6u);
   // Inside a word the glyphs no longer share a time — the inner ladder ran.

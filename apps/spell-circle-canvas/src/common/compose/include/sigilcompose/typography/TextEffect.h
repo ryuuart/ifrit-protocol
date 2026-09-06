@@ -494,7 +494,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *          material::Material(dissolve, Burn{ink}));
  *      text(u8"EMBER DECODE", display)
  *          .fx({.effect = fx::pass(burn),
- *               .stagger = {.eachMs = 260}, .over = weave::unit::Cluster});
+ *               .stagger = {.eachMs = 260}, .over = weave::Unit::Cluster});
  *
  *  THE MATERIAL MUST BE RECIPE-BACKED (`material::skia::Paint::recipe`) over
  *  a recipe

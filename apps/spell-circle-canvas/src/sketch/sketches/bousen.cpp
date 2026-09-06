@@ -23,7 +23,7 @@
 //     vertical alternates and kana forms, so what those tags do on the
 //     installed face is on the page rather than in a comment.
 //
-// The cascade is on a strip of its own, beating over weave::unit::Line — one
+// The cascade is on a strip of its own, beating over weave::Unit::Line — one
 // COLUMN a beat — because a band and a track do not share a node: a track
 // draws its own glyphs in batched buckets and a bucket carries glyphs
 // alone. The plate is the settled page.
@@ -293,13 +293,13 @@ struct Bousen final : sketch::Sketch {
                                bs::kAka, 2.0f))
                 .fx({.effect = fx::rise(18),
                      .stagger = bs::kColumnEntrance,
-                     .over = weave::unit::Line,
+                     .over = weave::Unit::Line,
                      .progress = animate(motion::from(0.0f).to(1.0f),
                                          {std::chrono::milliseconds(
                                               (int)bs::kColumnEntranceSpan),
                                           &ch::easeNone, 220ms})}))
         .child(text(toU8("\xe2\x86\x91 this strip's entrance beats over\n"
-                         "weave::unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
+                         "weave::Unit::Line \xe2\x80\x94 one COLUMN a beat,\n"
                          "and its band stands at rest"),
                     bs::label(10, bs::kUsu))
                    .absolute()

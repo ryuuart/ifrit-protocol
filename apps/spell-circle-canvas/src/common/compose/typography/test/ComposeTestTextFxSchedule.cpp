@@ -64,14 +64,14 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
             .key("p")
             .width(360)
             .fx({.where =
-                     sigil::weave::sel::each(sigil::weave::unit::Word).take(1) &
+                     sigil::weave::sel::each(sigil::weave::Unit::Word).take(1) &
                      sigil::weave::sel::words(1, 4),
                  .effect = fx::rise(6),
                  .stagger = spec,
-                 .over = sigil::weave::unit::Word,
+                 .over = sigil::weave::Unit::Word,
                  .beatsOver = numbering})
             .fx({.where =
-                     sigil::weave::sel::each(sigil::weave::unit::Word).drop(1),
+                     sigil::weave::sel::each(sigil::weave::Unit::Word).drop(1),
                  .effect = fx::rise(6),
                  .stagger = spec})));
     host.frame();
@@ -118,7 +118,7 @@ TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
                .stagger =
                    sigil::motion::Spread{.eachMs = 999, .durationMs = 180}.cues(
                        table),
-               .over = sigil::weave::unit::Word})));
+               .over = sigil::weave::Unit::Word})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
   ASSERT_EQ(beats.size(), table.size());
@@ -150,7 +150,7 @@ TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
           .fx({.effect = fx::rise(6),
                .stagger = sigil::motion::Spread{.durationMs = 100}.cues(
                    {0.0f, 200.0f}),
-               .over = sigil::weave::unit::Word})));
+               .over = sigil::weave::Unit::Word})));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(log.find("cue table"), std::string::npos) << log;
@@ -183,7 +183,7 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
       box().padding(10).child(text(copy).key("p").width(120).fx(
           {.effect = fx::rise(8),
            .stagger = {.eachMs = 100, .durationMs = 200},
-           .over = sigil::weave::unit::Word,
+           .over = sigil::weave::Unit::Word,
            .progress = &progress})));
   host.frame();
 
@@ -242,7 +242,7 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
           .width(100)
           .height(100)
           .onPath({.path = BeatRing{}})
-          .fx({.effect = fx::rise(4), .over = sigil::weave::unit::Cluster})));
+          .fx({.effect = fx::rise(4), .over = sigil::weave::Unit::Cluster})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
   ASSERT_GT(beats.size(), 8u);
@@ -289,8 +289,8 @@ TEST(ComposeTextFx, BeatsOfCompoundsANestedCascade) {
           .width(360)
           .fx({.effect = fx::rise(6),
                .stagger = cascade,
-               .over = sigil::weave::unit::Word,
-               .innerOver = sigil::weave::unit::Cluster})));
+               .over = sigil::weave::Unit::Word,
+               .innerOver = sigil::weave::Unit::Cluster})));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
   ASSERT_EQ(beats.size(), 4u) << "one beat per letter, two letters per word";
@@ -310,7 +310,7 @@ TEST(ComposeTextFx, BeatsOfResolvesEmptyRatherThanGuessing) {
   host.composer.render(box().padding(6).child(
       text(u8"AA BB", whiteStyle(16))
           .key("p")
-          .fx({.effect = fx::rise(6), .over = sigil::weave::unit::Word})));
+          .fx({.effect = fx::rise(6), .over = sigil::weave::Unit::Word})));
   host.frame();
   EXPECT_FALSE(host.composer.beatsOf("p", 0).empty());
   EXPECT_TRUE(host.composer.beatsOf("typo", 0).empty()) << "unknown key";
@@ -331,7 +331,7 @@ TEST(ComposeTextFx, CascadeSpanMsIsWhatTheMasterProgressMapsOnto) {
                                  .width(360)
                                  .fx({.effect = fx::rise(6),
                                       .stagger = spec,
-                                      .over = sigil::weave::unit::Word})));
+                                      .over = sigil::weave::Unit::Word})));
   host.frame();
   const float span = host.composer.cascadeSpanMs("p", 0);
   EXPECT_FLOAT_EQ(span, 500.0f) << "durationMs + eachMs·(N−1) over 4 words";
@@ -369,8 +369,8 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
             .width(360)
             .fx({.effect = fx::rise(6),
                  .stagger = nested,
-                 .over = sigil::weave::unit::Word,
-                 .innerOver = sigil::weave::unit::Cluster})));
+                 .over = sigil::weave::Unit::Word,
+                 .innerOver = sigil::weave::Unit::Cluster})));
     host.frame();
     const float span = host.composer.cascadeSpanMs("p", 0);
     EXPECT_FLOAT_EQ(span, 440.0f) << "300·1 + 40·1 + 100";
@@ -395,7 +395,7 @@ TEST(ComposeTextFx, CascadeSpanMsCompoundsNestingAndReadsTheTable) {
                                    .width(360)
                                    .fx({.effect = fx::rise(6),
                                         .stagger = cued,
-                                        .over = sigil::weave::unit::Word})));
+                                        .over = sigil::weave::Unit::Word})));
     host.frame();
     const float span = host.composer.cascadeSpanMs("p", 0);
     EXPECT_FLOAT_EQ(span, 1360.0f) << "the table's last time plus one beat";
@@ -413,7 +413,7 @@ TEST(ComposeTextFx, CascadeSpanMsResolvesZeroRatherThanGuessing) {
   host.composer.render(box().padding(6).key("b").child(
       text(u8"AA BB", whiteStyle(16))
           .key("p")
-          .fx({.effect = fx::rise(6), .over = sigil::weave::unit::Word})));
+          .fx({.effect = fx::rise(6), .over = sigil::weave::Unit::Word})));
   host.frame();
   EXPECT_GT(host.composer.cascadeSpanMs("p", 0), 0.0f);
   EXPECT_FLOAT_EQ(host.composer.cascadeSpanMs("typo", 0), 0.0f)
@@ -435,7 +435,7 @@ std::vector<Beat> loopBeatsAt(Host& host, float master, float loopMs = 400) {
           .width(360)
           .fx({.effect = fx::rise(6),
                .stagger = {.eachMs = 100, .durationMs = 200, .loopMs = loopMs},
-               .over = sigil::weave::unit::Word,
+               .over = sigil::weave::Unit::Word,
                .progress = master})));
   host.frame();
   return host.composer.beatsOf("p", 0);
@@ -496,7 +496,7 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
             .width(360)
             .fx({.effect = fx::rise(6),
                  .stagger = {.eachMs = 300, .durationMs = 200, .loopMs = 400},
-                 .over = sigil::weave::unit::Word,
+                 .over = sigil::weave::Unit::Word,
                  .progress = 0.75f})));  // virtual 300
     host.frame();
     const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
@@ -527,7 +527,7 @@ TEST(ComposeTextFx, LoopMsZeroIsTheOneShotCascade) {
                                    .width(360)
                                    .fx({.effect = fx::rise(6),
                                         .stagger = std::move(cascade),
-                                        .over = sigil::weave::unit::Word,
+                                        .over = sigil::weave::Unit::Word,
                                         .progress = 0.25f})));
     host.frame();
     return std::pair(host.composer.beatsOf("p", 0),
@@ -564,7 +564,7 @@ TEST(ComposeTextFx, AHeldEffectOnALoopingCascadeHasNothingLeftToVeto) {
                                             .stagger = {.eachMs = 300,
                                                         .durationMs = 100,
                                                         .loopMs = loopMs},
-                                            .over = sigil::weave::unit::Word,
+                                            .over = sigil::weave::Unit::Word,
                                             .progress = 0.25f}));
   };
   const auto rightHalfInk = [](Host& host) {
@@ -604,7 +604,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
           .key("p")
           .fx({.effect = fx::rise(24),
                .stagger = {.eachMs = 100, .durationMs = 200, .loopMs = 400},
-               .over = sigil::weave::unit::Cluster,
+               .over = sigil::weave::Unit::Cluster,
                .progress = &phase})));
   live.frame();
   double clock = 0.0;
@@ -623,7 +623,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
           .key("p")
           .fx({.effect = fx::rise(24),
                .stagger = {.eachMs = 100, .durationMs = 200},
-               .over = sigil::weave::unit::Cluster,
+               .over = sigil::weave::Unit::Cluster,
                .progress = animate(motion::from(0.0f).to(1.0f),
                                    {200ms, &choreograph::easeNone})})));
   for (int i = 0; i < 24; ++i) still.frame(0.016);

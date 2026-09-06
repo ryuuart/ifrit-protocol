@@ -22,7 +22,7 @@ one of three answers and the other two are about shapes and images.
 **Where the words live.** The TEXT'S OWN vocabulary is the paragraph
 engine's and is spelled `weave::`: the content (`weave::rich`,
 `weave::RichText`, `weave::Story`), the granularity (`weave::Unit`,
-`weave::unit::Word`), and selection with every form that names a position
+`weave::Unit::Word`), and selection with every form that names a position
 in the text (`weave::Selector`, `weave::sel::word`, `weave::sel::regex`,
 `weave::sel::each`). Include them from `<sigilweave/paragraph/RichText.h>`,
 `<sigilweave/layout/Story.h>`, `<sigilweave/paragraph/Unit.h>` and
@@ -50,16 +50,16 @@ the kit's, in `kit/Kinetic.h`.
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
-    .fx({.effect = fx::rise(20), .over = weave::unit::Word})
+    .fx({.effect = fx::rise(20), .over = weave::Unit::Word})
     .fx({.where = weave::sel::text(u8"TWO"),
          .effect = fx::waveLoop(),
          .progress = &phase});
 ```
 
 **Units.** `weave::Unit` is the granularity a selector slices and a cascade
-beats over: `weave::unit::Glyph`, `weave::unit::Cluster`,
-`weave::unit::Word`, `weave::unit::Line`, `weave::unit::Sentence`.
-`weave::unit::Cluster` is the default, and it is the one that keeps text
+beats over: `weave::Unit::Glyph`, `weave::Unit::Cluster`,
+`weave::Unit::Word`, `weave::Unit::Line`, `weave::Unit::Sentence`.
+`weave::Unit::Cluster` is the default, and it is the one that keeps text
 correct — a base letter and its combining marks are one unit and never
 separate under a stagger.
 
@@ -113,7 +113,7 @@ and lip-sync timing actually is:
 text(lyric).fx({.effect = fx::rise(12),
                 .stagger = motion::Spread{.durationMs = 180}
                                .cues({0, 340, 720, 1180}),
-                .over = weave::unit::Word});
+                .over = weave::Unit::Word});
 ```
 
 It answers the spread itself, so it goes anywhere one goes and compares
@@ -222,8 +222,8 @@ cascade.then({.eachMs = 80, .durationMs = 1400});
 cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
 text(field, rain).fx({.effect = streak,
                       .stagger = cascade,
-                      .over = weave::unit::Line,
-                      .innerOver = weave::unit::Cluster,
+                      .over = weave::Unit::Line,
+                      .innerOver = weave::Unit::Cluster,
                       .progress = &phase});  // phase wraps every 5 s
 ```
 
@@ -932,8 +932,8 @@ composer's space.
 
 ```cpp
 for (const TextUnit &u :
-     composer.units("verse", weave::sel::each(weave::unit::Word),
-                    weave::unit::Word))
+     composer.units("verse", weave::sel::each(weave::Unit::Word),
+                    weave::Unit::Word))
   ;  // u.rect, u.axis, u.pitch, u.ascent, u.range, u.style, u.lineIndex
 ```
 
@@ -975,7 +975,7 @@ when the text reflows, but it stands at an offset the author states.
 
 ```cpp
 kit::annotate(composer, "verse", weave::sel::text(u8"Ishmael"),
-              weave::unit::Word,
+              weave::Unit::Word,
               {.horizontal = kit::Anchored::From::Frame, .offset = {-44, 0}},
               [&](const TextUnit &u) { return figure(u); });
 ```
@@ -1078,9 +1078,9 @@ naming one re-shapes the runs it covers — and they are NOT gated on the
 writing direction, so a style carrying them and set along a line takes them
 there too.
 
-**The engine runs in columns.** `weave::unit::Line` IS A COLUMN here, so a
-track with `.over = weave::unit::Line` beats column by column and
-`weave::sel::line(0)` addresses the rightmost one; `weave::unit::Cluster`
+**The engine runs in columns.** `weave::Unit::Line` IS A COLUMN here, so a
+track with `.over = weave::Unit::Line` beats column by column and
+`weave::sel::line(0)` addresses the rightmost one; `weave::Unit::Cluster`
 runs down a column in reading order. `spanPaint`, `spanStyle`, `textAlign`
 (start is the top of the column), `maxLines` (which clamps COLUMNS) with
 `ellipsis` at the clamped column's foot, `flowAround`, `lastLine`,

@@ -163,7 +163,7 @@ struct AnnotatedMargin final : sketch::Sketch {
                        .width(Dim(m::kMeasure))
                        .fx({.effect = fx::rise(14),
                             .stagger = m::kRoll,
-                            .over = weave::unit::Word,
+                            .over = weave::Unit::Word,
                             .progress = animate(
                                 motion::from(0.0f).to(1.0f),
                                 {std::chrono::milliseconds((int)m::kRollSpan),
@@ -172,7 +172,7 @@ struct AnnotatedMargin final : sketch::Sketch {
     // ── The label under every word of the opening phrase ────────────────
     page.child(
         kit::annotate(
-            composer, "passage", weave::sel::words(0, 6), weave::unit::Word,
+            composer, "passage", weave::sel::words(0, 6), weave::Unit::Word,
             {.side = kit::Beside::Side::After, .gap = 5.0f},
             [&](const TextUnit& unit) {
               // The label says what the unit IS — its range
@@ -188,8 +188,8 @@ struct AnnotatedMargin final : sketch::Sketch {
 
     // ── One note per line, in the gutter, with a leader ──────────────────
     page.child(
-        kit::annotate(composer, "passage", weave::sel::each(weave::unit::Line),
-                      weave::unit::Line,
+        kit::annotate(composer, "passage", weave::sel::each(weave::Unit::Line),
+                      weave::Unit::Line,
                       {.side = kit::Beside::Side::Start,
                        .gap = m::kGutter,
                        .measure = m::kNoteMeasure},
@@ -214,7 +214,7 @@ struct AnnotatedMargin final : sketch::Sketch {
 
     // ── A rule cut to what the block occupies ───────────────────────────
     page.child(kit::rules(composer, "passage",
-                          weave::sel::each(weave::unit::Line),
+                          weave::sel::each(weave::Unit::Line),
                           {.where = kit::BlockRule::Where::Below,
                            .thickness = 1.0f,
                            .gap = 14.0f,

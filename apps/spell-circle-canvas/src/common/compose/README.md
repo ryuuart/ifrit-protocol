@@ -810,9 +810,9 @@ door; `typography/Track.h` — `Track`, `Beats` and `Beat`;
 `typography/Annotation.h` — `Annotation`; `typography/TextPath.h` —
 `TextPath`; and `typography/Typography.h`, the umbrella over them. The
 TEXT ITSELF is SigilWeave's and is included from there: `weave::rich` /
-`weave::RichText` and `weave::Story` for the content, `weave::Unit` and
-`weave::unit::` for the granularity, `weave::Selector` and `weave::sel::`
-for what a track addresses.
+`weave::RichText` and `weave::Story` for the content, `weave::Unit` for
+the granularity, `weave::Selector` and `weave::sel::` for what a track
+addresses.
 
 The kernel describes its text leaf in that vocabulary — a description
 stores tracks, runs and readings — and every member it stores, compares or

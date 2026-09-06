@@ -35,8 +35,8 @@ TEST(TextSlot, ASlotTallerThanTheTypeOpensTheLinesItSitsIn) {
     host.frame();
     std::vector<float> found;
     for (const TextUnit& line : host.composer.units(
-             "caption", sigil::weave::sel::each(sigil::weave::unit::Line),
-             sigil::weave::unit::Line))
+             "caption", sigil::weave::sel::each(sigil::weave::Unit::Line),
+             sigil::weave::Unit::Line))
       found.push_back(line.axis);
     return found;
   };

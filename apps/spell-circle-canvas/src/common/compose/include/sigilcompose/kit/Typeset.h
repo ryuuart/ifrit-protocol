@@ -49,11 +49,11 @@ namespace sigil::compose::kit {
 /** FURIGANA: a reading set over the base it reads.
  *
  *      text(passage, body)
- *          .annotate(kit::ruby(weave::sel::text(u8"漢字"), weave::unit::Word,
+ *          .annotate(kit::ruby(weave::sel::text(u8"漢字"), weave::Unit::Word,
  *                              {u8"かんじ"}, furigana))
  *
- *  MONO, GROUP AND JUKUGO ARE THE UNIT: `weave::unit::Cluster` gives one
- *  reading per character, `weave::unit::Word` one per word, and a compound
+ *  MONO, GROUP AND JUKUGO ARE THE UNIT: `weave::Unit::Cluster` gives one
+ *  reading per character, `weave::Unit::Word` one per word, and a compound
  *  annotated per cluster with the readings its characters take is jukugo.
  *  A base that breaks across a line or a column carries its reading with it,
  *  split in proportion to the base's advance either side.
@@ -346,7 +346,7 @@ struct BlockRule {
  *                             .bleed = 4, .colour = tint})
  *                     .absolute().inset(0));
  *
- *  The extent comes from `Composer::units` over `weave::unit::Line`, so a
+ *  The extent comes from `Composer::units` over `weave::Unit::Line`, so a
  *  rule is as wide as the lines it dresses rather than as wide as the box
  *  they sit in — which is the difference between a rule under a heading and
  *  a rule under the column the heading is in. `Behind` fills one box over

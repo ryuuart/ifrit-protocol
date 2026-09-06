@@ -38,7 +38,7 @@
 // carries a time for every syllable, cut against the recording: a held note
 // holds and a fast line races, and nothing evenly spaced sounds like
 // singing. `cues()` is that table — one start time per WORD, in the shape
-// the tune has — and `then(weave::unit::Cluster)` sweeps the letters of each
+// the tune has — and `then(weave::Unit::Cluster)` sweeps the letters of each
 // word evenly inside its beat, which is how a syllable's own wipe behaves. The
 // table gives the line its uneven shape; the progress window gives it its
 // tempo, so the same table sings faster or slower without being recut.
@@ -159,8 +159,8 @@ constexpr float kBallHold = 0.62f;
 
 /** THE CASCADE: the sung times per word, the letters swept inside each.
  *
- *  What a unit IS lives on the TRACK — `over = weave::unit::Word`,
- *  `innerOver = weave::unit::Cluster` — because a spread is SigilMotion's
+ *  What a unit IS lives on the TRACK — `over = weave::Unit::Word`,
+ *  `innerOver = weave::Unit::Cluster` — because a spread is SigilMotion's
  *  and says nothing about text. All this value carries is the table and
  *  the inner step. */
 sigil::motion::Spread wipeCascade() {
@@ -231,8 +231,8 @@ struct KaraokeWipe : sketch::Sketch {
         .key("line1")
         .fx({.effect = fx::tint(kPale, kSung),
              .stagger = wipeCascade(),
-             .over = weave::unit::Word,
-             .innerOver = weave::unit::Cluster,
+             .over = weave::Unit::Word,
+             .innerOver = weave::Unit::Cluster,
              .progress = motion::bind(&cycle).window(
                  (float)kLeadIn, (float)(kLeadIn + kLineSeconds))});
   }

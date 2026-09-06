@@ -31,8 +31,8 @@ namespace sigil::compose {
  *  callouts and word labels belong there.
  *
  *  MONO, GROUP AND JUKUGO RUBY ARE THE UNIT CHOICE and nothing else.
- *  `weave::unit::Cluster` gives one reading per character, which is mono ruby;
- *  `weave::unit::Word` gives one per word, which is group ruby; and a base that
+ *  `weave::Unit::Cluster` gives one reading per character, which is mono ruby;
+ *  `weave::Unit::Word` gives one per word, which is group ruby; and a base that
  *  BREAKS ACROSS A LINE OR A COLUMN reports its units on both, so its
  *  reading splits with it, in proportion to the base's advance either
  *  side. That is not a special case here — it is what reading the units off

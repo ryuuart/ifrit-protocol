@@ -64,7 +64,7 @@ TEST(Selector, PatternFormsCarryTheirNeedle) {
 }
 
 TEST(Selector, EachSlicesOneGranularity) {
-  const Selector everyWord = sel::each(unit::Word);
+  const Selector everyWord = sel::each(Unit::Word);
   const Selector::State* plain = everyWord.state();
   ASSERT_NE(plain, nullptr);
   EXPECT_EQ(plain->kind, Selector::Kind::Each);
@@ -74,7 +74,7 @@ TEST(Selector, EachSlicesOneGranularity) {
 
   // take and drop partition a unit exactly: they are two edges of one cut,
   // so neither loses the other's setting.
-  const Selector cut = sel::each(unit::Line).drop(2).take(3);
+  const Selector cut = sel::each(Unit::Line).drop(2).take(3);
   const Selector::State* sliced = cut.state();
   ASSERT_NE(sliced, nullptr);
   EXPECT_EQ(sliced->each, Unit::Line);
@@ -116,7 +116,7 @@ TEST(Selector, EqualityIsByState) {
   EXPECT_TRUE((sel::word(0) | sel::word(1)) == (sel::word(0) | sel::word(1)));
   EXPECT_FALSE((sel::word(0) | sel::word(1)) == (sel::word(1) | sel::word(0)))
       << "operands are compared in order";
-  EXPECT_FALSE(Selector() == sel::each(unit::Glyph))
+  EXPECT_FALSE(Selector() == sel::each(Unit::Glyph))
       << "everything and every-glyph are the same set and different values";
 }
 
