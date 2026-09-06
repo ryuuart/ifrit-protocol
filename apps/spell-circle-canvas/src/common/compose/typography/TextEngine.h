@@ -187,10 +187,17 @@ std::vector<Beat> beatsOfTrack(Instance& inst, size_t trackIndex);
  *  the letters are drawn from and built from the same pose and the same
  *  advance box a mark and a beat are built from, so an annotation placed
  *  from this and a mark anchored to the same selection cannot disagree
- *  about where a unit is. Rects come out in the NODE's own space. */
+ *  about where a unit is. Rects come out in the NODE's own space.
+ *
+ *  @p sources, when given, receives the SOURCE unit each entry came from,
+ *  one per entry: a base that broke across a line or a column is reported
+ *  on both, and the two pieces carry the same source. It is the only way to
+ *  tell one base's pieces from two neighbouring bases, because the text
+ *  between them — the space a line breaks at — is placed on neither. */
 std::vector<TextUnit> unitsOfText(Composer::Impl& impl, Instance& inst,
                                   const sigil::weave::Selector& selector,
-                                  sigil::weave::Unit unit);
+                                  sigil::weave::Unit unit,
+                                  std::vector<uint32_t>* sources = nullptr);
 /** THE BAND A TEXT'S RESERVING READINGS NEED, from their own metrics
  *  alone: the tallest reading's line height plus its standoff, on each
  *  side that carries one. Asked BEFORE the base is laid out. */

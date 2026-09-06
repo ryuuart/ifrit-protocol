@@ -50,16 +50,27 @@ sigil_library(SigilComposeTypography
           Boost::unordered yoga::yogacore)
 
 # Text data, the text pass, vertical writing, motion along paths, the
-# text-fx presets, rich spans and the variation drive. The kit is here
-# because a path baseline and an upright column are exercised on `shapes::`
-# silhouettes. Every case sets the instrument faces from src/test/assets/
-# except the vertical suite, whose Japanese prose needs a whole CJK face
-# from the machine; that one carries the label.
+# paragraph controls and the variation drive, then one file per subject of
+# the dressed-type suites: the feed's rows, a leaf in a layout, the kit's
+# entrances, the cascade, the combinators, the colour terms, the glyph
+# transforms, the schedule read back, rich spans, the folded axis restyle,
+# slots and marks. The kit is here because a path baseline and an upright
+# column are exercised on `shapes::` silhouettes. Every case sets the
+# instrument faces from src/test/assets/ except the vertical suite, whose
+# Japanese prose needs a whole CJK face from the machine; that one carries
+# the label.
 sigil_test(compose_test
   SOURCES test/ComposeTestTextData.cpp test/ComposeTestTextPass.cpp
           test/ComposeTestVertical.cpp test/ComposeTestPathMotion.cpp
-          test/ComposeTestContentText.cpp test/ComposeTestParagraphs.cpp
-          test/ComposeTestVariationDrive.cpp
+          test/ComposeTestParagraphs.cpp test/ComposeTestVariationDrive.cpp
+          test/ComposeTestTextFeed.cpp test/ComposeTestTextLeaf.cpp
+          test/ComposeTestKinetic.cpp test/ComposeTestTextFx.cpp
+          test/ComposeTestTextFxCombinators.cpp
+          test/ComposeTestTextFxColor.cpp
+          test/ComposeTestTextFxTransforms.cpp
+          test/ComposeTestTextFxSchedule.cpp test/ComposeTestTextSpans.cpp
+          test/ComposeTestTextSpanAxis.cpp test/ComposeTestTextSlot.cpp
+          test/ComposeTestTextMarks.cpp
   LIBRARIES SigilComposeTypography SigilComposeKit SigilComposeTesting
             SigilWeavePorts
   LABELS fonts

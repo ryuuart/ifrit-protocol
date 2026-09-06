@@ -1060,15 +1060,15 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
   const std::vector<TextUnit> units = host.composer.units(
       "t", sigil::weave::sel::each(sigil::weave::unit::Sentence),
       sigil::weave::unit::Sentence);
-  // The measure is chosen so the SECOND sentence breaks: three sentences
-  // land as four units, and the two middle ones meet at a range boundary
-  // on two different lines.
-  ASSERT_EQ(units.size(), 4u) << "the second sentence did not break";
-  EXPECT_EQ(units[1].range.end, units[2].range.start);
-  EXPECT_NE(units[1].lineIndex, units[2].lineIndex);
+  // The measure is chosen so a sentence breaks: three sentences report
+  // more than three units, which is a base standing on two lines.
+  ASSERT_GT(units.size(), 3u) << "no sentence broke across a line";
 
   // A reading stands in the band ABOVE its base, which the reservation
-  // opened before the base was broken.
+  // opened before the base was broken. EVERY piece of every base carries
+  // one: the broken base's pieces share its reading, and the base after it
+  // keeps its own — numbering the readings by the placed unit instead
+  // leaves the last base bare.
   const auto readingOver = [&](const TextUnit& unit) {
     const int top = (int)unit.rect.top() - (int)std::ceil(unit.pitch);
     return anyGreenIn(
@@ -1076,12 +1076,7 @@ TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
         SkIRect::MakeLTRB((int)unit.rect.left() - 4, std::max(top, 0),
                           (int)unit.rect.right() + 4, (int)unit.rect.top()));
   };
-  EXPECT_TRUE(readingOver(units[0])) << "the first base lost its reading";
-  EXPECT_TRUE(readingOver(units[1]))
-      << "the head of the broken base carries no share of its reading";
-  EXPECT_TRUE(readingOver(units[2]))
-      << "the tail of the broken base carries no share of its reading";
-  EXPECT_TRUE(readingOver(units[3]))
-      << "the base after the broken one was left bare — the readings were "
-         "numbered by the placed unit rather than by the base";
+  for (size_t i = 0; i < units.size(); ++i)
+    EXPECT_TRUE(readingOver(units[i]))
+        << "unit " << i << " of " << units.size() << " carries no reading";
 }

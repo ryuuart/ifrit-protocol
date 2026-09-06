@@ -51,12 +51,13 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
   for (const Annotation& annotation : annotations) {
     if (annotation.readings.empty()) continue;
     // WHICH UNITS: the published per-unit answer, which reports a base
-    // that broke across a line or a column on BOTH of them — so the split
-    // below is a fact the placement already knows and not a case handled
-    // here.
+    // that broke across a line or a column on BOTH of them, with the source
+    // unit beside each — so the split below is a fact the placement already
+    // knows and not a case handled here.
+    static thread_local std::vector<uint32_t> sources;
     const std::vector<TextUnit> units =
-        unitsOfText(impl, inst, annotation.where, annotation.unit);
-    if (units.empty()) continue;
+        unitsOfText(impl, inst, annotation.where, annotation.unit, &sources);
+    if (units.empty() || sources.size() != units.size()) continue;
     const bool column = mode == sigil::weave::WritingMode::kVerticalRL;
 
     auto place = [&](const TextUnit& unit, const std::u16string& text) {
@@ -77,41 +78,60 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
       inst.textAnnotations.push_back(std::move(placed));
     };
 
-    // ONE READING PER BASE, NOT PER UNIT. A broken base is two units and
-    // one reading, so the cursor into the readings advances once for the
-    // pair and everything after it stays paired with the base it names.
+    // ONE READING PER BASE, NOT PER UNIT. A base that broke is reported on
+    // every line it reached, and those pieces are ONE base with ONE
+    // reading: the cursor into the readings advances once for the whole
+    // run of them, so everything after a break stays paired with the base
+    // it names.
     size_t reading = 0;
-    for (size_t index = 0; index < units.size(); ++index, ++reading) {
-      const TextUnit& unit = units[index];
+    for (size_t index = 0; index < units.size(); ++reading) {
+      // The pieces of one base are the entries the placement reported for
+      // ONE source unit; nothing is decided here. They cannot be told apart
+      // by their text ranges, because the space a line breaks at is placed
+      // on neither side of the break.
+      size_t last = index;
+      while (last + 1 < units.size() && sources[last + 1] == sources[last])
+        ++last;
       // A LIST OF ONE reads every unit alike, which is how a row of
-      // identical emphasis marks is written; a list of many pairs off with
-      // the bases, and a base whose pieces continue one another shares one
-      // reading between them in the proportion of their advances.
+      // identical emphasis marks is written — a broken base included, since
+      // the one reading is what each of its pieces is asked to carry. A
+      // list of many pairs off with the bases.
       const bool alike = annotation.readings.size() == 1;
       const std::u8string* source = alike
                                         ? &annotation.readings.front()
                                         : (reading < annotation.readings.size()
                                                ? &annotation.readings[reading]
                                                : nullptr);
-      const bool continues = !alike && index + 1 < units.size() &&
-                             units[index + 1].range.start == unit.range.end &&
-                             units[index + 1].lineIndex != unit.lineIndex;
       if (!source || source->empty()) {
-        if (continues) ++index;
+        index = last + 1;
         continue;
       }
-      const std::u16string text = weave::unicode::toUtf16(*source);
-      if (!continues) {
-        place(unit, text);
+      std::u16string text = weave::unicode::toUtf16(*source);
+      if (alike || last == index) {
+        for (size_t piece = index; piece <= last; ++piece)
+          place(units[piece], text);
+        index = last + 1;
         continue;
       }
-      const TextUnit& tail = units[index + 1];
-      const std::u16string head = sigil::weave::shareOfReading(
-          text, column ? unit.rect.height() : unit.rect.width(),
-          column ? tail.rect.height() : tail.rect.width());
-      place(unit, head);
-      place(tail, text.substr(head.size()));
-      ++index;
+      // THE SHARE IS THE ADVANCE'S, cut piece by piece: what a piece
+      // carries stands to what the pieces after it carry as its advance
+      // does to theirs, which is the only proportion a reading has to go
+      // by — its own characters need not correspond to the base's one for
+      // one.
+      const auto advance = [&](size_t piece) {
+        return column ? units[piece].rect.height() : units[piece].rect.width();
+      };
+      for (size_t piece = index; piece < last; ++piece) {
+        float rest = 0;
+        for (size_t after = piece + 1; after <= last; ++after)
+          rest += advance(after);
+        std::u16string head =
+            sigil::weave::shareOfReading(text, advance(piece), rest);
+        text.erase(0, head.size());
+        place(units[piece], head);
+      }
+      place(units[last], text);
+      index = last + 1;
     }
   }
 }

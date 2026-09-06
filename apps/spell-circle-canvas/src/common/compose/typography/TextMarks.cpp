@@ -121,7 +121,9 @@ void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
 
 std::vector<TextUnit> detail::unitsOfText(
     Composer::Impl& impl, Instance& inst,
-    const sigil::weave::Selector& selector, sigil::weave::Unit unit) {
+    const sigil::weave::Selector& selector, sigil::weave::Unit unit,
+    std::vector<uint32_t>* sources) {
+  if (sources) sources->clear();
   if (!inst.description || !inst.paragraph) return {};
   const sigil::weave::Paragraph& paragraph = *inst.paragraph;
   const TextData* textData =
@@ -208,6 +210,7 @@ std::vector<TextUnit> detail::unitsOfText(
           }
         entry.lineIndex = placed.lineIndex;
         keys.push_back(key);
+        if (sources) sources->push_back(source);
         units.push_back(std::move(entry));
       });
   return units;
