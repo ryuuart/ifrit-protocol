@@ -22,9 +22,11 @@ set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 find_package(boost_container_hash CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDraw
-  SOURCES Color.cpp Graphics.cpp Noise.cpp Pen.cpp Text.cpp
+  SOURCES Color.cpp Graphics.cpp Noise.cpp Pen.cpp PenClip.cpp
+          PenImage.cpp PenInternal.cpp PenInternal.h PenShapes.cpp
+          PenTransform.cpp Text.cpp
   HEADERS Color.h Constants.h Draw.h Graphics.h Math.h Noise.h Pen.h
-          Retained.h
+          PenTypes.h Retained.h
   PUBLIC SigilMaterialSkia SigilCoreCompute
          SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
          SigilWeaveFonts Boost::container_hash Boost::unordered)
