@@ -133,6 +133,7 @@
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Instruments.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -140,6 +141,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Profile.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -155,6 +157,7 @@
 #include <array>
 #include <cmath>
 #include <iterator>
+#include <tuple>
 #include <string>
 #include <utility>
 #include <vector>
@@ -511,20 +514,15 @@ std::vector<float> arcAt(const std::vector<SkPoint>& pts) {
  *  not by PathSample::fraction and not by longitude. The stations are not
  *  equally spaced and the retreat's hook below Moscow is not monotone in
  *  x, so a fraction-indexed profile puts every riser in the wrong place.
- *  The check is concrete — each riser must fall at its named city. */
-struct WidthProfile {
-  std::vector<float> arc;  // cumulative arc length at each station
-  std::vector<float> men;
-  float maxPx = 0.0f;
-
-  float menAt(float s) const {
-    size_t i = 0;
-    while (i + 1 < arc.size() && arc[i + 1] <= s) ++i;
-    return men[i];
-  }
-  float pxAt(float s) const { return bandPx(menAt(s)); }
-  bool operator==(const WidthProfile&) const = default;
-};
+ *  The check is concrete — each riser must fall at its named city.
+ *
+ *  A STRENGTH THAT CHANGES AT A PLACE IS A STEPPED LAW, which is what
+ *  `profile::Spans` holds: the boundaries are the cumulative arc lengths
+ *  of the stations and the widths are the band px each station carries
+ *  onward, one more width than there are boundaries. It does not
+ *  interpolate, and it must not — Minard engraves a strength that drops
+ *  at a city, not a curve through the cities. */
+using WidthProfile = path::profile::Spans;
 
 /** THE FLOW BAND'S WIDTH, as a comparable Profile — and the sketch's own
  *  trap (above) is exactly why it is PX-KEYED. `alongIsPx` makes the seam
@@ -543,45 +541,57 @@ struct WidthProfile {
  *
  *  max(): the morph runs mmScale from kMmPer10k DOWN to kStatedMmPer10k
  *  (1.1258 → 1.0), so the ratio never exceeds 1 and the widest the band
- *  ever draws is `maxPx` exactly. A guessed bound is not needed and would
- *  be wrong: this one is derived from the morph's own endpoints. */
+ *  ever draws is the stepped law's own widest exactly. A guessed bound is
+ *  not needed and would be wrong: this one is derived from the morph's
+ *  own endpoints. */
 struct FlowWidth {
   WidthProfile prof;
   const ch::Output<float>* scale = nullptr;
   static constexpr bool alongIsPx = true;
   float across(float px) const {
-    return prof.pxAt(px) * ((scale ? scale->value() : kMmPer10k) / kMmPer10k);
+    return prof.across(px) * ((scale ? scale->value() : kMmPer10k) / kMmPer10k);
   }
-  float max() const { return prof.maxPx; }
+  float max() const { return prof.max(); }
   bool operator==(const FlowWidth& o) const {
     return prof == o.prof && scale == o.scale;
   }
 };
 
+/** The stepped law over a route: the boundaries are the arc lengths of
+ *  the stations AFTER the first — a span holds from the boundary before
+ *  it to the boundary at it, so the leading width holds from the start —
+ *  and the widths are what each station carries onward. */
+WidthProfile spansOver(const std::vector<SkPoint>& pts,
+                       const std::vector<float>& men) {
+  const std::vector<float> arc = arcAt(pts);
+  WidthProfile w;
+  w.upTo.assign(arc.begin() + (arc.empty() ? 0 : 1), arc.end());
+  for (float m : men) w.widthsPx.push_back(bandPx(m));
+  return w;
+}
+
 WidthProfile profileOf(const std::vector<Station>& st) {
   std::vector<SkPoint> pts;
+  std::vector<float> men;
   pts.reserve(st.size());
-  for (const Station& s : st) pts.push_back(stationPt(s));
-  WidthProfile w;
-  w.arc = arcAt(pts);
+  men.reserve(st.size());
   for (const Station& s : st) {
-    w.men.push_back(s.men);
-    w.maxPx = std::max(w.maxPx, bandPx(s.men));
+    pts.push_back(stationPt(s));
+    men.push_back(s.men);
   }
-  return w;
+  return spansOver(pts, men);
 }
 
 WidthProfile profileOfH(const std::vector<HStation>& st) {
   std::vector<SkPoint> pts;
+  std::vector<float> men;
   pts.reserve(st.size());
-  for (const HStation& s : st) pts.push_back({s.x, s.y});
-  WidthProfile w;
-  w.arc = arcAt(pts);
+  men.reserve(st.size());
   for (const HStation& s : st) {
-    w.men.push_back(s.men);
-    w.maxPx = std::max(w.maxPx, bandPx(s.men));
+    pts.push_back({s.x, s.y});
+    men.push_back(s.men);
   }
-  return w;
+  return spansOver(pts, men);
 }
 
 /** ∫ w ds over the profile — the ink Minard intended, in px². */
@@ -594,7 +604,7 @@ float inkIntegral(const SkPath& spine, const WidthProfile& w,
     // the loop walks a distance; the accumulated float is the position
     // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = 0; d < len; d += step)
-      total += w.pxAt(d) * std::min(step, len - d);
+      total += w.across(d) * std::min(step, len - d);
   }
   return total;
 }
@@ -616,19 +626,21 @@ float cityKm(const City& c) {
 }
 
 // ---------------------------------------------------------------------------
-// path sugar
+// path sugar — both spellings are COMPARABLE values, so the nodes wearing
+// them prune. A rule between two points is a function of its two points
+// and nothing else, so the two points are its key; a path already cooked
+// is its own identity, and `heldPath` compares it by the generation the
+// copy carries.
 
-std::function<SkPath(SkSize)> segFn(SkPoint a, SkPoint b) {
-  return [a, b](SkSize) {
+Shape segFn(SkPoint a, SkPoint b) {
+  return keyedShape(std::tuple(a.x(), a.y(), b.x(), b.y()), [a, b](SkSize) {
     SkPathBuilder p;
     p.moveTo(a);
     p.lineTo(b);
     return p.detach();
-  };
+  });
 }
-std::function<SkPath(SkSize)> pathFn(const SkPath& path) {
-  return [path](SkSize) { return path; };
-}
+Shape pathFn(SkPath path) { return heldPath(std::move(path)); }
 
 /** The coastlines and rivers of both panels: A SMOOTH PATH THE POINTS
  *  STEER — one quadratic per interior point, bounded by the hull they
@@ -1087,18 +1099,15 @@ struct Minard1869 : sketch::Sketch {
   Element bandElement(const SkPath& spine, const WidthProfile& prof,
                       SkColor4f colour, const std::string& key,
                       Animatable<float> reveal) {
-    const SkRect bb = spine.getBounds();
-    const SkPath local = spine.makeOffset(-bb.left(), -bb.top());
+    // `pathFigure` is the route in its own bounding box: the node's rect
+    // is the route's bounds and the shape is the route re-based into it.
+    // No bleed — the band overflows that box by up to w/2 on each side by
+    // design, which is what makes the profile's max() load bearing.
+    //
     // The profile reads a LIVE Output (the 12.6% morph), which the
     // reconciler cannot see change — hence Cache::None. See FlowWidth.
-    const brush::Ribbon r = flowRibbon(prof, colour);
-    return box()
-        .rect(SkRect::MakeXYWH(bb.left(), bb.top(), bb.width(), bb.height()))
-        // the callable is invoked on every layout, so its capture must survive
-        // each return
-        // NOLINTNEXTLINE(performance-no-automatic-move)
-        .shape([local](SkSize) { return local; })
-        .stroke(spans::upTo(std::move(reveal)), r)
+    return pathFigure(spine)
+        .stroke(spans::upTo(std::move(reveal)), flowRibbon(prof, colour))
         .cache(Cache::None)
         .key(key);
   }
@@ -1697,6 +1706,16 @@ struct Minard1869 : sketch::Sketch {
     }};
     const float slope = 3.828f, intercept = -0.19f, r2 = 0.99266f;
     const float px0 = 60, py0 = 60, pw = 560, ph = 236;
+    // WHAT THE TWO AXES MEAN, as the library's own mapping value: men
+    // across, band px up. Every dot, the fitted line and any label go
+    // through this one `at()`, so a mark and its caption cannot land on
+    // two different arithmetics.
+    const kit::Plot plot{.fromT = 0, .toT = 440000, .fromY = 0, .toY = 180};
+    const SkSize field{pw, ph};
+    auto P = [&](float men, float px) {
+      const SkPoint q = plot.at(men, px, field);
+      return SkPoint{px0 + q.x(), py0 + q.y()};
+    };
     auto g = box().inset(0);
     // axes
     g.child(box()
@@ -1707,19 +1726,16 @@ struct Minard1869 : sketch::Sketch {
                 .inset(0)
                 .shape(segFn({px0, py0}, {px0, py0 + ph}))
                 .stroke(stroke(1.0f, Fill::color(kCardInk))));
-    auto X = [&](float men) { return px0 + men / 440000.0f * pw; };
-    auto Y = [&](float px) { return py0 + ph - px / 180.0f * ph; };
     // the fitted line
     g.child(box()
                 .inset(0)
-                .shape(segFn({X(0), Y(intercept)},
-                             {X(440000), Y(intercept + slope * 44.0f)}))
+                .shape(segFn(P(0, intercept),
+                             P(440000, intercept + slope * 44.0f)))
                 .stroke(spans::upTo(beat(tScale + 1.8f, tScale + 2.4f)),
                         stroke(1.6f, Fill::color(kBlue)))
                 .key("fitline"));
     for (size_t i = 0; i < treads.size(); ++i) {
-      const float x = X(treads[i].first), y = Y(treads[i].second);
-      g.child(kit::disc(SkPoint{x, y}, 3.6f)
+      g.child(kit::disc(P(treads[i].first, treads[i].second), 3.6f)
                   .shape(shapes::circle())
                   .fill(Paint::solid(kBlue))
                   .key("tread" + std::to_string(i))
@@ -1814,18 +1830,25 @@ struct Minard1869 : sketch::Sketch {
     }};
     const float px0 = 60, py0 = 58, pw = 470, ph = 108;
     auto g = box().inset(0);
-    auto X = [&](float men) {
-      const float l = std::log10(std::max(men, 1000.0f));
-      return px0 + (l - 3.5f) / (5.05f - 3.5f) * pw;
+    // THE DOMAIN IS THE LOGARITHM. The floor is a fact about the smallest
+    // strengths, which crowd into the last twentieth of a linear axis, so
+    // the abscissa is log10(men) and the mapping value is handed that
+    // rather than the men.
+    const kit::Plot plot{
+        .fromT = 3.5f, .toT = 5.05f, .fromY = 3.0f, .toY = 11.5f};
+    const SkSize field{pw, ph};
+    auto P = [&](float men, float px) {
+      const SkPoint q =
+          plot.at(std::log10(std::max(men, 1000.0f)), px, field);
+      return SkPoint{px0 + q.x(), py0 + q.y()};
     };
-    auto Y = [&](float v) { return py0 + ph - (v - 3.0f) / 8.5f * ph; };
     g.child(box()
                 .inset(0)
                 .shape(segFn({px0, py0 + ph}, {px0 + pw, py0 + ph}))
                 .stroke(stroke(1.0f, Fill::color(kCardInk))));
     SkPathBuilder line;
     for (size_t i = pts.size(); i-- > 0;) {
-      const SkPoint q{X(pts[i].first), Y(pts[i].second)};
+      const SkPoint q = P(pts[i].first, pts[i].second);
       i == pts.size() - 1 ? line.moveTo(q) : line.lineTo(q);
     }
     g.child(box()
@@ -1837,7 +1860,8 @@ struct Minard1869 : sketch::Sketch {
     // the crayon floor
     g.child(box()
                 .inset(0)
-                .shape(segFn({px0, Y(3.83f)}, {px0 + pw, Y(3.83f)}))
+                .shape(segFn({px0, P(1000, 3.83f).y()},
+                             {px0 + pw, P(1000, 3.83f).y()}))
                 .stroke(PathFormat{.width = 1.0f,
                                    .strokeFill = Fill::color(kGrey),
                                    .dashIntervals = {5, 4}})
@@ -1850,7 +1874,7 @@ struct Minard1869 : sketch::Sketch {
                 .key("floorLab")
                 .opacity(beat(tScale + 1.5f, tScale + 1.8f)));
     for (size_t i = 0; i < pts.size(); ++i)
-      g.child(kit::disc(SkPoint{X(pts[i].first), Y(pts[i].second)}, 3.0f)
+      g.child(kit::disc(P(pts[i].first, pts[i].second), 3.0f)
                   .shape(shapes::circle())
                   .fill(Paint::solid(i >= 8 ? kAmber : kBlue))
                   .key("fp" + std::to_string(i))
@@ -1858,7 +1882,7 @@ struct Minard1869 : sketch::Sketch {
                                 tScale + 1.2f + 0.05f * (float)i)));
     for (float men : {4000.0f, 10000.0f, 30000.0f, 100000.0f})
       g.child(text(toU8(french(men)), type(faceUi, 8.5f, kGrey))
-                  .at({X(men) - 12, py0 + ph + 4})
+                  .at({P(men, 3.0f).x() - 12, py0 + ph + 4})
                   .key("fx" + std::to_string((int)men)));
     g.child(text(toU8("4,000 men drawn 2.6× too wide — 0.4 mm is "
                       "below what a lithographic crayon will hold"),
@@ -2517,7 +2541,7 @@ struct Minard1869 : sketch::Sketch {
       }
       SkContourMeasureIter spine(advSpine, false);
       if (sk_sp<SkContourMeasure> m = spine.next())
-        advPerimeter = 2.0f * m->length() + 2.0f * advProf.maxPx;
+        advPerimeter = 2.0f * m->length() + 2.0f * advProf.max();
     }
     auditAdvance = test::widthAlong(advBand, advSpine, advRibbon.width);
 
@@ -2604,11 +2628,13 @@ struct Minard1869 : sketch::Sketch {
       SkContourMeasureIter it(advSpine, false);
       if (sk_sp<SkContourMeasure> m = it.next()) {
         const float len = m->length();
-        const size_t n = advProf.arc.size();
+        // The law's boundaries are the stations after the first, so the
+        // arc length of station i is boundary i − 1.
+        const size_t n = advProf.upTo.size() + 1;
         for (size_t i = 1; i + 1 < n; ++i) {
           SkPoint pa, pf;
           SkVector tv;
-          (void)m->getPosTan(advProf.arc[i], &pa, &tv);
+          (void)m->getPosTan(advProf.upTo[i - 1], &pa, &tv);
           (void)m->getPosTan(len * (float)i / (float)(n - 1), &pf, &tv);
           const SkPoint want = stationPt(kAdvTrunk[i]);
           riserArcErr = std::max(riserArcErr, SkPoint::Distance(pa, want));
