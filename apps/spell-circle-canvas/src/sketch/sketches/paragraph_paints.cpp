@@ -83,7 +83,7 @@ const sigil::weave::kit::PatternHyphenator& hyphenator() {
 /** The passage's own face: a text face with real serifs, because what a
  *  fill does to a thin stroke is half of what the sheet is about. */
 weave::TextStyle body() {
-  static const sk_sp<SkTypeface> face = weave::ports::face(
+  const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
   weave::TextStyle style =
       weave::textStyle({.face = face, .size = kBodySize, .color = kInk});

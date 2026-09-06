@@ -47,14 +47,14 @@ constexpr SkColor4f kCinnabar{0.67f, 0.16f, 0.11f, 1};
 constexpr SkColor4f kGold{0.78f, 0.55f, 0.16f, 1};
 
 weave::TextStyle sans(float size, SkColor4f color, float track = 0) {
-  static const sk_sp<SkTypeface> face = weave::ports::face(
+  const sk_sp<SkTypeface> face = weave::ports::face(
       {"Avenir Next", "Helvetica Neue", "DejaVu Sans", "sans-serif"});
   return weave::textStyle(
       {.face = face, .size = size, .color = color, .track = track});
 }
 
 weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
-  static const sk_sp<SkTypeface> face = weave::ports::face(
+  const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle(
       {.face = face, .size = size, .color = color, .track = track});
