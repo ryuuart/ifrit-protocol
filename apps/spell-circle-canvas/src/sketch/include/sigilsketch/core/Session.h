@@ -113,6 +113,18 @@ class Session {
    *  than for a measured run. */
   virtual void setProfiling(bool on) { (void)on; }
 
+  /** HOW MANY DEVICE PIXELS A CANVAS UNIT IS WORTH, for the rasters this
+   *  runtime bakes. Declared, a cached raster is taken at this density
+   *  once and drawn through whatever transform the host applies after,
+   *  the way an image is — which is what lets a host magnify a frame
+   *  without every generated texture in it being rasterized again at the
+   *  new size. Zero, the default, lets the runtime read the resolution
+   *  off the matrix it is handed. A runtime that bakes nothing ignores
+   *  this. */
+  virtual void setBakeDensity(float devicePixelsPerUnit) {
+    (void)devicePixelsPerUnit;
+  }
+
   /** The most expensive things the last profiled frame did, at most
    *  @p limit of them, already written out in the runtime's own words —
    *  what a failed frame-time verdict prints so an author has a next

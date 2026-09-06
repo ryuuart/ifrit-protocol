@@ -558,6 +558,24 @@ not come up is reported and the app carries on — unlike the sweep's
 `--gpu`, which must fail rather than put two different pictures under one
 plate's name.
 
+**The canvas zooms without redrawing what it is showing.** The live view
+sits in a pan-zoom pasteboard, so a ctrl-wheel spin grows the item the
+frame is drawn into. It does not grow the frame: the view renders at the
+scale it had when the gesture began and the scene graph stretches that
+last frame over the growing item, so the picture follows the wheel
+immediately and pays for it only in sharpness. It re-renders at the
+settled scale once the gesture has been quiet — one pending resize, the
+last scale winning, however many steps the spin had — and a pure pan
+never re-renders at all, because the frame on the texture is the same
+frame wherever the item stands. Underneath it, the sketch's cached
+rasters are pinned to the screen's density rather than to the viewport's
+scale (`Session::setBakeDensity`), so a generated material is baked once
+and magnified through the zoom the way a bitmap the sketch loaded would
+be, instead of being rasterized again at every rung of the composer's
+bake ladder the gesture passes through. The **Capture** action raises the
+density for the photograph, so an explicitly asked-for still is written
+at its own resolution rather than at the reader's.
+
 The app is a macOS bundle, so a headless run goes through the binary
 inside it:
 `build/bin/<config>/Sketchbook.app/Contents/MacOS/Sketchbook`.

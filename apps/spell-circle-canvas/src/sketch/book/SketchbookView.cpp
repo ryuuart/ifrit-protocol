@@ -210,6 +210,13 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  them: what the texture will be stretched over, which is only the
    *  same shape as the texture while the render size is settled on it. */
   QSizeF m_logicalSize;
+  /** THE DENSITY A SKETCH'S CACHED RASTERS ARE BAKED AT: the screen's,
+   *  and not the viewport's. A sketch declares a canvas and this window
+   *  magnifies it, so a raster taken at the screen's density is the
+   *  picture of that canvas — taken once, and blitted through the zoom
+   *  the way a bitmap the sketch loaded would be. Read off the window
+   *  rather than off the frame's own scale, which is what a zoom moves. */
+  float m_deviceRatio = 1.0f;
   int m_requestedIndex = 0;
   int m_index = -1;
   int m_pendingCaptures = 0;
@@ -277,6 +284,8 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   m_pendingCaptures += view->m_captureRequests;
   view->m_captureRequests = 0;
   m_logicalSize = QSizeF(view->width(), view->height());
+  m_deviceRatio =
+      view->window() ? (float)view->window()->effectiveDevicePixelRatio() : 1.0f;
   if (pauseStarted) m_metricsDirty = true;
   if (view->m_orbitDirty) {
     view->m_orbitDirty = false;
@@ -467,6 +476,10 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.clear(host->background().toSkColor());
   // Wall time, scaled, pausable and stall-clamped: the frame the reader
   // sees advances by what actually elapsed, not by a nominal step.
+  // Bakes belong to the canvas the sketch declared, not to how far this
+  // window has magnified it: taken at the screen's density, once.
+  if (sketch::Session* session = host->session())
+    session->setBakeDensity(m_deviceRatio);
   const double step = m_clock.tick();
   host->frame(canvas, step);
   m_sceneSeconds += step;
@@ -539,8 +552,17 @@ void SketchbookRenderer::runPendingCaptures() {
         out = dir / name;
         if (!fs::exists(out)) break;
       }
-      if (host->capture(out, 2.0f))
-        result = QString::fromStdString(out.string());
+      // A CAPTURE IS PHOTOGRAPHED AT ITS OWN DENSITY. The live frame's
+      // bakes are taken at the screen's, which is the resolution the
+      // reader is looking at; a still written at twice that would blit
+      // them up. So the density is raised for the photograph and put
+      // back after, which costs the scene one re-bake each way — a price
+      // an explicitly asked-for still can pay and a frame cannot.
+      sketch::Session* session = host->session();
+      if (session) session->setBakeDensity(2.0f * m_deviceRatio);
+      const bool wrote = host->capture(out, 2.0f);
+      if (session) session->setBakeDensity(m_deviceRatio);
+      if (wrote) result = QString::fromStdString(out.string());
     }
     if (m_view)
       QMetaObject::invokeMethod(

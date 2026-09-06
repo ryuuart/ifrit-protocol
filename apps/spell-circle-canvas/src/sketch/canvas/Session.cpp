@@ -153,6 +153,10 @@ class CanvasSession final : public Session {
 
   void setProfiling(bool on) override { m_composer->setProfiling(on); }
 
+  void setBakeDensity(float devicePixelsPerUnit) override {
+    m_composer->setBakeDensity(devicePixelsPerUnit);
+  }
+
   /** The per-node attribution, written out. An expensive node reported
    *  as live paint with nothing beside it gives an author no next move:
    *  each refusal to bake is individually correct and individually
