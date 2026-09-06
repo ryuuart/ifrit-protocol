@@ -483,6 +483,35 @@ TEST(ComposeDepth, AFlippingCardShowsOneFaceAtATime) {
   }
 }
 
+TEST(ComposeDepth, APlaneUnderAMovingViewIsMovingItself) {
+  // A plane with no lane of its own, under a view that is bound: it lands
+  // somewhere else next frame for a reason nothing on it declares, so the
+  // walk must call it moving exactly as its own lane would. A node that
+  // did not would replay a recording made under the old projection, and
+  // the dolly would move nothing at all.
+  Host host(200, 200);
+  choreograph::Output<float> distance{400.0f};
+  host.composer.render(box().perspective(&distance).child(
+      box()
+          .absolute()
+          .rect(SkRect::MakeXYWH(50, 50, 100, 100))
+          .fill(red())
+          .translateZ(90)));
+  host.frame();
+  int near = 0;
+  for (int x = 0; x < 200; ++x)
+    if (host.pixel(x, 100) == SK_ColorRED) ++near;
+  EXPECT_GT(near, 0);
+
+  distance = 4000.0f;  // the viewer walks back: no render(), no ticker
+  host.frame();
+  int far = 0;
+  for (int x = 0; x < 200; ++x)
+    if (host.pixel(x, 100) == SK_ColorRED) ++far;
+  EXPECT_GT(far, 0);
+  EXPECT_LT(far, near) << "the plane is smaller under a distant viewer";
+}
+
 TEST(ComposeDepth, AHingeBehindThePlaneIsATransformOriginWithADepth) {
   // The pivot a lane turns about carries a z: a card on a hinge BEHIND it
   // swings about a negative one, which pushes the whole plane away as it
