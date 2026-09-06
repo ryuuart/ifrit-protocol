@@ -1095,7 +1095,7 @@ namespace {
  *  shape a bake is most worth taking for, and the shape whose bake is
  *  mostly transparent. The letters ride a circle inscribed in the node's
  *  box, so the ink is a band and the corners are empty. */
-Element turnedRing(Cache mode, const choreograph::Output<float>* turn) {
+Element ringOfType(Cache mode, const choreograph::Output<float>* turn) {
   const float side = 640.0f, radius = 270.0f;
   Element ring = box()
                      .key("ring")
@@ -1118,7 +1118,31 @@ Element turnedRing(Cache mode, const choreograph::Output<float>* turn) {
                    .width(80));
   }
   if (turn) ring.rotate(motion::bind(turn).target(0.0f, 360.0f));
-  return profiledUnder(std::move(ring));
+  return ring;
+}
+
+/** …painted every frame, so the cases below watch the ring itself rather
+ *  than an ancestor's recording of it. */
+Element turnedRing(Cache mode, const choreograph::Output<float>* turn) {
+  return profiledUnder(ringOfType(mode, turn));
+}
+
+/** …and the other placement every scene has: the same ring inside a PAGE
+ *  that records and SLIDES. The page's declared motion is what keeps its
+ *  recording matrix-independent, which is what keeps the ring on the local
+ *  bake — the tier the ink grid describes — and the recording is replayed
+ *  under a matrix of its own, which is not the page's own space. */
+Element ringInASlidingPage(const choreograph::Output<float>* slide,
+                           Cache mode) {
+  return profiledUnder(box()
+                           .key("page")
+                           .absolute()
+                           .left(30)
+                           .top(24)
+                           .width(700)
+                           .height(700)
+                           .translateX(slide)
+                           .child(ringOfType(mode, nullptr)));
 }
 
 }  // namespace
@@ -1200,6 +1224,56 @@ TEST(ComposeCaching, ATurnedRingsBlitLosesNoneOfWhatItBaked) {
     EXPECT_EQ(lost, 0) << "at " << degrees << " degrees, " << lost << " of "
                        << lit << " lit blocks came back empty";
   }
+}
+
+TEST(ComposeCaching, ARecordedBakesBlitLosesNoneOfWhatItBaked) {
+  // The same claim, for the placement that makes the blit's clip a
+  // different space: the bake sits inside a PAGE that records.
+  //
+  // The blit is admitted by a clip on whole DEVICE pixels, and a region
+  // clip ignores the matrix — that is what makes it a set of pixels rather
+  // than an outline. Inside a recording the canvas's own pixels are not the
+  // device's: the ops are replayed under a matrix of their own, and a
+  // region computed in the page's space is applied unchanged in the space
+  // the page is replayed into. Wrong units, wrong place, and blocks of the
+  // ring go missing — which is what a plate is, a page drawn at a view
+  // scale.
+  const int w = 1200, h = 1200, block = 16;
+  const float view = 1.6667f;  // the scale a plate is photographed at
+  const auto drawAt = [&](Host& host) {
+    SkCanvas* canvas = host.surface->getCanvas();
+    canvas->clear(SK_ColorBLACK);
+    canvas->save();
+    canvas->scale(view, view);
+    host.composer.draw(*canvas);
+    canvas->restore();
+  };
+  Host cached(w, h), plain(w, h);
+  choreograph::Output<float> cachedSlide{0.0f}, plainSlide{0.0f};
+  for (Host* host : {&cached, &plain})
+    host->composer.setSize({(float)w / view, (float)h / view});
+  cached.composer.render(ringInASlidingPage(&cachedSlide, Cache::Texture));
+  plain.composer.render(ringInASlidingPage(&plainSlide, Cache::None));
+  drawAt(cached);
+  // The page slides, its recording holds, and the blit inside it is replayed
+  // somewhere else — which is the whole point of a recording, and the state
+  // the region has to be right in.
+  cachedSlide = 26.0f;
+  plainSlide = 26.0f;
+  drawAt(cached);
+  drawAt(plain);
+  const std::vector<int> was = blockPeaks(plain, w, h, block);
+  const std::vector<int> is = blockPeaks(cached, w, h, block);
+  ASSERT_EQ(was.size(), is.size());
+  int lit = 0, lost = 0;
+  for (size_t i = 0; i < was.size(); ++i) {
+    if (was[i] < 200) continue;  // a glyph's solid interior, not its edge
+    ++lit;
+    if (is[i] < 40) ++lost;
+  }
+  EXPECT_GT(lit, 40) << "the ring drew nothing";
+  EXPECT_EQ(lost, 0) << lost << " of " << lit
+                     << " lit blocks came back empty from inside the page";
 }
 
 TEST(ComposeCaching, TheInkGridSkipsAnEmptyTileAndKeepsEveryLitOne) {

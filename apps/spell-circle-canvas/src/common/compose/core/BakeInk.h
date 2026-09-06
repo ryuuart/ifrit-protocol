@@ -152,18 +152,28 @@ inline InkGrid inkGridOf(const SkPixmap& px) {
  *  and the draw it admits is bit-for-bit the draw that would have covered
  *  the whole rect.
  *
+ *  IT IS A DEVICE-SPACE CLIP, so the caller says which device: @p toDevice
+ *  maps @p dst onto the pixels the draw really lands on and @p deviceClip
+ *  bounds them, and neither is read off the canvas. The canvas may be a
+ *  recording, whose ops are replayed under a matrix of its own; a region
+ *  ignores that matrix, exactly as it ignores every other, so one computed
+ *  in the recording's own space would be applied unchanged in the space the
+ *  recording is replayed into — the wrong units in the wrong place, cutting
+ *  the bake to pieces. A caller recording into a picture passes the matrix
+ *  the picture is replayed under, and owes the pin that keeps it true.
+ *
  *  With an empty grid this is the single blit, unchanged. */
 inline void drawInkedImage(SkCanvas& canvas, const sk_sp<SkImage>& image,
                            const InkGrid& ink, const SkRect& dst,
+                           const SkMatrix& toDevice, const SkIRect& deviceClip,
                            const SkSamplingOptions& sampling,
                            const SkPaint* paint) {
-  const SkMatrix toDevice = canvas.getTotalMatrix();
   SkMatrix toLocal;
   if (ink.empty() || !toDevice.invert(&toLocal)) {
     canvas.drawImageRect(image, dst, sampling, paint);
     return;
   }
-  SkIRect area = canvas.getDeviceClipBounds();
+  SkIRect area = deviceClip;
   SkIRect want;
   toDevice.mapRect(dst).roundOut(&want);
   if (!area.intersect(want)) return;  // nothing of the bake is on the canvas

@@ -2449,10 +2449,25 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       // the content OUTSIDE the pixels that carry it — that is what a glow
       // is — and the grid describes where the ink is, not where the filter
       // will put it. Blitted whole, as it was before the grid existed.
+      //
+      // AND THE INK CLIP IS A DEVICE-SPACE CLIP, so it obeys the device
+      // bake's rule rather than the picture tier's. A region names whole
+      // pixels of the device and ignores the matrix — which is what makes
+      // it a set of pixels rather than an outline — so one recorded into a
+      // picture is applied, unchanged, in the space that picture is
+      // replayed into. It is therefore computed through the replay, and a
+      // recording holding one is pinned to the matrix it was made under
+      // exactly as one holding a device blit is. An UNPINNED recording —
+      // one under a declared motion, which replays under a matrix nobody
+      // knows yet — can hold no such clip, and the bake is blitted whole
+      // inside it.
+      const bool inkAdmitted = !deferEffect && !inst.textureInk.empty() &&
+                               unpinnedRecordingDepth == 0;
       drawInkedImage(canvas, inst.textureImage,
-                     deferEffect ? InkGrid{} : inst.textureInk, dst,
-                     SkSamplingOptions(SkFilterMode::kLinear),
+                     inkAdmitted ? inst.textureInk : InkGrid{}, dst, totalM,
+                     deviceClipOf(), SkSamplingOptions(SkFilterMode::kLinear),
                      dressed ? &blit : nullptr);
+      if (inkAdmitted && recordingDepth > 0) ++recordingDeviceBakes;
     });
   } else if (!liveOnly && cacheHolds && node.cacheMode != Cache::None &&
              // A node HOSTING A SHARED SPACE never records: its children
