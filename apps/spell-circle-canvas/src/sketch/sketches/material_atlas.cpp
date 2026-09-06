@@ -66,10 +66,14 @@ sketch::kit::Theme sheetTheme() {
 }
 
 /** The sheet: eight cells, each a numbered wedge sweeping a little
- *  further round, so a sequence read in the wrong order is obvious. */
-const material::Texture& sheet() {
-  static const material::Texture texture =
-      material::Texture::produce("material_atlas.sheet", [] {
+ *  further round, so a sequence read in the wrong order is obvious.
+ *
+ *  Built where it is asked for; the sketch holds the one it draws with. A
+ *  producer bakes on first use PER TEXTURE, so one made inside a draw
+ *  callback rasterises a fresh sheet on every paint, and one held in a
+ *  static outlives this dylib, which a reload unloads. */
+material::Texture buildSheet() {
+  return material::Texture::produce("material_atlas.sheet", [] {
         sk_sp<SkSurface> surface = SkSurfaces::Raster(
             SkImageInfo::MakeN32Premul(kCols * kCellSide, kRows * kCellSide));
         SkCanvas* canvas = surface->getCanvas();
@@ -92,7 +96,6 @@ const material::Texture& sheet() {
         }
         return surface->makeImageSnapshot();
       });
-  return texture;
 }
 
 /** TexturePacker's hash form, with two name stems so two sequences fall
@@ -171,16 +174,21 @@ void put(SkCanvas& canvas, const material::Texture& texture, SkRect where,
 }  // namespace
 
 struct MaterialAtlas final : sketch::Sketch {
+  /** The one sheet everything on the page is cut from, held for the
+   *  sketch's life so the three atlases and the picture of the whole thing
+   *  are readings of the SAME bake. */
+  material::Texture sheet = buildSheet();
+
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    const material::Atlas grid = material::Atlas::grid(sheet(), kCols, kRows);
+    const material::Atlas grid = material::Atlas::grid(sheet, kCols, kRows);
     const std::optional<material::Atlas> packed =
-        material::Atlas::fromTexturePacker(sheet(), kTexturePackerJson);
+        material::Atlas::fromTexturePacker(sheet, kTexturePackerJson);
     const std::optional<material::Atlas> tagged =
-        material::Atlas::fromAseprite(sheet(), kAsepriteJson);
+        material::Atlas::fromAseprite(sheet, kAsepriteJson);
 
     const auto strip = [](const material::Atlas& atlas, const char* sequence,
                           size_t count,
@@ -218,8 +226,8 @@ struct MaterialAtlas final : sketch::Sketch {
                                              "further than the last, so a run "
                                              "read out of order shows it",
                                              kCols, kRows, kCellSide),
-                                 [](SkCanvas& canvas) {
-                                   put(canvas, sheet(),
+                                 [sheet = sheet](SkCanvas& canvas) {
+                                   put(canvas, sheet,
                                        SkRect::MakeXYWH(10,
                                                         (kPicture - 160) * 0.5f,
                                                         320, 160),

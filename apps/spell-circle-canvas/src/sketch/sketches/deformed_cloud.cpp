@@ -67,12 +67,16 @@ gm::Mesh body() {
 }
 
 /** The colours height is read by: cool at the bottom, warm at the top,
- *  with one bright stop between so the band's own height reads. */
-const std::vector<glm::vec4>& heights() {
-  static const std::vector<glm::vec4> stops = {{0.18f, 0.30f, 0.72f, 1.0f},
-                                               {0.94f, 0.86f, 0.62f, 1.0f},
-                                               {0.95f, 0.36f, 0.22f, 1.0f}};
-  return stops;
+ *  with one bright stop between so the band's own height reads.
+ *
+ *  Built where it is asked for. `rampBy` takes its stops BY VALUE, so a
+ *  table held in a static was copied at this one call site anyway — and a
+ *  static in this dylib is held for the process, past the reload that
+ *  unloads the code which built it. */
+std::vector<glm::vec4> heights() {
+  return {{0.18f, 0.30f, 0.72f, 1.0f},
+          {0.94f, 0.86f, 0.62f, 1.0f},
+          {0.95f, 0.36f, 0.22f, 1.0f}};
 }
 
 }  // namespace

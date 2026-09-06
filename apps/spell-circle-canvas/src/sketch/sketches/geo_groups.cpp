@@ -111,17 +111,18 @@ geometry::mesh::camera::Camera lookDown() {
   return camera;
 }
 
-/** The point stamp, baked once for the process. */
-const sk_sp<SkImage>& disc() {
-  static const sk_sp<SkImage> img = kit::dotSprite();
-  return img;
-}
-
+/** THE SINK. The point stamp is baked into the program BY VALUE, once per
+ *  describe: a sprite fetched inside the body is a 64 px surface rasterised
+ *  on every paint, and a sprite held in a static outlives this dylib, which
+ *  a reload unloads. */
 Element splat(geometry::mesh::Cloud cloud) {
-  return custom([cloud = std::move(cloud)](SkCanvas& canvas,
-                                           const PaintContext& paint) {
+  // KEYLESS: what the program closes over is a whole point cloud, which no
+  // key spells — and the sink paints live at `Cache::None`, so its node was
+  // never going to prune.
+  return custom([cloud = std::move(cloud), sprite = kit::dotSprite()](
+                    SkCanvas& canvas, const PaintContext& paint) {
            geometry::mesh::points::BillboardStyle style;
-           style.sprite = disc();
+           style.sprite = sprite;
            style.size = 6;
            style.sizeLane = "size";
            style.tintLane = "tint";

@@ -75,19 +75,17 @@ float period(const std::vector<std::pair<float, Color>>& runs) {
   return sum;
 }
 
-/** The bake every bottom-row cell remaps. Held as a function-local
- *  static, because the bake IS the identity: a Tile re-minted per draw
- *  would carry fresh shared state and re-render every frame. */
-const pattern::Tile& banked() {
-  static const pattern::Tile tile = pattern::sequence(sett());
-  return tile;
-}
+/** The bake every bottom-row cell remaps. THE BAKE IS THE IDENTITY: a Tile
+ *  re-minted per draw carries fresh shared state and re-renders every frame,
+ *  where a COPY of one shares it. So the sketch holds one and every cell
+ *  copies from it — held there rather than in a static, since this file is a
+ *  dylib a reload unloads. */
+pattern::Tile bankedTile() { return pattern::sequence(sett()); }
 
 /** A pixel-grid tile, for the pair that differ only in their filter. */
-const pattern::Tile& squares() {
-  static const pattern::Tile tile =
-      pattern::checker(4, {0.16f, 0.19f, 0.24f, 1}, {0.80f, 0.72f, 0.46f, 1});
-  return tile;
+pattern::Tile squaresTile() {
+  return pattern::checker(4, {0.16f, 0.19f, 0.24f, 1},
+                          {0.80f, 0.72f, 0.46f, 1});
 }
 
 void paintTile(SkCanvas& canvas, const pattern::Tile& tile, SkSize size) {
@@ -118,6 +116,9 @@ Element swatch(const char* call, const std::string& note, pattern::Tile tile) {
 }  // namespace
 
 struct PatternSequence final : sketch::Sketch {
+  pattern::Tile banked = bankedTile();
+  pattern::Tile squares = squaresTile();
+
   void setup(sketch::SketchContext& ctx) override {
     const sketch::kit::Provide look(sheetTheme());
     // nothing moves; the sheet is complete at once
@@ -170,23 +171,24 @@ struct PatternSequence final : sketch::Sketch {
                                    "the mapping pans the repeat in the "
                                    "SAMPLED space's px \xc2\xb7 no "
                                    "rebake, and the seam never shows",
-                                   pattern::Tile(banked()).offset({kPan, 0})),
+                                   pattern::Tile(banked).offset({kPan, 0})),
                             swatch(
                                 "banked.rotate(90).scale(1.4)",
                                 "rotate, then scale, then translate "
                                 "\xc2\xb7 a rotated repeat stays "
                                 "seamless because the bake never "
                                 "turned",
-                                pattern::Tile(banked()).rotate(90).scale(1.4f)),
+                                pattern::Tile(banked).rotate(90).scale(1.4f)),
                             cell("one bake, drawn crossed",
                                  "the sett along +x and the same bake "
                                  "turned a right angle over it \xc2\xb7 "
                                  "which is what a tartan is",
-                                 [](SkCanvas& canvas, SkSize size) {
-                                   paintTile(canvas, banked(), size);
+                                 [banked = banked](SkCanvas& canvas,
+                                                   SkSize size) {
+                                   paintTile(canvas, banked, size);
                                    canvas.saveLayerAlphaf(nullptr, 0.55f);
                                    paintTile(canvas,
-                                             pattern::Tile(banked()).rotate(90),
+                                             pattern::Tile(banked).rotate(90),
                                              size);
                                    canvas.restore();
                                  }),
@@ -195,13 +197,14 @@ struct PatternSequence final : sketch::Sketch {
                                  "for an organic tile \xc2\xb7 on a "
                                  "pixel grid it is wrong, which the "
                                  "seam down the middle says",
-                                 [](SkCanvas& canvas, SkSize size) {
+                                 [squares = squares](SkCanvas& canvas,
+                                                     SkSize size) {
                                    canvas.save();
                                    canvas.clipRect(SkRect::MakeWH(
                                        size.width() * 0.5f, size.height()));
                                    paintTile(
                                        canvas,
-                                       pattern::Tile(squares()).scale(5).filter(
+                                       pattern::Tile(squares).scale(5).filter(
                                            SkFilterMode::kNearest),
                                        size);
                                    canvas.restore();
@@ -211,7 +214,7 @@ struct PatternSequence final : sketch::Sketch {
                                        size.height()));
                                    paintTile(
                                        canvas,
-                                       pattern::Tile(squares()).scale(5).filter(
+                                       pattern::Tile(squares).scale(5).filter(
                                            SkFilterMode::kLinear),
                                        size);
                                    canvas.restore();

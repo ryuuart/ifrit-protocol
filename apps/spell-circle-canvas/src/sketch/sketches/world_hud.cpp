@@ -470,6 +470,14 @@ struct WorldHud final : sketch::Set {
   Element retained;
   worldhud::gm::camera::Camera lens;
 
+  /** The terrain, cooked once and held for the sketch's life: it is a
+   *  function of nothing, and rebuilding twenty thousand triangles per
+   *  frame would be a statement about the terrain rather than about the
+   *  HUD. Held here and not in a static inside `describe`, since this file
+   *  is a dylib a reload unloads and a static outlives the code that
+   *  filled it. */
+  worldhud::gm::Mesh valley = worldhud::valley();
+
   void setup(sketch::SetContext& ctx) override {
     namespace wh = worldhud;
     ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
@@ -576,13 +584,9 @@ struct WorldHud final : sketch::Set {
         },
         {0.42f, 0.56f, 0.78f, 1.0f}, 0.42f)));
 
-    // The valley is cooked once and held: it is a function of nothing,
-    // and rebuilding twenty thousand triangles per frame would be a
-    // statement about the terrain rather than about the HUD.
-    static const wh::gm::Mesh kValley = wh::valley();
     scene.child(world::Element()
                     .key("terrain")
-                    .mesh(kValley)
+                    .mesh(valley)
                     .fill(material::kit::surface(
                         {.baseColor = {1, 1, 1, 1}, .roughness = 0.92f}))
                     .tag("terrain"));

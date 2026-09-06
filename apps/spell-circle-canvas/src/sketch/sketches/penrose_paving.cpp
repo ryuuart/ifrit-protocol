@@ -216,16 +216,17 @@ inline V2 operator+(V2 a, V2 b) { return {a.x + b.x, a.y + b.y}; }
 inline V2 operator*(V2 a, double k) { return {a.x * k, a.y * k}; }
 inline double dot(V2 a, V2 b) { return a.x * b.x + a.y * b.y; }
 
-const std::array<V2, 5>& zeta() {
-  static const std::array<V2, 5> z = [] {
-    std::array<V2, 5> out{};
-    for (int j = 0; j < 5; ++j) {
-      const double a = 2.0 * 3.14159265358979323846 * (double)j / 5.0;
-      out[(size_t)j] = {std::cos(a), std::sin(a)};
-    }
-    return out;
-  }();
-  return z;
+/** THE FIVE FAMILY DIRECTIONS — unit vectors 72° apart, which is what
+ *  makes the grid a PENTAgrid. Built where it is asked for, which is once
+ *  per field: this file is a dylib a reload unloads, and a table held in a
+ *  static outlives the code that computed it. */
+std::array<V2, 5> zeta() {
+  std::array<V2, 5> out{};
+  for (int j = 0; j < 5; ++j) {
+    const double a = 2.0 * 3.14159265358979323846 * (double)j / 5.0;
+    out[(size_t)j] = {std::cos(a), std::sin(a)};
+  }
+  return out;
 }
 
 // γ_j — the SAME offset in every family, so Σγ = 1 ≡ 0 (mod 1) (de Bruijn's
@@ -267,10 +268,11 @@ std::vector<Tile> buildField(float module, float padPx) {
   const float reach = std::hypot(kW * 0.5f, kH * 0.5f) + padPx;
   const int K = (int)std::ceil(reach / (module * 2.5f)) + 3;
   const SkRect keep = SkRect::MakeWH(kW, kH).makeOutset(padPx, padPx);
+  const std::array<V2, 5> z5 = zeta();
 
   for (int r = 0; r < 5; ++r) {
     for (int s = r + 1; s < 5; ++s) {
-      const V2 zr = zeta()[(size_t)r], zs = zeta()[(size_t)s];
+      const V2 zr = z5[(size_t)r], zs = z5[(size_t)s];
       const double det = zr.x * zs.y - zr.y * zs.x;
       if (std::abs(det) < 1e-9)
         continue;  // never happens: five distinct 72° directions
@@ -291,8 +293,8 @@ std::vector<Tile> buildField(float module, float padPx) {
                 (j == r) ? kr
                 : (j == s)
                     ? ks
-                    : (int)std::ceil(dot(zeta()[(size_t)j], x) + kOffset);
-            z = z + zeta()[(size_t)j] * (double)Kj;
+                    : (int)std::ceil(dot(z5[(size_t)j], x) + kOffset);
+            z = z + z5[(size_t)j] * (double)Kj;
           }
 
           Tile t;

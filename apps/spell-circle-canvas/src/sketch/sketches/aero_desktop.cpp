@@ -138,12 +138,9 @@ inline sk_sp<SkRuntimeEffect> auroraEffect() {
       return half4(half3(col), 1.0);
     }
   )";
-  static auto effect = [] {
-    auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx) SkDebugf("aurora shader: %s\n", err.c_str());
-    return fx;
-  }();
-  return effect;
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
+  if (!fx) SkDebugf("aurora shader: %s\n", err.c_str());
+  return fx;
 }
 
 // The DWM colorization approximated as ONE flattened shader stack over
@@ -225,12 +222,9 @@ inline sk_sp<SkRuntimeEffect> windowShadowEffect() {
       return half4(0.0, 0.0, 0.0, half(a));
     }
   )";
-  static auto effect = [] {
-    auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-    if (!fx) SkDebugf("window shadow shader: %s\n", err.c_str());
-    return fx;
-  }();
-  return effect;
+  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
+  if (!fx) SkDebugf("window shadow shader: %s\n", err.c_str());
+  return fx;
 }
 
 // Caption-button glass base (idle): faint vertical white gradient.
@@ -245,6 +239,14 @@ inline Paint buttonBase(float h) {
 }  // namespace aero_desktop
 
 struct AeroDesktop final : sketch::Sketch {
+  /** THE TWO PROGRAMS THIS DESKTOP IS PAINTED WITH, compiled once and held
+   *  for the sketch's life. An effect is compared by POINTER, so the
+   *  wallpaper, its taskbar copy and its thumbnail copy share one compile or
+   *  they are three unequal paints; and a compile held in a static outlives
+   *  this dylib, which a reload unloads. */
+  sk_sp<SkRuntimeEffect> aurora = aero_desktop::auroraEffect();
+  sk_sp<SkRuntimeEffect> windowShadow = aero_desktop::windowShadowEffect();
+
   choreograph::Output<float> bloom{0};    // close-button hover bloom fade-in
   choreograph::Output<float> orbGlow{0};  // start-orb ambient breathing
 
@@ -450,7 +452,7 @@ struct AeroDesktop final : sketch::Sketch {
                        .bakeScale(0.5f)
                        .child(box()
                                   .inset(0)
-                                  .fill(Paint::sksl(ad::auroraEffect())
+                                  .fill(Paint::sksl(aurora)
                                             .uniform("uTime", 0.75f))
                                   .effect(sigil::material::skia::Effect::filter(
                                       SkImageFilters::Blur(3, 3, nullptr)))))
@@ -514,7 +516,7 @@ struct AeroDesktop final : sketch::Sketch {
                           ad::kW - ad::kWX - ad::kWW - 34,
                           ad::kH - ad::kWY - ad::kWH - 40)
                    .cache(Cache::Texture)  // static SDF shadow: bake once
-                   .fill(Paint::sksl(ad::windowShadowEffect())
+                   .fill(Paint::sksl(windowShadow)
                              .uniform("uMargins", SkColor4f{34, 30, 34, 40})))
         .child(std::move(frame));
   }
@@ -634,7 +636,7 @@ struct AeroDesktop final : sketch::Sketch {
                    .bakeScale(0.5f)
                    .child(box()
                               .inset(0)
-                              .fill(Paint::sksl(ad::auroraEffect())
+                              .fill(Paint::sksl(aurora)
                                         .uniform("uTime", 0.75f))
                               .effect(sigil::material::skia::Effect::filter(
                                   SkImageFilters::Blur(3, 3, nullptr)))))
@@ -754,7 +756,7 @@ struct AeroDesktop final : sketch::Sketch {
                    // this scene; the curtains drift at a tenth of a screen a
                    // second, so ten steps and four are the same picture in
                    // motion and four is six tenths of the bakes.
-                   .fill(Paint::sksl(ad::auroraEffect()).quantizeTime(4.0f)))
+                   .fill(Paint::sksl(aurora).quantizeTime(4.0f)))
         .child(desktopIcon(24, 22, binGlyph(), "Recycle Bin"))
         .child(desktopIcon(24, 116, folderGlyph(), "Nightscapes"))
         // Each chrome region is its own texture PLANE: the backdrop blur

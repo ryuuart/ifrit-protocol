@@ -171,19 +171,19 @@ struct BurnParams {
   std::array<float, 3> uWeights;  // sweep, speckle, patch
 };
 
-/** The definition, made once for the process: a recipe's identity is the
- *  object, so a fresh one per describe would compile a fresh program and
- *  never compare equal to itself. */
+/** THE DEFINITION, made once and held by whoever draws with it: a recipe's
+ *  identity IS the object, so a fresh one per describe compiles a fresh
+ *  program and never compares equal to itself. The sketch holds it, rather
+ *  than a static in this dylib, which a reload unloads. */
 std::shared_ptr<const sigil::material::Recipe> burnRecipe() {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      std::make_shared<const sigil::material::Recipe>(
-          sigil::material::Recipe::of<BurnParams>("ember.burn")
-              .body(sigil::material::Target::SkSL, kBurnSksl));
-  return recipe;
+  return std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<BurnParams>("ember.burn")
+          .body(sigil::material::Target::SkSL, kBurnSksl));
 }
 
-mskia::Paint burnMaterial() {
-  return mskia::Paint::recipe(sigil::material::Material(burnRecipe()))
+mskia::Paint burnMaterial(
+    const std::shared_ptr<const sigil::material::Recipe>& recipe) {
+  return mskia::Paint::recipe(sigil::material::Material(recipe))
       .uniform("uInk", kInk)
       .uniform("uEmber", kEmber)
       .uniform("uWeights", std::vector<float>{kSweep, kSpeckle, kPatch});
@@ -205,6 +205,7 @@ float masterAt(double t, double startAt, float totalMs) {
 // ===========================================================================
 
 struct EmberDecode : sketch::Sketch {
+  std::shared_ptr<const sigil::material::Recipe> recipe = burnRecipe();
   choreograph::Output<float> display{0.0f}, words{0.0f};
   float displayTotalMs = 1;  // the cascades' spans, read back from beatsOf
   float wordsTotalMs = 1;
@@ -223,7 +224,7 @@ struct EmberDecode : sketch::Sketch {
     const sigil::weave::TextStyle small =
         weave::textStyle({.face = face, .size = 27, .color = {1, 1, 1, 1}, .track = 3.0f});
 
-    const mskia::Paint burn = burnMaterial();
+    const mskia::Paint burn = burnMaterial(recipe);
     Element root =
         box().column().padding(44).gap(20).fill(mskia::Paint::solid(kPlate));
     root.child(text(toU8("TEXT AS A SAMPLER \xc2\xb7 ONE SkSL PASS OVER ONE "

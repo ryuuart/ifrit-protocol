@@ -617,26 +617,38 @@ inline PathFormat highlight(float T) {
  *  image plus SkColorFilters::Blend(colour, kSrcIn) is one tile for all
  *  of them, tinted where it is drawn. */
 inline sk_sp<SkImage> checkerMask() {
-  static sk_sp<SkImage> mask = [] {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
-    bm.eraseColor(SK_ColorTRANSPARENT);
-    *bm.getAddr32(0, 0) = 0xFFFFFFFFu;
-    *bm.getAddr32(1, 1) = 0xFFFFFFFFu;
-    bm.setImmutable();
-    return bm.asImage();
-  }();
-  return mask;
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
+  bm.eraseColor(SK_ColorTRANSPARENT);
+  *bm.getAddr32(0, 0) = 0xFFFFFFFFu;
+  *bm.getAddr32(1, 1) = 0xFFFFFFFFu;
+  bm.setImmutable();
+  return bm.asImage();
 }
 
+/** THE ONE TILE the whole desktop is stippled through, reached the same way
+ *  a colour set is. A paint program is compared BY VALUE and an image inside
+ *  one by POINTER, so every insensitive label has to carry the same tile or
+ *  none of them compares equal to itself on the next describe — and the
+ *  palette snaps every three seconds, so there is a next describe. Whoever
+ *  describes holds one and binds it; unbound, a tile is cut where it is
+ *  asked for, which draws the same picture and merely does not prune. Not a
+ *  static: a static in this dylib is held for the process, past the reload
+ *  that unloads the code which cut it. */
+struct Stipple {
+  sk_sp<SkImage> tile;
+  bool operator==(const Stipple&) const = default;
+};
+
 struct MotifStipple {
+  sk_sp<SkImage> tile;
   SkColor4f color{1, 1, 1, 1};
   void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    if (!tile) return;
     SkPaint p;
     p.setAntiAlias(false);
-    p.setShader(
-        checkerMask()->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
-                                  SkSamplingOptions(SkFilterMode::kNearest)));
+    p.setShader(tile->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                 SkSamplingOptions(SkFilterMode::kNearest)));
     p.setColorFilter(
         SkColorFilters::Blend(color.toSkColor(), SkBlendMode::kSrcIn));
     canvas.drawRect(ctx.outline.getBounds(), p);
@@ -644,7 +656,10 @@ struct MotifStipple {
   bool operator==(const MotifStipple&) const = default;
 };
 
-inline MotifStipple stipple() { return MotifStipple{ambient().bg}; }
+inline MotifStipple stipple() {
+  const Stipple* bound = env::inherited<Stipple>();
+  return MotifStipple{bound ? bound->tile : checkerMask(), ambient().bg};
+}
 
 // ===========================================================================
 // 5. THE BACKDROP — cde/programs/backdrops/PinStripe.pm, 28 x 52, 2 colours.
@@ -1067,6 +1082,9 @@ inline std::vector<std::string> icoFolder() {
 struct CdeMotifSketch : sketch::Sketch {
   using Set = cde::ColorSet;
 
+  /** The one 2x2 tile every insensitive label on the desktop is painted
+   *  through, cut once and bound over the whole description. */
+  sk_sp<SkImage> stippleTile = cde::checkerMask();
   cde::Theme theme;
   int paletteIndex = 0;
   double nextSwitch = 0.0;
@@ -1847,6 +1865,7 @@ struct CdeMotifSketch : sketch::Sketch {
   }
 
   Element describe(sketch::SketchContext& ctx) {
+    const env::Provide<cde::Stipple> stipple(cde::Stipple{stippleTile});
     Element root = stack().width(Dim(1152)).height(Dim(900));
 
     // 1. The root window: PinStripe, tiled, in colour set 3's shadows.

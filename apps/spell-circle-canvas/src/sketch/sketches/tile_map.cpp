@@ -98,9 +98,15 @@ sketch::kit::Theme sheetTheme() {
 
 /** THE TILESET: a procedural four-cell atlas — floor, brick wall, moss
  *  floor, ember — built once and read with `image(atlas).region(cell)`,
- *  so forty tiles are forty regions of one image. */
+ *  so forty tiles are forty regions of one image.
+ *
+ *  ONE ASSET FOR THE WHOLE MAP, held on the sketch. An image node is
+ *  compared by asset POINTER, so a fresh bake per tile would make every one
+ *  of the forty unequal to itself on the next describe and defeat the memo
+ *  this sketch is about. Held there and not in a static, since this file is
+ *  a dylib a reload unloads. */
 std::shared_ptr<sigil::image::ImageAsset> atlas() {
-  static std::shared_ptr<sigil::image::ImageAsset> asset = [] {
+  return [] {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
     SkCanvas& c = *s->getCanvas();
     SkPaint p;
@@ -133,7 +139,6 @@ std::shared_ptr<sigil::image::ImageAsset> atlas() {
     return std::make_shared<sigil::image::ImageAsset>(
         sigil::image::ImageAsset::wrap(s->makeImageSnapshot()));
   }();
-  return asset;
 }
 
 /** ONE EDIT: which cell of a chunk carries a region other than the one
@@ -166,7 +171,8 @@ int tileAt(int chunk, int x, int y) {
   return 0;                                   // floor
 }
 
-Element chunkElement(const Chunk& chunk) {
+Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
+                     const Chunk& chunk) {
   Element tiles =
       box().width(Dim(kChunkCols * kTile)).height(Dim(kChunkRows * kTile));
   for (int y = 0; y < kChunkRows; ++y)
@@ -174,7 +180,7 @@ Element chunkElement(const Chunk& chunk) {
       const int cell = y * kChunkCols + x;
       const int id =
           cell == chunk.edit.cell ? chunk.edit.id : tileAt(chunk.index, x, y);
-      tiles.child(image(atlas())
+      tiles.child(image(tileset)
                       .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
                       .inset((float)x * kTile, (float)y * kTile, 0, 0)
                       .width(Dim(kTile))
@@ -188,6 +194,7 @@ Element chunkElement(const Chunk& chunk) {
 namespace {
 
 struct TileMap final : sketch::Sketch {
+  std::shared_ptr<sigil::image::ImageAsset> tileset = atlas();
   std::array<int, kChunks> revisions{};
   std::array<Edit, kChunks> edits{};
   /** The wash on each chunk, one live value per chunk: set to 1 when the
@@ -234,7 +241,9 @@ struct TileMap final : sketch::Sketch {
               // Recorded, so a describe that runs is a recording
               // written and the footer's count is the work itself.
               .child(memo(Chunk{i, revisions[(size_t)i], edits[(size_t)i]},
-                          chunkElement)
+                          [tileset = tileset](const Chunk& c) {
+                            return chunkElement(tileset, c);
+                          })
                          .key("chunk" + std::to_string(i))
                          .cache(Cache::Picture))
               // The wash: a sibling of the memo, so fading it costs the
