@@ -285,17 +285,20 @@ class StampCache {
     return nullptr;
   }
   void put(const std::shared_ptr<const void>& key, Entry entry) {
-    // A node's stamp arts are few; a runaway store means keys churn every
-    // frame, and keeping stale bakes alive would pin their nodes' memory.
     // At this size a scan beats a hash, which is why the store is a list
-    // and this header needs no map.
-    if (m_entries.size() >= kCapacity) m_entries.clear();
+    // and this header needs no map. A key already here is replaced in
+    // place: re-baking one art must not cost the other bakes their
+    // entries.
     for (Row& row : m_entries)
       if (row.address == key.get()) {
         row.owner = key;
         row.entry = std::move(entry);
         return;
       }
+    // A node's stamp arts are few; a store that runs past its capacity
+    // means keys churn every frame, and keeping stale bakes alive would
+    // pin their nodes' memory. Only a new key can push it there.
+    if (m_entries.size() >= kCapacity) m_entries.clear();
     m_entries.push_back({key.get(), key, std::move(entry)});
   }
 

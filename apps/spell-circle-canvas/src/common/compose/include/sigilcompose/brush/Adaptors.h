@@ -37,6 +37,10 @@ struct EdgeSlice {
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
   float reach() const { return inner.reach(); }
+  /** Forwarded, or a wrapped blending mark would be baked into a layer of
+   *  its own and resolve against transparent black instead of the page
+   *  (BlendingDecoration). */
+  bool blends() const { return inner.blends(); }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
   bool isAnimated() const { return inner.isAnimated(); }
@@ -74,6 +78,8 @@ struct Inset {
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
   float reach() const { return inner.reach(); }
+  /** Forwarded, for the reason EdgeSlice forwards it. */
+  bool blends() const { return inner.blends(); }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
   bool isAnimated() const { return inner.isAnimated(); }

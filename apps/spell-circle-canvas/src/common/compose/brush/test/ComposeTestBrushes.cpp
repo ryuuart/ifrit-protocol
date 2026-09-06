@@ -1679,3 +1679,99 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);  // the seam corner tile
 }
+
+// ---------------------------------------------------------------------------
+// What a composite hands the brushes inside it
+
+namespace {
+
+/** A mark that records the context it was painted with, so a case can ask
+ *  what a nested brush was handed as against what the node was handed. */
+struct ContextProbe {
+  struct Seen {
+    int paints = 0;
+    const StampCache* stamps = nullptr;
+    SkMatrix toRoot = SkMatrix::I();
+    SkSize rootSize = SkSize::MakeEmpty();
+    SkRect outline = SkRect::MakeEmpty();
+    double elapsedSeconds = 0.0;
+  };
+  std::shared_ptr<Seen> seen = std::make_shared<Seen>();
+
+  bool operator==(const ContextProbe& o) const { return seen == o.seen; }
+  void paint(SkCanvas&, const PaintContext& ctx) const {
+    ++seen->paints;
+    seen->stamps = ctx.stamps;
+    seen->toRoot = ctx.toRoot;
+    seen->rootSize = ctx.rootSize;
+    seen->outline = ctx.outline.getBounds();
+    seen->elapsedSeconds = ctx.elapsedSeconds;
+  }
+};
+
+/** A mark that says it blends and paints nothing. */
+struct BlendingMark {
+  bool operator==(const BlendingMark&) const = default;
+  bool blends() const { return true; }
+  void paint(SkCanvas&, const PaintContext&) const {}
+};
+
+/** The context a composer hands a node: a stamp store, a place in the
+ *  root, and the root's size. */
+PaintContext nodeContext(StampCache& stamps) {
+  PaintContext ctx;
+  ctx.size = {100, 60};
+  ctx.outline = SkPath::Rect(SkRect::MakeWH(100, 60));
+  ctx.elapsedSeconds = 2.5;
+  ctx.contentScale = 2.0f;
+  ctx.animating = true;
+  ctx.stamps = &stamps;
+  ctx.toRoot = SkMatrix::Translate(30, 40);
+  ctx.rootSize = {800, 600};
+  return ctx;
+}
+
+}  // namespace
+
+TEST(ComposeBrushes, ANestedBrushKeepsEverythingButTheOutline) {
+  // A composite hands its children the context it was given with one
+  // member replaced. Losing the rest costs the stamp cache (every nested
+  // stamp re-rasterised each frame) and anchors a world-space material to
+  // the node instead of the root — neither of which shows in a pixel of
+  // the first frame.
+  StampCache stamps;
+  const PaintContext ctx = nodeContext(stamps);
+  SkCanvas canvas(100, 60);  // no device: the probes record, they do not draw
+
+  const ContextProbe woven, layered, restyled;
+  brush::layers({woven}).paint(canvas, ctx);
+  Brush{}.layer(layered).paint(canvas, ctx);
+  brush::restyle(ops::PathOp([](const SkPath& p) { return p; }), restyled)
+      .paint(canvas, ctx);
+
+  for (const ContextProbe* probe : {&woven, &layered, &restyled}) {
+    ASSERT_EQ(probe->seen->paints, 1);
+    EXPECT_EQ(probe->seen->stamps, &stamps);
+    EXPECT_EQ(probe->seen->toRoot, SkMatrix::Translate(30, 40));
+    EXPECT_EQ(probe->seen->rootSize, SkSize::Make(800, 600));
+    EXPECT_DOUBLE_EQ(probe->seen->elapsedSeconds, 2.5);
+    EXPECT_EQ(probe->seen->outline, SkRect::MakeWH(100, 60));
+  }
+}
+
+TEST(ComposeBrushes, ACompositeBlendsWhenAnythingInsideItDoes) {
+  // The painter reads the top-level decoration alone, so a composite that
+  // does not forward the word has its blending mark baked into a layer of
+  // its own, where it resolves against transparent black.
+  EXPECT_TRUE(Decoration(brush::layers({BlendingMark{}})).blends());
+  EXPECT_TRUE(Decoration(Brush{}.layer(BlendingMark{})).blends());
+  EXPECT_TRUE(
+      Decoration(brush::restyle(ops::PathOp([](const SkPath& p) { return p; }),
+                                BlendingMark{}))
+          .blends());
+  EXPECT_TRUE(
+      Decoration(onEdges(geometry::path::Edge::Top, BlendingMark{})).blends());
+  EXPECT_TRUE(Decoration(inset(4, BlendingMark{})).blends());
+  // And a composite of marks that do not blend does not.
+  EXPECT_FALSE(Decoration(brush::layers({ContextProbe{}})).blends());
+}

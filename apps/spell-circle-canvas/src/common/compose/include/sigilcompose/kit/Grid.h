@@ -375,7 +375,10 @@ struct Grid {
     size_t cursor = 0;
     for (CellSpan& s : out) {
       if (s.declared) continue;
-      const int wide = std::max(s.columns, 1);
+      // A span wider than the grid is as wide as the grid: there is no
+      // cell a wider one could ever be free at, and the search below has
+      // no way out but to find one.
+      const int wide = std::clamp(s.columns, 1, cols);
       const int tall = std::max(s.rows, 1);
       // Sparse flow never looks back past the cursor, so a child cannot
       // land on a cell an explicit span already claimed and the run stays
@@ -394,6 +397,11 @@ struct Grid {
         if (!free) continue;
         s.column = c;
         s.row = r;
+        // The span it was placed at is the span it gets: a child that
+        // asked for more columns than the grid has is laid out over the
+        // cells it actually holds.
+        s.columns = wide;
+        s.rows = tall;
         claim(c, r, wide, tall);
         if (!dense) cursor = at + 1;
         break;

@@ -118,9 +118,13 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
 
   const auto paintStrand = [&](size_t i) {
-    const PaintContext sub{ctx.size,         paths[i],      ctx.elapsedSeconds,
-                           ctx.contentScale, ctx.animating, ctx.fonts,
-                           ctx.borrowed};
+    // The context is the enclosing one with a different outline: every
+    // other member — the stamp cache, the matrix to the root, the root's
+    // size — is what the node was painted with, and a strand that lost
+    // them would re-rasterise its stamps every frame and anchor a
+    // world-space material to itself.
+    PaintContext sub = ctx;
+    sub.outline = paths[i];
     strands[i].brush.paint(c, sub);
   };
 
@@ -249,10 +253,8 @@ void Brush::paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPath layerPath = styled;
     for (const geometry::path::Shaper& g : l.shapers)
       layerPath = g.shape(layerPath);
-    const PaintContext restyled{ctx.size,           std::move(layerPath),
-                                ctx.elapsedSeconds, ctx.contentScale,
-                                ctx.animating,      ctx.fonts,
-                                ctx.borrowed};
+    PaintContext restyled = ctx;
+    restyled.outline = std::move(layerPath);
     l.dec.paint(c, restyled);
   }
 }
@@ -262,10 +264,8 @@ namespace brush {
 void Restyled::paint(SkCanvas& c, const PaintContext& ctx) const {
   // No null check: GeometryOp::apply passes the path through unchanged
   // when it holds nothing.
-  PaintContext restyled{ctx.size,           op.apply(ctx.outline),
-                        ctx.elapsedSeconds, ctx.contentScale,
-                        ctx.animating,      ctx.fonts,
-                        ctx.borrowed};
+  PaintContext restyled = ctx;
+  restyled.outline = op.apply(ctx.outline);
   inner.paint(c, restyled);
 }
 

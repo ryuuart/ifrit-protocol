@@ -170,6 +170,14 @@ struct Weave {
       if (s.brush.isAnimated()) return true;
     return false;
   }
+  /** A strand that blends makes the whole weave blend: forwarded, or the
+   *  node is baked into a layer of its own and the strand's mark resolves
+   *  against transparent black instead of the page (BlendingDecoration). */
+  bool blends() const {
+    for (const Strand& s : strands)
+      if (s.brush.blends()) return true;
+    return false;
+  }
   float bleed() const {
     float worst = 0;
     for (const Strand& s : strands)
@@ -272,6 +280,12 @@ struct Brush {
       if (l.dec.isAnimated()) return true;
     return false;
   }
+  /** Forwarded, for the reason a weave forwards it. */
+  bool blends() const {
+    for (const Layer& l : layers)
+      if (l.dec.blends()) return true;
+    return false;
+  }
   /** The widest mark any layer paints, plus the pipeline's own reach. */
   float reach() const {
     float shared = 0;
@@ -328,6 +342,8 @@ struct Restyled {
   float extraBleed = 8.0f;  // the op's own overhang (wave amplitude…)
 
   bool isAnimated() const { return inner.isAnimated(); }
+  /** Forwarded, for the reason a weave forwards it. */
+  bool blends() const { return inner.blends(); }
   float bleed() const { return inner.bleed() + extraBleed; }
   float reach() const { return inner.reach(); }
   /** Forwarded, or a wrapped weave's strand::from(key) would never be

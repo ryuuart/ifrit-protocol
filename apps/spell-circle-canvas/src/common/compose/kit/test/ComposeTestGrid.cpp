@@ -248,6 +248,25 @@ TEST(KitGrid, AFlowingChildNeverLandsOnACellSomethingElseClaimed) {
   EXPECT_EQ(at[0], SkRect::MakeXYWH(10, 0, 10, 10));
 }
 
+TEST(KitGrid, AChildWiderThanTheGridTakesTheWholeOfIt) {
+  // A span no arrangement of the grid could hold: there is no cell three
+  // columns wide in a three-column grid at which a five-wide child is
+  // free, so the search for one is the grid it has, not a search without
+  // an end.
+  const Grid grid{
+      .columns = {layouts::px(10), layouts::px(10), layouts::px(10)},
+      .rows = {layouts::px(10), layouts::px(10)}};
+  std::vector<CellSpan> spans(2);
+  spans[0].columns = 5;
+  const std::vector<SkRect> at =
+      grid.place(given({30, 20}, boxes(2, {5, 5}), spans));
+  ASSERT_EQ(at.size(), 2u);
+  EXPECT_EQ(at[0], SkRect::MakeXYWH(0, 0, 30, 10));
+  // And the one behind it flows onto the row below, the whole first row
+  // being spoken for.
+  EXPECT_EQ(at[1], SkRect::MakeXYWH(0, 10, 10, 10));
+}
+
 // ---------------------------------------------------------------------------
 // Alignment
 

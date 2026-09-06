@@ -83,18 +83,6 @@ sub-passes arrived as delegated passes and are listed with the rest.
 
 ## SigilCompose, SigilSkia, SigilScry (findings/review-compose.md)
 
-Blockers:
-
-- `src/common/compose/include/sigilcompose/kit/Grid.h:383-389` — the
-  flow search `for (;; ++at)` never exits when an undeclared child's
-  span is wider than the column count; layout hangs. Clamp the span to
-  the columns. Assert: a five-wide child in a three-column grid lays out.
-- `src/common/compose/brush/Brushes.cpp:121-123,252-255,265-268` — three
-  `PaintContext` aggregate initialisers supply 7 of 10 members, so every
-  brush nested in `Weave`, `Brush` or `Restyled` loses `stamps` (and
-  re-rasterises each frame), `toRoot` and `rootSize`. Copy the context
-  and override the outline.
-
 Should-fix (correctness): `compose/typography/TextAnnotations.cpp:61-84`
 readings indexed by the per-line unit list, so a base broken across a
 line takes the next reading; `typography/TextFxPainting.cpp:301-304` the
