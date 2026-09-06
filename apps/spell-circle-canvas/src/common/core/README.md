@@ -32,10 +32,25 @@ member a hand-written comparator does not mention.
 **Compute** — the arithmetic several libraries have to agree on to the
 bit: the seeded mixers a jitter draws from, the stream a caller holds
 one of them as and the distributions drawn out of it, the noise field
-read at a point, the folds a cache key is accumulated with, and the
-normal form a set of runs over one axis is put in. The standard library
-is the whole of its dependencies, so a shader's CPU twin, a point cook,
-a text cache and a resource store all reach the same bodies.
+read at a point, the folds a cache key is accumulated with, the normal
+form a set of runs over one axis is put in, and the shaped curve a unit
+position is reshaped by. The standard library is the whole of its
+dependencies, so a shader's CPU twin, a point cook, a text cache and a
+resource store all reach the same bodies.
+
+The curve is here for the same reason the mixers are. Three libraries
+reshape a unit position — an animation eases one, a colour ramp walks
+one, a keyed track shapes the segment leaving a key — and all three also
+have to answer whether two of their curves are the same, because the
+value holding the curve is memoised on that answer. A curve written as a
+lambda cannot answer: two built a frame apart from identical text are
+different objects, so the record holding one is unequal to itself and
+never prunes. `curve::Curve` keeps the shape and its numbers apart — a
+captureless function pointer beside four floats — so equality is by
+parameters, and a caller's own shape written the same way is comparable
+for free. The house shapes are the Penner equations, spelled here rather
+than reached for in an animation dependency, because the colour leaf
+links no animation runtime and must still walk the same curve.
 
 **Schedule** — where independent work runs. One parallel for over the
 task runtime, taking a count, a grain and a body, so the runtime is
@@ -59,7 +74,7 @@ catalog. One target per directory:
 | target | directory | holds |
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
-| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form |
+| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form, the shaped curve |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
@@ -93,6 +108,7 @@ include their own directory's headers. The hardware feature's are
 | `compute/Field.h` | `noise::Field` — one noise look read at a point (`kind`, `seed`, `dimension`, `frequency`, `octaves`, `gain`, `lacunarity`, `fold`, `warp`, `period`, `at`), its `noise::FieldKind` (`Value`, `Gradient`, `Simplex`, `Worley`) and `noise::Fold` (`None`, `Turbulence`, `Ridged`), with the bare kinds `noise::valueNoise`, `noise::gradientNoise`, `noise::simplexNoise`, `noise::worleyNoise` and the corner `noise::latticeUnit` under them |
 | `compute/Chance.h` | `chance::Stream` — the seeded stream a caller holds (`bits`, `unit`, `signedUnit`, `range`, `below`, `normal`, `sample`, `reseed`) over a `chance::Source` (`Pcg`, `Mix64`, `Xorshift`, `Halton`, `Sobol`, `Golden`, `Stratified`); the shapes `chance::Uniform`, `chance::Gaussian`, `chance::Exponential`, `chance::Weighted`; `chance::shuffle`, `chance::Reservoir`; and `chance::Chance`, the token one sheet re-rolls from |
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
+| `compute/Curve.h` | `curve::Curve` — a shape as a captureless `float(float, const float*)` beside the four `parameters` it reads, with `at`, `operator()` and equality by both (a default-built one is the identity ramp, and a caller's own captureless body is the escape hatch); the plain `curve::smoothstep`; and the house shapes `curve::cubicBezier`, `curve::outBack`, `curve::inBack`, `curve::inOutBack`, `curve::outElastic`, `curve::inElastic`, `curve::outBounce` |
 | `compute/Intervals.h` | `IntervalEnds`, `Inverted`, `normalizeIntervals`, `complementIntervals`, `intersectIntervals` and `firstOverlap` — the sorted, disjoint normal form a set of runs is put in, and the three combinators over it, with the endpoint type and the epsilon the caller's |
 | `schedule/Parallel.h` | `schedule::parallelFor(count, grain, body)` over contiguous chunks and `schedule::parallelForEach(items, grain, body)` over a range's elements |
 | `schedule/ConcurrentIo.h` | `schedule::concurrentIo(count \| items, body)` — one blocking call per item, off the task runtime — and `schedule::concurrentIoWidth()`, how many of them run at once |
@@ -756,7 +772,7 @@ field's:
 | directory | suites | what they prove |
 |---|---|---|
 | `comparable/test/` | `Erased`, `Fields` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes |
-| `compute/test/` | `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points |
+| `compute/test/` | `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field`, `Curve` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points; the curve, held to what makes it a value — two of the same shape at the same numbers are equal, two shapes at the same numbers are not, and a caller's own body compares by the same rule — and to the character each house shape is chosen for |
 | `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
 | `reconcile/test/` | `Reconciler`, `Env`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering |
 | `cache/test/` | `CacheProof`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |

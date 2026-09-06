@@ -62,7 +62,7 @@ directory, each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Params.h` includes | nothing of this project's |
+| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Params.h` includes | SigilCoreCompute |
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskVertexColor`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
@@ -717,8 +717,13 @@ colour at all.
 otherwise re-spells at every site: the `space` the walk between two stops
 happens in (`Srgb` for what a gradient draws, `Linear` for a quantity of
 light, `Oklab` for even steps, `Oklch` for a walk around the hue circle
-with `arc` saying which way), an `easing` function, `reverse`, and the
-`domainLow`/`domainHigh` the caller's own numbers are read on. It answers
+with `arc` saying which way), an `easing` curve, `reverse`, and the
+`domainLow`/`domainHigh` the caller's own numbers are read on. The
+easing is a `core::curve::Curve` — SigilCore's shaped curve value, the
+same one an animation eases with and a keyed track shapes a segment
+with, so a look chosen once walks the same shape wherever it is read.
+It carries its own parameters and compares by them, which is what keeps
+an eased ramp a value two of which can be proved the same. It answers
 `at(v)` and it is CALLABLE, so a ramp is an interpolator: anything that
 hands a unit position to one — a data scale's `through()`, a legend, a
 table — takes a ramp with no adapter. `sampleRamp` is still the ladder

@@ -1,12 +1,12 @@
 #pragma once
 
 /** @file
- * A SHAPED EASING CURVE AS A COMPARABLE VALUE — the shape plus the
- * numbers that shape it, so a curve carrying parameters can still be
- * proved the same curve.
+ * THE SHAPED CURVE A BINDING, A TRANSITION AND A KEYED STEP READ — the
+ * comparable curve value SigilCore's compute leaf owns, named here under
+ * the word an animation reaches for it by.
  */
 
-#include <choreograph/Choreograph.h>
+#include <sigilcore/compute/Curve.h>
 
 namespace sigil::motion::ease {
 
@@ -22,29 +22,33 @@ namespace sigil::motion::ease {
  *  it never prunes, and worse, a comparator that decides two records are
  *  unequal on the curve alone re-patches for as long as the curve exists.
  *
- *  This is the shape and the numbers kept side by side instead. The shape
- *  is a captureless function — a pointer, therefore comparable — and the
- *  numbers are four floats beside it, so two curves are equal when they
- *  are the same shape at the same settings. Every parameterised curve in
- *  `ease::` hands one back, and `easeEqual` reads it.
- *
- *  A CALLER'S OWN CURVE fits the same way: write the body as a
- *  captureless lambda over the parameter block and it is comparable for
- *  free. A body that must capture is a lambda again, and unequal to
- *  everything — which is correct, since nothing can prove two of them
- *  alike. */
-struct Curve {
-  /** The shape, as a captureless function over the parameter block: a
-   *  pointer, so two of them can be compared. Null answers `t` unchanged,
-   *  which is the identity ramp. */
-  float (*shape)(float t, const float* parameters) = nullptr;
-  /** What the shape reads. Four because the widest house curve — a cubic
-   *  Bezier's two control points — takes four; the rest leave the tail at
-   *  zero, and a zero is as comparable as any other number. */
-  float parameters[4]{};
+ *  This is the shape and the numbers kept side by side instead — the
+ *  colour leaf's ramp and a keyed track walk the same value, which is why
+ *  it lives below every one of them. Every parameterised curve named
+ *  below hands one back, and `easeEqual` reads it. */
+using Curve = core::curve::Curve;
 
-  float operator()(float t) const { return shape ? shape(t, parameters) : t; }
-  bool operator==(const Curve&) const = default;
-};
+/** THE HOUSE CURVES. `outBack` and `inBack` overshoot the cubic way,
+ *  `inOutBack` does it at both ends, `outElastic` and `inElastic` ring
+ *  down under a decaying sine, `outBounce` lands in parabolic rebounds,
+ *  `cubicBezier` is a CSS timing function spelled as it was written, and
+ *  `smoothstep` is the plain Hermite S with no parameters at all.
+ *
+ *  Each shaped one is a FACTORY handing back a `Curve` rather than a
+ *  lambda, so two calls with the same argument compare EQUAL and the
+ *  value holding one prunes:
+ *
+ *      .scale(animate(from(0.86f).to(1.0f), {520ms, ease::outBack()}))
+ *
+ *  A caller's own curve fits the same way — write the body as a
+ *  captureless lambda over the parameter block. */
+using core::curve::cubicBezier;
+using core::curve::inBack;
+using core::curve::inElastic;
+using core::curve::inOutBack;
+using core::curve::outBack;
+using core::curve::outBounce;
+using core::curve::outElastic;
+using core::curve::smoothstep;
 
 }  // namespace sigil::motion::ease

@@ -17,8 +17,8 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/Curve.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all four | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; `ease::Curve`, the shaped curve as a comparable value; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Sequence.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all nine | `Transition`, `ease::`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal; `Sequence`, `Step` and `Interpolation`, the keyed track |
+| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/Curve.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all four | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; `ease::`, the animation's name for SigilCore's shaped curve value and its house shapes; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Sequence.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all nine | `Transition`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal; `Sequence`, `Step` and `Interpolation`, the keyed track |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 | `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
 | `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Constraints.h`, `physics/Verlet.h`; `physics/Physics.h` includes all four | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Constraint` with `distance()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper |
@@ -227,7 +227,7 @@ and a hand-written modulus is what gets a negative time wrong.
 **`Sequence` is a number given at several times.** `Step{at, value,
 curve}` are the keys, in the caller's own units, and `interpolation`
 says what happens between them: `Hold` for states that cut, `Linear`
-shaped by each key's own `ease::Curve`, `CatmullRom` for the spline
+shaped by each key's own `core::curve::Curve`, `CatmullRom` for the spline
 through them — a prop rather than a second type, since the keys are the
 same keys. An envelope is one of these, and so is a step sequencer, a
 cue list and a curve authored elsewhere. Outside the keys it is flat
@@ -474,7 +474,7 @@ under a field pin that fails the build when that value gains a member:
 
 | comparator | rule |
 |---|---|
-| `easeEqual` | two curves are equal when both are the same plain function pointer, or both are the same `ease::Curve` shape at the same settings; a capturing lambda is unequal to everything |
+| `easeEqual` | two curves are equal when both are the same plain function pointer, or both are the same `core::curve::Curve` shape at the same settings; a capturing lambda is unequal to everything |
 | `transitionEqual` | same duration, same delay, same curve — the curve read through `easing()`, so `{360ms, {}, 220ms}` compares as the default it behaves as |
 | `boundMapEqual` | every one of `BoundFloat`'s fields, by hand, under the pin |
 | `propEqual` | same form, then that form's contents; a bare binding by the Output's IDENTITY, never by the number behind it |
@@ -546,8 +546,14 @@ sits under — so that a `static_assert` about `BoundFloat`'s field count
 lives in the same file as `BoundFloat` — and `SigilCoreCompute` for the
 seeded mixer the scattered ordering ranks with, so that a `From::Random`
 permutation is the same permutation wherever in the tree it is dealt,
-and for the noise field a wind reads, so that a flow a simulation drifts
-along and the same flow drawn as a picture are the same field.
+for the noise field a wind reads, so that a flow a simulation drifts
+along and the same flow drawn as a picture are the same field, and for
+the SHAPED CURVE itself: `core::curve::Curve` and every house shape are
+that leaf's, because a colour ramp and a keyed track reshape a unit
+position exactly as an easing does and the colour leaf links no
+animation runtime. `ease::` here is the animation's word for those, and
+nothing more — a curve gets its arithmetic and its equality from the
+leaf, and reads the same wherever it is held.
 Both carry no kernel, no device and nothing that draws. Boost is
 private, in one place: the scheduler's own table (`Boost::unordered` on
 `SigilMotionSchedule`), which no public header names.

@@ -1,4 +1,4 @@
-# The animation values: Transition and the ease:: house curves, the
+# The animation values: Transition, the
 # animate()/from()/to()/through() keyframe builders, ramp(), phase(),
 # quantizeTime(), the Oscillator and the keyed Sequence — the two values
 # that are functions of a time and of nothing else, so they read the
@@ -11,9 +11,10 @@
 # enumeration and nothing else about it.
 #
 # It links SigilCoreComparable for the field pin the comparators over
-# these values sit under. That is an edge OUT of this library, and the
-# one target it reaches is a header-only leaf over the standard library
-# and Boost.PFR: no kernel, no device, nothing that draws.
+# these values sit under, and SigilCoreCompute for the shaped curve a
+# keyed step's segment is drawn with. Those are edges OUT of this
+# library, and both targets are header-only leaves over the standard
+# library (Boost.PFR aside): no kernel, no device, nothing that draws.
 # <sigilmotion/Animation.h> rides here as the umbrella over this feature
 # and bind.
 find_package(choreograph CONFIG REQUIRED)
@@ -22,7 +23,7 @@ sigil_library(SigilMotionValues
   HEADERS ../Animation.h Animatable.h Animated.h Keyframes.h Lanes.h
           Oscillator.h Sequence.h Spring.h Time.h Transition.h Values.h
   PUBLIC SigilMotionBind SigilMotionClock SigilCoreComparable
-         choreograph::choreograph)
+         SigilCoreCompute choreograph::choreograph)
 
 # Links the values and the clock that drives them, and nothing that
 # draws, so a link edge that pulled a drawing library in would show up

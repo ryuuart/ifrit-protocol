@@ -13,7 +13,7 @@
  * cue list, and a curve authored somewhere else and read here.
  */
 
-#include <sigilmotion/bind/Curve.h>
+#include <sigilcore/compute/Curve.h>
 
 #include <algorithm>
 #include <cmath>
@@ -52,9 +52,9 @@ struct Step {
   float at = 0.0f;
   float value = 0.0f;
   /** The shape of the segment from this key to the next, under
-   *  `Linear`. Null is the straight line. It carries its own parameters,
-   *  so a step eased by a named curve still compares. */
-  ease::Curve curve{};
+   *  `Linear`. A default-built curve is the straight line. It carries its
+   *  own parameters, so a step eased by a named curve still compares. */
+  core::curve::Curve curve{};
 
   bool operator==(const Step&) const = default;
 };

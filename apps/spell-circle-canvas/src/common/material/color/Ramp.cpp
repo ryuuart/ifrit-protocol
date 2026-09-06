@@ -95,7 +95,7 @@ float Ramp::position(float value) const {
   float u = span != 0.0f ? (value - domainLow) / span : 0.0f;
   u = std::clamp(u, 0.0f, 1.0f);
   if (reverse) u = 1.0f - u;
-  if (easing) u = std::clamp(easing(u), 0.0f, 1.0f);
+  if (easing.shape) u = std::clamp(easing.at(u), 0.0f, 1.0f);
   return u;
 }
 

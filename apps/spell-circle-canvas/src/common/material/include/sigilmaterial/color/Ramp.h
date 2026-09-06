@@ -16,6 +16,7 @@
  * as a token rather than a stop list plus four conventions repeated.
  */
 
+#include <sigilcore/compute/Curve.h>
 #include <sigilmaterial/color/Color.h>
 
 #include <vector>
@@ -71,14 +72,12 @@ struct Ramp {
   HueArc arc = HueArc::Shorter;
   /** The shape of the walk: the position is passed through this before
    *  the stops are read, so a ramp can dwell at one end without moving
-   *  its stops. Null is the straight walk.
+   *  its stops. A default-built curve is the straight walk.
    *
-   *  A PLAIN FUNCTION POINTER, not a callable object: this leaf links
-   *  nothing, and a comparable ramp needs a comparable curve. A
-   *  captureless lambda converts to one; a curve that carries parameters
-   *  belongs to whatever holds the parameters, and is spelled by baking
-   *  the shape into the stops instead. */
-  float (*easing)(float position) = nullptr;
+   *  The curve carries its own parameters and compares by them, so a ramp
+   *  eased by a named shape — a CSS timing function, a back, a bounce —
+   *  is still a value two of which can be proved the same. */
+  core::curve::Curve easing{};
   /** The stops read from the far end. It is a prop rather than a second
    *  stop list because a reversed colormap is the same value seen the
    *  other way — the pair a diverging scale needs is one ramp and one

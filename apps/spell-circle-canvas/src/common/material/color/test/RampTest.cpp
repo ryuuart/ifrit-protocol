@@ -52,7 +52,7 @@ TEST(Ramp, ReverseAndEasingMoveThePositionNotTheStops) {
   EXPECT_FLOAT_EQ(ramp.at(1.0f).r, 0.0f);
 
   Ramp eased = blackToWhite();
-  eased.easing = [](float t) { return t * t; };
+  eased.easing = {[](float t, const float*) { return t * t; }};
   EXPECT_NEAR(eased.position(0.5f), 0.25f, 1e-6f);
   EXPECT_NEAR(eased.at(0.5f).r, blackToWhite().at(0.25f).r, 1e-6f);
   // The stop list is untouched by either, which is what lets a reversed
