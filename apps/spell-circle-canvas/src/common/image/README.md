@@ -21,7 +21,7 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilImageAsset`  | `asset/ImageAsset.h` | `ImageProbe`, `Frame` and `ImageAsset` — the decoded document and the Skia codec path; Skia only |
+| `SigilImageAsset`  | `asset/ImageAsset.h`, `asset/Embedded.h` | `ImageProbe`, `Frame` and `ImageAsset` — the decoded document and the Skia codec path; `embeddedPngs()` — the last-resort signature scan that recovers whole images, and the names beside them, from a container with no parser here; Skia only |
 | `SigilImageDecode` | `decode/Decode.h`, `decode/ChannelData.h` | `DecodeOptions`, `decodeImage()`, `probeImage()` and `decodeChannels()` — the routing surface, carrying the optional backends — and `ChannelData`, the raw channel planes |
 | `SigilImageEncode` | `encode/Encode.h` | `Format`, `EncodeOptions`, `encodeImage()` — the routing surface the other way, over a pixmap, an image or named channel planes — and `formatForPath()`/`extensionFor()` |
 | `SigilImageField`  | `field/DistanceField.h` | `Mask` and `coverageMask()` — an alpha thresholded into coverage — and `DistanceField` and `distanceField()`, the exact Euclidean distance from every pixel to the nearest covered one |

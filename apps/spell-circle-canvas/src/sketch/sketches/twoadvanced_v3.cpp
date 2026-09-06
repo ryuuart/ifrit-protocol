@@ -79,6 +79,8 @@
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilimage/asset/Embedded.h>
+#include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -326,10 +328,9 @@ struct TwoAdvancedV3 : sketch::Sketch {
 
   // =========================================================================
   // Lifting the art out of the Rive file. A .riv stores each embedded
-  // image asset as its name followed by the raw PNG, so the extraction is
-  // a signature scan: find \x89PNG..IEND, then take the LAST printable
-  // ASCII run (≥4 chars) between the previous image's end and this
-  // signature as the asset's name.
+  // image asset as its name followed by the raw PNG, and SigilImage's
+  // signature scan recovers both, so all this study states is which asset
+  // name fills which slot.
 
   static int sectionFor(const std::string& name) {
     for (int s = 0; s < 6; ++s)
@@ -338,51 +339,12 @@ struct TwoAdvancedV3 : sketch::Sketch {
   }
 
   void extractRivImages(const std::vector<std::byte>& bytes) {
-    static const unsigned char sig[8] = {0x89, 'P',  'N',  'G',
-                                         0x0D, 0x0A, 0x1A, 0x0A};
-    const auto* d = reinterpret_cast<const unsigned char*>(bytes.data());
-    const size_t n = bytes.size();
     clouds.assign(62, nullptr);
     discordSeq.assign(102, nullptr);
 
-    auto nameBefore = [&](size_t from, size_t upTo) -> std::string {
-      std::string last, cur;
-      for (size_t i = from; i < upTo; ++i) {
-        const unsigned char c = d[i];
-        if (c >= 0x20 && c < 0x7F) {
-          cur.push_back((char)c);
-        } else {
-          if (cur.size() >= 4) last = cur;
-          cur.clear();
-        }
-      }
-      if (cur.size() >= 4) last = cur;
-      return last;
-    };
-
-    size_t prevEnd = 0;
-    for (size_t i = 0; i + 8 <= n;) {
-      if (std::memcmp(d + i, sig, 8) != 0) {
-        ++i;
-        continue;
-      }
-      // Walk chunks to IEND to bound this PNG.
-      size_t k = i + 8;
-      bool ok = false;
-      while (k + 8 <= n) {
-        const uint32_t len = (uint32_t)d[k] << 24u | (uint32_t)d[k + 1] << 16u |
-                             (uint32_t)d[k + 2] << 8u | (uint32_t)d[k + 3];
-        const bool iend = std::memcmp(d + k + 4, "IEND", 4) == 0;
-        if (k + 8 + (size_t)len + 4 > n) break;
-        k += 8 + len + 4;
-        if (iend) {
-          ok = true;
-          break;
-        }
-      }
-      if (!ok) break;
-
-      const std::string name = nameBefore(prevEnd, i);
+    for (const sigil::image::EmbeddedImage& found :
+         sigil::image::embeddedPngs(bytes)) {
+      const std::string& name = found.name;
       auto want = [&](const char* w) { return name == w; };
       ImagePtr* dest = nullptr;
       if (want("home-background"))
@@ -410,12 +372,10 @@ struct TwoAdvancedV3 : sketch::Sketch {
         if (idx >= 0 && idx < 62) dest = &clouds[(size_t)idx];
       }
       if (dest && !*dest) {
-        if (auto img = sigil::image::ImageAsset::decode(
-                SkData::MakeWithCopy(d + i, k - i)))
+        if (auto img = sigil::image::ImageAsset::decode(SkData::MakeWithCopy(
+                bytes.data() + found.offset, found.length)))
           *dest = std::make_shared<sigil::image::ImageAsset>(std::move(*img));
       }
-      prevEnd = k;
-      i = k;
     }
     // Sequences are used dense-or-not-at-all: one absent frame would
     // strobe, so a partial extraction drops the whole loop and the use
