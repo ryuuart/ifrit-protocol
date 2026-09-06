@@ -5,173 +5,93 @@ evidently intended to do, and what a test should assert once intent is
 restored. A work queue: delete an entry when it is fixed, and delete this
 file when it is empty.
 
-The queue is in two parts. The first is the merge-readiness review of
-branch `sigil/library-campaigns` against `main` (merge base
-`aabd3fe1b224`): nine read-only passes over the library groups, whose full
-reports with every nit and every line number are the files under
-`findings/`. What is listed here is every blocker and should-fix from
-those reports, condensed, so that a fix pass can work from this file and
-delete lines as it goes. The second part is the standing entries from
-before the review, rewritten to what the tree holds now.
+The merge-readiness review of branch `sigil/library-campaigns` against
+`main` (merge base `aabd3fe1b224`) and the fix pass that followed it are
+done; the full review reports are the files under `findings/`. What
+remains of them is below, then the standing entries.
 
-## Rulings for the fix pass
+## Verification state at the merge
 
-- The bar is everything in this file, nits included, except the two
-  deferrals below, which are campaigns of their own after the merge.
-- Deferred: the library extractions the sketch review names (pixel
-  sprites and an atlas packer, the HTML auto-table layout, an
-  icosahedron and a face-up pose, the conic generator, the chart
-  projections, the tartan weave, the pentagrid, Reeves particles), and
-  the big file splits (`material/skia/Paint.cpp`, `mesh/pop/Pop.h`,
-  `book/main.cpp`, `book/SketchbookView.cpp`, the 1380-line
-  `Composer::Impl::paint`). Test files split by subject only where they
-  pass about 700 lines; one binary per library stands.
-- `rota_convocationis` loses its `ctx.plate()` mark, keeps its look, and
-  the emissive stack's cost is filed against the compositor.
-- The plate ledger sweeps draw sketches too and takes their baselines.
-- `SigilGeometryMeshPopDevice` is split out the way the mesh renderer's
-  device executor is.
-- The device mesh painter carries the environment, metallic and
-  roughness terms the host applies, with a conformance case.
-- The zip reader becomes an archive byte source in SigilIO; `Hub::probe`
-  answers bytes and a registered `probe<T>()` answers meaning, with the
-  image prober registered by SigilImage.
-- Path and ellipse silhouettes take their exclusion margin from Skia
-  path ops; the distance field stays for pixel coverage.
-- Kit spellings: `swatchSide` for the length, an optional `Fill` for
-  every ink, `column` on the scrollbar.
-- `routes_probe` is rebased with commit 7a3ed160 named as the cause.
-- The three long READMEs get chapter files beside them (material:
-  colour and paint; core and motion: one per feature).
-- Before the merge, on the fresh tree: the device tier, the promotion
-  tier (which reports rather than gates until the glyph-edge cause is
-  found), ASan and TSan over the suite, and the bench and app-FPS
-  retake on an idle machine.
-- `winamp_base` and `lain_navi` are rebased with the colour mix moving
-  into linear light named as the cause — they are the only two scenes
-  that mixed two colours through compose's own verb, and `lain_navi`'s
-  default still does not show it.
-- Rules of the pass: a library pass builds its own targets and never
-  edits a sketch; the sketch pass comes last and brings every sketch
-  onto the new vocabulary; no agent runs the plate ledger — each names
-  the scenes its change should move, and the closing pass rebases them
-  with the causes.
+Taken on a fresh build directory after the fix pass (head 1e23e368 of
+the pass, plus this file):
 
-## Verification state at the review
+- Release build: zero errors, zero warnings. `ctest`: 3230 of 3230 pass
+  (four cases skip for an SDK or data set the machine lacks).
+- CPU plate tier: 119 scenes byte-identical, 42 moved, 34 draw scenes
+  new to the ledger, none failed. Every mover re-renders identical to
+  itself and traces to a pass that named it (the fix reports name them;
+  the largest are `ui_particles` on a fixed simulation step,
+  `horizontal_flow` and `penrose_paving` on the kit's table and well,
+  `lain_navi` and `winamp_base` on a colour mix in linear light). The
+  baseline was rebased from that sweep, draw scenes included.
+- Device tier: 190 of 195 within the per-channel bar; four over
+  (`aero desktop` mean 21.95, `winamp_base` 20.58, `chevreul_circle`
+  7.81 with p99 153, `nine slice` p99 205) and `brushwork_currents`
+  crashes on the GPU lane — filed below.
+- Promotion tier: 111 of 195 within one code value; the 84 outside are
+  the standing entry below, which reports rather than gates.
+- Sanitizers and the bench and app-FPS retake: run after this state was
+  taken; their outcome is recorded in the standing entries if they find
+  anything.
 
-Taken on a fresh build directory (the old tree removed, `sigil.py setup
---config Release` from an empty `build/`):
+## Deferred past the merge, each a campaign of its own
 
-- The Release build completes with zero errors and zero warnings after
-  four fixes on the branch: a missing `<span>` include in the brush
-  loader, two sketches returning references to temporaries, the `.geo`
-  importer's unhandled big-integer case, and a Slang shader-directory
-  variable that a fresh configure read empty because geometry is added
-  before material (the shader workflow now names the directories
-  itself).
-- `ctest`: 3000 of 3000 pass. One case (`ReadGltf`) skips until
-  `sigil.py assets` has fetched the demo assets into `build/assets`;
-  after the fetch it runs and passes.
-- CPU plate tier: 160 of 161 scenes byte-identical to the baseline.
-  `routes_probe` moved (`3f8386ab9914` → `1485691082c4`) and reproduces
-  stably on both trees. Its `custom("routes.live", …)` leaf is the shape
-  commit 7a3ed160 changed (a paint program of its own now reads the
-  backdrop), and the plate was not rebased with that cause. Confirm the
-  new picture is the intended one and rebase it with the cause named.
-- Not run on the fresh tree: the device tier, the promotion tier, the
-  bench and app-FPS ledgers (both baselines still want an idle-machine
-  retake), the sanitizer lanes, a manual Sketchbook launch.
+- The library extractions the sketch review names — the mechanisms
+  hidden in the sketches over 1000 lines: palette-indexed sprites and an
+  atlas packer (`xcom_battlescape`, `cde_motif`, `thaumonomicon`) →
+  `compose/kit/Sprites.h`; an HTML auto-table layout scheme
+  (`spacejam_1996:999-1200`) → compose kit layouts with a test; an
+  icosahedron and a face-up pose (`bg3_dice_roll:376-503`) →
+  `geometry/kit/Solids.h` and a mesh pose; a conic generator and four
+  silhouettes (`ksp_mapview:244-566`) → geometry path and
+  `Silhouettes.h`; Motif bevels (`cde_motif`, `twoadvanced_v4`,
+  `winamp_base`, `fallout2_charsheet`) → `Chrome.h`; a stereographic and
+  a chart projection (`chaucer_astrolabe`, `dunhuang_star_chart`) → a
+  projection value in geometry path; a tartan sett-to-cloth weave
+  (`black_watch:234-295`) → material pattern; a pentagrid
+  (`penrose_paving:264`) and mitred lattice joinery
+  (`kumiko_asanoha:517`) → `Lattice.h`/`Ops.h`; Reeves particles
+  (`genesis_fire:516`) → `sigilmotion/physics/Points.h`. Each is a
+  rewrite to the seam, never a verbatim move.
+- The source-file splits by subject: `material/skia/Paint.cpp` (1573),
+  `Paint.h` (771), `Effect.cpp` (748); `geometry/mesh/pop/Pop.h` (1131),
+  `mesh/pop/Cook.cpp` (792), `mesh/codec/Geo.cpp` (601),
+  `geometry/path/Ops.cpp` (604); `sketch/book/main.cpp` (1331),
+  `book/SketchbookView.cpp` (896), `book/qml/Main.qml` (850); the
+  1380-line `Composer::Impl::paint` in `compose/core/StackingPainter.cpp`
+  and the compose files its review lists (`Element.h`, `Reconcile.cpp`,
+  `Composer.cpp`, `ComposerImpl.h`, `Volatility.cpp`, `Instance.h`,
+  `Layout.cpp`, `ComposeInternal.h`, `Derive.cpp`).
 
-Every library group has a report; SigilMaterial's and the two geometry
-sub-passes arrived as delegated passes and are listed with the rest.
+## Sketch framework, left by the fix pass
 
-## SigilCompose, SigilSkia, SigilScry (findings/review-compose.md)
+- `sketch::device()` and `sketch::painterRuntime()` are still
+  process-wide where a set's runtime is now per-session, so a CANVAS
+  sketch that stands a mesh up in space (`floating_panels`,
+  `painter_gpu`) still draws its background thumbnail through whatever
+  device the process installed. Intended: a still is CPU-only whatever
+  the process holds, for every runtime. Assert: a canvas thumbnail with
+  a painter runtime installed never reaches it.
+- `book/SketchbookView.cpp` — `keyAs` (the p5 key table) is an
+  anonymous-namespace function in the app and untested; its input is a
+  `Qt::Key` and `core/` is Qt-free. Either it moves with a seam of its
+  own or the table is pinned where it stands, from the book's script
+  tests.
 
-The blockers, the correctness should-fixes and the README guard are
-fixed; what is left of this group is `Composer::Impl::paint`, one
-1380-line function (`core/StackingPainter.cpp`), which the rulings above
-defer, and the nits the fix pass's report names as left.
+## Compose, left by the fix pass
 
-## Sketch framework (findings/review-sketch-framework.md)
-
-Both blockers, every should-fix and every nit but one are fixed: the kit
-spellings and look defaults, the README drift, the shipped strings, the
-`ThumbnailQueue` lift and the cases the report named. The file splits
-`book/main.cpp`, `book/SketchbookView.cpp` and `book/qml/Main.qml` are
-deferred by the rulings above. What is left:
-
-- `sketch::device()` and `sketch::painterRuntime()` are still process-wide
-  where a set's runtime is now per-session, so a CANVAS sketch that stands
-  a mesh up in space (`floating_panels`, `painter_gpu`) still draws its
-  background thumbnail through whatever device the process installed.
-  Intended: a still is CPU-only whatever the process holds, for every
-  runtime. Assert: a canvas thumbnail with a painter runtime installed
-  never reaches it.
-- `book/SketchbookView.cpp` — `keyAs` (the p5 key table) is still an
-  anonymous-namespace function in the app and untested. It was left in
-  place: its input is a `Qt::Key`, and `core/` is Qt-free, so moving it
-  there would either bring Qt into the library or hard-code Qt's
-  numbers. Either it moves with a seam of its own or the table is
-  pinned where it stands, from the book's script tests.
-
-## The sketches (findings/review-sketches.md)
-
-Every should-fix and every nit is fixed except the library extractions
-the rulings defer, which are the paragraph below, and five entries the
-fix pass's report names as left with their reasons: `stroke_atlas` keeps
-its absolute placement (a rule specimen is positioned against the shape
-it is shown on, which the file states as its own constraint), and four
-findings that were stale when written — `chaucer_astrolabe` and
-`minard_1869` render their check runs through `kit::console` already,
-`dunhuang_star_chart` has no check run to render, and `xcom_battlescape`,
-`thaumonomicon` and `kumiko_asanoha` already stand on the origin the nit
-names.
-
-Deferred, each to its own campaign — the mechanisms hidden in the
-sketches over 1000 lines: palette-indexed sprites and an atlas packer
-(`xcom_battlescape`, `cde_motif`, `thaumonomicon`) → `compose/kit/
-Sprites.h`; an HTML auto-table layout scheme (`spacejam_1996:999-1200`) →
-compose kit layouts with a test; an icosahedron and a face-up pose
-(`bg3_dice_roll:376-503`) → `geometry/kit/Solids.h` and a mesh pose; a
-conic generator and four silhouettes (`ksp_mapview:244-566`) → geometry
-path and `Silhouettes.h`; Motif bevels (`cde_motif`, `twoadvanced_v4`,
-`winamp_base`, `fallout2_charsheet`) → `Chrome.h`; a stereographic and a
-chart projection (`chaucer_astrolabe`, `dunhuang_star_chart`) → a
-projection value in geometry path; a tartan sett-to-cloth weave
-(`black_watch:234-295`) → material pattern; a pentagrid
-(`penrose_paving:264`) and mitred lattice joinery (`kumiko_asanoha:517`)
-→ `Lattice.h`/`Ops.h`; Reeves particles (`genesis_fire:516`) →
-`sigilmotion/physics/Points.h`.
-
-## SigilGeometry path ops (findings/review-geometry-path-ops.md)
-
-Deferred by the rulings: the file split by subject — `path/Ops.cpp` (604:
-the pathops booleans, the offset family, the corner treatments, the
-resample distorts).
-
-## SigilGeometry mesh, point operators, kit, device (findings/review-geometry-mesh-pop.md)
-
-Deferred by the rulings: the file splits by subject — `Pop.h` (1131),
-`mesh/pop/Cook.cpp` (792), `mesh/codec/Geo.cpp` (601).
-
-## SigilWorld, SigilUsd, SigilSubstance, SigilImage (findings/review-geometry-material-world.md)
-
-Every blocker, should-fix and nit this report names is fixed, with the
-tests it asks for.
-
-## SigilWeave and SigilDraw (findings/review-weave-draw.md)
-
-Every blocker, should-fix and nit of this group is fixed except three,
-which are decisions rather than defects and are named in the fix pass's
-report: merging `Selector::Kind::Words` into `Word` (the switch that reads
-it is SigilCompose's), choosing one spelling of `Unit` against `unit::`,
-and lifting the Knuth-Plass prefix tables out of the DP function (the
-lambdas over them are stated to inline).
-
-## SigilCore, SigilData, SigilMeasure, SigilMotion, SigilIO, SigilVideo, the product, the build (findings/review-core-io-build.md)
-
-Every blocker, should-fix and nit this report names is fixed, with the
-tests it asks for.
+- Test-gap nits: `drawInkedImage`'s recorded-region and non-invertible
+  paths, `Region::oval` (constructed in a brush case, asserted about
+  nowhere), `balanceThroughLine`.
+- `Track::over` against `Annotation::unit` — the better rename touches
+  `kit/Typeset.h`, `core/Element.h` and TYPOGRAPHY.md; a vocabulary pass
+  takes it.
+- Named and declined with a reason in the fix report, kept here so the
+  review is not re-run: the three pan-only predicates are three
+  questions; `Ribbon::band` is a documented join vocabulary;
+  `turnedArea` wants a span overload in SigilGeometry first; the
+  ornament's Bernstein and the two `Hatch` constructions would move
+  plates for a nit with no defect behind them.
 
 ## Ring and grid placement is respelled where geometry already has it
 
@@ -287,3 +207,52 @@ diagnostic is exactly that kind of number.
 Assert once fixed: the cell's text is identical whether the sketch is
 rendered alone or after another sketch has compiled a module in the same
 process.
+
+## rota_convocationis cannot hold 60 FPS through its own emissive stack
+
+The scene draws one charged disc: every lit band, seal, star and rim
+flame is an emissive fill laid over the whole disc, and the composite
+misses the 60 FPS gate through the second half of the cycle. The sketch
+carried `ctx.plate()` to be judged as a still instead, which
+`CanvasSpec::plateOnly` states is for a sketch whose subject is the size
+of the sheet it draws and never a timeout override. The mark is gone and
+the look stands, so the scene now presents as what it is.
+
+What the compositor does: each emissive layer is a full-disc fill drawn
+into its own layer and composited, so the per-frame cost scales with the
+number of lit elements rather than with the area any of them covers, and
+nothing coalesces layers that share a blend and a clip.
+
+Intended: a run of emissive fills over one disc is one composite pass,
+whatever it costs to build, so a scene's frame cost tracks the pixels it
+touches rather than the count of nodes that touch them.
+
+Assert once fixed: `--bench` on `rota_convocationis` holds 60 FPS across
+the whole loop on a raster surface, and a case in `compose_bench` pins
+the cost of N emissive fills over one shape as flat in N past the first.
+
+## The device tier reads five scenes outside its bar
+
+`sigil.py plates --tier device` renders every scene on the GPU and
+differences it against the CPU plate of the same run, per channel, with
+a bar of mean 12 and p99 128. After the fix pass five scenes stand
+outside it:
+
+    aero desktop     mean 21.95  p99 204  max 255
+    winamp_base      mean 20.58  p99  97  max 204
+    chevreul_circle  mean  7.81  p99 153  max 183
+    nine slice       mean  4.67  p99 205  max 215
+    brushwork_currents: the GPU render crashes (RENDER FAILED, the
+    trace ends in sigil::sketch::sweep), so there is no second plate
+
+`winamp_base` and `chevreul_circle` moved on the CPU in the same pass
+(a colour mix in linear light; a check run rendered through the kit's
+table), so the first question for each is whether the device path
+mixes or lays out differently from the host, or whether the CPU move
+merely exposed a difference that was already there. `aero desktop` and
+`nine slice` did not move on the CPU, so their difference is the
+device's alone. The crash is a defect whatever the picture.
+
+Intended: a device plate is the CPU plate within the bar, and every
+scene renders on both. Assert once fixed: `--tier device` reports every
+scene within the bar and none failed.
