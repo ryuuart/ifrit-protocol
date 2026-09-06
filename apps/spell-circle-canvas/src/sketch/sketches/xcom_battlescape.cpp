@@ -210,6 +210,8 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/PixelType.h>
+#include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/skia/Ramp.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
@@ -438,8 +440,7 @@ struct Ink {
 // block, zero meaning keep the index's own.
 
 inline sk_sp<SkRuntimeEffect> paletteEffect() {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
         "uniform shader uIndex;\n"
         "uniform shader uPalette;\n"
         "uniform float uShade;\n"
@@ -452,33 +453,23 @@ inline sk_sp<SkRuntimeEffect> paletteEffect() {
         "  float base = uBlock1 > 0.0 ? (uBlock1 - 1.0) * 16.0\n"
         "                             : floor(i / 16.0) * 16.0;\n"
         "  float dst = ns > 15.0 ? 15.0 : base + ns;\n"
-        "  return uPalette.eval(float2(dst + 0.5, 0.5));\n"
-        "}"));
-    if (!effect) std::fprintf(stderr, "palette effect: %s\n", error.c_str());
-    return effect;
-  }();
-  return fx;
+      "  return uPalette.eval(float2(dst + 0.5, 0.5));\n"
+      "}"));
+  if (!effect) std::fprintf(stderr, "palette effect: %s\n", error.c_str());
+  return effect;
 }
 
-/** The 256 entries as a 256 x 1 strip, entry i at texel i. Index 0 keeps its
- *  alpha 0, so the chroma key stays a hole exactly as C(0) leaves one. */
-inline sk_sp<SkImage> paletteStrip() {
-  static const sk_sp<SkImage> strip = [] {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(256, 1));
-    bm.eraseColor(SK_ColorTRANSPARENT);
-    SkCanvas c(bm);
-    SkPaint p;
-    p.setAntiAlias(false);
-    p.setBlendMode(SkBlendMode::kSrc);
-    for (int i = 0; i < 256; ++i) {
-      p.setColor4f(C(i), nullptr);
-      c.drawRect(SkRect::MakeXYWH((float)i, 0.0f, 1.0f, 1.0f), p);
-    }
-    bm.setImmutable();
-    return bm.asImage();
-  }();
-  return strip;
+/** The 256 entries as the table a shader samples.
+ *
+ *  `material::Palette` is the seam and `skia::paletteLookup` is its
+ *  crossing: a palette says there is nothing BETWEEN its entries, so the
+ *  tap is nearest at texel centres and index n is index n. Index 0 keeps
+ *  its alpha 0, so the chroma key stays the hole `C(0)` leaves. */
+inline sigil::material::Palette palette() {
+  sigil::material::Palette table;
+  table.entries.reserve(256);
+  for (int i = 0; i < 256; ++i) table.entries.emplace_back(C(i));
+  return table;
 }
 
 /** One cell's art, drawn once into a 128 x 160 index raster. */
@@ -492,22 +483,24 @@ inline sk_sp<SkImage> indexCell(const std::function<void(const Ink&)>& art) {
   return bm.asImage();
 }
 
-/** @p indices read through the table at @p shade, optionally with the block
- *  replaced by the 1-based @p block1. Identity local matrices on both
- *  children: the cell is baked at 1:1, so a fragment centre lands on a texel
- *  centre and the sample is the authored byte. */
-inline Paint paletteLut(const sk_sp<SkImage>& indices, int shade,
-                        int block1 = 0) {
-  const SkSamplingOptions nearest{SkFilterMode::kNearest};
-  Paint p = Paint::sksl(paletteEffect());
+/** @p indices read through @p table at @p shade, optionally with the block
+ *  replaced by the 1-based @p block1. Identity local matrix on the index
+ *  child: the cell is baked at 1:1, so a fragment centre lands on a texel
+ *  centre and the sample is the authored byte.
+ *
+ *  THE EFFECT AND THE TABLE ARE THE CALLER'S, held on the sketch for the
+ *  length of a declaration. A `static` here would outlive the dylib a
+ *  hot-reloaded sketch is compiled into. */
+inline Paint paletteLut(const sk_sp<SkRuntimeEffect>& effect,
+                        const Paint& table, const sk_sp<SkImage>& indices,
+                        int shade, int block1 = 0) {
+  Paint p = Paint::sksl(effect);
   p.uniform("uShade", (float)shade);
   p.uniform("uBlock1", (float)block1);
-  p.child("uIndex",
-          Paint::image(indices, SkTileMode::kClamp, SkTileMode::kClamp,
-                       SkMatrix::I(), nearest));
-  p.child("uPalette",
-          Paint::image(paletteStrip(), SkTileMode::kClamp, SkTileMode::kClamp,
-                       SkMatrix::I(), nearest));
+  p.child("uIndex", Paint::image(indices, SkTileMode::kClamp,
+                                 SkTileMode::kClamp, SkMatrix::I(),
+                                 SkSamplingOptions{SkFilterMode::kNearest}));
+  p.child("uPalette", table);
   return p;
 }
 
@@ -1187,6 +1180,11 @@ struct XcomBattlescape : sketch::Sketch {
   } phase, lastPhase{-1};
 
   Pattern metalPattern, latticePattern;
+  /** The palette shader and its 256-entry table, resolved once per
+   *  declaration and held HERE. A function-local static inside a sketch's
+   *  dylib outlives the reload that replaced the code around it. */
+  sk_sp<SkRuntimeEffect> paletteFx;
+  Paint paletteTable;
   bool auditPrinted = false;
   int reportedFrames = 0;
 
@@ -1195,6 +1193,8 @@ struct XcomBattlescape : sketch::Sketch {
 
   void bakeAtlas() {
     using namespace xcom;
+    paletteFx = paletteEffect();
+    paletteTable = sigil::material::skia::paletteLookup(palette());
     tiles = std::make_shared<Atlas>(1.0f);
     // Atlas::filter, and it is the palette's guard rail.
     //
@@ -1242,22 +1242,22 @@ struct XcomBattlescape : sketch::Sketch {
       for (int f = 0; f < 3; ++f)
         for (int v = 0; v < 2; ++v)
           cellFloor[f][v][shade] =
-              tiles->cell(box().fill(paletteLut(idxFloor[f][v], shade)), cell);
+              tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxFloor[f][v], shade)), cell);
       cellObj[kBush][shade] =
-          tiles->cell(box().fill(paletteLut(idxBush, shade)), cell);
+          tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxBush, shade)), cell);
       cellObj[kTree][shade] =
-          tiles->cell(box().fill(paletteLut(idxTree, shade)), cell);
+          tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxTree, shade)), cell);
       cellObj[kHullWall][shade] =
-          tiles->cell(box().fill(paletteLut(idxWall, shade)), cell);
+          tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxWall, shade)), cell);
       cellHullDeck[shade] =
-          tiles->cell(box().fill(paletteLut(idxDeck, shade)), cell);
+          tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxDeck, shade)), cell);
     }
     const int kBlocks[3] = {4, 10, 3};  // Pathfinding green / yellow / red
     for (int d = 0; d < 2; ++d)
       for (int m = 0; m < 3; ++m)
         cellArrow[d][m] = tiles->cell(
-            box().fill(paletteLut(idxArrow[d], 0, kBlocks[m])), cell);
-    cellCursor = tiles->cell(box().fill(paletteLut(idxCursor, 0)), cell);
+            box().fill(paletteLut(paletteFx, paletteTable, idxArrow[d], 0, kBlocks[m])), cell);
+    cellCursor = tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxCursor, 0)), cell);
     atlasCells = tiles->frameCount();
 
     fontAtlas = std::make_shared<Atlas>(1.0f);
@@ -1459,9 +1459,11 @@ struct XcomBattlescape : sketch::Sketch {
               .width(kCellW)
               .height(kCellH)
               .key(key)
-              .child(custom([sh, alien](SkCanvas& c, const PaintContext&) {
-                paintUnit(c, sh, alien);
-              })));
+              .child(custom(kit::formatted("unit s%d %s", sh,
+                                           alien ? "alien" : "soldier"),
+                            [sh, alien](SkCanvas& c, const PaintContext&) {
+                              paintUnit(c, sh, alien);
+                            })));
     }
     {
       const SkPoint tl = mapToScreen(kSoldierA.mx, kSoldierA.my, 0);
@@ -1471,9 +1473,10 @@ struct XcomBattlescape : sketch::Sketch {
                      .top(tl.fY - n(4))
                      .width(kCellW)
                      .height(kCellH)
-                     .child(custom([frame](SkCanvas& c, const PaintContext&) {
-                       paintBobArrow(c, frame);
-                     })));
+                     .child(custom(kit::formatted("bob arrow f%d", frame),
+                                   [frame](SkCanvas& c, const PaintContext&) {
+                                     paintBobArrow(c, frame);
+                                   })));
     }
 
     // ---- z3/z4 path arrows, TU numbers, the box selector -------------------
@@ -1524,12 +1527,16 @@ struct XcomBattlescape : sketch::Sketch {
         const int id = col * 2 + row;
         p.child(at(bx[col], 144 + 16 * row, 32, 16)
                     .key("btn" + std::to_string(id))
-                    .child(custom([](SkCanvas& c, const PaintContext&) {
-                             paintPlate(c, 32, 16);
-                           }).inset(0))
-                    .child(custom([id](SkCanvas& c, const PaintContext&) {
-                             paintButtonGlyph(c, id);
-                           }).inset(0)));
+                    .child(custom("plate 32x16",
+                                  [](SkCanvas& c, const PaintContext&) {
+                                    paintPlate(c, 32, 16);
+                                  })
+                               .inset(0))
+                    .child(custom(kit::formatted("button glyph %d", id),
+                                  [id](SkCanvas& c, const PaintContext&) {
+                                    paintButtonGlyph(c, id);
+                                  })
+                               .inset(0)));
       }
 
     // The six reserve buttons. buttonReserveNone declares 67, the other three
@@ -1550,7 +1557,8 @@ struct XcomBattlescape : sketch::Sketch {
          {std::pair{60.0f, 177.0f}, std::pair{78.0f, 177.0f},
           std::pair{60.0f, 189.0f}, std::pair{78.0f, 189.0f}})
       p.child(at(x + 3, y + 3, 11, 5)
-                  .child(custom([](SkCanvas& c, const PaintContext&) {
+                  .child(custom("reserve glyph",
+                                [](SkCanvas& c, const PaintContext&) {
                     const Ink ink{c};
                     ink.rect(0, 0, 2, 5, blk(0, 15));
                     ink.rect(2, 2, 5, 1, blk(0, 15));
@@ -1561,7 +1569,8 @@ struct XcomBattlescape : sketch::Sketch {
     // The rank badge, 26x23 — a gold plate, block 9 over block 10.
     p.child(at(107, 177, 26, 23)
                 .key("rank")
-                .child(custom([](SkCanvas& c, const PaintContext&) {
+                .child(custom("rank badge",
+                              [](SkCanvas& c, const PaintContext&) {
                   const Ink ink{c};
                   for (int r = 0; r < 23; ++r)
                     ink.run(0, (float)r, 26, blk(9, 2 + r / 6));
@@ -1617,7 +1626,10 @@ struct XcomBattlescape : sketch::Sketch {
       const bool holdsRifle = right;
       p.child(at(x, 148, 32, 48)
                   .key(right ? "handR" : "handL")
-                  .child(custom([holdsRifle](SkCanvas& c, const PaintContext&) {
+                  .child(custom(holdsRifle ? "hand well rifle"
+                                            : "hand well empty",
+                                [holdsRifle](SkCanvas& c,
+                                             const PaintContext&) {
                     const Ink ink{c};
                     for (int r = 0; r < 48; ++r)
                       ink.run(0, (float)r, 32, blk(0, 15));
