@@ -459,12 +459,13 @@ inline Element straightTile(SkColor4f tint, const Element& spatter,
   return box()
       .width(w)
       .height(h)
-      .shape([w, h](SkSize) {
-        SkPathBuilder p;
-        p.moveTo(0, h * 0.5f);
-        p.lineTo(w, h * 0.5f);
-        return p.detach();
-      })
+      .shape(keyedShape(std::tuple{w, h},
+                        [w, h](SkSize) {
+                          SkPathBuilder p;
+                          p.moveTo(0, h * 0.5f);
+                          p.lineTo(w, h * 0.5f);
+                          return p.detach();
+                        }))
       .stroke(std::move(br));
 }
 
@@ -511,13 +512,14 @@ inline Element elbowTile(float arm, float handed, SkColor4f tint,
   return box()
       .width(side)
       .height(side)
-      .shape([entry, exit, half](SkSize) {
-        SkPathBuilder p;
-        p.moveTo(entry);
-        p.lineTo(half, half);
-        p.lineTo(exit);
-        return p.detach();
-      })
+      .shape(keyedShape(std::tuple{entry.fX, entry.fY, exit.fX, exit.fY, half},
+                        [entry, exit, half](SkSize) {
+                          SkPathBuilder p;
+                          p.moveTo(entry);
+                          p.lineTo(half, half);
+                          p.lineTo(exit);
+                          return p.detach();
+                        }))
       .stroke(std::move(br));
 }
 
@@ -885,17 +887,20 @@ inline Element pageBadge() {
   Element e = box()
                   .width(g(11))
                   .height(g(13))
-                  .shape([](SkSize s) {
-                    SkPathBuilder p;
-                    const float w = s.width(), h = s.height(), c = w * 0.42f;
-                    p.moveTo(0, 0);
-                    p.lineTo(w - c, 0);
-                    p.lineTo(w, c);
-                    p.lineTo(w, h);
-                    p.lineTo(0, h);
-                    p.close();
-                    return p.detach();
-                  })
+                  .shape(keyedShape(
+                      std::string_view("page-badge"),
+                      [](SkSize s) {
+                        SkPathBuilder p;
+                        const float w = s.width(), h = s.height(),
+                                    c = w * 0.42f;
+                        p.moveTo(0, 0);
+                        p.lineTo(w - c, 0);
+                        p.lineTo(w, c);
+                        p.lineTo(w, h);
+                        p.lineTo(0, h);
+                        p.close();
+                        return p.detach();
+                      }))
                   .fill(Fill::color(hex(0xD9E8C6)));
   e.stroke(PathFormat{.width = g(1), .strokeFill = Fill::color(hex(0x2A3A1E))});
   e.overlay(lines::Hatch{.strokeFill = Fill::color(hex(0x5A7A46, 0.75f)),
@@ -1364,11 +1369,13 @@ struct Thaumonomicon : sketch::Sketch {
     const float in = g(9);
     return box()
         .inset(0)
-        .shape([in](SkSize s) {
-          SkPathBuilder p;
-          p.addRect(SkRect::MakeLTRB(in, in, s.width() - in, s.height() - in));
-          return p.detach();
-        })
+        .shape(keyedShape(in,
+                          [in](SkSize s) {
+                            SkPathBuilder p;
+                            p.addRect(SkRect::MakeLTRB(in, in, s.width() - in,
+                                                       s.height() - in));
+                            return p.detach();
+                          }))
         // Bisector, spelled out even though it is the default. edgeEl() needs
         // Outgoing because its elbow art is drawn along the outgoing leg and a
         // 2x2 route is all corner; this corner art is a rotationally forgiving
@@ -1389,19 +1396,20 @@ struct Thaumonomicon : sketch::Sketch {
    *  doubled rule whose inner line is dotted. Not a rounded rect anywhere. */
   static Element innerRule() {
     const float m = g(22), cut = g(26);
-    Element e = box().inset(0).shape([m, cut](SkSize s) {
-      const float l = m, t = m, r = s.width() - m, b = s.height() - m;
-      SkPathBuilder p;
-      p.moveTo(l + cut, t);
-      p.lineTo(r - cut, t);
-      p.moveTo(r, t + cut);
-      p.lineTo(r, b - cut);
-      p.moveTo(r - cut, b);
-      p.lineTo(l + cut, b);
-      p.moveTo(l, b - cut);
-      p.lineTo(l, t + cut);
-      return p.detach();
-    });
+    Element e = box().inset(0).shape(keyedShape(
+        std::tuple{m, cut}, [m, cut](SkSize s) {
+          const float l = m, t = m, r = s.width() - m, b = s.height() - m;
+          SkPathBuilder p;
+          p.moveTo(l + cut, t);
+          p.lineTo(r - cut, t);
+          p.moveTo(r, t + cut);
+          p.lineTo(r, b - cut);
+          p.moveTo(r - cut, b);
+          p.lineTo(l + cut, b);
+          p.moveTo(l, b - cut);
+          p.lineTo(l, t + cut);
+          return p.detach();
+        }));
     Brush br;
     lines::Line outer;
     outer.width = g(1.2f);

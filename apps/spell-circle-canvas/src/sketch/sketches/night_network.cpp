@@ -406,17 +406,19 @@ struct NightNetwork final : sketch::Sketch {
         // stamps can't follow this curvature continuously ----
         .child(box()
                    .inset(58, 452, nn::kW - 430, nn::kH - 548)
-                   .shape([](SkSize sz) {
-                     SkPathBuilder b;
-                     b.moveTo(0, sz.height() * 0.72f);
-                     b.cubicTo(sz.width() * 0.24f, sz.height() * -0.25f,
-                               sz.width() * 0.40f, sz.height() * 1.30f,
-                               sz.width() * 0.64f, sz.height() * 0.42f);
-                     b.cubicTo(sz.width() * 0.80f, sz.height() * -0.15f,
-                               sz.width() * 0.90f, sz.height() * 0.75f,
-                               sz.width() * 1.0f, sz.height() * 0.35f);
-                     return b.detach();
-                   })
+                   .shape(keyedShape(
+                       std::string_view("vine"),
+                       [](SkSize sz) {
+                         SkPathBuilder b;
+                         b.moveTo(0, sz.height() * 0.72f);
+                         b.cubicTo(sz.width() * 0.24f, sz.height() * -0.25f,
+                                   sz.width() * 0.40f, sz.height() * 1.30f,
+                                   sz.width() * 0.64f, sz.height() * 0.42f);
+                         b.cubicTo(sz.width() * 0.80f, sz.height() * -0.15f,
+                                   sz.width() * 0.90f, sz.height() * 0.75f,
+                                   sz.width() * 1.0f, sz.height() * 0.35f);
+                         return b.detach();
+                       }))
                    .foreground(brush::artAlong(nn::vineArt(), 14, 5))
                    .zIndex(3))
         // ---- the saltmarsh: Sk2D lattice hatch on a blob field ----

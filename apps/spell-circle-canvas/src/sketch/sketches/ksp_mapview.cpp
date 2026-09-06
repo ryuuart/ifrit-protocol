@@ -908,12 +908,13 @@ struct KspMapView : sketch::Sketch {
       const SkPoint b{hub.fX + std::cos(r2) * 31, hub.fY + std::sin(r2) * 31};
       return box()
           .inset(0)
-          .shape([a, b](SkSize) {
-            SkPathBuilder p;
-            p.moveTo(a);
-            p.lineTo(b);
-            return p.detach();
-          })
+          .shape(keyedShape(std::tuple{a.fX, a.fY, b.fX, b.fY},
+                            [a, b](SkSize) {
+                              SkPathBuilder p;
+                              p.moveTo(a);
+                              p.lineTo(b);
+                              return p.detach();
+                            }))
           .stroke(PathFormat{.width = 2.0f,
                              .strokeFill = Fill::color(alpha(c, 0.75f))});
     };
@@ -943,12 +944,14 @@ struct KspMapView : sketch::Sketch {
     g.child(
         box()
             .inset(0)
-            .shape([hub, pro](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(hub);
-              b.lineTo(hub.fX + pro.fX * 96, hub.fY + pro.fY * 96);
-              return b.detach();
-            })
+            .shape(keyedShape(
+                std::tuple{hub.fX, hub.fY, pro.fX, pro.fY},
+                [hub, pro](SkSize) {
+                  SkPathBuilder b;
+                  b.moveTo(hub);
+                  b.lineTo(hub.fX + pro.fX * 96, hub.fY + pro.fY * 96);
+                  return b.detach();
+                }))
             .stroke(lines::Line{.width = 1.2f,
                                 .fill = Fill::color(alpha(kProgradeC, 0.5f)),
                                 .dashIntervals = {4, 4}}));
@@ -1546,12 +1549,14 @@ struct KspMapView : sketch::Sketch {
               .clip()
               .child(box()
                          .inset(0)
-                         .shape([](SkSize s) {
-                           SkPathBuilder b;
-                           b.moveTo(4, s.height() * 0.5f);
-                           b.lineTo(s.width() - 4, s.height() * 0.5f);
-                           return b.detach();
-                         })
+                         .shape(keyedShape(
+                             std::string_view("gauge-rail"),
+                             [](SkSize s) {
+                               SkPathBuilder b;
+                               b.moveTo(4, s.height() * 0.5f);
+                               b.lineTo(s.width() - 4, s.height() * 0.5f);
+                               return b.detach();
+                             }))
                          .stroke(lines::Line{.width = 0.8f,
                                              .fill = Fill::color(hex(0x6C767C)),
                                              .tickSpacing = 6.0f,
@@ -1649,12 +1654,15 @@ struct KspMapView : sketch::Sketch {
                    .clip()
                    .child(box()
                               .inset(0)
-                              .shape([](SkSize s) {
-                                SkPathBuilder b;
-                                b.moveTo(2, s.height() * 0.62f);
-                                b.lineTo(s.width() - 2, s.height() * 0.62f);
-                                return b.detach();
-                              })
+                              .shape(keyedShape(
+                                  std::string_view("atmosphere-rail"),
+                                  [](SkSize s) {
+                                    SkPathBuilder b;
+                                    b.moveTo(2, s.height() * 0.62f);
+                                    b.lineTo(s.width() - 2,
+                                             s.height() * 0.62f);
+                                    return b.detach();
+                                  }))
                               .stroke(lines::Line{
                                   .width = 0.9f,
                                   .fill = Fill::color(hex(0xE8F4FA, 0.85f)),

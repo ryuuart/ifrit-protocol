@@ -319,14 +319,17 @@ Element sectorBox(SkPoint c, float r, float startDeg, float sweepDeg) {
   const SkPoint centre{c.fX - bounds.left(), c.fY - bounds.top()};
   return box()
       .rect(bounds)
-      .shape([=](SkSize) {
-        SkPathBuilder b;
-        b.moveTo(centre);
-        b.arcTo(SkRect::MakeXYWH(centre.fX - r, centre.fY - r, 2 * r, 2 * r),
+      .shape(keyedShape(
+          std::tuple{centre.fX, centre.fY, r, startDeg, sweepDeg},
+          [centre, r, startDeg, sweepDeg](SkSize) {
+            SkPathBuilder b;
+            b.moveTo(centre);
+            b.arcTo(
+                SkRect::MakeXYWH(centre.fX - r, centre.fY - r, 2 * r, 2 * r),
                 startDeg, sweepDeg, false);
-        b.close();
-        return b.detach();
-      })
+            b.close();
+            return b.detach();
+          }))
       .transformOriginPx(centre);
 }
 
@@ -571,7 +574,10 @@ struct NightingaleCoxcomb : sketch::Sketch {
                    .cache(Cache::Texture));
 
     // ---- the reverse page showing through (custom leaf, raw Skia) ----
-    root.child(custom([this](SkCanvas& canvas, const PaintContext&) {
+    // The verso title never changes and the face is resolved before the
+    // tree is described, so the program is named and the node settles.
+    root.child(custom(std::string_view("verso-title"),
+                      [this](SkCanvas& canvas, const PaintContext&) {
                  if (!faceDisplay) return;
                  SkFont f(faceDisplay, 46);
                  SkPaint p;
@@ -582,7 +588,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
                  canvas.scale(-1, 1);
                  canvas.drawString("ENGLAND", 0, 0, f, p);
                  canvas.restore();
-               }).inset(0));
+                      }).inset(0));
 
     // ---- the plate mark: the physical impression of the copper ------
     root.child(box()
@@ -739,13 +745,14 @@ struct NightingaleCoxcomb : sketch::Sketch {
                    .inset(0)
                    .key("leader")
                    .fill(Fill::none())
-                   .shape([](SkSize) {
-                     SkPathBuilder p;
-                     p.moveTo(202, 398);
-                     p.lineTo(614, 522);
-                     p.lineTo(1024, 374);
-                     return p.detach();
-                   })
+                   .shape(keyedShape(std::string_view("leader"),
+                                     [](SkSize) {
+                                       SkPathBuilder p;
+                                       p.moveTo(202, 398);
+                                       p.lineTo(614, 522);
+                                       p.lineTo(1024, 374);
+                                       return p.detach();
+                                     }))
                    .stroke(spans::upTo(animate(
                                from(0.0f).to(1.0f),
                                ramp(tLeader * 1000, 620, ch::easeOutQuad))),
