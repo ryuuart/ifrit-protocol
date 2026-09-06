@@ -73,15 +73,18 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigildata/scale/Scale.h>
+#include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilio/IO.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -102,6 +105,7 @@
 #include <vector>
 
 namespace arrange = sigil::geometry::arrange;
+namespace data = sigil::data;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace motion = sigil::motion;
@@ -147,7 +151,16 @@ constexpr SkColor4f kGreyInk = hex(0x241f19);
 
 constexpr float kW = 1900.0f;
 constexpr float kH = 1032.0f;
-constexpr float kK = 17.0f;  // px per sqrt(rate); ONE scale for both wheels
+// ONE SCALE FOR BOTH WHEELS, and the plate's whole argument: a wedge's
+// AREA is its death rate, so the radius goes as the root of the rate.
+// A rate of 1 per 1000 stands 17 px off the centre and every other
+// follows from that; both diagrams read against the same rule, which is
+// what lets the second year be compared with the first at a glance.
+const data::Scale kRadius{
+    .domain = {0, 1}, .range = {0, 17}, .transform = data::Transform::Sqrt};
+
+/** A death rate as a radius in px. */
+float radiusOf(float rate) { return (float)kRadius(rate); }
 // The paper sliver between two blue wedges, in degrees of the 30 deg pitch.
 constexpr float kBlueGapDeg = 0.9f;
 // How far a radial runs, as a fraction of the wheel's own rim. On the
@@ -157,79 +170,46 @@ constexpr float kBlueGapDeg = 0.9f;
 constexpr float kSpokeReach = 0.24f;
 constexpr SkPoint kC1{1397, 386};  // Diagram 1 (right) — Apr 1854..Mar 1855
 constexpr SkPoint kC2{430, 384};   // Diagram 2 (left)  — Apr 1855..Mar 1856
-constexpr float kR1 = 543.7f;      // kK * sqrt(1022.8), Jan 1855 disease
-constexpr float kR2 = 267.5f;      // kK * sqrt(247.6),  Jun 1855 disease
+constexpr float kR1 = 543.7f;      // radiusOf(1022.8), Jan 1855 disease
+constexpr float kR2 = 267.5f;      // radiusOf(247.6),  Jun 1855 disease
 
 // ---------------------------------------------------------------------------
-// the data (HistData::Nightingale). Listed in WHEEL order: the engraver's
-// seam is the June/July boundary at 12 o'clock, so the wheel runs
-// July..June even though the report year runs April..March.
+// the data (HistData::Nightingale) and the legend, read from the files
+// beside this sketch. The rows are in WHEEL order: the engraver's seam is
+// the June/July boundary at 12 o'clock, so the wheel runs July..June even
+// though the report year runs April..March.
 
 struct Month {
-  const char* label;             // outer label line
-  const char* line2;             // inner label line ("" = single line)
+  std::string label;             // the outer label line
+  std::string line2;             // the inner one, empty for a single line
   float disease, wounds, other;  // annual rate per 1000
 };
 
-// bearing = degrees clockwise from 12 o'clock; month i spans [30i, 30i+30]
-const std::array<Month, 12> kD1 = {{
-    {"JULY", "", 150.0f, 0.0f, 9.6f},             // Jul 1854
-    {"AUGUST", "", 328.5f, 0.4f, 11.9f},          // Aug 1854
-    {"SEPTEMBER", "", 312.2f, 32.1f, 27.7f},      // Sep 1854
-    {"OCTOBER", "", 197.0f, 51.7f, 50.1f},        // Oct 1854
-    {"NOVEMBER", "", 340.6f, 115.8f, 42.8f},      // Nov 1854
-    {"DECEMBER", "", 631.5f, 41.7f, 48.0f},       // Dec 1854
-    {"JANUARY", "1855", 1022.8f, 30.7f, 120.0f},  // Jan 1855 — the maximum
-    {"FEBRUARY", "", 822.8f, 16.3f, 140.1f},      // Feb 1855
-    {"MARCH", "1855.", 480.3f, 12.8f, 68.6f},     // Mar 1855
-    {"APRIL", "1854", 1.4f, 0.0f, 7.0f},          // Apr 1854
-    {"MAY", "", 6.2f, 0.0f, 4.6f},                // May 1854
-    {"JUNE", "", 4.7f, 0.0f, 2.5f},               // Jun 1854
-}};
-
-const std::array<Month, 12> kD2 = {{
-    {"JULY", "", 107.5f, 37.7f, 9.3f},        // Jul 1855
-    {"AUGUST", "", 129.9f, 44.1f, 6.7f},      // Aug 1855
-    {"SEPTEMBER", "", 47.5f, 69.4f, 5.0f},    // Sep 1855
-    {"OCTOBER", "", 32.8f, 13.6f, 4.6f},      // Oct 1855
-    {"NOVEMBER", "", 56.4f, 10.5f, 10.1f},    // Nov 1855
-    {"DECEMBER", "", 25.3f, 5.0f, 7.8f},      // Dec 1855
-    {"JANUARY", "", 11.4f, 0.5f, 13.0f},      // Jan 1856
-    {"FEBRUARY", "", 6.6f, 0.0f, 5.2f},       // Feb 1856
-    {"MARCH", "", 3.9f, 0.0f, 9.1f},          // Mar 1856
-    {"APRIL", "1855", 177.5f, 17.9f, 21.2f},  // Apr 1855
-    {"MAY", "", 171.8f, 16.6f, 12.5f},        // May 1855
-    {"JUNE", "", 247.6f, 64.5f, 9.6f},        // Jun 1855 — this wheel's maximum
-}};
-
-// ---------------------------------------------------------------------------
-// the legend, transcribed verbatim off the plate (period spelling
-// "Preventible" kept). Continuation lines carry the hanging indent.
-
 struct LegendLine {
   int indent;
-  const char* text;
+  std::string text;
 };
-const std::array<LegendLine, 12> kLegendText = {{
-    {0, "The Areas of the blue, red, & black wedges are each measured from"},
-    {1, "the centre as the common vertex."},
-    {0,
-     "The blue wedges measured from the centre of the circle represent area"},
-    {1,
-     "for area the deaths from Preventible or Mitigable Zymotic diseases; the"},
-    {1, "red wedges measured from the centre the deaths from wounds; & the"},
-    {1,
-     "black wedges measured from the centre the deaths from all other causes."},
-    {0,
-     "The black line across the red triangle in Novr. 1854 marks the boundary"},
-    {1, "of the deaths from all other causes during the month."},
-    {0,
-     "In October 1854, & April 1855, the black area coincides with the red;"},
-    {1, "in January & February 1855, the blue coincides with the black."},
-    {0,
-     "The entire areas may be compared by following the blue, the red & the"},
-    {1, "black lines enclosing them."},
-}};
+
+/** The twelve months of one wheel, in the order the file wrote them. */
+std::vector<Month> readWheel(const data::Table& t, double wheel) {
+  const auto which = t.column<double>("wheel");
+  const auto label = t.column<std::string>("label");
+  const auto disease = t.column<double>("disease");
+  const auto wounds = t.column<double>("wounds");
+  const auto other = t.column<double>("other");
+  std::vector<Month> out;
+  for (size_t i = 0; i < which.size(); ++i) {
+    if (which[i] != wheel) continue;
+    // A label is one field of one or two lines: the month, and under it
+    // the year where the plate letters one.
+    const size_t brk = label[i].find('\n');
+    out.push_back(
+        {label[i].substr(0, brk),
+         brk == std::string::npos ? std::string() : label[i].substr(brk + 1),
+         (float)disease[i], (float)wounds[i], (float)other[i]});
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -241,9 +221,9 @@ constexpr float kDeg = 3.14159265358979f / 180.0f;
 // top and reads round to the right. `radius` is 1 so px radii can be passed
 // straight to `px()`; every wheel makes its own frame with `about()`.
 constexpr path::Frame kPlate{.centre = {0, 0},
-                            .radius = 1.0f,
-                            .zero = path::Zero::North,
-                            .sense = path::Sense::CW};
+                             .radius = 1.0f,
+                             .zero = path::Zero::North,
+                             .sense = path::Sense::CW};
 
 /** Bearing (deg clockwise from 12 o'clock) + radius -> canvas point. */
 SkPoint polar(SkPoint c, float radius, float bearingDeg) {
@@ -321,17 +301,16 @@ Element sectorBox(SkPoint c, float r, float startDeg, float sweepDeg) {
   const SkPoint centre{c.fX - bounds.left(), c.fY - bounds.top()};
   return box()
       .rect(bounds)
-      .shape(keyedShape(
-          std::tuple{centre.fX, centre.fY, r, startDeg, sweepDeg},
-          [centre, r, startDeg, sweepDeg](SkSize) {
-            SkPathBuilder b;
-            b.moveTo(centre);
-            b.arcTo(
-                SkRect::MakeXYWH(centre.fX - r, centre.fY - r, 2 * r, 2 * r),
-                startDeg, sweepDeg, false);
-            b.close();
-            return b.detach();
-          }))
+      .shape(keyedShape(std::tuple{centre.fX, centre.fY, r, startDeg, sweepDeg},
+                        [centre, r, startDeg, sweepDeg](SkSize) {
+                          SkPathBuilder b;
+                          b.moveTo(centre);
+                          b.arcTo(SkRect::MakeXYWH(centre.fX - r, centre.fY - r,
+                                                   2 * r, 2 * r),
+                                  startDeg, sweepDeg, false);
+                          b.close();
+                          return b.detach();
+                        }))
       .transformOriginPx(centre);
 }
 
@@ -420,18 +399,18 @@ struct NightingaleCoxcomb : sketch::Sketch {
         .width(Dim(2 * box))
         .height(Dim(2 * box))
         .centerAt(centre)
-        .onPath(TextPath{.path = spokeBaseline(bearingDeg,
-                                               (radius - half) / box,
-                                               (radius + half) / box),
-                         .at = 0.5f,
-                         .align = TextPath::Align::Center,
-                         .autoFlip = false,
-                         .orient = TextPath::Orient::Tangent})
+        .onPath(
+            TextPath{.path = spokeBaseline(bearingDeg, (radius - half) / box,
+                                           (radius + half) / box),
+                     .at = 0.5f,
+                     .align = TextPath::Align::Center,
+                     .autoFlip = false,
+                     .orient = TextPath::Orient::Tangent})
         .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
   }
 
   // ------------------------------------------------------------------
-  Element wheel(sketch::SketchContext& ctx, const std::array<Month, 12>& data,
+  Element wheel(sketch::SketchContext& ctx, const std::vector<Month>& data,
                 SkPoint centre, float rMax, float startSec, float stepSec,
                 float spokeSec, int flashBase, const char* tag) {
     (void)ctx;
@@ -444,7 +423,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // across the empty spring quadrant.
     auto rimOf = [&](int m) {
       const Month& d = data[(m % 12 + 12) % 12];
-      return kK * std::sqrt(std::max({d.disease, d.wounds, d.other, 0.1f}));
+      return radiusOf(std::max({d.disease, d.wounds, d.other, 0.1f}));
     };
     for (int i = 0; i < 12; ++i) {
       const float len =
@@ -481,7 +460,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
       const float delay = (startSec + stepSec * (float)m) * 1000.0f;
       for (const Band& band : bands) {
         if (band.rate <= 0.0f) continue;
-        const float r = kK * std::sqrt(band.rate);
+        const float r = radiusOf(band.rate);
         // THE BLUE WEDGES CARRY NO BORDER. On the stone the tint simply
         // stops, and adjacent blue wedges are parted by a sliver of paper
         // at their outer ends — an ANGULAR gap, so it opens toward the
@@ -520,8 +499,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
       // the flash the index needle rings out of each month's rim
       const float rim =
-          kK * std::sqrt(std::max({mo.disease, mo.wounds, mo.other, 1.0f})) +
-          10.0f;
+          radiusOf(std::max({mo.disease, mo.wounds, mo.other, 1.0f})) + 10.0f;
       wheelBox.child(discBox(local, rim)
                          .key(std::string(tag) + "flash" + std::to_string(m))
                          .shape(shapes::arc(skia0 + 1.0f, 28.0f))
@@ -578,19 +556,20 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // ---- the reverse page showing through (custom leaf, raw Skia) ----
     // The verso title never changes and the face is resolved before the
     // tree is described, so the program is named and the node settles.
-    root.child(custom(std::string_view("verso-title"),
-                      [this](SkCanvas& canvas, const PaintContext&) {
-                 if (!faceDisplay) return;
-                 SkFont f(faceDisplay, 46);
-                 SkPaint p;
-                 p.setAntiAlias(true);
-                 p.setColor4f(hex(0x241c15, 0.055f), nullptr);
-                 canvas.save();
-                 canvas.translate(760, 118);  // mirrored: the verso title
-                 canvas.scale(-1, 1);
-                 canvas.drawString("ENGLAND", 0, 0, f, p);
-                 canvas.restore();
-                      }).inset(0));
+    root.child(
+        custom(std::string_view("verso-title"), [this](SkCanvas& canvas,
+                                                       const PaintContext&) {
+          if (!faceDisplay) return;
+          SkFont f(faceDisplay, 46);
+          SkPaint p;
+          p.setAntiAlias(true);
+          p.setColor4f(hex(0x241c15, 0.055f), nullptr);
+          canvas.save();
+          canvas.translate(760, 118);  // mirrored: the verso title
+          canvas.scale(-1, 1);
+          canvas.drawString("ENGLAND", 0, 0, f, p);
+          canvas.restore();
+        }).inset(0));
 
     // ---- the plate mark: the physical impression of the copper ------
     root.child(box()
@@ -611,10 +590,12 @@ struct NightingaleCoxcomb : sketch::Sketch {
 
     // ---- title block -------------------------------------------------
     const auto title1 = kit::emboldened(
-        weave::textStyle({.face = faceDisplay, .size = 39, .color = kInk, .track = 0.8f}),
+        weave::textStyle(
+            {.face = faceDisplay, .size = 39, .color = kInk, .track = 0.8f}),
         2.0f, kInk);
     const auto title2 = kit::emboldened(
-        weave::textStyle({.face = faceGrotesque, .size = 27, .color = kInk, .track = 0.4f}),
+        weave::textStyle(
+            {.face = faceGrotesque, .size = 27, .color = kInk, .track = 0.4f}),
         0.9f, kInk);
 
     Track t1{.effect = fx::typeOn(),
@@ -653,8 +634,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // ---- the two diagram captions -----------------------------------
     const auto capNum =
         weave::textStyle({.face = faceGrotesque, .size = 24, .color = kInk});
-    const auto capText =
-        weave::textStyle({.face = faceGrotesque, .size = 21, .color = kInk, .track = 0.4f});
+    const auto capText = weave::textStyle(
+        {.face = faceGrotesque, .size = 21, .color = kInk, .track = 0.4f});
     auto caption = [&](const char* num, const char* label, float cx, float numX,
                        float startSec, const char* key) {
       root.child(text(toU8(num), capNum)
@@ -682,15 +663,16 @@ struct NightingaleCoxcomb : sketch::Sketch {
     caption("2.", "APRIL 1855 to MARCH 1856.", 413, 394, tCap2, "cap2");
 
     // ---- the wheels --------------------------------------------------
-    root.child(wheel(ctx, kD1, kC1, kR1, tWedge1, 0.115f, tSpoke1, 0, "a"));
-    root.child(wheel(ctx, kD2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b"));
+    root.child(wheel(ctx, d1, kC1, kR1, tWedge1, 0.115f, tSpoke1, 0, "a"));
+    root.child(wheel(ctx, d2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b"));
 
     // ---- the ring labels: each hugging its own wedge's rim ----------
     const auto labelStyle = kit::emboldened(
-        weave::textStyle({.face = faceLabel, .size = 20, .color = kInk, .track = 0.4f}),
+        weave::textStyle(
+            {.face = faceLabel, .size = 20, .color = kInk, .track = 0.4f}),
         0.35f, kInk);
-    const auto smallLabel =
-        weave::textStyle({.face = faceLabel, .size = 12, .color = kInk, .track = 0.0f});
+    const auto smallLabel = weave::textStyle(
+        {.face = faceLabel, .size = 12, .color = kInk, .track = 0.0f});
     // The two campaign annotations are tracked wider than the months.
     // A run on a path is shaped once, so tracking is part of the shaping
     // and belongs to the style rather than to the call.
@@ -702,31 +684,29 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // they sit on, so the ring cannot close tighter than 12 * (widest label)
     // / 2pi. That is why the plate sets the small left wheel in a smaller
     // face — the same constraint, solved the same way.
-    auto ringLabels = [&](const std::array<Month, 12>& data, SkPoint centre,
+    auto ringLabels = [&](const std::vector<Month>& data, SkPoint centre,
                           float floorR, const weave::TextStyle& style,
                           float gap, float step, float startSec,
                           const char* tag) {
       for (int m = 0; m < 12; ++m) {
         const Month& mo = data[m];
         const float rim =
-            kK * std::sqrt(std::max({mo.disease, mo.wounds, mo.other, 0.5f}));
+            radiusOf(std::max({mo.disease, mo.wounds, mo.other, 0.5f}));
         const float base = std::max(rim + gap, floorR);
         const float bearing = (float)m * 30.0f + 15.0f;
         const float delay = (startSec + (float)m * 0.028f) * 1000.0f;
-        const bool twoLines = mo.line2[0] != '\0';
-        labels.push_back(ringRun(style, centre, mo.label, bearing,
-                                 base + (twoLines ? step : 0.0f), delay,
-                                 std::string(tag) + "L" + std::to_string(m) +
-                                     "a"));
+        const bool twoLines = !mo.line2.empty();
+        labels.push_back(ringRun(
+            style, centre, mo.label, bearing, base + (twoLines ? step : 0.0f),
+            delay, std::string(tag) + "L" + std::to_string(m) + "a"));
         if (twoLines)
-          labels.push_back(ringRun(style, centre, mo.line2, bearing, base,
-                                   delay + 60.0f,
-                                   std::string(tag) + "L" +
-                                       std::to_string(m) + "b"));
+          labels.push_back(
+              ringRun(style, centre, mo.line2, bearing, base, delay + 60.0f,
+                      std::string(tag) + "L" + std::to_string(m) + "b"));
       }
     };
-    ringLabels(kD1, kC1, 172.0f, labelStyle, 26.0f, 24.0f, tLabel1, "a");
-    ringLabels(kD2, kC2, 160.0f, smallLabel, 14.0f, 14.0f, tLabel2, "b");
+    ringLabels(d1, kC1, 172.0f, labelStyle, 26.0f, 24.0f, tLabel1, "a");
+    ringLabels(d2, kC2, 160.0f, smallLabel, 14.0f, 14.0f, tLabel2, "b");
 
     // the campaign annotations — set RADIALLY along their spoke
     labels.push_back(spokeRun(campaign, kC1, "BULGARIA", 358.0f, 150.0f,
@@ -767,26 +747,28 @@ struct NightingaleCoxcomb : sketch::Sketch {
     // the SCHEDULE rides the engine. The container's staggerChildren is
     // the 200 ms per-line ladder, and each line's pen runs for exactly
     // its cascade's span, so the writing speed is the cascade's own.
-    const auto script = weave::textStyle({.face = faceScript, .size = 27, .color = kInk});
+    const auto script =
+        weave::textStyle({.face = faceScript, .size = 27, .color = kInk});
     const motion::Spread penStagger{.amountMs = 620, .durationMs = 30};
     Element legend = stack().inset(0).staggerChildren(200ms);
-    for (size_t i = 0; i < kLegendText.size(); ++i) {
+    for (size_t i = 0; i < legendText.size(); ++i) {
       Track pen{.effect = fx::typeOn(),
                 .stagger = penStagger,
                 .progress = animate(
                     from(0.0f).to(1.0f),
                     ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
-      legend.child(text(toU8(kLegendText[i].text), script)
+      legend.child(text(toU8(legendText[i].text), script)
                        .key("leg" + std::to_string(i))
                        .fx(std::move(pen))
-                       .left(171.0f + (float)kLegendText[i].indent * 22.0f)
+                       .left(171.0f + (float)legendText[i].indent * 22.0f)
                        .top(628.0f + (float)i * 30.7f));
     }
     root.child(std::move(legend));
 
     // ---- printer's imprint ------------------------------------------
     root.child(text(toU8("Harrison & Sons, St. Martin's Lane."),
-                    weave::textStyle({.face = faceScript, .size = 20, .color = kInkSoft}))
+                    weave::textStyle(
+                        {.face = faceScript, .size = 20, .color = kInkSoft}))
                    .key("imprint")
                    .centerAt({1712, 1004})
                    .opacity(animate(from(0.0f).to(1.0f),
@@ -800,7 +782,23 @@ struct NightingaleCoxcomb : sketch::Sketch {
   }
 
   // ------------------------------------------------------------------
+  std::vector<Month> d1, d2;
+  std::vector<LegendLine> legendText;
+
   void setup(sketch::SketchContext& ctx) override {
+    if (const auto deaths = ctx.assets.hub().load<data::Table>(
+            "res://data/nightingale/deaths.csv")) {
+      d1 = readWheel(*deaths, 1);
+      d2 = readWheel(*deaths, 2);
+    }
+    if (const auto legend = ctx.assets.hub().load<data::Table>(
+            "res://data/nightingale/legend.csv")) {
+      const auto indent = legend->column<double>("indent");
+      const auto text = legend->column<std::string>("text");
+      for (size_t i = 0; i < indent.size(); ++i)
+        legendText.push_back({(int)indent[i], text[i]});
+    }
+
     // The still frame this sketch photographs itself at: the first clean
     // instant after the second needle sweep has faded out (tNeedleEnd plus
     // its 0.45 s fade), by which point every entrance has finished and the
@@ -842,12 +840,12 @@ struct NightingaleCoxcomb : sketch::Sketch {
       // four times across the same wheel and the repeat stops being
       // findable; the mark count rises with the area so the density is
       // the density it was.
-      grainOut = patterns::speckle(128, fine * 10, 0.25f, 0.66f, {skia::toColor(ink)});
+      grainOut =
+          patterns::speckle(128, fine * 10, 0.25f, 0.66f, {skia::toColor(ink)});
       grainOut.seed(seed);
-      Pattern blot =
-          patterns::speckle(320, coarse * 8, 1.8f, 5.0f,
-                            {skia::toColor(
-                                SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f})});
+      Pattern blot = patterns::speckle(
+          320, coarse * 8, 1.8f, 5.0f,
+          {skia::toColor(SkColor4f{ink.fR, ink.fG, ink.fB, 0.12f})});
       blot.seed(seed * 7 + 3);
       return Paint::blend(
           {{Paint::solid(wash), SkBlendMode::kSrc},
