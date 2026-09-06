@@ -77,6 +77,7 @@ set(SIGIL_SKETCH_PUBLIC
   SigilWorldLight
   SigilDraw EnTT::EnTT Boost::container)
 set(SIGIL_SKETCH_PRIVATE
+  SigilDataDecode
   SigilIOSource SigilCoreSchedule SigilImage SigilImageDecode
   SigilGeometryDevice SigilSkiaGraphite SigilVideoEncode SigilWeaveFonts)
 # The one WebEngine Ultralight permits in a process, lent to every sketch

@@ -3,6 +3,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
+#include <sigildata/decode/Decoders.h>
 #include <sigilio/hub/Network.h>
 
 #include <system_error>
@@ -38,6 +39,10 @@ std::string uriFor(std::string_view name) {
 
 Assets::Assets(std::filesystem::path root) : m_root(std::move(root)) {
   m_hub.mount("res://", m_root);
+  // A data file is a resource like an image is: with the decoders on,
+  // hub().load<Table>("res://data/x.csv") answers, cached and reloaded
+  // by the same machinery, and a sketch carries no literal table.
+  sigil::data::registerDecoders(m_hub);
   m_placeholder = makePlaceholder();
 }
 
