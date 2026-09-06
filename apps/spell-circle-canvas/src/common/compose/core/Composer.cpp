@@ -138,8 +138,7 @@ TextMetrics metrics(const sigil::weave::TextStyle& style,
   return out;
 }
 
-sigil::weave::TextStyle atCapHeight(sigil::weave::TextStyle style,
-                                    float capPx,
+sigil::weave::TextStyle atCapHeight(sigil::weave::TextStyle style, float capPx,
                                     sigil::weave::FontContext& fonts) {
   if (!(capPx > 0.0f) || !(style.shaping.fontSize > 0.0f)) return style;
   const TextMetrics m = metrics(style, fonts);
@@ -428,9 +427,8 @@ void Composer::draw(SkCanvas& canvas) {
   const bool gpuBacked =
       canvas.recorder() != nullptr || canvas.recordingContext() != nullptr;
   const Composer::PromotionPolicy effective =
-      (impl.promotionExplicit || !gpuBacked)
-          ? impl.autoPromote
-          : Composer::PromotionPolicy::Off;
+      (impl.promotionExplicit || !gpuBacked) ? impl.autoPromote
+                                             : Composer::PromotionPolicy::Off;
   if (effective != impl.autoPromoteEffective) {
     impl.autoPromoteEffective = effective;
     if (effective == Composer::PromotionPolicy::Off && impl.root) {
@@ -509,8 +507,7 @@ void Composer::draw(SkCanvas& canvas) {
       impl.view = material::skia::Effect::recipe(*impl.viewMaterial, surface);
     }
   }
-  const bool hasView =
-      impl.view.imageFilter() || impl.view.colorFilter();
+  const bool hasView = impl.view.imageFilter() || impl.view.colorFilter();
   if (hasView) {
     SkPaint viewPaint;
     viewPaint.setImageFilter(impl.view.imageFilter());
@@ -578,8 +575,7 @@ bool Composer::autoTexturePromotion() const {
 }
 
 void Composer::setBakeDensity(float devicePixelsPerUnit) {
-  const float density =
-      devicePixelsPerUnit > 0 ? devicePixelsPerUnit : 0.0f;
+  const float density = devicePixelsPerUnit > 0 ? devicePixelsPerUnit : 0.0f;
   if (density == m_impl->bakeDensity) return;
   m_impl->bakeDensity = density;
   // Every bake standing was taken at the old density, and none of them

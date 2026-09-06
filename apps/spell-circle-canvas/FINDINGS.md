@@ -57,73 +57,91 @@ float (`penrose_paving`).
 Assert once fixed: the converted sketch's placement is `arrange::`, and
 its plate is rebased in the same commit that converts it.
 
-## Automatic texture promotion still moves 23 plates past one code value
+## Automatic texture promotion moves 84 of 161 plates past one code value
 
-`scripts/sigil.py plates --tier promotion` renders every scene with
-automatic texture promotion held off and again with it on and differences
-the pair. The rule the promoter is held to is now stated in
-`src/common/compose/README.md`: a promoted node paints the picture its
-live paint paints, within one code value per channel, and a scene that
-moves further is a defect in compose rather than a plate to rebase.
+`sigil.py plates --tier promotion` renders every scene twice on the CPU —
+once with promotion off, once EAGER (every node the promoter's rules
+admit, baked from its first frame) — and differences the pair. The rule
+is in `src/common/compose/README.md`: a promoted node paints the picture
+its live paint paints, within one code value per channel over transparent
+black and two where the bake lands on content, and a scene that moves
+further is a defect in compose rather than a plate to rebase.
 
-Over the twenty-five filed scenes, judged again on one binary with five
-jobs, twenty-three still move. Worst channel first:
+The eager policy is what makes these numbers a measurement rather than a
+floor: the cost rule is a stopwatch, so before it the tier reported
+whatever the machine's load happened to promote — nothing at all on an
+idle one. Every number below was taken on one binary, hashed either side
+of the run, five jobs, Release.
 
-    spacejam_1996 213 (mean 0.58, p99 11) · eva_magi_interior 189 ·
-    blur_falloff 70 · ksp_mapview 68 · lain_navi 62 · chladni_tab1 28 ·
-    ds2_bench 16 · thaumonomicon 13 · winamp_base 5 · twoadvanced_v4 5 ·
-    kumiko_asanoha 4 · sigillum_aemeth 3 · fallout2_charsheet 3 ·
-    vertigo_titles 3 · twoadvanced_v3 3 · aero desktop 2 ·
-    chevreul_circle 2 · daemon console 2 · floating_panels 2 ·
-    gerstner grid 2 · path_booleans 2 · pop_stamps 2 · thunder_fulu 2
+    161 scenes, 48 within one code value.
+    Two causes fixed → 77 within. Eighty-four still move.
 
-`eva_magi_deliberation` (253, and the only mean that moved) came within
-the rule when the ink clip stopped being computed in a recording's own
-space, which is a different defect: the UNPROMOTED render was the wrong
-one, losing whole blocks of every bake blitted inside a recording, and
-its plate was the picture of that. `world hud` reports 0 on this run.
+The worst that remain, max channel first:
 
-WHAT THE PROMOTER'S NUMBERS DEPEND ON. Promotion fires on a stopwatch —
-a node must cost more than a millisecond to replay for eight consecutive
-frames — so an idle machine promotes nothing and the tier reads 0 for
-every scene. Every number here was taken with the machine loaded, which
-is what five concurrent jobs do, and a scene's max moves by a few code
-values between runs because a different set of nodes crosses the bar.
-The tier is therefore a floor on the drift, never a measurement of it,
-and nothing headless can pin a scene until the promoter can be asked to
-promote everything it is allowed to.
-
-WHAT IS ESTABLISHED ABOUT `spacejam_1996`, the largest that is left, and
-the shape the rest are likely to share. A per-key kill switch on the
-promoter (temporary, not committed) attributes ALL of its difference to
-whole-subtree promotion: with every promotion refused the plate is byte
-identical to the held-off one, and with only the `starfield` node
-refused the difference collapses from 1.26 M pixels to 188 k, all of it
-inside the `table` node's own rect. The starfield's bake is taken at
-device rect 0,0,2400,3000 under a matrix identical to the live one —
-scale 1.875, translation zero, so not even an integer offset separates
-them — and its pixels still differ by up to 42 where the tile it samples
-is partially transparent, and not at all where the tile is opaque. The
-diff is a ring around every star, repeating once per 416 px tile: the
-same difference in every repeat of one image, which is a different read
-of that image rather than noise.
-
-Two cases in `core/test/ComposeTestKernel.cpp` pin the shape that does
-NOT reproduce it — a magnified tile of hard-edged marks under a
-promoted node, at a fractional host scale and over the plate's own
-warm-then-photograph path, both exact. So the next experiment is the
-node itself: dump the bake's PREMULTIPLIED pixels (a PNG round-trip
-loses them wherever alpha is partial, which is exactly where the
-difference is) and compare against the same node painted live into a
-raster surface of the same size.
+    flourish 244 · axis_ripple 237 · beethoven 228 · volatility_cost 228 ·
+    annotated_margin 221 · winamp_base 218 · paragraph_sheet 217 ·
+    dunhuang_star_chart 216 · mawarikomi 213 · ruby_kenten 211 ·
+    nightingale_coxcomb 206 · black_watch 199 · chaucer_astrolabe 199 ·
+    sigillum_aemeth 196 · chladni_tab1 195 · minard_1869 194 ·
+    twoadvanced_equipment 194 · stroke_atlas 190 · eva_magi_interior 190 ·
+    eva_magi_deliberation 188 · spacejam_1996 185 · eva_magi_defense 174 ·
+    lain_navi 164 · tile map 161 · twoadvanced_v4 143 ·
+    kumiko_asanoha 137 · twoadvanced_v3 128 · tategaki 119 ·
+    coverage_boundary 118 · y2k chrome 111 · cde_motif 102 ·
+    thunder_fulu 96 · cjk_rules 90 · encode_write 90 · half_float 90 ·
+    spacing_passes 90 · svg_silhouette 90 · substance_swatches 89 ·
+    env_lanes 87 · exact_tangent 87 · …and forty-three more at 87 or less
 
 `volatility_cost` is not a defect and wants an exclusion by name: the
 study DRAWS the runtime's own caching verdicts, so a promoted run is
-meant to read differently. It is left out of the list above.
+meant to read differently.
 
-Assert once fixed: `--tier promotion` reports every scene within one
-code value, and each cause gets a case in `compose_test` beside the six
-in `core/test/ComposeTestKernel.cpp` that already pin the rule.
+WHAT IS LEFT IS ALMOST ALL TYPE, and that is the next thing to find. On
+`half_float` (90) the difference is confined to the text — the title, the
+subtitle, the row of notes, every cell's label, the caption — and every
+picture on the sheet is byte identical. The differing pixels are glyph
+EDGES, tens of code values apart on a few of them, which is a glyph
+rasterized from a different mask rather than a glyph moved. The same
+number recurs across unrelated scenes (90 on five, 87 on eight), so it is
+one drawing shared by the sketch kit's chrome rather than a per-sketch
+accident.
+
+What has been ruled out, each pinned in `core/test/ComposeTestKernel.cpp`
+where it passes: a line of type promoted as a node of its own, over an
+opaque ground, at a plate's own view scale and fractional host
+translation, is exact — near the canvas origin and two thousand device
+pixels into it alike. So it is not the bake's integer offset, and not the
+magnitude the glyph positions are computed at.
+
+Assert once fixed: `--tier promotion` reports every scene within the rule,
+and the cause gets a case in `compose_test` beside the ones that already
+pin it.
+
+## Two causes of the same shape are fixed, and a third of it is open
+
+Both were the same defect: SOMETHING COMPOSITES WITH THE CANVAS AND THE
+LIBRARY COULD NOT SEE IT, so the node was baked and the blend resolved
+against the layer's transparent black.
+
+  · A `custom()` leaf is handed the canvas and may draw with any blend
+    mode, and `picture()` is built on one, so a recorded picture holding a
+    plus-blended glow was baked away from the page beneath it. Fixed: a
+    node holding a paint program of its own reads the backdrop
+    (`core/Volatility.cpp`). Twenty-nine scenes came within the rule.
+  · A decoration paints through a blend mode of its own — a soft-light
+    wash, an additive halo on a layered brush, a multiply scanline — and
+    nothing declared it. Fixed: `Decoration::blends()`, beside
+    `isAnimated()`, `bleed()`, `reach()` and `borrows()`. It closed the
+    hole; it moved no scene in the eight-scene subset it was measured on.
+
+THE THIRD IS OPEN AND IS THE SAME SHAPE. A `Brush`, a `Silhouette`, a
+`Material` program and a `LayerStyle`'s own painter are all callables the
+same argument reaches: any of them may draw through a blend mode this
+analysis cannot see. Only decorations and `custom()` declare it today.
+
+Assert once fixed: a node whose brush, silhouette or material program
+blends with the page is refused the automatic bake, and a case in
+`compose_test` renders it promoted and live and finds the two identical.
 
 ## chaucer_astrolabe cannot finish a plate under the sweep's ceiling
 

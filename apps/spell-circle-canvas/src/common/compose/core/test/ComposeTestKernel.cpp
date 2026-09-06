@@ -231,28 +231,30 @@ TEST(ComposeCaching, APhosphorBloomOnATextureNodeIsBakedWithIt) {
   // second frame blits the baked image and records nothing, and the
   // halo is in the blit.
   Host host;
-  host.composer.render(box().cache(Cache::None).child(
+  host.composer.render(
       box()
-          .key("glow")
-          .width(80)
-          .height(80)
-          .cache(Cache::Texture)
-          .effect(material::skia::Effect::phosphorBloom(9, 0.5f, 1.0f, 0.8f,
-                                                        -30.0f, 0.5f))
+          .cache(Cache::None)
           .child(box()
-                     .absolute()
-                     .left(28)
-                     .top(28)
-                     .width(24)
-                     .height(24)
-                     .fill(Fill::color({1, 0.7f, 0.1f, 1})))));
+                     .key("glow")
+                     .width(80)
+                     .height(80)
+                     .cache(Cache::Texture)
+                     .effect(material::skia::Effect::phosphorBloom(
+                         9, 0.5f, 1.0f, 0.8f, -30.0f, 0.5f))
+                     .child(box()
+                                .absolute()
+                                .left(28)
+                                .top(28)
+                                .width(24)
+                                .height(24)
+                                .fill(Fill::color({1, 0.7f, 0.1f, 1})))));
   host.frame();
   EXPECT_GE(host.composer.stats().texturesBaked, 1u);
   host.frame();
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
   EXPECT_EQ(host.composer.stats().texturesBaked, 0u);
   EXPECT_GT(SkColorGetR(host.pixel(57, 40)), 0u);  // the halo, 5 px out
-  EXPECT_EQ(host.pixel(4, 4), SK_ColorBLACK);       // and no further
+  EXPECT_EQ(host.pixel(4, 4), SK_ColorBLACK);      // and no further
 }
 
 TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
@@ -419,13 +421,9 @@ TEST(ComposeEffects, ALiveLayerEffectOverStaticContentFiltersOneBake) {
   Host host;
   choreograph::Output<float> maxSigma{1.0f};
   host.composer.render(profiledUnder(
-      box()
-          .key("racked")
-          .width(60)
-          .height(60)
-          .fill(green())
-          .effect(material::skia::Effect::blur(sigmaMap(), 14.0f)
-                      .uniform("maxSigma", &maxSigma))));
+      box().key("racked").width(60).height(60).fill(green()).effect(
+          material::skia::Effect::blur(sigmaMap(), 14.0f)
+              .uniform("maxSigma", &maxSigma))));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
       << "the content, baked once with the effect left out of it";
@@ -460,8 +458,12 @@ TEST(ComposeEffects, ALiveBackdropEffectIsNeverLiftedOffABake) {
   host.composer.render(
       stack()
           .child(box().inset(0).fill(red()))
-          .child(box().width(100).height(200).inset(0, 0, 0, 100).absolute().fill(
-              green()))
+          .child(box()
+                     .width(100)
+                     .height(200)
+                     .inset(0, 0, 0, 100)
+                     .absolute()
+                     .fill(green()))
           .child(box()
                      .key("well")
                      .width(80)
@@ -531,17 +533,18 @@ TEST(ComposeCache, ARecordedLeafKeepsItsBoundOpacityOutOfTheRecording) {
   // the layer, so the opacity is applied over the replay.
   Host host;
   ch::Output<float> gain{1.0f};
-  host.composer.render(profiledUnder(
-      stack().child(box().inset(0).fill(red())).child(box()
-                                                          .key("fading")
-                                                          .width(80)
-                                                          .height(80)
-                                                          .absolute()
-                                                          .left(10)
-                                                          .top(10)
-                                                          .fill(green())
-                                                          .cache(Cache::Picture)
-                                                          .opacity(&gain))));
+  host.composer.render(profiledUnder(stack()
+                                         .child(box().inset(0).fill(red()))
+                                         .child(box()
+                                                    .key("fading")
+                                                    .width(80)
+                                                    .height(80)
+                                                    .absolute()
+                                                    .left(10)
+                                                    .top(10)
+                                                    .fill(green())
+                                                    .cache(Cache::Picture)
+                                                    .opacity(&gain))));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 200u) << "opaque at gain 1";
   gain = 0.0f;
@@ -629,15 +632,15 @@ TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
   // being travelled, and quantizing it bakes the node again at every rung
   // it passes.
   Host host;
-  host.composer.render(profiledUnder(
-      box()
-          .key("wedge")
-          .width(80)
-          .height(80)
-          .fill(green())
-          .cache(Cache::Texture)
-          .scale(animate(motion::from(0.2f).to(1.0f),
-                         {std::chrono::milliseconds(400)}))));
+  host.composer.render(
+      profiledUnder(box()
+                        .key("wedge")
+                        .width(80)
+                        .height(80)
+                        .fill(green())
+                        .cache(Cache::Texture)
+                        .scale(animate(motion::from(0.2f).to(1.0f),
+                                       {std::chrono::milliseconds(400)}))));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
       << "the bake, taken at the scale the motion names";
@@ -759,9 +762,9 @@ PromotionDrift promotionDriftOf(const std::function<Element()>& page,
     // EAGER on the promoted side, so the case is about the promoter and
     // never about the machine: the cost rule is a stopwatch, and an idle
     // runner crosses no bar and would compare two live renders.
-    host.composer.setAutoTexturePromotion(
-        promotion ? Composer::PromotionPolicy::Eager
-                  : Composer::PromotionPolicy::Off);
+    host.composer.setAutoTexturePromotion(promotion
+                                              ? Composer::PromotionPolicy::Eager
+                                              : Composer::PromotionPolicy::Off);
     host.composer.setProfiling(true);
     host.composer.render(profiledUnder(page().key("page")));
     for (int i = 0; i < 30; ++i) {
@@ -897,14 +900,41 @@ namespace {
 Element eagerPage() {
   return box()
       .cache(Cache::None)
-      .child(box().key("plain").absolute().left(0).top(0).width(40).height(40)
+      .child(box()
+                 .key("plain")
+                 .absolute()
+                 .left(0)
+                 .top(0)
+                 .width(40)
+                 .height(40)
                  .fill(red()))
-      .child(box().key("faded").absolute().left(50).top(0).width(40).height(40)
-                 .fill(green()).opacity(0.5f))
-      .child(box().key("turned").absolute().left(100).top(0).width(40)
-                 .height(40).fill(blue()).rotate(7))
-      .child(box().key("recorded").absolute().left(0).top(50).width(40)
-                 .height(40).fill(red()).cache(Cache::Picture));
+      .child(box()
+                 .key("faded")
+                 .absolute()
+                 .left(50)
+                 .top(0)
+                 .width(40)
+                 .height(40)
+                 .fill(green())
+                 .opacity(0.5f))
+      .child(box()
+                 .key("turned")
+                 .absolute()
+                 .left(100)
+                 .top(0)
+                 .width(40)
+                 .height(40)
+                 .fill(blue())
+                 .rotate(7))
+      .child(box()
+                 .key("recorded")
+                 .absolute()
+                 .left(0)
+                 .top(50)
+                 .width(40)
+                 .height(40)
+                 .fill(red())
+                 .cache(Cache::Picture));
 }
 
 }  // namespace
@@ -1006,13 +1036,8 @@ TEST(ComposeCache, APromotedTileSamplesWhereTheLivePaintSampled) {
   Pattern pattern = hardTile();
   const auto page = [&] {
     Element out = promotablePage();
-    out.child(box()
-                  .absolute()
-                  .left(10)
-                  .top(10)
-                  .width(160)
-                  .height(160)
-                  .fill(pattern.material(fonts())));
+    out.child(box().absolute().left(10).top(10).width(160).height(160).fill(
+        pattern.material(fonts())));
     return out;
   };
   SkMatrix host = SkMatrix::Scale(1.875f, 1.875f);
@@ -1123,13 +1148,8 @@ TEST(ComposeCache, APromotedNodeCompositesAPartlyTransparentTileAsItDidLive) {
   Pattern pattern = softTile();
   const auto page = [&] {
     Element out = promotablePage();
-    out.child(box()
-                  .absolute()
-                  .left(10)
-                  .top(10)
-                  .width(160)
-                  .height(160)
-                  .fill(pattern.material(fonts())));
+    out.child(box().absolute().left(10).top(10).width(160).height(160).fill(
+        pattern.material(fonts())));
     return out;
   };
   SkMatrix host = SkMatrix::Scale(1.875f, 1.875f);
@@ -1153,13 +1173,8 @@ TEST(ComposeCache, AStillAtANewScaleResamplesATileWhereTheLivePaintDoes) {
   Pattern pattern = hardTile();
   const auto page = [&] {
     Element out = promotablePage();
-    out.child(box()
-                  .absolute()
-                  .left(10)
-                  .top(10)
-                  .width(160)
-                  .height(160)
-                  .fill(pattern.material(fonts())));
+    out.child(box().absolute().left(10).top(10).width(160).height(160).fill(
+        pattern.material(fonts())));
     return out;
   };
   bool promoted = false;
@@ -1189,15 +1204,17 @@ TEST(ComposeCache, APromotedEdgeThatLeavesTheCanvasLandsWhereItLandedLive) {
   // leaves its canvas on some side, so this is most of what a bake is ever
   // taken over, and every outline on the page moves with it.
   const auto turned = [] {
-    return profiledUnder(box().key("page").child(promotablePage()).child(
-        box()
-            .absolute()
-            .left(-30)
-            .top(-14)
-            .width(260)
-            .height(40)
-            .fill(blue())
-            .rotate(7)));
+    return profiledUnder(box()
+                             .key("page")
+                             .child(promotablePage())
+                             .child(box()
+                                        .absolute()
+                                        .left(-30)
+                                        .top(-14)
+                                        .width(260)
+                                        .height(40)
+                                        .fill(blue())
+                                        .rotate(7)));
   };
   const auto render = [&](bool promotion, bool* promotedOut) {
     Host host(200, 200);
@@ -1494,9 +1511,8 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
   ::testing::internal::CaptureStderr();
   {
     Host host;
-    EXPECT_EQ(
-        host.composer.declaredInputSpace(),
-        Composer::InputSpace::EncodedSRGB);  // the default IS the truth
+    EXPECT_EQ(host.composer.declaredInputSpace(),
+              Composer::InputSpace::EncodedSRGB);  // the default IS the truth
     host.composer.declareInputSpace(Composer::InputSpace::EncodedSRGB);
     host.composer.render(box().fill(red()));
     host.frame();
@@ -3016,8 +3032,8 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   SkPathBuilder rebuilt;
   rebuilt.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
   const SkPath other = rebuilt.detach();
-  host.composer.render(box().child(box().width(60).height(60).shape(
-      heldPath(other))));
+  host.composer.render(
+      box().child(box().width(60).height(60).shape(heldPath(other))));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
   // The lambda spelling never settles.
   Host raw;
@@ -3070,8 +3086,8 @@ TEST(ComposeContent, APictureLeafReplaysABakeAndStillPrunes) {
   // through — forfeiting the pruning and the caching the bake was taken
   // for. The picture leaf keeps both.
   Host host;
-  sk_sp<SkPicture> baked = snapshot(
-      box().child(box().width(40).height(40).fill(red())), fonts());
+  sk_sp<SkPicture> baked =
+      snapshot(box().child(box().width(40).height(40).fill(red())), fonts());
   ASSERT_NE(baked, nullptr);
   auto tree = [&baked] {
     return box().child(picture(baked, SkSize::Make(40, 40)).key("bake"));
@@ -3113,7 +3129,7 @@ TEST(ComposeContent, APathFigureCarriesItsOwnBox) {
   EXPECT_EQ(placed->top(), 36.0f);
   EXPECT_EQ(placed->width(), 28.0f);
   EXPECT_EQ(placed->height(), 18.0f);
-  EXPECT_EQ(host.pixel(40, 45), SK_ColorRED);   // inside the figure
+  EXPECT_EQ(host.pixel(40, 45), SK_ColorRED);    // inside the figure
   EXPECT_EQ(host.pixel(28, 38), SK_ColorBLACK);  // the bleed is not the mark
 }
 

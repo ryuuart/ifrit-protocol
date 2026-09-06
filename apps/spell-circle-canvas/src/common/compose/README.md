@@ -1085,6 +1085,28 @@ does not cancel; and nothing live may be inside the bake. A scene whose
 promoted frame differs from its unpromoted one by more than a value is a
 defect in this library, never a plate to rebase.
 
+The one value is the bake **over transparent black**. A bake that lands
+on CONTENT carries a second, and it is a rounding rather than a move: the
+node's own coverage is composited twice where the live paint composited
+once — into the bake, and again when the bake is blitted — and Skia's
+blit of a raster image is not the arithmetic of its direct shader draw.
+So a texel whose alpha is between none and all can settle one value
+further out over a bright backdrop, and taking the bake at higher
+precision does not remove it. It appears only where the node's own alpha
+is partial; an opaque node over anything is exact. Anything beyond that
+second value is a picture that changed.
+
+**A PAINT PROGRAM OF ONE'S OWN READS THE BACKDROP.** A `custom()` leaf is
+handed the canvas and may draw with any blend mode — and a picture
+recorded elsewhere and replayed through one may hold any blend inside it.
+Nothing in this library can look inside a callable, so the refusal
+analysis counts such a node as compositing with the canvas: it and every
+ancestor are refused the automatic bake and the memo hold, and the row
+says `ReadsBackdrop`. The cost of the other reading is not a rounding — a
+plus-blended wash baked against transparent black lands a hundred code
+values from its live paint. An author who knows their program only draws
+over what it covers asks for the bake with `.cache(Cache::Texture)`.
+
 **WHAT DECIDES A PROMOTION IS A POLICY, AND ONE OF ITS VALUES HAS NO
 STOPWATCH IN IT.** `Composer::setAutoTexturePromotion` takes
 `PromotionPolicy::Off`, `ByCost` or `Eager`. `ByCost` is the default and

@@ -173,8 +173,8 @@ SkMatrix Composer::Impl::worldMatrixOf(Instance& inst) {
       m.preConcat(depth->asM33());
     } else {
       m.preTranslate(rect.left(), rect.top());
-      m.preConcat(
-          tf.matrix({0, 0}, node.description->paint, rect.width(), rect.height()));
+      m.preConcat(tf.matrix({0, 0}, node.description->paint, rect.width(),
+                            rect.height()));
     }
     if (hosts)
       space = Space{*depth, space ? space->rootToPlane : plane};

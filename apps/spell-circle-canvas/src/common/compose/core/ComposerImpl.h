@@ -100,7 +100,7 @@ struct Composer::Impl {
   // lists instead of recursing the whole tree, and routesAt() answers graph
   // queries ("which edges touch this node") in O(routes-at-node).
   std::vector<detail::Instance*> routedInstances;
-  std::vector<detail::Instance*> flowInstances;  // flowAround() text nodes
+  std::vector<detail::Instance*> flowInstances;      // flowAround() text nodes
   std::vector<detail::Instance*> tetheredInstances;  // tether() nodes
   // Text nodes carrying mark() on a path-laid run. Their curve resolves
   // against the node's FINAL box, which measurement never sees, so their

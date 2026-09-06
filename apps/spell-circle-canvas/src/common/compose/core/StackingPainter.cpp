@@ -50,9 +50,8 @@ using namespace detail;
 // The picture tier, behind the bake seam
 
 void PictureBake::take(PictureBakeTarget& t) const {
-  t.painter->recordPicture(*t.inst, t.deviceMatrix, t.matrixStable,
-                           t.hostScale, t.leafBlend, t.leafOpacity,
-                           std::move(*t.scalars));
+  t.painter->recordPicture(*t.inst, t.deviceMatrix, t.matrixStable, t.hostScale,
+                           t.leafBlend, t.leafOpacity, std::move(*t.scalars));
 }
 void PictureBake::replay(PictureBakeTarget& t) const {
   t.canvas->drawPicture(t.inst->picture);
@@ -67,8 +66,7 @@ bool PictureBake::held(const PictureBakeTarget& t) const {
   return (bool)t.inst->picture;
 }
 
-void Composer::Impl::recordPicture(Instance& inst,
-                                   const SkMatrix& deviceMatrix,
+void Composer::Impl::recordPicture(Instance& inst, const SkMatrix& deviceMatrix,
                                    bool matrixStable, float hostScale,
                                    SkBlendMode leafBlend, float leafOpacity,
                                    Instance::ContentScalars&& scalars) {
@@ -1151,7 +1149,9 @@ struct BakeLayerScope {
   Composer::Impl* impl;
   SkMatrix replay, inverse;
   explicit BakeLayerScope(Composer::Impl* i)
-      : impl(i), replay(i->recordingReplay), inverse(i->recordingReplayInverse) {
+      : impl(i),
+        replay(i->recordingReplay),
+        inverse(i->recordingReplayInverse) {
     impl->recordingReplay = SkMatrix::I();
     impl->recordingReplayInverse = SkMatrix::I();
   }
@@ -1501,8 +1501,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       (!node.fxData ||
        (node.fxData->overlays.empty() && node.fxData->masks.empty())) &&
       !layerEffectOf(node) && !backdropEffectOf(node) && !node.clipContent &&
-      (!opacityLive ||
-       (node.cacheMode != Cache::Picture && !memoized)) &&
+      (!opacityLive || (node.cacheMode != Cache::Picture && !memoized)) &&
       node.cacheMode != Cache::Texture &&
       node.cacheMode != Cache::Group;  // (same reason: bakes isolate)
   // A texture-cached node composites exactly ONE draw — its blit — so its
@@ -1577,8 +1576,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // and the rect its blit must land on. Every bake tier below reads this
   // and never the canvas matrix alone.
   const SkMatrix& canvasM = canvas.getTotalMatrix();
-  const SkMatrix totalM =
-      recordingDepth == 0 ? canvasM : SkMatrix::Concat(recordingReplay, canvasM);
+  const SkMatrix totalM = recordingDepth == 0
+                              ? canvasM
+                              : SkMatrix::Concat(recordingReplay, canvasM);
   // "Is the node where it was last frame?" — its own history at the root,
   // where it is painted every frame, and the outermost open recording's
   // inside one, where it is painted only when that recording is taken.
@@ -2366,8 +2366,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                         ? parentCanvasM
                         : SkMatrix::Concat(recordingReplay, parentCanvasM);
         destTotal.preTranslate(rect.left(), rect.top());
-        destTotal.preConcat(destTf.matrix({0, 0}, node.paint, rect.width(),
-                                          rect.height()));
+        destTotal.preConcat(
+            destTf.matrix({0, 0}, node.paint, rect.width(), rect.height()));
       }
     }
     // maxScaleOf, NOT the matrix diagonal: a quarter-turned node's diagonal
