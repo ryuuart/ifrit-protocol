@@ -13,8 +13,8 @@
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilMaterialSkia
-  SOURCES Draw.cpp Effect.cpp Paint.cpp Ramp.cpp SkiaCompiler.cpp
-  HEADERS Color.h Draw.h Effect.h Paint.h Ramp.h SkiaCompiler.h
+  SOURCES Draw.cpp Effect.cpp Paint.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp
+  HEADERS Color.h Draw.h Effect.h Paint.h Palette.h Ramp.h SkiaCompiler.h
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
          unofficial::skia::skia)
 sigil_shader_sources(SigilMaterialSkia
@@ -23,7 +23,7 @@ sigil_shader_sources(SigilMaterialSkia
 # The shader directory is named for the case that asks whether the
 # embedded table holds every file in it.
 sigil_test(material_test
-  SOURCES test/SkiaTest.cpp
+  SOURCES test/SkiaTest.cpp test/PaletteTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}"
   LIBRARIES SigilMaterialSkia)

@@ -59,7 +59,8 @@ sigil_library(SigilMaterial
 # directories are named for the cases that ask whether each embedded
 # table holds every file in its directory.
 sigil_test(material_test
-  SOURCES color/test/ColorTest.cpp field/test/FieldTest.cpp
+  SOURCES color/test/ColorTest.cpp color/test/ExtractTest.cpp
+          color/test/RampTest.cpp field/test/FieldTest.cpp
           ocio/test/OcioTest.cpp pattern/test/PatternTest.cpp
           sdf/test/SdfTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}

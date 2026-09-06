@@ -59,7 +59,7 @@ directory, each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, and the OKLab and CIELAB round trips — the leaf, which the core's `Params.h` includes | nothing of this project's |
+| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Params.h` includes | nothing of this project's |
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskVertexColor`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
@@ -67,9 +67,9 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
-| `SigilMaterialKit` | the presets: the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
+| `SigilMaterialKit` | the presets: the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
 | `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, and `stock::warmup(target)`, which compiles the list into the shared program cache before a host's first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
 
 `SigilMaterial` is the umbrella, an interface over all twelve. Headers live
@@ -658,11 +658,77 @@ previous program and bytes come back with no cache lookup.
 
 ## Colour
 
+**THE BOUNDARY: this feature is colour and nothing else.** It links
+nothing of this project's and no renderer, so every value here is stated
+over colours and numbers — a table of pixels rather than an image, a
+function pointer rather than a curve object, a stop list rather than a
+gradient. Where a value has to meet a picture, the crossing lives with
+the renderer that owns the picture (`skia::palette`) and not here.
+
 `Color` is four straight (not premultiplied) sRGB floats, uploaded as one
 float4; `rgb(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
 sRGB transfer function both ways and the OKLab round trip — `toOklab`,
 `fromOklab`, `lerpOklab` — which every perceptual interpolation in the
-codebase runs through.
+codebase runs through, plus OKLCH, its polar form, where the two numbers
+a harmony and a tone ladder are stated in — a chroma and a hue — are
+named.
+
+**Out of gamut, two answers, and the difference is which fact survives.**
+`fromOklab` and `fromOklch` cut the channels to the range, which moves
+the hue and the lightness both, because three channels are cut by three
+different amounts. `fitToSrgb` reduces the CHROMA until the colour is
+displayable and touches nothing else, so a set built by turning one hue
+comes back at the hues and the weights it was asked for, duller in the
+directions sRGB is narrow in. `inSrgbGamut` and `linearOf` are the two
+readings underneath, and they are separate from the conversion because
+the numbers BEFORE the clamp are the ones that say whether a colour is a
+colour at all.
+
+**ONE RAMP VALUE.** `Ramp` is the stops plus the four decisions a caller
+otherwise re-spells at every site: the `space` the walk between two stops
+happens in (`Srgb` for what a gradient draws, `Linear` for a quantity of
+light, `Oklab` for even steps, `Oklch` for a walk around the hue circle
+with `arc` saying which way), an `easing` function, `reverse`, and the
+`domainLow`/`domainHigh` the caller's own numbers are read on. It answers
+`at(v)` and it is CALLABLE, so a ramp is an interpolator: anything that
+hands a unit position to one — a data scale's `through()`, a legend, a
+table — takes a ramp with no adapter. `sampleRamp` is still the ladder
+underneath, for a caller holding bare stops. The named ramps are stock
+values over it in the kit (`kit::viridis` and the rest), not types: take
+one, move its domain, reverse it, and it is still a ramp.
+
+`palette(ramp, entries)` reads a ramp at BAND CENTRES into a fixed table
+— the posterising crossing — and `ramp(palette)` is the way back, which
+is a decision the caller makes by asking rather than an inverse.
+
+**A harmony is one function whose scheme is a prop.** `harmony(base,
+Scheme, spreadDegrees)` answers a `Palette` with the base first;
+`Complement`, `SplitComplement`, `Analogous`, `Triad` and `Tetrad` are
+sets of angles on the OKLCH circle, and the spread is read by the three
+whose flanks move. `rotateHue` is the one turn underneath, and it is in
+OKLCH rather than on the HSV wheel because rotating an HSV hue holds the
+largest channel, which is not a brightness — a scheme built that way
+lands a yellow and a blue at wildly different weights.
+
+**A palette from a picture is chosen from PIXELS.** `palette(pixels,
+options)` works in OKLab, is deterministic with no seed anywhere — the
+starting entries are the farthest-first extremes rather than a random
+draw — and answers darkest first. The `method` prop is the whole
+difference between the two: `KMeans` moves its entries until each is the
+average of the pixels closest to it, so its colours are the ones the
+picture holds and a small vivid area survives; `MedianCut` divides the
+colours into equal-population boxes, so its entries cover the range
+whether or not the picture dwells there. `closestEntry` is the read back
+the other way, for an indexed picture.
+
+**A dither is a threshold read at a pixel.** `Dither{kind, matrix,
+levels, amount}` answers `threshold(x, y)`, the rounded `at(colour, x,
+y)`, and the one-bit `on(value, x, y)`. `Ordered` is the recursive Bayer
+matrix, where every threshold appears once per tile, so a flat is exactly
+the average asked for and the pattern holds still under motion; `Noise`
+is a screen-space hash with no period to see. `amount` at zero is plain
+rounding, which is the same value saying "no dither" rather than a second
+code path.
 
 **Three mixes, and the drawing says which one it means.** `mixToward`
 walks the numbers a file stores; `mixLinear` walks the light they stand

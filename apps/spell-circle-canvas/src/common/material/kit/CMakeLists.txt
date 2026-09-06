@@ -17,9 +17,9 @@ set(SIGIL_MATERIAL_KIT_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMaterialKit
   SOURCES Environments.cpp Grained.cpp LayerStyles.cpp Patterns.cpp
-          Recipes.cpp Surface.cpp Surfaces.cpp TextPaint.cpp
-  HEADERS Environments.h Grained.h LayerStyles.h Patterns.h Recipes.h
-          Surface.h Surfaces.h TextPaint.h
+          Ramps.cpp Recipes.cpp Surface.cpp Surfaces.cpp TextPaint.cpp
+  HEADERS Environments.h Grained.h LayerStyles.h Patterns.h Ramps.h
+          Recipes.h Surface.h Surfaces.h TextPaint.h
   PUBLIC SigilMaterialPattern SigilMaterialColor SigilMaterialMask
          Boost::container)
 sigil_shader_sources(SigilMaterialKit
@@ -29,7 +29,7 @@ sigil_shader_sources(SigilMaterialKit
 # shader directory is named for the case that asks whether the embedded
 # table holds every file in it.
 sigil_test(material_test
-  SOURCES test/KitTest.cpp
+  SOURCES test/KitTest.cpp test/RampsTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_KIT_SHADER_DIR="${SIGIL_MATERIAL_KIT_SHADER_DIR}"
   LIBRARIES SigilMaterialKit SigilMaterialSkia)

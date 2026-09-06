@@ -3,7 +3,8 @@
 /** @file
  * A straight-alpha sRGB colour that uploads as one float4, and the two
  * round trips a colour is reasoned about through: OKLab, under every
- * perceptual interpolation, and CIELAB, under every measured difference.
+ * perceptual interpolation — with OKLCH, its polar form, where a hue and
+ * a chroma are named — and CIELAB, under every measured difference.
  * Beside them sRGB to linear and back, the mix that happens IN linear
  * light, relative luminance, and the ramp read on the CPU.
  */
@@ -118,17 +119,42 @@ inline Oklab toOklab(const Color& c) {
           0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_, c.a};
 }
 
-/** OKLab back to sRGB, the exact inverse of toOklab() up to rounding;
- *  the result is clamped to the unit range component-wise. */
-inline Color fromOklab(const Oklab& lab) {
+/** THE LIGHT AN OKLab COLOUR STANDS FOR: the three linear-light sRGB
+ *  components, before the transfer function and before any clamp.
+ *
+ *  It is separate from `fromOklab` because the numbers BEFORE the clamp
+ *  are the ones that say whether the colour is a colour at all: a
+ *  component below zero or above one means the sRGB primaries cannot mix
+ *  it, and once it is clamped that fact is gone. */
+struct LinearRgb {
+  float r, g, b;
+};
+
+/** OKLab to linear light. */
+inline LinearRgb linearOf(const Oklab& lab) {
   const float l_ = lab.L + 0.3963377774f * lab.a + 0.2158037573f * lab.b;
   const float m_ = lab.L - 0.1055613458f * lab.a - 0.0638541728f * lab.b;
   const float s_ = lab.L - 0.0894841775f * lab.a - 1.2914855480f * lab.b;
   const float l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
-  const float r = 4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s;
-  const float g = -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s;
-  const float b = -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s;
-  return {linearToSrgb(r), linearToSrgb(g), linearToSrgb(b),
+  return {4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s,
+          -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s,
+          -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s};
+}
+
+/** Whether the sRGB primaries can mix this colour at all, to within the
+ *  rounding a round trip through the transfer function leaves. */
+inline bool inSrgbGamut(const Oklab& lab, float slack = 1e-4f) {
+  const LinearRgb light = linearOf(lab);
+  const float low = -slack, high = 1.0f + slack;
+  return light.r >= low && light.r <= high && light.g >= low &&
+         light.g <= high && light.b >= low && light.b <= high;
+}
+
+/** OKLab back to sRGB, the exact inverse of toOklab() up to rounding;
+ *  the result is clamped to the unit range component-wise. */
+inline Color fromOklab(const Oklab& lab) {
+  const LinearRgb light = linearOf(lab);
+  return {linearToSrgb(light.r), linearToSrgb(light.g), linearToSrgb(light.b),
           std::clamp(lab.alpha, 0.0f, 1.0f)};
 }
 
@@ -140,6 +166,76 @@ inline Color lerpOklab(const Color& a, const Color& b, float t) {
   return fromOklab({la.L + (lb.L - la.L) * t, la.a + (lb.a - la.a) * t,
                     la.b + (lb.b - la.b) * t,
                     la.alpha + (lb.alpha - la.alpha) * t});
+}
+
+/** OKLab IN POLAR FORM: the same lightness, the distance from grey, and
+ *  the direction it lies in.
+ *
+ *  It holds exactly what OKLab holds and is a different thing to REASON
+ *  with. `a` and `b` are two axes nobody can name; `chroma` is how
+ *  colourful, `hueDegrees` is which colour, and those are the two words a
+ *  harmony, a tone ladder and a hue-preserving lift are stated in. A
+ *  chroma of zero is a grey, and its hue is arbitrary — the one place the
+ *  round trip does not carry a number, since a grey has no direction. */
+struct Oklch {
+  float L, chroma, hueDegrees, alpha;
+};
+
+/** OKLab to its polar form. The hue is in degrees on [0, 360). */
+inline Oklch oklchOf(const Oklab& lab) {
+  float hue = std::atan2(lab.b, lab.a) * (180.0f / 3.14159265358979323846f);
+  if (hue < 0.0f) hue += 360.0f;
+  return {lab.L, std::sqrt(lab.a * lab.a + lab.b * lab.b), hue, lab.alpha};
+}
+
+/** The polar form back to OKLab. The hue wraps, so an angle walked past a
+ *  full turn needs no fold at the call site. */
+inline Oklab oklabOf(const Oklch& lch) {
+  const float radians = lch.hueDegrees * (3.14159265358979323846f / 180.0f);
+  return {lch.L, lch.chroma * std::cos(radians), lch.chroma * std::sin(radians),
+          lch.alpha};
+}
+
+/** A colour read in OKLCH, through OKLab. */
+inline Oklch toOklch(const Color& c) { return oklchOf(toOklab(c)); }
+
+/** OKLCH back to sRGB, clamped component-wise the way `fromOklab`
+ *  clamps. A colour outside what the primaries can mix comes back with
+ *  its channels cut to the range — which moves its hue and its
+ *  lightness, since three channels are cut by three different amounts.
+ *  `fitToSrgb` is the reading that does not. */
+inline Color fromOklch(const Oklch& lch) { return fromOklab(oklabOf(lch)); }
+
+/** THE NEAREST COLOUR THE DISPLAY CAN SHOW AT THIS HUE AND LIGHTNESS:
+ *  the chroma reduced until the colour is inside the sRGB gamut, and
+ *  nothing else touched.
+ *
+ *  The difference from `fromOklch` is which fact survives. Cutting the
+ *  channels keeps as much colour as it can and lets the hue drift, so a
+ *  set of colours built by turning one hue comes back as a set at
+ *  several hues and several lightnesses — which is exactly what a
+ *  harmony, a tone ladder or a hue sweep exists to avoid. Reducing the
+ *  chroma keeps the two numbers that were chosen and gives up the one
+ *  the display cannot honour.
+ *
+ *  Found by halving rather than solved: the gamut is a solid with
+ *  corners in this space, so there is no closed form for where a hue
+ *  leaves it, and the boundary is crossed once along a ray of increasing
+ *  chroma. Sixteen halvings put the answer well inside a single step of
+ *  an eight-bit channel. */
+inline Color fitToSrgb(const Oklch& lch) {
+  Oklch fitted = lch;
+  fitted.L = std::clamp(fitted.L, 0.0f, 1.0f);
+  if (inSrgbGamut(oklabOf(fitted))) return fromOklab(oklabOf(fitted));
+  float low = 0.0f, high = fitted.chroma;
+  for (int step = 0; step < 16; ++step) {
+    const float middle = (low + high) * 0.5f;
+    Oklch probe = fitted;
+    probe.chroma = middle;
+    (inSrgbGamut(oklabOf(probe)) ? low : high) = middle;
+  }
+  fitted.chroma = low;
+  return fromOklab(oklabOf(fitted));
 }
 
 /** @p c scaled by @p k in every channel, at alpha @p a. The shading verb
