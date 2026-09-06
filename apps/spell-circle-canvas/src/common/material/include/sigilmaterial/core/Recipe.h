@@ -100,6 +100,22 @@ class Recipe {
   /** `readsField(name)` for a field of `params()`, answered without
    *  looking the name up again. */
   bool readsField(const Field& field) const;
+  /** WHETHER THE BODY FOR @p target SAMPLES THE CHILD SLOT @p slot.
+   *
+   *  A slot is declared on the recipe and sampled by whichever bodies
+   *  name it, and the two need not agree. A stack composed for a
+   *  language that is handed one body per material declares a slot per
+   *  operand's own slot, because that language cannot reach a child
+   *  material at all; a language whose child slot is a shader samples
+   *  the operands themselves and names none of those. A slot generated
+   *  into a program that never reads it still costs that program an
+   *  image sampler, and a device has few — Metal binds fragment
+   *  textures at sixteen indices — so a target's declarations carry the
+   *  slots its own body spells and no others.
+   *
+   *  Spelled means as a WHOLE IDENTIFIER, the reading `readsField`
+   *  takes; a target with no body answers yes, having nothing to say. */
+  bool samples(Target target, std::string_view slot) const;
   bool has(Target target) const { return body(target) != nullptr; }
   /** The targets that have a body, in Target order. */
   std::vector<Target> targets() const;
@@ -112,7 +128,8 @@ class Recipe {
   uint8_t frameInputs() const { return m_frame; }
 
   /** The generated head of the program: the params' uniforms, the frame
-   *  uniforms, then the child slots, in @p target's syntax. */
+   *  uniforms, then the child slots this target's body samples, in
+   *  @p target's syntax. */
   std::string declarations(Target target) const;
   /** declarations() followed by the body — the complete text a compiler
    *  is handed. Empty when there is no body for @p target. */

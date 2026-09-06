@@ -6,7 +6,9 @@
  *
  * The compile also refuses a body that would compile here and not on a
  * device, which is one named thing: a declaration of a name the GPU
- * backend reserves for a parameter of its own.
+ * backend reserves for a parameter of its own. The binding refuses the
+ * other such thing: a tree asking for more image samplers than one
+ * fragment program may declare.
  */
 
 #include "sigilmaterial/skia/SkiaCompiler.h"
@@ -120,9 +122,8 @@ std::pair<size_t, size_t> mainParameters(const std::string& code) {
 // refused here, where the recipe is compiled at all: the four words are
 // Skia's, and a body wanting one of them renames its own.
 std::string reservedName(const std::string& source) {
-  static constexpr std::string_view kReserved[] = {"pos", "inColor",
-                                                   "destColor",
-                                                   "primitiveColor"};
+  static constexpr std::string_view kReserved[] = {
+      "pos", "inColor", "destColor", "primitiveColor"};
   const std::string code = uncommented(source);
   const auto [paramsFrom, paramsTo] = mainParameters(code);
   for (std::string_view name : kReserved) {
@@ -137,8 +138,8 @@ std::string reservedName(const std::string& source) {
       while (word > 0 && std::isspace((unsigned char)code[word - 1])) --word;
       const size_t wordEnd = word;
       while (word > 0 && wordChar(code[word - 1])) --word;
-      if (wordEnd > word && typeName(std::string_view(code).substr(
-                                word, wordEnd - word)))
+      if (wordEnd > word &&
+          typeName(std::string_view(code).substr(word, wordEnd - word)))
         return std::string(name);
     }
   }
@@ -172,9 +173,35 @@ void install() {
   std::call_once(once, [] { registerCompiler(Target::SkSL, compile); });
 }
 
+int samplerCount(const Material& material) {
+  int count = 0;
+  for (const auto& [slot, child] : material.children()) {
+    if (!material.recipe().samples(Target::SkSL, slot)) continue;
+    if (child.material) {
+      count += samplerCount(*child.material);
+    } else if (dynamic_cast<const ShaderLeaf*>(child.leaf.get())) {
+      ++count;
+    }
+  }
+  return count;
+}
+
 std::unique_ptr<SkRuntimeShaderBuilder> builder(
     const Material& material, const FrameData& frame, Variant variant,
     std::span<const std::string_view> leave) {
+  // REFUSED HERE, LOUDLY, RATHER THAN ON THE DEVICE, QUIETLY. Past the
+  // limit the driver rejects the pipeline the shader is inlined into,
+  // the pass is dropped and the draw paints nothing; the material that
+  // asked for too many is not named anywhere in that.
+  const int samplers = samplerCount(material);
+  if (samplers > kSamplerLimit) {
+    reportOnce("samplers:" + material.recipe().name(),
+               "recipe \"" + material.recipe().name() + "\" lowers to " +
+                   std::to_string(samplers) +
+                   " image samplers and a fragment program may declare " +
+                   std::to_string(kSamplerLimit));
+    return nullptr;
+  }
   const Material::Resolved resolved =
       material.resolve(Target::SkSL, frame, variant);
   if (!resolved.program) return nullptr;

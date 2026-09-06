@@ -264,6 +264,24 @@ child makes it unequal — which is required, not incidental: a child left
 out of equality would let a node prune while its second source had
 changed.
 
+**A slot is declared to the target that samples it, and to no other.**
+A slot belongs to the recipe, but each target's generated declarations
+carry only the slots ITS body spells — `Recipe::samples(target, slot)` is
+that reading, the one `readsField` takes of a params field, and a target
+with no body answers yes. The two sets differ where one language reaches
+a child material and another cannot: a composed stack declares a slot per
+operand's own slot for the language handed one body per material, and the
+language whose child slot is a shader samples the three operands
+themselves and needs none of them. It is not tidiness. A declared slot is
+an IMAGE SAMPLER in the compiled program whether anything reads it or
+not, a GPU backend inlines the whole tree of effects into one fragment
+program, and Metal binds fragment textures at sixteen indices — so a
+program carrying another language's slots spends a device's whole budget
+on samplers it never reads. `skia::samplerCount(material)` is what one
+lowering asks for, `skia::kSamplerLimit` is what a program may declare,
+and a tree over it is refused with both counts named rather than built
+into a pipeline the driver silently rejects.
+
 **A leaf is a child no recipe computes.** `Leaf` is the core's seam for
 an image with its sampling, a rendered frame, anything a backend binds
 into a slot directly: it compares by value (same dynamic type, then the
@@ -410,6 +428,13 @@ one program per distinct triple of definitions and buys nothing for a
 target that samples its operands, so it is built only where a compiler
 that needs it is installed. `Target::Slang` is the one such target,
 and `stackName(blend)` is the name every stack of a blend carries.
+
+A composed stack therefore carries slots for two languages at once, and
+what keeps that from costing the sampling target anything is that a slot
+is declared only to the target whose body spells it: the composed
+recipe's SkSL program declares `base`, `top` and `mask` and none of the
+prefixed ones, so a stack asks a device for exactly its operands'
+samplers however many slots its operands DECLARE.
 
 ## The Slang backend
 
@@ -984,8 +1009,9 @@ including that the schema IS the params struct's own layout, read off
 recipe identity against definition equality, the program cache's keys, a
 compile held open until every concurrent request has arrived so the fold
 is asked without a clock, the field it names once when a compiled body
-never reads it, material equality, bindings, children and tiers, what
-`over()` stacks, and `UniformBlock` revisioning.
+never reads it, material equality, bindings, children and tiers, which
+slots each target's declarations carry, what `over()` stacks, and
+`UniformBlock` revisioning.
 
 The primitive suites cover the leaf beneath them: the
 colour value's transfer function and OKLab round trips and its
@@ -1010,7 +1036,11 @@ four parameter names a body may not redeclare together with the three
 spellings that must still compile. The kit's suite compiles every
 preset and checks a fill stays inside its path, dresses a surface from a
 decoded set, shades a stack at both ends of its mask, and holds every
-shading term to its closed form.
+shading term to its closed form. Two of its cases are the sampler
+budget: that a stack asks a device for its operands' samplers and no
+more — an undressed surface fills seven slots and its SkSL program
+declares the two that body samples — and that a tree over the limit is
+refused, with the count and the limit named, rather than drawn.
 
 The `MaterialGpu` suite belongs to the whole library rather than to a
 feature: every other suite shades on a raster surface, where a body is

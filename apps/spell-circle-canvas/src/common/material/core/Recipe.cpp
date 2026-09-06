@@ -13,6 +13,23 @@ constexpr FrameInput kFrameInputs[] = {FrameInput::Time, FrameInput::Resolution,
                                        FrameInput::ContentScale,
                                        FrameInput::WorldTransform};
 
+/** Whether @p body spells @p name as a WHOLE IDENTIFIER, so a `low`
+ *  inside `lowEdge` is a different name. */
+bool spells(const std::string& body, std::string_view name) {
+  const auto part = [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_';
+  };
+  for (size_t at = body.find(name); at != std::string::npos;
+       at = body.find(name, at + 1)) {
+    if (at > 0 && part(body[at - 1])) continue;
+    const size_t end = at + name.size();
+    if (end < body.size() && part(body[end])) continue;
+    return true;
+  }
+  return false;
+}
+
 Field frameField(FrameInput input) {
   switch (input) {
     case FrameInput::Time:
@@ -117,20 +134,15 @@ void Recipe::rescan() {
 }
 
 bool Recipe::spelled(std::string_view name) const {
-  const auto part = [](char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-           (c >= '0' && c <= '9') || c == '_';
-  };
-  for (const auto& [target, body] : m_bodies) {
-    for (size_t at = body.find(name); at != std::string::npos;
-         at = body.find(name, at + 1)) {
-      if (at > 0 && part(body[at - 1])) continue;
-      const size_t end = at + name.size();
-      if (end < body.size() && part(body[end])) continue;
-      return true;
-    }
-  }
+  for (const auto& [target, body] : m_bodies)
+    if (spells(body, name)) return true;
   return false;
+}
+
+bool Recipe::samples(Target target, std::string_view slot) const {
+  const std::string* b = body(target);
+  if (!b || slot.empty()) return true;
+  return spells(*b, slot);
 }
 
 std::vector<Target> Recipe::targets() const {
@@ -143,6 +155,14 @@ std::vector<Target> Recipe::targets() const {
 std::string Recipe::declarations(Target target) const {
   std::string out = declare(m_layout, target);
   for (const std::string& slot : m_children) {
+    // A SLOT THIS TARGET'S BODY NEVER SAMPLES IS NOT DECLARED TO IT. A
+    // declared slot is an image sampler in the compiled program whether
+    // or not anything reads it, and a device has few — Metal binds
+    // fragment textures at sixteen indices — so a stack composed for a
+    // language handed one body per material would spend a program's
+    // whole budget on the operand slots the language that samples its
+    // operands does not use.
+    if (!samples(target, slot)) continue;
     switch (target) {
       case Target::SkSL:
         out += "uniform shader " + slot + ";\n";

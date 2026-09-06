@@ -184,6 +184,33 @@ TEST(Recipe, LayoutAppendsFrameInputsAndDeclarationsListChildren) {
                 "half4 main(float2 p) { return half4(1); }");
 }
 
+TEST(Recipe, ASlotOneTargetsBodyNeverSamplesIsNotDeclaredToIt) {
+  Recipe r = Recipe::of<TwoParams>("split");
+  r.child("uRead").child("uUnread");
+  // With no body there is nothing to say, so both slots are declared.
+  EXPECT_TRUE(r.samples(Target::SkSL, "uUnread"));
+  r.body(Target::SkSL, "half4 main(float2 p) { return uRead.eval(p); }");
+  r.body(Target::Slang,
+         "float4 surface(float2 uv) {"
+         " return uUnread.Sample(uv); }");
+  // Each target declares the slots its OWN body spells: a declared slot
+  // is an image sampler in the compiled program whether anything reads
+  // it or not, and a device has few.
+  EXPECT_TRUE(r.samples(Target::SkSL, "uRead"));
+  EXPECT_FALSE(r.samples(Target::SkSL, "uUnread"));
+  EXPECT_FALSE(r.samples(Target::Slang, "uRead"));
+  EXPECT_TRUE(r.samples(Target::Slang, "uUnread"));
+  EXPECT_NE(r.declarations(Target::SkSL).find("uniform shader uRead;"),
+            std::string::npos);
+  EXPECT_EQ(r.declarations(Target::SkSL).find("uUnread"), std::string::npos);
+  EXPECT_NE(r.declarations(Target::Slang).find("uniform Sampler2D uUnread;"),
+            std::string::npos);
+  EXPECT_EQ(r.declarations(Target::Slang).find("uRead"), std::string::npos);
+  // The slot is still the recipe's — what changed is what each program
+  // is told about, not what a material may fill.
+  EXPECT_EQ(r.children().size(), 2u);
+}
+
 TEST(ProgramCache, OneProgramPerRecipeTargetAndVariant) {
   ProgramCache cache;
   cache.registerCompiler(Target::Slang, countingCompiler);
@@ -307,16 +334,20 @@ TEST(ProgramCache, CompileFailureIsNullAndRetriedAfterClear) {
 
 TEST(Recipe, NoParamsIsARecipeOverSlotsAndFrameInputsAlone) {
   struct NoParams {};
-  auto r = std::make_shared<const Recipe>(Recipe::of<NoParams>("bare")
-                                              .frame(FrameInput::Time)
-                                              .child("uSrc")
-                                              .body(Target::SkSL, "x"));
+  auto r = std::make_shared<const Recipe>(
+      Recipe::of<NoParams>("bare")
+          .frame(FrameInput::Time)
+          .child("uSrc")
+          .body(Target::SkSL, "half4 main(float2 p) { return uSrc.eval(p); }"));
   EXPECT_TRUE(r->params().fields.empty());
   EXPECT_EQ(r->params().byteSize, 0u);
   // The frame uniform still lays out, from offset zero.
   ASSERT_EQ(r->layout().fields.size(), 1u);
   EXPECT_EQ(r->layout().fields[0].name, "uTime");
   EXPECT_EQ(r->layout().fields[0].offset, 0u);
+  // The slot is declared because this body samples it; one the body never
+  // named would be an image sampler nothing reads.
+  EXPECT_TRUE(r->samples(Target::SkSL, "uSrc"));
   EXPECT_EQ(r->declarations(Target::SkSL),
             "uniform float uTime;\nuniform shader uSrc;\n");
   // An instance holds no bytes of its own, and resolving still lays out
@@ -663,8 +694,7 @@ TEST(Bank, TheMakerRunsOncePerBucketAndItsAnswerIsWhatIsBanked) {
     });
   EXPECT_EQ(made, 4);
   EXPECT_EQ(bank.size(), 4u);
-  EXPECT_FLOAT_EQ(bank
-                      .get(recipe, TwoParams{}, 9,
+  EXPECT_FLOAT_EQ(bank.get(recipe, TwoParams{}, 9,
                            [&](uint32_t) { return Material(recipe); })
                       .get<float>("uScale"),
                   7.0f);

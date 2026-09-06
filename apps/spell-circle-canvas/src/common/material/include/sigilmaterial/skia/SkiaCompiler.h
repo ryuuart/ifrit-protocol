@@ -56,6 +56,25 @@ class SkiaProgram : public Program {
  *  call it once before the first resolve for Target::SkSL. */
 void install();
 
+/** THE MOST IMAGE SAMPLERS ONE LOWERED MATERIAL MAY ASK A DEVICE FOR.
+ *
+ *  A GPU backend does not compile a runtime effect as a program of its
+ *  own: it inlines the whole tree of effects a shader is made of into
+ *  ONE fragment program, so every image anywhere under a material is a
+ *  sampler of that one program. Metal binds fragment textures at indices
+ *  zero to fifteen and its driver rejects a program declaring more —
+ *  after Skia has accepted it, so the only sign is a pipeline that never
+ *  builds and a pass that paints nothing. */
+inline constexpr int kSamplerLimit = 16;
+
+/** The image samplers the SkSL lowering of @p material asks a device
+ *  for: one per leaf bound into a slot the body samples, summed down the
+ *  whole tree, since a child material's effect is inlined into the
+ *  parent's program rather than compiled apart. A leaf yielding a shader
+ *  that itself samples several images counts as the one slot it fills,
+ *  which is all a material can know about it. */
+int samplerCount(const Material& material);
+
 /** The builder for @p material at @p frame: its program's effect with
  *  every uniform set from the resolved bytes and every child slot bound —
  *  a material child resolved and bound recursively, a ShaderLeaf as the

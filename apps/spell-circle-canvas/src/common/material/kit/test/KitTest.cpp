@@ -14,23 +14,26 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/LayerStyles.h>
-#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
-#include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialKit.h>
 
 #include <cmath>
+#include <memory>
 #include <string>
 
 #include "ShaderTable.h"
@@ -112,10 +115,10 @@ const ClosedForm kClosedForms[] = {
     {"LambertAtFortyFiveDegrees",
      "lambert(float3(0.0, 0.0, 1.0), normalize(float3(1.0, 0.0, 1.0)))",
      kSqrtHalf, 2e-3f},
-    {"LambertHeadOn",
-     "lambert(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0))", 1.0f, 2e-3f},
-    {"LambertEdgeOn",
-     "lambert(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0))", 0.0f, 2e-3f},
+    {"LambertHeadOn", "lambert(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0))",
+     1.0f, 2e-3f},
+    {"LambertEdgeOn", "lambert(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0))",
+     0.0f, 2e-3f},
     // BLINN with the light and the eye together: the half vector is the
     // normal and the highlight is at its peak whatever the exponent.
     {"BlinnAtItsPeak",
@@ -169,8 +172,8 @@ const ClosedForm kClosedForms[] = {
      0.0f, 2e-3f},
     // THE PANORAMA'S CONVENTION: v = 0 is the zenith, and a direction and
     // a coordinate round trip.
-    {"TheZenithIsAtTheTopOfThePanorama",
-     "equirectUv(float3(0.0, 1.0, 0.0)).y", 0.0f, 2e-3f},
+    {"TheZenithIsAtTheTopOfThePanorama", "equirectUv(float3(0.0, 1.0, 0.0)).y",
+     0.0f, 2e-3f},
     {"ADirectionAndAPanoramaCoordinateRoundTrip",
      "equirectDirection(equirectUv(normalize(float3(0.3, 0.5, -0.8)))).y",
      0.50507627f, 4e-3f},
@@ -467,10 +470,100 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   const Material stack = over(kit::unlit(red), kit::unlit(blue),
                               maskConstant(1.0f), Blend::Multiply);
   EXPECT_EQ(stackDepth(stack), 1);
-  EXPECT_EQ(stackDepth(over(stack, kit::unlit(red), maskConstant(1.0f))),
-            2);
+  EXPECT_EQ(stackDepth(over(stack, kit::unlit(red), maskConstant(1.0f))), 2);
   EXPECT_EQ(*under(stack), kit::unlit(red));
   EXPECT_TRUE(skia::shader(stack, {}));
+}
+
+namespace {
+
+/** A stand-in Slang compiler, so `over()` builds the COMPOSED recipe.
+ *  Composition is asked for only where a compiler that needs it is
+ *  installed — a language handed one body per material cannot reach a
+ *  child material — and a stack built without one carries the plain
+ *  three-slot recipe, which never asks what the case below asks. */
+std::shared_ptr<Program> slangStandIn(std::shared_ptr<const Recipe> recipe,
+                                      Variant variant, std::string&) {
+  return std::make_shared<Program>(std::move(recipe), Target::Slang, variant);
+}
+
+/** The child slots the compiled SkSL program declares, which is one
+ *  image sampler each once a GPU backend has inlined it. */
+size_t declaredSlots(const Material& m) {
+  const Material::Resolved r = m.resolve(Target::SkSL, {});
+  const auto* program =
+      r.program ? r.program->as<skia::SkiaProgram>() : nullptr;
+  return program ? program->effect()->children().size() : 0u;
+}
+
+/** A one-texel texture under its own producer key, so @p key images are
+ *  @p key distinct leaves. */
+Texture texel(int key) {
+  return Texture::produce("material.kit.test.texel." + std::to_string(key), [] {
+    sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1, 1));
+    s->getCanvas()->clear(SK_ColorWHITE);
+    return s->makeImageSnapshot();
+  });
+}
+
+}  // namespace
+
+TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
+  skia::install();
+  registerCompiler(Target::Slang, slangStandIn);
+
+  // An undressed surface fills all seven of its slots so no body ever
+  // evaluates an unbound child, and the SkSL body samples two of them.
+  // The five it never reads are not declared to that program and so cost
+  // it no sampler.
+  const Material unlit = kit::unlit();
+  EXPECT_EQ(unlit.children().size(), 7u);
+  EXPECT_EQ(declaredSlots(unlit), 2u);
+  EXPECT_EQ(skia::samplerCount(unlit), 2);
+
+  const Material stack =
+      over(kit::unlit(), kit::unlit(), maskConstant(0.5f), Blend::Mix);
+  // The composed recipe declares a slot per operand's own slot, because
+  // the language it was composed for reaches no child material.
+  EXPECT_GT(stack.recipe().children().size(), 3u);
+  // SkSL samples the operands themselves, so its program declares those
+  // three slots and none of the composed ones.
+  EXPECT_EQ(declaredSlots(stack), 3u);
+  EXPECT_EQ(skia::samplerCount(stack), 2 * skia::samplerCount(unlit));
+  EXPECT_LE(skia::samplerCount(stack), skia::kSamplerLimit);
+
+  // The deepest stack anything here builds: a surface under two.
+  Material deep = kit::surface();
+  for (int i = 0; i < 2; ++i)
+    deep = over(std::move(deep), kit::unlit(), maskConstant(0.5f));
+  EXPECT_EQ(stackDepth(deep), 2);
+  EXPECT_EQ(declaredSlots(deep), 3u);
+  EXPECT_EQ(skia::samplerCount(deep),
+            skia::samplerCount(kit::surface()) + 2 * skia::samplerCount(unlit));
+  EXPECT_LE(skia::samplerCount(deep), skia::kSamplerLimit);
+  EXPECT_TRUE(skia::shader(deep, {}));
+}
+
+TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
+  skia::install();
+  // A device rejects a fragment program past its sampler indices after
+  // Skia has accepted it, so the draw paints nothing and names nobody.
+  // Refused here, the material that asked is the one reported.
+  const int tooMany = skia::kSamplerLimit + 1;
+  Recipe recipe = Recipe::of<NoParams>("kit.test.overBudget");
+  std::string body = "half4 main(float2 p) { return ";
+  for (int i = 0; i < tooMany; ++i) {
+    const std::string slot = "uMap" + std::to_string(i);
+    recipe.child(slot);
+    body += (i ? " + " : "");
+    body += slot + ".eval(p)";
+  }
+  recipe.body(Target::SkSL, body + "; }");
+  Material m(std::make_shared<const Recipe>(std::move(recipe)), NoParams{});
+  for (int i = 0; i < tooMany; ++i)
+    m.child("uMap" + std::to_string(i), texel(i));
+  EXPECT_EQ(skia::samplerCount(m), tooMany);
+  EXPECT_FALSE(skia::shader(m, {}));
 }
 
 // ---------------------------------------------------------------------------
