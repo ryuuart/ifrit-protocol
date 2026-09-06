@@ -73,6 +73,12 @@ namespace detail {
  *  leftover destination space; when the destination is smaller than the
  *  fixed sum, fixed bands scale down proportionally (Skia's rule).
  *
+ *  AN AXIS WITH NO DIVS IS ONE STRETCHABLE BAND, so it fills the
+ *  destination the way an image drawn to a rect does. The alternative
+ *  reading — one fixed band — would make the same lattice stretch or not
+ *  stretch depending on what the OTHER axis carries, since a lattice with
+ *  neither axis divided is a plain image draw.
+ *
  *  @p density is SOURCE PIXELS PER DESTINATION UNIT for the fixed bands: a
  *  frame drawn at twice the size it is used at declares 2 and its corners
  *  land at half their pixel count, sharp on a 2x device instead of twice
@@ -87,10 +93,14 @@ inline void latticeEdges(const std::vector<int>& divs, float srcLen,
   for (int d : divs) srcEdges.push_back((float)std::clamp(d, 0, (int)srcLen));
   srcEdges.push_back(srcLen);
   if (!(density > 0)) density = 1.0f;
+  const bool undivided = divs.empty();
+  const auto stretches = [&](size_t band) {
+    return undivided || band % 2 == 1;
+  };
   float fixedSum = 0, stretchSum = 0;
   for (size_t i = 0; i + 1 < srcEdges.size(); ++i) {
     const float len = srcEdges[i + 1] - srcEdges[i];
-    (i % 2 == 1 ? stretchSum : fixedSum) += len;
+    (stretches(i) ? stretchSum : fixedSum) += len;
   }
   const float fixedDst = fixedSum / density;
   float fixedScale = 1.0f / density, stretchScale = 0.0f;
@@ -103,7 +113,7 @@ inline void latticeEdges(const std::vector<int>& divs, float srcLen,
   float at = 0;
   for (size_t i = 0; i + 1 < srcEdges.size(); ++i) {
     const float len = srcEdges[i + 1] - srcEdges[i];
-    at += len * (i % 2 == 1 ? stretchScale : fixedScale);
+    at += len * (stretches(i) ? stretchScale : fixedScale);
     dstEdges.push_back(at);
   }
 }
@@ -120,6 +130,8 @@ inline void drawLattice(SkCanvas& canvas, Promoted& cache, sk_sp<SkImage> img,
   if (!img) return;
   const SkSamplingOptions sampling(filter);
   if (xDivs.empty() && yDivs.empty()) {
+    // The same picture the band split would draw — one stretchable band on
+    // each axis — as the one draw it is.
     canvas.drawImageRect(img, dst, sampling);
     return;
   }
@@ -154,9 +166,9 @@ inline void drawLattice(SkCanvas& canvas, Promoted& cache, sk_sp<SkImage> img,
  *
  *  @p sizes, when non-null, is a per-sprite (x, y) scale MULTIPLIER on
  *  top of the xform's uniform scale — the lane SkRSXform cannot carry.
- *  Reeves' 1982 `streaked spherical` particle is a quad 0.5·|v| long by
- *  `size` wide whose aspect swings ~2.4:1 to under 1:1 across its life,
- *  and every study that needed it hand-built the vertex buffer this
+ *  A streaked particle is a quad half its velocity long by `size` wide,
+ *  and its aspect swings across its life, which is what the lane is for:
+ *  without it every such study hand-builds the vertex buffer this
  *  function already builds internally. */
 inline void drawSpriteAtlas(SkCanvas& canvas, Promoted& cache,
                             sk_sp<SkImage> sheet, const SkRSXform* xforms,
