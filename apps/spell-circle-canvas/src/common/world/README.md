@@ -798,6 +798,7 @@ python3 scripts/plate_ledger.py --kind set --rebase   # adopt a baseline
 python3 scripts/plate_ledger.py --kind set            # sweep and judge
 python3 scripts/plate_ledger.py --kind set --stability 2
 python3 scripts/plate_ledger.py --kind set --tier device
+python3 scripts/plate_ledger.py --kind set --tier promotion
 ```
 
 A sweep narrowed to one kind merges into the manifest rather than
@@ -820,6 +821,25 @@ rightly on the device, and is reported rather than judged. Each study names its 
 ceilings in the script, set from what the two tiers do rather than from a
 wish. With no device the tier reports that and exits green, because a
 machine with no Vulkan runtime has nothing to disagree about.
+
+`--tier promotion` is the third. Every render a hash judges is made with
+automatic texture promotion held off, because a re-bake decided by a
+measured per-frame cost is a thing load can tip either way and a
+byte-identity gate has to be load-immune — so no other tier exercises
+the promoter at all. This one renders each sketch twice on the CPU, once
+with it off and once with it on, and differences the two: the held-off
+plate is the reference, there is no baseline, and the bar is ONE CODE
+VALUE anywhere. That bar is a consequence rather than a tolerance
+somebody picked — a promoted node is baked under the live matrix
+post-translated by an integer, and inverting that matrix to find a
+shader's local coordinates does not cancel the integer to the last bit at
+a scale whose reciprocal is inexact. A worst channel over one is a
+picture that MOVED, and a defect to file rather than a plate to adopt.
+**Its subject is not the studies.** Promotion is a 2D runtime's
+re-baking, and the runtime a study draws through promotes nothing — so
+each study renders the same bytes with the promoter on and off, and
+`--tier promotion --kind set` asks a question this library does not
+answer.
 
 ### The mesh painter on the device
 
@@ -882,11 +902,14 @@ Thirteen operators have kernels — `Jitter`, `Ramp`, `Vary`, `LookAt`,
 `Normal` —
 and the runtime's `supports()` answers from `kernel::has()` rather than
 from a list of its own. What it declines it declines by name, the way any
-unsupported operator stops a cook: `Relax` reads points it does not own,
-`Sort` is a permutation, `Promote` addresses primitives no sink has
-formed yet, and `Noise` and `Deform` are defined in terms of a library
-sine, which is a different function from the polynomial a portable kernel
-would have to use.
+unsupported operator stops a cook: `Smooth`, `Relax`, `Cluster` and
+`Transfer` each read points they do not own — the two beside a point in
+the chain, the points near it in space, the whole set at once, or another
+cloud's points entirely — `Sort` is a permutation, `Delete` changes the
+count a per-point map cannot change, `Promote` addresses primitives no
+sink has formed yet, and `Noise` and `Deform` are defined in terms of a
+library sine, which is a different function from the polynomial a
+portable kernel would have to use.
 
 **The two tiers are held to BIT IDENTITY, not to a distance.** That is
 the one place in this library where two backends are, and it is possible
