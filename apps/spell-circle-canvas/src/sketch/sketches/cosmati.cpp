@@ -38,6 +38,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Panel.h>
 
 #include <array>
 #include <cmath>
@@ -376,15 +377,20 @@ struct Cosmati final : sketch::Sketch {
                              .width(Dim(cs::kFieldSide))
                              .height(Dim(cs::kFieldSide));
 
-    // the Purbeck frame carrying the inscription band
+    // THE PURBECK FRAME IS A FRAME: a shell carrying the inscription
+    // band, with the mortar bed set into it by the band's own width on
+    // all four sides. The shell's fill covers the whole plate even
+    // though only its border shows, and on the raster backend every
+    // pixel of it is an SkSL evaluation — one octave for that reason.
     floorPlate.child(
-        box()
+        sketch::kit::frame(
+            {.shell = cs::stone(cs::kPurbeck, cs::kPurbeckLo, 6, 0.18f),
+             .corners = 0,
+             .bezel = cs::kBandW,
+             .screen = Paint::solid(cs::kMortar),
+             .screenCorners = 0,
+             .keyline = Fill::none()})
             .inset(0)
-            // one octave: this fill covers the whole plate
-            // even though only its border shows, and on the
-            // raster backend every pixel of it is an SkSL
-            // evaluation
-            .fill(cs::stone(cs::kPurbeck, cs::kPurbeckLo, 6, 0.18f))
             .foreground(stroke(2.0f, Fill::color(cs::kMarble),
                                PathFormat::Align::Inner))
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
@@ -400,10 +406,6 @@ struct Cosmati final : sketch::Sketch {
              weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
             .left(cs::kBandW)
             .top(cs::kFieldSide - 24));
-
-    // the mortar bed inside the frame
-    floorPlate.child(
-        box().inset(cs::kBandW).fill(Paint::solid(cs::kMortar)));
 
     // ---- the quincunx of quincunxes ---------------------------------
     const float c = cs::kFieldSide * 0.5f;
