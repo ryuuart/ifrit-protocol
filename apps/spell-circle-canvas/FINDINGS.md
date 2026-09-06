@@ -286,6 +286,71 @@ Tests missing: `Paint::sweep`, `Paint::conical`, `Paint::buffer` and
 `PixelBuffer`, `unitRamp`/`verticalRamp`, MedianCut on degenerate input,
 a one-stop and an unsorted ramp, harmonies across the 360/0 wrap.
 
+## SigilGeometry mesh, point operators, kit, device (findings/review-geometry-mesh-pop.md)
+
+Blockers:
+
+- `src/common/geometry/kit/Silhouettes.cpp:170` — `Parallelogram` with a
+  negative skew runs its top edge past the box; a trapezoid escapes the
+  rectangle the generator promises to stay in. Derive both shifts from
+  one signed lean. Assert: `parallelogram(-12)` stays inside the box.
+- `geometry/mesh/pop/device/Cook.cpp:317` — `readBack` pours every lane
+  buffer the device still holds, including lanes a previous chain
+  created, into the exported cloud. Skip lanes whose stamp is not this
+  cook's. Assert: two different chains through one runtime each match
+  the host.
+- `geometry/mesh/Generators.cpp:52` — the pole fallback tests a normal
+  after it was already replaced by the unit fallback, so it never runs
+  and every pole of `superellipsoid()` gets `+z`. Test the raw cross
+  product's length.
+- `geometry/device/residency/Meshes.cpp:112` — `MeshResidency::upload`
+  keys on the artefact alone and ignores `primColorLane`; the first
+  form to cross is what every later draw gets. Put the lane in the key.
+- `include/sigilgeometry/Geometry.h:5`, `README.md:1039` — the umbrella
+  claims every public header and omits about forty (the same finding
+  the path-ops pass makes, extended to `kit/*`, pop, curve, render and
+  device headers).
+- `README.md:1060` — "four operators … each over `path::Neighbours`";
+  only `Relax` and `Transfer` use the grid.
+
+Should-fix (correctness): `mesh/pop/Cook.cpp:219` a zero-area
+`MeshScatter` cooks `count` points at the origin; `mesh/render/
+Shading.cpp:90` a reference into a static cache returned after the lock
+is released; `device/residency/Textures.cpp:221` environment and
+irradiance maps never age; `mesh/render/Runtime.cpp:229` and
+`mesh/Mesh.cpp:153` unchecked mesh indices (a read, and a write in
+`computeNormals` on every import); `mesh/pop/Sinks.cpp:101` the piece
+lane's length unchecked; `mesh/render/device/shaders/Painter.slang:128`
+an integer Blinn exponent against the host's float; `mesh/pop/
+Fields.cpp:227` a new operator is silently named "PointSet";
+`mesh/curve/Frame.h:19` a left-handed default frame.
+
+Should-fix (API, build, docs, comments): `mesh/pop/device/Cook.cpp:355`
+a refused kernel answers an empty cloud where the sibling executors fall
+back to the host; `mesh/pop/CMakeLists.txt:64` the pop library links the
+device PUBLIC, pulling Diligent and Vulkan into every consumer, against
+the shape render has and README:1566,1582 state; `Pop.h:48,72` two
+numberings of the builtin lanes; `Pop.h:121` `Vary` writes all four
+components against its doc; `mesh/render/device/Painter.cpp:306` the
+device painter drops IBL and the metal split while its header claims
+parity; `Pop.h:1104`, `Sweep.h:235`, `Stamp.h:170` "defined only with a
+device feature" is false; `kit/Divisions.h:336` `chords()` insets open
+runs only; `kit/Shapers.h:209` a kit header grows `path::profile`;
+`Pop.h:981,952` `deformFrame` and `seedCustomNames` public without a
+true reason or a consumer; `device/Resources.cpp:108` a staging texture
+per read against "made once"; citations of non-existent files
+(`kit/Frame.h`, `Space.h`, `Materials.h`), a test name and the consumer
+SigilWorld in `kit/Divisions.h:63`, `mesh/Mesh.cpp:94`,
+`mesh/Generators.cpp:31`, `mesh/render/Runtime.cpp:118`,
+`mesh/pop/Points.h:12`, `Pop.h:482`, `Mesh.h:100`; README:895,1094 and
+`mesh/CMakeLists.txt:2` wrong about where things live and what is
+exposed. Files by subject: `Pop.h` (1131), `mesh/pop/Cook.cpp` (792),
+`mesh/codec/Geo.cpp` (601).
+
+Tests missing: the negative-skew parallelogram, degenerate pop chains,
+two chains through one device runtime, `upload()` with and without a
+prim lane, host cases naming `Vary`, `Fill` and `LookAt`.
+
 ## SigilWorld, SigilUsd, SigilSubstance, SigilImage (findings/review-geometry-material-world.md)
 
 Blocker:
