@@ -284,36 +284,45 @@ New executables that link `SigilScry` must also call
    for it, and prints that hash — which is what a port for this SDK needs to exist,
    and until one does the steps below install it by hand.
 
-2. Install headers and dylibs to `/usr/local`, the prefix
-   `src/common/scry/cmake/FindUltralight.cmake` searches:
+2. Install it under `~/.local/opt/ultralight/<version>/`, the per-user
+   prefix this tree keeps licensed SDKs in and the first place
+   `src/common/scry/cmake/FindUltralight.cmake` looks. One directory per
+   version, and the highest version wins:
 
    ```sh
-   sudo cp -R <sdk>/include/Ultralight /usr/local/include/
-   sudo cp -R <sdk>/include/AppCore /usr/local/include/Ultralight/
-   sudo cp -R <sdk>/include/JavaScriptCore /usr/local/include/Ultralight/
-   sudo cp <sdk>/bin/libUltralight.dylib <sdk>/bin/libUltralightCore.dylib \
-           <sdk>/bin/libWebCore.dylib <sdk>/bin/libAppCore.dylib /usr/local/lib/
+   sdkroot=~/.local/opt/ultralight/1.4.0
+   mkdir -p "$sdkroot/include"
+   cp -R <sdk>/include/Ultralight "$sdkroot/include/"
+   cp -R <sdk>/include/AppCore "$sdkroot/include/Ultralight/"
+   cp -R <sdk>/include/JavaScriptCore "$sdkroot/include/Ultralight/"
+   cp -R <sdk>/bin <sdk>/resources "$sdkroot/"
    ```
 
    Note the nesting: `AppCore/` and `JavaScriptCore/` go *inside*
-   `/usr/local/include/Ultralight/`, because includes are spelled
-   `<Ultralight/AppCore/...>`.
+   `include/Ultralight/`, because includes are spelled
+   `<Ultralight/AppCore/...>`. `-DULTRALIGHT_SDK_DIR=<dir>` names a root
+   outright — an extracted archive with the nesting done, say — and
+   `/usr/local` is searched after both, for a machine-global copy whose
+   headers go in `/usr/local/include/Ultralight` and whose dylibs go in
+   `/usr/local/lib`.
 
-3. Re-sign the dylibs. They ship with quarantine attributes that make dyld
-   refuse to load them ("code signature not valid for use in process"):
+3. Re-sign the dylibs, wherever they now stand. They ship with quarantine
+   attributes that make dyld refuse to load them ("code signature not
+   valid for use in process"):
 
    ```sh
-   sudo xattr -d com.apple.quarantine /usr/local/lib/lib{Ultralight,UltralightCore,WebCore,AppCore}.dylib
-   sudo codesign --force --sign - /usr/local/lib/lib{Ultralight,UltralightCore,WebCore,AppCore}.dylib
+   xattr -d com.apple.quarantine "$sdkroot"/bin/lib{Ultralight,UltralightCore,WebCore,AppCore}.dylib
+   codesign --force --sign - "$sdkroot"/bin/lib{Ultralight,UltralightCore,WebCore,AppCore}.dylib
    ```
 
    `codesign` may print "internal error in Code Signing subsystem" and still
    succeed — check with `codesign -v`.
 
-4. Install the runtime resources (`icudt67l.dat` and `cacert.pem`).
-   Ultralight distributes these with the application rather than with the
-   dylibs, so put the SDK archive's `resources/` folder somewhere
-   `FindUltralight` looks:
+4. The runtime resources (`icudt67l.dat` and `cacert.pem`) came with the
+   SDK in step 2, and that is where `FindUltralight` reads them from.
+   Ultralight distributes them with the application rather than with the
+   dylibs, so a copy installed apart from an SDK root goes to one of the
+   two locations searched after it:
 
    ```sh
    # machine-global…
@@ -324,9 +333,6 @@ New executables that link `SigilScry` must also call
    mkdir -p "$HOME/Library/Application Support/Ultralight"
    cp -R <sdk>/resources "$HOME/Library/Application Support/Ultralight/"
    ```
-
-   Alternatively, skip this and point CMake at the extracted SDK with
-   `-DULTRALIGHT_SDK_DIR=<sdk>`.
 
 ### Resources at run time
 

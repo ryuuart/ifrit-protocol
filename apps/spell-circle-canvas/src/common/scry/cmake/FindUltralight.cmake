@@ -5,17 +5,22 @@
 # FindUltralight — locates the Ultralight 1.4 SDK (an ultra-light WebKit
 # renderer used by SigilScry for HTML/CSS layout on the scene canvases).
 #
-# The SDK is expected at a standard prefix (/usr/local on the dev Macs:
-# headers in /usr/local/include/Ultralight, dylibs in /usr/local/lib).
-# Runtime data (ICU tables, CA certs) comes from the SDK archive's
-# resources/ folder; per Ultralight's docs it is distributed with the
-# application rather than installed with the dylibs, so install it to one
-# of the searched locations below (per-user Application Support, or
+# An installed SDK is looked for in a version directory under
+# ~/.local/opt/ultralight — the per-user prefix a licensed download is
+# unpacked to, highest version first, each holding the archive's include/,
+# bin/ and resources/ — and then at the system prefix (headers in
+# /usr/local/include/Ultralight, dylibs in /usr/local/lib).
+# ULTRALIGHT_SDK_DIR names one outright and is searched before both.
+#
+# Runtime data (ICU tables, CA certs) comes from the SDK's resources/
+# folder, which the SDK distributes with the application rather than with
+# the dylibs, so a copy installed apart from an SDK root goes to one of the
+# other searched locations (per-user Application Support, or
 # /usr/local/share/ultralight for machine-global).
 #
-# See src/common/scry/README.md for SDK installation instructions. Pass
-# -DULTRALIGHT_SDK_DIR=/path/to/extracted-sdk to resolve the resources
-# straight out of an SDK archive instead of an installed location.
+# AppCore's headers are included as <Ultralight/AppCore/...>, so wherever
+# the SDK stands they sit inside its include/Ultralight rather than beside
+# it.
 #
 # Imported targets:
 #   Ultralight::Ultralight  core library (ultralight::* API)
@@ -31,22 +36,50 @@
 #   app-bundling layout, and the first place the SigilScry engine looks at
 #   runtime. Call it on every executable that links SigilScry.
 
+# The SDK roots to search, in the order they win: one named on the
+# command line, then each version under the per-user prefix, newest first.
+set(_ultralight_roots)
+if(ULTRALIGHT_SDK_DIR)
+  list(APPEND _ultralight_roots "${ULTRALIGHT_SDK_DIR}")
+endif()
+file(GLOB _ultralight_versions "$ENV{HOME}/.local/opt/ultralight/*")
+list(SORT _ultralight_versions COMPARE NATURAL ORDER DESCENDING)
+list(APPEND _ultralight_roots ${_ultralight_versions})
+
+set(_ultralight_includes)
+set(_ultralight_libs)
+set(_ultralight_resources)
+foreach(root IN LISTS _ultralight_roots)
+  list(APPEND _ultralight_includes "${root}/include")
+  # The archive ships its dylibs in bin/; an installed tree may put them
+  # in lib/ instead.
+  list(APPEND _ultralight_libs "${root}/bin" "${root}/lib")
+  list(APPEND _ultralight_resources "${root}/resources")
+endforeach()
+
+# The SDK roots are HINTS and the system prefix is a PATH, because a PATH
+# is the last place searched: an SDK unpacked for this user wins over a
+# copy someone once installed machine-global.
 find_path(Ultralight_INCLUDE_DIR
   NAMES Ultralight/Ultralight.h
+  HINTS ${_ultralight_includes}
   PATHS /usr/local/include
 )
 
-find_library(Ultralight_LIBRARY NAMES Ultralight PATHS /usr/local/lib)
-find_library(Ultralight_AppCore_LIBRARY NAMES AppCore PATHS /usr/local/lib)
-find_library(Ultralight_WebCore_LIBRARY NAMES WebCore PATHS /usr/local/lib)
+find_library(Ultralight_LIBRARY NAMES Ultralight
+             HINTS ${_ultralight_libs} PATHS /usr/local/lib)
+find_library(Ultralight_AppCore_LIBRARY NAMES AppCore
+             HINTS ${_ultralight_libs} PATHS /usr/local/lib)
+find_library(Ultralight_WebCore_LIBRARY NAMES WebCore
+             HINTS ${_ultralight_libs} PATHS /usr/local/lib)
 find_library(Ultralight_UltralightCore_LIBRARY NAMES UltralightCore
-             PATHS /usr/local/lib)
+             HINTS ${_ultralight_libs} PATHS /usr/local/lib)
 
 find_path(Ultralight_RESOURCE_DIR
   NAMES icudt67l.dat
-  PATHS /usr/local/share/ultralight/resources
+  PATHS ${_ultralight_resources}
+        /usr/local/share/ultralight/resources
         "$ENV{HOME}/Library/Application Support/Ultralight/resources"
-        "${ULTRALIGHT_SDK_DIR}/resources"
   NO_DEFAULT_PATH
 )
 
