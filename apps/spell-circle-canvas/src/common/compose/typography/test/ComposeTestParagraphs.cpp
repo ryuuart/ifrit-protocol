@@ -8,6 +8,7 @@
 #include <sigilcompose/kit/Typeset.h>
 
 #include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,11 @@ sigil::weave::TextStyle colouredStyle(float size, SkColor colour) {
 std::u8string passage() {
   return toU8(
       "One two three four five six seven eight nine ten eleven twelve.");
+}
+
+/** Three sentences at a measure that breaks the second across two lines. */
+std::u8string threeSentences() {
+  return toU8("Aa bb. Cc dd ee ff gg hh ii jj kk. Ll mm.");
 }
 
 /** Two blocks, the second after a hard break. */
@@ -1026,4 +1032,56 @@ TEST(KitBullets, TheMarkerKeepsTheRoomTheIndentOpened) {
   ASSERT_LT(leftmost, 300) << "the list drew nothing";
   EXPECT_GE((float)leftmost, kHang - 1.0f)
       << "the first line was pulled back onto the marker's room";
+}
+
+TEST(ComposeAnnotate, ABrokenBaseSharesOneReadingAndShiftsNothingAfterIt) {
+  // A base that breaks across a line is TWO placed units and ONE base: the
+  // pieces share the reading in the proportion of their advances. The
+  // readings therefore pair off with the BASES, not with the units the
+  // layout produced — pair them with the units and the tail of a broken
+  // base takes the next base's reading and every reading after it names
+  // the wrong base, which shows up as the last base left bare.
+  Host host(400, 400);
+  const sigil::weave::TextStyle reading = colouredStyle(9, SK_ColorGREEN);
+  host.composer.render(
+      box().child(text(threeSentences(), whiteStyle(16))
+                      .key("t")
+                      .absolute()
+                      .left(Dim(20.0f))
+                      .top(Dim(40.0f))
+                      .width(Dim(150.0f))
+                      .annotate(kit::ruby(
+                          sigil::weave::sel::each(sigil::weave::unit::Sentence),
+                          sigil::weave::unit::Sentence,
+                          {toU8("one"), toU8("two two two"), toU8("three")},
+                          reading, 2.0f))));
+  host.frame();
+
+  const std::vector<TextUnit> units = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::unit::Sentence),
+      sigil::weave::unit::Sentence);
+  // The measure is chosen so the SECOND sentence breaks: three sentences
+  // land as four units, and the two middle ones meet at a range boundary
+  // on two different lines.
+  ASSERT_EQ(units.size(), 4u) << "the second sentence did not break";
+  EXPECT_EQ(units[1].range.end, units[2].range.start);
+  EXPECT_NE(units[1].lineIndex, units[2].lineIndex);
+
+  // A reading stands in the band ABOVE its base, which the reservation
+  // opened before the base was broken.
+  const auto readingOver = [&](const TextUnit& unit) {
+    const int top = (int)unit.rect.top() - (int)std::ceil(unit.pitch);
+    return anyGreenIn(
+        host,
+        SkIRect::MakeLTRB((int)unit.rect.left() - 4, std::max(top, 0),
+                          (int)unit.rect.right() + 4, (int)unit.rect.top()));
+  };
+  EXPECT_TRUE(readingOver(units[0])) << "the first base lost its reading";
+  EXPECT_TRUE(readingOver(units[1]))
+      << "the head of the broken base carries no share of its reading";
+  EXPECT_TRUE(readingOver(units[2]))
+      << "the tail of the broken base carries no share of its reading";
+  EXPECT_TRUE(readingOver(units[3]))
+      << "the base after the broken one was left bare — the readings were "
+         "numbered by the placed unit rather than by the base";
 }

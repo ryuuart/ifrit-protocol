@@ -11,6 +11,8 @@
 #include <include/core/SkRect.h>
 #include <sigilweave/fonts/Shaper.h>
 
+#include <algorithm>
+#include <cmath>
 #include <optional>
 #include <span>
 #include <utility>
@@ -34,7 +36,27 @@ inline std::span<const Track> paintedTracksOf(const detail::Instance& inst,
                 inst.textState->spanAxisTracks.end());
   return joined;
 }
-/** How many steps the tangent ladder offers a glyph rendered at
+/** HOW MANY STEPS A SIZE-CUT LADDER OFFERS a glyph rendered at @p pixelSize:
+ *  @p perPixel steps for each pixel of em, clamped to
+ *  [@p minSteps, @p maxSteps].
+ *
+ *  Every distinct value a driven quantity takes is a distinct batch bucket
+ *  AND a distinct glyph-atlas strike, so a smooth sweep left unsnapped
+ *  rasterizes every addressed letter afresh on every frame. What ONE STEP
+ *  displaces grows with the size the glyph is drawn at — a variation design
+ *  unit and a rotation both move a fixed fraction of the em — so a ladder
+ *  that does not grow with the size disappears on a caption and shows on a
+ *  headline; it rises in proportion instead. The floor is where a finer
+ *  ladder buys nothing the eye can use at a legible size, and the ceiling is
+ *  what bounds the retained population at all, which is the only reason a
+ *  ladder exists rather than the raw value. How fine each ladder is, and
+ *  where its ends sit, is the caller's — the two questions differ. */
+inline int ladderSteps(float pixelSize, float perPixel, int minSteps,
+                       int maxSteps) {
+  return std::clamp((int)std::lround(pixelSize * perPixel), minSteps, maxSteps);
+}
+
+/** How many directions the tangent ladder offers a glyph rendered at
  *  @p pixelSize. */
 int tangentLadderSteps(float pixelSize);
 

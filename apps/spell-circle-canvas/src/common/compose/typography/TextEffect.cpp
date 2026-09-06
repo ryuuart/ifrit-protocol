@@ -21,7 +21,7 @@ TextEffect TextEffect::pass(material::skia::Paint material) {
     // Once per process: the door takes only the recipe-backed form,
     // because the runtime specializes the recipe per unit count and needs
     // the SkSL body to do it.
-    static bool warned = false;
+    static thread_local bool warned = false;
     if (!warned) {
       warned = true;
       SkDebugf(
@@ -62,7 +62,7 @@ TextEffect TextEffect::withRests(std::initializer_list<float> phases) const {
   if (!m_state || !m_state->pass) {
     // Once per process: the declaration is about a pass's SkSL, and a
     // per-glyph effect has no shader to promise anything about.
-    static bool warned = false;
+    static thread_local bool warned = false;
     if (!warned) {
       warned = true;
       SkDebugf(
@@ -90,7 +90,7 @@ TextEffect TextEffect::displacing(bool moves) const {
     // Once per process: a pass runs over already-rasterized pixels, so it
     // has no pen position to move and the declaration says nothing. Its
     // params slot is the rest declaration, which this must not write into.
-    static bool warned = false;
+    static thread_local bool warned = false;
     if (!warned) {
       warned = true;
       SkDebugf(

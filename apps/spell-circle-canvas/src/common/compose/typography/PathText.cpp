@@ -5,33 +5,15 @@
  * a column.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkFontMetrics.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathEffect.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkPictureRecorder.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/effects/SkTrimPathEffect.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <include/core/SkPath.h>
+#include <include/core/SkPoint.h>
 #include <sigilweave/choreograph/Choreograph.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
-#include <tuple>
 #include <utility>
+#include <vector>
 
-#include "AxisGate.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
 #include "TextEngine.h"
@@ -91,10 +73,7 @@ constexpr int kPathTangentSteps = 64;
  *  em upward, where a step's sweep begins to pass the grid again;
  *  `TextPath::exactTangent` is the escape for artwork set that large. */
 int tangentLadderSteps(float pixelSize) {
-  constexpr float kStepsPerPixel = 16.0f;
-  constexpr int kMinSteps = 64, kMaxSteps = 2048;
-  return std::clamp((int)std::lround(pixelSize * kStepsPerPixel), kMinSteps,
-                    kMaxSteps);
+  return ladderSteps(pixelSize, 16.0f, 64, 2048);
 }
 
 /** THE RUN BROKEN ACROSS ITS BASELINE'S CONTOURS.
@@ -249,7 +228,18 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   // What a contour boundary IS, on the other hand, is a break: a word that
   // does not fit the contour it reached starts the next one rather than
   // bending across the gap between two disconnected curves.
-  const float entry = flipRun ? start + runWidth : start;
+  //
+  // THE ENTRY POINT STAYS ON THE BASELINE. `Align::Center` and `Align::End`
+  // subtract the run's own width from where `at` lands, which puts the entry
+  // BEFORE the head of the baseline whenever the run is wider than the space
+  // ahead of it. A closed baseline has no head to fall off and wraps; an
+  // open one clamps, because the walk below only travels forward, so an
+  // entry left off the head would sit on the first contour at a negative
+  // position and overstate what that contour still offers by exactly how
+  // far off it sat.
+  float entry = flipRun ? start + runWidth : start;
+  entry = closed ? std::fmod(std::fmod(entry, length) + length, length)
+                 : std::clamp(entry, 0.0f, length);
   size_t entryContour = 0;
   float entryLocal = entry;
   while (entryContour + 1 < contours.size() &&
@@ -257,6 +247,7 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
     entryLocal -= contours[entryContour].length();
     ++entryContour;
   }
+  entryLocal = std::clamp(entryLocal, 0.0f, contours[entryContour].length());
   textStateOf(inst).pathIntervals.reserve(contours.size());
   const auto pushInterval = [&](size_t index, float localStart) {
     sigil::weave::LineInterval interval;

@@ -258,14 +258,21 @@ class TextEffect {
   }
 
   /** Two effects are the same effect when their identity — the preset name
-   *  or the author's key, the parameters, the operands, the pass material
-   *  and the named curves — is; a lambda-valued curve compares unequal,
-   *  conservatively, through SigilMotion's `easeEqual`. */
+   *  or the author's key, the parameters, the operands, the reach they
+   *  reserve, the pass material and the named curves — is; a lambda-valued
+   *  curve compares unequal, conservatively, through SigilMotion's
+   *  `easeEqual`.
+   *
+   *  THE REACH IS PART OF IT because it is what the painter reserves and
+   *  culls against: one key handed a wider reach is a body that paints
+   *  further out, and comparing equal would prune it onto the narrower
+   *  reserve and clip the output it was widened for. */
   bool operator==(const TextEffect& other) const {
     if (m_state == other.m_state) return true;  // copies of one value
     if (!m_state || !other.m_state) return false;
     if (m_state->name != other.m_state->name ||
         m_state->params != other.m_state->params ||
+        m_state->reach != other.m_state->reach ||
         m_state->operands != other.m_state->operands)
       return false;
     // A pass compares by its MATERIAL, by value — the paint's own recipe
@@ -307,7 +314,8 @@ class TextEffect {
   /** A PASS EFFECT: the track's evaluation is one shader pass over the
    *  addressed units' rendered pixels, not a per-glyph deviation — the
    *  factory behind `fx::pass` below, where the contract is
-   *  documented. The material must be RECIPE-BACKED (`Material::recipe`)
+   *  documented. The material must be RECIPE-BACKED
+   *  (`material::skia::Paint::recipe`)
    *  over a recipe with an SkSL body, because the runtime bakes the unit
    *  count into a specialization of that recipe; any other material warns
    *  once and returns an EMPTY effect, so the track draws its glyphs at
@@ -456,6 +464,21 @@ inline constexpr float kNominalSizePx = 96.0f;
     std::u32string charset = U"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
     int steps = 14);
 
+/** A VARIABLE-FONT AXIS HELD AT ONE COORDINATE for every glyph the track
+ *  addresses — a grade, an optical size, a slant applied at draw time with
+ *  no reshape.
+ *
+ *  Only an ADVANCE-INVARIANT axis is honoured: the glyphs keep the pen
+ *  positions shaping gave them, so an axis that moved advances would leave
+ *  them sitting wrong. The runtime probes the face once per axis and
+ *  refuses one that does, drawing at the shaped face and warning once —
+ *  GRAD is the advance-invariant weight most faces carry, while wght
+ *  belongs in the shaping style, which re-shapes. */
+[[nodiscard]] inline TextEffect variableAxis(const char (&tag)[5],
+                                             float value) {
+  return TextEffect::variableAxis(tag, value);
+}
+
 /** A SHADER PASS AS A TRACK'S EFFECT — "a shader per letter" without a
  *  shader per letter. The track's units are rendered ONCE into a layer and
  *  @p material runs once over that layer, handed each unit's box and each
@@ -467,12 +490,14 @@ inline constexpr float kNominalSizePx = 96.0f;
  *      auto dissolve = std::make_shared<const material::Recipe>(
  *          material::Recipe::of<Burn>("ember.burn")
  *              .body(material::Target::SkSL, kBurnSksl));
- *      auto burn = Material::recipe(material::Material(dissolve, Burn{ink}));
+ *      auto burn = material::skia::Paint::recipe(
+ *          material::Material(dissolve, Burn{ink}));
  *      text(u8"EMBER DECODE", display)
  *          .fx({.effect = fx::pass(burn),
  *               .stagger = {.eachMs = 260}, .over = weave::unit::Cluster});
  *
- *  THE MATERIAL MUST BE RECIPE-BACKED (`Material::recipe`) over a recipe
+ *  THE MATERIAL MUST BE RECIPE-BACKED (`material::skia::Paint::recipe`) over
+ *  a recipe
  *  with an SkSL body, because the unit count is baked into the compiled
  *  shader — a runtime effect's array size is fixed at compile and SkSL has
  *  no uniform-bounded loop. The RUNTIME owns that specialization: it holds

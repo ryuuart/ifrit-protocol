@@ -450,6 +450,58 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
   EXPECT_GT(r.width(), r.height());
 }
 
+TEST(ComposeText, OnPathCanLeaveEveryGlyphLevelForACalendarRing) {
+  // The third orientation, and the one neither of the others can reach: a
+  // calendar ring's dates and a modern gauge's numerals stand LEVEL at
+  // every division, however the baseline is running under them. Read where
+  // the tangent is VERTICAL — a quarter turn from the bottom — because
+  // that is where a tangent-oriented glyph lies on its side and an upright
+  // one still stands.
+  auto ring = [](TextPath::Orient orient) {
+    auto circle = geometry::shapes::parametric(
+        [](float t) { return SkPoint{std::cos(t), std::sin(t)}; }, 0.0f,
+        2.0f * SK_FloatPI, 360, true);
+    return box().child(text(u8"I", whiteStyle(64))
+                           .width(240)
+                           .height(240)
+                           .absolute()
+                           .left(0)
+                           .top(0)
+                           .onPath({.path = circle,
+                                    .at = 0.5f,  // 9 o'clock: tangent upward
+                                    .align = TextPath::Align::Center,
+                                    .offset = -50.0f,
+                                    .orient = orient}));
+  };
+  auto footprint = [](Host& host) {
+    int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
+    for (int y = 0; y < 240; ++y)
+      for (int x = 0; x < 240; ++x)
+        if (host.pixel(x, y) != SK_ColorBLACK) {
+          minX = std::min(minX, x);
+          maxX = std::max(maxX, x);
+          minY = std::min(minY, y);
+          maxY = std::max(maxY, y);
+        }
+    return SkISize{maxX - minX, maxY - minY};
+  };
+
+  Host tangent(240, 240), upright(240, 240);
+  tangent.composer.render(ring(TextPath::Orient::Tangent));
+  tangent.frame();
+  upright.composer.render(ring(TextPath::Orient::Upright));
+  upright.frame();
+
+  const SkISize t = footprint(tangent), u = footprint(upright);
+  ASSERT_GT(t.width(), 0);
+  ASSERT_GT(u.width(), 0);
+  EXPECT_GT(t.width(), t.height())
+      << "a tangent-oriented glyph where the tangent runs up the page "
+         "should lie on its side";
+  EXPECT_GT(u.height(), u.width())
+      << "an upright glyph stands wherever it sits on the baseline";
+}
+
 TEST(ComposeText, MetricsExposeTheCapSlackThatPlacementNeeds) {
   // A text node's top is the LINE BOX top, while type is usually positioned
   // by its CAP TOP, so aligning a layout against a reference needs the SLACK

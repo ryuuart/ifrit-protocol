@@ -6,41 +6,31 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMetrics.h>
-#include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
-#include <include/core/SkRRect.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/effects/SkTrimPathEffect.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <include/core/SkTypes.h>  // SkDebugf — the pass-material diagnostic
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/decoration/DecorationRects.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
+#include <sigilweave/fonts/Shaper.h>  // makeFont — the cap-height metrics
 
 #include <algorithm>
 #include <boost/container/flat_map.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
-#include <chrono>
 #include <cmath>
+#include <memory>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include "AxisGate.h"
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
 #include "TextEngine.h"
 #include "TextPose.h"
-#include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 
@@ -61,31 +51,17 @@ using namespace detail;
 
 namespace {
 
-/** How many steps the driven-axis ladder offers a glyph rendered at
- *  `pixelSize`.
+/** How many coordinates the driven-axis ladder offers a glyph rendered at
+ *  `pixelSize`. Four steps per pixel of em, between 64 and 512.
  *
- *  A driven coordinate is snapped so a smooth sweep lands on a BOUNDED set
- *  of faces: every distinct coordinate is a distinct clone, a distinct batch
- *  bucket and a distinct set of glyph-atlas strikes.
- *
- *  How coarse that ladder may be is a visual question, and the answer
- *  depends on the size the glyph is rendered at. One step is a fixed
- *  distance in the axis's own design units; a design unit displaces an
- *  outline by a fixed fraction of the em; and a fixed fraction of the em is
- *  MORE PIXELS the larger the em is drawn. So one step's visible effect
- *  grows in proportion to the rendered size, and a step count that does not
- *  grow with it is a ladder that disappears on a caption and shows on a
- *  headline. It rises in proportion instead.
- *
- *  Both ends are clamped. Below the floor a finer ladder buys nothing the
- *  eye can use at any size the type is still legible at; the ceiling is what
- *  makes the retained clone population bounded at all, which is the only
- *  reason a ladder exists rather than the raw coordinate. */
+ *  A driven coordinate snapped to this lands on a bounded set of FACES:
+ *  every distinct coordinate is a distinct clone, a distinct batch bucket
+ *  and a distinct set of glyph-atlas strikes, so the ceiling is what makes
+ *  the retained clone population bounded at all. It is coarser than the
+ *  tangent's because an axis step displaces an outline within the letter,
+ *  where a rotation step sweeps its far edge. */
 int axisLadderSteps(float pixelSize) {
-  constexpr float kStepsPerPixel = 4.0f;
-  constexpr int kMinSteps = 64, kMaxSteps = 512;
-  return std::clamp((int)std::lround(pixelSize * kStepsPerPixel), kMinSteps,
-                    kMaxSteps);
+  return ladderSteps(pixelSize, 4.0f, 64, 512);
 }
 
 /** The face a driven axis asks for, or null when the gate refuses it — the
@@ -393,12 +369,13 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // from the same TrackCascade, so the pass and the query cannot disagree
   // about the schedule. A glyph a pass addresses draws only inside that
   // pass's layer; a glyph two passes address renders in both.
+  using BeatKey = std::pair<uint32_t, uint32_t>;  // (outer, inner)
   struct PassLane {
     const Resolved* source = nullptr;
     sigil::weave::GlyphRSXformBatches batches;
-    std::vector<std::pair<uint32_t, uint32_t>> keys;  // (outer, inner) beats
-    std::vector<SkRect> rects;                        // one per beat
-    std::vector<float> locals;                        // localT per beat
+    std::vector<BeatKey> keys;  // one per beat the track runs
+    std::vector<SkRect> rects;  // one per beat
+    std::vector<float> locals;  // localT per beat
   };
   std::vector<std::unique_ptr<PassLane>> passes;
   for (const Resolved& r : live)
@@ -470,7 +447,36 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           detail::compose(mod, r.track->effect(info, t, rng));
           continuous |= r.track->continuous;
         }
-        if (mod.alpha <= 0.003f || mod.scale <= 0.001f) return;
+        // THE BEAT IS NOTED BEFORE THE INK IS. A glyph the deviation faded
+        // or shrank away draws nothing, but it is still a member of its
+        // beat, and a pass's uniform arrays are numbered against the beats
+        // the query reports: a lane that skipped it would renumber every
+        // beat after it and hand the material a different unit's rect and
+        // phase from the one the author asked about.
+        const auto noteBeat = [&](PassLane& lane) {
+          const detail::TrackCascade& rc = lane.source->resolved;
+          const BeatKey key{rc.outerUnit[g],
+                            rc.innerUnit.empty() ? 0u : rc.innerUnit[g]};
+          const SkRect box =
+              glyphBox(placed, pose, bandOf(placed.shaped, bandMemo));
+          if (const size_t at = indexOfKey(lane.keys, key);
+              at < lane.keys.size()) {
+            lane.rects[at].join(box);
+            return;
+          }
+          lane.keys.push_back(key);
+          lane.rects.push_back(box);
+          lane.locals.push_back(
+              rc.cascade.localTime(lane.source->master, key.first, key.second));
+        };
+        const auto noteBeatsAndDrop = [&] {
+          for (const std::unique_ptr<PassLane>& lane : passes)
+            if ((*lane->source->selected)[g]) noteBeat(*lane);
+        };
+        if (mod.alpha <= 0.003f || mod.scale <= 0.001f) {
+          noteBeatsAndDrop();
+          return;
+        }
         // SNAP what an effect can drive continuously. Every distinct value
         // below is a distinct batch bucket AND a distinct glyph-atlas
         // strike, so a smooth sweep left alone would rasterize every
@@ -484,7 +490,10 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // snapping on a ladder of its own: two independent 32-step alphas
         // would be a thousand buckets where one is thirty-two.
         const float alpha = snap(mod.alpha * mod.colorMul.fA, 1.0f);
-        if (alpha <= 0.0f) return;
+        if (alpha <= 0.0f) {
+          noteBeatsAndDrop();
+          return;
+        }
         // A multiplier above 1 brightens, which is a legitimate tint; the
         // ceiling is only there so a runaway number cannot mint buckets
         // without bound.
@@ -515,7 +524,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
             // for the same reason: a track's rotation composes with that
             // tangent onto one glyph, so a coarser ladder here would be the
             // coarsest thing in the letter's motion and would tick where the
-            // baseline no longer does. Track::continuous is still the opt-out
+            // baseline does not. Track::continuous is still the opt-out
             // that buys the exact angle at a fresh strike per letter per
             // frame.
             sigil::weave::quantizeAngle(
@@ -604,24 +613,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
                                  halfAdvance, dress);
           // The beat this glyph belongs to, and its box joined into that
           // beat's rect — the same (outer, inner) walk beatsOfTrack takes.
-          const detail::TrackCascade& rc = lane->source->resolved;
-          const uint32_t outer = rc.outerUnit[g];
-          const uint32_t inner = rc.innerUnit.empty() ? 0u : rc.innerUnit[g];
-          const SkRect box =
-              glyphBox(placed, pose, bandOf(placed.shaped, bandMemo));
-          bool joined = false;
-          for (size_t i = lane->keys.size(); i-- > 0;)
-            if (lane->keys[i].first == outer && lane->keys[i].second == inner) {
-              lane->rects[i].join(box);
-              joined = true;
-              break;
-            }
-          if (!joined) {
-            lane->keys.emplace_back(outer, inner);
-            lane->rects.push_back(box);
-            lane->locals.push_back(
-                rc.cascade.localTime(lane->source->master, outer, inner));
-          }
+          noteBeat(*lane);
         }
         if (!inPass)
           batches.addGlyph(placed.shaped, override ? *override : *placed.paint,

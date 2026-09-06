@@ -147,13 +147,17 @@ Element& Element::variationDrive(const char (&tag)[5],
   // one thing it is good for here: declaring the paint volatility, so the
   // node repaints while the drive moves and settles when it stops.
   const sigil::weave::FontVariation coordinate(tag, 0.0f);
+  detail::TextData& text = dressedText(m_node->textData.ensure());
   // The effect's key IS its identity, and a drive is identified by its axis
-  // and by WHICH Output feeds it — the binding identity every bound value
-  // in the tree is compared by. Two drives of one axis from two Outputs
-  // must not prune onto each other.
-  char key[64];
-  std::snprintf(key, sizeof(key), "variationDrive:%.4s@%p", tag,
-                (const void*)value);
+  // and by its place among the element's tracks — declaration order, the
+  // handle a keyless mark takes for the same reason. WHICH Output feeds it
+  // is carried by the track's own progress, compared where every bound
+  // value in the tree is; the Output's ADDRESS is not identity, because a
+  // destroyed Output's address comes back on the next one allocated and a
+  // key holding it would prune a live drive onto the dead body.
+  char key[32];
+  std::snprintf(key, sizeof(key), "variationDrive:%.4s#%zu", tag,
+                text.tracks.size());
   Track track;
   track.effect = TextEffect(
       key, {},
@@ -171,7 +175,7 @@ Element& Element::variationDrive(const char (&tag)[5],
       // sweeping grade is type at rest and keeps its whole-pixel origins.
       /*reach=*/0.0f, /*curves=*/{}, /*displaces=*/false);
   track.progress = value;
-  dressedText(m_node->textData.ensure()).tracks.push_back(std::move(track));
+  text.tracks.push_back(std::move(track));
   return *this;
 }
 
