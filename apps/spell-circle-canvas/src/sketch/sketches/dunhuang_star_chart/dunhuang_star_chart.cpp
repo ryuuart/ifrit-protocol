@@ -196,6 +196,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/stats/Fit.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -208,6 +209,8 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 #include "Catalogue.h"
@@ -216,6 +219,7 @@ namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
 namespace shapers = sigil::geometry::shapers;
+namespace measure = sigil::measure;
 namespace shapes = sigil::geometry::shapes;
 namespace skia = sigil::material::skia;
 namespace weave = sigil::weave;
@@ -405,57 +409,52 @@ struct Departure {
   float maxDeg, mm, ratio, sigma;
 };
 
-// max departure of a Mercator ordinate from its own best-fit straight line
-// over [lo, hi] of declination, expressed back in DEGREES of declination.
-Departure mercatorVsLinear(float lo, float hi, float resid, float degPerCm,
-                           float r, int n) {
-  const int N = 400;
-  float sx = 0, sy = 0, sxx = 0, sxy = 0;
-  std::array<float, N + 1> xs{}, ys{};
-  for (int i = 0; i <= N; ++i) {
-    const float dec = lo + (hi - lo) * (float)i / (float)N;
-    const float y = std::log(std::tan((45.0f + dec * 0.5f) * kD));
-    xs[(size_t)i] = dec;
-    ys[(size_t)i] = y;
-    sx += dec;
-    sy += y;
-    sxx += dec * dec;
-    sxy += dec * y;
+/** THE ORDINATE A PROJECTION LAYS DOWN, sampled over [lo, hi] in @p n + 1
+ *  even steps. Mercator is log tan(45 + dec/2); its azimuthal twin is the
+ *  stereographic tan(p/2). Everything below reads one of these two. */
+std::vector<float> ordinate(float lo, float hi, bool mercator, int n) {
+  std::vector<float> ys;
+  ys.reserve((size_t)n + 1);
+  for (int i = 0; i <= n; ++i) {
+    const float v = lo + (hi - lo) * (float)i / (float)n;
+    ys.push_back(mercator ? std::log(std::tan((45.0f + v * 0.5f) * kD))
+                          : std::tan(v * 0.5f * kD));
   }
-  const float nn = (float)(N + 1);
-  const float b = (nn * sxy - sx * sy) / (nn * sxx - sx * sx);
-  const float a = (sy - b * sx) / nn;
-  float mx = 0;
-  for (int i = 0; i <= N; ++i)
-    mx = std::max(mx, std::abs((ys[(size_t)i] - (a + b * xs[(size_t)i])) / b));
+  return ys;
+}
+std::vector<float> abscissa(float lo, float hi, int n) {
+  std::vector<float> xs;
+  xs.reserve((size_t)n + 1);
+  for (int i = 0; i <= n; ++i)
+    xs.push_back(lo + (hi - lo) * (float)i / (float)n);
+  return xs;
+}
+
+/** How far the ordinate departs from its own best-fit straight line, back
+ *  in DEGREES: the max residual divided by the fitted slope, which is the
+ *  degrees of declination that residual is worth.
+ *
+ *  The fit is `measure::lineFit` in FLOAT, and the precision is the point
+ *  — the same sums this file used to accumulate by hand, so the number
+ *  printed and the curve drawn from it are the ones the plate has. */
+Departure departure(float lo, float hi, bool mercator, float resid,
+                    float degPerCm, float r, int n) {
+  const int N = 400;
+  const std::vector<float> xs = abscissa(lo, hi, N);
+  const std::vector<float> ys = ordinate(lo, hi, mercator, N);
+  const measure::LineFit<float> fit = measure::lineFit<float>(xs, ys);
+  const float mx = fit.maxResidual / std::abs(fit.slope);
   const float se = (1.0f - r * r) / std::sqrt((float)(n - 1));
   return {mx, mx / degPerCm * 10.0f, mx / resid, se};
 }
 
-// … and its azimuthal twin: stereographic tan(p/2) against equidistant p.
+Departure mercatorVsLinear(float lo, float hi, float resid, float degPerCm,
+                           float r, int n) {
+  return departure(lo, hi, true, resid, degPerCm, r, n);
+}
 Departure stereoVsEquidistant(float lo, float hi, float resid, float degPerCm,
                               float r, int n) {
-  const int N = 400;
-  float sx = 0, sy = 0, sxx = 0, sxy = 0;
-  std::array<float, N + 1> xs{}, ys{};
-  for (int i = 0; i <= N; ++i) {
-    const float p = lo + (hi - lo) * (float)i / (float)N;
-    const float y = std::tan(p * 0.5f * kD);
-    xs[(size_t)i] = p;
-    ys[(size_t)i] = y;
-    sx += p;
-    sy += y;
-    sxx += p * p;
-    sxy += p * y;
-  }
-  const float nn = (float)(N + 1);
-  const float b = (nn * sxy - sx * sy) / (nn * sxx - sx * sx);
-  const float a = (sy - b * sx) / nn;
-  float mx = 0;
-  for (int i = 0; i <= N; ++i)
-    mx = std::max(mx, std::abs((ys[(size_t)i] - (a + b * xs[(size_t)i])) / b));
-  const float se = (1.0f - r * r) / std::sqrt((float)(n - 1));
-  return {mx, mx / degPerCm * 10.0f, mx / resid, se};
+  return departure(lo, hi, false, resid, degPerCm, r, n);
 }
 
 // ---------------------------------------------------------------------------
@@ -1036,14 +1035,14 @@ struct DunhuangStarChart : sketch::Sketch {
             .top(0)
             .width(Dim(w))
             .height(Dim(kBandH))
-            .shape([](SkSize s) {
+            .shape(keyedShape(std::string_view("band-rules"), [](SkSize s) {
               SkPathBuilder b;
               b.moveTo(0, 1.5f);
               b.lineTo(s.width(), 1.5f);
               b.moveTo(0, s.height() - 1.5f);
               b.lineTo(s.width(), s.height() - 1.5f);
               return b.detach();
-            })
+            }))
             .stroke(
                 Brush{}
                     .shaped(shapers::Jitter{
@@ -1110,12 +1109,12 @@ struct DunhuangStarChart : sketch::Sketch {
             .top(yEq - 1)
             .width(Dim(w))
             .height(Dim(2))
-            .shape([](SkSize s) {
+            .shape(keyedShape(std::string_view("equator"), [](SkSize s) {
               SkPathBuilder b;
               b.moveTo(0, 1);
               b.lineTo(s.width(), 1);
               return b.detach();
-            })
+            }))
             .stroke(PathFormat{.width = 0.75f,
                                .strokeFill = Fill::color(hex(0x8a3020, 0.42f)),
                                .dashIntervals = {5, 5},
@@ -1171,12 +1170,12 @@ struct DunhuangStarChart : sketch::Sketch {
               .top(0)
               .width(Dim(12))
               .height(Dim(kFrameH))
-              .shape([](SkSize sz) {
+              .shape(keyedShape(std::string_view("ra-tick"), [](SkSize sz) {
                 SkPathBuilder b;
                 b.moveTo(sz.width() * 0.5f, 0);
                 b.lineTo(sz.width() * 0.5f, sz.height());
                 return b.detach();
-              })
+              }))
               .stroke(PathFormat{.width = 0.7f,
                                  .strokeFill = Fill::color(hex(0x4a3b28, 0.5f)),
                                  .dashIntervals = {7, 5},
@@ -1301,7 +1300,8 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(0)
                   .width(Dim(d))
                   .height(Dim(d))
-                  .shape([ang, rOut](SkSize) {
+                  .shape(keyedShape(std::tuple(ang, rOut), [ang,
+                                                              rOut](SkSize) {
                     SkPathBuilder b;
                     const float a = ang * kD;
                     b.moveTo(rOut + std::cos(a) * rOut * 0.14f,
@@ -1309,7 +1309,7 @@ struct DunhuangStarChart : sketch::Sketch {
                     b.lineTo(rOut + std::cos(a) * rOut,
                              rOut + std::sin(a) * rOut);
                     return b.detach();
-                  })
+                  }))
                   .stroke(PathFormat{
                       .width = 0.62f,
                       .strokeFill = Fill::color(hex(0x4a3b28, 0.44f)),
@@ -1487,7 +1487,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(A.box.top())
                   .width(Dim(A.box.width()))
                   .height(Dim(A.box.height()))
-                  .shape([p = A.local](SkSize) { return p; })
+                  .shape(heldPath(A.local))
                   .stroke(spans::upTo(gate(A.t0, A.t0 + 0.9f)),
                           Brush{}
                               .shaped(shapers::Jitter{
@@ -1610,12 +1610,12 @@ struct DunhuangStarChart : sketch::Sketch {
                 .top(ly + 10)
                 .width(Dim(std::abs(lx - c.fX) + 4))
                 .height(Dim(c.fY - ly - 10))
-                .shape([](SkSize sz) {
+                .shape(keyedShape(std::string_view("label-leader"), [](SkSize sz) {
                   SkPathBuilder b;
                   b.moveTo(sz.width(), 0);
                   b.lineTo(0, sz.height());
                   return b.detach();
-                })
+                }))
                 .opacity(gate(t, t + 0.3f))
                 .stroke(lines::Line{.width = 0.7f,
                                     .fill = Fill::color(hex(0xb4531f, 0.8f)),
@@ -1691,7 +1691,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(0)
                   .width(Dim(w))
                   .height(Dim(h))
-                  .shape([p](SkSize) { return p; })
+                  .shape(heldPath(p))
                   .stroke(spans::upTo(gate(tArch + 0.05f * (float)i,
                                            tArch + 0.05f * (float)i + 0.55f)),
                           rib));
@@ -1703,7 +1703,7 @@ struct DunhuangStarChart : sketch::Sketch {
             .top(0)
             .width(Dim(w))
             .height(Dim(h))
-            .shape([](SkSize) {
+            .shape(keyedShape(std::string_view("bow"), [](SkSize) {
               SkPathBuilder b;
               b.moveTo(34, 8);
               b.cubicTo(-10, 56, -10, 126, 34, 176);
@@ -1711,7 +1711,7 @@ struct DunhuangStarChart : sketch::Sketch {
               b.lineTo(20, 92);
               b.lineTo(34, 176);
               return b.detach();
-            })
+            }))
             .stroke(spans::upTo(gate(tArch + 0.45f, tArch + 1.0f)),
                     lines::Line{.width = 1.9f,
                                 .fill = Fill::color(hex(0x241d15, 0.88f))}));
@@ -1720,12 +1720,12 @@ struct DunhuangStarChart : sketch::Sketch {
                 .top(0)
                 .width(Dim(w))
                 .height(Dim(h))
-                .shape([](SkSize) {
+                .shape(keyedShape(std::string_view("arrow"), [](SkSize) {
                   SkPathBuilder b;
                   b.moveTo(140, 90);
                   b.lineTo(6, 92);
                   return b.detach();
-                })
+                }))
                 .stroke(spans::upTo(gate(tArch + 0.75f, tArch + 1.15f)),
                         lines::presets::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
     g.child(text(toU8("a bowman in traditional dress, captioned THE GOD OF"),
@@ -1786,7 +1786,7 @@ struct DunhuangStarChart : sketch::Sketch {
               .top(0)
               .width(Dim(68))
               .height(Dim(kBandH - 88))
-              .shape([p = pb.detach()](SkSize) { return p; })
+              .shape(heldPath(pb.detach()))
               .stroke(
                   spans::upTo(gate(tArch + 0.9f + (float)i * 0.08f,
                                    tArch + 1.4f + (float)i * 0.08f)),
@@ -1960,7 +1960,7 @@ struct DunhuangStarChart : sketch::Sketch {
             .top(0)
             .width(Dim(S))
             .height(Dim(S))
-            .shape([t = tb.detach()](SkSize) { return t; })
+            .shape(heldPath(tb.detach()))
             .stroke(spans::upTo(gate(tPrec0, tPrec1)),
                     lines::Line{.width = 2.0f, .fill = Fill::color(kTrace)}));
     // the whole 26,000-year circle, faint, for context
@@ -1978,7 +1978,7 @@ struct DunhuangStarChart : sketch::Sketch {
             .top(0)
             .width(Dim(S))
             .height(Dim(S))
-            .shape([t = wb.detach()](SkSize) { return t; })
+            .shape(heldPath(wb.detach()))
             .stroke(PathFormat{.width = 0.7f,
                                .strokeFill = Fill::color(hex(0x8a7458, 0.45f)),
                                .dashIntervals = {3, 4}}));
@@ -2074,7 +2074,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .top(112)
                 .width(Dim(bw))
                 .height(Dim(9))
-                .shape([](SkSize sz) {
+                .shape(keyedShape(std::string_view("ruler-scale"), [](SkSize sz) {
                   SkPathBuilder b;
                   b.moveTo(0, 0);
                   b.lineTo(0, sz.height());
@@ -2088,7 +2088,7 @@ struct DunhuangStarChart : sketch::Sketch {
                     b.lineTo(x, sz.height() * 0.5f + 2.5f);
                   }
                   return b.detach();
-                })
+                }))
                 .stroke(lines::Line{.width = 0.9f,
                                     .fill = Fill::color(hex(0x9a8a68, 0.8f))}));
     g.child(text(toU8("+700"), type(faceMono, 8.0f, hex(0x9a8a68)))
@@ -2156,7 +2156,7 @@ struct DunhuangStarChart : sketch::Sketch {
               .top(y)
               .width(Dim(xr - xl))
               .height(Dim(11))
-              .shape([](SkSize sz) {
+              .shape(keyedShape(std::string_view("span-bracket"), [](SkSize sz) {
                 SkPathBuilder b;
                 b.moveTo(0, 0);
                 b.lineTo(0, sz.height());
@@ -2165,7 +2165,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 b.moveTo(sz.width(), 0);
                 b.lineTo(sz.width(), sz.height());
                 return b.detach();
-              })
+              }))
               .stroke(lines::Line{.width = 1.0f,
                                   .fill = Fill::color(hex(0xc9a35c, 0.7f))}));
       g.child(text(toU8(fmt("%d\xc2\xb0",
@@ -2214,7 +2214,7 @@ struct DunhuangStarChart : sketch::Sketch {
               .top(0)
               .width(Dim(18))
               .height(Dim(h))
-              .shape([](SkSize s) {
+              .shape(keyedShape(std::string_view("break-zigzag"), [](SkSize s) {
                 SkPathBuilder b;
                 b.moveTo(s.width() * 0.5f, 0);
                 // the loop walks a distance; the accumulated float is the
@@ -2226,7 +2226,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   b.lineTo(s.width() * 0.5f, y + 22.0f);
                 }
                 return b.detach();
-              })
+              }))
               .stroke(lines::Line{.width = 1.2f,
                                   .fill = Fill::color(hex(0x8a7458, 0.8f))}));
     }
@@ -2284,42 +2284,34 @@ struct DunhuangStarChart : sketch::Sketch {
           brush::solid(0.9f, Fill::color(hex(0x8a7458, 0.5f)))));
       const float lo = pl.lo, hi = pl.hi;
       const bool merc = pl.merc;
+      // THE DEPARTURE CURVE, self-normalised — the same residual the
+      // number above reports, drawn along the range. Cooked HERE and
+      // handed over as a held path: inside the shape callable it was
+      // eighty-one samples and a regression re-run on every layout of
+      // this node, and a callable compares equal to nothing so the node
+      // could never prune either.
+      const std::vector<float> xs = abscissa(lo, hi, 80);
+      const std::vector<float> ys = ordinate(lo, hi, merc, 80);
+      const measure::LineFit<float> fit = measure::lineFit<float>(xs, ys);
+      float mx = 1e-9f;
+      std::vector<float> dep;
+      dep.reserve(xs.size());
+      for (size_t i = 0; i < xs.size(); ++i) {
+        dep.push_back(fit.residual(xs[i], ys[i]) / fit.slope);
+        mx = std::max(mx, std::abs(dep[i]));
+      }
+      SkPathBuilder curve;
+      for (size_t i = 0; i < dep.size(); ++i)
+        (i ? curve.lineTo(pw * (float)i / 80.0f,
+                          ph * 0.5f - dep[i] / mx * ph * 0.40f)
+           : curve.moveTo(0.0f, ph * 0.5f - dep[0] / mx * ph * 0.40f));
       p.child(
           box()
               .left(0)
               .top(0)
               .width(Dim(pw))
               .height(Dim(ph))
-              .shape([lo, hi, merc, pw, ph](SkSize) {
-                // the departure curve, self-normalised
-                float ys[81];
-                float sx = 0, sy = 0, sxx = 0, sxy = 0;
-                for (int i = 0; i <= 80; ++i) {
-                  const float v = lo + (hi - lo) * (float)i / 80.0f;
-                  ys[i] = merc ? std::log(std::tan((45.0f + v * 0.5f) * kD))
-                               : std::tan(v * 0.5f * kD);
-                  sx += v;
-                  sy += ys[i];
-                  sxx += v * v;
-                  sxy += v * ys[i];
-                }
-                const float n = 81.0f;
-                const float b = (n * sxy - sx * sy) / (n * sxx - sx * sx);
-                const float a = (sy - b * sx) / n;
-                float mx = 1e-9f;
-                float dep[81];
-                for (int i = 0; i <= 80; ++i) {
-                  const float v = lo + (hi - lo) * (float)i / 80.0f;
-                  dep[i] = (ys[i] - (a + b * v)) / b;
-                  mx = std::max(mx, std::abs(dep[i]));
-                }
-                SkPathBuilder pb;
-                for (int i = 0; i <= 80; ++i)
-                  (i ? pb.lineTo(pw * (float)i / 80.0f,
-                                 ph * 0.5f - dep[i] / mx * ph * 0.40f)
-                     : pb.moveTo(0.0f, ph * 0.5f - dep[0] / mx * ph * 0.40f));
-                return pb.detach();
-              })
+              .shape(heldPath(curve.detach()))
               .stroke(lines::Line{.width = 1.5f, .fill = Fill::color(kTrace)}));
       // the chart's own residual band, to the same vertical scale
       const Departure& dp = merc ? depMerc : depStereo;
@@ -2668,7 +2660,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .top(1546)
                 .width(Dim(barMm * kPxMm))
                 .height(Dim(7))
-                .shape([](SkSize s) {
+                .shape(keyedShape(std::string_view("scale-bar"), [](SkSize s) {
                   SkPathBuilder b;
                   b.moveTo(0, 6);
                   b.lineTo(0, 0);
@@ -2679,7 +2671,7 @@ struct DunhuangStarChart : sketch::Sketch {
                     b.lineTo(s.width() * (float)i / 10.0f, i % 5 ? 3 : 5);
                   }
                   return b.detach();
-                })
+                }))
                 .stroke(lines::Line{.width = 1.0f,
                                     .fill = Fill::color(hex(0x9a8a68, 0.8f))}));
     g.child(text(toU8("10 cm of scroll \xc2\xb7 IDP scan 204.8 px/cm"),
@@ -2716,7 +2708,7 @@ struct DunhuangStarChart : sketch::Sketch {
             .key("grat")
             .opacity(gate(tSky - 0.6f, tSky + 0.6f))
             .zIndex(-1)
-            .shape([](SkSize s) {
+            .shape(keyedShape(std::string_view("graticule"), [](SkSize s) {
               SkPathBuilder b;
               for (int i = 0; i <= 12; ++i) {
                 const float x = s.width() * (float)i / 12.0f;
@@ -2729,7 +2721,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 b.lineTo(s.width(), y);
               }
               return b.detach();
-            })
+            }))
             .stroke(PathFormat{.width = 0.8f,
                                .strokeFill = Fill::color(hex(0x2f6d86, 0.42f)),
                                .dashIntervals = {3, 7}}));
