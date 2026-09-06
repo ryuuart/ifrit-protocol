@@ -203,6 +203,7 @@
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Scrollbar.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -1241,7 +1242,10 @@ struct CdeMotifSketch : sketch::Sketch {
 
       // The scrollbar: a sunken trough with a raised slider, and a
       // STEPPER at each end — CDE puts an arrow box top and bottom, and
-      // without them the trough reads as a plain groove.
+      // without them the trough reads as a plain groove. The slider's
+      // length is the ONE number here measured off the screenshot rather
+      // than read off what the pane holds: the reference shows a file
+      // view whose icon count nothing in this sketch stands for.
       Element scrollbar;
       {
         env::Provide<cde::ColorSet> bar(theme[3]);
@@ -1261,18 +1265,18 @@ struct CdeMotifSketch : sketch::Sketch {
                          .shape(shapes::polygon(3, up ? 0.0f : 180.0f))
                          .fill(c3.fg));
         };
-        scrollbar = box()
+        scrollbar = sketch::kit::scrollbar(
+                        {.leading = stepper(true),
+                         .trailing = stepper(false),
+                         .thumb = box().fill(c3.bg).overlay(
+                             cde::bevel(2, false, false)),
+                         .thumbLength = Dim(150),
+                         .track = Fill::none()})
                         .width(Dim(19))
-                        .column()
                         .padding(2)
                         .gap(2)
                         .fill(c3.bg)
-                        .overlay(cde::bevel(2, true, false))
-                        .child(stepper(true))
-                        .child(box().grow(1).column().child(
-                            box().height(Dim(150)).fill(c3.bg).overlay(
-                                cde::bevel(2, false, false))))
-                        .child(stepper(false));
+                        .overlay(cde::bevel(2, true, false));
       }
 
       Element pathRow = box()
@@ -1360,25 +1364,23 @@ struct CdeMotifSketch : sketch::Sketch {
 
     // XmScrollBar: a sunken trough in the workspace set with a raised
     // slider, 15 px of trough plus 2 px of shadow either side [MEAS].
-    auto scrollBar = [&](const Set& t, float sliderFrac, float sliderTop) {
-      return box()
+    auto scrollBar = [&](const Set& t, float sliderFrac) {
+      return sketch::kit::scrollbar(
+                 {.thumb =
+                      box().fill(t.bg).overlay(cde::bevel(2, false, false)),
+                  .thumbLength = pct(sliderFrac),
+                  .track = Fill::none()})
           .width(Dim(19))
           .fill(t.bg)
           .overlay(cde::bevel(2, true, false))
-          .padding(2)
-          .column()
-          .child(box().height(Dim(sliderTop)))
-          .child(box()
-                     .height(pct(sliderFrac))
-                     .fill(t.bg)
-                     .overlay(cde::bevel(2, false, false)));
+          .padding(2);
     };
 
     Element listPane = box()
                            .row()
                            .width(Dim(170))
                            .child(std::move(list))
-                           .child(scrollBar(theme[3], 34, 0));
+                           .child(scrollBar(theme[3], 34));
 
     // The eight colour-set swatches, 4 x 2. This IS the palette file.
     Element swatches = box().column().gap(6);
