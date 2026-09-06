@@ -111,6 +111,7 @@
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Scrollbar.h>
 #include <sigilworld/frame/Frame.h>
 
 #include <algorithm>
@@ -1541,11 +1542,26 @@ struct TwoAdvancedV4 : sketch::Sketch {
    *  against the well and derive the real scroll overflow. kPressWellW is
    *  the width the entries wrap at inside the well: the 690 monitor body
    *  less its two 11 px paddings, the 8 px gap, the 16 px scrollbar and
-   *  the clip's two 9 px paddings. kPressWellH is the matching viewport
-   *  height: 376 less the two 11 px paddings, the 9 px column gap, the
-   *  34 px footer row and the clip's two 9 px paddings. */
+   *  the clip's two 9 px paddings. */
   static constexpr float kPressWellW = 690 - 2 * 11 - 8 - 16 - 2 * 9;
-  static constexpr float kPressWellH = 376 - 2 * 11 - 9 - 34 - 2 * 9;
+  /** The row the well and its bar share: 376 less the two 11 px paddings,
+   *  the 9 px column gap and the 34 px footer row. */
+  static constexpr float kPressRowH = 376 - 2 * 11 - 9 - 34;
+  /** The viewport the entries scroll through — the row less the clip's
+   *  two 9 px paddings. */
+  static constexpr float kPressWellH = kPressRowH - 2 * 9;
+  /** And the track the thumb runs in: the row less its two 16 px
+   *  steppers and the two 3 px gaps that stand them off. */
+  static constexpr float kPressTrackH = kPressRowH - 2 * 16 - 2 * 3;
+
+  /** WHAT THE PRESS WELL SCROLLS, as the one reading the bar and the
+   *  clock both take: the entries measured against the well in setup, and
+   *  the track the thumb says their share in. */
+  sketch::kit::Scrolled pressScrolled() const {
+    return {.view = kPressWellH,
+            .content = kPressWellH + pressOverflow,
+            .track = kPressTrackH};
+  }
   Element pressList() {
     using namespace tav;
     struct Entry {
@@ -1595,40 +1611,41 @@ struct TwoAdvancedV4 : sketch::Sketch {
     using namespace tav;
     Element list = pressList().translateY(&pressScroll);
 
+    // The thumb is the well's share of the entries it scrolls, and it
+    // rides the same Output the list does: a bar drawn at a guessed
+    // length beside a list scrolled over a measured one says the wrong
+    // thing twice, about how much is below and about where the reader is.
+    auto stepper = [&](bool up) {
+      return box()
+          .width(16)
+          .height(16)
+          .fill(kPanelSh)
+          .justify(Justify::Center)
+          .alignItems(Align::Center)
+          .child(t(up ? "\xe2\x96\xb4" : "\xe2\x96\xbe", micro(8, kBody, 0)));
+    };
+    const sketch::kit::Scrolled well = pressScrolled();
     Element scrollbar =
-        box()
+        sketch::kit::scrollbar(
+            {.leading = stepper(true),
+             .trailing = stepper(false),
+             .thumb = box()
+                          .fill(mskia::Paint::linearUnit(
+                              {0, 0}, {1, 0},
+                              {{0.0f, hex(0xCFEFEC)}, {1.0f, kPanelHi}}))
+                          .stroke(stroke(1, Fill::color(alpha(kDate, 0.4f)),
+                                         PathFormat::Align::Inner)),
+             .scrolled = well,
+             // The list's own scroll, in the thumb's units. A list that
+             // fits has no travel and the target collapses to nothing;
+             // the divisor is only there to stay finite.
+             .position = motion::bind(&pressScroll)
+                             .source(0.0f, -std::max(pressOverflow, 1.0f))
+                             .target(0.0f, well.thumb().travel),
+             .thumbInset = 2,
+             .track = Fill::color(alpha(kPanelSh, 0.6f))})
             .width(16)
-            .column()
-            .gap(3)
-            .child(box()
-                       .width(16)
-                       .height(16)
-                       .fill(kPanelSh)
-                       .justify(Justify::Center)
-                       .alignItems(Align::Center)
-                       .child(t("\xe2\x96\xb4", micro(8, kBody, 0))))
-            .child(
-                box()
-                    .grow(1)
-                    .fill(alpha(kPanelSh, 0.6f))
-                    .child(
-                        box()
-                            .left(Dim(2))
-                            .top(Dim(6))
-                            .width(12)
-                            .height(90)
-                            .fill(mskia::Paint::linearUnit(
-                                {0, 0}, {1, 0},
-                                {{0.0f, hex(0xCFEFEC)}, {1.0f, kPanelHi}}))
-                            .stroke(stroke(1, Fill::color(alpha(kDate, 0.4f)),
-                                           PathFormat::Align::Inner))))
-            .child(box()
-                       .width(16)
-                       .height(16)
-                       .fill(kPanelSh)
-                       .justify(Justify::Center)
-                       .alignItems(Align::Center)
-                       .child(t("\xe2\x96\xbe", micro(8, kBody, 0))));
+            .gap(3);
 
     Element bodyArea =
         monitorBody(690, 376)
