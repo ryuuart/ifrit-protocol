@@ -66,7 +66,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
-#include <functional>
+#include <string_view>
 
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
@@ -170,8 +170,8 @@ constexpr float kMenuX = 60, kMenuY = 70;  // menu container origin
 
 /** The selection wedge: a sliver that tapers to a near-point at the right
  *  (long banner, blunt tip) -- the white slab the selected label sits on. */
-inline std::function<SkPath(SkSize)> sliverWedge() {
-  return [](SkSize s) {
+inline Shape sliverWedge() {
+  return keyedShape(std::string_view("persona-sliver"), [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(0, 0);
     b.lineTo(s.width(), s.height() * 0.20f);
@@ -179,7 +179,7 @@ inline std::function<SkPath(SkSize)> sliverWedge() {
     b.lineTo(0, s.height());
     b.close();
     return b.detach();
-  };
+  });
 }
 
 /** Heavy condensed ITALIC, standing in for FOT-Rodin, which the original
@@ -238,6 +238,11 @@ struct PersonaMenu final : sketch::Sketch {
   // not a curve: the offset is what rings down, and the two triangles
   // read it on both axes.
   motion::Spring cursorFlight{40.0f, 0.0f};
+  /** The caustic shader, compiled once per declaration and held HERE. A
+   *  function-local static would outlive the dylib a hot-reloaded sketch
+   *  is compiled into, and a face or an effect compared by pointer after
+   *  that reload is a pointer into code that is gone. */
+  sk_sp<SkRuntimeEffect> causticFx;
 
   void setup(sketch::SketchContext& ctx) override {
     sketch::kit::stage(ctx, {.size = kSceneSize,
@@ -245,6 +250,7 @@ struct PersonaMenu final : sketch::Sketch {
                              .background = SkColor4f{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
+    causticFx = compileCaustic();
     qTime = 0;
     wedgePulse = 1;
     curDx = 40;
@@ -287,10 +293,8 @@ struct PersonaMenu final : sketch::Sketch {
    *  the reference's sigma-1.4 blur. One live material and one texture bake
    *  per 6 Hz step: because the time input holds between steps, the memo
    *  turns every intermediate frame into a blit. */
-  Paint dualCaustic() {
-    namespace nn = persona_menu;
-    static const sk_sp<SkRuntimeEffect> fx = [] {
-      auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+  sk_sp<SkRuntimeEffect> compileCaustic() {
+    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
         uniform float2 uResolution;
         uniform float  uTime;   // pre-quantized to 6 Hz by the host
         uniform float4 uLight;  // cut .48 layer color (alpha = strength)
@@ -336,10 +340,13 @@ struct PersonaMenu final : sketch::Sketch {
           return acc * 0.25;
         }
       )"));
-      if (!effect) SkDebugf("persona dualCaustic: %s\n", err.c_str());
-      return effect;
-    }();
-    Paint m = Paint::sksl(fx);
+    if (!effect) SkDebugf("persona dualCaustic: %s\n", err.c_str());
+    return effect;
+  }
+
+  Paint dualCaustic() {
+    namespace nn = persona_menu;
+    Paint m = Paint::sksl(causticFx);
     m.uniform("uLight", nn::kCausLight)
         .uniform("uDark", nn::kCausBub)
         .uniform("uTime", &qTime);
@@ -612,6 +619,11 @@ struct PersonaMenu final : sketch::Sketch {
     constexpr SkColor4f kHp{0.549f, 0.910f, 0.627f, 1};  // #8CE8A0
     constexpr SkColor4f kSp{0.416f, 0.722f, 1.000f, 1};  // #6ABBFF
 
+    // A ROW, NOT `sketch::kit::meter`. That component sets the label and
+    // the reading OVER the bar and the rail under them, which is the
+    // reading a specimen sheet wants; P3R runs the three across one line
+    // with the label ranged left of the rail and the numbers right of it,
+    // and the two are different pictures rather than one with a field set.
     auto bar = [&](const char* label, int value, int max, SkColor4f color) {
       const float frac = max > 0 ? (float)value / (float)max : 0.0f;
       const std::string numbers = kit::formatted("%d/%d", value, max);
