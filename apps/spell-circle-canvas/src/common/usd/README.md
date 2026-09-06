@@ -187,7 +187,7 @@ leaves every target here out.
 Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
 `SigilUsd` umbrella; `usd_test` (ctest, one binary over `write/test/` and
 `read/test/`); `usd_bench` (Google
-Benchmark, through the `benches` target and `scripts/bench_ledger.py`).
+Benchmark, through the `benches` target and `scripts/sigil.py bench`).
 
 ```sh
 ctest --test-dir build -C Release -R '^Usd' --output-on-failure

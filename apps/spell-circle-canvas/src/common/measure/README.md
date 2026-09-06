@@ -229,4 +229,4 @@ scheduler rather than anything this library promises. `measure_bench` times `Sam
 `Histogram::add`, the per-run cost of `Moments::of`, `Histogram::over`
 and `zScore`, and the two quantile arms side by side, where the whole
 point is that one sorts once and the other sorts per fraction; it builds
-through the `benches` target and runs through `scripts/bench_ledger.py`.
+through the `benches` target and runs through `scripts/sigil.py bench`.

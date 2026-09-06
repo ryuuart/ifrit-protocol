@@ -274,7 +274,7 @@ and does not open a file in either direction.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release --target io_test
 ctest --test-dir build -C Release --output-on-failure
 ```
@@ -293,7 +293,7 @@ private `hub/Fetch.h` and `hub/Residency.h`) with `hub/test/`, whose
 answering as a `ByteSource`, which is the seam a consumer that only
 wants bytes stands on; and `io_bench` (Google Benchmark, built
 by the `benches` target and run from a Release build through
-`scripts/bench_ledger.py`: `Hub::blob` on a cache hit and `load<T>` on a
+`scripts/sigil.py bench`: `Hub::blob` on a cache hit and `load<T>` on a
 decoded view per call, `resolve` per URI against the mount table, and
 `networkCacheKey` per URL — the disk kept out of every timed loop); and
 `SigilIO`, the umbrella.

@@ -321,7 +321,7 @@ optionals these functions answer.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release --target data_test
 ctest --test-dir build -C Release -R '^Data' --output-on-failure
 ```

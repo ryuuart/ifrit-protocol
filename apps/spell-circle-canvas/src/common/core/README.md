@@ -758,7 +758,7 @@ text, paint and the meaning of every term stay on its side of the seam.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
@@ -840,4 +840,4 @@ is the split rather than any consumer's arithmetic; the reconcile and
 cache arms time the reconciler and the proof over the fake
 hosts at several node counts; and the hardware arms time the device.
 They build through the `benches` target and run through
-`scripts/bench_ledger.py`, which is where any number about them belongs.
+`scripts/sigil.py bench`, which is where any number about them belongs.

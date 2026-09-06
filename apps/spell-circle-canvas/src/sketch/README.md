@@ -752,7 +752,7 @@ display: a sketch comfortably inside its budget reads at the refresh
 rate and says nothing more. The interesting rows are the ones BELOW it,
 and the work beside them says how much of that frame was the sketch.
 
-`scripts/app_fps_ledger.py` drives it over the registry and judges each
+`scripts/sigil.py bench --lane fps` drives it over the registry and judges each
 presented rate against `bench/app_fps_<config>.json` within a stated
 band, `--rebase` adopting. The baseline is per machine AND per display
 mode, so it records the window size and scale it was taken at and the
@@ -956,7 +956,7 @@ moved — a bake somewhere else, rasterised against another clip, or gone
 stale — and that is a defect in the promoter rather than a plate to
 adopt.
 
-`scripts/plate_ledger.py` drives this: three tiers over one binary. The
+`scripts/sigil.py plates` drives this: three tiers over one binary. The
 CPU tier judges every sketch, canvas and set alike, on byte identity
 against one baseline manifest; the device tier renders the same sketches
 through the device and judges each against the CPU plate of the same
@@ -1234,7 +1234,7 @@ store does not expand the whole timeline into images.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release --target sketch_test
 ctest --test-dir build -C Release --output-on-failure
 ```
@@ -1342,7 +1342,7 @@ The `sketch_reload_*` entries in `book/CMakeLists.txt` run
 captured response file, dlopens the result and runs it — the DYNAMIC
 path, and the only one that can see a missing archive in the force-load
 list. The plate cases call `sweep()` IN PROCESS against fixture
-sketches its own binary registered. `scripts/plate_ledger.py` runs
+sketches its own binary registered. `scripts/sigil.py plates` runs
 `Sketchbook --headless --ledger` over the COMPILED-IN registry and judges
 plate hashes. Three different things, and none of them stands in for
 another.

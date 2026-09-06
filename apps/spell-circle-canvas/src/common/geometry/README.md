@@ -1626,7 +1626,7 @@ formula, because there is one formula and this side compiled it.
 Configure and build from `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release
 ```
 
@@ -1638,7 +1638,7 @@ Targets: one static library per feature — `SigilGeometryPath`,
 `SigilGeometryDeviceResidency`, `SigilGeometryKit` — the `SigilGeometry` umbrella over all of them, the tests, and one Google Benchmark binary,
 `geometry_bench`, built by the `benches` target into
 `bin/<config>/benches/` and run from a Release build through
-`scripts/bench_ledger.py`. Its arms sit in each feature's `bench/`:
+`scripts/sigil.py bench`. Its arms sit in each feature's `bench/`:
 
 | Arms | Measure |
 | --- | --- |

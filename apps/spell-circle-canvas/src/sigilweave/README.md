@@ -331,7 +331,7 @@ state.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
@@ -467,12 +467,12 @@ differ in one paint feature).
 The corpus they share sits in `bench/support/`, over the same font
 context and the same layout readings the tests use. Build
 them Release through the `benches` target and run them through
-`scripts/bench_ledger.py` rather than trusting a number written down
+`scripts/sigil.py bench` rather than trusting a number written down
 anywhere:
 
 ```sh
 cmake --build build --config Release --target benches weave_demo
-python3 scripts/bench_ledger.py --benches weave_bench
+python3 scripts/sigil.py bench --benches weave_bench
 ./build/bin/Release/weave_demo   # writes weave_demo_out/*.png in the cwd
 ```
 

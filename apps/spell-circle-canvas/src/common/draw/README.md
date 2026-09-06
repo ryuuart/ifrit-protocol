@@ -690,7 +690,7 @@ families, and it alone — the `PenMachineFace` suite — carries the
 `fonts` ctest label. `draw_bench` times ten thousand circles filled and stroked,
 ten thousand rects, a screen of text, a translucent background and a
 thousand noise samples per frame; it builds through the `benches` target
-and runs through `scripts/bench_ledger.py`.
+and runs through `scripts/sigil.py bench`.
 
 The brush cases are one file per subject: the sampler's spacing across
 uneven events and the first dab's heading; segment and spline pressure;

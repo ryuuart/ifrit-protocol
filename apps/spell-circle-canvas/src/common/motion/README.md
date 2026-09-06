@@ -582,7 +582,7 @@ a point looks like is the drawing's business.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release --target motion_test
 ctest --test-dir build -C Release --output-on-failure
 ```
@@ -647,7 +647,7 @@ exercises, plus the clock where a value is driven by the ticker, and
 GoogleTest.
 
 One Google Benchmark binary, `motion_bench`, is built by the `benches`
-target and run from a Release build through `scripts/bench_ledger.py`,
+target and run from a Release build through `scripts/sigil.py bench`,
 which is where any number about this library belongs. Its arms:
 `bind/bench/` (`BoundFloat::apply`
 per call under each envelope and the full chain, and the wiggle field by

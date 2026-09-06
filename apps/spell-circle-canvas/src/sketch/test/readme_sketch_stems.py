@@ -89,9 +89,6 @@ EXEMPT = {
     "sigil_sketch_dir": "a CMake cache variable",
     "sigil_sketch_asset_dir": "a CMake cache variable",
     "window_bench": "a host flag",
-    "plate_ledger": "a script",
-    "app_fps_ledger": "a script",
-    "bench_ledger": "a script",
 }
 
 

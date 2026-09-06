@@ -59,7 +59,7 @@ its plate is rebased in the same commit that converts it.
 
 ## Automatic texture promotion still moves 23 plates past one code value
 
-`scripts/plate_ledger.py --tier promotion` renders every scene with
+`scripts/sigil.py plates --tier promotion` renders every scene with
 automatic texture promotion held off and again with it on and differences
 the pair. The rule the promoter is held to is now stated in
 `src/common/compose/README.md`: a promoted node paints the picture its
@@ -152,7 +152,7 @@ The plate is judged on byte identity, so anything that changes how many
 modules are compiled ahead of this one moves its hash without moving
 anything the sketch is about: a warm-up gaining or losing a recipe, the
 live host opening on a file after another sketch, or a sweep that ever
-renders more than one scene per process. Today `plate_ledger.py` opens
+renders more than one scene per process. Today the plates verb opens
 one process per scene and the number is stable, which is the only reason
 this is latent rather than a flapper.
 

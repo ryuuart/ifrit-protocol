@@ -1081,7 +1081,7 @@ a node's fill and routes it, and holds no paint model of its own.
 
 ```sh
 ctest --test-dir build -C Release --output-on-failure
-python3 scripts/bench_ledger.py --benches material_bench
+python3 scripts/sigil.py bench --benches material_bench
 ```
 
 A case here asserts one thing this library promises through its public

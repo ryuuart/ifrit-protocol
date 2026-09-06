@@ -794,11 +794,11 @@ question asked of a canvas sketch — did any byte move that I did not
 mean to move — and it needs no device:
 
 ```sh
-python3 scripts/plate_ledger.py --kind set --rebase   # adopt a baseline
-python3 scripts/plate_ledger.py --kind set            # sweep and judge
-python3 scripts/plate_ledger.py --kind set --stability 2
-python3 scripts/plate_ledger.py --kind set --tier device
-python3 scripts/plate_ledger.py --kind set --tier promotion
+python3 scripts/sigil.py plates --kind set --rebase   # adopt a baseline
+python3 scripts/sigil.py plates --kind set            # sweep and judge
+python3 scripts/sigil.py plates --kind set --stability 2
+python3 scripts/sigil.py plates --kind set --tier device
+python3 scripts/sigil.py plates --kind set --tier promotion
 ```
 
 A sweep narrowed to one kind merges into the manifest rather than
@@ -1237,7 +1237,7 @@ ships on a device, so a sweep here would be a third reading of one fact.
 Two rasterisers are not the same bytes, the distance between them is a
 different number per subject, and it moves with the scene rather than
 with this code — so it is judged over the whole registry, each device
-plate against the CPU plate of the same run, by `plate_ledger.py --tier
+plate against the CPU plate of the same run, by `sigil.py plates --tier
 device`, and the only
 distance a test here reads is the worst channel, as an INEQUALITY saying
 an operation reached the pixels at all. The conformance of the chain cook
@@ -1261,7 +1261,7 @@ makes "the kit sees public headers only" a property of the build rather
 than a convention.
 
 `world_bench` — every feature's `bench/` in one binary — builds through
-the `benches` target and runs through `scripts/bench_ledger.py`;
+the `benches` target and runs through `scripts/sigil.py bench`;
 use a Release build. The device bench measures the four costs a device
 has that the host does not: turning the device Diligent made into a
 device both APIs draw on, turning a recipe's Slang body into a program, a

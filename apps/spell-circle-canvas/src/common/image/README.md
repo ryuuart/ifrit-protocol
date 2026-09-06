@@ -267,7 +267,7 @@ in either direction: `encodeImage()` hands bytes back the way
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release --target image_test
 ctest --test-dir build -C Release --output-on-failure
 ```
@@ -286,7 +286,7 @@ suite or a case is selected by name with no target behind it
 (`ctest -R '^ImageDecode\.'`). One benchmark binary, `image_bench`,
 carries the decode and encode arms (Google Benchmark, built by the
 `benches` target and run from a Release build through
-`scripts/bench_ledger.py`).
+`scripts/sigil.py bench`).
 
 `test/Pixels.h` beside the fixtures is what the format suites read a
 picture by: where a committed file stands, one pixel out of a decoded

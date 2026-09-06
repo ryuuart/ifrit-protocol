@@ -22,7 +22,7 @@ optional and adds inheritance graphs.
 | `custom.css` | Project overrides, loaded after the theme. |
 | `Dockerfile`, `nginx.conf`, `dockerignore` | Serving the generated site. |
 
-The generation itself is `scripts/build_docs.py`: the two passes, the
+The generation itself is `scripts/sigil.py docs`: the two passes, the
 theme download, the HTML header, the rendered Doxyfiles, the landing
 page and the container staging. CMake keeps what only CMake knows —
 whether Doxygen is installed, where it is, and which libraries
@@ -106,7 +106,7 @@ the stylesheet without changing the generated HTML structure, so the
 markup Doxygen emits stays the markup the theme expects.
 
 It is pinned to a commit and hash-checked per file in
-`scripts/build_docs.py`, fetched into `build/docs-build/theme/` through
+`scripts/sigil.py docs`, fetched into `build/docs-build/theme/` through
 the same downloader as the demo assets, and never vendored. A file whose
 bytes already match is not re-fetched, so only the first `docs` build
 touches the network.

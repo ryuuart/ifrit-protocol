@@ -176,7 +176,7 @@ encoding are outside this surface.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release --target video_test
 ctest --test-dir build -C Release --output-on-failure
 ```

@@ -263,7 +263,7 @@ promises and is named that promise as a sentence; it pins only what
 editing this library could falsify — a colour a document declares, a
 MIME type, a row stride's alignment and the bytes a buffer must hold —
 never the exact padding an allocator chose. Benchmarks (Google
-Benchmark, through the `benches` target and `scripts/bench_ledger.py`):
+Benchmark, through the `benches` target and `scripts/sigil.py bench`):
 one binary, `scry_bench`, with arms in `platform/bench/`, `gpu/bench/`
 (Apple) and `engine/bench/` — `--gpu` runs the engine's GPU-mode arms, a
 separate run because of the one-renderer rule; the ledger runs the CPU
@@ -277,9 +277,9 @@ New executables that link `SigilScry` must also call
 1. Download the Free SDK 1.4.x for your architecture from
    <https://ultralig.ht> (e.g. `ultralight-free-sdk-1.4.0-mac-arm64.7z`)
    and extract it. The download needs an account, so nothing can fetch
-   it; keep the archive. `scripts/stage_asset.py <archive>` puts it into
-   the vcpkg asset cache under the SHA-512 a port declares for it, and
-   prints that hash — which is what a port for this SDK needs to exist,
+   it; keep the archive. `scripts/sigil.py assets --stage <archive>`
+   puts it into the vcpkg asset cache under the SHA-512 a port declares
+   for it, and prints that hash — which is what a port for this SDK needs to exist,
    and until one does the steps below install it by hand.
 
 2. Install headers and dylibs to `/usr/local`, the prefix

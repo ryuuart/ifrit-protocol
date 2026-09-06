@@ -338,7 +338,7 @@ or a scene.
 umbrella are always built, with one test binary `skia_test` over
 `draw/test/` and `graphite/test/` and one benchmark binary `skia_bench`
 (Google Benchmark, through the `benches` target and
-`scripts/bench_ledger.py`). The `SkiaPixels` case is arithmetic over an
+`scripts/sigil.py bench`). The `SkiaPixels` case is arithmetic over an
 `SkImage` — no device, no context, no bring-up — which is why it carries
 no label and runs on every machine. The `SigilSkiaGraphite` suite takes
 the Metal path end to end on
