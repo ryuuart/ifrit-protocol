@@ -69,8 +69,8 @@ VideoToolbox decoder. A hardware frame carries its `CVPixelBuffer` as a
 `NativeFrame`, so a platform host may publish it through a display-overlay
 path without converting it. When `frameAt()` receives the Graphite recorder
 owned by the destination canvas, the device executor makes Metal views of the
-pixel buffer's Y and UV planes and hands them to SigilSkia's `wrapImage` as the
-two planes of one image, described by an `SkYUVAInfo` this library builds. Drawing that image composites video on the GPU without an RGBA upload
+pixel buffer's Y and UV planes and hands them to SigilSkia's
+`wrapPlanarImage` as the two planes of one image, described by an `SkYUVAInfo` this library builds. Drawing that image composites video on the GPU without an RGBA upload
 or CPU colour conversion. One texture cache serves every decoder on the same
 Metal device, and one wrapped image per decoded frame can feed any number of
 draws.
