@@ -124,6 +124,7 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding |
 | [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
+| [SigilData](src/common/data/README.md) | Tabular data and scales: typed columns, and the one value that maps a domain onto a range |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |
 | [SigilMeasure](src/common/measure/README.md) | Timing, statistics and check reporting |
 | [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |

@@ -44,6 +44,8 @@ do not reconstruct a library's rules from another library's document.
   composition, MP4 encode
 - `src/common/io/README.md` — SigilIO: resource access: URIs, mounts,
   caching, hot reload, byte sinks
+- `src/common/data/README.md` — SigilData: tabular data and the one
+  value that maps a domain onto a range
 - `src/common/measure/README.md` — timing, statistics and check
   reporting
 - `src/common/scry/README.md` — HTML and CSS rendered to Skia images

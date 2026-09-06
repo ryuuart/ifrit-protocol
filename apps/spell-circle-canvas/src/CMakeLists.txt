@@ -4,12 +4,13 @@
 #                added below: core/ (SigilCore), skia/ (SigilSkia,
 #                Graphite bring-up), ui/ (Ifrit.Ui Qt Quick controls),
 #                image/ (SigilImage), video/ (SigilVideo), io/ (SigilIO),
-#                scry/ (SigilScry), measure/ (SigilMeasure), motion/
-#                (SigilMotion), geometry/ (SigilGeometry), material/
-#                (SigilMaterial), draw/ (SigilDraw), world/
-#                (SigilWorldElement, SigilWorldFrame, SigilWorldGraph,
-#                SigilWorldScene, SigilWorldLight, SigilWorldKit,
-#                SigilWorldDiligent), compose/ (SigilCompose), and
+#                data/ (SigilData), scry/ (SigilScry), measure/
+#                (SigilMeasure), motion/ (SigilMotion), geometry/
+#                (SigilGeometry), material/ (SigilMaterial), draw/
+#                (SigilDraw), world/ (SigilWorldElement, SigilWorldFrame,
+#                SigilWorldGraph, SigilWorldScene, SigilWorldLight,
+#                SigilWorldKit, SigilWorldDiligent), compose/
+#                (SigilCompose), and
 #                substance/ (SigilSubstance) and usd/ (SigilUsd), each
 #                of which leaves itself out where its SDK is not
 #                installed. Each library carries its
@@ -43,6 +44,10 @@ add_subdirectory(common/ui)
 add_subdirectory(common/image)
 add_subdirectory(common/video)
 add_subdirectory(common/io)
+# Tabular data and the mappings read off it. Over io's byte seam only:
+# a decoder speaks that vocabulary, and registers itself on whatever
+# hub a host holds, so nothing here inherits the hub or a codec.
+add_subdirectory(common/data)
 add_subdirectory(common/scry)
 add_subdirectory(common/measure)
 add_subdirectory(common/motion)
