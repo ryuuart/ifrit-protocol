@@ -169,6 +169,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -190,6 +191,7 @@
 #include <tuple>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
@@ -1044,9 +1046,9 @@ struct ThunderFulu : sketch::Sketch {
       SkPathBuilder b;
       const int n = 72;
       for (int i = 0; i <= n; ++i) {
-        const float a = -1.35f + 6.02f * (float)i / (float)n;
-        const SkPoint q{kCol + r * std::cos(a) * 1.02f,
-                        242.0f + r * std::sin(a) * 0.96f};
+        const SkPoint q = arrange::onRing(
+            (size_t)i, (size_t)n + 1, {kCol, 242.0f},
+            {r * 1.02f, r * 0.96f}, -1.35f, 6.02f, arrange::Turn::Open);
         i == 0 ? b.moveTo(q) : b.lineTo(q);
       }
       push(b.detach(), 7.4f, TURN, tRing, tRing + tRingDur, kCinnabar, "ring");

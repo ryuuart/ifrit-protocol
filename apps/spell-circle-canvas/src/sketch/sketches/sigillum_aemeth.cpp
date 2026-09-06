@@ -203,6 +203,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -225,6 +226,7 @@
 #include <tuple>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 
 namespace skia = sigil::material::skia;
@@ -321,8 +323,11 @@ const float kStar73 =
 // Circle … and so procede toward thy right hand").
 
 SkPoint P(float thDeg, float rNorm) {
-  const float a = thDeg * kD;
-  return {kRR + rNorm * kR * std::sin(a), kRR - rNorm * kR * std::cos(a)};
+  // Twelve o'clock is where the ellipse's own angle starts a quarter turn
+  // back, which is what makes this whole figure's clockwise-from-twelve
+  // reading the ordinary ring arithmetic.
+  return arrange::onEllipse({kRR, kRR}, {rNorm * kR, rNorm * kR},
+                            thDeg * kD - 1.5707963f);
 }
 // θ → the arc-length fraction of shapes::circle(), whose contour starts at
 // due EAST and runs clockwise (SkPathBuilder::addOval, startIndex 1, kCW).
@@ -1626,7 +1631,7 @@ struct SigillumAemeth : sketch::Sketch {
       const float a =
           (-fanSpan * 0.5f + fanSpan * ((float)col + 0.5f) / 7.0f) * kD;
       const float rr = fanR0 - (float)row * fanDR + dr;
-      return SkPoint{fanCx + rr * std::sin(a), fanCy - rr * std::cos(a)};
+      return arrange::onEllipse({fanCx, fanCy}, {rr, rr}, a - 1.5707963f);
     };
     auto fanAngle = [&](int col) {
       return -fanSpan * 0.5f + fanSpan * ((float)col + 0.5f) / 7.0f;
@@ -1645,8 +1650,9 @@ struct SigillumAemeth : sketch::Sketch {
                           const float a = (-fanSpan * 0.54f +
                                            fanSpan * 1.08f * (float)i / 24.0f) *
                                           kD;
-                          const SkPoint q{fanCx + rr * std::sin(a),
-                                          fanCy - 560.0f - rr * std::cos(a)};
+                          const SkPoint q = arrange::onEllipse(
+                              {fanCx, fanCy - 560.0f}, {rr, rr},
+                              a - 1.5707963f);
                           i == 0 ? b.moveTo(q) : b.lineTo(q);
                         }
                       }
@@ -1951,12 +1957,14 @@ struct SigillumAemeth : sketch::Sketch {
         const int n = 12;
         for (int j = 0; j <= n; ++j) {
           const float a = (th + 9.0f * (float)j / (float)n) * kD;
-          const SkPoint q{rGreat * std::sin(a), -rGreat * std::cos(a)};
+          const SkPoint q = arrange::onEllipse({0, 0}, {rGreat, rGreat},
+                                               a - 1.5707963f);
           j == 0 ? b.moveTo(q) : b.lineTo(q);
         }
         for (int j = n; j >= 0; --j) {
           const float a = (th + 9.0f * (float)j / (float)n) * kD;
-          b.lineTo({rBandIn * std::sin(a), -rBandIn * std::cos(a)});
+          b.lineTo(arrange::onEllipse({0, 0}, {rBandIn, rBandIn},
+                                      a - 1.5707963f));
         }
         b.close();
         cells.push_back(b.detach());
@@ -1990,12 +1998,14 @@ struct SigillumAemeth : sketch::Sketch {
         const int n = 14;
         for (int j = 0; j <= n; ++j) {
           const float a = (mid - half + 2 * half * (float)j / (float)n) * kD;
-          const SkPoint q{0.868f * std::sin(a), -0.868f * std::cos(a)};
+          const SkPoint q =
+              arrange::onEllipse({0, 0}, {0.868f, 0.868f}, a - 1.5707963f);
           j == 0 ? b.moveTo(q) : b.lineTo(q);
         }
         for (int j = n; j >= 0; --j) {
           const float a = (mid - half + 2 * half * (float)j / (float)n) * kD;
-          b.lineTo({0.720f * std::sin(a), -0.720f * std::cos(a)});
+          b.lineTo(arrange::onEllipse({0, 0}, {0.720f, 0.720f},
+                                      a - 1.5707963f));
         }
         b.close();
         plates.push_back(b.detach());

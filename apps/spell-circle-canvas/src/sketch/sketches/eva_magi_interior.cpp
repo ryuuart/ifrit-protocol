@@ -996,8 +996,7 @@ struct EvaMagiInterior : sketch::Sketch {
   static constexpr float kPCX = 616.0f, kPCY = 640.0f;
 
   static SkPoint polar(float r, float deg) {
-    const float a = deg * 0.017453293f;
-    return {std::cos(a) * r, std::sin(a) * r};
+    return arrange::onEllipse({0, 0}, {r, r}, deg * 0.017453293f);
   }
 
   Element hexAt(SkPoint p, float across, SkColor4f rim, float rimW,
@@ -1075,8 +1074,7 @@ struct EvaMagiInterior : sketch::Sketch {
               .height(r * 1.97f)
               .shape(shapes::parametric(
                   [](float t) {
-                    return SkPoint{0.5f + 0.5f * std::cos(t),
-                                   0.5f + 0.5f * std::sin(t)};
+                    return arrange::onEllipse({0.5f, 0.5f}, {0.5f, 0.5f}, t);
                   },
                   0.0f, 6.2831853f, 240, true))
               .fill(Fill::none())

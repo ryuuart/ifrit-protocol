@@ -174,6 +174,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/field/Field.h>
@@ -195,6 +196,7 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace mat = sigil::material;
@@ -286,11 +288,11 @@ float rOfDec(float decDeg) {
 SkPoint proj(float decDeg, float hourAngleDeg) {
   const float psi = (90.0f - hourAngleDeg) * kD;
   const float r = rOfDec(decDeg);
-  return {r * std::cos(psi), r * std::sin(psi)};
+  return arrange::onEllipse({0, 0}, {r, r}, psi);
 }
 SkPoint projRA(float decDeg, float raDeg) {
   const float r = rOfDec(decDeg);
-  return {r * std::cos(raDeg * kD), r * std::sin(raDeg * kD)};
+  return arrange::onEllipse({0, 0}, {r, r}, raDeg * kD);
 }
 
 // The horizon, and the almucantars ("compowned by two and two", I.18)
@@ -614,7 +616,8 @@ std::vector<Piece> retePieces(const Rete& r) {
     SkPathBuilder b;
     const int n = std::max(4, (int)(std::abs(a1 - a0) * 0.7f));
     for (int i = 0; i <= n; ++i) {
-      const float a = a0 + (a1 - a0) * (float)i / (float)n;
+      const float a = arrange::along(a0, a1 - a0, (size_t)i, (size_t)n + 1,
+                                     arrange::Turn::Open);
       const SkPoint m = ecliptic ? eclPoint(a) : ringPoint(a);
       const SkPoint p = PL(m.fX, m.fY);
       if (i == 0)
@@ -1540,10 +1543,12 @@ struct ChaucerAstrolabe : sketch::Sketch {
       const float d = rad * 0.52f;
       SkPath u;
       for (int i = 0; i < lobes; ++i) {
-        const float a = -SK_FloatPI / 2 + i * 2 * SK_FloatPI / lobes;
+        const SkPoint on =
+            arrange::onRing((size_t)i, (size_t)lobes, {rad, rad}, {d, d},
+                            -SK_FloatPI / 2, 2 * SK_FloatPI,
+                            arrange::Turn::Closed);
         SkPathBuilder cbb;
-        cbb.addCircle(rad + std::cos(a) * d, rad + std::sin(a) * d,
-                      rad * 0.50f);
+        cbb.addCircle(on.fX, on.fY, rad * 0.50f);
         const SkPath c = cbb.detach();
         SkPath tmp;
         Op(u, c, kUnion_SkPathOp, &tmp);
@@ -1730,7 +1735,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // clockwise at 15°/hour; X is the 21st, at ψ = 135°, and 21 hours after
     // noon is 9 a.m. — which is exactly what Chaucer reads in II.3.
     for (int n = 1; n <= 24; ++n) {
-      const float psi = 90.0f - 15.0f * (float)n;
+      const float psi =
+          arrange::along(90.0f, -360.0f, (size_t)n, 24, arrange::Turn::Closed);
       const float f = std::fmod(psi / 360.0f + 2.0f, 1.0f);
       const float rr = 1.044f * kR;
       const bool isX = (n == 21);
@@ -1751,9 +1757,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
               .opacity(animate(from(0.0f).to(1.0f),
                                ramp(tLetters * 1000 + (float)n * 12, 380))));
       // the letter under the label lights as it passes
-      g.child(kit::disc(
-                  MC(1.044f * std::cos(psi * kD), 1.044f * std::sin(psi * kD)),
-                  0.052f * kR)
+      const SkPoint glow =
+          arrange::onEllipse({0, 0}, {1.044f, 1.044f}, psi * kD);
+      g.child(kit::disc(MC(glow.fX, glow.fY), 0.052f * kR)
                   .key("hlg" + std::to_string(n))
                   .shape(shapes::circle())
                   .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
@@ -2159,24 +2165,23 @@ struct ChaucerAstrolabe : sketch::Sketch {
         const float a1 = -90.0f + (acc + days) / 365.0f * 360.0f;
         acc += days;
         SkPathBuilder pb;
-        pb.moveTo(c.fX + std::cos(a0 * kD) * r * 0.78f,
-                  c.fY + std::sin(a0 * kD) * r * 0.78f);
-        pb.lineTo(c.fX + std::cos(a0 * kD) * r * 0.855f,
-                  c.fY + std::sin(a0 * kD) * r * 0.855f);
+        pb.moveTo(arrange::onEllipse(c, {r * 0.78f, r * 0.78f}, a0 * kD));
+        pb.lineTo(arrange::onEllipse(c, {r * 0.855f, r * 0.855f}, a0 * kD));
         g.child(pathFigure(pb.detach(), 2)
                     .fill(Fill::none())
                     .stroke(stroke(1.1f, Fill::color(hex(0x3a2a10, 0.7f)))));
         const float am = (a0 + a1) * 0.5f;
         g.child(
             text(toU8(kMonths[m]), type(faceLimb, 9.5f, hex(0x33240c, 0.85f)))
-                .centerAt({c.fX + std::cos(am * kD) * r * 0.817f,
-                           c.fY + std::sin(am * kD) * r * 0.817f}));
-        const float az = -90.0f + ((float)m + 0.0f) / 12.0f * 360.0f;
+                .centerAt(arrange::onEllipse(
+                    c, {r * 0.817f, r * 0.817f}, am * kD)));
+        const float az = arrange::along(-90.0f, 360.0f, (size_t)m, 12,
+                                        arrange::Turn::Closed);
         const float azm = az + 15.0f;
         g.child(text(toU8(std::string(kSigns[(m + 9) % 12]).substr(0, 3)),
                      type(faceLimb, 9.0f, hex(0x33240c, 0.7f)))
-                    .centerAt({c.fX + std::cos(azm * kD) * r * 0.74f,
-                               c.fY + std::sin(azm * kD) * r * 0.74f}));
+                    .centerAt(arrange::onEllipse(
+                        c, {r * 0.74f, r * 0.74f}, azm * kD)));
       }
     }
     // the shadow square: umbra recta and umbra versa, 12 divisions each (I.12)
@@ -2795,16 +2800,20 @@ struct ChaucerAstrolabe : sketch::Sketch {
         SkPathBuilder b;
         const int n = 40;
         for (int j = 0; j <= n; ++j) {
-          const float a = (a0 + (a1 - a0) * (float)j / (float)n) * kD;
-          const SkPoint p{ro * std::cos(a), ro * std::sin(a)};
+          const float a = arrange::along(a0, a1 - a0, (size_t)j, (size_t)n + 1,
+                                         arrange::Turn::Open) *
+                          kD;
+          const SkPoint p = arrange::onEllipse({0, 0}, {ro, ro}, a);
           if (j == 0)
             b.moveTo(p);
           else
             b.lineTo(p);
         }
         for (int j = n; j >= 0; --j) {
-          const float a = (a0 + (a1 - a0) * (float)j / (float)n) * kD;
-          b.lineTo(ri * std::cos(a), ri * std::sin(a));
+          const float a = arrange::along(a0, a1 - a0, (size_t)j, (size_t)n + 1,
+                                         arrange::Turn::Open) *
+                          kD;
+          b.lineTo(arrange::onEllipse({0, 0}, {ri, ri}, a));
         }
         b.close();
         cells.push_back(b.detach());
@@ -2824,8 +2833,10 @@ struct ChaucerAstrolabe : sketch::Sketch {
           if (a1 < a0) a1 += 360.0f;
           const int n = 40;
           for (int j = 0; j <= n; ++j) {
-            const float a = (a0 + (a1 - a0) * (float)j / (float)n) * kD;
-            const SkPoint q{rad * std::cos(a), rad * std::sin(a)};
+            const float a = arrange::along(a0, a1 - a0, (size_t)j,
+                                           (size_t)n + 1, arrange::Turn::Open) *
+                            kD;
+            const SkPoint q = arrange::onEllipse({0, 0}, {rad, rad}, a);
             if (i == 0 && j == 0)
               rb.moveTo(q);
             else
@@ -3032,7 +3043,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
             (i % 30 == 0) ? 0.72f : ((i % 5 == 0) ? 0.55f : 0.32f);
         const float len = 24.0f * lenMul;
         const float rr = outer - len * 0.5f;
-        pos[i] = {kCx + std::cos(ca) * rr, kCy + std::sin(ca) * rr};
+        pos[i] = arrange::onEllipse({kCx, kCy}, {rr, rr}, ca);
         rot[i] = ca;  // the tick lies along its spoke
         sz[i] = {lenMul, (i % 30 == 0) ? 1.5f : ((i % 5 == 0) ? 1.15f : 0.9f)};
         tint[i] = {1, 1, 1, (i % 5 == 0) ? 1.0f : 0.78f};

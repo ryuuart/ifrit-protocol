@@ -145,6 +145,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Time.h>
@@ -164,6 +165,7 @@
 #include <utility>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
@@ -395,25 +397,29 @@ struct ShippingForecast : sketch::Sketch {
     // with a letter at each cardinal point, so the ring can be read as a
     // bearing and not only as a list.
     for (int i = 0; i < kAreaCount; ++i) {
-      const float rad = kAreaRing[i].bearingDeg * 3.14159265f / 180.0f;
-      const float sx = std::sin(rad), sy = -std::cos(rad);
+      // A bearing is clockwise from twelve, which is a quarter turn back
+      // from where the ellipse's own angle starts.
+      const float rad =
+          kAreaRing[i].bearingDeg * 3.14159265f / 180.0f - 1.5707963f;
       panel.child(box()
                       .key("tick" + std::to_string(i))
                       .width(1.0f)
                       .height(9.0f)
                       .rotate(kAreaRing[i].bearingDeg)
-                      .centerAt({kEye.x() + sx * (kRingR + 28.0f),
-                                 kEye.y() + sy * (kRingR + 28.0f)})
+                      .centerAt(arrange::onEllipse(
+                          {kEye.x(), kEye.y()},
+                          {kRingR + 28.0f, kRingR + 28.0f}, rad))
                       .fill(Fill::color(kSlateDim))
                       .opacity(beat(0.10f, 1.20f)));
     }
     const char* kCardinals[4] = {"N", "E", "S", "W"};
     for (int q = 0; q < 4; ++q) {
-      const float rad = (float)q * 1.5707963f;
       panel.child(text(toU8(kCardinals[q]), label(12.0f, kAmber, 2.0f))
                       .key(std::string("card") + kCardinals[q])
-                      .centerAt({kEye.x() + std::sin(rad) * (kRingR + 46.0f),
-                                 kEye.y() - std::cos(rad) * (kRingR + 46.0f)})
+                      .centerAt(arrange::onRing(
+                          (size_t)q, 4, {kEye.x(), kEye.y()},
+                          {kRingR + 46.0f, kRingR + 46.0f}, -1.5707963f,
+                          6.2831853f, arrange::Turn::Closed))
                       .opacity(beat(0.10f, 1.20f)));
     }
 
