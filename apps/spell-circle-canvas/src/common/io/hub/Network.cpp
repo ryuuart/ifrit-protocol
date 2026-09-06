@@ -8,11 +8,14 @@
 
 #include <curl/curl.h>
 
+#include <chrono>
 #include <cstdio>
 #include <functional>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <system_error>
+#include <thread>
 #include <vector>
 
 #include "Fetch.h"
@@ -61,6 +64,18 @@ struct CurlTransport {
 
 }  // namespace
 
+/** A name no other writer of this cache directory is using: the thread
+ *  within the process, and the clock to tell two processes apart. */
+static std::string writerSuffix() {
+  std::ostringstream name;
+  name << std::hex << std::hash<std::thread::id>{}(std::this_thread::get_id())
+       << '.'
+       << (unsigned long long)std::chrono::steady_clock::now()
+              .time_since_epoch()
+              .count();
+  return name.str();
+}
+
 bool isNetworkUri(std::string_view uri) {
   return uri.starts_with("http://") || uri.starts_with("https://");
 }
@@ -91,8 +106,13 @@ FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
   // Persisting is best-effort, and never half done: the bytes land in a
   // sibling file through writeBytes and take the cache name only once
   // every byte is there, so a later run can find the whole resource or
-  // nothing, never a shorter one.
-  const std::filesystem::path partial = cached.string() + ".part";
+  // nothing, never a shorter one. The sibling is named for the WRITER,
+  // because two fetches of one URL run concurrently — the hub lets a
+  // cold ask for the same resource happen twice — and one shared
+  // partial would let each truncate what the other is writing and the
+  // rename commit a file that is half of one and half of the other.
+  const std::filesystem::path partial =
+      cached.string() + ".part." + writerSuffix();
   if (writeBytes(partial, body->data(), body->size())) {
     std::filesystem::rename(partial, cached, ec);
     if (ec) std::filesystem::remove(partial, ec);

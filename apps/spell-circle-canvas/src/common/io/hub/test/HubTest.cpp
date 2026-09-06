@@ -497,12 +497,16 @@ TEST(IOTextCatalog, MountsOneDirectoryAndAnswersByName) {
   EXPECT_EQ(catalog.hub().text("shader://glow/nested/Mask.sksl"), "mask");
 }
 
-TEST_F(IOHub, ProbeReportsPlainData) {
+TEST_F(IOHub, ProbeReportsHowManyBytesAndWhereTheyAre) {
   dir.write("table.bin", std::string(64, '\0'));
   auto info = hub.probe("res://table.bin");
   ASSERT_TRUE(info.has_value());
-  EXPECT_EQ(info->kind, ResourceInfo::Kind::Data);
   EXPECT_EQ(info->byteSize, 64u);
+  EXPECT_EQ(info->path, dir.path / "table.bin");
+  // Bytes are all the hub answers for. What they mean is asked of the
+  // library that owns the meaning, and these bytes are not an image.
+  EXPECT_FALSE(hub.probe<sigil::image::ImageProbe>("res://table.bin"));
+  EXPECT_FALSE(hub.probe("res://nothing.bin"));
 }
 
 TEST_F(IOHub, FileUrlsLoadAsLocalPaths) {
@@ -630,8 +634,10 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
   EXPECT_EQ(image->width(), 1);
   auto info = hub.probe(url);
   ASSERT_TRUE(info.has_value());
-  EXPECT_EQ(info->kind, ResourceInfo::Kind::Image);
-  EXPECT_EQ(info->format, "png");
+  EXPECT_GT(info->byteSize, 0u);
+  auto probed = hub.probe<sigil::image::ImageProbe>(url);
+  ASSERT_TRUE(probed.has_value());
+  EXPECT_EQ(probed->format, "png");
 }
 
 TEST(IONetwork, PollSkipsNetworkEntries) {
@@ -704,15 +710,14 @@ TEST_F(IOOiio, ExrLayerSelectionReadsHdrChannels) {
 
 TEST_F(IOOiio, ProbeListsLayersAndChannels) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto info = hub.probe("res://probe.exr");
+  auto info = hub.probe<sigil::image::ImageProbe>("res://probe.exr");
   ASSERT_TRUE(info.has_value());
-  EXPECT_EQ(info->kind, ResourceInfo::Kind::Image);
   EXPECT_EQ(info->format, "openexr");
-  EXPECT_EQ(info->image.width, 4);
-  EXPECT_TRUE(info->image.floatingPoint);
-  EXPECT_EQ(info->image.channels, 8);
-  ASSERT_EQ(info->image.layers.size(), 1u);
-  EXPECT_EQ(info->image.layers[0], "glow");
+  EXPECT_EQ(info->width, 4);
+  EXPECT_TRUE(info->floatingPoint);
+  EXPECT_EQ(info->channels, 8);
+  ASSERT_EQ(info->layers.size(), 1u);
+  EXPECT_EQ(info->layers[0], "glow");
 }
 
 TEST_F(IOOiio, ChannelsExposeRawFloatData) {

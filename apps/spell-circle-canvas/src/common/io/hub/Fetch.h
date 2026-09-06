@@ -20,6 +20,10 @@ std::shared_ptr<const Bytes> readFile(const std::filesystem::path& path);
 
 bool isNetworkUri(std::string_view uri);
 
+/** Does @p relative stay beneath the directory it is joined onto? False
+ *  for a rooted path and for anything that climbs through `..`. */
+bool beneathMount(std::string_view relative);
+
 /** The local filesystem path a non-network URI means: file:// strips
  *  to a plain path, mounts resolve, anything else is tried as-is. */
 std::filesystem::path localPath(const Hub& hub, std::string_view uri);

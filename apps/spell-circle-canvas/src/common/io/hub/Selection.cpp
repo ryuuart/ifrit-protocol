@@ -178,12 +178,25 @@ std::string globDirectoryPrefix(std::string_view pattern) {
   return unquote(pattern.substr(0, slash + 1));
 }
 
+/** A selector's own spelling of the same files: a leading `./`, and the
+ *  `.` and `..` steps inside it, folded away. A pattern is normalised
+ *  as a path, which leaves its wildcards alone — they are ordinary
+ *  characters inside one path component. */
+std::string normalizedSelector(std::string_view selector, bool fileUrl) {
+  const std::string_view body = fileUrl ? selector.substr(7) : selector;
+  if (body.find("./") == std::string_view::npos) return std::string(selector);
+  std::string folded = std::filesystem::path(std::string(body))
+                           .lexically_normal()
+                           .generic_string();
+  // A trailing separator is what `lexically_normal` leaves on a
+  // directory, and a selector that named no directory must not gain one.
+  if (folded.size() > 1 && folded.back() == '/' && !body.ends_with('/'))
+    folded.pop_back();
+  return fileUrl ? "file://" + folded : folded;
+}
+
 bool safeRelative(std::string_view value) {
-  const std::filesystem::path relative{std::string(value)};
-  if (relative.has_root_path()) return false;
-  for (const std::filesystem::path& component : relative)
-    if (component == "..") return false;
-  return true;
+  return detail::beneathMount(value);
 }
 
 struct MountedWalk {
@@ -224,8 +237,14 @@ std::optional<MountedWalk> mountedWalk(std::string_view mountPrefix,
 
 /** Plain paths and file URLs have no mounted namespace to reconstruct, so
  * candidates are formed from their filesystem names directly. */
-std::vector<std::string> selectFilesystem(std::string_view selector,
+std::vector<std::string> selectFilesystem(std::string_view rawSelector,
                                           bool fileUrl) {
+  // `./shaders/*.sksl` names the files `shaders/*.sksl` names. The
+  // candidates below are built relative to the working directory, with
+  // no `./` on them, so the PATTERN is normalised once here rather than
+  // every candidate being spelled two ways.
+  const std::string normalized = normalizedSelector(rawSelector, fileUrl);
+  const std::string_view selector = normalized;
   const std::string_view pathSelector = fileUrl ? selector.substr(7) : selector;
   const bool glob = hasWildcard(pathSelector);
   const std::string literalSelector =
@@ -326,10 +345,7 @@ std::vector<std::string> Hub::select(std::string_view selector) const {
 
 size_t Hub::preload(std::string_view selector) {
   const std::vector<std::string> selected = select(selector);
-  std::vector<std::string_view> uris;
-  uris.reserve(selected.size());
-  for (const std::string& uri : selected) uris.push_back(uri);
-  return preload(uris);
+  return preload(std::span<const std::string>(selected));
 }
 
 }  // namespace sigil::io

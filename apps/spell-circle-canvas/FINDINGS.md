@@ -323,18 +323,7 @@ Should-fix:
 
 ## SigilCore, SigilData, SigilMeasure, SigilMotion, SigilIO, SigilVideo, the product, the build (findings/review-core-io-build.md)
 
-Should-fix (correctness): `io/hub/Network.cpp:95-101`
-concurrent fetches of one URL share one `.part` and can commit a torn
-file; `io/hub/Mounts.cpp:18-27` `tellg() == -1` becomes `resize(SIZE_MAX)`
-and a directory reaches it; `io/hub/Selection.cpp:257-266` a
-`./dir/*.ext` glob never matches;
-`measure/time/Laps.h:32-37` stores a caller's `string_view`;
-`measure/stats/Fit.h:82-88` the subtractive `den` the README forbids and
-a zero `rmsResidual` on the degenerate path.
-
-Should-fix (API, boundary, docs, build): `io/hub/Cache.cpp:266-288` with
-`Hub.h:115-124` `Hub::probe()` calls `probeImage` and answers an image
-kind (IO owning meaning).
+Should-fix (correctness): none left in this group.
 
 Tests missing: the hub under retained leases
 and concurrent fetches; physics at `dt == 0`, large `dt`, `stiffness >

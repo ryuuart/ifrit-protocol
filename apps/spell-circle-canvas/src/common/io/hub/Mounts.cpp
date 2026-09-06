@@ -15,10 +15,21 @@ namespace sigil::io {
 
 namespace detail {
 
+bool beneathMount(std::string_view relative) {
+  const std::filesystem::path path{std::string(relative)};
+  if (path.has_root_path()) return false;
+  for (const std::filesystem::path& component : path)
+    if (component == "..") return false;
+  return true;
+}
+
 std::shared_ptr<const Bytes> readFile(const std::filesystem::path& path) {
   std::ifstream stream(path, std::ios::binary | std::ios::ate);
   if (!stream) return nullptr;
+  // A stream that cannot say where its end is answers -1, which as a
+  // size is every byte there could ever be.
   const std::streamsize size = stream.tellg();
+  if (size < 0) return nullptr;
   stream.seekg(0);
   auto blob = std::make_shared<Bytes>();
   blob->bytes.resize((size_t)size);
@@ -45,6 +56,9 @@ FetchResult fetchResource(const Hub& hub, const NetworkAccess& network,
   if (isNetworkUri(uri)) return fetchNetwork(network, uri);
   std::filesystem::path path = localPath(hub, uri);
   std::error_code ec;
+  // A directory has a write time like any other entry, so the question
+  // is whether the URI names a FILE — bytes are what the hub answers.
+  if (!std::filesystem::is_regular_file(path, ec) || ec) return {};
   const auto mtime = std::filesystem::last_write_time(path, ec);
   if (ec) return {};
   auto blob = readFile(path);
@@ -90,8 +104,15 @@ std::filesystem::path Hub::resolve(std::string_view uri) const {
     if (uri.starts_with(mountPair.first) &&
         (!best || mountPair.first.size() > best->first.size()))
       best = &mountPair;
-  if (best) return best->second / std::string(uri.substr(best->first.size()));
-  return {};
+  if (!best) return {};
+  const std::string_view remainder = uri.substr(best->first.size());
+  // A mount is a namespace, not a door into the filesystem around it:
+  // what it names is beneath its directory, so a remainder that climbs
+  // out of it resolves to nothing. The directory walk refuses the same
+  // spelling, and one rule is what makes a selector and a fetch agree
+  // about what a mount holds.
+  if (!detail::beneathMount(remainder)) return {};
+  return best->second / std::string(remainder);
 }
 
 std::vector<std::pair<std::string, std::filesystem::path>>

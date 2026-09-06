@@ -30,8 +30,13 @@ namespace sigil::io {
  *  decode, a poll, a lease. */
 class TextCatalog {
  public:
+  /** @p prefix is a namespace, and every name asked for is BENEATH it,
+   *  so a prefix that does not already end in a separator is given one
+   *  — otherwise `"shader://glow"` and `"Glow.sksl"` would run together
+   *  into one word. */
   TextCatalog(std::string prefix, std::filesystem::path directory)
       : m_prefix(std::move(prefix)) {
+    if (!m_prefix.empty() && !m_prefix.ends_with('/')) m_prefix += '/';
     m_hub.mount(m_prefix, std::move(directory));
   }
 

@@ -19,7 +19,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo`, and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
 
 `SigilIO` is the umbrella target over both, and
 `<sigilio/IO.h>` the umbrella header. The hub is a `ByteSource`;
@@ -41,8 +41,12 @@ auto icon   = hub.image("res://ui/mark.svg", {.width = 256});
 auto layer  = hub.image("res://light/probe.exr", {.layer = "diffuse"});
 auto planes = hub.channels("res://light/probe.exr"); // every raw channel
 
-if (auto info = hub.probe("res://light/probe.exr"))
-  useDimensions(info->image.width, info->image.height);
+if (auto info = hub.probe("res://light/probe.exr"))   // bytes: size, path
+  budgetFor(info->byteSize);
+// …and what those bytes MEAN is asked of the library that owns the
+// meaning, through its own probe:
+if (auto probed = hub.probe<sigil::image::ImageProbe>("res://light/probe.exr"))
+  useDimensions(probed->width, probed->height);
 
 // Any type, once its decoder is registered: a Decoder<T> object or a
 // function from bytes (and the resource's name as a hint) to optional<T>.
@@ -110,7 +114,11 @@ than an undocumented side effect of having loaded something once.
 Mounts map a URI prefix onto a directory, and the **longest matching
 prefix wins**, so `res://deep/` can point somewhere other than `res://`.
 Re-mounting a prefix replaces it. A URI that matches no mount is tried as
-a plain path.
+a plain path. A mount is a namespace and not a door into the filesystem
+around it: what a URI names is **beneath** the mounted directory, so a
+remainder that climbs out through `..` resolves to nothing — for a
+fetch, for `resolve()` and for a selector alike. A URI that names a
+directory rather than a file answers nothing too: the hub answers bytes.
 
 The cache holds one entry per URI. An entry carries the blob and one
 decoded view per type — the image, the channel data, and whatever
@@ -198,9 +206,20 @@ a vanished source exist or suppress hot reload: `poll()` may remove a missing
 resource or replace a changed version, and `write()` invalidates the version it
 overwrites. An already returned `shared_ptr` continues to own its older value.
 
-`probe()` is `const` but is not cheap and is not side-effect-free: it
-performs a full fetch on every call and caches nothing. For a network URI
-it may hit the network and write into the cache directory.
+`probe()` answers how many bytes a resource is and which file they were
+read from — nothing about what they are. `probe<T>()` answers meaning,
+and the answer comes from T's own library: a type is probeable when its
+namespace declares `probeResource(std::type_identity<T>,
+std::span<const std::byte>, const std::filesystem::path&)`, which is the
+`Probable` concept in `source/Source.h`. SigilImage declares it for
+`ImageProbe`, so `hub.probe<sigil::image::ImageProbe>(uri)` reads
+SigilImage's prober and the hub carries no opinion about any format. A
+kind of meaning added tomorrow is one free function in the library that
+owns it, with nothing to change here.
+
+Both are `const` but neither is cheap or side-effect-free: each performs
+a full fetch on every call and caches nothing. For a network URI that may
+hit the network and write into the cache directory.
 
 `poll()` reloads local paths only. It erases entries whose file has
 vanished, skips `http(s)://` entries entirely, and reloads by decoding
@@ -262,12 +281,14 @@ codec.
 SigilIO owns **access**: URIs, mounts, caching, hot reload, network
 fetch, the disk cache, and the file write. SigilImage owns **meaning**:
 format sniffing, decode and encode backends, probing, layer and channel
-semantics. The hub adds zero format knowledge of its own —
-every image ask takes SigilImage's own `DecodeOptions`,
-`ResourceInfo` carries SigilImage's `ImageProbe`, every decode is a
-delegation, and `write()` takes bytes somebody else encoded. The
-dependency runs one way only: SigilImage does not know the hub exists,
-and does not open a file in either direction.
+semantics. The hub adds zero format knowledge of its own — every image
+ask takes SigilImage's own `DecodeOptions`, every decode is a
+delegation, `ResourceInfo` says only how many bytes there are and where
+they came from, `probe<T>()` asks T's own library what they mean, and
+`write()` takes bytes somebody else encoded. The dependency runs one way
+only: SigilImage does not know the hub exists, and does not open a file
+in either direction — its prober is declared against a span of bytes and
+a name, which is why it costs SigilImage nothing to be askable.
 
 ## Build and test
 

@@ -80,6 +80,13 @@ std::optional<std::string> Hub::text(std::string_view uri) {
   return std::string(bytes->asText());
 }
 
+size_t Hub::preload(std::span<const std::string> uris) {
+  // The views are the only thing copied: a lease answers with strings
+  // it owns, and the fetch below reads them where they are.
+  const std::vector<std::string_view> views(uris.begin(), uris.end());
+  return preload(std::span<const std::string_view>(views));
+}
+
 size_t Hub::preload(std::span<const std::string_view> uris) {
   struct Pending {
     std::string uri;
@@ -263,27 +270,23 @@ std::shared_ptr<const sigil::image::ChannelData> Hub::channels(
   return load<sigil::image::ChannelData>(uri);
 }
 
-std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
+std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,
+                                             ResourceInfo& info) const {
   detail::NetworkAccess network;
   {
     const std::lock_guard lock(m_mutex);
     network = {m_networkCacheDir, m_networkPolicy, m_networkTransport};
   }
   FetchResult fetched = fetchResource(*this, network, uri);
-  if (!fetched.blob) return std::nullopt;
-  if (auto probe =
-          sigil::image::probeImage(fetched.blob->bytes.data(),
-                                   fetched.blob->bytes.size(), fetched.path)) {
-    ResourceInfo info;
-    info.kind = ResourceInfo::Kind::Image;
-    info.byteSize = fetched.blob->bytes.size();
-    info.format = probe->format;
-    info.image = std::move(*probe);
-    return info;
-  }
-  ResourceInfo info;
-  info.kind = ResourceInfo::Kind::Data;
+  if (!fetched.blob) return nullptr;
   info.byteSize = fetched.blob->bytes.size();
+  info.path = std::move(fetched.path);
+  return std::move(fetched.blob);
+}
+
+std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
+  ResourceInfo info;
+  if (!probeFetch(uri, info)) return std::nullopt;
   return info;
 }
 

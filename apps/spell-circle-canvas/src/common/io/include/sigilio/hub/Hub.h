@@ -15,7 +15,9 @@
  *   auto img   = hub.image("res://ui/logo.png");            // stills+anim
  *   auto hdr   = hub.image("res://light/probe.exr",         // OIIO: EXR,
  *                          {.layer = "diffuse"});           //  PSD, TIFF…
- *   auto info  = hub.probe("res://light/probe.exr");        // metadata
+ *   auto info  = hub.probe("res://light/probe.exr");        // size, path
+ *   auto meta  = hub.probe<sigil::image::ImageProbe>(        // meaning,
+ *       "res://light/probe.exr");                            //  from image
  *   hub.registerDecoder<Mesh>(parseMesh);                   // any T
  *   auto mesh  = hub.load<Mesh>("res://props/crate.obj");
  *
@@ -112,15 +114,16 @@ class ResourceLease {
   std::vector<std::string> m_uris;
 };
 
-/** What a resource is, before (or without) fully decoding it. */
+/** WHERE A RESOURCE'S BYTES ARE AND HOW MANY OF THEM THERE ARE — the
+ *  whole of what a hub can say about a resource without deciding what
+ *  its bytes mean. What they mean is `probe<T>()`, answered by the
+ *  library that owns T. */
 struct ResourceInfo {
-  enum class Kind { Data, Image };
-  Kind kind = Kind::Data;
   std::uintmax_t byteSize = 0;
-  std::string format;  // "png", "openexr", "psd", … (decoder's name)
-
-  /** Image metadata (kind == Image); see sigil::image::ImageProbe. */
-  sigil::image::ImageProbe image;
+  /** The local file the bytes were read from — the cache file for a
+   *  network URI — or empty when they came from no file. It is also
+   *  the name a prober takes as its format hint. */
+  std::filesystem::path path;
 };
 
 /**
@@ -259,6 +262,10 @@ class Hub {
    *  returns how many are ready. No decoding is performed. */
   size_t preload(std::span<const std::string_view> uris);
 
+  /** The same, over the strings a lease answers with, so a retained set
+   *  reaches this call without being copied into a second vector. */
+  size_t preload(std::span<const std::string> uris);
+
   /** Selects @p selector and concurrently fetches the resulting files. */
   size_t preload(std::string_view selector);
 
@@ -292,8 +299,8 @@ class Hub {
   std::shared_ptr<const sigil::image::ChannelData> channels(
       std::string_view uri);
 
-  /** Metadata without a full decode (dimensions, channels, layers,
-   *  float-ness, animation frames); nullopt when unreadable.
+  /** HOW MANY BYTES, AND WHERE: the size of the resource and the file
+   *  it was read from; nullopt when the URI cannot be served.
    *
    *  const but neither cheap nor side-effect-free: every call performs
    *  a full fetch of the resource and caches nothing in the hub. For a
@@ -301,12 +308,35 @@ class Hub {
    *  the disk cache directory. */
   std::optional<ResourceInfo> probe(std::string_view uri) const;
 
+  /** WHAT THE BYTES MEAN, WITHOUT DECODING THEM: dimensions and layers
+   *  for an image, and whatever the next kind of meaning turns out to
+   *  need. The answer comes from T's own library through the `Probable`
+   *  seam, so this hub carries no opinion about any format —
+   *  `hub.probe<sigil::image::ImageProbe>(uri)` reads SigilImage's
+   *  prober, and a kind of meaning added tomorrow is one free function
+   *  in the library that owns it, with nothing to change here.
+   *
+   *  Fetches like `probe()` does, and caches nothing. */
+  template <Probable T>
+  std::optional<T> probe(std::string_view uri) const {
+    ResourceInfo info;
+    const std::shared_ptr<const Bytes> bytes = probeFetch(uri, info);
+    if (!bytes) return std::nullopt;
+    return probeResource(std::type_identity<T>{},
+                         std::span<const std::byte>(bytes->bytes), info.path);
+  }
+
   /** Re-checks every previously loaded resource; reloads changes and
    *  drops entries whose files vanished. Returns true if anything
    *  changed. */
   bool poll();
 
  private:
+  /** The one fetch both probes make: the bytes, uncached, with @p info
+   *  filled in from them. Null when the URI cannot be served. */
+  std::shared_ptr<const Bytes> probeFetch(std::string_view uri,
+                                          ResourceInfo& info) const;
+
   /** Re-decodes bytes into a type-erased value; null on failure. The
    *  decode a view was made with rides along with the view, so poll()
    *  can re-run exactly it. */

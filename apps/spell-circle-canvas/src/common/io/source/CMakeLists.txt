@@ -6,13 +6,15 @@
 # throwaway files. Standard library plus the one platform call that
 # answers an executable's own path, so a decoder or an encoder can depend
 # on it without inheriting the hub, libcurl, or any codec.
-find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilIOSource
   SOURCES Places.cpp
   HEADERS Places.h Sink.h Source.h)
 
 # The concepts checked against a fixture source and a fixture decoder,
-# with no hub, codec or disk in the binary.
+# with no hub, codec or disk in the binary. The flat map is the test's
+# own, which is why Boost is found here and not above it: the library
+# links no Boost at all.
+find_package(boost_container CONFIG REQUIRED)
 sigil_test(io_test
   SOURCES test/SourceTest.cpp
   LIBRARIES SigilIOSource Boost::container)

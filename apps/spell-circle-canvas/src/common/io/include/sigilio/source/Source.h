@@ -18,7 +18,9 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -62,6 +64,31 @@ concept Decoder =
     requires(const D& decoder, const Bytes& bytes, std::string_view hint) {
       { decoder.decode(bytes, hint) } -> std::same_as<std::optional<T>>;
     };
+
+/** WHAT A KIND OF MEANING IS PROBED WITH: a free function found by
+ *  argument-dependent lookup in T's own namespace, answering what @p
+ *  bytes are without decoding them.
+ *
+ *      namespace sigil::image {
+ *      std::optional<ImageProbe> probeResource(
+ *          std::type_identity<ImageProbe>, std::span<const std::byte>,
+ *          const std::filesystem::path& hint);
+ *      }
+ *
+ *  The library that owns the meaning declares it, against nothing from
+ *  here but the standard library — a span of bytes and a name. That is
+ *  what lets a byte source answer `probe<T>()` for a T it has never
+ *  heard of, and keeps deciding what a format is out of the code that
+ *  only knows where bytes live. @p hint is the resource's name, which
+ *  a prober may use to sharpen format detection and must never
+ *  require. */
+template <typename T>
+concept Probable = requires(std::span<const std::byte> bytes,
+                            const std::filesystem::path& hint) {
+  {
+    probeResource(std::type_identity<T>{}, bytes, hint)
+  } -> std::same_as<std::optional<T>>;
+};
 
 /** A ByteSource VALUE holding any ByteSource: the type-erased form for
  *  code that stores a source rather than being templated on one.

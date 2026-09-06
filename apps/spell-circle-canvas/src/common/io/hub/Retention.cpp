@@ -95,10 +95,7 @@ size_t ResourceLease::refresh() {
 
 size_t ResourceLease::preload() {
   if (!m_hub || m_residency.expired()) return 0;
-  std::vector<std::string_view> uris;
-  uris.reserve(m_uris.size());
-  for (const std::string& uri : m_uris) uris.push_back(uri);
-  return m_hub->preload(uris);
+  return m_hub->preload(std::span<const std::string>(m_uris));
 }
 
 void ResourceLease::release() {
