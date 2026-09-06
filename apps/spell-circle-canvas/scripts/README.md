@@ -54,10 +54,10 @@ it, and `Qt6_DIR`, `QT_DIR` or `QTDIR` overrides the search; vcpkg under
 `/opt/vcpkg`, or `VCPKG_ROOT`. The highest version that satisfies the
 minimum wins.
 
-The file it writes composes four things. The `vcpkg` preset carries the
+The file it writes composes three things. The `vcpkg` preset carries the
 toolchain file and the asset cache; the `qt` preset the prefix path and
 Qt's `bin/` on `PATH`; `main` inherits both over the Ninja Multi-Config
-generator, and `main-xcode` the same over Xcode. `main` names both
+generator. `main` names both
 `CMAKE_DEFAULT_BUILD_TYPE` and `CMAKE_BUILD_TYPE` as Release: the
 multi-config generator builds the configuration a build names and reads
 neither, but vcpkg's toolchain reads `CMAKE_BUILD_TYPE` to put the
@@ -95,18 +95,21 @@ whole tree, `--fix` applies the format fixes, and explicit file arguments
 check exactly those files. The
 configs are at the repository root: `.clang-format` with
 `.clang-format-ignore`, `ruff.toml`. The discipline is check-forward:
-the tools police changes and never mass-reformat; the one whole-tree
-reformat that adopted the style is listed in `.git-blame-ignore-revs`,
-which `git config blame.ignoreRevsFile .git-blame-ignore-revs` makes
-local blame skip. Every tool is required — a missing one fails the run
-rather than passing it. clang-format rides the Xcode toolchain through
+the tools police changes and never mass-reformat. A commit that only
+reformats belongs in `.git-blame-ignore-revs`, which
+`git config blame.ignoreRevsFile .git-blame-ignore-revs` makes local
+blame skip. Every tool is required — a missing one fails the run rather
+than passing it. clang-format rides the Xcode toolchain through
 `xcrun`, qmllint the Qt prefix the setup verb recorded, ruff comes from
 `brew install ruff`.
 
 Two paths no checker touches — the FlatBuffers-generated sources and
-`vcpkg_installed/` — are named in the verb as well as in
-`.clang-format-ignore` and `ruff.toml`, because a tool that predates its
-own ignore mechanism would otherwise reformat generated code.
+`vcpkg_installed/` — are named by the verb itself, in `EXCLUDED_FRAGMENTS`
+(`scripts/sigil/check.py`), which is the one list. Both live under the
+build tree, which no scope reaches on its own, so the list is what holds
+when a path under it is named on the command line; `.clang-format-ignore`
+carries no patterns and says so, and `ruff.toml` excludes the generated
+Python beside it.
 
 ## Plates — `plates`
 

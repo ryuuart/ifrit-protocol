@@ -14,8 +14,8 @@ anyone runs this.
 Exit status is non-zero when any tool reports a finding. The configs live
 at the repository root (.clang-format with .clang-format-ignore,
 ruff.toml); this verb only selects files and runs the tools against those
-configs. Where each tool comes from and why every one of them is required
-is scripts/README.md.
+configs. Every tool is required: a missing one fails the run rather than
+letting it pass on partial coverage.
 """
 
 import argparse

@@ -157,6 +157,17 @@ sources = ["src/spellcircle/shared/schema/SpellCircle.fbs"]
 outputs = ["../python/SpellCircle/Scene.py"]
 run = "python3 scripts/sigil.py flatbuffers"
 
+[tasks.flags]
+description = "Lift the sketch compile line into a response file (args after --)"
+dir = "apps/spell-circle-canvas"
+# The build runs this step itself; the task is the door for running it by
+# hand, and every path it works on is named on the command line:
+#
+#     mise run flags -- --compdb build/compile_commands.json \
+#         --anchor src/sketch/sketches/Anchor.cpp --config Release \
+#         --out build/bin/Release/sketch_flags.rsp
+run = "python3 scripts/sigil.py flags"
+
 [tasks.assets]
 description = "Fetch the demo assets into build/assets (--stage <archive> stages an SDK instead)"
 dir = "apps/spell-circle-canvas"

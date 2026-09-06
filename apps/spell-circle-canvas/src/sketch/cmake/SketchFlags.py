@@ -3,8 +3,11 @@
 
 Reads the compilation database CMake writes, finds the entry for the
 anchor translation unit, strips the per-object bookkeeping, and writes
-what is left as a clang response file — one argument per line. Why the
-database is the right seam is scripts/README.md.
+what is left as a clang response file — one argument per line. The
+database is the seam because the fully composed compile line — toolchain
+flags, sysroot, -std, vcpkg include directories — is something CMake
+exposes nowhere else, and a hand-maintained flag list would drift from
+the target graph that actually builds a sketch.
 
 Usage (invoked by the build; the paths are all absolute):
   src/sketch/cmake/SketchFlags.py --compdb build/compile_commands.json \\
