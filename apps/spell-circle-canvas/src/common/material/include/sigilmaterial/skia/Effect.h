@@ -106,9 +106,12 @@ class Effect {
    *  only brighter. Both default to zero, which is exactly the falloff
    *  without them.
    *
-   *  Twenty-four taps per pixel, so the layer it runs over should be
-   *  bounded: put the glow sources on their own node under
-   *  `Cache::Texture` and the bloom is baked with them once. */
+   *  Twenty-four samples of the layer per pixel — three radii of eight
+   *  headings — and a gather is what it costs; a hand-rolled bright pass
+   *  takes ONE sample and hands the spreading to a separable blur, which
+   *  is a different price for a different picture. So the layer this
+   *  runs over should be bounded: put the glow sources on their own node
+   *  under `Cache::Texture` and the bloom is baked with them once. */
   static Effect phosphorBloom(float radius = 9.0f, float threshold = 0.52f,
                               float intensity = 0.46f, float chroma = 0.80f,
                               float hueDrift = 0.0f, float tail = 0.0f);
