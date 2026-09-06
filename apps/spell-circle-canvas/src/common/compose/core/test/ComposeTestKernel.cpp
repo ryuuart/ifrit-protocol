@@ -870,6 +870,97 @@ TEST(ComposeCache, PromotionUnderAFractionalHostScaleChangesNoPixels) {
 
 namespace {
 
+/** Four leaves under a parent that caches nothing, so every one of them is
+ *  visited — and profiled — on every frame. One is promotable and the
+ *  other three each carry exactly one of the conditions under which a bake
+ *  would paint different pixels, so the refusal a row reports names the
+ *  thing the leaf was built to carry. Nothing here is expensive: the point
+ *  is a page the COST rule would never promote. */
+Element eagerPage() {
+  return box()
+      .cache(Cache::None)
+      .child(box().key("plain").absolute().left(0).top(0).width(40).height(40)
+                 .fill(red()))
+      .child(box().key("faded").absolute().left(50).top(0).width(40).height(40)
+                 .fill(green()).opacity(0.5f))
+      .child(box().key("turned").absolute().left(100).top(0).width(40)
+                 .height(40).fill(blue()).rotate(7))
+      .child(box().key("recorded").absolute().left(0).top(50).width(40)
+                 .height(40).fill(red()).cache(Cache::Picture));
+}
+
+}  // namespace
+
+TEST(ComposeCache, AnEagerComposerPromotesTheEligibleNodeOnItsFirstFrame) {
+  // The cost rule is a stopwatch, so what it promotes is a fact about the
+  // machine: a run that means to TEST promotion asks for the eager policy
+  // and gets the whole promotable set, everywhere, from frame one.
+  Host host;
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.composer.setProfiling(true);
+  host.composer.render(eagerPage());
+  host.frame();
+
+  const Composer::NodeCost* plain = requireRow(host.composer, "plain");
+  ASSERT_NE(plain, nullptr);
+  EXPECT_EQ(plain->promotion, Composer::Promotion::Promoted)
+      << "eager promotion waited for a stopwatch it is not supposed to read";
+  EXPECT_EQ(plain->cacheState, Composer::CacheState::Promoted);
+  EXPECT_EQ(host.composer.stats().texturesBaked, 1u);
+  // The bake is the picture the live paint paints, which is the whole of
+  // what promotion may cost — eager or not.
+  EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
+}
+
+TEST(ComposeCache, AnEagerComposerRefusesWhatTheCostRuleRefuses) {
+  // Eager skips the cost question and NOTHING else. Every refusal is a
+  // condition under which a bake would paint different pixels, so the two
+  // policies must report the identical set of them for every node — a
+  // policy that promoted its way past one would be promoting a picture
+  // that moves.
+  const auto refusalsUnder = [](Composer::PromotionPolicy policy) {
+    Host host;
+    host.composer.setAutoTexturePromotion(policy);
+    host.composer.setProfiling(true);
+    host.composer.render(eagerPage());
+    host.frame();
+    std::vector<std::pair<std::string, uint16_t>> out;
+    for (const char* key : {"plain", "faded", "turned", "recorded"}) {
+      const Composer::NodeCost* row = requireRow(host.composer, key);
+      out.emplace_back(key, row ? row->refusals : 0xffffu);
+    }
+    return out;
+  };
+  const auto byCost = refusalsUnder(Composer::PromotionPolicy::ByCost);
+  const auto eager = refusalsUnder(Composer::PromotionPolicy::Eager);
+  ASSERT_EQ(byCost.size(), eager.size());
+  for (size_t i = 0; i < byCost.size(); ++i)
+    EXPECT_EQ(byCost[i].second, eager[i].second)
+        << byCost[i].first << " is refused differently by the two policies";
+
+  // And the refusals are the ones each leaf was built to carry, so the
+  // comparison above is not two empty sets agreeing.
+  Host host;
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.composer.setProfiling(true);
+  host.composer.render(eagerPage());
+  host.frame();
+  const Composer::NodeCost* faded = requireRow(host.composer, "faded");
+  const Composer::NodeCost* turned = requireRow(host.composer, "turned");
+  const Composer::NodeCost* recorded = requireRow(host.composer, "recorded");
+  ASSERT_NE(faded, nullptr);
+  ASSERT_NE(turned, nullptr);
+  ASSERT_NE(recorded, nullptr);
+  EXPECT_TRUE(faded->refused(Composer::Promotion::Composited));
+  EXPECT_TRUE(turned->refused(Composer::Promotion::Transformed));
+  EXPECT_TRUE(recorded->refused(Composer::Promotion::OptedOut));
+  EXPECT_NE(faded->cacheState, Composer::CacheState::Promoted);
+  EXPECT_NE(turned->cacheState, Composer::CacheState::Promoted);
+  EXPECT_NE(recorded->cacheState, Composer::CacheState::Promoted);
+}
+
+namespace {
+
 /** A repeating tile of hard-edged marks, magnified. A procedural ramp
  *  answers a coordinate that moved an epsilon with a code value; a
  *  MAGNIFIED TEXEL answers with whatever its two neighbours differ by,

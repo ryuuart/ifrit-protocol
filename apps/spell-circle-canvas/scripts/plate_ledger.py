@@ -93,6 +93,16 @@ THREE TIERS (--tier):
   promotion off, so every other tier renders the one renderer feature
   with the feature switched out.
 
+  IT PROMOTES EAGERLY, so the tier tests THE SAME NODE SET ON EVERY
+  MACHINE. The runtime's own promotion rule is a stopwatch — a node is
+  baked once its paint has measured over a millisecond for eight
+  consecutive frames — so left to itself this tier reports whatever the
+  machine's load happened to promote, which on an idle one is nothing at
+  all. `--promotion` asks the runtime to bake every node its rules admit,
+  from the first frame, whatever the node costs. Nothing about what a
+  bake may do changes; the numbers below are therefore a measurement of
+  the scene rather than a floor on it, and they reproduce.
+
 The manifest lives in build/ (machine-local on purpose: plates are
 AA-deterministic per machine, not across machines), so a fresh checkout
 runs `--rebase` once before a sweep can judge anything. Every render a
@@ -519,6 +529,13 @@ def promotion_sweep(binary, scenes, timeout, jobs):
     one IS the reference, because the question is not what a sketch draws
     but whether the runtime's own re-baking changes it.
 
+    THE PROMOTED SET IS THE SCENE'S, NOT THE MACHINE'S. The `on` half
+    renders with the runtime's promotion policy set EAGER: every node the
+    rules admit is baked from its first frame, whatever it costs, instead
+    of whatever a stopwatch happened to find expensive under this run's
+    load. So the tier tests the same nodes on every machine, and all of
+    the promotable ones rather than the few slow ones.
+
     THE BAR IS ONE CODE VALUE ANYWHERE. A promoted node is baked under the
     live matrix post-translated by an integer, and inverting that matrix to
     find a shader's local coordinates does not cancel the integer to the
@@ -603,8 +620,8 @@ def main():
         "device: the same scenes on the GPU, judged per colour channel "
         "against the CPU plate of the same run; no baseline. promotion: "
         "the same scenes rendered with automatic texture promotion held "
-        "off and again with it on, judged within one code value; no "
-        "baseline",
+        "off and again with every promotable node eagerly baked, judged "
+        "within one code value; no baseline",
     )
     ap.add_argument(
         "--kind",
@@ -696,7 +713,7 @@ def main():
         print(
             f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
             f"tier promotion: each rendered with automatic texture promotion "
-            f"held off and again with it on"
+            f"held off and again with every promotable node eagerly baked"
         )
         return promotion_sweep(binary, list(scenes), args.timeout_seconds, args.jobs)
 

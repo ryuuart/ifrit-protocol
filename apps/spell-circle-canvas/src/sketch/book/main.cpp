@@ -33,6 +33,16 @@
  * sketch's filed name or its file stem, which is the loop for visual
  * iteration.
  *
+ * A HEADLESS SWEEP RENDERS WITH AUTOMATIC TEXTURE PROMOTION OFF, because
+ * a plate is judged on byte identity and a cost-driven bake depends on
+ * how busy the machine is. `--no-promotion` names that default so it
+ * holds on a backend that would otherwise decide for itself.
+ * `--promotion` opens the sessions EAGER instead: every node the
+ * runtime is allowed to bake is baked from its first frame, whatever it
+ * costs, so the set of nodes exercised is the scene's and identical on
+ * every machine. Such a run is judged by distance from a plate, never
+ * by hash.
+ *
  * A `.cpp` PATH IS TAKEN WHEREVER IT STANDS. The file joins the app's
  * list under its own stem and opens there, and it is compiled and
  * watched exactly as a sketch in this repository is. `--assets` names

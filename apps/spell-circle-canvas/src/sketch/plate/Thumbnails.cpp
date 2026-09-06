@@ -185,7 +185,7 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   if (!session) return ThumbnailOutcome::Failed;
   // The plate tier renders with cost-based promotion held off; a
   // thumbnail must be that same picture.
-  session->setAutoPromotion(false);
+  session->setAutoPromotion(Session::Promotion::Off);
 
   const CanvasSpec& spec = session->canvas();
   const SkSize size = spec.size;

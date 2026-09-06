@@ -73,11 +73,17 @@ distances; what stays here is the judgement, because a ceiling is a
 tolerance about a machine and not a fact about two files.
 
 `--tier promotion` renders the same sketches twice on the CPU — once
-with automatic texture promotion held off, once with it on — and judges
-the pair within ONE code value on any channel of any pixel. It exists
-because nothing else exercises the promoter: a headless session is
-opened deterministic and a deterministic session holds promotion off, so
-every other tier renders the runtime with that feature switched out. The
+with automatic texture promotion held off, once with every promotable
+node eagerly baked — and judges the pair within ONE code value on any
+channel of any pixel. It exists because nothing else exercises the
+promoter: a headless session is opened deterministic and a deterministic
+session holds promotion off, so every other tier renders the runtime
+with that feature switched out. THE ON HALF IS EAGER so the tier tests
+the same node set on every machine: the runtime's own rule is a
+stopwatch, which on an idle machine promotes nothing and on a loaded one
+promotes a different handful each run, and a tier that measures the
+machine measures nothing. Eager bakes every node the rules admit, from
+its first frame, and changes nothing about what a bake may do. The
 ceiling is not a tolerance anyone chose. A promoted node is baked under
 the live matrix post-translated by an integer, and inverting that matrix
 to find a shader's local coordinates does not cancel the integer to the

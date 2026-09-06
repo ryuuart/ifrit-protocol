@@ -49,8 +49,12 @@ class CanvasSession final : public Session {
     // It is the session's DEFAULT rather than a property of determinism:
     // setAutoPromotion() lifts it afterwards, which is how a run that
     // means to exercise the promoter keeps every other pin in place. Such
-    // a run is judged by distance from a plate, never by hash.
-    if (deterministic) m_composer->setAutoTexturePromotion(false);
+    // a run is judged by distance from a plate, never by hash — and it
+    // asks for the EAGER policy, which has no stopwatch in it, so the set
+    // of nodes it exercises is the scene's and not the machine's.
+    if (deterministic)
+      m_composer->setAutoTexturePromotion(
+          compose::Composer::PromotionPolicy::Off);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.
@@ -152,8 +156,12 @@ class CanvasSession final : public Session {
     return std::string(line) + held;
   }
 
-  void setAutoPromotion(bool on) override {
-    m_composer->setAutoTexturePromotion(on);
+  void setAutoPromotion(Promotion policy) override {
+    using Policy = compose::Composer::PromotionPolicy;
+    m_composer->setAutoTexturePromotion(policy == Promotion::Off ? Policy::Off
+                                        : policy == Promotion::Eager
+                                            ? Policy::Eager
+                                            : Policy::ByCost);
   }
 
   void setProfiling(bool on) override { m_composer->setProfiling(on); }

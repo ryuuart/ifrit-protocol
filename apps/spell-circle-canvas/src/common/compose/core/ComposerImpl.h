@@ -169,7 +169,8 @@ struct Composer::Impl {
   // own total upward. That gives selfMs = totalMs - children without a
   // second traversal.
   bool profileEnabled = false;
-  bool autoPromote = true;  // Composer::setAutoTexturePromotion (the INTENT)
+  // Composer::setAutoTexturePromotion (the INTENT).
+  Composer::PromotionPolicy autoPromote = Composer::PromotionPolicy::ByCost;
   /** Composer::setBakeDensity: device pixels per layout unit every pixel
    *  bake is taken at, whatever the frame's matrix says. Zero is the
    *  coarse ladder read off that matrix. */
@@ -186,7 +187,8 @@ struct Composer::Impl {
   // than the recording it replaces. Re-enabling it there needs a cost model
   // built on GPU timestamps. The global switch still overrides in both
   // directions.
-  bool autoPromoteEffective = true;
+  Composer::PromotionPolicy autoPromoteEffective =
+      Composer::PromotionPolicy::ByCost;
   // Promoted bakes are pixels, and a dense scene can carry many
   // full-canvas nodes at several megabytes each. A budget, carried from the
   // previous frame (paint order is stable, so the previous frame's total is

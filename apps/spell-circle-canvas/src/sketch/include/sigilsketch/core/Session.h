@@ -8,6 +8,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilsketch/core/CanvasSpec.h>
 
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -101,12 +102,24 @@ class Session {
    *  runtime with none. */
   [[nodiscard]] virtual std::string counters() const { return {}; }
 
-  /** Hold off (or restore) any re-baking the runtime does BY MEASURED
-   *  COST rather than by declaration. It is the one behaviour a
-   *  byte-identity sweep must turn off: load can tip a measured cost
-   *  either way, so with it on a plate's bytes depend on how busy the
-   *  machine was. A runtime that promotes nothing ignores this. */
-  virtual void setAutoPromotion(bool on) { (void)on; }
+  /** WHEN THE RUNTIME MAY RE-BAKE A NODE IT WAS NOT ASKED TO.
+   *
+   *  `Off` is what a byte-identity sweep asks for: a cost-driven re-bake
+   *  is the one behaviour whose outcome depends on how busy the machine
+   *  is, so with it on a plate's bytes do too.
+   *
+   *  `ByCost` is the runtime's own judgement — it bakes what its
+   *  stopwatch says is expensive, and therefore a different set of nodes
+   *  on a loaded machine than on an idle one.
+   *
+   *  `Eager` bakes everything the runtime is ALLOWED to bake, whatever it
+   *  costs. Nothing about what a bake may do changes; only the question
+   *  of whether the node was worth one. That is what a run TESTING the
+   *  re-baking wants: the same nodes on every machine, and all of them.
+   *
+   *  A runtime that promotes nothing ignores this. */
+  enum class Promotion : uint8_t { Off, ByCost, Eager };
+  virtual void setAutoPromotion(Promotion policy) { (void)policy; }
 
   /** Attribute per-node cost on the frames that follow. It costs
    *  something to collect, so a host turns it on for one frame rather

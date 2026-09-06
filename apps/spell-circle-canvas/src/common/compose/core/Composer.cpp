@@ -427,12 +427,13 @@ void Composer::draw(SkCanvas& canvas) {
   // not blit a stale texture.
   const bool gpuBacked =
       canvas.recorder() != nullptr || canvas.recordingContext() != nullptr;
-  const bool effective = impl.promotionExplicit
-                             ? impl.autoPromote
-                             : impl.autoPromote && !gpuBacked;
+  const Composer::PromotionPolicy effective =
+      (impl.promotionExplicit || !gpuBacked)
+          ? impl.autoPromote
+          : Composer::PromotionPolicy::Off;
   if (effective != impl.autoPromoteEffective) {
     impl.autoPromoteEffective = effective;
-    if (!effective && impl.root) {
+    if (effective == Composer::PromotionPolicy::Off && impl.root) {
       const auto clear = [](auto&& self, detail::Instance& inst) -> void {
         inst.autoTexture = false;
         inst.hotFrames = 0;
@@ -543,10 +544,14 @@ void Composer::setProfiling(bool on) {
 bool Composer::profiling() const { return m_impl->profileEnabled; }
 
 void Composer::setAutoTexturePromotion(bool on) {
-  m_impl->autoPromote = on;
+  setAutoTexturePromotion(on ? PromotionPolicy::ByCost : PromotionPolicy::Off);
+}
+
+void Composer::setAutoTexturePromotion(PromotionPolicy policy) {
+  m_impl->autoPromote = policy;
   m_impl->promotionExplicit = true;  // the host has an opinion; honour it on
                                      // every backend, overriding the default.
-  if (!on && m_impl->root) {
+  if (policy == PromotionPolicy::Off && m_impl->root) {
     // Drop every promoted bake, and the counters that would re-promote from
     // where they left off, so turning promotion off actually exercises the
     // unpromoted path instead of blitting textures baked before the switch.
@@ -564,7 +569,13 @@ void Composer::setAutoTexturePromotion(bool on) {
   }
 }
 
-bool Composer::autoTexturePromotion() const { return m_impl->autoPromote; }
+Composer::PromotionPolicy Composer::autoTexturePromotionPolicy() const {
+  return m_impl->autoPromote;
+}
+
+bool Composer::autoTexturePromotion() const {
+  return m_impl->autoPromote != PromotionPolicy::Off;
+}
 
 void Composer::setBakeDensity(float devicePixelsPerUnit) {
   const float density =

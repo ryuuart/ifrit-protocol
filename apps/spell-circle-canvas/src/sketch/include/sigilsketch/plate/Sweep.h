@@ -57,8 +57,8 @@ struct SweepOptions {
    *  default already holds it off; naming it makes the comparison
    *  reproducible on either backend rather than a behaviour it adds. */
   bool noPromotion = false;
-  /** Turn cost-based re-baking ON, leaving every other pin of a headless
-   *  run in place.
+  /** Turn automatic re-baking ON — EAGERLY — leaving every other pin of a
+   *  headless run in place.
    *
    *  A headless session is opened deterministic, and a deterministic
    *  session holds automatic texture promotion off — so nothing a sweep
@@ -66,11 +66,20 @@ struct SweepOptions {
    *  plate is deliberately blind to is also the one nothing photographs.
    *  This is the door: the clock, the step, the capture moment and the
    *  sketch's own `measured()` pins all stand, and only the promoter is
-   *  let go. What comes out is NOT byte-comparable with a plate — a bake
-   *  lands under a matrix post-translated by an integer, so a shaded
-   *  pixel may sit one code value from the live paint — so it is judged
-   *  by distance from the plate rather than by hash. Refused together
-   *  with `noPromotion`, which asks for the opposite. */
+   *  let go.
+   *
+   *  IT IS THE EAGER POLICY, not the runtime's own cost judgement. The
+   *  cost judgement is a stopwatch, so the set of nodes it bakes depends
+   *  on how busy the machine is — on an idle one it can bake nothing at
+   *  all, and a sweep that promotes nothing proves nothing. Eager bakes
+   *  every node the rules admit, from its first frame, so one scene
+   *  exercises the same nodes on every machine and all of them.
+   *
+   *  What comes out is NOT byte-comparable with a plate — a bake lands
+   *  under a matrix post-translated by an integer, so a shaded pixel may
+   *  sit one code value from the live paint — so it is judged by distance
+   *  from the plate rather than by hash. Refused together with
+   *  `noPromotion`, which asks for the opposite. */
   bool promotion = false;
   /** Take every still at this scene time, overriding both the derived
    *  frame and any sketch's declared moment. Sweeping at two different

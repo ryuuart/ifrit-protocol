@@ -522,7 +522,34 @@ class Composer {
    *  Opting out: globally here, or per node with `.cache(Cache::Picture)`,
    *  which means "record, and never promote". `Cache::Texture` is the
    *  opposite opt-in and is unaffected. */
+  /** WHAT DECIDES A PROMOTION — never what a promotion is allowed to do.
+   *
+   *  `ByCost` is the library's own judgement and the default: a node is
+   *  baked once its paint has measured over the threshold for several
+   *  consecutive frames. That decision is a STOPWATCH, so which nodes are
+   *  promoted depends on how busy the machine is: one binary drawing one
+   *  scene promotes a different set of nodes on a loaded machine than on
+   *  an idle one, and on an idle one it may promote nothing at all.
+   *
+   *  `Eager` bakes every node the promoter is ALLOWED to bake, from its
+   *  first frame, whatever the node costs. Every eligibility rule stands
+   *  unchanged — a node whose bake would paint different pixels is
+   *  refused here exactly as it is under `ByCost`, and reports the same
+   *  reason — and only the cost question is skipped. A run that means to
+   *  TEST promotion asks for this: the promoted set is then a property of
+   *  the scene, identical on every machine, and it is the whole
+   *  promotable set rather than the few nodes that happened to be slow.
+   *  It is not a performance mode: a bake nobody needed costs the bake. */
+  enum class PromotionPolicy : uint8_t {
+    Off,     ///< nothing is promoted, and standing bakes are dropped
+    ByCost,  ///< baked after several consecutive expensive frames
+    Eager,   ///< every eligible node, from its first frame
+  };
+  void setAutoTexturePromotion(PromotionPolicy policy);
+  /** The two-state form: false is `Off`, true is `ByCost`. */
   void setAutoTexturePromotion(bool on);
+  PromotionPolicy autoTexturePromotionPolicy() const;
+  /** Whether anything may be promoted at all — the policy is not `Off`. */
   bool autoTexturePromotion() const;
 
   /** A PIXEL BAKE IS A PICTURE OF THE CANVAS, NOT OF THE VIEW.

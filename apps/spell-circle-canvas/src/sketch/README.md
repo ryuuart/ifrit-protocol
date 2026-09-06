@@ -936,6 +936,16 @@ so the only difference between the two renders of a scene is the
 promoter. `--no-promotion` and `--promotion` ask for opposite runs and
 naming both is refused.
 
+IT OPENS THEM EAGER. The stopwatch that makes the promoter load-dependent
+would make the lane load-dependent too: on an idle machine nothing
+crosses the bar and the run reports a clean sweep it did not earn, while
+on a loaded one a different handful of nodes crosses it each time. So
+`--promotion` asks for the eager policy — every node the composer's rules
+admit is baked from its first frame, whatever it costs — and nothing
+about what a bake is allowed to do changes. One scene therefore exercises
+the same node set on every machine, and it is the whole promotable set
+rather than the few nodes that happened to be slow.
+
 What comes out is not byte-comparable and is not meant to be. A promoted
 node is baked under the live matrix post-translated by an integer, and
 inverting that matrix to find a shader's local coordinates does not
@@ -951,8 +961,8 @@ CPU tier judges every sketch, canvas and set alike, on byte identity
 against one baseline manifest; the device tier renders the same sketches
 through the device and judges each against the CPU plate of the same
 run, per colour channel; the promotion tier renders each scene with the
-promoter held off and again with it on and judges the pair within one
-code value. Only the CPU tier keeps a baseline. The judgement itself is
+promoter held off and again with every promotable node eagerly baked,
+and judges the pair within one code value. Only the CPU tier keeps a baseline. The judgement itself is
 `scripts/README.md`'s.
 
 ## The live host

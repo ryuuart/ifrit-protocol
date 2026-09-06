@@ -194,8 +194,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       PhaseMark mark(Phase::Setup);
       session = kind->open(fonts, assets, true);
     }
-    if (options.noPromotion) session->setAutoPromotion(false);
-    if (options.promotion) session->setAutoPromotion(true);
+    if (options.noPromotion) session->setAutoPromotion(Session::Promotion::Off);
+    if (options.promotion) session->setAutoPromotion(Session::Promotion::Eager);
     SkDebugf("=== sketch %s\n", entry.name);
 
     // Every size below comes off the session: a sketch declares its own
@@ -304,8 +304,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     if (options.ledger && declared <= 0) declared = kCaptureFrame / kRate;
     if (declared > 0) {
       session = kind->open(fonts, assets, true);
-      if (options.noPromotion) session->setAutoPromotion(false);
-      if (options.promotion) session->setAutoPromotion(true);
+      if (options.noPromotion)
+        session->setAutoPromotion(Session::Promotion::Off);
+      if (options.promotion)
+        session->setAutoPromotion(Session::Promotion::Eager);
       if (session->canvas().size != size) {
         std::fprintf(stderr,
                      "sketch %s declared a different canvas on reopen\n",

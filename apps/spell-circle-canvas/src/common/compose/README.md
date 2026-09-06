@@ -1085,6 +1085,33 @@ does not cancel; and nothing live may be inside the bake. A scene whose
 promoted frame differs from its unpromoted one by more than a value is a
 defect in this library, never a plate to rebase.
 
+**WHAT DECIDES A PROMOTION IS A POLICY, AND ONE OF ITS VALUES HAS NO
+STOPWATCH IN IT.** `Composer::setAutoTexturePromotion` takes
+`PromotionPolicy::Off`, `ByCost` or `Eager`. `ByCost` is the default and
+the library's own judgement: a node is baked once its paint has measured
+over the threshold for several consecutive frames, which means the set of
+nodes promoted is a fact about how busy the machine was — on an idle one
+it can be empty. `Eager` bakes every node the rules above admit, from its
+first frame, whatever it costs. Not one eligibility rule moves: a node
+whose bake would paint different pixels is refused under `Eager` exactly
+as under `ByCost` and reports the same reason. It is not a performance
+mode — a bake nobody needed costs the bake — it is how a run that means
+to TEST the promoter gets the same node set on every machine, and gets
+all of it rather than the few nodes that happened to be slow.
+
+**THE LANE THAT HOLDS THE PROMOTER TO THAT.** Every scene in the sketch
+registry is rendered twice on the CPU — once with the policy `Off` and
+once `Eager`, everything else about the two runs pinned to the same
+clock, the same fixed step and the same capture moment — and the two
+pictures are differenced channel by channel. The pair is judged by the
+one code value above: a scene whose worst channel exceeds it is a
+promoted node painting a different picture, and it is filed against this
+library. Because the on half is eager rather than measured, that sweep
+covers every promotable node in the registry and reports the same numbers
+on any machine. It is `scripts/plate_ledger.py --tier promotion`, and it
+is the only run in the repository that photographs this library with
+promotion switched on.
+
 ---
 
 ## Traps

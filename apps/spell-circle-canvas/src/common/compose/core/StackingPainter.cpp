@@ -1703,7 +1703,16 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const auto flag = [&](Prom p) { refusals |= (uint16_t)(1u << (unsigned)p); };
   // autoPromoteEffective, not autoPromote: the backend-aware default (off on
   // GPU unless the host asked) is applied in draw(). See ComposeRuntime.h.
-  const bool optedOut = !autoPromoteEffective || node.cacheMode != Cache::Auto;
+  const bool optedOut =
+      autoPromoteEffective == Composer::PromotionPolicy::Off ||
+      node.cacheMode != Cache::Auto;
+  // EAGER SKIPS THE STOPWATCH AND NOTHING ELSE. Every refusal below is a
+  // condition under which a bake would paint different pixels, and this
+  // policy changes none of them — it answers only "is this node expensive
+  // enough to be worth baking" with yes, so a run that means to exercise
+  // the promoter exercises every node the rules admit rather than the few
+  // the machine happened to be slow on.
+  const bool eager = autoPromoteEffective == Composer::PromotionPolicy::Eager;
   if (optedOut) flag(Prom::OptedOut);
   if (!contentStable) flag(Prom::Volatile);
   if (leafBlend != SkBlendMode::kSrcOver || leafOpacity < 1.0f)
@@ -1743,7 +1752,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const bool deviceBakeable =
       unpinnedRecordingDepth == 0 && (recordingDepth == 0 || matrixStable);
   const bool promotable = why == Prom::Cheap && !liveOnly && deviceBakeable;
-  if (!promotable) inst.autoTexture = false;
+  if (!promotable)
+    inst.autoTexture = false;
+  else if (eager)
+    inst.autoTexture = true;  // no warmup: the bake is taken below, this frame
   const auto note = [&](Prom p) {
     if (profileScope.row != SIZE_MAX) {
       profileRows[profileScope.row].promotion = p;
@@ -1911,7 +1923,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       // Leaving it out would hold the split to a weaker standard than the
       // promoter beside it.
       upright;
-  if (!splitCandidate) inst.splitBake = false;
+  if (!splitCandidate)
+    inst.splitBake = false;
+  else if (eager)
+    inst.splitBake = true;  // the own half, from its first frame
   if (splitCandidate) {
     // ownPaintBounds, NOT recordBounds. recordBounds unions the children
     // in, so it moves every frame a child moves — and a bake rect that
