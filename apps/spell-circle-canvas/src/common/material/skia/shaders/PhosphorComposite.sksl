@@ -1,0 +1,10 @@
+// The sharp source with the gathered halo laid over it. One tap of each,
+// so it costs the same whatever reach the halo was gathered at, and the
+// source keeps its own coverage: a halo adds light, never opacity.
+uniform shader content;
+uniform shader halo;
+
+half4 main(float2 p) {
+  half4 source = content.eval(p);
+  return half4(source.rgb + halo.eval(p).rgb, source.a);
+}

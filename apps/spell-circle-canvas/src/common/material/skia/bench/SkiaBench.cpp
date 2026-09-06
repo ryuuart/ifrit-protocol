@@ -7,6 +7,7 @@
 
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkGraphics.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkPaint.h>
@@ -106,7 +107,18 @@ void through(benchmark::State& state, const skia::Effect& effect) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   SkPaint paint;
   paint.setImageFilter(effect.resolvedImageFilter(nullptr));
+  // EVERY FRAME FILTERS. Skia keys a filtered result on the filter, the
+  // source and the matrix it was made under, so a loop that draws the same
+  // layer through the same filter at the same place measures a cache
+  // lookup and a blit from the second iteration on — and the cheaper the
+  // intermediates an effect keeps, the more of them survive the budget,
+  // which reads as the wide-reach arm being the fastest of all. The cache
+  // is emptied between frames, off the clock, so every arm reports the
+  // work and not the lookup.
   for ([[maybe_unused]] auto iteration : state) {
+    state.PauseTiming();
+    SkGraphics::PurgeResourceCache();
+    state.ResumeTiming();
     surface->getCanvas()->clear(SkColors::kBlack);
     surface->getCanvas()->drawImage(layer.get(), 0, 0, SkSamplingOptions(),
                                     &paint);
@@ -151,6 +163,14 @@ void BM_Layer_PhosphorBloom_Drifted(benchmark::State& state) {
                                              0.5f));
 }
 BENCHMARK(BM_Layer_PhosphorBloom_Drifted);
+
+/** A WIDE reach, where the halo is gathered coarsest: the same
+ *  twenty-four taps, spread far enough that the layer they are gathered
+ *  over can be reduced further than the defaults' is. */
+void BM_Layer_PhosphorBloom_Wide(benchmark::State& state) {
+  through(state, skia::Effect::phosphorBloom(24.0f));
+}
+BENCHMARK(BM_Layer_PhosphorBloom_Wide);
 
 
 }  // namespace

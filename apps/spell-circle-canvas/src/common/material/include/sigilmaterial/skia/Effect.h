@@ -106,12 +106,23 @@ class Effect {
    *  only brighter. Both default to zero, which is exactly the falloff
    *  without them.
    *
+   *  THE HALO IS GATHERED COARSE AND LAID BACK OVER THE SHARP SOURCE.
    *  Twenty-four samples of the layer per pixel — three radii of eight
-   *  headings — and a gather is what it costs; a hand-rolled bright pass
-   *  takes ONE sample and hands the spreading to a separable blur, which
-   *  is a different price for a different picture. So the layer this
-   *  runs over should be bounded: put the glow sources on their own node
-   *  under `Cache::Texture` and the bloom is baked with them once. */
+   *  headings — is what a gather costs, so it is not spent at the layer's
+   *  own resolution: the bright pass, the rings, the drift and the tail
+   *  run over a layer reduced until the INNERMOST ring is about a pixel
+   *  across, and the result is resampled up and added to the untouched
+   *  source, which is one tap of each. A halo is a low-frequency picture
+   *  and survives that; the reduction is why the effect costs near a
+   *  bright pass rather than twenty-four times one. What it changes is
+   *  the halo's fine structure — a hard-edged source hands its step to a
+   *  resample — and never the source itself, which is composited at full
+   *  resolution and to the bit. A reach small enough to be blurred away
+   *  by the reduction is gathered whole instead.
+   *
+   *  The layer this runs over should still be bounded: put the glow
+   *  sources on their own node under `Cache::Texture` and the bloom is
+   *  baked with them once. */
   static Effect phosphorBloom(float radius = 9.0f, float threshold = 0.52f,
                               float intensity = 0.46f, float chroma = 0.80f,
                               float hueDrift = 0.0f, float tail = 0.0f);
@@ -329,6 +340,12 @@ class Effect {
   std::optional<DirectionalBlur> m_dirBlur;  // directionalBlur()'s recipe
   std::optional<ParamBlur> m_paramBlur;      // blur()'s recipe
   std::shared_ptr<const BlurLevels> m_blurLevels;  // …and its held passes
+  // phosphorBloom(): the shader recipe above is the HALO program alone,
+  // and this says the node is that program gathered over a reduced layer
+  // and composited back over the sharp one, rather than one pass over it.
+  // Derived from nothing else, so it takes part in equality: two effects
+  // over the same program and uniforms paint differently by it.
+  bool m_gatheredHalo = false;
   // The child slots: `uniform shader NAME` → Material. Held by
   // shared_ptr because Material is only FORWARD-DECLARED here (Material.h
   // includes this header, so it cannot be included back) — the surface is
@@ -363,12 +380,12 @@ class Effect {
   static void fieldPin(Effect& v) {
     auto& [filter, colorFilter, effect, uniforms, uniforms2, uniforms4,
            uniformArrays, bound, blocks, dirBlur, paramBlur, blurLevels,
-           children, chainA, chainB] = v;
+           gatheredHalo, children, chainA, chainB] = v;
     static_assert(std::tuple_size_v<decltype(std::tie(
                           filter, colorFilter, effect, uniforms, uniforms2,
                           uniforms4, uniformArrays, bound, blocks, dirBlur,
-                          paramBlur, blurLevels, children, chainA, chainB))> ==
-                      15,
+                          paramBlur, blurLevels, gatheredHalo, children,
+                          chainA, chainB))> == 16,
                   "Effect gained or lost a member — rule on it in "
                   "Effect::operator== (Effect.cpp), then bump this count. "
                   "(m_colorFilter compares by pointer, like m_filter, an "
@@ -376,7 +393,9 @@ class Effect {
                   "m_filter is EXCLUDED on the shader, directionalBlur and "
                   "blur paths because it is derived from m_effect + the "
                   "constant lanes / m_dirBlur / m_paramBlur + m_children, "
-                  "and m_blurLevels is derived from m_paramBlur alone; "
+                  "and m_blurLevels is derived from m_paramBlur alone, "
+                  "while m_gatheredHalo is derived from nothing and is "
+                  "compared beside the shader recipe; "
                   "m_bound and m_blocks make the effect isAnimated(), which "
                   "operator== already refuses; m_chainA/B only exist on a "
                   "live chain, ditto.)");

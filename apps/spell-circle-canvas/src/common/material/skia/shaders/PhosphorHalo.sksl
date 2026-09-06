@@ -1,3 +1,7 @@
+// The halo alone: the bright pass, the three rings gathered around it, the
+// decay drift and the tail, returned as the light to ADD and nothing else.
+// It runs over a layer that may be smaller than the one it will be laid
+// back over, so uRadius is in THIS layer's pixels — the caller divides.
 uniform shader content;
 uniform float uRadius;
 uniform float uThreshold;
@@ -40,7 +44,6 @@ half3 drift(half3 color, float turn) {
 }
 
 half4 main(float2 p) {
-  half4 source = content.eval(p);
   half3 near = ring(p, uRadius * 0.28);
   half3 middle = ring(p, uRadius * 0.62);
   half3 far = ring(p, uRadius);
@@ -48,9 +51,9 @@ half4 main(float2 p) {
   // The decay tail turns hue in proportion to how far it has reached,
   // and only where the pixel is lit by a halo rather than by a source
   // of its own: a phosphor being excited holds its colour, one decaying
-  // beside it drifts.
+  // beside it drifts. The centre is read only when there is a turn.
   if (uHueDrift != 0.0) {
-    float turn = uHueDrift * (1.0 - float(gate(source.rgb)));
+    float turn = uHueDrift * (1.0 - float(gate(content.eval(p).rgb)));
     near = drift(near, turn * 0.28);
     middle = drift(middle, turn * 0.62);
     far = drift(far, turn);
@@ -63,5 +66,7 @@ half4 main(float2 p) {
       near.b * 0.58 + middle.b * 0.29 + far.b * 0.13);
   half3 bloom = mix(common, spectral, half(uChroma));
   if (uTail != 0.0) bloom += far * half(uTail);
-  return half4(source.rgb + bloom * half(uIntensity), source.a);
+  // Opaque, so the light is a plain colour to add and the layer it is
+  // resampled through carries no coverage of its own.
+  return half4(bloom * half(uIntensity), 1.0);
 }

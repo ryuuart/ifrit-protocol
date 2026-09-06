@@ -9,7 +9,9 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the slot diagnostics
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
@@ -115,24 +117,94 @@ Effect Effect::glow(SkColor4f color, float sigma) {
                                            color.toSkColor(), nullptr));
 }
 
+namespace {
+
+/** The two programs a bloom is made of: the gather, and the one tap of
+ *  each that lays its answer back over the sharp source. */
+sk_sp<SkRuntimeEffect> phosphorProgram(const char* file) {
+  auto [program, error] =
+      SkRuntimeEffect::MakeForShader(SkString(shaderSource(file)));
+  if (!program)
+    SkDebugf("[material] skia::Effect::phosphorBloom: %s failed: %s\n", file,
+             error.c_str());
+  return program;
+}
+
+/** HOW COARSE THE HALO MAY BE GATHERED, and the whole of why the effect
+ *  costs what it does. The gather is twenty-four taps; the picture it
+ *  makes is a low-frequency one, so the taps are spent over a REDUCED
+ *  layer and the answer resampled back up — a quarter of the pixels at
+ *  two, a sixteenth at four.
+ *
+ *  The limit is the INNERMOST ring: it sits at 0.28 of the reach, and a
+ *  ring smaller than a pixel in the layer it is gathered on is not a ring
+ *  any more, it is the centre tap eight times. So the divisor is at most
+ *  0.28 * radius, taken down to a power of two — which is the reduction a
+ *  bilinear resample answers exactly — and capped at four, beyond which
+ *  the bright pass would alias on its own sources. A small reach comes
+ *  back as one and is gathered whole. */
+int haloDivisor(float radius) {
+  const float most = 0.28f * radius;
+  if (most >= 4.0f) return 4;
+  if (most >= 2.0f) return 2;
+  return 1;
+}
+
+/** The bloom's filter DAG: reduce, gather, enlarge, composite.
+ *
+ *  @p haloBuilder arrives with every uniform of the halo program already
+ *  set; its radius is rewritten here, because inside a reduced layer a
+ *  reach is measured in that layer's pixels. The gather declares its own
+ *  sampling radius, so Skia bounds the node to the reduced source grown
+ *  by the reach instead of giving a runtime shader the whole clip. The
+ *  composite reads the source at full resolution, so the sharp picture
+ *  never passes through a resample — only the light added to it does. */
+sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
+                                       const sk_sp<SkRuntimeEffect>& composite,
+                                       float radius) {
+  const int divisor = haloDivisor(radius);
+  const float scale = 1.0f / static_cast<float>(divisor);
+  const float reach = radius * scale;
+  haloBuilder.uniform("uRadius") = reach;
+  const SkSamplingOptions resample(SkFilterMode::kLinear, SkMipmapMode::kNone);
+
+  sk_sp<SkImageFilter> source;  // null IS the layer, at its own resolution
+  if (divisor > 1)
+    source = SkImageFilters::MatrixTransform(SkMatrix::Scale(scale, scale),
+                                             resample, nullptr);
+  sk_sp<SkImageFilter> halo = SkImageFilters::RuntimeShader(
+      haloBuilder, reach, "content", std::move(source));
+  if (divisor > 1)
+    halo = SkImageFilters::MatrixTransform(
+        SkMatrix::Scale(static_cast<float>(divisor),
+                        static_cast<float>(divisor)),
+        resample, std::move(halo));
+  if (!composite) return halo;
+
+  SkRuntimeShaderBuilder over(composite);
+  std::string_view names[2] = {"content", "halo"};
+  const sk_sp<SkImageFilter> inputs[2] = {nullptr, std::move(halo)};
+  return SkImageFilters::RuntimeShader(over, names, inputs, 2);
+}
+
+}  // namespace
+
 Effect Effect::phosphorBloom(float radius, float threshold, float intensity,
                              float chroma, float hueDrift, float tail) {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [program, error] = SkRuntimeEffect::MakeForShader(
-        SkString(shaderSource("PhosphorBloom.sksl")));
-    if (!program)
-      SkDebugf("[material] skia::Effect::phosphorBloom: shader failed: %s\n",
-               error.c_str());
-    return program;
-  }();
+  static const sk_sp<SkRuntimeEffect> halo =
+      phosphorProgram("PhosphorHalo.sksl");
 
   constexpr float kDegree = 3.14159265f / 180.0f;
-  return shader(effect, {{"uRadius", std::max(radius, 0.0f)},
-                         {"uThreshold", std::clamp(threshold, 0.0f, 0.99f)},
-                         {"uIntensity", std::max(intensity, 0.0f)},
-                         {"uChroma", std::clamp(chroma, 0.0f, 1.0f)},
-                         {"uHueDrift", hueDrift * kDegree},
-                         {"uTail", std::max(tail, 0.0f)}});
+  Effect e = shader(halo, {{"uRadius", std::max(radius, 0.0f)},
+                           {"uThreshold", std::clamp(threshold, 0.0f, 0.99f)},
+                           {"uIntensity", std::max(intensity, 0.0f)},
+                           {"uChroma", std::clamp(chroma, 0.0f, 1.0f)},
+                           {"uHueDrift", hueDrift * kDegree},
+                           {"uTail", std::max(tail, 0.0f)}});
+  if (!e.m_effect) return e;
+  e.m_gatheredHalo = true;
+  e.m_filter = e.buildFilter(nullptr);
+  return e;
 }
 
 namespace {
@@ -592,6 +664,19 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* ctx) const {
   // "content" is the library's and is filled by the factory below.
   for (const auto& [name, child] : m_children)
     if (child) builder.child(name) = detail::childShader(*child, ctx);
+  if (m_gatheredHalo) {
+    static const sk_sp<SkRuntimeEffect> composite =
+        phosphorProgram("PhosphorComposite.sksl");
+    // The reach the reduction is chosen from is the recipe's, or the
+    // bound value where one drives it — a breathing radius picks its own
+    // divisor rather than riding a stale one.
+    float radius = 0;
+    for (const auto& [name, value] : m_uniforms)
+      if (name == "uRadius") radius = value;
+    for (const auto& [name, out] : m_bound)
+      if (name == "uRadius") radius = motion::resolveFloatAt(nullptr, out);
+    return makePhosphorBloom(builder, composite, radius);
+  }
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
 }
 
@@ -650,7 +735,8 @@ bool Effect::operator==(const Effect& o) const {
   if (m_dirBlur || o.m_dirBlur)       // directionalBlur(): by RECIPE, so a
     return m_dirBlur == o.m_dirBlur;  // re-described equal one prunes
   if (m_effect || o.m_effect)
-    return m_effect == o.m_effect && m_uniforms == o.m_uniforms &&
+    return m_effect == o.m_effect && m_gatheredHalo == o.m_gatheredHalo &&
+           m_uniforms == o.m_uniforms &&
            m_uniforms2 == o.m_uniforms2 && m_uniforms4 == o.m_uniforms4 &&
            m_uniformArrays == o.m_uniformArrays &&
            childrenEqual(m_children, o.m_children);

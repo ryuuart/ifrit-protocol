@@ -610,27 +610,73 @@ half4 main(float2 p) {
 
 }  // namespace
 
-TEST(SkiaEffect, PhosphorBloomDefaultsAreThePlainFalloffToTheBit) {
+namespace {
+
+/** The plain three-kernel program at @p radius, as one effect. */
+skia::Effect plainPhosphor(const sk_sp<SkRuntimeEffect>& program,
+                           float radius) {
+  return skia::Effect::shader(program, {{"uRadius", radius},
+                                        {"uThreshold", 0.52f},
+                                        {"uIntensity", 0.46f},
+                                        {"uChroma", 0.80f}});
+}
+
+}  // namespace
+
+TEST(SkiaEffect, PhosphorBloomIsThePlainFalloffWithinTheResample) {
   // The hue drift and the tail default to zero, and zero is the falloff
-  // without them: every texel of a bloomed source through the defaults
-  // equals the plain three-kernel program, so no picture made before
-  // either parameter existed moves.
+  // without them — so the recipe is held to the plain three-kernel
+  // program written out in full above. It meets it EXACTLY wherever the
+  // halo is gathered at the layer's own resolution, and within a stated
+  // tolerance where the gather is reduced, which is what buys the speed.
   auto [plain, error] =
       SkRuntimeEffect::MakeForShader(SkString(kPlainPhosphor));
   ASSERT_NE(plain, nullptr) << error.c_str();
-  const skia::Effect oracle =
-      skia::Effect::shader(plain, {{"uRadius", 9.0f},
-                                   {"uThreshold", 0.52f},
-                                   {"uIntensity", 0.46f},
-                                   {"uChroma", 0.80f}});
   const SkColor4f amber{1.0f, 0.72f, 0.1f, 1.0f};
+
+  // A REACH TOO SMALL TO REDUCE is gathered whole, and then the split
+  // into a halo pass and a composite pass changes nothing at all: every
+  // float of the picture is the plain program's own.
+  {
+    const std::vector<float> want =
+        bloomThrough(plainPhosphor(plain, 6.0f).resolvedImageFilter(nullptr),
+                     amber);
+    const std::vector<float> got =
+        bloomThrough(skia::Effect::phosphorBloom(6.0f, 0.52f, 0.46f, 0.80f)
+                         .resolvedImageFilter(nullptr),
+                     amber);
+    ASSERT_EQ(want.size(), got.size());
+    for (size_t i = 0; i < want.size(); ++i)
+      ASSERT_EQ(want[i], got[i]) << "float " << i;
+  }
+
+  // AT THE DEFAULTS the halo is gathered over a halved layer and resampled
+  // back, so the picture is the plain program's blurred by that round
+  // trip. The bound is on the halo's own scale — a channel runs 0..1
+  // here — and it is a tolerance about a RESAMPLE, so it is spent at the
+  // steep edge of the falloff and almost nowhere else: the mean error
+  // over the whole picture stays an order of magnitude under the worst
+  // texel's.
   const std::vector<float> want =
-      bloomThrough(oracle.resolvedImageFilter(nullptr), amber);
+      bloomThrough(plainPhosphor(plain, 9.0f).resolvedImageFilter(nullptr),
+                   amber);
   const std::vector<float> got = bloomThrough(
       skia::Effect::phosphorBloom().resolvedImageFilter(nullptr), amber);
   ASSERT_EQ(want.size(), got.size());
-  for (size_t i = 0; i < want.size(); ++i)
-    ASSERT_EQ(want[i], got[i]) << "float " << i;
+  double sum = 0, worst = 0;
+  for (size_t i = 0; i < want.size(); ++i) {
+    const double difference = std::abs((double)want[i] - (double)got[i]);
+    sum += difference;
+    worst = std::max(worst, difference);
+  }
+  EXPECT_LT(worst, 0.05) << "worst texel of the resampled halo";
+  EXPECT_LT(sum / (double)want.size(), 0.003) << "mean over the picture";
+
+  // COVERAGE IS NOT RESAMPLED. The composite reads the source at full
+  // resolution and returns its alpha untouched, so a halo adds light and
+  // never opacity — every alpha is the plain program's to the bit.
+  for (size_t i = 3; i < want.size(); i += 4)
+    ASSERT_EQ(want[i], got[i]) << "alpha " << i / 4;
   // And the picture is a bloom at all: the field beside the square is lit.
   EXPECT_GT(texel(got, 48, 32)[0], 0.0f);
 }
@@ -901,3 +947,4 @@ TEST(SkiaPaint, APaletteCrossesToAShaderAsATableSampledNearest) {
     EXPECT_EQ(SkColorGetB(got), (uint32_t)std::lround(want.b * 255.0f)) << i;
   }
 }
+
