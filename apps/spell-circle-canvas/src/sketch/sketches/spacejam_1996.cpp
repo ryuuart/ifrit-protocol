@@ -40,10 +40,10 @@
 //     align/valign, and the proportional surplus distribution that is why
 //     every planet lands on a FRACTIONAL pixel. Nothing is hand-placed —
 //     each <TD> names the cells it claims on the child that fills it, with
-//     `.cells()` and `.cellAlign()`. `reportGrid()` prints the columns,
-//     rows and image rects the table resolves next to the numbers headless
-//     Chrome measures, so the agreement is checkable on every run rather
-//     than asserted here.
+//     `.cells()` and `.cellAlign()`. `checkGrid()` claims the columns,
+//     rows and image rects the table resolves against the numbers headless
+//     Chrome measures, so the agreement is verified on every run rather
+//     than asserted here, and a page that stops agreeing says so on itself.
 //
 //  2. THE DISPLAY CONSTRAINT IS APPLIED TO THE FINISHED FRAME. Two
 //     quantisations, in the two places they actually happened. Nothing on
@@ -120,9 +120,12 @@
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
@@ -137,6 +140,7 @@ namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
+namespace measure = sigil::measure;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -1136,6 +1140,11 @@ struct SpaceJam1996 : sketch::Sketch {
   uint32_t arrivedMask = 0;
   bool needRender = true;
 
+  /** THE LAYOUT'S VERDICT against the browser's own numbers. Every row is
+   *  COMPUTED from the two it reports, so a page that stops resolving the
+   *  grid cannot keep claiming it does. */
+  measure::Table verdict;
+
   // Everything the browser would have cached as a decoded GIF: each nav
   // image baked ONCE from its element tree via snapshot(), then replayed
   // under a hard scanline clip. Baking is what makes the reveal affordable —
@@ -1299,7 +1308,8 @@ struct SpaceJam1996 : sketch::Sketch {
         // the page has a bald strip at the top.
         .child(std::move(fastRow))
         .child(std::move(grid))
-        .child(std::move(colophon));
+        .child(std::move(colophon))
+        .child(verdict.failures() > 0 ? failureCard() : box());
   }
 
   // ---- setup -------------------------------------------------------------
@@ -1348,14 +1358,15 @@ struct SpaceJam1996 : sketch::Sketch {
     artW[kStars] = artH[kStars] = 0;
   }
 
-  /** Print the grid the table resolved next to the browser's, once at
-   *  startup, so the layout is checkable against the reference render
+  /** CLAIM the grid the table resolved against the browser's, once at
+   *  startup, so the layout is verified against the reference render
    *  instead of taken on trust. The literals are what headless Chrome
-   *  reports for the same page.
+   *  reports for the same page, and every row's verdict is COMPUTED from
+   *  the two numbers it carries.
    *
    *  The input is built from the same `kSlotTable` the children are, so
-   *  what is printed is the layout that was drawn. */
-  void reportGrid() const {
+   *  what is claimed is the layout that was drawn. */
+  void checkGrid() {
     using namespace sj;
     LayoutInput in;
     in.container = {S(500), S(435)};
@@ -1373,13 +1384,21 @@ struct SpaceJam1996 : sketch::Sketch {
                                .declared = true});
     }
     const Table::Grid grid = table.solve(in);
-    SkDebugf("[spacejam] resolved columns (content px, 1x):");
-    for (float w : grid.columnWidths) SkDebugf(" %.2f", w / kScale);
-    SkDebugf(
-        "\n[spacejam]  chrome measured:  71.42 97.70 122.33 78.95 107.59\n");
-    SkDebugf("[spacejam] resolved rows (px, 1x):");
-    for (float h : grid.rowHeights) SkDebugf(" %.2f", h / kScale);
-    SkDebugf("\n[spacejam]  chrome measured:  0 113 88 73 139\n");
+    verdict = {};
+    verdict.add(measure::heading("TABLE-AUTO AGAINST HEADLESS CHROME"));
+    // The surplus a table-auto scheme distributes lands on fractional
+    // pixels, so the columns agree to a hundredth and the rows — which are
+    // whole content heights — agree exactly.
+    const double chromeCols[5] = {71.42, 97.70, 122.33, 78.95, 107.59};
+    for (size_t i = 0; i < grid.columnWidths.size() && i < 5; ++i)
+      verdict.add(measure::check(
+          kit::formatted("column %zu content width, page px", i), chromeCols[i],
+          (double)grid.columnWidths[i] / kScale, 0.15));
+    const double chromeRows[5] = {0, 113, 88, 73, 139};
+    for (size_t i = 0; i < grid.rowHeights.size() && i < 5; ++i)
+      verdict.add(measure::check(kit::formatted("row %zu height, page px", i),
+                                 chromeRows[i],
+                                 (double)grid.rowHeights[i] / kScale, 0.01));
 
     // ...and the twelve images, which is what actually has to land. The
     // table origin is (70, 168) on the page; each row prints the
@@ -1392,8 +1411,7 @@ struct SpaceJam1996 : sketch::Sketch {
                             328.00f, 292.00f, 328.00f, 400.00f, 420.00f,
                             0,       461.00f, 533.00f, 499.00f};
     const std::vector<SkRect> rects = table.place(in);
-    float worst = 0;
-    SkDebugf("[spacejam] image rects vs Chrome (page px):\n");
+    verdict.add(measure::heading("THE TWELVE IMAGES, PLACED"));
     for (size_t i = 0; i < std::size(kSlotTable); ++i) {
       const Slot& s = kSlotTable[i];
       if (s.asset < 0) continue;
@@ -1401,11 +1419,56 @@ struct SpaceJam1996 : sketch::Sketch {
       // the <br> block sits above the image inside the cell
       const float py = 168.0f + rects[i].top() / kScale + 18.0f * (float)s.brs;
       const float dx = px - refX[i], dy = py - refY[i];
-      worst = std::max({worst, std::abs(dx), std::abs(dy)});
-      SkDebugf("  %-14s %8.2f %8.2f   d %+.2f %+.2f\n",
-               kManifest[(size_t)s.asset].name, px, py, dx, dy);
+      // One claim per image on the FARTHER of its two axes: an x that
+      // agrees and a y that is thirty pixels out must not average into a
+      // verdict that reads well.
+      verdict.add(measure::check(
+          kit::formatted("%s  at (%.2f, %.2f), px from the browser",
+                         kManifest[(size_t)s.asset].name, (double)px,
+                         (double)py),
+          0.0, (double)std::max(std::abs(dx), std::abs(dy)), 0.15));
     }
-    SkDebugf("[spacejam] worst deviation from the browser: %.2f px\n", worst);
+  }
+
+  /** THE CLAIMS THAT DID NOT HOLD, painted over the page — and only when
+   *  there are any. The page is the artefact and carries no drafting
+   *  chrome, so a layout that agrees with the browser shows the page and
+   *  nothing else. */
+  Element failureCard() const {
+    using namespace sj;
+    sketch::kit::Theme look;
+    look.palette.ash = C5(0xFFFFFF);
+    look.palette.figure = C5(0xFFFF00);
+    look.type.captionNote = {S(7.5f), 0.1f};
+    look.type.captionLabel = {S(7.5f), 0.1f, true};
+    look.spacing.rowGap = S(3);
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (!c.judged() || c.pass) continue;
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual), toU8("want " + c.expected)},
+           Fill::color(C5(0xFF0000))});
+    }
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(S(40))
+        .top(S(120))
+        .width(S(560))
+        .height(S(30) + S(13) * (float)rows.size())
+        .fill(Fill::color(C5(0x000080)))
+        .foreground(
+            stroke(S(2), Fill::color(C5(0xFF0000)), PathFormat::Align::Inner))
+        .column()
+        .padding(S(12))
+        .gap(S(8))
+        .child(text(
+            toU8("THE TABLE DOES NOT RESOLVE THE BROWSER'S GRID"),
+            weave::textStyle(
+                {.face = display(), .size = S(11), .color = C5(0xFFFF00)})))
+        .child(sketch::kit::table(std::move(rows),
+                                  {.columns = {{S(230)}, {S(46), true}, {}},
+                                   .gap = S(6),
+                                   .swatchSide = S(5)}));
   }
 
   void setup(sketch::SketchContext& ctx) override {
@@ -1422,7 +1485,7 @@ struct SpaceJam1996 : sketch::Sketch {
                              .background = kPageBlack});
 
     bakeArt(ctx);
-    reportGrid();
+    checkGrid();
 
     stars = Pattern::tile({S(111), S(111)}, starTile());
     starsMat = stars.material(*ctx.fonts);
@@ -1499,17 +1562,7 @@ struct SpaceJam1996 : sketch::Sketch {
     }
   }
 
-  int reported = 0;
-  void update(double elapsed, sketch::SketchContext& ctx) override {
-    if (reported < 4 && elapsed > 8.5) {
-      ++reported;
-      const Composer::Stats& st = ctx.composer.stats();
-      SkDebugf(
-          "[spacejam] settled: instances %zu  pictures %zu  recorded %zu  "
-          "painted-live %zu  layout %.2fms  paint %.2fms\n",
-          st.instances, st.picturesLive, st.picturesRecorded, st.nodesPainted,
-          st.layoutMs, st.paintMs);
-    }
+  void update(double, sketch::SketchContext& ctx) override {
     if (!needRender) return;
     needRender = false;
     ctx.composer.render(describe(ctx));

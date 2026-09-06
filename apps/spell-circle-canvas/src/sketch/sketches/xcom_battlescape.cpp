@@ -116,7 +116,7 @@
 // ramp is the only derivation on this screen.
 //
 // -----------------------------------------------------------------------------
-// VERIFICATION — the four checks printAudit() runs, and what a pass looks
+// VERIFICATION — the four checks runAudit() makes, and what a pass looks
 // like. Two more belong to the plate rather than to the sketch: they read the
 // WRITTEN PNG, which a sketch describing a tree never sees, so they are stated
 // under them as what a plate check has to assert.
@@ -141,7 +141,7 @@
 //                                maximum — applied to the RESOLVED rects the
 //                                four bars drew (bounds() on the keyed fill
 //                                and outline rows), so a bar drawn at the
-//                                wrong length prints a MISMATCH.
+//                                wrong length fails its row.
 // Off the written plate, not from here:
 //   the colour census            every distinct colour in the PNG must be one
 //                                of the 256 table entries. Any off-palette
@@ -218,9 +218,12 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Ramp.h>
+#include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -239,6 +242,7 @@ namespace path = sigil::geometry::path;
 namespace patterns = sigil::material::pattern;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
+namespace measure = sigil::measure;
 
 using namespace sigil::compose;
 using namespace sigil::motion;
@@ -807,7 +811,7 @@ inline void paintArrow(const Ink& ink, int dir) {
 
 /** The 3D box selector — a 32x40 wireframe cube, one tile, block 2. Drawn at
  *  the tile the HONEST inverse returns; the game's own picker biases the mouse
- *  ten pixels down first (Map.cpp:1314), and printAudit reports both answers so
+ *  ten pixels down first (Map.cpp:1314), and runAudit reports both answers so
  *  the difference is visible. */
 inline void paintCursor(const Ink& ink) {
   const int lit = blk(2, 0), dim = blk(2, 2);
@@ -1185,8 +1189,13 @@ struct XcomBattlescape : sketch::Sketch {
    *  dylib outlives the reload that replaced the code around it. */
   sk_sp<SkRuntimeEffect> paletteFx;
   Paint paletteTable;
-  bool auditPrinted = false;
-  int reportedFrames = 0;
+  bool audited = false;
+
+  /** THE VERIFICATION, as one table. Every row's verdict is COMPUTED from
+   *  the two values it reports, so a row that reads PASS cannot disagree
+   *  with the measurement beside it, and `failures()` is what puts the
+   *  warning on the screen. */
+  measure::Table verdict;
 
   // =========================================================================
   // BAKE
@@ -1512,6 +1521,7 @@ struct XcomBattlescape : sketch::Sketch {
     // ---- z7 the fire-mode popup, snapped open, never tweened ---------------
     if (phase.popup) root.child(popupEl());
 
+    if (verdict.failures() > 0) root.child(failureCard());
     return root;
   }
 
@@ -1685,25 +1695,24 @@ struct XcomBattlescape : sketch::Sketch {
   }
 
   // =========================================================================
-  // AUDIT — the verification protocol, printed once
+  // AUDIT — the verification protocol, run once
 
-  void printAudit(sketch::SketchContext& ctx) {
+  void runAudit(sketch::SketchContext& ctx) {
     using namespace xcom;
-    std::printf("\n=== X-COM BATTLESCAPE — verification ===\n");
-    std::printf(
-        "atlas: %d cells at %.0fx%.0f, oversample 1.0, kNearest; "
-        "sheet %.0fx%.0f = %.2f MB\n",
-        atlasCells, kCellW, kCellH, 2048.0f,
-        std::ceil((float)atlasCells / 16.0f) * kCellH,
-        2048.0f * std::ceil((float)atlasCells / 16.0f) * kCellH * 4.0f /
-            1048576.0f);
-    std::printf(
-        "stamps: terrain z0 %d + z1 %d = %d, overlay %zu, map glyphs "
-        "%zu, panel glyphs %zu  (total %zu)\n",
-        terrainZ0, terrainZ1, terrainZ0 + terrainZ1, overlay->size(),
-        mapGlyphs->size(), panelGlyphs->size(),
-        terrain->size() + overlay->size() + mapGlyphs->size() +
-            panelGlyphs->size());
+    verdict = {};
+    verdict.add(measure::heading("THE SHEET"));
+    verdict.add(measure::reading(
+        kit::formatted(
+            "atlas cells at %.0f\xc3\x97%.0f, sheet 2048\xc3\x97%.0f", kCellW,
+            kCellH, (double)(std::ceil((float)atlasCells / 16.0f) * kCellH)),
+        (long)atlasCells));
+    verdict.add(measure::reading(
+        kit::formatted("stamps: terrain %d + overlay %zu + glyphs %zu",
+                       terrainZ0 + terrainZ1, overlay->size(),
+                       mapGlyphs->size() + panelGlyphs->size()),
+        (long)(terrain->size() + overlay->size() + mapGlyphs->size() +
+               panelGlyphs->size())));
+    verdict.add(measure::heading("THE PROJECTION AND ITS INVERSE"));
 
     // #1 projection round-trip.
     uint32_t seed = 12345u;
@@ -1724,10 +1733,10 @@ struct XcomBattlescape : sketch::Sketch {
       // is the 128-wide cell, and the y band is the 32-px screen diagonal.
       if (sx < tl.fX || sx >= tl.fX + kCellW) ++fails;
     }
-    std::printf(
-        "#1 projection round-trip: %d/200 failures (%d at the "
-        "Clamp(-1,size) boundary)\n",
-        fails, boundary);
+    verdict.add(measure::check(
+        "#1  of 200 screen points, round-trips that missed", 0, fails));
+    verdict.add(measure::reading("     clamped at the Clamp(-1, size) boundary",
+                                 (long)boundary));
 
     {  // panel widgets: bounds() -> hitTest() -> the same key, round-trip
       int ok = 0, total = 0;
@@ -1738,8 +1747,9 @@ struct XcomBattlescape : sketch::Sketch {
         const auto h = b ? ctx.composer.hitTest(b->center()) : std::nullopt;
         if (h && *h == k) ++ok;
       }
-      std::printf("#2a panel widgets bounds()->hitTest() round-trip: %d/%d\n",
-                  ok, total);
+      verdict.add(measure::check(
+          "#2a panel widgets surviving bounds() \xe2\x86\x92 hitTest()", total,
+          ok));
     }
     // #2 hitTest against the same inverse.
     int agree = 0, checked = 0;
@@ -1754,27 +1764,38 @@ struct XcomBattlescape : sketch::Sketch {
       screenToMap(probe.fX, probe.fY, 0, &qx, &qy);
       ++checked;
       if (hit && *hit == key && qx == mx && qy == my) ++agree;
-      const auto bnd = ctx.composer.bounds(key);
-      std::printf(
-          "   hitTest(%s) -> %-12s  screenToMap -> (%d,%d) want (%d,%d)"
-          "  bounds [%.0f %.0f %.0f %.0f] probe (%.0f,%.0f)\n",
-          key, hit ? hit->c_str() : "(none)", qx, qy, mx, my,
-          bnd ? bnd->left() : -1.0f, bnd ? bnd->top() : -1.0f,
-          bnd ? bnd->width() : -1.0f, bnd ? bnd->height() : -1.0f, probe.fX,
-          probe.fY);
+      verdict.add(measure::check(
+          kit::formatted("     hitTest(%s) names it, and the inverse "
+                         "answers (%d,%d)",
+                         key, mx, my),
+          std::string_view(key),
+          std::string_view(hit && qx == mx && qy == my ? hit->c_str()
+                                                       : "(no)")));
     }
-    std::printf(
-        "#2 hitTest agrees with the inverse: %d/%d  "
-        "(pool tiles are unreachable — instances() is one custom() "
-        "leaf, so hits land on the pool node, not a tile)\n",
-        agree, checked);
+    // Pool tiles are unreachable on purpose — instances() is one custom()
+    // leaf, so a hit lands on the pool node rather than on a tile.
+    verdict.add(measure::check("#2  keyed units agreeing with the inverse",
+                               checked, agree));
 
-    // #3 the light radius is exactly 8.
-    std::printf("#3 shade walking -x from the selected soldier: ");
-    for (int k = 0; k <= 11; ++k)
-      std::printf("%d%s", tileShade(kSoldierA.mx - k, kSoldierA.my),
-                  k == 11 ? "" : ",");
-    std::printf("  (first constant at tile 8 == correct)\n");
+    // #3 the light radius is exactly 8. Off by one means floor() where
+    // addLight uses Round().
+    {
+      std::string walk;
+      int firstConstant = -1;
+      for (int k = 0; k <= 11; ++k) {
+        const int shade = tileShade(kSoldierA.mx - k, kSoldierA.my);
+        if (firstConstant < 0 && k > 0 &&
+            shade == tileShade(kSoldierA.mx - k + 1, kSoldierA.my))
+          firstConstant = k - 1;
+        walk += (k ? "," : "") + std::to_string(shade);
+      }
+      verdict.add(
+          measure::reading("#3  shade walking \xe2\x88\x92x from "
+                           "the selected soldier",
+                           walk));
+      verdict.add(
+          measure::check("     first constant at tile", 8, firstConstant));
+    }
 
     // #4 the bars read back — from the RESOLVED geometry, the same
     // measurement that recovered the maxima off the reference capture:
@@ -1787,17 +1808,20 @@ struct XcomBattlescape : sketch::Sketch {
       const int wantMax[4] = {kMaxTU, kMaxEnergy, kMaxHealth, kMaxMorale};
       const char* nm[4] = {"TU", "Energy", "Health", "Morale"};
       const char* keys[4] = {"barTU", "barEnergy", "barHealth", "barMorale"};
+      verdict.add(measure::heading("THE BARS, READ BACK OFF THE DRAWN RECTS"));
       for (int i = 0; i < 4; ++i) {
         const auto fill = ctx.composer.bounds(keys[i]);
         const auto line = ctx.composer.bounds(std::string(keys[i]) + "-max");
         const int value = fill ? (int)std::lround(fill->width() / PX) : -1;
         const int maxv = line ? (int)std::lround(line->width() / PX) - 1 : -1;
-        std::printf(
-            "#4 %-6s fill %4.0f px / 4 = %3d (want %3d)   outline "
-            "%4.0f px / 4 - 1 = %3d (want %3d)%s\n",
-            nm[i], fill ? fill->width() : -1.0f, value, wantVal[i],
-            line ? line->width() : -1.0f, maxv, wantMax[i],
-            value == wantVal[i] && maxv == wantMax[i] ? "" : "  MISMATCH");
+        verdict.add(measure::check(
+            kit::formatted("#4 %-6s fill %.0f px / %.0f", nm[i],
+                           fill ? (double)fill->width() : -1.0, (double)PX),
+            wantVal[i], value));
+        verdict.add(measure::check(
+            kit::formatted("       outline %.0f px / %.0f \xe2\x88\x92 1",
+                           line ? (double)line->width() : -1.0, (double)PX),
+            wantMax[i], maxv));
       }
     }
 
@@ -1807,11 +1831,48 @@ struct XcomBattlescape : sketch::Sketch {
     int hx = 0, hy = 0, bx = 0, by = 0;
     screenToMap(probe.fX, probe.fY, 0, &hx, &hy);
     screenToMap(probe.fX, probe.fY + n(10), 0, &bx, &by);  // spriteHeight/4
-    std::printf(
-        "   selector: honest inverse (%d,%d); Map::setSelectorPosition's "
-        "+10 px bias (%d,%d) — the game ships the biased one\n",
-        hx, hy, bx, by);
-    std::printf("=======================================\n\n");
+    verdict.add(measure::reading(
+        kit::formatted("     selector: honest inverse (%d,%d); the shipped "
+                       "+10 px bias",
+                       hx, hy),
+        kit::formatted("(%d,%d)", bx, by)));
+  }
+
+  /** THE FAILING CLAIMS, PAINTED — and only when there are any. The screen
+   *  is the artefact and carries no drafting chrome, so a reconstruction
+   *  whose projection, queries and bars all read back shows the screen and
+   *  nothing else. */
+  Element failureCard() const {
+    using namespace xcom;
+    sketch::kit::Theme look;
+    look.palette.ash = C(blk(0, 1));
+    look.palette.figure = C(blk(2, 3));
+    look.type.captionNote = {n(4.5f), 0.1f};
+    look.type.captionLabel = {n(4.5f), 0.1f, true};
+    look.spacing.rowGap = n(2);
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (!c.judged() || c.pass) continue;
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual), toU8("want " + c.expected)},
+           Fill::color(C(blk(2, 3)))});
+    }
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(n(12))
+        .top(n(18))
+        .width(n(296))
+        .height(n(12) + n(8) * (float)rows.size())
+        .fill(Fill::color(C(blk(2, 12))))
+        .foreground(
+            stroke(PX, Fill::color(C(blk(2, 3))), PathFormat::Align::Inner))
+        .column()
+        .padding(n(6))
+        .gap(n(4))
+        .child(sketch::kit::table(std::move(rows),
+                                  {.columns = {{n(150)}, {n(24), true}, {}},
+                                   .gap = n(4),
+                                   .swatchSide = n(3)}));
   }
 
   // =========================================================================
@@ -1932,9 +1993,12 @@ struct XcomBattlescape : sketch::Sketch {
     // update sees a dirtied tree and every rect comes back nan. There is no
     // way to ask the composer to lay out without painting, so the queries have
     // to be one frame behind the description they are asking about.
-    if (!auditPrinted && elapsed > 0.25) {
-      auditPrinted = true;
-      printAudit(ctx);
+    if (!audited && elapsed > 0.25) {
+      audited = true;
+      runAudit(ctx);
+      // A claim that did not hold has to reach the screen, and the phase
+      // below may not change for seconds.
+      if (verdict.failures() > 0) ctx.composer.render(describe(ctx));
     }
     // The documented 9.6 s loop, twelve 800 ms cycles. Every transition below
     // is INSTANT — the path recomputes in one frame, the popup snaps open, the
@@ -1960,18 +2024,6 @@ struct XcomBattlescape : sketch::Sketch {
     if (panelChanged || lastPhase.frame < 0) buildPanelGlyphs(p);
     lastPhase = p;
     ctx.composer.render(describe(ctx));
-
-    if (auditPrinted && reportedFrames < 3) {
-      ++reportedFrames;
-      const auto& s = ctx.composer.stats();
-      std::printf(
-          "stats @%.2fs: instances %zu  painted %zu  pictures %zu  "
-          "reconcile %.2f  layout %.2f  volatile %.2f  paint %.2f ms"
-          "%s\n",
-          elapsed, s.instances, s.nodesPainted, s.picturesLive, s.reconcileMs,
-          s.layoutMs, s.volatileMs, s.paintMs,
-          fixedStatus.clamped ? "  [FIXED-STEP CLAMPED]" : "");
-    }
   }
 };
 
