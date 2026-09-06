@@ -31,8 +31,8 @@ member a hand-written comparator does not mention.
 
 **Compute** — the arithmetic several libraries have to agree on to the
 bit: the seeded mixers a jitter draws from, the stream a caller holds
-one of them as and the distributions drawn out of it, and the folds a
-cache key is accumulated with. The standard library is the whole of its
+one of them as and the distributions drawn out of it, the noise field
+read at a point, and the folds a cache key is accumulated with. The standard library is the whole of its
 dependencies, so a shader's CPU twin, a point cook, a text cache and a
 resource store all reach the same bodies.
 
@@ -58,7 +58,7 @@ catalog. One target per directory:
 | target | directory | holds |
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
-| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the identifying folds |
+| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
@@ -89,6 +89,7 @@ include their own directory's headers. The hardware feature's are
 | `comparable/Erased.h` | `Erased<Ops>` — comparable type erasure: a set of operations carried on the value that implements them |
 | `comparable/Fields.h` | `kFieldCount<T>` — how many direct non-static data members an aggregate has, and the pin a hand-written comparator sits under |
 | `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), the 64-bit avalanche `noise::mix64` with its `noise::kMix64Gamma` and the `noise::Mix64Stream` that walks it (`bits`, `unit`, `signedUnit`, `range`), the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext`, the xorshift stream `noise::xorshiftNext`/`noise::xorshiftUnitNext`, and the grid mixer `noise::lattice` |
+| `compute/Field.h` | `noise::Field` — one noise look read at a point (`kind`, `seed`, `dimension`, `frequency`, `octaves`, `gain`, `lacunarity`, `fold`, `warp`, `period`, `at`), its `noise::FieldKind` (`Value`, `Gradient`, `Simplex`, `Worley`) and `noise::Fold` (`None`, `Turbulence`, `Ridged`), with the bare kinds `noise::valueNoise`, `noise::gradientNoise`, `noise::simplexNoise`, `noise::worleyNoise` and the corner `noise::latticeUnit` under them |
 | `compute/Chance.h` | `chance::Stream` — the seeded stream a caller holds (`bits`, `unit`, `signedUnit`, `range`, `below`, `normal`, `sample`, `reseed`) over a `chance::Source` (`Pcg`, `Mix64`, `Xorshift`, `Halton`, `Sobol`, `Golden`, `Stratified`); the shapes `chance::Uniform`, `chance::Gaussian`, `chance::Exponential`, `chance::Weighted`; `chance::shuffle`, `chance::Reservoir`; and `chance::Chance`, the token one sheet re-rolls from |
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
 | `compute/Intervals.h` | `IntervalEnds`, `Inverted`, `normalizeIntervals`, `complementIntervals`, `intersectIntervals` and `firstOverlap` — the sorted, disjoint normal form a set of runs is put in, and the three combinators over it, with the endpoint type and the epsilon the caller's |
@@ -403,6 +404,41 @@ words for exactness: the bias is one part in 2^24, and rejection would
 throw terms out of a sequence, which is the one thing these sources
 exist to keep.
 
+**A field is a number for a POSITION.** The mixers answer a number for
+an INDEX — neighbouring indices are unrelated, which is what a per-stamp
+jitter wants and what a displacement, a drift or a flow cannot use.
+`noise::Field` reads the same `noise::lattice` mixer at a point, so
+points near each other read near values and the two agree about what a
+seed means. It is one value with props and not a header per kind:
+Perlin, simplex and cellular noise are the `kind`, fBm is `octaves` with
+`gain` and `lacunarity`, ridged and billowed noise is the `fold`, a
+tileable field is a `period`, a warped one is `warp`. Seven of those are
+plain numbers and three are small enumerations, so a look chosen once
+for a sheet is one of these carried rather than seven arguments
+repeated, and a memo keyed on one may be skipped.
+
+**Three value noises, and only one pair of them agrees.**
+`FieldKind::Value` at one octave IS `geometry::path::valueNoise`, to the
+bit — the same lattice word over the whole 32 bits, the same smoothstep,
+the same [-1, 1] — and the test holds it there against a transcription
+of that body. `draw::NoiseField` deliberately does not agree with
+either: it has p5's shape, a cosine blend of the LOW 24 bits in [0, 1).
+Nor does the kit's SkSL grain, whose sine-fract hash is not a good hash
+and is the right one there because it is the same arithmetic on every
+device that can run the shader. All three seed pictures stored as bytes,
+so this is the same rule the mixers live under: a body that differs is a
+second function under its own name, never a merge.
+
+**What a period promises, and where it does not.** A `period` folds the
+LATTICE coordinate, so the field repeats every `period / frequency` of
+the caller's units on every axis, and an octave's period is the base one
+multiplied by `lacunarity` — which makes the tiling exact when the
+lacunarity is a whole number and approximate when it is not.
+`FieldKind::Simplex` never tiles: the skew that turns squares into
+triangles carries no Cartesian period through it, so a period on a
+simplex field is ignored rather than producing a seam, and the header
+and the test both say so.
+
 ## Where work runs
 
 **A grain, and nothing else.** `schedule::parallelFor(count, grain, body)`
@@ -677,7 +713,7 @@ suite or a case is selected by name with no target behind it:
 | suites | what they prove | label |
 |---|---|---|
 | `comparable/test/` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes | — |
-| `compute/test/` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance over a hundred thousand draws | — |
+| `compute/test/` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance over a hundred thousand draws; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points | — |
 | `schedule/test/` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once, two at a time, and joining every thread even when one item fails | — |
 | `reconcile/test/` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering | — |
 | `cache/test/` | the settled-subtree proof, the stability release and the bake seam over a fake host | — |
@@ -692,7 +728,8 @@ SigilGeometry's `Device` suite, since that is where a Vulkan device exists to as
 them of.
 
 One file per subject, named for what it asserts: `HashTest`,
-`IntervalsTest`, `NoiseTest` and `ChanceTest` in `compute/test/`; `ErasedTest` in `comparable/test/` (the
+`IntervalsTest`, `NoiseTest`, `ChanceTest` and `FieldTest` in
+`compute/test/`; `ErasedTest` in `comparable/test/` (the
 erasure and the field pin are one subject — what a value needs before
 anything can decide it did not change — and a consumer takes both or
 neither); `ReconcilerTest`, `EnvTest`, `PhasesTest` and `ReadsTest` in

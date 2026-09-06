@@ -13,10 +13,10 @@ sigil_library(SigilCoreCompute)
 # pins them: exact words, and floats compared as bits. Links only the
 # library it exercises.
 sigil_test(core_test
-  SOURCES test/ChanceTest.cpp test/HashTest.cpp test/IntervalsTest.cpp
-          test/NoiseTest.cpp
+  SOURCES test/ChanceTest.cpp test/FieldTest.cpp test/HashTest.cpp
+          test/IntervalsTest.cpp test/NoiseTest.cpp
   LIBRARIES SigilCoreCompute)
 
 sigil_bench(core_bench
-  SOURCES bench/ChanceBench.cpp bench/ComputeBench.cpp
+  SOURCES bench/ChanceBench.cpp bench/ComputeBench.cpp bench/FieldBench.cpp
   LIBRARIES SigilCoreCompute)

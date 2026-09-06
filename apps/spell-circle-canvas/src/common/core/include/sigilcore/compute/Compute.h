@@ -6,6 +6,7 @@
  */
 
 #include <sigilcore/compute/Chance.h>
+#include <sigilcore/compute/Field.h>
 #include <sigilcore/compute/Hash.h>
 #include <sigilcore/compute/Intervals.h>
 #include <sigilcore/compute/Noise.h>
