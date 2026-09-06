@@ -1,7 +1,7 @@
-// Windows bring-up draft: compiled only when the Spout SDK is available
-// (see CMakeLists.txt), untested until the Windows port lands. Verify the
-// SpoutDX include layout and target name against the installed vcpkg
-// spout2[dx] package at bring-up.
+// Windows bring-up draft: compiled only where the Spout SDK is installed,
+// and no machine that runs this build has one. Verify the SpoutDX include
+// layout and target name against the installed vcpkg spout2[dx] package at
+// bring-up.
 
 #include "SpoutBridge.h"
 

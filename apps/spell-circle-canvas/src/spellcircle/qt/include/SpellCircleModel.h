@@ -22,10 +22,10 @@ struct FeedItem {
  * as QML-consumable feed items (one timestamped log entry per received scene,
  * capped to the 500 most recent so a long-running session doesn't grow the
  * feed without bound) and as a spellcircle::SceneDocument — the Qt-free entt
- * registry of scene entities shared with the native macOS app (see
- * src/scene/SceneModel.h). This model only routes packet data into the
- * document and presents the feed; positioning and scaling math is performed
- * by the renderer via spellcircle::resolveScene().
+ * registry of scene entities shared with the native macOS app. This model
+ * only routes packet data into the document and presents the feed;
+ * positioning and scaling math is performed by the renderer via
+ * spellcircle::resolveScene().
  */
 class SpellCircleModel : public QAbstractListModel {
   Q_OBJECT

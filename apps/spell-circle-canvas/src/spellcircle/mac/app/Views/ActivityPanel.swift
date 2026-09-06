@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Sidebar content: connection status and readouts as a (static) sidebar
-/// List, with the activity feed below it as a console-style AppKit table
-/// (see FeedTableView for why a SwiftUI List doesn't fit that job).
+/// List, with the activity feed below it as a console-style AppKit table:
+/// a SwiftUI List exposes no scroll control for a feed that must hold the
+/// reading position while rows are trimmed off its top.
 struct ActivityPanel: View {
     @Environment(EngineModel.self) private var model
 
@@ -71,8 +72,8 @@ struct ActivityPanel: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Console feed (AppKit table, see FeedTableView): newest at
-                // the bottom, follows the tail only when pinned there, and
+                // Console feed (an AppKit table): newest at the
+                // bottom, follows the tail only when pinned there, and
                 // holds the reading position through cap trims — semantics
                 // a SwiftUI List can't express, and its per-packet diffing
                 // costs main-thread time during pane animations.

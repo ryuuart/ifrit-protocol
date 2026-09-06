@@ -12,8 +12,8 @@ struct ContentView: View {
     /// blur of the canvas (sigma ramp, no mask); the Liquid Glass strip is
     /// the system material, which shows a sheen but cannot blur the Metal
     /// layer beneath and only fades via a gradient mask. Exactly one of
-    /// the two renders (see CanvasBackdropView, which flips the engine
-    /// flag off this constant).
+    /// the two renders: the backdrop turns the engine's own pass off
+    /// whenever this is true.
     static let usesGlassToolbarStrip = true
 
     @Environment(EngineModel.self) private var model

@@ -2,9 +2,8 @@ import SwiftUI
 
 /// The Liquid Glass toolbar treatment: a strip spanning the full window
 /// width, sized to the bar region and feathered out with a gradient mask.
-/// Hit-test transparent. (Measured: z-order and even the strip itself are
-/// compositing-cost neutral — WindowServer load under a 60 fps scene
-/// stream is the same with the strip on top, beneath, or absent.)
+/// Hit-test transparent, so it may sit above or below the canvas without
+/// taking events from it.
 struct GlassToolbarStrip: View {
     var body: some View {
         GeometryReader { geometry in

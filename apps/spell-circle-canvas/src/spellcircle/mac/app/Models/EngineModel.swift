@@ -258,9 +258,8 @@ final class EngineModel: NSObject, SCKEngineDelegate {
     }
 
     private func refreshMetrics() {
-        // Deadbands so frame-to-frame jitter (3.7 ↔ 3.9 ms, 60 ↔ 61
-        // scenes/s) doesn't flicker the readouts — display smoothing, not
-        // batching.
+        // Deadbands so frame-to-frame jitter smaller than the digit shown
+        // doesn't flicker the readouts — display smoothing, not batching.
         let millis = engine.renderMillis
         if abs(millis - renderMillis) > 0.3 || (millis == 0) != (renderMillis == 0) {
             renderMillis = (millis * 10).rounded() / 10
