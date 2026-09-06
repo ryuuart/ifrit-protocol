@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * SigilCompose × SigilScry — the web leaf (stress item 19). Header-only
+ * SigilCompose × SigilScry — the web leaf. Header-only
  * adapter: the compose kernel never links SigilScry; include this only
  * in targets that do.
  *

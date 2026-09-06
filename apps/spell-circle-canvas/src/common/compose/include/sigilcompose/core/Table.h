@@ -38,7 +38,7 @@ namespace sigil::compose {
  *  sits in them with `Element::cellAlign`. A child that says nothing flows
  *  into the next free cell, left to right and then down.
  *
- *      layout(layouts::Table{.width = 500, .spacing = 2, .padding = 1})
+ *      layout(Table{.width = 500, .spacing = 2, .padding = 1})
  *          .child(masthead().cells(0, 0, 5, 1).cellAlign(Align::End,
  *                                                        Align::Start))
  *          .child(panel().cells(1, 0, 1, 2))

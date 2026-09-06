@@ -2,7 +2,8 @@
 
 /** @file
  * SigilCompose one-shot verbs — a tree taken without a live composer:
- * `snapshot` bakes it to a picture, `measure` answers its intrinsic size,
+ * `snapshot` bakes it to a picture, `intrinsicSize` answers the size it
+ * would take,
  * `metrics` reads a face's vertical metrics, `measureRun` / `runPens`
  * shape one run into per-glyph advances and pen positions, and
  * `atCapHeight` / `fitRun` solve a style backwards from a size the

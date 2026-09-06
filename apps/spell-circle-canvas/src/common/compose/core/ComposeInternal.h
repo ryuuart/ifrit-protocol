@@ -8,6 +8,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Reads.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/Story.h>
@@ -625,11 +626,11 @@ struct ElementNode {
 // wrote by hand — and the honest way to retire a pin is to give the struct
 // a defaulted `operator==`.
 //
-// CLASSES WITH PRIVATE STATE (Material, Effect, Region, Animatable, Shape,
-// Decoration, Profile) CANNOT be pinned — reading a field count needs an
-// aggregate. Their hand-written comparators sit in the same header or
-// translation unit as their members, so a field and its comparison are
-// read together; PaintProps (here) and propsEqual (Reconcile.cpp) are the
+// CLASSES WITH PRIVATE STATE (material::skia::Paint and Effect, Region,
+// Animatable, Shape, Decoration, Profile) CANNOT be pinned — reading a field
+// count needs an aggregate. Their hand-written comparators sit in the same
+// header or translation unit as their members, so a field and its comparison
+// are read together; PaintProps (here) and propsEqual (Reconcile.cpp) are the
 // pair that can drift apart unseen.
 
 using ::sigil::core::kFieldCount;

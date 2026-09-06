@@ -709,7 +709,9 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
   if (it == m_impl->byKey.end()) return {};
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
-  Impl& impl = const_cast<Impl&>(*m_impl);
+  // The handle is a unique_ptr, so a const method still reaches a
+  // non-const Impl through it.
+  Impl& impl = *m_impl;
   const TextPainterOps* painter = Impl::textPainterOf(*it->second);
   if (!painter) return {};  // text at rest runs no schedule
   std::vector<Beat> beats = painter->beats(*it->second, trackIndex);
@@ -735,7 +737,7 @@ std::vector<TextUnit> Composer::units(std::string_view key,
   if (it == m_impl->byKey.end()) return {};
   // Logically const: resolving the units fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
-  Impl& impl = const_cast<Impl&>(*m_impl);
+  Impl& impl = *m_impl;
   // A passage that dresses nothing carries no painter, and it still has
   // units to report — so the engine the typography tier registered answers
   // for it.
@@ -767,7 +769,7 @@ float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
   if (it == m_impl->byKey.end()) return 0.0f;
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
-  Impl& impl = const_cast<Impl&>(*m_impl);
+  Impl& impl = *m_impl;
   const TextPainterOps* painter = Impl::textPainterOf(*it->second);
   return painter ? painter->cascadeSpanMs(*it->second, trackIndex) : 0.0f;
 }
@@ -775,7 +777,7 @@ float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
   // Logically const; fills the same per-instance outline caches paint does
   // (memoization, not mutation of observable state).
-  Impl& impl = const_cast<Impl&>(*m_impl);
+  Impl& impl = *m_impl;
   if (!impl.root) return std::nullopt;
   return impl.hitInstance(*impl.root, canvasPoint, nullptr, nullptr);
 }

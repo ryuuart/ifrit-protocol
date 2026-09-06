@@ -52,7 +52,7 @@ sigil_library(SigilComposeCore
     Fills.cpp
     # internal headers
     ComposeInternal.h ComposeRuntime.h Instance.h SlotSpecs.h Lanes.h
-    Transforms.h ComposerImpl.h PaintInternal.h BakeInk.h
+    Transforms.h ComposerImpl.h PaintInternal.h BakeInk.h InstanceStamp.h
   HEADERS ../Compose.h Composer.h Core.h Derive.h Element.h Factories.h
           Feed.h Instances.h Layout.h Mask.h Measure.h Paint.h Pattern.h
           Shape.h Stroke.h Table.h TextPainter.h Tiles.h

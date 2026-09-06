@@ -349,19 +349,19 @@ struct Composer::Impl {
                              const detail::ElementNode& node);
 
   // ---- volatility & caching (Volatility.cpp) ----
-  /** @p movingAbove: a bound or transitioning transform is connected on
-   *  some ancestor. A node carrying a world-space material below one has
-   *  its node→root matrix changing off the describe clock, which is CONTENT
-   *  volatility for that node — and it joins the memoized scalar lane,
-   *  because that matrix is six floats, so the recording survives between
-   *  ticks and the flag releases when the motion settles. Threaded down the
-   *  existing recursion; everything else ignores it. */
-  /** What the walk threads down to a child about the planes above it,
-   *  beside `movingAbove`: whether the shared space it stands in is
-   *  moving (its host's transform, or the host's own space), whether the
-   *  view its parent declares is live, and whether it stands in a space at
-   *  all — a node whose projection moves for any of those reasons is
-   *  moving exactly as one whose own lane is. */
+  /** What the walk threads down to a child about the planes above it:
+   *  whether a bound or transitioning transform is connected on some
+   *  ancestor, whether the shared space it stands in is moving (its
+   *  host's transform, or the host's own space), whether the view its
+   *  parent declares is live, and whether it stands in a space at all — a
+   *  node whose projection moves for any of those reasons is moving
+   *  exactly as one whose own lane is.
+   *
+   *  A node carrying a world-space material under a moving ancestor has
+   *  its node→root matrix changing off the describe clock, which is
+   *  CONTENT volatility for that node — and it joins the memoized scalar
+   *  lane, because that matrix is six floats, so the recording survives
+   *  between ticks and the flag releases when the motion settles. */
   struct Above {
     bool moving = false;           ///< a connected transform on an ancestor
     bool spaceMoving = false;      ///< the space this node stands in moves
@@ -573,8 +573,10 @@ struct Composer::Impl {
      *  lands a few ulps away, and antialiased coverage along every edge
      *  changes with it. Replacing this with a single concat of matrix()
      *  therefore moves pixels across the whole scene. The op list below and
-     *  matrix()'s are THE SAME LIST in the same order; a lane added to the
-     *  struct goes in both (the fieldPin below counts it). */
+     *  matrix()'s are the same list in the same order for every flat
+     *  lane; the four depth lanes are matrix44()'s alone, since a canvas
+     *  has no elementary op for them. A flat lane added to the struct goes
+     *  in both (the fieldPin below counts it). */
     void concatTo(SkCanvas& canvas, const detail::PaintProps& p, float w,
                   float h) const {
       if (tx != 0 || ty != 0) canvas.translate(tx, ty);

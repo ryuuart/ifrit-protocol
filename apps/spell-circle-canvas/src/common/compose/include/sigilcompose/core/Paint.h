@@ -20,13 +20,7 @@
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>
 #include <include/effects/SkGradient.h>
-#include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/UniformBlock.h>
-#include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/Animation.h>
-#include <sigilmotion/schedule/Schedule.h>
-#include <sigilmotion/values/Animated.h>
 
 #include <algorithm>
 #include <array>
@@ -37,7 +31,6 @@
 #include <optional>
 #include <span>
 #include <string>
-#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>

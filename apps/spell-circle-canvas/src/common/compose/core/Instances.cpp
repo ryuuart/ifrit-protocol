@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "InstanceStamp.h"
+
 namespace sigil::compose::instancing {
 
 size_t Pool::add(SkPoint position, int frame, float rotateRadians, float scale,

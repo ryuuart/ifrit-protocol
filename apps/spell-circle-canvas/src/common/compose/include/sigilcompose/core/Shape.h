@@ -2,20 +2,20 @@
 
 /** @file
  * SigilCompose shape and decoration seams — Shape, the comparable
- * silhouette value, and the ShapeScheme concept behind it; MotionPath, a
- * node carried along a curve; Decoration, the type-erased mark, with the
- * concepts that read a scheme's declared volatility, bleed, reach and
- * borrows; and LayerStyle, a bundle of decorations applied together. A
- * run of type carried along a curve is `TextPath`, in
- * <sigilcompose/typography/TextPath.h>.
+ * silhouette value, with HeldPath and KeyedShape, the two ways a
+ * silhouette is carried already cooked, and the ShapeScheme concept
+ * behind them; Boundary, which of a node's outlines a mark dresses;
+ * MotionPath, a node carried along a curve; Decoration, the type-erased
+ * mark, with the concepts that read a scheme's declared volatility,
+ * bleed, reach, blending and borrows; and LayerStyle, a bundle of
+ * decorations applied together. A run of type carried along a curve is
+ * `TextPath`, in <sigilcompose/typography/TextPath.h>.
  */
 
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilmotion/Animation.h>
-#include <sigilmotion/schedule/Schedule.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include <any>
 #include <concepts>

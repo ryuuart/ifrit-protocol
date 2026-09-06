@@ -223,20 +223,20 @@ Gate shape(Region r);
  *  intersect, so a set difference is `by::shape(a)` and `by::outside(b)`
  *  on one node. */
 Gate outside(Region r);
-/** A COVERAGE SOURCE: the selected paint keeps the Material's ALPHA — the
+/** A COVERAGE SOURCE: the selected paint keeps the coverage paint's ALPHA — the
  *  soft-edged mask (a gradient fade, a noise dissolve, a stencil sprite).
  *
  *  Costs a `saveLayer` per masked group, so it is the expensive member of
  *  the family; `spans`, `edge` and `shape` ride path effects and clips. */
 Gate alpha(material::skia::Paint coverage);
 /** …and its complement, a term of its own exactly as `outside` is: the
- *  selected paint keeps what the Material does NOT cover. After Effects'
+ *  selected paint keeps what the coverage paint does NOT cover. After Effects'
  *  Alpha Inverted Matte. Costs nothing beyond `alpha` — the coverage layer
  *  composites with `kDstOut` instead of `kDstIn`, which is `1 - a` exactly
  *  and needs no shader. */
 Gate alphaOut(material::skia::Paint coverage);
-/** The other coverage source: the selected paint keeps the Material's
- *  LUMA. After Effects' Luma Matte — paint a matte in greys (or in
+/** The other coverage source: the selected paint keeps the coverage
+ *  paint's LUMA. After Effects' Luma Matte — paint a matte in greys (or in
  *  anything) and its brightness is the coverage.
  *
  *  **The luma law**: `Y' = 0.299 R' + 0.587 G' + 0.114 B'` — Rec. 601
@@ -251,11 +251,11 @@ Gate alphaOut(material::skia::Paint coverage);
  *  grey are the same matte.
  *
  *  Same cost as `alpha` plus one SkSL pass over the coverage layer, and
- *  none at all when the Material resolves to a colour, where the
+ *  none at all when the coverage paint resolves to a colour, where the
  *  weighting is one dot product in C++. */
 Gate luma(material::skia::Paint coverage);
-/** …and ITS complement: the selected paint keeps what the Material's luma
- *  leaves DARK. After Effects' Luma Inverted Matte. */
+/** …and ITS complement: the selected paint keeps what the coverage
+ *  paint's luma leaves DARK. After Effects' Luma Inverted Matte. */
 Gate lumaOut(material::skia::Paint coverage);
 }  // namespace by
 
@@ -265,7 +265,7 @@ Gate lumaOut(material::skia::Paint coverage);
 class Gate {
  public:
   enum class Kind : uint8_t { Spans, Edge, Shape, Coverage };
-  /** Coverage: WHICH channel of the Material becomes coverage. The two
+  /** Coverage: WHICH channel of the coverage paint becomes coverage. The two
    *  members are one mechanism — the same `saveLayer` and the same
    *  compositing pass — so they are a field of one Kind and not two Kinds.
    *  See `by::alpha` / `by::luma` for the law each names. */
@@ -280,8 +280,8 @@ class Gate {
    *  one question ("which side of the show set?"), asked of two kinds. */
   bool outside = false;
   Channel channel = Channel::Alpha;  ///< Coverage
-  /** Coverage. Held out of line because Material is declared in its own
-   *  header, which includes this one. */
+  /** Coverage. Held by pointer so a gate stays copyable and comparable
+   *  whatever the paint carries. */
   std::shared_ptr<const material::skia::Paint> coverage;
 
   /** Structural equality. Declared here and defined beside the
@@ -291,7 +291,7 @@ class Gate {
   /** How many animatable floats this gate contributes, in the order
    *  `Instance::maskAnims` indexes them: three per Spans term (begin, end,
    *  offset), one for an Edge fraction, none for Shape or Coverage (a
-   *  Region is static and a Material animates itself). */
+   *  Region is static and a paint animates itself). */
   /** The brush engine that reads this gate — installed by every `by::`
    *  constructor, excluded from equality. */
   core::Erased<MaskResolverOps> resolver;

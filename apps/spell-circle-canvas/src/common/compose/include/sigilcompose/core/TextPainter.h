@@ -12,6 +12,7 @@
  * here.
  */
 
+#include <include/core/SkSize.h>
 #include <sigilcore/comparable/Erased.h>
 #include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/layout/PositionedRun.h>
@@ -34,7 +35,6 @@ class FontContext;
 }  // namespace sigil::weave
 
 class SkCanvas;
-struct SkSize;
 
 namespace sigil::compose {
 
@@ -79,10 +79,14 @@ struct NamedRun {
  *  that is not a frame carries a zero offset and its own key, so the
  *  ordinary case is the general one with nothing subtracted. */
 struct TextScope {
-  uint32_t lineOffset = 0;    ///< story line index of this leaf's line 0
-  uint32_t storyLines = 0;    ///< lines the whole chain placed; 0 if not one
-  bool inChain = false;       ///< this leaf is one frame of several
-  std::string_view frameKey;  ///< this leaf's key, for sel::inFrame
+  uint32_t lineOffset = 0;  ///< story line index of this leaf's line 0
+  uint32_t storyLines = 0;  ///< lines the whole chain placed; 0 if not one
+  bool inChain = false;     ///< this leaf is one frame of several
+  /** This leaf's key, for sel::inFrame. OWNED: the scope outlives the
+   *  description it was read from — it is held in the glyph structure
+   *  those resolvers cache, and a patch replaces the description under
+   *  it. */
+  std::string frameKey;
 };
 }  // namespace detail
 

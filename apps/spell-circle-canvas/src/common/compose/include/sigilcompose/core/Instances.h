@@ -32,7 +32,7 @@
  *    particle path. Mutate from a ticker and keep the host redrawing;
  *    there is nothing to commit.
  *
- * Past kCullThreshold instances the stamp culls each sprite against the
+ * Past a few thousand instances the stamp culls each sprite against the
  * local clip arithmetically before building the draw arrays. The
  * bookkeeping costs more than it saves on small pools, which is why it is
  * gated rather than always on.
@@ -55,6 +55,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -299,30 +300,6 @@ class Atlas {
    *  produced. Used by detail::stamp; not part of the atlas's identity. */
   skia::draw::Promoted gpuCache;
 };
-
-// ---------------------------------------------------------------------------
-// The stamp
-
-namespace detail {
-
-inline constexpr size_t kCullThreshold = 2048;
-
-void stamp(SkCanvas& canvas, const PaintContext& ctx, Atlas& atlas,
-           const Pool& pool, SkBlendMode blend);
-
-struct DataProps {
-  std::shared_ptr<Atlas> atlas;
-  std::shared_ptr<const Pool> pool;
-  uint64_t revision = 0;
-  /** The atlas's own count, beside the pool's: a cell registered after the
-   *  first describe leaves the pool where it was, and the node would
-   *  replay the picture it recorded from the sheet before that cell. */
-  uint64_t atlasRevision = 0;
-  SkBlendMode blend = SkBlendMode::kSrcOver;
-  bool operator==(const DataProps&) const = default;  // ptr identity + rev
-};
-
-}  // namespace detail
 
 // ---------------------------------------------------------------------------
 // The component

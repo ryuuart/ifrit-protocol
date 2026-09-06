@@ -19,6 +19,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilmotion/schedule/Schedule.h>
@@ -317,9 +318,10 @@ class Element {
    *  shaping chain maps floats to floats. Compute the Fill in the
    *  steppable, as above. */
   Element& fill(motion::Animatable<Fill> f);
-  /** Fill with a Material (gradient ramp, blend stack, sprite, SkSL) — the
-   *  richer authoring value. A static Material collapses to a Fill, so it
-   *  caches and prunes on the same path. See <sigilcompose/Material.h>. */
+  /** Fill with a paint (gradient ramp, blend stack, sprite, SkSL) — the
+   *  richer authoring value, `material::skia::Paint` from
+   *  <sigilmaterial/skia/Paint.h>. A static paint collapses to a Fill, so
+   *  it caches and prunes on the same path. */
   Element& fill(material::skia::Paint m);
   /** NEITHER A TILE NOR A PATTERN IS A FILL, and the reason is where they
    *  have to be STORED. A Pattern's bake is its identity: it renders its
@@ -908,8 +910,9 @@ class Element {
    *  the first block and leaves the rest plain — which is what a heading
    *  over a body wants. `sigil::weave::ParagraphStyle` carries the leading,
    *  the air before and after, the four indents, the keeps, and whichever
-   *  of the four layout-wide settings the block overrides; SigilWeave's
-   *  README is the canon for what each one means. */
+   *  of the four layout-wide settings the block overrides — the alignment,
+   *  the justification, the hyphenation and the tab stops — each of which
+   *  falls back to this leaf's own where the block leaves it unset. */
   Element& paragraphs(std::vector<sigil::weave::ParagraphStyle> blocks);
   /** The same, by NAME, resolved through the `ParagraphStyleSet` the
    *  environment offers (`env::Provide<sigil::weave::ParagraphStyleSet>`).

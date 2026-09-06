@@ -2,9 +2,10 @@
 
 /** @file
  * SigilCompose layout values — Dim and its literals, Align, Justify, Echo,
- * Cache, the LayoutInput a custom LayoutScheme places children from, and
- * the ComponentProps and ComponentFn concepts the generic entry points are
- * constrained by.
+ * Cache with the `cachePolicy` that reads it as the kernel's own, the
+ * CellSpan a child claims and the LayoutInput a custom LayoutScheme
+ * places children from, and the ComponentProps and ComponentFn concepts
+ * the generic entry points are constrained by.
  */
 
 #include <include/core/SkColor.h>

@@ -132,9 +132,9 @@ class Pattern {
   /** The tile beneath: its bake, its mapping. */
   const sigil::material::pattern::Tile& tile() const { return m_tile; }
 
-  /** Bake-once + wrap as a repeating Material. PROGRAM TILES ONLY: an
+  /** Bake-once + wrap as a repeating paint. PROGRAM TILES ONLY: an
    *  element-tile Pattern has no font context here, so it draws nothing
-   *  and returns an EMPTY material — use the overload below. */
+   *  and returns an EMPTY paint — use the overload below. */
   material::skia::Paint material() const { return bake(nullptr); }
   /** Element-tile overload, and the required one for element tiles: the
    *  tree is laid out and shaped during the bake, which needs the fonts. */
@@ -152,14 +152,16 @@ class Pattern {
             "material(FontContext&) overload\n");
         return {};
       }
-      // The element tile is the program, given the fonts it needs now;
-      // set only when there is no bake so a settled tile is never
-      // invalidated by asking for it again.
-      std::shared_ptr<const Element> tree = m_tree;
-      m_tile.program([tree, fonts](SkCanvas& canvas, SkSize, uint32_t) {
-        // Wrap so the intrinsic-size root adopts the tile's forced dims.
-        if (sk_sp<SkPicture> pic = snapshot(box().child(*tree), *fonts))
-          canvas.drawPicture(pic);
+      // The element tile is SHAPED HERE, while the fonts are in hand, and
+      // the program is the recording it produced. The tile's state
+      // outlives this call — a later seed() or invalidate() re-runs the
+      // program — so a program holding the borrowed context would shape
+      // against a font context that may be gone. A picture holds
+      // everything it draws. (Wrapped so the intrinsic-size root adopts
+      // the tile's forced dims.)
+      sk_sp<SkPicture> pic = snapshot(box().child(*m_tree), *fonts);
+      m_tile.program([pic](SkCanvas& canvas, SkSize, uint32_t) {
+        if (pic) canvas.drawPicture(pic);
       });
     }
     sk_sp<SkImage> baked = m_tile.image();

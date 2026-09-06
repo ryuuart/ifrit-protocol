@@ -745,8 +745,7 @@ inline bool childrenCarryYoga(const Instance& inst) {
                        !inst.description->textData->threadTo.empty();
   return {inst.threadLineOffset, inst.threadStoryLines,
           threads || inst.threadLineOffset > 0,
-          inst.description ? std::string_view(inst.description->key)
-                           : std::string_view{}};
+          inst.description ? inst.description->key : std::string{}};
 }
 
 }  // namespace sigil::compose::detail
