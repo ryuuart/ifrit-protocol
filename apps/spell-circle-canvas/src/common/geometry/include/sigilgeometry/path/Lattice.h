@@ -11,6 +11,7 @@
  * drawn along with a natural-media tool, split, or joined to the next one.
  */
 #include <glm/vec2.hpp>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -36,6 +37,12 @@ struct LatticeOptions {
    *  crowds them. A gap never falls below an eighth of a unit, so a
    *  taper toward zero crowds rather than stalls. */
   float taper = 1;
+  /** WHERE THE LADDER IS MEASURED FROM: a point every line's spacing is
+   *  counted from, so the same lattice over a moving shape keeps its
+   *  lines in the same places and the fill stops crawling as the shape
+   *  animates. Unset lays the first line half a gap inside the rings,
+   *  which is what fills a shape whose place is not fixed. */
+  std::optional<glm::vec2> origin;
   /** The most lines one lattice lays down. A bound rather than a
    *  preference: a spacing far smaller than the rings it fills would
    *  otherwise answer with a vector nobody asked the size of. */

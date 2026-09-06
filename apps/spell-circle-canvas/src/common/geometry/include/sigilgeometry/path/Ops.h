@@ -24,6 +24,7 @@
  */
 
 #include <include/core/SkPath.h>
+#include <sigilcore/compute/Chance.h>
 
 #include <cstdint>
 #include <functional>
@@ -169,12 +170,21 @@ SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength);
 // truer curves, more points).
 
 /** Roughen — seeded jitter along the contour normal. `smooth` rebuilds
- *  with Catmull-Rom (Illustrator's Smooth points vs Corner). */
+ *  with Catmull-Rom (Illustrator's Smooth points vs Corner).
+ *
+ *  The displacement is drawn from ONE SEEDED STREAM, the same value
+ *  every other seeded thing in this tree draws from, so a roughened
+ *  outline re-rolls identically on every platform and a caller that
+ *  wants an evenly spread jitter rather than an independent one says so
+ *  with `source` — a low-discrepancy sequence roughens without the
+ *  clumps independent draws leave. Each contour draws from its own
+ *  stream, so adding one contour does not re-roll the others. */
 struct Roughen {
   float amplitude = 4;
   float segmentPx = 8;
   uint32_t seed = 1;
   bool smooth = true;
+  core::chance::Source source = core::chance::Source::Pcg;
 
   SkPath apply(const SkPath& path) const;
   SkPath operator()(const SkPath& path) const { return apply(path); }

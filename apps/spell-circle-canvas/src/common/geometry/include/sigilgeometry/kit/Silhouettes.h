@@ -27,3 +27,4 @@
 #include "sigilgeometry/kit/Corners.h"
 #include "sigilgeometry/kit/Curves.h"
 #include "sigilgeometry/kit/Generators.h"
+#include "sigilgeometry/kit/Hatches.h"

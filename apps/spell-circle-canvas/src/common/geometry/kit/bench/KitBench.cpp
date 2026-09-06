@@ -36,6 +36,21 @@ void BM_GenerateWrapped(benchmark::State& state) {
 }
 BENCHMARK(BM_GenerateWrapped);
 
+// The hatch, by the number of lines it lays: the flatten once, then the
+// crossing pass over every edge per line.
+void BM_HatchOutline(benchmark::State& state) {
+  const SkPath outline = star(7, 0.42f)(kBox);
+  const Hatch value{.spacing = 180.0f / (float)state.range(0), .angle = 0.4f};
+  for (auto _ : state) benchmark::DoNotOptimize(hatchOutline(outline, value));
+  state.counters["lines/s"] = benchmark::Counter(
+      (double)state.range(0), benchmark::Counter::kIsIterationInvariantRate);
+}
+BENCHMARK(BM_HatchOutline)
+    ->Arg(16)
+    ->Arg(128)
+    ->Arg(1024)
+    ->Unit(benchmark::kMicrosecond);
+
 // The prune's own question, asked once per describe per shaped node: two
 // values, are they the same silhouette? It has to stay far cheaper than
 // generating one, or comparing to avoid generating is a loss.

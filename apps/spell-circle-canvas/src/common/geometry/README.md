@@ -355,7 +355,7 @@ the library root instead, in `test/support/`. Features nest by dependency — a 
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Twenty-five headers that
+**`path`** — `SigilGeometryPath`, the leaf. Twenty-nine headers that
 depend on nothing else in the library: Skia, glm, SigilCoreCompute, whose
 seeded mixers the value-noise field and the scatter's stream are built
 on, and CDT, the Delaunay triangulator, read in one source file and named
@@ -398,6 +398,45 @@ in no header.
   resampling. `reversed()`/`reverse()` and `startedAt()`/`startAt()` are
   the two rewrites that leave the drawn shape exactly where it is and
   change only which way the pen went and which node it went from.
+- **`path/Extremes.h`** — nodes put where a curve TURNS. `Where` names
+  the three turns worth a node — the axis extremes, a cubic's
+  inflections, the points of maximum curvature — and `minDepthPx` is the
+  one dial that says how shallow a turn may be and still earn one, since
+  a bulge of half a pixel is a rounding artefact rather than a feature of
+  the drawing and a node there is a node that will wander. The drawn
+  curve does not move: a node is inserted by splitting a piece into two
+  of its own kind. `extremeNodes()` answers where they would go without
+  putting them there. The solvers are Skia's own, in
+  `src/core/SkGeometry.h` — a private header that ships beside the static
+  archive, read in ONE translation unit and no other, because each of
+  them is a page of well-known cubic arithmetic and a second spelling
+  would be a second place for a rounding to differ.
+- **`path/Tidy.h`** — nodes TAKEN AWAY. `tidy(path, tolerance)` drops a
+  node standing on a straight run, merges nodes sitting on top of one
+  another and turns a curve whose handles lie on its own chord into a
+  line; the tolerance is the whole measure, being how far the outline may
+  move where a node goes. The word `simplify` is taken by the boolean
+  family's self-intersection cleanup, which is a different operation on a
+  different thing. What is deliberately absent is a font editor's other
+  half — setting each node's smooth-or-corner mode — because nothing here
+  carries a node type and inventing one to serve one operator would put a
+  font editor's model into a drawing library.
+- **`path/Fit.h`** — a dense RUN OF POINTS as few cubics, by Schneider's
+  rule: fit one cubic by least squares with the ends' own directions as
+  the tangents and the chord lengths as the first guess at each point's
+  parameter, improve those parameters against the fitted curve by
+  Newton-Raphson, and split at the worst point when it is still further
+  off than the tolerance. It is the opposite direction from
+  `toPath(sampled, smooth)`, `smoothThrough` and `catmullRom`, which
+  build a curve through or around a set of controls one piece per
+  control: there the point count IS the node count, here the point count
+  is the input and the node count is the answer.
+- **`path/Interpolate.h`** — the exact in-between of two outlines that
+  pair, node for node and curve for curve, or nothing at all when they do
+  not — and `compatible()` says which of the reasons it was. `path/blend`
+  is the other interpolation and a different one: it takes any two
+  outlines, resamples both and matches them up, which is what a blend
+  tool does and what a pair of masters must never need.
 - **`path/Direction.h`** — which way round an outline is drawn, and the
   two things that travel with it. `nesting()` answers, per ring, how many
   rings enclose it and which encloses it most tightly — the even-odd
@@ -423,6 +462,12 @@ in no header.
   crowding each successive gap, and cuts them to the even-odd interior of
   a set of rings; each `LatticeMark` is a centreline. A hatch, a plotter
   fill and a mass of strokes are the same construction, so there is one.
+  `origin` is where the ladder is measured from — the phase, which is
+  what stops a fill crawling as the shape it fills animates; unset lays
+  the first line half a gap inside the rings, which is what fills a shape
+  whose place is not fixed. `shapes::hatchOutline` is the stock value
+  over this and the offset, for a caller holding an `SkPath` rather than
+  a set of rings.
 - **`path/Neighbours.h`** — the uniform grid, and the primitive under
   everything below it. `Neighbours` is built once from a set of points
   and copies them in, then answers `within()` (a radius, into a vector
@@ -1132,6 +1177,15 @@ beneath, in `sigil::geometry::shapes`.
   the seam's OWN namespace one directory down, `path::profile::wave` —
   the oscillating width law, which is ZERO-MEAN and therefore a strand
   centreline rather than a band width.
+- **`kit/Hatches.h`** — `hatchOutline()`, a silhouette filled with lines
+  as one path: the outline narrowed by `ops::offset`, flattened, run
+  through `path::lattice` and joined up. It is a door rather than a
+  construction — a caller holding an `SkPath` should not have to flatten
+  it into rings itself, and that is why the fill has next to no adoption
+  while three drawings fake it by clipping a line field. What comes back
+  are CENTRELINES, so every mark can be walked, banded to a width or
+  drawn along with a tool; `path::lattice` is the same fill as marks, for
+  a caller that wants to do any of that itself.
 - **`kit/Sections.h`** — `sections::`, the two unit cross-sections a
   sweep carries: `circle()` (open, its seam point duplicated so the swept
   u reaches 1) and `line()` (a unit-width segment, a flat band once

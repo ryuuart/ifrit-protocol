@@ -19,9 +19,9 @@
 # key.
 find_package(earcut_hpp CONFIG REQUIRED)
 sigil_library(SigilGeometryKit
-  SOURCES Sections.cpp Silhouettes.cpp Solids.cpp
-  HEADERS Corners.h Curves.h Divisions.h Generators.h Sections.h Shapers.h
-          Silhouettes.h Solids.h
+  SOURCES Hatches.cpp Sections.cpp Silhouettes.cpp Solids.cpp
+  HEADERS Corners.h Curves.h Divisions.h Generators.h Hatches.h Sections.h
+          Shapers.h Silhouettes.h Solids.h
   PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCompute
   PRIVATE earcut_hpp::earcut_hpp)
 
@@ -29,6 +29,7 @@ sigil_library(SigilGeometryKit
 # or scene library in would show up as a build failure here.
 sigil_test(geometry_test
   SOURCES test/SilhouettesTest.cpp test/ShapersTest.cpp
+          test/HatchesTest.cpp
           test/DivisionsTest.cpp test/SolidsTest.cpp
   LIBRARIES SigilGeometryKit)
 

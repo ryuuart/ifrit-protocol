@@ -362,11 +362,11 @@ SkPath roundCorners(const SkPath& path, float radius,
 SkPath Roughen::apply(const SkPath& path) const {
   uint32_t contourIndex = 0;
   return overSamples(path, segmentPx, smooth, [&](Sampled& samples) {
-    const uint32_t base = seed + contourIndex++ * 7919u;
+    core::chance::Stream stream =
+        core::chance::Stream::of(source, seed + contourIndex++ * 7919u);
     for (size_t i = 0; i < samples.points.size(); ++i) {
       const glm::vec2 n = normalAt(samples.points, i, samples.closed);
-      samples.points[i] +=
-          n * (core::noise::hash(base, (uint32_t)i) * amplitude);
+      samples.points[i] += n * (stream.signedUnit() * amplitude);
     }
   });
 }

@@ -58,8 +58,15 @@ std::vector<LatticeMark> lattice(std::span<const Polyline> rings,
   std::vector<LatticeMark> marks;
   std::vector<float> crossings;
   // The first line sits half a gap in, so a lattice through a shape one
-  // gap tall still marks it.
+  // gap tall still marks it — unless an origin says where the ladder is
+  // measured from, in which case the first line is the first rung of
+  // that ladder to reach the rings.
   float scan = lowest + options.spacing * 0.5f;
+  if (options.origin) {
+    const float from =
+        options.origin->x * sine + options.origin->y * cosine;
+    scan = from + std::ceil((lowest - from) / options.spacing) * options.spacing;
+  }
   float gap = options.spacing;
   int lines = 0;
   while (scan < highest && lines++ < options.maxLines) {
