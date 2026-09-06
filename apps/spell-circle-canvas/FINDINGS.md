@@ -291,10 +291,6 @@ Tests missing: `chamferCorners`, `displaceSquare`, `Where::MaxCurvature`,
 `relax()` with coincident points and `hold`, `TidyOptions::duplicates`
 at front, middle and end, and the dropped `Blend.OklabMidGrayIsPerceptual`.
 
-## SigilMaterial (findings/review-material.md)
-
-Left: the README's chapter files (colour and paint).
-
 ## SigilGeometry mesh, point operators, kit, device (findings/review-geometry-mesh-pop.md)
 
 Blockers:

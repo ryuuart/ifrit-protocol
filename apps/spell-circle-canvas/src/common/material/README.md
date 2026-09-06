@@ -687,178 +687,14 @@ previous program and bytes come back with no cache lookup.
 
 ## Colour
 
-**THE BOUNDARY: this feature is colour and nothing else.** It links
-nothing of this project's and no renderer, so every value here is stated
-over colours and numbers — a table of pixels rather than an image, a
-function pointer rather than a curve object, a stop list rather than a
-gradient. Where a value has to meet a picture, the crossing lives with
-the renderer that owns the picture (`skia::palette`) and not here.
-
-`Color` is four straight (not premultiplied) sRGB floats, uploaded as one
-float4; `rgb(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
-sRGB transfer function both ways and the OKLab round trip — `toOklab`,
-`fromOklab`, `lerpOklab` — which every perceptual interpolation in the
-codebase runs through, plus OKLCH, its polar form, where the two numbers
-a harmony and a tone ladder are stated in — a chroma and a hue — are
-named.
-
-**Out of gamut, two answers, and the difference is which fact survives.**
-`fromOklab` and `fromOklch` cut the channels to the range, which moves
-the hue and the lightness both, because three channels are cut by three
-different amounts. `fitToSrgb` reduces the CHROMA until the colour is
-displayable and touches nothing else, so a set built by turning one hue
-comes back at the hues and the weights it was asked for, duller in the
-directions sRGB is narrow in. `inSrgbGamut` and `linearOf` are the two
-readings underneath, and they are separate from the conversion because
-the numbers BEFORE the clamp are the ones that say whether a colour is a
-colour at all.
-
-**ONE RAMP VALUE.** `Ramp` is the stops plus the four decisions a caller
-otherwise re-spells at every site: the `space` the walk between two stops
-happens in (`Srgb` for what a gradient draws, `Linear` for a quantity of
-light, `Oklab` for even steps, `Oklch` for a walk around the hue circle
-with `arc` saying which way), an `easing` curve, `reverse`, and the
-`domainLow`/`domainHigh` the caller's own numbers are read on. The
-easing is a `core::curve::Curve` — SigilCore's shaped curve value, the
-same one an animation eases with and a keyed track shapes a segment
-with, so a look chosen once walks the same shape wherever it is read.
-It carries its own parameters and compares by them, which is what keeps
-an eased ramp a value two of which can be proved the same. It answers
-`at(v)` and it is CALLABLE, so a ramp is an interpolator: anything that
-hands a unit position to one — a data scale's `through()`, a legend, a
-table — takes a ramp with no adapter. `sampleRamp` is still the ladder
-underneath, for a caller holding bare stops. The named ramps are stock
-values over it in the kit (`kit::viridis` and the rest), not types: take
-one, move its domain, reverse it, and it is still a ramp.
-
-`palette(ramp, entries)` reads a ramp at BAND CENTRES into a fixed table
-— the posterising crossing — and `ramp(palette)` is the way back, which
-is a decision the caller makes by asking rather than an inverse.
-
-**A harmony is one function whose scheme is a prop.** `harmony(base,
-Scheme, spreadDegrees)` answers a `Palette` with the base first;
-`Complement`, `SplitComplement`, `Analogous`, `Triad` and `Tetrad` are
-sets of angles on the OKLCH circle, and the spread is read by the three
-whose flanks move. `rotateHue` is the one turn underneath, and it is in
-OKLCH rather than on the HSV wheel because rotating an HSV hue holds the
-largest channel, which is not a brightness — a scheme built that way
-lands a yellow and a blue at wildly different weights.
-
-**A palette from a picture is chosen from PIXELS.** `palette(pixels,
-options)` works in OKLab, is deterministic with no seed anywhere — the
-starting entries are the farthest-first extremes rather than a random
-draw — and answers darkest first. The `method` prop is the whole
-difference between the two: `KMeans` moves its entries until each is the
-average of the pixels closest to it, so its colours are the ones the
-picture holds and a small vivid area survives; `MedianCut` divides the
-colours into equal-population boxes, so its entries cover the range
-whether or not the picture dwells there. `closestEntry` is the read back
-the other way, for an indexed picture.
-
-**A dither is a threshold read at a pixel.** `Dither{kind, matrix,
-levels, amount}` answers `threshold(x, y)`, the rounded `at(colour, x,
-y)`, and the one-bit `on(value, x, y)`. `Ordered` is the recursive Bayer
-matrix, where every threshold appears once per tile, so a flat is exactly
-the average asked for and the pattern holds still under motion; `Noise`
-is a screen-space hash with no period to see. `amount` at zero is plain
-rounding, which is the same value saying "no dither" rather than a second
-code path.
-
-**Three mixes, and the drawing says which one it means.** `mixToward`
-walks the numbers a file stores; `mixLinear` walks the light they stand
-for, which is the answer whenever the question is about QUANTITIES — how
-much pigment, how much exposure — and is why half way between black and
-white is near #BCBCBC there and #808080 in the other; `lerpOklab` walks
-what an eye reports. `luminance()` is what shows the difference: the
-code-value midpoint carries a fifth of white's light, the linear one
-half. **Two Lab spaces, for two jobs.** OKLab is where colour is
-INTERPOLATED, CIELAB (`toLab`, `fromLab`) is where it is MEASURED — it
-is the space a published difference is quoted in, and `deltaE` is that
-difference, with about 2.3 the point where a side-by-side pair stops
-matching. `sampleRamp` reads a `RampStop` ladder on the CPU exactly as a
-renderer's gradient draws it, for the caller that needs one colour out of
-a ramp rather than a shader.
-
-**A PALETTE IS NOT A RAMP.** A ramp says what lies between its stops; a
-`Palette` says there is nothing between its entries, so every read of it
-is exact — `at(index)` and `nearest(t)`, clamped at both ends, never a
-blend, because a blend of two entries is a colour the table does not
-contain and that is the one thing a fixed palette exists to prevent. One
-seam, two executors: `Palette::at` is the CPU reading, and
-`skia::paletteImage` / `skia::paletteLookup` are the same table crossing
-to a shader as an N x 1 texture sampled NEAREST at texel centres, which
-is what makes an indexed picture one channel of indices and one child
-slot instead of a branch over N literals.
-
-**Two ways to name a colour, for two different jobs.** `rgb()` is how an
-authored palette is typed in; `hsv(hueDegrees, saturation, value)` is how
-a palette is WALKED — a wheel, a run of chips on a golden-angle step, one
-hue's tone ladder read off saturation and value together. The hue wraps
-and the other two clamp, and both folds are in the verb rather than at
-the call site because the sextant ladder underneath answers magenta for
-any hue it does not recognise, which is exactly what an unwrapped angle
-hands it. HSV is not a perceptual space and must not be used as one:
-`value` is the largest channel and nothing more, so a full-value yellow
-and a full-value blue are nowhere near the same brightness. Anything that
-INTERPOLATES goes through `lerpOklab`.
-
-**A Skia colour crosses at one place, and it is `Color` itself.**
-`SkColor4f` holds the same four straight sRGB floats in the same order,
-so the crossing is a field-for-field copy — no transfer function, no
-premultiply, no clamp, so a channel above 1 survives. `Color` is
-IMPLICITLY CONSTRUCTIBLE from one, matched by shape rather than by name
-(`FourFloatColor`: four float members `fR`, `fG`, `fB`, `fA`), so the
-leaf that every params struct includes still names no renderer:
-
-```cpp
-pattern::stripes(6, 6, kInk);              // kInk is an SkColor4f
-sdf::Style style{.fill = kInk, .borderColor = kEdge};
-```
-
-`skia::toSkColor` is the way BACK, which a colour cannot carry without
-naming Skia, and `skia::toColors` converts a palette in one call;
-`skia::toColor` is the same conversion under a name, for a call that
-wants to say so (`<sigilmaterial/skia/Color.h>`). The mapping is written
-once because a copy of it spelled at a call site is a place where a
-channel order or an alpha convention drifts silently.
-
-**A view transform is a baked material with one open slot.**
-OpenColorIO's GPU codegen never emits SkSL, so `ocio::viewTransform(
-config, display, view)`, `ocio::convert(config, src, dst)` and
-`ocio::exponent(gamma)` each build a CPU processor, bake it once (F16,
-because F32 textures are not linearly filterable on Apple GPUs), hold
-the bake as a texture in the `lut` slot, and apply it through a recipe
-whose `content` slot is the layer being transformed and is left to the
-renderer. A bad config fails soft to a material with an empty `lut` slot
-and the error reported. In a build that found no OpenColorIO the feature
-still links: `ocio::available()` is false and every factory answers that
-empty material, and `SIGILMATERIAL_ENABLE_OCIO` says which build this is.
-
-**Which recipe depends on whether the transform mixes channels.** A
-transform whose channels are INDEPENDENT — an exponent, a gamma, a
-contrast, a per-channel display curve — carries no more information than
-one response curve per channel, so it bakes to one row of 256 samples
-and applies through `responseRecipe()`; a transform that mixes channels
-needs the volume and applies through the trilinear `lutRecipe()`, its
-slices laid side by side in one image. Independence is ESTABLISHED, not
-assumed from the transform's type: the bake reads the three responses off
-the grey ramp, then requires a lattice of mixed colours to equal those
-three responses composed, to within half an eight-bit code. So `lutSize`
-means nothing to a transform that bakes to a row.
-
-**A channelwise recipe does not have to run as a program.**
-`Recipe::channelwise(slot)` is the declaration that every output channel
-depends on the same input channel and nothing else, with `slot` holding
-the response row — and `responseRecipe()` makes it. `skia::Effect::recipe(
-material, surface)` is where it is spent: on a surface carrying eight
-bits per channel it answers the row as `SkColorFilters::TableARGB`, which
-a consumer hangs on a paint and pays a blit for, and on anything else —
-a float surface, or `kUnknown_SkColorType`, which is what a canvas backed
-by neither raster nor GPU answers — it falls to `recipe(material)` and
-the program. The picture is the same either way; only the cost differs,
-which is why the surface is a parameter rather than something the effect
-guesses. `skia::Effect::filter` takes an `sk_sp<SkColorFilter>` as well
-as an `sk_sp<SkImageFilter>`, and `colorFilter()` reads that lane back.
+The colour leaf is its own chapter: **[COLOUR.md](COLOUR.md)** — the
+colour value and its packed spelling, the sRGB, OKLab, OKLCH and CIELAB
+round trips with `fitToSrgb`, `Ramp` as one value with the palette
+crossings both ways, the harmonies, the dither threshold, and the table
+a run of pixels is made of. It links nothing of this project's and no
+renderer: every value there is stated over colours and numbers, and
+where one has to meet a picture the crossing lives with the renderer
+that owns the picture.
 
 ## The primitives
 
@@ -890,11 +726,12 @@ each takes its colours as `Color`, which an `SkColor4f` converts to.
 the sampling of a tile whose repeat is one period by an arbitrary eight
 pixels, which reads right only while the other direction is constant.
 
-A Tile is not a fill and neither is a compose `Pattern`: `Element::fill`
-deletes both overloads so the error names the rule. The bake is the
-identity, so a Pattern minted inside a describe is a fresh state with no
-bake in it and re-renders its tile every frame — hold the Pattern where
-assets are held and fill with `pattern.material()`.
+A Tile is not a fill: what fills is the material over it, and a
+consumer that takes one as a fill is expected to refuse it by name
+rather than bake it per frame. The bake is the identity, so a tile
+minted inside a describe is a fresh state with no bake in it and
+re-renders every frame — hold the tile where assets are held and fill
+with `tile.material()`.
 
 **field.** `halftoneRamp` swells a staggered dot grid down the box and
 reads the resolution; `noise` is Skia's Perlin generator behind a
@@ -907,114 +744,14 @@ black, with the alpha carrying both — and reads the resolution.
 
 ## The Skia paint
 
-`skia::Paint` is the model as ONE `sk_sp<SkShader>`. A small tree of
-paint nodes — a solid, an N-stop `linear`/`radial`/`conical`/`sweep`
-ramp, an `image` or a caller-owned `buffer`, a raw `sksl` effect, a
-`blend` stack, or `recipe` over a `Material` instance — that compiles to
-a single shader through nested `SkShaders::Blend`, never a stack of
-saveLayers. Its children nest and still compile to one shader.
+The paint and the effect are their own chapter:
+**[PAINT.md](PAINT.md)** — `skia::Paint` as ONE `sk_sp<SkShader>` over a
+tree of solids, ramps, images, buffers, SkSL effects and blend layers;
+the three volatility tiers it declares by what it reads; the unit-square
+ramps that need no box size written down; and `skia::Effect`, the
+post-processing recipe over a layer a consumer has already rendered.
 
-**A paint declares its own volatility, and the declaration is what it
-READS.** Three tiers, and nothing chooses between them by hand:
-
-- STATIC — a solid, a ramp, an image, a blend of those, or an `sksl`
-  effect with only constant uniforms. It resolves eagerly, so
-  `isSolid()`/`solidColor()` or `staticShader()` answer with no frame at
-  all and a consumer caches and prunes it like any other value.
-- GEOMETRY — an effect declaring `uResolution`, a `worldSpace()` flag, or
-  an image or buffer carrying a `fit()`. It depends on the box, not on the
-  clock: `geometryDependent()` is true, and `shaderFor(frame)` answers
-  against the box the frame names.
-- LIVE — an effect with a uniform bound to an `Output`, or one reading
-  `uTime` or `uContentScale`. `isAnimated()` is true and the paint is
-  rebuilt every draw; a live CHILD or blend layer makes its parent live,
-  which is what stops a cache from freezing the parameter.
-
-**A TABLE AND A SECOND SOURCE ARE BOTH DOORS ON `sksl`.**
-`child(name, Paint)` fills a `uniform shader NAME` slot with another whole
-paint — an index texture, a mask, a noise field, a second gradient — and
-`uniform(name, std::vector<float>)` fills a declared array, matched
-against its TOTAL float count, so 1024 floats fill `float4 uPal[256]` and
-a count that is not the declaration's is refused whole rather than
-written partly. `uniform(name, shared_ptr<const UniformBlock>)` is the
-live form of the same array, re-read every paint. Together they are what
-a FIXED PALETTE needs: the picture is one channel of indices and the
-table is one uniform array, or — when the lookup is dynamic, which is the
-usual case, since the index is a pixel value — one 256 x 1 child image
-sampled nearest at the texel centre. Neither door asks for a variant
-baked per palette. A child rides the volatility tier and the prune
-signature: a live child makes the parent live, and two paints with
-different children never compare equal.
-
-**A PASS body is not a shader of its own.** A material handed to a text
-runtime's pass is written against declarations that runtime prepends once
-it knows the track's unit count — `uContent`, `uUnitRect[N]`,
-`uUnitPhase[N]`, `kUnitCount` — so compiling it standalone names four
-things that do not exist yet and reports one error per mention, about a
-compile nobody asked for. `Paint::recipe` recognises such a body by those
-names (`skia::detail::isPassBody`) and builds no static shader for it:
-the picture comes from `resolvePass`, and used as an ordinary fill the
-material draws nothing rather than failing loudly at load.
-
-`PaintFrame` is what one draw supplies and no author sets: the box, the
-root's size, the box→root matrix, the clock and the device scale. A
-`worldSpace()` paint anchors to that matrix — the field is authored once
-against the root and every flagged box samples it where it actually sits,
-through its own transform — and with an identity matrix it degrades to
-box-local rather than answering wrongly.
-
-**Equality is the RECIPE, and it is load-bearing.** Two paints built from
-the same values compare equal though each minted a fresh `SkShader`,
-which is what lets a consumer prune across rebuilds; children and blend
-layers ride the signature, because a child left out of it would let a
-holder prune while its second source had changed. An `sksl` paint
-compares by EFFECT POINTER, so a helper that compiles a fresh
-`SkRuntimeEffect` per call never compares equal to itself — compile once
-and hold the paint. Every mutation is copy-on-write, so binding on a copy
-never reaches the value it was copied from.
-
-**Post-processing is the other half of the same frame.** `skia::Effect`
-takes the layer a consumer has already rendered and runs a filter over
-it: `filter()` wraps any `SkImageFilter`, `shader()` an SkSL program
-whose `content` child IS that layer, `recipe()` a `Material` in the same
-position, and `blur()`/`directionalBlur()`/`glow()` are the three named
-spatial ones. `phosphorBloom()` is the display post-process: a bright pass
-feeds three radii whose RGB channels have different reach, so the feather
-changes hue while the sharp source remains on top. A gather is what it
-costs — twenty-four samples per pixel, three radii of eight headings,
-where a hand-rolled bright pass takes ONE and hands the spreading to
-Skia's own separable blur — so the gather is not spent at the layer's own
-resolution. THE HALO IS GATHERED COARSE: the bright pass, the rings, the
-hue drift and the tail run over a layer reduced until the innermost ring
-is about a pixel across, and the result is resampled up and added to the
-untouched source, which is one tap of each. A halo is a low-frequency
-picture and survives that; what moves is the halo's fine structure at a
-hard-edged source, never the source itself, which is composited at full
-resolution and to the bit. A reach too small for the reduction to leave
-anything behind is gathered whole, and a wider reach is gathered coarser
-— down to a quarter, past which the bright pass would alias on its own
-sources — so a wide bloom is not the wide gather it looks like. The
-layer is still worth bounding: put the glow sources on a node of their
-own under `Cache::Texture` and the bloom is baked with them once, rather
-than gathered over a whole canvas every frame. `then()` chains effects,
-and the same tier rules hold — a bound
-uniform or a live child makes the effect live, and a static chain
-precomposes once. It resolves against the same `PaintFrame` a paint
-does, so a consumer builds one frame per draw and hands it to both.
-
-**FOUR NAMES A BODY MAY NOT DECLARE: `pos`, `inColor`, `destColor`,
-`primitiveColor`.** A GPU backend does not compile a runtime effect as a
-program of its own — it inlines the body into the pipeline's fragment
-shader as a helper whose parameters it names itself, those four, and
-discards the names the body's own `main` declared, rewriting references
-to them as those. So a body declaring anything else by one of those
-names redeclares a parameter. `SkRuntimeEffect::MakeForShader` cannot
-see it, because there the body IS the whole program and the name is
-free, and every raster suite compiles that way; on a device it is a
-pipeline that never builds, a draw that paints nothing and a compiler's
-complaint per frame. The compile refuses those declarations up front,
-naming the recipe, and `main`'s own parameter is the one place the name
-is allowed — it is the declaration the backend replaces.
+## Warming every program
 
 **One instance of every recipe, as a list.** `kit::everyRecipe()`,
 `sdf::everyRecipe()` and `field::everyRecipe()` each answer a

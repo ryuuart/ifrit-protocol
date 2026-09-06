@@ -24,7 +24,9 @@
 # interface over every feature, for a consumer of the whole library.
 # <sigilmaterial/Material.h> is the umbrella header over the core.
 sigil_library_root(SigilMaterial
-  BRIEF "Materials as recipe instances: reflected params, per-target bodies, one program cache")
+  BRIEF "Materials as recipe instances: reflected params, per-target bodies, one program cache"
+  DOCS ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md)
 
 # Dependencies point up this list.
 add_subdirectory(color)
@@ -69,6 +71,78 @@ sigil_test(material_test
   LIBRARIES SigilMaterialColor SigilMaterialField SigilMaterialOcio
             SigilMaterialPattern SigilMaterialSdf SigilMaterialSkia
   SUITES Ocio LABELS ocio)
+
+# EVERY API NAME THE PROSE SPELLS, compiled against the headers that own
+# it — README.md and both chapters, because a chapter is the same canon
+# as the page that links it and prose nobody compiles is prose that goes
+# stale. The translation unit is GENERATED from the documents on every
+# build, so a passage written today is covered today and a rename the
+# prose missed is a build break rather than a confident wrong answer; the
+# generator FAILS on a documented name no header declares, so the guard
+# cannot go quiet. The script is the tree's, under src/test, because two
+# libraries already want it.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+set(MATERIAL_API_DOC_PROBES
+    ${CMAKE_CURRENT_BINARY_DIR}/MaterialApiDocProbes.cpp)
+file(GLOB_RECURSE MATERIAL_PUBLIC_HEADERS
+     CONFIGURE_DEPENDS include/sigilmaterial/*.h)
+add_custom_command(
+  OUTPUT ${MATERIAL_API_DOC_PROBES}
+  COMMAND ${Python3_EXECUTABLE} ${SIGIL_TEST_SUPPORT_DIR}/docs/api_doc_probes.py
+          --md ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          --md ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
+          --md ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/include/sigilmaterial
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../io/include
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../image/include
+          --include ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include
+          --include ${SIGIL_TEST_SUPPORT_DIR}
+          --library sigilmaterial
+          --namespace sigil::material
+          --suite MaterialDocs
+          --prelude "<gtest/gtest.h>"
+          --prelude "<sigilcore/cache/Policy.h>"
+          --prelude "<sigilio/hub/Hub.h>"
+          --prelude "<sigilshaders/MaterialKit.h>"
+          --prelude "<sigilskia/graphite/GraphiteContext.h>"
+          --prelude "<ScratchDir.h>"
+          --floors 60,3,12,0
+          --out ${MATERIAL_API_DOC_PROBES}
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
+          ${SIGIL_TEST_SUPPORT_DIR}/docs/api_doc_probes.py
+          ${MATERIAL_PUBLIC_HEADERS}
+  COMMENT "Extracting the material docs' names into compile probes"
+  VERBATIM)
+
+# The generator's own fixtures: a real name must yield a probe, an unreal
+# one must fail the run, and an operator spelling must be exempted and
+# reported by name. One Python invocation, and the only check that
+# notices the EXTRACTOR narrowing, since a generator that silently probes
+# less still emits a TU that compiles green.
+add_test(NAME material_api_doc_probes_self_test
+  COMMAND ${Python3_EXECUTABLE} ${SIGIL_TEST_SUPPORT_DIR}/docs/api_doc_probes.py
+          --self-test)
+
+# The probes are their own object library, because a generated source is
+# compiled by a target in the directory that generates it, and this
+# library's one test binary is assembled in core/.
+# It links every library the prose names — the resource hub the usage
+# example opens shaders through, the cache policy and the Graphite
+# context the caching and device sections name, and the scratch folder
+# the testing section names — because a document that spells a name is
+# claiming that name exists wherever it lives.
+add_library(material_api_doc_probes OBJECT ${MATERIAL_API_DOC_PROBES})
+target_link_libraries(material_api_doc_probes PRIVATE
+  SigilMaterial SigilIOHub SigilCoreCache SigilSkiaGraphite GTest::gtest)
+target_include_directories(material_api_doc_probes PRIVATE
+  ${SIGIL_TEST_SUPPORT_DIR} ${SIGIL_SHADER_GENERATED_DIR})
+
+sigil_test(material_test
+  LIBRARIES material_api_doc_probes SigilMaterial)
 
 # THE DEVICE SWEEP, over the whole library rather than one feature: a body
 # is validated one way as its own runtime effect and another once a GPU
