@@ -2085,6 +2085,14 @@ struct RotaConvocationis : sketch::Sketch {
     // the ring is visibly off its stations.
     ctx.captureAt(tSeal[7] + sealSpanS * 0.55);
 
+    // A PLATE, not a live scene. The subject is one charged sheet, and
+    // its cost IS that subject: every lit band, seal, star and rim flame
+    // is an emissive fill laid over the whole disc, and a version of the
+    // picture with fewer of them is a different picture. So the still is
+    // what to judge, and `--bench` measures the capture rather than
+    // holding 60 FPS through the second half of the cycle.
+    ctx.plate();
+
     // The chained timeline, printed: every number below came out of a
     // span, and this is where to read what the chaining resolved to.
     std::fprintf(stderr,

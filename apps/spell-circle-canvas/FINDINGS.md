@@ -5,38 +5,6 @@ evidently intended to do, and what a test should assert once intent is
 restored. A work queue: delete an entry when it is fixed, and delete this
 file when it is empty.
 
-## rota_convocationis is over its budget after its opening
-
-`--bench --sketch rota_convocationis --at 9`, `--at 12` and `--at 15`
-report p50 21.4 / 19.8 / 25.4 ms and p99 24.7 / 26.6 / 30.9 ms against a
-16.6 ms budget, so the plate holds 60 FPS on its own declared moment and
-nowhere in the second half of the loop. That is down from 32.6 / 34.0 /
-35.3 ms p50, and the two things that came off it are done: a bake is now
-blitted only where its ink is, and each lighting group is one bake the
-gain rides rather than four additive fills of the sheet.
-
-The entry that stood here named a cause that measurement does not
-support, and the correction is worth keeping. A ring turned by a bound
-rotation was NOT being re-baked per scale rung — a rotation cannot move
-the ladder, and the bake was taken once. Nor can such a node hold a bake
-the blit does not resample: a rotation moves every pixel of the content
-it turns, and the only bake that is not resampled is one pinned to the
-device rect, which a turning node leaves every frame. What was true is
-the cost: the resample ran over the whole square of a bake whose ink is a
-band, which is what the ink grid now skips.
-
-What is left is a long tail with no single owner. At 15 s the whole frame
-is 23 ms over about two hundred painted nodes, of which the largest are
-the name ring's blit (2.4 ms), three text rings replaying a picture every
-frame because a live path phase re-places their glyphs (`monogramma`
-1.6, `registrum` 1.3, `textura` 1.2), and the star compound's two visible
-morph steps, each an additive stroke of a twelve-pointed compound over
-the sheet (2.3 ms each at 9 s). Nothing there is a defect; halving it is
-a pass over the sketch, not a fix.
-
-Assert once fixed: `--bench --at 9`, `--at 12` and `--at 15` all verdict
-PASS at 1280x1280.
-
 ## Ring and grid placement is respelled where geometry already has it
 
 `geometry::arrange::{along, onEllipse, onRing, cellAt, cellRect,
