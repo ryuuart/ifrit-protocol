@@ -350,7 +350,9 @@ the Metal path end to end on
 the system device: a context, a wrapped texture, a clear, and the pixels
 read back through the queue the context shares. It reads the same
 texture back the other way as an image a draw samples, and refuses to
-wrap one that is not there. It then takes the same
+wrap one that is not there. A second thread there draws on a recorder of
+its own and inserts what it snaps under the context's lock, which is what
+`makeRecorder()` and `lockContext()` promise together. It then takes the same
 wrap through a device — a texture the device made, the surface built
 from its handle, a stale handle that wraps nothing, a surface moved out
 of that submits nothing, a fence the submit signals, and the factory that

@@ -27,7 +27,10 @@
 
 #include <array>
 #include <cstring>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -426,6 +429,37 @@ TEST(SigilSkiaGraphite, StaleHandleWrapsNothing) {
   EXPECT_EQ(surface.surface(), nullptr);
   // A fence handle that names nothing signals nothing, and says so.
   EXPECT_EQ(surface.submit(*dev, FenceHandle{}), kFenceInitialValue);
+}
+
+TEST(SigilSkiaGraphite, AThreadOfItsOwnRecordsOnARecorderOfItsOwn) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  std::unique_ptr<skgpu::graphite::Recorder> recorder = ctx->makeRecorder();
+  ASSERT_NE(recorder, nullptr);
+
+  // The whole contract in one pass: a second thread draws on a recorder
+  // of its own and inserts what it snaps under the context's lock, which
+  // is the only thing keeping the two threads off the context at once.
+  sk_sp<SkSurface> surface;
+  bool inserted = false;
+  std::thread([&] {
+    surface = SkSurfaces::RenderTarget(recorder.get(), SkImageInfo::MakeN32Premul(8, 8));
+    if (!surface) return;
+    surface->getCanvas()->clear(SkColorSetARGB(255, 0, 0, 255));
+    std::unique_ptr<skgpu::graphite::Recording> recording = recorder->snap();
+    if (!recording) return;
+    const std::unique_lock<std::mutex> lock = ctx->lockContext();
+    skgpu::graphite::InsertRecordingInfo insert;
+    insert.fRecording = recording.get();
+    inserted = bool(ctx->context()->insertRecording(insert));
+    ctx->context()->submit(skgpu::graphite::SubmitInfo(skgpu::graphite::SyncToCpu::kYes));
+  }).join();
+
+  ASSERT_NE(surface, nullptr);
+  EXPECT_TRUE(inserted);
+  const SkBitmap pixels = readGraphiteSurface(*ctx, surface.get());
+  ASSERT_FALSE(pixels.empty());
+  EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 0, 255));
 }
 
 TEST(SigilSkiaGraphite, AMovedFromSurfaceHoldsNothingAndSubmitsNothing) {
