@@ -140,6 +140,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
+#include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/kit/PaintLayers.h>
@@ -634,53 +635,70 @@ struct VertigoTitles : sketch::Sketch {
     return p;
   }
 
+  /** THE MASTHEAD'S OWN LOOK: the three registers its lines are set in,
+   *  each naming its own face, and the inks the four of them are set in.
+   *  The sources ranged at the far edge are a step quieter than the
+   *  subtitle beside them, which is the one thing a palette's single ash
+   *  cannot say — so each of those names its own. */
+  [[nodiscard]] sketch::kit::Theme mastheadTheme() const {
+    sketch::kit::Theme paper;
+    paper.palette.ink = kBone;
+    paper.palette.ash = kSteel;
+    paper.type.eyebrow = {11.0f, 3.0f, false, faceGothicBold};
+    paper.type.title = {42.0f, 1.0f, false, faceDisplay};
+    paper.type.subtitle = {12.0f, 0.4f, false, faceGothic};
+    paper.type.captionNote = {9.5f, 0.0f, false, faceGothic};
+    paper.spacing.subtitleGap = 7;
+    paper.spacing.rowGap = 4;
+    return paper;
+  }
+
   // ------------------------------------------------------------------
   Element describe() {
     auto root = box().column().padding(kPad).gap(28).fill(Fill::color(kInk));
 
     // ---- header ---------------------------------------------------
-    auto head = box().row().height(104).alignItems(Align::End);
-
-    Track rise{.effect = fx::rise(18.0f),
-               .stagger = {.eachMs = 26, .amountMs = 0, .durationMs = 420},
-               .progress = animate(from(0.0f).to(1.0f),
-                                   ramp(140, 900, ch::easeOutExpo))};
-
-    head.child(
-        box()
-            .column()
-            .grow(1)
-            .gap(7)
-            .child(text(toU8("PRECESSING LISSAJOUS FIGURES"),
-                        faced(faceGothicBold, 11, kSteel, 3.0f))
-                       .key("eyebrow")
-                       .opacity(animate(from(0.0f).to(1.0f), ramp(0, 260)))
-                       .translateY(animate(from(8.0f).to(0.0f), ramp(0, 260))))
-            .child(
-                text(toU8("VERTIGO, 1958"), faced(faceDisplay, 42, kBone, 1.0f))
-                    .key("heading")
-                    .fx(std::move(rise)))
-            .child(text(toU8("Saul Bass, title design — John Whitney, "
-                             "spirals — Paramount, dir. Alfred Hitchcock"),
-                        faced(faceGothic, 12, kSteel, 0.4f))
-                       .key("cite")
-                       .opacity(animate(from(0.0f).to(1.0f), ramp(420, 240)))));
-
-    auto sources = box().column().gap(4).alignItems(Align::End);
     static constexpr const char* kSrc[] = {
         "artofthetitle.com/title/vertigo",
         "typotheque.com — Emily King, “Taking Credit” (5)",
         "patrycerichter.wordpress.com — shot breakdown, 2016",
         "fontsinuse.com — Clarendon / News Gothic",
     };
+    std::vector<sketch::kit::Line> sources;
     for (int i = 0; i < 4; ++i)
-      sources.child(
-          text(toU8(kSrc[i]), faced(faceGothic, 9.5f, kSteelDim))
-              .key("src" + std::to_string(i))
-              .opacity(animate(from(0.0f).to(1.0f),
-                               ramp(520.0f + (float)i * 70.0f, 260))));
-    head.child(std::move(sources));
-    root.child(std::move(head));
+      sources.push_back(
+          {.words = toU8(kSrc[i]),
+           .ink = kSteelDim,
+           .opacity = animate(from(0.0f).to(1.0f),
+                              ramp(520.0f + (float)i * 70.0f, 260))});
+
+    {
+      // Bound round the masthead only: everything under it is set in the
+      // sequence's own registers rather than in a sheet's.
+      const sketch::kit::Provide look(mastheadTheme());
+      root.child(
+          sketch::kit::titleCard(
+              {.eyebrow = {.words = toU8("PRECESSING LISSAJOUS FIGURES"),
+                           .opacity = animate(from(0.0f).to(1.0f), ramp(0, 260)),
+                           .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
+               .title = {.words = toU8("VERTIGO, 1958"),
+                         .fx = Track{.effect = fx::rise(18.0f),
+                                     .stagger = {.eachMs = 26,
+                                                 .amountMs = 0,
+                                                 .durationMs = 420},
+                                     .progress = animate(
+                                         from(0.0f).to(1.0f),
+                                         ramp(140, 900, ch::easeOutExpo))}},
+               .subtitle = {.words = toU8("Saul Bass, title design — John "
+                                          "Whitney, spirals — Paramount, "
+                                          "dir. Alfred Hitchcock"),
+                            .opacity = animate(from(0.0f).to(1.0f),
+                                               ramp(420, 240))},
+               .notes = std::move(sources),
+               .align = Align::Stretch,
+               .key = "head"})
+              .height(104));
+    }
 
     // hairline under the header
     root.child(box()

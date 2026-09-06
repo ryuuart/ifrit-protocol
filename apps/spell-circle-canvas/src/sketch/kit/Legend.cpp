@@ -15,6 +15,50 @@ using compose::Element;
 using compose::Fill;
 using compose::text;
 
+namespace {
+
+/** The label and the gloss beside a mark: the label in what it names
+ *  where the entry says so, the note in the quiet ash either way. */
+void words(Element& line, const LegendEntry& entry) {
+  const Theme& look = theme();
+  if (!entry.label.empty())
+    line.child(text(entry.label,
+                    look.style(look.type.captionNote,
+                               entry.ink.value_or(look.palette.ink))));
+  if (!entry.note.empty())
+    line.child(text(entry.note,
+                    look.style(look.type.captionNote, look.palette.ash)));
+}
+
+/** The beat the entry rides in on, where it has one. */
+void enter(Element& line, const LegendEntry& entry) {
+  if (entry.opacity) line.opacity(*entry.opacity);
+  if (entry.slide) line.translateX(*entry.slide);
+}
+
+/** The patch a key's mark is where the entry drew none of its own: the
+ *  entry's colour at the key's own side, dressed as the key says. */
+Element swatchOf(const Legend& key, const LegendEntry& entry, float side) {
+  Element mark = box().width(Dim(side)).height(Dim(side)).shrink(0);
+  if (key.strokeWidth > 0) {
+    // An outlined key draws the swatch as a line, so the ground goes
+    // into the stroke's own two slots rather than onto the node.
+    compose::PathFormat outline =
+        compose::stroke(key.strokeWidth, entry.swatch.fill());
+    if (const material::skia::Paint* m = entry.swatch.material())
+      outline.strokeMaterial = *m;
+    mark.stroke(std::move(outline));
+  } else {
+    entry.swatch.paint(mark);
+  }
+  if (key.corners > 0) mark.corners(Corners{key.corners});
+  if (entry.keyline)
+    mark.foreground(compose::stroke(key.keylineWidth, *entry.keyline));
+  return mark;
+}
+
+}  // namespace
+
 compose::Element legend(const Legend& key) {
   const Theme& look = theme();
   const float side = key.swatch.value_or(look.spacing.swatch);
@@ -30,33 +74,16 @@ compose::Element legend(const Legend& key) {
   const float labelGap =
       key.labelGap.value_or(look.spacing.captionNoteGap);
   for (const LegendEntry& entry : key.entries) {
-    Element mark = box().width(Dim(side)).height(Dim(side)).shrink(0);
-    if (key.strokeWidth > 0) {
-      // An outlined key draws the swatch as a line, so the ground goes
-      // into the stroke's own two slots rather than onto the node.
-      compose::PathFormat outline =
-          compose::stroke(key.strokeWidth, entry.swatch.fill());
-      if (const material::skia::Paint* m = entry.swatch.material())
-        outline.strokeMaterial = *m;
-      mark.stroke(std::move(outline));
-    } else {
-      entry.swatch.paint(mark);
-    }
-    if (key.corners > 0) mark.corners(Corners{key.corners});
-    if (entry.keyline)
-      mark.foreground(compose::stroke(key.keylineWidth, *entry.keyline));
+    // A mark the caller drew IS the mark: it carries its own extent and
+    // its own edge, so none of the key's dressing is read for it.
     Element line = box()
                        .row()
                        .alignItems(Align::Center)
                        .gap(labelGap)
-                       .child(std::move(mark));
-    if (!entry.label.empty())
-      line.child(text(entry.label,
-                      look.style(look.type.captionNote,
-                                 entry.ink.value_or(look.palette.ink))));
-    if (!entry.note.empty())
-      line.child(text(entry.note,
-                      look.style(look.type.captionNote, look.palette.ash)));
+                       .child(entry.mark ? *entry.mark
+                                         : swatchOf(key, entry, side));
+    words(line, entry);
+    enter(line, entry);
     run.child(std::move(line));
   }
   return run;

@@ -457,9 +457,9 @@ TEST(SketchKitHeading, TitleCardDrawsTheHandSpelledColumn) {
           .child(compose::text(u8"every rail, at one width",
                                line(house.type.subtitle, house.palette.ash))
                      .margin(0, house.spacing.subtitleGap, 0, 0));
-  Element byKit = kit::titleCard({.eyebrow = u8"SIGIL · COMPOSE",
-                                  .title = u8"THE STROKE ATLAS",
-                                  .subtitle = u8"every rail, at one width"});
+  Element byKit = kit::titleCard({.eyebrow = {u8"SIGIL · COMPOSE"},
+                                  .title = {u8"THE STROKE ATLAS"},
+                                  .subtitle = {u8"every rail, at one width"}});
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
 }
 
@@ -467,7 +467,7 @@ TEST(SketchKitHeading, TitleCardDrawsTheHandSpelledColumn) {
  *  lines is not a card of three with one blank. */
 TEST(SketchKitHeading, AMissingLineSpendsNoGap) {
   EXPECT_TRUE(sameDrawing(
-      kit::titleCard({.title = u8"T", .subtitle = u8"S"}),
+      kit::titleCard({.title = {u8"T"}, .subtitle = {u8"S"}}),
       compose::box()
           .column()
           .alignItems(compose::Align::Start)
@@ -479,6 +479,77 @@ TEST(SketchKitHeading, AMissingLineSpendsNoGap) {
                      kit::houseTheme().style(kit::houseTheme().type.subtitle,
                                              kit::houseTheme().palette.ash))
                      .margin(0, kit::houseTheme().spacing.subtitleGap, 0, 0))));
+}
+
+/** THE MASTHEAD: a card at the left and a stack of ranged notes at the
+ *  right, the two ranged against each other at their ENDS so the last
+ *  note sits on the card's last line. */
+TEST(SketchKitHeading, ACardWithNotesIsTheHandSpelledRow) {
+  const kit::Theme& house = kit::houseTheme();
+  const auto line = [&](const kit::Register& reg, SkColor4f ink) {
+    return house.style(reg, ink);
+  };
+  Element byHand =
+      compose::box()
+          .row()
+          .alignItems(compose::Align::End)
+          .child(compose::box()
+                     .column()
+                     .alignItems(compose::Align::Stretch)
+                     .child(compose::text(u8"MET OFFICE",
+                                          line(house.type.eyebrow,
+                                               house.palette.ash)))
+                     .child(compose::text(u8"THE SHIPPING FORECAST",
+                                          line(house.type.title,
+                                               house.palette.ink))
+                                .margin(0, house.spacing.subtitleGap, 0, 0))
+                     .grow(1))
+          .child(compose::box()
+                     .column()
+                     .gap(house.spacing.rowGap)
+                     .alignItems(compose::Align::End)
+                     .child(compose::text(u8"ISSUED 0015 UTC",
+                                          line(house.type.captionNote,
+                                               house.palette.ash)))
+                     .child(compose::text(u8"VALID TO 0600 UTC",
+                                          line(house.type.captionNote,
+                                               house.palette.ash))));
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::titleCard({.eyebrow = {u8"MET OFFICE"},
+                      .title = {u8"THE SHIPPING FORECAST"},
+                      .notes = {{u8"ISSUED 0015 UTC"}, {u8"VALID TO 0600 UTC"}},
+                      .align = compose::Align::Stretch})));
+}
+
+/** A ranged note is often a step quieter than the subtitle beside it,
+ *  which one ash cannot say — so a line names its own ink. */
+TEST(SketchKitHeading, ALineSetsItsOwnInk) {
+  EXPECT_FALSE(sameDrawing(
+      kit::titleCard({.title = {u8"T"}, .notes = {{u8"n"}}}),
+      kit::titleCard({.title = {u8"T"},
+                      .notes = {{.words = u8"n",
+                                 .ink = SkColor4f{1, 0.3f, 0.1f, 1}}}})));
+}
+
+/** A register names the face its own line is set in, for the line neither
+ *  of the theme's two is. */
+TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
+  kit::Theme paper = kit::houseTheme();
+  paper.type.title.face = paper.type.mono;
+  const kit::Provide look(paper);
+  Element byHand =
+      compose::box()
+          .column()
+          .alignItems(compose::Align::Start)
+          .child(compose::text(
+              u8"THE STROKE ATLAS",
+              sigil::weave::textStyle({.face = paper.type.mono,
+                                       .size = paper.type.title.size,
+                                       .color = paper.palette.ink,
+                                       .track = paper.type.title.track})));
+  EXPECT_TRUE(sameDrawing(std::move(byHand),
+                          kit::titleCard({.title = {u8"THE STROKE ATLAS"}})));
 }
 
 /** The rule is what grows, so the note stands at the far edge however
@@ -735,6 +806,36 @@ TEST(SketchKitLegend, AnEntryWithoutThemDrawsWhatItAlwaysDid) {
       kit::legend({.entries = {{warm, u8"lit"}}}),
       kit::legend({.entries = {{warm, u8"lit", {},
                                 Fill::color({1, 1, 1, 1})}}})));
+}
+
+/** A KEY'S MARK IS WHATEVER THE CALLER DREW: a quarried sample at its own
+ *  two dimensions with its own edge stands where the swatch would, and
+ *  none of the swatch's dressing is read for it. */
+TEST(SketchKitLegend, AnEntrysMarkIsWhateverTheCallerDrew) {
+  const kit::Theme& house = kit::houseTheme();
+  Element sample =
+      compose::box()
+          .width(compose::Dim(20))
+          .height(compose::Dim(13))
+          .fill(Fill::color({0.45f, 0.29f, 0.29f, 1}))
+          .foreground(compose::stroke(1.0f,
+                                      Fill::color({0.87f, 0.84f, 0.77f, 0.55f})));
+  Element byHand =
+      compose::box()
+          .column()
+          .gap(house.spacing.rowGap)
+          .alignItems(compose::Align::Start)
+          .child(compose::box()
+                     .row()
+                     .alignItems(compose::Align::Center)
+                     .gap(house.spacing.captionNoteGap)
+                     .child(sample)
+                     .child(compose::text(u8"porphyry",
+                                          house.style(house.type.captionNote,
+                                                      house.palette.ink))));
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::legend({.entries = {{.label = u8"porphyry", .mark = sample}}})));
 }
 
 /** A strip that names only its ends keeps the unnamed steps butted, so

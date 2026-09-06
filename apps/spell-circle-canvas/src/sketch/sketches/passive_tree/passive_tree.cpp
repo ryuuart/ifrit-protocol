@@ -788,9 +788,9 @@ struct PassiveTree final : sketch::Sketch {
       const sketch::kit::Provide look(mastheadTheme());
       root.child(
           sketch::kit::titleCard(
-              {.title = toU8("EMBERWOOD REACH"),
-               .subtitle = toU8("passive cluster \xe2\x80\x94 real orbit "
-                                "geometry, four frame states")})
+              {.title = {toU8("EMBERWOOD REACH")},
+               .subtitle = {toU8("passive cluster \xe2\x80\x94 real orbit "
+                                 "geometry, four frame states")}})
               .top(30)
               .left(38)
               .zIndex(8));

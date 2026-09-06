@@ -1,6 +1,8 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilsketch/kit/Heading.h>
 
+#include <cstddef>
+#include <string>
 #include <utility>
 
 namespace sigil::sketch::kit {
@@ -11,6 +13,22 @@ using compose::Dim;
 using compose::Element;
 using compose::Fill;
 using compose::text;
+
+namespace {
+
+/** One line of a card: its words in @p style, wearing whatever key and
+ *  beat the caller gave the line. */
+Element spoken(const Line& line, const weave::TextStyle& style,
+               const std::string& key) {
+  Element el = text(line.words, style);
+  if (!key.empty()) el.key(key);
+  if (line.opacity) el.opacity(*line.opacity);
+  if (line.lift) el.translateY(*line.lift);
+  if (line.fx) el.fx(*line.fx);
+  return el;
+}
+
+}  // namespace
 
 compose::Element titleCard(const TitleCard& card) {
   const Theme& look = theme();
@@ -24,23 +42,47 @@ compose::Element titleCard(const TitleCard& card) {
     column.child(std::move(line));
     ++placed;
   };
-  if (!card.eyebrow.empty())
-    place(text(card.eyebrow, look.style(look.type.eyebrow, look.palette.ash)),
-          0);
-  if (!card.title.empty())
-    place(text(card.title, look.style(look.type.title, look.palette.ink)),
-          look.spacing.subtitleGap);
-  if (!card.subtitle.empty())
-    place(
-        text(card.subtitle, look.style(look.type.subtitle, look.palette.ash)),
-        look.spacing.subtitleGap);
+  const auto named = [&](const char* which) {
+    return card.key.empty() ? std::string() : card.key + "-" + which;
+  };
+  const auto say = [&](const Line& line, const Register& reg, SkColor4f ink,
+                       const char* which, float before) {
+    if (line.words.empty()) return;
+    place(spoken(line, look.style(reg, line.ink.value_or(ink)), named(which)),
+          before);
+  };
+  say(card.eyebrow, look.type.eyebrow, look.palette.ash, "eyebrow", 0);
+  say(card.title, look.type.title, look.palette.ink, "title",
+      look.spacing.subtitleGap);
+  say(card.subtitle, look.type.subtitle, look.palette.ash, "subtitle",
+      look.spacing.subtitleGap);
   if (card.ruled)
     place(box()
               .height(Dim(1))
               .alignSelf(Align::Stretch)
               .fill(Fill::color(look.palette.rule)),
           look.spacing.contentGap * 0.5f);
-  return column;
+  if (card.notes.empty()) return column;
+
+  // With notes the card is a ROW: the lines take the width that is left
+  // and the notes range at the far edge, the two ranged against each
+  // other at their ENDS so the last note sits on the card's last line.
+  Element ranged =
+      box().column().gap(look.spacing.rowGap).alignItems(Align::End);
+  for (size_t i = 0; i < card.notes.size(); ++i) {
+    const Line& note = card.notes[i];
+    ranged.child(spoken(
+        note,
+        look.style(look.type.captionNote,
+                   note.ink.value_or(look.palette.ash)),
+        card.key.empty() ? std::string()
+                         : card.key + "-note" + std::to_string(i)));
+  }
+  return box()
+      .row()
+      .alignItems(Align::End)
+      .child(std::move(column.grow(1)))
+      .child(std::move(ranged));
 }
 
 compose::Element sectionHeader(const SectionHeader& header) {

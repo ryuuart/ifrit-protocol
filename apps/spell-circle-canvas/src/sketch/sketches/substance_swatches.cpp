@@ -209,8 +209,8 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
                  .ground = linearGradient({0, 0}, {0, ctx.size.height()},
                                           {hex(0x1a120b), hex(0x0f0d10)})}))
             .child(sketch::kit::titleCard(
-                       {.title = u8"A PROCEDURAL ARCHIVE, COOKED",
-                        .subtitle = toU8(caption)})
+                       {.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
+                        .subtitle = {toU8(caption)}})
                        .left(kMargin)
                        .top(34))
             .child(std::move(grid)));

@@ -10,6 +10,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmotion/values/Animated.h>
 #include <sigilsketch/kit/Ground.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -39,6 +40,21 @@ struct LegendEntry {
    *  ink wants. The note beside it stays in the quiet ash either way: a
    *  gloss is not part of the naming. */
   std::optional<SkColor4f> ink;
+  /** THE MARK ITSELF, where a patch of colour is not what the key shows —
+   *  a quarried sample at its own two dimensions, a live figure, a
+   *  sprite. It stands exactly where the swatch would and keeps whatever
+   *  size, corners and edge it was built with, so `swatch`, `keyline`,
+   *  `Legend::swatch`, `Legend::corners` and `Legend::strokeWidth` say
+   *  nothing about it. It is last because a key's mark is usually a
+   *  colour, and the fields before it are what says which. */
+  std::optional<compose::Element> mark;
+  /** THE BEAT THIS ENTRY RIDES IN ON, for a key that is DEALT rather than
+   *  printed: `opacity` fades the whole entry and `slide` moves it
+   *  across, px. What tells one entry from the next is the run's own
+   *  `staggerChildren`, chained onto what `legend` returns. Unset leaves
+   *  the entry at rest. */
+  std::optional<motion::Animatable<float>> opacity;
+  std::optional<motion::Animatable<float>> slide;
 };
 
 /** THE KEY TO A PICTURE. */

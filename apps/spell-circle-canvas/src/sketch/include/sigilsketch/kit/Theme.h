@@ -56,6 +56,13 @@ struct Register {
    *  the one a CALL is set in, which is monospaced on the house sheet and
    *  whatever a theme puts there on another. */
   bool mono = false;
+  /** THE LINE'S OWN FACE, for the line neither of the theme's two is set
+   *  in — a masthead whose title is a display cut standing over an
+   *  eyebrow in a grotesque and a subtitle in the text face. Null is
+   *  whichever of the two `mono` names, which is what a sheet set in two
+   *  faces asks for and is the common case. Resolved once and held, for
+   *  the reason `TypeScale`'s two are. */
+  sk_sp<SkTypeface> face;
   bool operator==(const Register&) const = default;
 };
 

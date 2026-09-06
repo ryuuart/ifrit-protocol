@@ -37,6 +37,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Panel.h>
 
@@ -44,6 +45,8 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
@@ -361,6 +364,15 @@ struct Cosmati final : sketch::Sketch {
     return q;
   }
 
+  /** THE APPARATUS' OWN LOOK, for the quarry key: one register and one
+   *  ink, which is the whole of what the key is set in. */
+  static sketch::kit::Theme quarryTheme() {
+    sketch::kit::Theme paper;
+    paper.palette.ink = cosmati::kInkDim;
+    paper.type.captionNote = {10.5f, 0.7f};
+    return paper;
+  }
+
   Element describe() {
     namespace cs = cosmati;
     namespace ch = choreograph;
@@ -532,32 +544,32 @@ struct Cosmati final : sketch::Sketch {
         {"glass \xc2\xb7 turquoise", cs::kGlassTurq, cs::kSerpentineLo},
         {"glass \xc2\xb7 cobalt", cs::kGlassCobalt, cs::kPurbeckLo},
     };
-    Element legend = box()
-                         .key("quarries")
-                         .column()
-                         .gap(6)
-                         .left(px)
-                         .bottom(46)
-                         .staggerChildren(60ms);
+    // EACH ENTRY'S MARK IS A REAL SAMPLE OF THE STONE, cut to the
+    // proportion a tessera is, so the key is quarried from the same
+    // recipes the floor is.
+    std::vector<sketch::kit::LegendEntry> quarries;
     for (const Quarry& q : kQuarries)
-      legend.child(
-          box()
-              .row()
-              .alignItems(Align::Center)
-              .gap(9)
-              .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
-              .translateX(animate(motion::from(-14.0f).to(0.0f), {400ms}))
-              .child(box()
-                         .width(Dim(20.0f))
-                         .height(Dim(13.0f))
-                         .fill(cs::stone(q.hi, q.lo, 34))
-                         .foreground(stroke(
-                             1.0f, Fill::color({cs::kMarble.fR, cs::kMarble.fG,
-                                                cs::kMarble.fB, 0.55f}))))
-              .child(text(
-                  toU8(q.label),
-                  weave::textStyle({.size = 10.5f, .color = cs::kInkDim, .track = 0.7f}))));
-    root.child(std::move(legend));
+      quarries.push_back(
+          {.label = toU8(q.label),
+           .mark = box()
+                       .width(Dim(20.0f))
+                       .height(Dim(13.0f))
+                       .fill(cs::stone(q.hi, q.lo, 34))
+                       .foreground(stroke(
+                           1.0f, Fill::color({cs::kMarble.fR, cs::kMarble.fG,
+                                              cs::kMarble.fB, 0.55f}))),
+           .opacity = animate(motion::from(0.0f).to(1.0f), {320ms}),
+           .slide = animate(motion::from(-14.0f).to(0.0f), {400ms})});
+    {
+      const sketch::kit::Provide look(quarryTheme());
+      root.child(sketch::kit::legend({.entries = std::move(quarries),
+                                      .gap = 6,
+                                      .labelGap = 9})
+                     .key("quarries")
+                     .left(px)
+                     .bottom(46)
+                     .staggerChildren(60ms));
+    }
     return root;
   }
 

@@ -150,6 +150,7 @@
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
+#include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/paragraph/Unit.h>
@@ -160,6 +161,8 @@
 
 #include <cmath>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace sketch = sigil::sketch;
 
@@ -815,30 +818,22 @@ struct ShippingForecast : sketch::Sketch {
 
   // ------------------------------------------------------------------
 
-  [[nodiscard]] Element header() {
-    Element left =
-        box()
-            .column()
-            .grow(1)
-            .gap(8)
-            .child(text(toU8("MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
-                             "COASTGUARD AGENCY"),
-                        label(11.0f, kSlateDim, 3.2f))
-                       .key("eyebrow")
-                       .opacity(beat(0.05f, 0.55f)))
-            .child(text(toU8("THE SHIPPING FORECAST"),
-                        weave::textStyle({.face = faceDisplay,
-                                          .size = 34.0f,
-                                          .color = kBone,
-                                          .track = 1.0f}))
-                       .key("title")
-                       .fx({.effect = fx::rise(16.0f),
-                            .stagger = {.eachMs = 0,
-                                        .amountMs = 420,
-                                        .durationMs = 520},
-                            .progress = beat(0.15f, 1.30f)}));
+  /** THE MASTHEAD'S OWN LOOK: the three registers its lines are set in,
+   *  each naming its own face, and the two inks. Everything else on the
+   *  sheet is set in the study's own registers. */
+  [[nodiscard]] sketch::kit::Theme mastheadTheme() const {
+    sketch::kit::Theme paper;
+    paper.palette.ink = kBone;
+    paper.palette.ash = kSlateDim;
+    paper.type.eyebrow = {11.0f, 3.2f, false, faceBold};
+    paper.type.title = {34.0f, 1.0f, false, faceDisplay};
+    paper.type.captionNote = {11.5f, 0.5f, false, faceBody};
+    paper.spacing.subtitleGap = 8;
+    paper.spacing.rowGap = 5;
+    return paper;
+  }
 
-    Element right = box().column().gap(5).alignItems(Align::End);
+  [[nodiscard]] Element header() {
     static constexpr const char* kSlug[] = {
         "ISSUED 0015 UTC \xc2\xb7 VALID TO 0600 UTC TOMORROW",
         // The literals break after an en dash on purpose: \x93 followed by
@@ -848,17 +843,26 @@ struct ShippingForecast : sketch::Sketch {
         "GOOD > 5 NM \xc2\xb7 MODERATE 2\xe2\x80\x93"
         "5 NM \xc2\xb7 POOR 1000 M \xe2\x80\x93 2 NM",
     };
+    std::vector<sketch::kit::Line> slugs;
     for (int i = 0; i < 3; ++i)
-      right.child(text(toU8(kSlug[i]), body(11.5f, kSlateDim, 0.5f))
-                      .key("slug" + std::to_string(i))
-                      .opacity(beat(0.55f + (float)i * 0.16f,
-                                    1.15f + (float)i * 0.16f)));
+      slugs.push_back({.words = toU8(kSlug[i]),
+                       .opacity = beat(0.55f + (float)i * 0.16f,
+                                       1.15f + (float)i * 0.16f)});
 
-    return box()
-        .row()
-        .alignItems(Align::End)
-        .child(std::move(left))
-        .child(std::move(right));
+    const sketch::kit::Provide look(mastheadTheme());
+    return sketch::kit::titleCard(
+        {.eyebrow = {.words = toU8("MET OFFICE \xc2\xb7 FOR THE MARITIME AND "
+                                   "COASTGUARD AGENCY"),
+                     .opacity = beat(0.05f, 0.55f)},
+         .title = {.words = toU8("THE SHIPPING FORECAST"),
+                   .fx = Track{.effect = fx::rise(16.0f),
+                               .stagger = {.eachMs = 0,
+                                           .amountMs = 420,
+                                           .durationMs = 520},
+                               .progress = beat(0.15f, 1.30f)}},
+         .notes = std::move(slugs),
+         .align = Align::Stretch,
+         .key = "head"});
   }
 
   [[nodiscard]] Element describe() {

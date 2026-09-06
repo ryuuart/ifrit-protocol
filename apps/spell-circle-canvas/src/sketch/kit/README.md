@@ -61,6 +61,12 @@ C++ answer to inheriting down it. `sketch::kit::theme()` is the read;
 with nothing bound it answers `houseTheme()`, which is what makes a
 component correct on its own.
 
+A `Register` says how one line is set: its size, its tracking, which of
+the theme's two faces it takes — and, for the line neither of those is,
+`Register::face`, the face that line names for itself. A masthead whose
+title is a display cut standing over an eyebrow in a grotesque and a
+subtitle in the text face is three faces, and a theme carries two.
+
 **It costs the prune nothing.** The theme is read during describe and
 lands in the reading node's own description, so the reconciler's
 structural comparison is already an exact dependency tracker: a node
@@ -154,13 +160,37 @@ than across, which one distance cannot say.
 
 | | |
 | --- | --- |
-| `titleCard(TitleCard)` | an eyebrow over a title over a subtitle, optionally ruled — the header half of a page, standing on its own |
+| `titleCard(TitleCard)` | an eyebrow over a title over a subtitle, optionally ruled, with the notes ranged at its far edge — the header half of a page, standing on its own |
 | `sectionHeader(SectionHeader)` | a name at the left, a remark at the right, and the rule that fills what the two leave between them |
 
 ```cpp
-sketch::kit::titleCard({.eyebrow = toU8("SIGIL · COMPOSE"),
-                        .title = toU8("THE STROKE ATLAS"),
-                        .subtitle = toU8("every rail, at one width")});
+sketch::kit::titleCard({.eyebrow = {toU8("SIGIL · COMPOSE")},
+                        .title = {toU8("THE STROKE ATLAS")},
+                        .subtitle = {toU8("every rail, at one width")}});
+```
+
+**EACH LINE IS A `Line`, NOT A STRING**, because a masthead is performed
+rather than set: its three lines each enter on their own beat, and one
+returned Element has no handle on the lines inside it. A `Line` carries
+the words, the ink it is set in where the register's own is not it, and
+the beat — an `opacity`, a `lift`, or a whole `compose::Track` over its
+glyphs. A line written as words alone rests, which is what a set card is.
+`TitleCard::notes` is the stack ranged at the far edge — the issue time,
+the bounds a word in a bulletin stands for, the sources a study was read
+off — which turns the card into a row with the lines taking the rest of
+the width and the two ranged against each other at their ENDS, so the
+last note sits on the card's last line. `TitleCard::key` names the parts
+(`<key>-eyebrow`, `-title`, `-subtitle`, `-note0`…) the way `Page::key`
+and `Row::key` do.
+
+```cpp
+sketch::kit::titleCard(
+    {.eyebrow = {.words = toU8("MET OFFICE"), .opacity = beat(0.05f, 0.55f)},
+     .title = {.words = toU8("THE SHIPPING FORECAST"),
+               .fx = Track{.effect = fx::rise(16.0f), .progress = …}},
+     .notes = std::move(slugs),
+     .align = Align::Stretch,
+     .key = "head"});
 ```
 
 ### A name and the figure that answers it — `Rows.h`
@@ -214,6 +244,15 @@ a dim body inside a bright edge, and its word is set in the colour it
 names — which is how the reader tells the key from a caption. The
 entry's `note` stays in the quiet ash either way, because a gloss is
 not part of the naming.
+
+`LegendEntry::mark` is the other half: where a patch of colour is not
+what the key shows — a quarried sample at its own two dimensions, a live
+figure, a sprite — the caller hands over the drawing itself, and it
+stands exactly where the swatch would while keeping whatever size,
+corners and edge it was built with. An entry that is DEALT rather than
+printed carries its own `opacity` and `slide`; what tells one entry from
+the next is the run's own `staggerChildren`, chained onto what `legend`
+returns.
 
 ### A fraction drawn — `Meter.h`
 
