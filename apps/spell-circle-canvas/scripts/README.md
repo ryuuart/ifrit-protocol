@@ -93,6 +93,18 @@ worst channel over one is a picture that MOVED, which is a defect to
 file against the promoter — the tier keeps no baseline and refuses
 `--rebase`, because there is nothing here to adopt.
 
+THE PLATES ARE KEPT, beside the manifest, under
+`build/plates_<config>/` — one directory per tier, one PNG per scene,
+overwritten rather than accumulated, and never committed because
+`build/` is ignored. `baseline/` holds what the manifest was baked from
+and is overwritten on rebase; `cpu/` holds what the last judging sweep
+rendered; the two comparing tiers keep both halves (`device/cpu`,
+`device/gpu`, `promotion/off`, `promotion/on`). A hash says a scene
+MOVED and nothing about where, so each mover's verdict line names its
+two files and the summary prints the `Sketchbook --compare
+build/plates_<config>/baseline build/plates_<config>/cpu` that
+differences them channel by channel.
+
 The manifest is machine-local by design (plates are deterministic per
 machine, not across machines), so a fresh checkout runs
 `plate_ledger.py --rebase` once before a sweep can judge anything. The

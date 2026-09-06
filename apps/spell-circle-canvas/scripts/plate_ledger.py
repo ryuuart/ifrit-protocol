@@ -105,7 +105,21 @@ THREE TIERS (--tier):
 
 The manifest lives in build/ (machine-local on purpose: plates are
 AA-deterministic per machine, not across machines), so a fresh checkout
-runs `--rebase` once before a sweep can judge anything. Every render a
+runs `--rebase` once before a sweep can judge anything.
+
+THE PLATES THEMSELVES ARE KEPT, beside the manifest, under
+build/plates_<config>/ — one directory per tier, one PNG per scene,
+overwritten rather than accumulated, and never committed because build/
+is ignored. `baseline/` holds what the manifest was baked from and is
+overwritten on rebase; `cpu/` holds what the last judging sweep
+rendered; the two comparing tiers keep both of their halves
+(`device/cpu`, `device/gpu`, `promotion/off`, `promotion/on`). A hash
+says a scene MOVED and stops there, so the two plates behind the two
+hashes have to survive the run for anyone to see WHERE it moved:
+`Sketchbook --compare build/plates_<config>/baseline
+build/plates_<config>/cpu` differences them channel by channel, and the
+verdict prints that line under the movers together with each mover's two
+files. Every render a
 hash judges carries --no-promotion: automatic texture promotion re-bakes
 by a measured per-frame cost, which load can tip either way, so it is
 the one renderer feature a byte-identity gate must hold off — with it
@@ -158,7 +172,6 @@ the pinned number. A sketch that reads a clock and does not go through
 """
 
 import argparse
-import atexit
 import concurrent.futures
 import fcntl
 import hashlib
@@ -166,7 +179,6 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 
 # One binary renders both tiers, and one prefix names every plate.
@@ -375,7 +387,7 @@ def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
             time.monotonic() - started,
         )
     elapsed = time.monotonic() - started
-    plate = os.path.join(outdir, f"{PLATE_PREFIX}{scene}.png")
+    plate = plate_path(outdir, scene)
     if r.returncode != 0 or not os.path.exists(plate):
         return scene, None, (r.stderr or r.stdout).strip()[-300:], elapsed
     return scene, sha256(plate), None, elapsed
@@ -413,17 +425,41 @@ def compared(binary, first, second):
     return distances, unusable
 
 
-def discard_later(directory):
-    """A sweep's plates, marked for removal when the process ends.
+def plate_dir(root, config, *parts, fresh=True):
+    """A KEPT plate directory under build/, beside the manifest.
 
-    Every tier writes about one full-frame plate per scene, and no path to
-    them is ever printed: what a sweep reports is digests and distances,
-    never a file. Left behind they accumulate a sweep's worth of frames per
-    run in the system temporary directory, so removal is registered where
-    the directory is made and holds on every exit path.
-    """
-    atexit.register(shutil.rmtree, directory, True)
+    A verdict of MOVED is a hash disagreeing with a hash, which says
+    nothing about WHERE the picture moved. The two plates behind the two
+    hashes answer that, so they are written where they can still be
+    opened and differenced after the run rather than into a directory
+    removed at exit. build/ is ignored, so nothing here is ever committed.
+
+    @p fresh empties the directory first, which is what a run's own output
+    wants: a sweep narrowed to two scenes must not leave the other
+    hundred's plates standing beside them, or `--compare` would report
+    scenes this run never rendered. The baseline directory is the one that
+    is NOT fresh — it is overwritten scene by scene as a rebase adopts
+    them, and pruned to the manifest afterwards."""
+    directory = os.path.join(root, "build", f"plates_{config}", *parts)
+    if fresh:
+        shutil.rmtree(directory, ignore_errors=True)
+    os.makedirs(directory, exist_ok=True)
     return directory
+
+
+def plate_path(directory, scene):
+    """Where one scene's plate lands. One spelling, because the sweep
+    writes it, the hash reads it and the verdict prints it."""
+    return os.path.join(directory, f"{PLATE_PREFIX}{scene}.png")
+
+
+def prune_plates(directory, scenes):
+    """Drop the plates of scenes the manifest no longer carries, so the
+    kept baseline and the manifest beside it name the same set."""
+    for name in os.listdir(directory):
+        scene = name.removeprefix(PLATE_PREFIX).removesuffix(".png")
+        if name.startswith(PLATE_PREFIX) and scene not in scenes:
+            os.remove(os.path.join(directory, name))
 
 
 def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
@@ -455,12 +491,11 @@ def sweep(binary, scenes, outdir, timeout, jobs, extra_args, standing):
     return results, errors
 
 
-def device_sweep(binary, scenes, timeout, jobs):
+def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
     """The device tier: every sketch rendered BOTH ways and the two plates
     compared. It has no baseline — the CPU plate of the same sketch IS
-    the reference, and both are made in this run."""
-    host_dir = discard_later(tempfile.mkdtemp(prefix="plate_cpu_"))
-    device_dir = discard_later(tempfile.mkdtemp(prefix="plate_gpu_"))
+    the reference, and both are made in this run, and both are kept so a
+    scene reported OVER can be looked at rather than only measured."""
 
     # One sketch first, to tell "no device on this machine" from a defect.
     probe = subprocess.run(
@@ -516,12 +551,13 @@ def device_sweep(binary, scenes, timeout, jobs):
         )
         if over:
             verdict = 1
+    print(f"\nplates kept: {host_dir}\n             {device_dir}")
     if verdict == 0 and not errors:
         print("VERDICT: the device tier stands within tolerance of the CPU tier")
     return verdict or (1 if errors else 0)
 
 
-def promotion_sweep(binary, scenes, timeout, jobs):
+def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     """The promotion tier: every sketch rendered with the promoter held off
     and again with it on, and the two plates differenced.
 
@@ -544,9 +580,9 @@ def promotion_sweep(binary, scenes, timeout, jobs):
     A worst channel over 1 is a picture that MOVED: the bake landed
     somewhere else, or was rasterised against a different clip, or went
     stale. That is a defect to file against the promoter, never a plate to
-    rebase — there is no baseline here to rebase into."""
-    off_dir = discard_later(tempfile.mkdtemp(prefix="plate_nopromo_"))
-    on_dir = discard_later(tempfile.mkdtemp(prefix="plate_promo_"))
+    rebase — there is no baseline here to rebase into. Both halves are
+    kept, so a scene reported MOVED can be opened beside the plate it was
+    meant to match."""
 
     print("[promotion off]")
     _, off_errors = sweep(
@@ -599,6 +635,7 @@ def promotion_sweep(binary, scenes, timeout, jobs):
         )
         verdict = 1
     print(f"\n{within} of {len(scenes)} within one code value, {errors} failed")
+    print(f"plates kept: {off_dir}\n             {on_dir}")
     if verdict == 0 and not errors:
         print("VERDICT: the promoter moves no picture by more than one code value")
     return verdict or (1 if errors else 0)
@@ -700,7 +737,14 @@ def main():
             f"tier device: each rendered on the CPU and on the device and "
             f"compared per colour channel"
         )
-        return device_sweep(binary, list(scenes), args.timeout_seconds, args.jobs)
+        return device_sweep(
+            binary,
+            list(scenes),
+            args.timeout_seconds,
+            args.jobs,
+            plate_dir(root, args.config, "device", "cpu"),
+            plate_dir(root, args.config, "device", "gpu"),
+        )
 
     if args.tier == "promotion":
         if args.rebase:
@@ -715,19 +759,32 @@ def main():
             f"tier promotion: each rendered with automatic texture promotion "
             f"held off and again with every promotable node eagerly baked"
         )
-        return promotion_sweep(binary, list(scenes), args.timeout_seconds, args.jobs)
+        return promotion_sweep(
+            binary,
+            list(scenes),
+            args.timeout_seconds,
+            args.jobs,
+            plate_dir(root, args.config, "promotion", "off"),
+            plate_dir(root, args.config, "promotion", "on"),
+        )
 
     print(f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, tier cpu")
 
     # Read BEFORE the sweep so a scene can be judged the moment it lands.
     baseline = read_manifest(manifest)
+    adopting = args.rebase or not os.path.exists(manifest)
 
     def standing(scene, digest):
         if args.rebase or scene not in baseline:
             return "rendered"
         return "identical" if baseline[scene] == digest else "hash miss"
 
-    outdir = discard_later(tempfile.mkdtemp(prefix="plate_ledger_"))
+    # An adopting sweep IS the baseline, so it renders straight into the
+    # kept baseline directory and the manifest is written from the same
+    # plates. A judging sweep renders beside it, which leaves the two
+    # directories `--compare` differences standing when it is over.
+    kept_baseline = plate_dir(root, args.config, "baseline", fresh=False)
+    outdir = kept_baseline if adopting else plate_dir(root, args.config, "cpu")
     results, errors = sweep(
         binary,
         list(scenes),
@@ -738,7 +795,7 @@ def main():
         standing,
     )
 
-    if args.rebase or not os.path.exists(manifest):
+    if adopting:
         if not args.rebase:
             print(
                 f"no manifest at {manifest} — writing one (this sweep "
@@ -751,10 +808,12 @@ def main():
         # baselines either.
         keep = True if narrowed else (set(skipped) if skipped else None)
         merged = write_manifest(manifest, keep, results)
+        prune_plates(kept_baseline, merged)
         print(
             f"baseline written: {manifest} ({len(merged)} scenes, "
             f"{len(results)} from this sweep)"
         )
+        print(f"baseline plates: {kept_baseline}")
         verdict = 0
     else:
         movers, missing = [], []
@@ -777,7 +836,7 @@ def main():
                     _, digest, _, _ = render_scene(
                         binary,
                         scene,
-                        discard_later(tempfile.mkdtemp(prefix="plate_stab_")),
+                        plate_dir(root, args.config, "stability", fresh=False),
                         args.timeout_seconds,
                     )
                     if digest:
@@ -791,11 +850,19 @@ def main():
                     continue
             print(
                 f"  MOVED  {scene}  {baseline[scene][:12]} -> "
-                f"{results[scene][:12]}   <-- FINDING"
+                f"{results[scene][:12]}   <-- FINDING\n"
+                f"           was {plate_path(kept_baseline, scene)}\n"
+                f"           now {plate_path(outdir, scene)}"
             )
             verdict = 1
         for scene in missing:
             print(f"  NEW    {scene} (not in baseline — rebase to adopt)")
+        # A hash says a scene moved and nothing about where. The two
+        # directories behind the two hashes are both still on disk, so the
+        # next question has a command rather than a re-render.
+        print(f"\nplates kept: {outdir}")
+        if verdict:
+            print(f"  {binary} --compare {kept_baseline} {outdir}")
         if verdict == 0 and not errors:
             print("VERDICT: byte-neutral")
 
