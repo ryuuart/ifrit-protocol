@@ -24,8 +24,8 @@ a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilUsdRuntime` | `runtime/Runtime.h` | `usd::available()` — whether the USD file-format plugins are present in this process |
-| `SigilUsdWrite`   | `write/Writer.h`    | `WriteOptions` and `Writer` — a stage built from values and saved |
-| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model`; `readLights()`, `readEnvironments()` and `readCameras()` — its emitters, environment maps and cameras as values |
+| `SigilUsdWrite`   | `write/Writer.h`    | `WriteOptions` and `Writer` — a stage built from values and saved: `mesh()`, `stamps()`, `light()`, `environmentMap()` (a panorama written beside the stage as a `UsdLuxDomeLight`), `camera()`, `save()` |
+| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model`; `readLights()`, `readEnvironments()` and `readCameras()` — its emitters, environment maps and cameras as values, as `ReadLight`, `ReadEnvironment` (the dials, the orientation, and the panorama's path — this library decodes no image) and `ReadCamera` |
 
 `SigilUsd` is the umbrella target over all three, and
 `<sigilusd/Usd.h>` the umbrella header. Write and read are independent

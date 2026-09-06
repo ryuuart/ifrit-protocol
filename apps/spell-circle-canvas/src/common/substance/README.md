@@ -19,7 +19,7 @@ over two subjects; every public header lives under
 | subject | headers | holds |
 |---------|---------|-------|
 | `graph`   | `graph/Parameter.h`, `graph/Output.h`, `graph/Graph.h` | `Parameter` and `Output`, the described inputs and outputs; `Graph`, one graph described, changed, cooked and read |
-| `package` | `package/Package.h` | `Package`, the loaded archive that owns its graphs and the engine renderer they share |
+| `package` | `package/Package.h` | `Package`, the loaded archive that owns its graphs and the engine renderer they share, and `Package::engineVersion()`, the engine's own version string for a diagnostic |
 
 `<sigilsubstance/Substance.h>` is the umbrella header over both. The two
 subjects are one target because neither exists without the other: a
@@ -98,8 +98,10 @@ the package's instance list and renderer; move the package, not the
 graph.
 
 **`render()` is synchronous and per graph.** It pushes that one graph
-and runs the engine to completion. Rendering the same graph twice
-recomputes only what its changed parameters dirtied.
+and runs the engine to completion, and answers what the engine says
+rather than counting pictures: rendering the same graph twice recomputes
+only what its changed parameters dirtied, and a cook that had nothing to
+compute is true with the outputs it already stands with.
 
 **The engine is the CPU one.** The build links the `neon_blend` (Apple
 Silicon) or `sse2_blend` engine — results in system memory, headless, no

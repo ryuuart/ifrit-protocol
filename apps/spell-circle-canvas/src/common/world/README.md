@@ -293,14 +293,47 @@ where a device is present states them where they cannot be tested.
 | nothing narrowed | `Selection::None` — every body | there is no selection |
 | a geometry pass with `only` | `Cull` — only the selected bodies are drawn | a pass that paints bodies can simply paint fewer |
 | a post pass with `only` | `Mask` — the picture stands everywhere and the op reaches it through coverage, which the graph makes the last geometry pass before it also write | a post pass has no bodies; it has pixels, and the selection has to arrive as pixels too |
+
 | `variant(surface)` | `Variant` — the selection is drawn again in that surface | it is a re-draw by definition |
 | `realise(…)` | exactly that | a pass that knows better says so |
+
+A coverage answers for ONE selector, so a producer paints one per
+selection asked of it: two masked passes behind one geometry pass each
+read their own, and two asking the same question share the one already
+there. `PassWork::coverageOut` is therefore a list of `Coverage`, each a
+resource name and the selector it holds, and `PassWork::coverageIn` is
+the one resource a masked pass reads.
 
 A narrowed post pass with nothing painting bodies ahead of it is an error
 naming the pass, because the coverage it needs cannot be taken.
 
 `Scene::plan()` is the whole reading — the steps, the barriers, the
 resources and their surfaces — and `Scene::error()` is what stopped it.
+
+### For an executor author
+
+An executor sees a frame through `View` and `Targets` and nothing else,
+and these are the names it reads them with:
+
+- `subjectOf(draw)` is a body as a `Selector` asks about it, which is
+  how a pass realises a `Cull` or paints a coverage;
+- `samplingOf(texture)` answers a `Sampling` — the image, where it is
+  read at over the mesh's own uvs, whether it repeats and how it is
+  filtered — and `surfaceTermsOf(material)` answers a `SurfaceTerms`,
+  the metallic, roughness and glass terms behind a body's colour;
+- `paintedEnvironment(environment, orientation)` is the set's panorama
+  as a mesh painter takes it, and `painterLight(light)` one emitter the
+  same way; `dress(style, body)` puts a body's map and its lighting on
+  a style a whole list is drawn with;
+- `Scene::stats()` answers a `SceneStats`: what the last frame
+  described, cooked, drew and let go;
+- `lanesOf(node, out)` reads a node's fixed lanes in `Slot` order and
+  `standingValue(slot)` is what a lane holds when nothing animates it;
+  `localMatrix(values)` is a placement's own matrix;
+- `GeneratorOps` is the seam a geometry that cooks itself implements,
+  and `PassBodyOps` the seam a pass that does its own work implements —
+  both carried as comparable values, so a frame holding one prunes on
+  it like any other field.
 
 ## What an executor performs
 
@@ -399,7 +432,10 @@ not moved between two frames is neither instanced again nor re-uploaded.
 `world::stampKey()` is the number the two values fold to, read from
 their CONTENT because that is what "the same stamping" means — an
 address cannot say it and a shape cannot — and the device tier keys its
-upload by that same number. `Targets::stampings()` counts what has
+upload by that same number. The fold BUCKETS the lookup and the pair
+itself decides it: an entry holds the cloud and the stamp it was formed
+from, so two pairs that happen to fold together are two stampings under
+two numbers and neither is ever served the other's mesh. `Targets::stampings()` counts what has
 actually been formed, which is what the test asserts does not move
 across three frames of a still set. A stamping no pass asked for in a
 frame is let go at the end of it.
@@ -1186,7 +1222,9 @@ is the declaration** — a narrowed geometry pass culled, a pass that
 narrows nothing addressing every body, a narrowed post pass masked, a
 narrowed pass carrying a surface redrawn in it, and a pass that says how
 it wants to be realised overriding the rule. The coverage a masked pass
-reads and the pass ahead of it writes is its own case beside them.
+reads and the pass ahead of it writes is its own case beside them, with
+two more for two masked passes behind one producer: different selections
+are two coverages and the same selection is one.
 
 The device suites cover the device side. Every case reads this
 feature through its public headers alone — the source directory is not on
