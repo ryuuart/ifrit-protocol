@@ -349,3 +349,26 @@ TEST(InitialLetter, AColumnsInitialStandsUprightAtTheHeadOfItsColumn) {
   // The notch a column loses is that same pen travel, plus the standoff.
   EXPECT_NEAR(layout.initial.notch, cap->shaped->advance + 4.0f, 0.5f);
 }
+
+TEST(InitialLetter, TheLineTheCapStandsOnKeepsItsOwnBand) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(passage(), 14.0f);
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 3};
+  options.blocks = {style};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.initial.placed);
+  const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
+  ASSERT_GE(lines.size(), 3u);
+  // A band a selection is drawn from is the LINE's, not the cap's: three
+  // lines of cap would otherwise make the line it sits on three times as
+  // tall as its neighbours.
+  EXPECT_NEAR(lines[0].ascent, lines[1].ascent, 0.5f);
+  EXPECT_LT(lines[0].ascent, layout.initial.fontSize * 0.5f);
+  // The cap's own reach is reported where a caller looks for it.
+  EXPECT_GT(layout.initial.box.height(), layout.linePitch * 2.0f);
+}

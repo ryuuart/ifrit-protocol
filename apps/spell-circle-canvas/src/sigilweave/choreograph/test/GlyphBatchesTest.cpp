@@ -457,3 +457,44 @@ TEST(GlyphBatches, SubpixelDecidesWhetherAFractionOfAPixelMovesAnything) {
   EXPECT_NE(renderHash(true, 100.05f), renderHash(true, 100.45f))
       << "the subpixel grid ignored a fraction of a pixel";
 }
+
+TEST(GlyphBatches, ATurnedRunDrawsIntoASurfaceTheSizeOfItsOwnBounds) {
+  // A batch of turned glyphs handed to a canvas the size of the ink itself
+  // is where a run placed by RSXform alone is rejected against bounds that
+  // describe somewhere else entirely — the batch draws nothing and the
+  // surface stays empty. Everything the batches draw goes through a blob,
+  // so the ink is here.
+  BlockFlow flow(SkRect::MakeWH(400, 200));
+  auto [paragraph, layout] = laidOut(u8"TURNING", 48.0f, flow);
+  const std::vector<LineMetrics> lines = layout.lineMetrics(paragraph);
+  ASSERT_EQ(lines.size(), 1u);
+
+  constexpr float kTurn = 0.9f;  // radians, so no glyph stands upright
+  GlyphRSXformBatches batches;
+  forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& glyph) {
+    batches.addGlyph(glyph, glyph.rest + SkVector{glyph.advance * 0.5f, 0},
+                     std::cos(kTurn), std::sin(kTurn));
+  });
+  ASSERT_FALSE(batches.batches.empty());
+
+  // A surface no larger than the text's own band, with the text moved onto
+  // it: the tight bounds are the whole point of the case.
+  const int width = (int)std::ceil(lines[0].right - lines[0].left) + 8;
+  const int height = (int)std::ceil(lines[0].ascent + lines[0].descent) * 2 + 8;
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+  ASSERT_TRUE(surface);
+  SkCanvas* canvas = surface->getCanvas();
+  canvas->clear(SK_ColorWHITE);
+  canvas->translate(-lines[0].left + 4.0f,
+                    -lines[0].baseline + (float)height * 0.5f);
+  EXPECT_GT(batches.draw(canvas), 0);
+
+  SkPixmap pixmap;
+  ASSERT_TRUE(surface->peekPixels(&pixmap));
+  int inked = 0;
+  for (int y = 0; y < pixmap.height(); ++y)
+    for (int x = 0; x < pixmap.width(); ++x)
+      if (SkColorGetR(pixmap.getColor(x, y)) < 128) ++inked;
+  EXPECT_GT(inked, 0) << "a turned batch reached the canvas";
+}

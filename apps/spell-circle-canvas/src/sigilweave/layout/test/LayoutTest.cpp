@@ -305,3 +305,43 @@ TEST(LineMetricsQuery, MixedFontsGrowTheLineBand) {
   EXPECT_GT(lines[0].ascent, smallLines[0].ascent)
       << "the 40px span must raise the mixed line's ascent";
 }
+
+TEST(ParagraphLayout, EveryRunBorrowsFromTheParagraphOrFromTheLayoutItself) {
+  // A run points at a ShapedWord it does not own. The words a pass shapes
+  // for itself — a tab leader, an overflow marker, an initial and the
+  // remainder of the word it split — are held in `shapedByTheLayout`, and
+  // that list is the only thing keeping those pointers alive: a run
+  // pointing at neither would be reading a freed word.
+  FontContext& fontContext = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(
+      u8"Whale\troads open under a sky the colour of pewter and the boats "
+      "go out before the light does, one after another, until the harbour "
+      "is empty and the gulls have the quay to themselves once more.",
+      16.0f);
+  BlockFlow flow(SkRect::MakeWH(320, 90));
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 2, .margin = 4.0f};
+  options.blocks = {style};
+  options.tabStops.stops = {TabStop{.position = 120.0f, .leader = u"."}};
+  options.overflow.ellipsis = u"…";
+
+  ParagraphLayout layout =
+      layoutParagraph(fontContext, paragraph, flow, options);
+  ASSERT_TRUE(layout.initial.placed);
+  ASSERT_FALSE(layout.shapedByTheLayout.empty());
+
+  // Moved, because a layout is handed on by value and the runs must keep
+  // pointing at what the moved-to layout holds.
+  const ParagraphLayout moved = std::move(layout);
+  for (const PositionedRun& run : moved.runs) {
+    if (!run.shaped) continue;
+    bool held = false;
+    for (const ShapedWordRef& kept : moved.shapedByTheLayout)
+      if (kept.get() == run.shaped) held = true;
+    for (const Word& word : paragraph.words())
+      for (const WordSegment& segment : word.segments())
+        if (segment.shaped.get() == run.shaped) held = true;
+    EXPECT_TRUE(held) << "a run points at a word nobody holds";
+  }
+}

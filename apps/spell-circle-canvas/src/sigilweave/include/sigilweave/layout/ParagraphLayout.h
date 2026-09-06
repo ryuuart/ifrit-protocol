@@ -147,9 +147,11 @@ struct ParagraphLayout {
    * Derived, not stored: nothing is recorded during layout and calling this
    * costs one pass over `runs` (metrics resolved per font change). Mixed
    * fonts on a line report the tallest ascent/deepest descent, matching how
-   * a line box grows. Straight horizontal lines only: transformed (path /
-   * rotated) and vertical runs are skipped, and lines whose geometry placed
-   * nothing do not appear.
+   * a line box grows — except the initial letter, which is one run several
+   * lines tall and reports its own extent as `PlacedInitial::box`, so the
+   * line it stands on keeps its own band. Straight horizontal lines only:
+   * transformed (path / rotated) and vertical runs are skipped, and lines
+   * whose geometry placed nothing do not appear.
    */
   [[nodiscard]] std::vector<LineMetrics> lineMetrics(
       const Paragraph& paragraph) const;

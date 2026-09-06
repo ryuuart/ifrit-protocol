@@ -27,8 +27,19 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
   float lastFontSize = 0;
   SkFontMetrics fontMetrics{};
 
+  // The initial letter is a run several lines tall standing on one line,
+  // so a band built from it would report that whole height as the first
+  // line's. The line it stands on keeps its own band; where the initial
+  // reaches is `PlacedInitial::box`.
+  const auto isTheInitial = [&](const PositionedRun& run) {
+    return initial.placed && run.shaped &&
+           run.shaped->fontSize == initial.fontSize &&
+           run.origin == initial.baseline;
+  };
+
   for (const PositionedRun& run : runs) {
     if (run.transformed || (run.shaped && run.shaped->vertical)) continue;
+    if (isTheInitial(run)) continue;
 
     float runAscent = 0;
     float runDescent = 0;

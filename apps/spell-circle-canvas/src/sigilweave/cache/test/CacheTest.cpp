@@ -2,8 +2,9 @@
  * The single-line paragraph cache: what its key discriminates, how nearby
  * sizes fall into one entry, and the two promises the node-based storage
  * behind its pimpl exists to make — a returned reference stays valid while
- * other entries are inserted, and stops being valid when the cache empties
- * itself to stay inside its bound.
+ * other entries are inserted, and stops being valid when a full cache
+ * drops it to make room, which happens to the least recently used entry
+ * and to no other.
  */
 
 #include <gtest/gtest.h>
@@ -111,21 +112,28 @@ TEST(SingleLineParagraphCache, TheKeyDiscriminatesTextAndTypeface) {
             &faced);
 }
 
-TEST(SingleLineParagraphCache, AFullCacheRetiresWhatItHeldBeforeInsertingMore) {
-  // The bound is kept by emptying, which the header states outright: the
-  // references handed out before it are gone, and the next lookup of an
-  // earlier text builds a new entry rather than returning the old one.
+TEST(SingleLineParagraphCache, AFullCacheDropsTheEntryNothingHasAskedFor) {
+  // The bound is kept one entry at a time, and the one that goes is the
+  // least recently used: everything the caller kept touching is still
+  // there after the cache has overflowed.
   SingleLineParagraphCache cache(/*maximumEntries=*/4);
   Paragraph& first = cache.paragraphFor(u8"one", nullptr, 16.0f);
   mark(first);
   for (const char8_t* text : {u8"two", u8"three", u8"four"})
     std::ignore = cache.paragraphFor(text, nullptr, 16.0f);
+  // Asked for again, so "two" is the oldest of the four.
+  std::ignore = cache.paragraphFor(u8"one", nullptr, 16.0f);
 
   // The fifth distinct key is the one that cannot fit.
   std::ignore = cache.paragraphFor(u8"five", nullptr, 16.0f);
-  EXPECT_NE(firstSpanColor(cache.paragraphFor(u8"one", nullptr, 16.0f)),
+  EXPECT_EQ(firstSpanColor(cache.paragraphFor(u8"one", nullptr, 16.0f)),
             SK_ColorRED)
-      << "an entry the cache said it retired was handed back";
+      << "the entry in use was retired to make room";
+
+  mark(cache.paragraphFor(u8"three", nullptr, 16.0f));
+  std::ignore = cache.paragraphFor(u8"six", nullptr, 16.0f);
+  EXPECT_EQ(firstSpanColor(cache.paragraphFor(u8"three", nullptr, 16.0f)),
+            SK_ColorRED);
 }
 
 TEST(SingleLineParagraphCache, ClearRetiresEveryEntry) {

@@ -10,16 +10,37 @@
 
 #include <boost/unordered/unordered_node_map.hpp>
 #include <charconv>
+#include <cstdint>
 #include <string>
+#include <utility>
 
 namespace sigil::weave {
 
 /// Private storage: a node-based map so returned Paragraph& stay valid
 /// while other entries are inserted (the header's documented contract).
+/// Each entry carries the tick it was last asked for, which is what makes
+/// room at capacity: one entry goes, and it is the one nothing has asked
+/// for in the longest time.
 struct SingleLineParagraphCache::Impl {
   explicit Impl(size_t maximumEntryCount) : maximumEntries(maximumEntryCount) {}
-  boost::unordered_node_map<std::string, Paragraph> paragraphs;
+
+  struct Entry {
+    Paragraph paragraph;
+    uint64_t lastUsed = 0;
+  };
+
+  /// Drops the least recently used entry when the cache is full.
+  void makeRoom() {
+    if (paragraphs.size() < maximumEntries) return;
+    auto oldest = paragraphs.begin();
+    for (auto entry = paragraphs.begin(); entry != paragraphs.end(); ++entry)
+      if (entry->second.lastUsed < oldest->second.lastUsed) oldest = entry;
+    if (oldest != paragraphs.end()) paragraphs.erase(oldest);
+  }
+
+  boost::unordered_node_map<std::string, Entry> paragraphs;
   size_t maximumEntries;
+  uint64_t tick = 0;
 };
 
 SingleLineParagraphCache::SingleLineParagraphCache(size_t maximumEntries)
@@ -76,17 +97,16 @@ Paragraph& SingleLineParagraphCache::paragraphForImpl(
   auto& paragraphs = m_impl->paragraphs;
   auto paragraph = paragraphs.find(key);
   if (paragraph == paragraphs.end()) {
-    if (paragraphs.size() >= m_impl->maximumEntries)
-      paragraphs.clear();  // scenes cycle labels; don't grow without bound
+    m_impl->makeRoom();  // scenes cycle labels; don't grow without bound
     TextStyle style;
     style.shaping.typeface = typeface;
     style.shaping.fontSize = fontSize;
-    Paragraph newParagraph;
-    newParagraph.appendText(text, style);
-    paragraph =
-        paragraphs.emplace(std::move(key), std::move(newParagraph)).first;
+    Impl::Entry entry;
+    entry.paragraph.appendText(text, style);
+    paragraph = paragraphs.emplace(std::move(key), std::move(entry)).first;
   }
-  return paragraph->second;
+  paragraph->second.lastUsed = ++m_impl->tick;
+  return paragraph->second.paragraph;
 }
 
 Paragraph& SingleLineParagraphCache::paragraphFor(
