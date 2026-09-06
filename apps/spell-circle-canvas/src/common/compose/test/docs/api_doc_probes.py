@@ -289,7 +289,10 @@ def scan_headers(incdirs):
                             qual = "::".join(p for _, ps, _c in scope for p in ps)
                             name_ = m.group("aggname")
                             types.setdefault(name_, set()).add(
-                                (qual + "::" + name_) if qual else name_
+                                (
+                                    (qual + "::" + name_) if qual else name_,
+                                    os.path.join(root, name),
+                                )
                             )
                             # A class is a scope too: `Composer::CacheState`
                             # must not come out as `sigil::compose::CacheState`.
@@ -309,11 +312,55 @@ def scan_headers(incdirs):
                             scope.pop()
     return (
         namespaces,
-        {k: sorted(v) for k, v in types.items()},
+        {k: sorted(v) for k, v in types.items()},  # (qualified, declaring file)
         {k: sorted(v) for k, v in ns_paths.items()},
         {k: sorted(v) for k, v in funcs.items()},
         spelled_in,
     )
+
+
+INCLUDE_LINE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', re.M)
+
+
+def reachable_from(roots, incdirs):
+    """Every header a translation unit including `roots` actually sees.
+
+    A candidate the probe cannot see is a compile error wherever it is
+    named, even when the header that declares it exists: another library
+    on the scanner's include path is not automatically on the probe's.
+    Resolution is by path suffix against the scanned directories, which is
+    how the includes are spelled.
+    """
+    files = {}
+    for incdir in incdirs:
+        for root, _, names in os.walk(incdir):
+            for name in names:
+                if name.endswith(".h"):
+                    path = os.path.join(root, name)
+                    files.setdefault(
+                        os.path.relpath(path, os.path.dirname(incdir)).replace(
+                            os.sep, "/"
+                        ),
+                        path,
+                    )
+    seen, queue = set(), list(roots)
+    while queue:
+        path = queue.pop()
+        if path in seen or not os.path.exists(path):
+            continue
+        seen.add(path)
+        text = open(path, encoding="utf-8", errors="ignore").read()
+        for spelled in INCLUDE_LINE.findall(text):
+            spelled = spelled.replace(os.sep, "/")
+            for rel, full in files.items():
+                if rel == spelled or rel.endswith("/" + spelled):
+                    queue.append(full)
+                    break
+            else:
+                sibling = os.path.join(os.path.dirname(path), spelled)
+                if os.path.exists(sibling):
+                    queue.append(sibling)
+    return seen
 
 
 def resolve_type(name, types):
@@ -352,6 +399,21 @@ class Generator:
                         os.path.join(root, name), os.path.dirname(incdir)
                     )
                     self.headers.append(rel.replace(os.sep, "/"))
+        # The probe includes every compose header, so what those reach is
+        # what a probe may name. A type only another library's unreachable
+        # header declares is dropped from the candidates rather than
+        # written into a static_assert that cannot compile.
+        seen_files = reachable_from(
+            [
+                os.path.join(os.path.dirname(incdirs[0]), h)
+                for h in self.headers
+            ],
+            incdirs,
+        )
+        self.types = {
+            name: [q for q, f in cands if f in seen_files] or [q for q, _ in cands]
+            for name, cands in self.types.items()
+        }
         self.usings = []  # (qualified, line, kind)
         self.class_usings = []  # (class, member, spelled, line, kind)
         self.members = []  # (candidates, chain, spelled, line, kind)

@@ -1494,6 +1494,17 @@ target, lands in `bin/<config>/benches/` and is run by
 `sigil.py bench`. Anything resembling a performance claim
 belongs to it and to the plate ledger, never to prose.
 
+**Which node in a scene is slow** is a different question, and the
+painter answers it two ways. `Composer::setProfiling` fills
+`Composer::profile` with one row per node — its label, its total and self
+milliseconds, the cache tier it took and the promotion verdict — for a
+host that wants the table. `COMPOSE_PROF=<ms>` in the environment needs
+no host at all: every draw over that many milliseconds prints as it
+happens (a blit, a picture replay, a live paint, and the bakes those are
+bought with), which is how a headless run says where its time went. Any
+unparsable value means four milliseconds; unset, neither costs a clock
+read.
+
 **Looking at any of it** goes through SigilSketch, which is where every
 renderable thing in this repository lives: one file per scene, one
 registry, one application (Sketchbook) and one headless renderer.
