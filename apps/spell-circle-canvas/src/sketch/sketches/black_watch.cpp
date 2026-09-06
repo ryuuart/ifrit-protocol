@@ -540,21 +540,29 @@ inline Element rule(float x, float y, float w, float h, SkColor4f c) {
 
 // The curves. bind()'s map() runs after from() normalises, and from() lets the
 // value out of [0,1] on both sides, so every shaping function here has to be
-// total on the reals.
-inline choreograph::EaseFn plateau(float edge) {
-  return [edge](float t) {
-    if (t <= 0.0f || t >= 1.0f) return 0.0f;
-    if (t < edge) return t / edge;
-    if (t > 1.0f - edge) return (1.0f - t) / edge;
-    return 1.0f;
-  };
+// total on the reals — which is why the overshoot below is CLAMPED and the
+// library's own unbounded `ease::outBack` is not used raw: a beat that has
+// not started yet would read a scale of thousands.
+//
+// Both are `ease::Curve` — a captureless shape beside the numbers it reads —
+// rather than a capturing lambda, because a curve that cannot be compared
+// makes the whole binding holding it incomparable, and a node whose binding
+// re-patches on every describe never prunes.
+inline sigil::motion::ease::Curve plateau(float edge) {
+  return {[](float t, const float* p) {
+            const float e = p[0];
+            if (t <= 0.0f || t >= 1.0f) return 0.0f;
+            if (t < e) return t / e;
+            if (t > 1.0f - e) return (1.0f - t) / e;
+            return 1.0f;
+          },
+          {edge}};
 }
-inline choreograph::EaseFn backOut() {
-  return [](float t) {
-    t = std::clamp(t, 0.0f, 1.0f);
-    const float s = 1.70158f, u = t - 1.0f;
-    return u * u * ((s + 1.0f) * u + s) + 1.0f;
-  };
+inline sigil::motion::ease::Curve backOut() {
+  return {[](float t, const float* p) {
+            return choreograph::easeOutBack(std::clamp(t, 0.0f, 1.0f), p[0]);
+          },
+          sigil::motion::ease::outBack().parameters[0]};
 }
 
 // The timeline, in one place: one Output, five beats.
