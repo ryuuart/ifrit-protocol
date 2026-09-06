@@ -197,6 +197,8 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
+#include <sigilmotion/physics/Constraints.h>
+#include <sigilmotion/physics/Points.h>
 #include <sigilsketch/draw/Draw.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -207,6 +209,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -222,6 +225,7 @@ using sigil::draw::Pen;
 using sigil::material::skia::Paint;
 namespace draw = sigil::draw;
 namespace ch = choreograph;
+namespace physics = sigil::motion::physics;
 
 namespace {
 
@@ -424,24 +428,35 @@ struct HitmanVerlet final : sketch::DrawSketch {
   // -------------------------------------------------------------------------
   // §4 — the mechanism
 
-  struct Stick {
-    int a = 0, b = 0;
-    float r = 0, r2 = 0;
-  };
-  struct Ineq {
-    int a = 0, b = 0;
-    float minLen = 0;
-  };
-
   struct Body {
-    std::vector<SkPoint> x, xo;
-    std::vector<float> invm;
-    std::vector<Stick> sticks;
-    std::vector<Ineq> ineqs;
+    /** The point set: `position` is x, `previous` is x*, and a particle
+     *  the paper constrains to origo is one this set holds pinned. */
+    physics::Points pts;
+    /** The sticks, and the one inequality. Both are the distance band
+     *  solved by the square-root-free form — the arithmetic this study is
+     *  about, stated once where every simulation can reach it. */
+    std::vector<physics::Constraint> sticks;
+    std::vector<physics::Constraint> ineqs;
     int iterations = 1;
     bool worldCollide = false;
     float radius = 0;           // capsule radius, world units
     bool stickContact = false;  // also run the Sec.5 barycentric fix-up
+
+    // The two lanes read and written in this file's own units, which are
+    // Skia's points; the simulation carries them in the motion library's.
+    [[nodiscard]] size_t count() const { return pts.size(); }
+    [[nodiscard]] SkPoint at(size_t i) const {
+      return {pts.position[i].x, pts.position[i].y};
+    }
+    [[nodiscard]] SkPoint was(size_t i) const {
+      return {pts.previous[i].x, pts.previous[i].y};
+    }
+    void moveTo(size_t i, SkPoint p) { pts.position[i] = p; }
+    void wasAt(size_t i, SkPoint p) { pts.previous[i] = p; }
+    [[nodiscard]] float invm(size_t i) const { return pts.inverseMass(i); }
+    /** A particle at rest at @p p; `held` is the paper's constraint to
+     *  origo, an infinite mass by another road. */
+    void add(SkPoint p, bool held = false) { pts.add(p, {}, 1.0f, held); }
   };
 
   struct Contact {
@@ -514,47 +529,23 @@ struct HitmanVerlet final : sketch::DrawSketch {
   // =========================================================================
   // §4.2 — Verlet. There is no velocity anywhere in this function.
 
+  // The stepper beside this one in SigilMotion carries a velocity lane
+  // and walks the constraint list itself. This study's subject is the
+  // position-only form and a relaxation loop with the world projection
+  // interleaved, so the step is written here; the sticks and the
+  // inequality are the library's.
   static void verlet(Body& b, SkPoint gravityStep) {
-    for (size_t i = 0; i < b.x.size(); ++i) {
-      if (b.invm[i] <= 0.0f) {
-        b.xo[i] = b.x[i];
+    for (size_t i = 0; i < b.count(); ++i) {
+      if (b.invm(i) <= 0.0f) {
+        b.wasAt(i, b.at(i));
         continue;
       }
-      const SkPoint prev = b.x[i];
+      const SkPoint prev = b.at(i);
       // VERIFIED 2: the paper's "2 -> 1.99" lowers ONLY the first
       // coefficient, which subtracts 1% of the POSITION. Both drop here.
-      b.x[i] = b.x[i] + (b.x[i] - b.xo[i]) * kDrag + gravityStep;
-      b.xo[i] = prev;
+      b.moveTo(i, b.at(i) + (b.at(i) - b.was(i)) * kDrag + gravityStep);
+      b.wasAt(i, prev);
     }
-  }
-
-  // §4.3(b) — the stick, in the SHIPPED form: the square-root
-  // approximation, which is the one listing the paper prints correctly.
-  static void satisfyStick(Body& b, const Stick& s) {
-    SkPoint d = b.x[s.b] - b.x[s.a];
-    // f is NEGATIVE under tension and POSITIVE under compression: the sign
-    // the exposition form lost (VERIFIED 1). Denominator >= r2 > 0, so no
-    // division by zero is possible (VERIFIED 3).
-    const float f = s.r2 / (dot(d, d) + s.r2) - 0.5f;
-    d = d * f;
-    const float w1 = b.invm[s.a], w2 = b.invm[s.b], sum = w1 + w2;
-    if (sum <= 0.0f) return;
-    b.x[s.a] = b.x[s.a] - d * (2.0f * w1 / sum);
-    b.x[s.b] = b.x[s.b] + d * (2.0f * w2 / sum);
-  }
-
-  // §4.3(c) — the inequality constraint: enforced ONLY when too close.
-  static void satisfyIneq(Body& b, const Ineq& q) {
-    SkPoint d = b.x[q.b] - b.x[q.a];
-    const float dd = dot(d, d);
-    if (dd >= q.minLen * q.minLen) return;
-    const float r2 = q.minLen * q.minLen;
-    const float f = r2 / (dd + r2) - 0.5f;
-    d = d * f;
-    const float w1 = b.invm[q.a], w2 = b.invm[q.b], sum = w1 + w2;
-    if (sum <= 0.0f) return;
-    b.x[q.a] = b.x[q.a] - d * (2.0f * w1 / sum);
-    b.x[q.b] = b.x[q.b] + d * (2.0f * w2 / sum);
   }
 
   // The world: the paper's cube plus one triangle. Returns the nearest
@@ -622,22 +613,22 @@ struct HitmanVerlet final : sketch::DrawSketch {
   /** §4.3(a) — projection, with §7 friction. The penetration depth is
    *  measured BEFORE the projection, or friction has nothing to scale by. */
   void collideWorld(Body& b, bool record) {
-    for (size_t i = 0; i < b.x.size(); ++i) {
-      if (b.invm[i] <= 0.0f) continue;
+    for (size_t i = 0; i < b.count(); ++i) {
+      if (b.invm(i) <= 0.0f) continue;
       SkPoint q;
-      if (!projectWorld(b.x[i], b.radius, &q)) continue;
-      const SkPoint delta = q - b.x[i];
+      if (!projectWorld(b.at(i), b.radius, &q)) continue;
+      const SkPoint delta = q - b.at(i);
       const float dp = len(delta);
       if (dp < 1e-5f) continue;
       const SkPoint n = delta * (1.0f / dp);
-      b.x[i] = q;  // restitution ZERO: clamp, never reflect
+      b.moveTo(i, q);  // restitution ZERO: clamp, never reflect
       // §7 friction: reduce the TANGENTIAL velocity by k*dp, by moving x*.
-      const SkPoint v = b.x[i] - b.xo[i];
+      const SkPoint v = b.at(i) - b.was(i);
       const SkPoint vt = v - n * dot(v, n);
       const float m = len(vt);
       if (m > 1e-6f) {
         const float reduce = std::min(m, kFriction * dp);
-        b.xo[i] = b.xo[i] + vt * (reduce / m);  // never reverses: clamped
+        b.wasAt(i, b.was(i) + vt * (reduce / m));  // never reverses: clamped
       }
       if (record && contacts.size() < 40) contacts.push_back({q, n});
     }
@@ -647,18 +638,18 @@ struct HitmanVerlet final : sketch::DrawSketch {
    *  the stick, so it is a barycentric blend and the correction
    *  distributes by the paper's own formula. Written as printed. */
   void collideSticks(Body& b, bool record) {
-    for (const Stick& s : b.sticks) {
+    for (const physics::Constraint& s : b.sticks) {
       const float c1 = 0.5f, c2 = 0.5f;
-      const SkPoint p = b.x[s.a] * c1 + b.x[s.b] * c2;
+      const SkPoint p = b.at(s.a) * c1 + b.at(s.b) * c2;
       SkPoint q;
       if (!projectWorld(p, b.radius, &q)) continue;
       const SkPoint D = q - p;
       const float dd = dot(D, D);
       if (dd < 1e-8f) continue;
       const float lambda = dot(q - p, D) / ((c1 * c1 + c2 * c2) * dd);
-      const float w1 = b.invm[s.a], w2 = b.invm[s.b];
-      if (w1 > 0) b.x[s.a] = b.x[s.a] + D * (c1 * lambda);
-      if (w2 > 0) b.x[s.b] = b.x[s.b] + D * (c2 * lambda);
+      const float w1 = b.invm(s.a), w2 = b.invm(s.b);
+      if (w1 > 0) b.moveTo(s.a, b.at(s.a) + D * (c1 * lambda));
+      if (w2 > 0) b.moveTo(s.b, b.at(s.b) + D * (c2 * lambda));
       if (record && contacts.size() < 40)
         contacts.push_back({q, D * (1.0f / std::sqrt(dd))});
     }
@@ -675,10 +666,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
         collideWorld(b, rec);
         if (b.stickContact) collideSticks(b, rec);
       }
-      for (const Stick& s : b.sticks) satisfyStick(b, s);
-      for (const Ineq& q : b.ineqs) satisfyIneq(b, q);
+      for (const physics::Constraint& s : b.sticks) s.project(b.pts);
+      for (const physics::Constraint& q : b.ineqs) q.project(b.pts);
       // §7 IK: keep setting the position INSIDE the loop.
-      if (&b == &rig && dragging) b.x[LHA] = dragTarget;
+      if (&b == &rig && dragging) b.moveTo(LHA, dragTarget);
     }
   }
 
@@ -690,8 +681,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
   }
 
   void addStick(Body& b, int i, int j) {
-    const float r = len(b.x[j] - b.x[i]);
-    b.sticks.push_back({i, j, r, r * r});
+    const float r = len(b.at((size_t)j) - b.at((size_t)i));
+    b.sticks.push_back(physics::stick((size_t)i, (size_t)j, r));
   }
 
   void buildRig(SkPoint feet) {
@@ -701,12 +692,12 @@ struct HitmanVerlet final : sketch::DrawSketch {
     rig.stickContact = true;
     rig.radius = kCapsule;
     auto P = [&](Norm n, float side) { return world(n, side, feet); };
-    rig.x = {P(kHead, 0), P(kNeck, 0), P(kSh, -1), P(kSh, +1),
-             P(kEl, -1),  P(kEl, +1),  P(kHa, -1), P(kHa, +1),
-             P(kWa, -1),  P(kWa, +1),  P(kHi, -1), P(kHi, +1),
-             P(kKn, -1),  P(kKn, +1),  P(kFo, -1), P(kFo, +1)};
-    rig.xo = rig.x;  // x* = x  ->  zero velocity at spawn
-    rig.invm.assign(NRIG, 1.0f);
+    // x* = x at spawn, which `add` does: zero velocity.
+    for (SkPoint p : {P(kHead, 0), P(kNeck, 0), P(kSh, -1), P(kSh, +1),
+                      P(kEl, -1), P(kEl, +1), P(kHa, -1), P(kHa, +1),
+                      P(kWa, -1), P(kWa, +1), P(kHi, -1), P(kHi, +1),
+                      P(kKn, -1), P(kKn, +1), P(kFo, -1), P(kFo, +1)})
+      rig.add(p);
     // The 24 sticks, in the paper's five groups (re-counted at 600 dpi).
     addStick(rig, HEAD, NECK);  // 1
     addStick(rig, NECK, LSH);
@@ -734,7 +725,12 @@ struct HitmanVerlet final : sketch::DrawSketch {
     addStick(rig, RKN, RFO);  // 2
     // The documented inequality: "between the two knees - making sure that
     // the legs never cross".
-    rig.ineqs.push_back({LKN, RKN, kKneeMin});
+    // A band with no upper end: enforced only when the knees are closer
+    // than the minimum, which is what an inequality constraint says.
+    physics::Constraint knees = physics::range(
+        LKN, RKN, kKneeMin, std::numeric_limits<float>::infinity());
+    knees.approximate = true;
+    rig.ineqs.push_back(knees);
   }
 
   void buildCloth() {
@@ -753,12 +749,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
     auto idx = [&](int c, int r) { return r * C + c; };
     for (int r = 0; r < R; ++r)
       for (int c = 0; c < C; ++c)
-        cloth.x.push_back(
-            {x0 + (float)c * sp + (((unsigned)r & 1u) ? sp * 0.5f : 0.0f),
-             y0 - (float)r * sp});
-    cloth.xo = cloth.x;
-    cloth.invm.assign(cloth.x.size(), 1.0f);
-    cloth.invm[0] = 0.0f;  // "Constrain one particle of the cloth to origo"
+        cloth.add({x0 + (float)c * sp + (((unsigned)r & 1u) ? sp * 0.5f : 0.0f),
+                   y0 - (float)r * sp},
+                  r == 0 && c == 0);  // "Constrain one particle of the cloth to
+                                      // origo"
     for (int r = 0; r < R; ++r) {
       for (int c = 0; c < C; ++c) {
         if (c + 1 < C) addStick(cloth, idx(c, r), idx(c + 1, r));
@@ -800,12 +794,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
       auto id = [](int r, int c) { return r * C + c; };
       for (int r = 0; r < R; ++r)
         for (int c = 0; c < C; ++c)
-          b.x.push_back(
-              {roots[p] + lean * (float)r + (float)c * w, (float)r * sp});
-      b.xo = b.x;
-      b.invm.assign(b.x.size(), 1.0f);
-      for (int c = 0; c < C; ++c)
-        b.invm[(size_t)id(0, c)] = 0.0f;  // the base row is the root
+          b.add({roots[p] + lean * (float)r + (float)c * w, (float)r * sp},
+                r == 0);  // the base row is the root
       for (int r = 0; r < R; ++r)
         for (int c = 0; c < C; ++c) {
           if (c + 1 < C) addStick(b, id(r, c), id(r, c + 1));
@@ -834,10 +824,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
       b.iterations = iters[k];
       constexpr int N = 12;
       for (int i = 0; i < N; ++i)
-        b.x.push_back({xs[k], 16.0f + (float)i * kChainRest});
-      b.xo = b.x;
-      b.invm.assign(N, 1.0f);
-      b.invm[0] = 0.0f;
+        b.add({xs[k], 16.0f + (float)i * kChainRest}, i == 0);
       // ORDER MATTERS, and it is the whole reason the paper talks about
       // iteration counts at all: listed FROM THE PIN a chain converges in a
       // single Gauss-Seidel sweep and 1, 4 and 10 are indistinguishable.
@@ -845,7 +832,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
       // the paper's own cloth listing is row-major over a 2D mesh, which
       // is not one - so these are listed from the FREE END.
       for (int i = N - 2; i >= 0; --i)
-        b.sticks.push_back({i, i + 1, kChainRest, kChainRest * kChainRest});
+        b.sticks.push_back(
+            physics::stick((size_t)i, (size_t)i + 1, kChainRest));
     }
   }
 
@@ -853,28 +841,29 @@ struct HitmanVerlet final : sketch::DrawSketch {
   // §7 — motion control, documented as laws, reconstructed as numbers.
 
   void applyBlast(Body& b, SkPoint c) {
-    for (size_t i = 0; i < b.x.size(); ++i) {
-      if (b.invm[i] <= 0.0f) continue;
-      SkPoint d = b.x[i] - c;
+    for (size_t i = 0; i < b.count(); ++i) {
+      if (b.invm(i) <= 0.0f) continue;
+      SkPoint d = b.at(i) - c;
       const float r = std::max(12.0f, len(d));
       // |dx| = K / r^2  ->  dx = K (x-c) / r^3
       SkPoint push = d * (kBlastK / (r * r * r));
       const float m = len(push);
       if (m > 45.0f) push = push * (45.0f / m);
-      b.x[i] = b.x[i] + push;  // a POSITION displacement; verlet does the rest
+      // a POSITION displacement; verlet does the rest
+      b.moveTo(i, b.at(i) + push);
     }
   }
 
   float maxError(const Body& b) const {
     float e = 0;
-    for (const Stick& s : b.sticks)
-      e = std::max(e, std::abs(len(b.x[s.b] - b.x[s.a]) - s.r) / s.r);
+    for (const physics::Constraint& s : b.sticks)
+      e = std::max(e, std::abs(len(b.at(s.b) - b.at(s.a)) - s.rest) / s.rest);
     return e;
   }
   void chainStats(const Body& b, float* mean, float* mx) const {
     float sum = 0, m = 0;
-    for (const Stick& s : b.sticks) {
-      const float e = std::abs(len(b.x[s.b] - b.x[s.a]) - s.r) / s.r;
+    for (const physics::Constraint& s : b.sticks) {
+      const float e = std::abs(len(b.at(s.b) - b.at(s.a)) - s.rest) / s.rest;
       sum += e;
       m = std::max(m, e);
     }
@@ -897,7 +886,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
 
     // Phase machine: the §7 motion-control events, on this study's schedule.
     if (!didHit && loopT >= 1.10) {
-      rig.x[RSH].fX -= kHitPush;  // documented: displace ONE particle
+      // documented: displace ONE particle
+      rig.moveTo(RSH, rig.at(RSH) - SkPoint{kHitPush, 0});
       didHit = true;
     }
     if (!didBomb && loopT >= 2.60) {
@@ -910,7 +900,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     }
     const bool wantDrag = loopT >= 6.20 && loopT < 9.40;
     if (wantDrag && !dragging) {
-      dragFrom = rig.x[LHA];
+      dragFrom = rig.at(LHA);
       dragging = true;
     }
     if (!wantDrag) dragging = false;
@@ -943,7 +933,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     const SkPoint cg{0.0f, kChainG};
     const float xs[3] = {60.0f, 162.0f, 264.0f};
     for (int k = 0; k < 3; ++k) {
-      chains[(size_t)k].x[0] = {xs[k] + px, 16.0f};
+      chains[(size_t)k].moveTo(0, {xs[k] + px, 16.0f});
       verlet(chains[(size_t)k], cg);
       satisfy(chains[(size_t)k], false);
       float mn = 0, mx = 0;
@@ -973,7 +963,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
    *  so lerp(x*, x, alpha) is the position at t_prev + alpha*dt. Free. */
   SkPoint drawnWorld(const Body& b, size_t i) const {
     const float a = alpha.value();
-    return b.xo[i] + (b.x[i] - b.xo[i]) * a;
+    return b.was(i) + (b.at(i) - b.was(i)) * a;
   }
   SkPoint drawn(const Body& b, size_t i) const {
     return toStage(drawnWorld(b, i));
@@ -983,7 +973,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
    *  rather than assume where it is. */
   SkRect rigBounds() const {
     SkRect r = SkRect::MakeLTRB(1e9f, 1e9f, -1e9f, -1e9f);
-    for (size_t i = 0; i < rig.x.size(); ++i) {
+    for (size_t i = 0; i < rig.count(); ++i) {
       const SkPoint p = drawn(rig, i);
       r.fLeft = std::min(r.fLeft, p.fX);
       r.fTop = std::min(r.fTop, p.fY);
@@ -1019,17 +1009,18 @@ struct HitmanVerlet final : sketch::DrawSketch {
       //    describes, at the width the solver actually uses.
       pen.strokeWeight(2.0f * kCapsule * kUnit * scale);
       pen.stroke(hex(0x6FA8DC, 0.10f * fade));
-      for (const Stick& s : rig.sticks) {
-        const SkPoint a = at((size_t)s.a), b = at((size_t)s.b);
+      for (const physics::Constraint& s : rig.sticks) {
+        const SkPoint a = at(s.a), b = at(s.b);
         pen.line(a.fX, a.fY, b.fX, b.fY);
       }
     }
     // 2. The centrelines, coloured by LIVE constraint error.
     pen.strokeWeight(std::max(4.6f, 2.5f * scale));
-    for (const Stick& s : rig.sticks) {
-      const float e = std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
+    for (const physics::Constraint& s : rig.sticks) {
+      const float e =
+          std::abs(len(rig.at(s.b) - rig.at(s.a)) - s.rest) / s.rest;
       pen.stroke(errColor(e, fade));
-      const SkPoint a = at((size_t)s.a), b = at((size_t)s.b);
+      const SkPoint a = at(s.a), b = at(s.b);
       pen.line(a.fX, a.fY, b.fX, b.fY);
     }
     // 3. The inequality constraint — dotted, as Figure 8 draws it.
@@ -1048,8 +1039,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
   void writeDotPool() {
     dotPool->clear();
     auto push = [&](const Body& b, int pinFrame) {
-      for (size_t i = 0; i < b.x.size(); ++i)
-        dotPool->add(drawn(b, i), b.invm[i] <= 0.0f ? pinFrame : cellDot);
+      for (size_t i = 0; i < b.count(); ++i)
+        dotPool->add(drawn(b, i), b.invm(i) <= 0.0f ? pinFrame : cellDot);
     };
     push(rig, cellPin);
     push(cloth, cellPin);
@@ -1076,8 +1067,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
     auto size = barPool->sizes();
     const float f = bodyFade.value();
     for (size_t i = 0; i < rig.sticks.size(); ++i) {
-      const Stick& s = rig.sticks[i];
-      SkPoint a = drawn(rig, (size_t)s.a), b = drawn(rig, (size_t)s.b);
+      const physics::Constraint& s = rig.sticks[i];
+      SkPoint a = drawn(rig, s.a), b = drawn(rig, s.b);
       a = {origin.fX + a.fX * scale, origin.fY + a.fY * scale};
       b = {origin.fX + b.fX * scale, origin.fY + b.fY * scale};
       const SkPoint d = b - a;
@@ -1089,7 +1080,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
       // fixed: ONE cell length serving 24 different stick lengths remaps the
       // cell's aspect by itself.
       size[i] = {L / 32.0f, 4.6f / 8.0f};
-      const float e = std::abs(len(rig.x[s.b] - rig.x[s.a]) - s.r) / s.r;
+      const float e =
+          std::abs(len(rig.at(s.b) - rig.at(s.a)) - s.rest) / s.rest;
       tint[i] = errColor(e, f);
     }
     barPool->commit();
@@ -1198,16 +1190,15 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.strokeCap(draw::ROUND);
     pen.strokeWeight(1.0f);
     pen.stroke(hex(0x8A8F9C, 0.45f * f));
-    for (const Stick& s : cloth.sticks) {
-      const SkPoint a = drawn(cloth, (size_t)s.a),
-                    b = drawn(cloth, (size_t)s.b);
+    for (const physics::Constraint& s : cloth.sticks) {
+      const SkPoint a = drawn(cloth, s.a), b = drawn(cloth, s.b);
       pen.line(a.fX, a.fY, b.fX, b.fY);
     }
     pen.strokeWeight(2.0f);
     pen.stroke(hex(0x8A8F9C, 0.70f * f));
     for (const Body& p : plants)
-      for (const Stick& st : p.sticks) {
-        const SkPoint a = drawn(p, (size_t)st.a), b = drawn(p, (size_t)st.b);
+      for (const physics::Constraint& st : p.sticks) {
+        const SkPoint a = drawn(p, st.a), b = drawn(p, st.b);
         pen.line(a.fX, a.fY, b.fX, b.fY);
       }
 
@@ -1777,8 +1768,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.strokeCap(draw::ROUND);
     pen.strokeWeight(1.5f);
     pen.stroke(hex(0x8A8F9C, 0.9f));
-    for (const Stick& s : rig.sticks) {
-      const SkPoint a = p[(size_t)s.a], b = p[(size_t)s.b];
+    for (const physics::Constraint& s : rig.sticks) {
+      const SkPoint a = p[s.a], b = p[s.b];
       pen.line(a.fX, a.fY, b.fX, b.fY);
     }
     pen.strokeWeight(1.0f);
@@ -1826,17 +1817,17 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.strokeWeight(2.2f);
     for (int k = 0; k < 3; ++k) {
       const Body& b = chains[(size_t)k];
-      for (const Stick& s : b.sticks) {
-        const float e = std::abs(len(b.x[s.b] - b.x[s.a]) - s.r) / s.r;
-        const SkPoint a = drawnWorld(b, (size_t)s.a);
-        const SkPoint z = drawnWorld(b, (size_t)s.b);
+      for (const physics::Constraint& s : b.sticks) {
+        const float e = std::abs(len(b.at(s.b) - b.at(s.a)) - s.rest) / s.rest;
+        const SkPoint a = drawnWorld(b, s.a);
+        const SkPoint z = drawnWorld(b, s.b);
         pen.stroke(errColor(e));
         pen.line(a.fX, a.fY, z.fX, z.fY);
       }
       pen.noStroke();
-      for (size_t i = 0; i < b.x.size(); ++i) {
+      for (size_t i = 0; i < b.count(); ++i) {
         const SkPoint q = drawnWorld(b, i);
-        pen.fill(b.invm[i] <= 0 ? kRed : kBone);
+        pen.fill(b.invm(i) <= 0 ? kRed : kBone);
         pen.circle(q.fX, q.fY, 4.0f);
       }
       pen.noFill();
