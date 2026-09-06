@@ -57,20 +57,3 @@ cause in each commit, not a sweep.
 
 Assert once fixed: the converted sketch's placement is `arrange::`, and
 its plate is rebased in the same commit that converts it.
-
-## The house colours a paint program needs are still typed out
-
-Six migrated sheets (`bullets_dropcap`, `decay_step`, `grid_layouts`,
-`hub_reload`, `lane_retarget`, `ticker_lanes`) still declare one to three
-of the house colours as file-scope constants, because the sites that use
-them are inside `custom()` paint programs — which the kernel invokes
-after the describe scope has ended, so they cannot read
-`sketch::kit::theme()` and must capture a value.
-
-Intended: the colour is read from the theme once while describing and
-captured by the lambda, so a sketch under a bound theme paints in that
-theme rather than in the house one it was written against.
-
-Assert once fixed: no sketch under `src/sketch/sketches/` declares a
-`SkColor4f` equal to a `houseTheme()` palette value.
-

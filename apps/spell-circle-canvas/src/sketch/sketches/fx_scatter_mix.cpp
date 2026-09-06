@@ -64,13 +64,14 @@ constexpr float kDuration = 420;   // one unit's own motion, ms
 
 constexpr SkColor4f kHot{0.95f, 0.36f, 0.28f,
                          1};  // what the mixed tint wipes FROM
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
 weave::TextStyle specimen() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Helvetica Neue", "Helvetica", "Arial", "sans-serif"});
-  return weave::textStyle(
-      {.face = face, .size = 27, .color = kFigure, .track = 1.5f});
+  return weave::textStyle({.face = face,
+                           .size = 27,
+                           .color = sketch::kit::theme().palette.figure,
+                           .track = 1.5f});
 }
 
 Element cell(const char* call, const char* note, const char* key, Track track) {
@@ -104,6 +105,7 @@ struct FxScatterMix final : sketch::Sketch {
     // Every track holds one constant progress: the sheet is one instant
     // of the cascade, not a moment of an animation.
     ctx.captureAt(0.05);
+    const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("SCATTER, MIX AND THE LADDER \xc2\xb7 fx::"
@@ -133,7 +135,7 @@ struct FxScatterMix final : sketch::Sketch {
                        "tint's, composed and not sequenced",
                        "mx",
                        {.effect = fx::mix(fx::scatter(kRadius, kLean),
-                                          fx::tint(kHot, kFigure)),
+                                          fx::tint(kHot, figure)),
                         .stagger = ladder(motion::Spread::From::Start)}),
                   cell("Spread::From::End",
                        "the same effect, the cascade run backwards "

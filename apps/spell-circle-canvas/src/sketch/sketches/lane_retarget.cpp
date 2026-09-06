@@ -68,11 +68,7 @@ constexpr float kFirst = 0.92f;       // the first target
 constexpr float kSecond = 0.24f;      // …and the one it is bent onto
 constexpr int kDuration = 900;        // the transition both ask for, ms
 
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 constexpr SkColor4f kGrid{0.19f, 0.20f, 0.24f, 1};
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kSecondInk{0.46f, 0.72f, 0.92f, 1};
 
 /** The host's enumeration of its storages, declared here because a lane
@@ -85,9 +81,12 @@ motion::Transition ramp() { return {std::chrono::milliseconds(kDuration)}; }
 using Trace = std::vector<float>;
 
 Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
+  // A paint program runs after the describe scope has closed, so the
+  // baseline's colour is read here and carried in by value.
+  const SkColor4f rule = sketch::kit::theme().palette.rule;
   return custom(key,
-                [lanes = std::move(lanes)](SkCanvas& canvas,
-                                           const PaintContext& pc) {
+                [lanes = std::move(lanes), rule](SkCanvas& canvas,
+                                                 const PaintContext& pc) {
                   constexpr float kPad = 10;
                   const float w = pc.size.width() - 2 * kPad;
                   const float h = pc.size.height() - 2 * kPad;
@@ -98,7 +97,7 @@ Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
                   paint.setColor4f(kGrid);
                   const float x = kPad + w * (kAt / kSpan);
                   canvas.drawRect({x, kPad, x + 1, kPad + h}, paint);
-                  paint.setColor4f(kRule);
+                  paint.setColor4f(rule);
                   canvas.drawRect({kPad, kPad + h, kPad + w, kPad + h + 1},
                                   paint);
                   paint.setStyle(SkPaint::kStroke_Style);
@@ -125,16 +124,17 @@ Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
 
 Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
+  const sketch::kit::Theme& look = sketch::kit::theme();
   return sketch::kit::caption(
       kCell, toU8(call), toU8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body))
-          .child(text(toU8(readout), sketch::kit::theme().mono(10, kFigure))
+          .child(text(toU8(readout), look.mono(10, look.palette.figure))
                      .absolute()
                      .left(Dim(8.0f))
                      .top(Dim(6.0f))
                      .padding(4, 2)
-                     .fill(Fill::color(kCellGround))));
+                     .fill(Fill::color(look.palette.cellGround))));
 }
 
 }  // namespace
@@ -146,6 +146,7 @@ struct LaneRetarget final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // the four flights have already been run
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const sketch::kit::Theme& look = sketch::kit::theme();
 
     plain = run(Change::None);
     slots = run(Change::Slots);
@@ -176,26 +177,29 @@ struct LaneRetarget final : sketch::Sketch {
                             "the flight the other three interrupt \xc2\xb7 "
                             "one transition from the standing value to the "
                             "first target",
-                            plot("plain", {{plain, kFigure}}), readouts[0]),
+                            plot("plain", {{plain, look.palette.figure}}),
+                            readouts[0]),
                        cell("retargetSlots(ticker, anims, prev, next, spec)",
                             "the fixed row bent onto the second target "
                             "mid-flight \xc2\xb7 the plain flight is under it "
                             "for comparison",
-                            plot("slots", {{plain, kAsh}, {slots, kFigure}}),
+                            plot("slots", {{plain, look.palette.ash},
+                                           {slots, look.palette.figure}}),
                             readouts[1]),
                        cell("retargetFamily \xc2\xb7 equal shape",
                             "a positional family of the same length "
                             "retargets lane by lane, exactly as the fixed "
                             "rows do",
-                            plot("family", {{plain, kAsh}, {family, kFigure}}),
+                            plot("family", {{plain, look.palette.ash},
+                                            {family, look.palette.figure}}),
                             readouts[2]),
                        cell("retargetFamily \xc2\xb7 the shape changed",
                             "one lane became two \xc2\xb7 the motions are "
                             "dropped and the new lanes start where the "
                             "storage starts, which is the jump this rule "
                             "chooses over a wrong carry",
-                            plot("reshaped",
-                                 {{plain, kAsh}, {reshaped, kSecondInk}}),
+                            plot("reshaped", {{plain, look.palette.ash},
+                                              {reshaped, kSecondInk}}),
                             readouts[3])},
              .gap = 14})));
   }

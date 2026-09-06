@@ -64,8 +64,6 @@ constexpr int kSide = 96;                   // the source's side, texels
 constexpr float kPeak = 6.0f;               // how far past one the ramp runs
 constexpr float kStops[2] = {1.0f, 0.18f};  // the two exposures
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
 /** IEEE half back to float, written out because reading the words is the
  *  whole point of asking for them: a packed half is data until somebody
  *  decodes it. */
@@ -120,6 +118,7 @@ struct HalfFloat final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // both readbacks have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
 
     const sk_sp<SkImage> source = hdrSource();
     const bool isFloat = skia::isFloatImage(source);
@@ -186,7 +185,7 @@ struct HalfFloat final : sketch::Sketch {
                             "the question a caller asks first, the two buffer "
                             "sizes, and one hot texel read out of each",
                             text(toU8(readout),
-                                 sketch::kit::theme().mono(10, kFigure))
+                                 sheet.mono(10, sheet.palette.figure))
                                 .width(Dim(kCell - 20)))},
              .gap = 12})));
   }

@@ -67,8 +67,6 @@ constexpr float kInset = 8;      // the well's own padding, px
 constexpr float kBodySize = 7;   // the passage's type size, px
 constexpr float kMoment = 6.4f;  // the second every field is frozen at
 
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-
 /// THE PASSAGE — about two thousand words on what a page of type asks of
 /// an ink, which is the same question the sheet asks of each preset.
 
@@ -86,7 +84,9 @@ weave::TextStyle body() {
   const sk_sp<SkTypeface> face = weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
   weave::TextStyle style =
-      weave::textStyle({.face = face, .size = kBodySize, .color = kInk});
+      weave::textStyle({.face = face,
+                        .size = kBodySize,
+                        .color = sketch::kit::theme().palette.ink});
   style.shaping.languageTag = "en-US";
   return style;
 }

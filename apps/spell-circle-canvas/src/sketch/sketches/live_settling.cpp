@@ -72,7 +72,6 @@ constexpr float kBudget = 4000;  // the frame's floor, microseconds
 constexpr float kStarved = 1;    // a floor nothing can meet
 
 constexpr SkColor4f kBody{0.84f, 0.85f, 0.88f, 1};
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
 weave::TextStyle body() {
   const sk_sp<SkTypeface> face = weave::ports::face(
@@ -173,13 +172,15 @@ struct LiveSettling final : sketch::Sketch {
    *  swell produced printed under it. */
   Element cell(const char* call, const char* note, float measure, bool live,
                float budget, const std::string& report) {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     return sketch::kit::caption(
         kCell, toU8(call), toU8(note),
         sketch::kit::well({.width = kCell, .height = kPicture, .padding = 12})
             .column()
             .gap(10)
             .child(passage(measure, live, budget))
-            .child(text(toU8(report), sketch::kit::theme().mono(10, kFigure))));
+            .child(
+                text(toU8(report), sheet.mono(10, sheet.palette.figure))));
   }
 };
 

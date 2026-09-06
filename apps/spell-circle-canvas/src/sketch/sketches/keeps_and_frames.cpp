@@ -70,7 +70,6 @@ constexpr int kOrphans = 2;  // fewest at the foot of one
 constexpr float kSeat = 0;   // added on top of a measured seating
 
 constexpr SkColor4f kBody{0.84f, 0.85f, 0.88f, 1};
-constexpr SkColor4f kLead{0.90f, 0.83f, 0.68f, 1};
 
 weave::TextStyle serif(float size, SkColor4f color) {
   const sk_sp<SkTypeface> face = weave::ports::face(
@@ -84,7 +83,8 @@ weave::Story article(bool longBody, weave::KeepOptions bodyKeep,
                      weave::KeepOptions closeKeep) {
   weave::Story story(
       weave::rich(serif(11.5f, kBody))
-          .add(u8"THE FIRST BLOCK\n", serif(11.5f, kLead))
+          .add(u8"THE FIRST BLOCK\n",
+               serif(11.5f, sketch::kit::theme().palette.figure))
           .add(longBody ? u8"A widow stands at the head of the next frame "
                           u8"and an orphan at the foot of this one, so "
                           u8"both are settled where the boundary is "

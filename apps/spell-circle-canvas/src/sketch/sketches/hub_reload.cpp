@@ -68,9 +68,6 @@ const char* kMount = "res://";
 const char* kFirst = "the first state on disk";
 const char* kSecond = "the second, after the write";
 
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
 /** THE CALLER'S OWN TYPE — a run of points in a two-number-per-line
  *  text, which is exactly the shape of thing a hub has no opinion
  *  about. */
@@ -123,6 +120,7 @@ struct HubReload final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // both readings have already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const sketch::kit::Theme& look = sketch::kit::theme();
 
     const std::filesystem::path dir =
         std::filesystem::temp_directory_path() / "sigil-hub-reload";
@@ -134,7 +132,7 @@ struct HubReload final : sketch::Sketch {
     // THE FIRST STATE on disk.
     put("notes.txt", kFirst);
     put("cloud.pts", "10 20\n40 64\n86 30\n120 78\n150 44\n");
-    if (sk_sp<SkData> png = chart(3, kFigure))
+    if (sk_sp<SkData> png = chart(3, look.palette.figure))
       io::writeBytes(dir / "chart.png", png->data(), png->size());
 
     io::Hub hub;
@@ -222,9 +220,10 @@ struct HubReload final : sketch::Sketch {
   }
 
   Element lines(std::vector<std::string> rows) {
+    const sketch::kit::Theme& look = sketch::kit::theme();
     Element column = box().column().gap(8);
     for (const std::string& row : rows)
-      column.child(text(toU8(row), sketch::kit::theme().mono(10, kFigure))
+      column.child(text(toU8(row), look.mono(10, look.palette.figure))
                        .width(Dim(kCell - 20)));
     return column;
   }
@@ -237,8 +236,12 @@ struct HubReload final : sketch::Sketch {
         before ? before->points : std::vector<SkPoint>{};
     const std::vector<SkPoint> b =
         after ? after->points : std::vector<SkPoint>{};
+    // A paint program runs after the describe scope has closed, so both
+    // inks are read here and carried in by value.
+    const SkColor4f ash = sketch::kit::theme().palette.ash;
+    const SkColor4f figure = sketch::kit::theme().palette.figure;
     return custom("hub.clouds",
-                  [a, b](SkCanvas& canvas, const PaintContext&) {
+                  [a, b, ash, figure](SkCanvas& canvas, const PaintContext&) {
                     SkPaint paint;
                     paint.setAntiAlias(true);
                     const auto draw = [&](const std::vector<SkPoint>& points,
@@ -247,8 +250,8 @@ struct HubReload final : sketch::Sketch {
                       for (const SkPoint& p : points)
                         canvas.drawCircle(p.fX, p.fY, radius, paint);
                     };
-                    draw(a, kAsh, 7);
-                    draw(b, kFigure, 4);
+                    draw(a, ash, 7);
+                    draw(b, figure, 4);
                   })
         .absolute()
         .inset(0);

@@ -62,7 +62,6 @@ constexpr int kPanels = 3;
 constexpr float kCurve = 300;
 
 constexpr SkColor4f kCellGround{0.035f, 0.038f, 0.055f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -231,7 +230,7 @@ struct PainterGpu final : sketch::Sketch {
                               cell("sketch::painterRuntime()", got,
                                    sketch::painterRuntime())},
                     .gap = 22,
-                    .divider = Fill::color(kRule),
+                    .divider = Fill::color(sketch::kit::theme().palette.rule),
                     .align = Align::Start})));
   }
 };

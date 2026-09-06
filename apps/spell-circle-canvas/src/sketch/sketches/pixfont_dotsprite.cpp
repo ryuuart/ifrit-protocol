@@ -63,8 +63,6 @@ constexpr float kBakeSizes[3] = {9, 12, 16};      // the sweep in the first cell
 constexpr float kScale = 3;                       // integer, always
 constexpr SkColor4f kOn{0.62f, 0.98f, 0.72f, 1};  // what a mask is tinted
 
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
@@ -151,7 +149,7 @@ struct PixFontDotSprite final : sketch::Sketch {
               .gap(10)
               .alignItems(Align::Center)
               .child(text(toU8(kit::formatted("%2.0f", kBakeSizes[i])),
-                          mono(9, kAsh)))
+                          mono(9, sketch::kit::theme().palette.ash)))
               .child(kit::masked(sweep[i], {.colour = kOn, .scale = 2})));
     return cell("bakeRun(\"3.eg\", fonts, aliased(size))",
                 "one run, three bake sizes, one present scale \xc2\xb7 at the "

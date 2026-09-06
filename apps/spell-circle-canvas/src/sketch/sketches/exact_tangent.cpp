@@ -62,7 +62,6 @@ constexpr float kDisplaySize = 74;  // display size, still on the ladder
 constexpr float kDetailSize = 260;  // one letter, cropped to a detail
 constexpr float kTurns = 3.2f;      // the spiral's turns
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kSnapped{0.95f, 0.44f, 0.32f, 0.75f};
 constexpr SkColor4f kExact{0.40f, 0.76f, 0.98f, 0.75f};
 
@@ -115,6 +114,7 @@ struct ExactTangent final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("THE TANGENT LADDER \xc2\xb7 "
@@ -135,24 +135,24 @@ struct ExactTangent final : sketch::Sketch {
                             "shaped once and placed by arc length, at label "
                             "size with the ladder ON",
                             run("a tight spiral carries its whole run",
-                                kLabelSize, kFigure, false)),
+                                kLabelSize, figure, false)),
                        cell("\xe2\x80\xa6"
                             ".exactTangent = true",
                             "the same run with the ladder lifted \xc2\xb7 at "
                             "this size the two are the same picture, which "
                             "is what the default is for",
                             run("a tight spiral carries its whole run",
-                                kLabelSize, kFigure, true)),
+                                kLabelSize, figure, true)),
                        cell("74 px \xc2\xb7 exactTangent = false",
                             "display size on a circle \xc2\xb7 still on "
                             "the sixteen-steps-per-pixel ladder, so a step "
                             "sweeps about a fifth of a pixel here too",
-                            arcRun("Ravello", kDisplaySize, kFigure, false)),
+                            arcRun("Ravello", kDisplaySize, figure, false)),
                        cell("74 px \xc2\xb7 exactTangent = true",
                             "the same letters turned to their exact "
                             "tangents \xc2\xb7 one strike per letter per "
                             "distinct angle, which a static plate can afford",
-                            arcRun("Ravello", kDisplaySize, kFigure, true)),
+                            arcRun("Ravello", kDisplaySize, figure, true)),
                        cell("260 px, both at once",
                             "snapped in warm under exact in cool, cropped "
                             "to a detail \xc2\xb7 no fringe: the two land "

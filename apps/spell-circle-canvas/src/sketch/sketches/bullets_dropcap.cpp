@@ -64,10 +64,7 @@ constexpr float kCapSize = 46;  // the initial's size, which IS its depth
 constexpr float kMargin = 7;    // the body's stand-off from the initial
 constexpr float kHang = 16;     // the indent a marker hangs in, px
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
 constexpr SkColor4f kBody{0.82f, 0.83f, 0.86f, 1};
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
 const char* kPassage =
     "hen the measure changes the opening keeps its treatment, because "
@@ -93,9 +90,9 @@ Element cell(const char* call, const char* note, Element body) {
  *  opening of the BODY — the cap is a leaf of its own, so the run is
  *  stated over what follows it. */
 Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
-  kit::DroppedCap made =
-      kit::dropCap(u8"W", serif(kCapSize, kFigure), toU8(kPassage),
-                   serif(11.5f, kBody), key, kMargin, std::move(nested));
+  kit::DroppedCap made = kit::dropCap(
+      u8"W", serif(kCapSize, sketch::kit::theme().palette.figure),
+      toU8(kPassage), serif(11.5f, kBody), key, kMargin, std::move(nested));
   return box()
       .child(std::move(made.initial))
       .child(std::move(made.body).width(Dim(kCell - 28)));
@@ -104,13 +101,16 @@ Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
 /** A caller-built initial: the star is both the ornament that paints and
  *  the silhouette the opening lines subtract. */
 Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
-  Element ornament =
-      box()
-          .width(58)
-          .height(64)
-          .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
-          .fill(Fill::color(kFigure))
-          .child(text(u8"W", serif(27, kGround)).absolute().left(15).top(14));
+  const sketch::kit::Theme& look = sketch::kit::theme();
+  Element ornament = box()
+                         .width(58)
+                         .height(64)
+                         .shape(sigil::geometry::shapes::star(8, 0.48f, 0.12f))
+                         .fill(Fill::color(look.palette.figure))
+                         .child(text(u8"W", serif(27, look.palette.ground))
+                                    .absolute()
+                                    .left(15)
+                                    .top(14));
   kit::DroppedCap made =
       kit::dropCap(std::move(ornament), toU8(kPassage), serif(11.5f, kBody),
                    key, kMargin, std::move(nested));
@@ -125,8 +125,9 @@ struct BulletsDropCap final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const sketch::kit::Theme& look = sketch::kit::theme();
 
-    const weave::TextStyle smallCaps = serif(11.5f, kFigure, 1.1f);
+    const weave::TextStyle smallCaps = serif(11.5f, look.palette.figure, 1.1f);
 
     // Two levels: two calls, the second inset by its own hang. A level is
     // not a mechanism here either.
@@ -141,15 +142,15 @@ struct BulletsDropCap final : sketch::Sketch {
     const std::vector<std::u8string> innerMarks = {u8"\xe2\x80\x94",
                                                    u8"\xe2\x80\x94"};
 
-    Element list =
-        box()
-            .column()
-            .gap(9)
-            .child(kit::bullets(outer, outerMarks, serif(11, kBody), kHang,
-                                kCell - 28 - kHang))
-            .child(kit::bullets(inner, innerMarks, serif(10.5f, kAsh), kHang,
-                                kCell - 28 - kHang * 2)
-                       .margin(kHang, 0, 0, 0));
+    Element list = box()
+                       .column()
+                       .gap(9)
+                       .child(kit::bullets(outer, outerMarks, serif(11, kBody),
+                                           kHang, kCell - 28 - kHang))
+                       .child(kit::bullets(inner, innerMarks,
+                                           serif(10.5f, look.palette.ash),
+                                           kHang, kCell - 28 - kHang * 2)
+                                  .margin(kHang, 0, 0, 0));
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("BULLETS AND THE DROPPED CAP \xc2\xb7 kit::"

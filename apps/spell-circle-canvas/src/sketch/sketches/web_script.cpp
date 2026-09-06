@@ -76,11 +76,7 @@ constexpr const char* kScript =
 
 constexpr SkSize kCanvas = {1360, 430};
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -267,7 +263,7 @@ struct WebScript final : sketch::Sketch {
                        cell("pressed", pressed, stills[3],
                             "mouseMove / mouseDown / mouseUp", press)},
              .gap = 18,
-             .divider = Fill::color(kRule)})));
+             .divider = Fill::color(sketch::kit::theme().palette.rule)})));
   }
 
   std::shared_ptr<scry::WebView> open(scry::WebEngine& web) const {
@@ -308,15 +304,18 @@ struct WebScript final : sketch::Sketch {
    *  opens whatever is selected, so it is drawn rather than left
    *  blank. */
   static Element missing(const std::string& why) {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     return box()
         .absolute()
         .inset(0)
-        .fill(Fill::color(kGround))
+        .fill(Fill::color(sheet.palette.ground))
         .column()
         .gap(10)
         .padding(40)
-        .child(text(toU8("no web engine here"), label(20, kInk)))
-        .child(text(toU8(why), label(12, kAsh)).width(Dim(620.0f)));
+        .child(text(toU8("no web engine here"),
+                    label(20, sheet.palette.ink)))
+        .child(text(toU8(why), label(12, sheet.palette.ash))
+                   .width(Dim(620.0f)));
   }
 };
 

@@ -61,8 +61,6 @@ constexpr uint32_t kSeed = 20260903;  // the seed every field is drawn from
 constexpr float kBlock = 4;           // px one sample is drawn at
 constexpr int kCells = 6;             // the lattice cell, in samples
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
 /** The house sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
@@ -79,9 +77,12 @@ sketch::kit::Theme sheetTheme() {
 using Field = std::function<float(int, int)>;
 
 Element field(const char* key, Field sample) {
+  // A paint program runs after the describe scope has closed, so the
+  // field's ink is read here and carried in by value.
+  const SkColor4f ink = sketch::kit::theme().palette.figure;
   return custom(key,
-                [sample = std::move(sample)](SkCanvas& canvas,
-                                             const PaintContext& pc) {
+                [sample = std::move(sample), ink](SkCanvas& canvas,
+                                                  const PaintContext& pc) {
                   SkPaint paint;
                   paint.setAntiAlias(false);
                   const int columns = (int)(pc.size.width() / kBlock);
@@ -89,8 +90,7 @@ Element field(const char* key, Field sample) {
                   for (int y = 0; y < rows; ++y)
                     for (int x = 0; x < columns; ++x) {
                       const float v = sample(x, y);
-                      paint.setColor4f(
-                          {kFigure.fR * v, kFigure.fG * v, kFigure.fB * v, 1});
+                      paint.setColor4f({ink.fR * v, ink.fG * v, ink.fB * v, 1});
                       canvas.drawRect({x * kBlock, y * kBlock, (x + 1) * kBlock,
                                        (y + 1) * kBlock},
                                       paint);
@@ -213,7 +213,8 @@ struct NoiseShelf final : sketch::Sketch {
   }
 
   Element text_(const std::string& row) {
-    return text(toU8(row), sketch::kit::theme().mono(9.5f, kFigure));
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
+    return text(toU8(row), sheet.mono(9.5f, sheet.palette.figure));
   }
 };
 

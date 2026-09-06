@@ -48,8 +48,6 @@ constexpr float kCell = 200;
 constexpr float kPicture = 176;
 constexpr float kWeight = 1.5f;  // every curve drawn at one width
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
 /** The house sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
@@ -74,7 +72,9 @@ Element cell(const char* call, const char* note, Shape curve) {
                      .absolute()
                      .inset(12)
                      .shape(std::move(curve))
-                     .stroke(stroke(kWeight, Fill::color(kFigure)))));
+                     .stroke(stroke(
+                         kWeight,
+                         Fill::color(sketch::kit::theme().palette.figure)))));
 }
 
 }  // namespace

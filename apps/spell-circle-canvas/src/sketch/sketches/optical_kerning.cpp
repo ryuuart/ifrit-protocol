@@ -57,7 +57,6 @@ constexpr float kSize = 40;  // the size the deltas are measured at
 const char* kHeadline = "WAVY. To AVA";
 const char* kPairs[6] = {"AV", "VA", "To", "Y.", "WA", "av"};
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kTable{0.95f, 0.44f, 0.32f, 0.80f};
 constexpr SkColor4f kOptical{0.40f, 0.76f, 0.98f, 0.80f};
 
@@ -91,10 +90,11 @@ struct OpticalKerning final : sketch::Sketch {
     // THE DELTAS ARE MEASURED: each pair is set twice at the headline's
     // own size and the difference of the two advances is the answer. A
     // pair the face already kerns has little left to give.
+    const SkColor4f figure = sketch::kit::theme().palette.figure;
     const auto advance = [&](const char* text8, bool optical) {
       return ctx
           .measure(
-              box().child(text(toU8(text8), display(kSize, kFigure, optical))))
+              box().child(text(toU8(text8), display(kSize, figure, optical))))
           .width();
     };
     for (int i = 0; i < 6; ++i)
@@ -129,7 +129,7 @@ struct OpticalKerning final : sketch::Sketch {
     return cell("opticalKerning = false",
                 "the face's own kerning table \xc2\xb7 a designer's pairs, "
                 "and the setting every other cell is read against",
-                headline(kFigure, false));
+                headline(sketch::kit::theme().palette.figure, false));
   }
 
   Element optical() {
@@ -137,7 +137,7 @@ struct OpticalKerning final : sketch::Sketch {
                 "every pair measured instead \xc2\xb7 the outlines are read "
                 "for the narrowest distance between them and closed to the "
                 "face's own even pair",
-                headline(kFigure, true));
+                headline(sketch::kit::theme().palette.figure, true));
   }
 
   /** The two settings over one another: where they disagree is where the
@@ -155,9 +155,10 @@ struct OpticalKerning final : sketch::Sketch {
   }
 
   Element table() {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     for (const std::string& row : rows)
-      column.child(text(toU8(row), sketch::kit::theme().mono(11, kFigure)));
+      column.child(text(toU8(row), sheet.mono(11, sheet.palette.figure)));
     return cell("measured pair deltas",
                 "each pair set twice and the two advances subtracted "
                 "\xc2\xb7 negative closes the pair up, and the last row is "

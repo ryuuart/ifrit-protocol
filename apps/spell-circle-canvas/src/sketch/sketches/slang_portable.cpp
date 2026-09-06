@@ -59,7 +59,6 @@ constexpr float kCell = 341;
 constexpr float kPicture = 300;
 constexpr bool kLit = false;  // defines SIGIL_LIT in the session
 
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
 constexpr SkColor4f kFigure{0.60f, 0.88f, 0.72f, 1};
 constexpr SkColor4f kFault{0.96f, 0.52f, 0.46f, 1};
 
@@ -252,7 +251,8 @@ struct SlangPortable final : sketch::Sketch {
                                        "sqrtP is Portable's and lambert is "
                                        "Shading's, so a host and a device "
                                        "call one definition",
-                                       std::string(kModule).substr(1), kInk),
+                                       std::string(kModule).substr(1),
+                                       sketch::kit::theme().palette.ink),
                                    readout("Compiled::uniforms",
                                            "every number read back off the "
                                            "program that was just built "

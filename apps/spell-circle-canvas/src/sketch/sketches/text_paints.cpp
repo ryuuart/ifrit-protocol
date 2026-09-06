@@ -55,8 +55,6 @@ constexpr const char* kWord = "SIGIL";
 constexpr float kSize = 56;      // the type size, px
 constexpr float kMoment = 6.4f;  // the second every field is frozen at
 
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
@@ -72,8 +70,10 @@ weave::TextStyle display() {
   const sk_sp<SkTypeface> face =
       weave::ports::face({"Avenir Next Heavy", "Helvetica Neue Bold",
                           "Arial Black", "Impact", "sans-serif"});
-  return weave::textStyle(
-      {.face = face, .size = kSize, .color = kInk, .track = 3.0f});
+  return weave::textStyle({.face = face,
+                           .size = kSize,
+                           .color = sketch::kit::theme().palette.ink,
+                           .track = 3.0f});
 }
 
 /** The run's box, which is what an animated field is parameterised over.

@@ -60,7 +60,6 @@ constexpr int kTiles = 4;      // slices the strip is cut into
 constexpr SkSize kMotif = {34, 34};
 constexpr SkISize kTile = {44, 128};
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kWarm{0.86f, 0.52f, 0.34f, 1};
 
 /** The one motif every chain repeats and the strip is built from. */
@@ -69,7 +68,7 @@ Element motif() {
       .width(Dim(kMotif.width()))
       .height(Dim(kMotif.height()))
       .shape(shapes::star(6, 0.46f, 0.14f))
-      .fill(Fill::color(kFigure));
+      .fill(Fill::color(sketch::kit::theme().palette.figure));
 }
 
 Element cell(const char* call, const char* note, Element body) {
@@ -118,12 +117,13 @@ struct PlaceRepeatTiles final : sketch::Sketch {
                       .fill(linearGradient({0, 0}, {(float)kTile.width(), 0},
                                            {{0.09f, 0.10f, 0.12f, 1},
                                             {0.30f, 0.32f, 0.36f, 1}}));
+    const SkColor4f figure = sketch::kit::theme().palette.figure;
     for (int i = 0; i < kTiles * 3; ++i)
       run.child(box()
                     .width(Dim(kMotif.width()))
                     .height(Dim(kMotif.height()))
                     .shape(shapes::star(6, 0.46f, 0.14f))
-                    .fill(Fill::color(i % 3 == 0 ? kWarm : kFigure)));
+                    .fill(Fill::color(i % 3 == 0 ? kWarm : figure)));
     // …and re-recorded behind a bounding-box hierarchy, so each tile's
     // replay visits only the ops that meet it. Slicing without that is
     // quadratic: every tile would walk every tile's ops.

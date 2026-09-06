@@ -85,7 +85,6 @@ constexpr int kNu = 44, kNv = 22;  // how finely it is tessellated
 constexpr int kMotes = 900;        // points the instancer carries
 constexpr double kMetersPerUnit = 0.01;
 
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -185,7 +184,8 @@ struct UsdRoundtrip final : sketch::Sketch {
     std::error_code ignored;
     std::filesystem::create_directories(dir, ignored);
 
-    kit::Cells shelf{.gap = 18, .divider = Fill::color(kRule)};
+    kit::Cells shelf{.gap = 18,
+                     .divider = Fill::color(sketch::kit::theme().palette.rule)};
     shelf.cells.push_back(cell(
         "source", "the set, as values",
         kit::formatted("%zu vertices \xc2\xb7 %zu triangles \xc2\xb7 no colour "

@@ -55,8 +55,6 @@ constexpr float kRhythm = 32;    // the baseline pitch, px
 constexpr float kSkewDeg = -12;  // the shear the second cell's rows ride
 
 constexpr SkColor4f kCard{0.17f, 0.18f, 0.21f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
 /** The house sheet, in this one's caption voice. */
 sketch::kit::Theme sheetTheme() {
@@ -72,12 +70,13 @@ sketch::kit::Theme sheetTheme() {
  *  the baseline rhythm has something to correct. */
 std::vector<Element> cards() {
   static constexpr float kSizes[3] = {11, 14, 18};
+  const sketch::kit::Theme& look = sketch::kit::theme();
   std::vector<Element> made;
   made.reserve(12);
   for (int i = 0; i < 12; ++i) {
     const std::string digits = (i < 9 ? "0" : "") + std::to_string(i + 1);
     made.push_back(
-        text(toU8(digits), sketch::kit::theme().mono(kSizes[i % 3], kFigure))
+        text(toU8(digits), look.mono(kSizes[i % 3], look.palette.figure))
             .padding(8, 4, 8, 4)
             .fill(Fill::color(kCard)));
   }
@@ -87,10 +86,13 @@ std::vector<Element> cards() {
 /** The rhythm the third cell snaps to, drawn so the reader can see which
  *  line each card's letters landed on. */
 Element rhythmLines() {
+  // A paint program runs after the describe scope has closed, so the
+  // rule colour is read here and carried in by value.
+  const SkColor4f rule = sketch::kit::theme().palette.rule;
   return custom("grid_layouts.rhythm",
-                [](SkCanvas& canvas, const PaintContext& pc) {
+                [rule](SkCanvas& canvas, const PaintContext& pc) {
                   SkPaint paint;
-                  paint.setColor4f(kRule);
+                  paint.setColor4f(rule);
                   for (float y = kRhythm; y < pc.size.height(); y += kRhythm)
                     canvas.drawRect({0, y, pc.size.width(), y + 1}, paint);
                 })

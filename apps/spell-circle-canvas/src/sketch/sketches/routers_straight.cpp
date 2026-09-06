@@ -60,7 +60,6 @@ constexpr float kChamfer = 14;   // the 45 degree cut, which wins over a radius
 constexpr float kBulge = 0.26f;  // the arc's bulge, as a fraction of the chord
 
 constexpr SkColor4f kNodeFill{0.17f, 0.18f, 0.21f, 1};
-constexpr SkColor4f kWire{0.90f, 0.83f, 0.68f, 1};
 
 /** The two nodes every cell routes between, at the same two places in
  *  every cell, so the ROUTER is the only thing that differs. */
@@ -76,7 +75,7 @@ Element endpoint(const std::string& key, float x, float y) {
 Element plate(const std::string& tag, Element route) {
   PathFormat wire;
   wire.width = 1.6f;
-  wire.strokeFill = Fill::color(kWire);
+  wire.strokeFill = Fill::color(sketch::kit::theme().palette.figure);
   return sketch::kit::well({.width = kCell, .height = kPicture})
       .child(stack()
                  .inset(0)

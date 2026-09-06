@@ -60,7 +60,6 @@ constexpr float kNode = 74;
 
 constexpr const char* kProbe = "hub";  // whose routes are listed
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kWire{0.42f, 0.62f, 0.78f, 1};
 
 /** A promotion outcome as the one word the enum names — for the refusal
@@ -167,13 +166,14 @@ struct RoutesProbe final : sketch::Sketch {
 
   /** One probe node: a small plate whose only job is to earn a verdict. */
   Element probe(const char* key, float x, float y) const {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     return box()
         .key(key)
         .inset(Dim(x), Dim(y), Dim(), Dim())
         .width(Dim(kNode))
         .height(Dim(34))
-        .fill(Fill::color(sketch::kit::theme().palette.cellGround))
-        .child(text(toU8(key), sketch::kit::theme().mono(10, kFigure))
+        .fill(Fill::color(sheet.palette.cellGround))
+        .child(text(toU8(key), sheet.mono(10, sheet.palette.figure))
                    .absolute()
                    .inset(9, 9, 0, 0));
   }
@@ -243,13 +243,13 @@ struct RoutesProbe final : sketch::Sketch {
   /** A readout: one line per string, in the sheet's own mono. */
   Element lines(const std::vector<std::string>& rows, float measure,
                 const char* empty) const {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(7);
     if (rows.empty())
-      column.child(text(toU8(empty), sketch::kit::theme().mono(
-                                         10, sketch::kit::theme().palette.ash))
+      column.child(text(toU8(empty), sheet.mono(10, sheet.palette.ash))
                        .width(Dim(measure)));
     for (const std::string& row : rows)
-      column.child(text(toU8(row), sketch::kit::theme().mono(10, kFigure))
+      column.child(text(toU8(row), sheet.mono(10, sheet.palette.figure))
                        .width(Dim(measure)));
     return column;
   }

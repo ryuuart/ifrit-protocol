@@ -70,7 +70,6 @@ constexpr int kLossy = 24;  // the quality the lossy cells ask for
 constexpr int kSide = 176;  // the source image's side, px
 const char* kMount = "out://";
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 
 /** The source: a smooth ramp under hard edges and fine text-sized
  *  detail, which is the pair of things the lossy codecs disagree about. */
@@ -104,11 +103,12 @@ Element cell(const char* call, const char* note, sk_sp<SkImage> picture,
   Element art = picture ? image(std::make_shared<const img::ImageAsset>(
                               img::ImageAsset::wrap(std::move(picture))))
                         : box();
+  const sketch::kit::Theme& sheet = sketch::kit::theme();
   return sketch::kit::caption(
       kCell, toU8(call), toU8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(art).absolute().inset(0))
-          .child(text(toU8(readout), sketch::kit::theme().mono(10, kFigure))
+          .child(text(toU8(readout), sheet.mono(10, sheet.palette.figure))
                      .absolute()
                      .left(Dim(6.0f))
                      .top(Dim(6.0f))

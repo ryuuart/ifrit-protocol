@@ -73,25 +73,24 @@ constexpr double kFixedHz = 5.0;      // the fixed steppable's rate
 constexpr int kLevels = 6;            // levels the derivation quantizes to
 constexpr float kRamp = 1.4f;         // the timeline motion's duration
 
-constexpr SkColor4f kCellGround{0.105f, 0.11f, 0.125f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kSecond{0.46f, 0.72f, 0.92f, 1};
 
 /** One recorded lane: a value per tick, plotted left to right. */
 using Trace = std::vector<float>;
 
 Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
+  // A paint program runs after the describe scope has closed, so the
+  // baseline's colour is read here and carried in by value.
+  const SkColor4f rule = sketch::kit::theme().palette.rule;
   return custom(key,
-                [lanes = std::move(lanes)](SkCanvas& canvas,
-                                           const PaintContext& pc) {
+                [lanes = std::move(lanes), rule](SkCanvas& canvas,
+                                                 const PaintContext& pc) {
                   constexpr float kPad = 10;
                   const float w = pc.size.width() - 2 * kPad;
                   const float h = pc.size.height() - 2 * kPad;
                   SkPaint paint;
                   paint.setAntiAlias(true);
-                  paint.setColor4f(kRule);
+                  paint.setColor4f(rule);
                   canvas.drawRect({kPad, kPad + h, kPad + w, kPad + h + 1},
                                   paint);
                   paint.setStyle(SkPaint::kStroke_Style);
@@ -118,18 +117,19 @@ Element plot(const char* key, std::vector<std::pair<Trace, SkColor4f>> lanes) {
 
 Element cell(const char* call, const char* note, Element body,
              const std::string& readout) {
+  const sketch::kit::Theme& look = sketch::kit::theme();
   return sketch::kit::caption(
       kCell, toU8(call), toU8(note),
       sketch::kit::well({.width = kCell, .height = kPicture})
           .child(std::move(body))
           // The readout stands on a scrim of the cell's own ground: a
           // trace runs the whole plate and would otherwise cross it.
-          .child(text(toU8(readout), sketch::kit::theme().mono(10, kFigure))
+          .child(text(toU8(readout), look.mono(10, look.palette.figure))
                      .absolute()
                      .left(Dim(8.0f))
                      .top(Dim(6.0f))
                      .padding(4, 2)
-                     .fill(Fill::color(kCellGround))));
+                     .fill(Fill::color(look.palette.cellGround))));
 }
 
 }  // namespace
@@ -141,6 +141,7 @@ struct TickerLanes final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // the run has already happened, on its own ticker
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const sketch::kit::Theme& look = sketch::kit::theme();
 
     // A TICKER OF THIS SKETCH'S OWN, stepped at a fixed delta: everything
     // below is what it answered, sample by sample, rather than a drawing
@@ -205,26 +206,30 @@ struct TickerLanes final : sketch::Sketch {
                             "the free steppable, handed the frame's delta "
                             "\xc2\xb7 it answers true forever here, which is "
                             "what keeps active() true forever",
-                            plot("free", {{freeLane, kFigure}}), readouts[0]),
+                            plot("free", {{freeLane, look.palette.figure}}),
+                            readouts[0]),
                        cell("ticker.addFixed(5, fn, 8, &alpha)",
                             "the count of fixed steps against the render "
                             "interpolant \xc2\xb7 the count comes from total "
                             "elapsed time, so it is exact at any draw rate",
                             plot("fixed",
-                                 {{fixedLane, kFigure}, {alphaLane, kSecond}}),
+                                 {{fixedLane, look.palette.figure},
+                                  {alphaLane, kSecond}}),
                             readouts[1]),
                        cell("derive(&d, bind(&source).quantize(6))",
                             "the source under the derivation \xc2\xb7 the "
                             "bind() vocabulary reaching an Output instead of "
                             "a property slot",
                             plot("derive",
-                                 {{sourceLane, kAsh}, {derivedLane, kFigure}}),
+                                 {{sourceLane, look.palette.ash},
+                                  {derivedLane, look.palette.figure}}),
                             readouts[2]),
                        cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
                             "the master timeline \xc2\xb7 a finished motion "
                             "is removed, which is what would let active() "
                             "settle if the steppable above ever retired",
-                            plot("timeline", {{timelineLane, kFigure}}),
+                            plot("timeline",
+                                 {{timelineLane, look.palette.figure}}),
                             readouts[3])},
              .gap = 14})));
   }

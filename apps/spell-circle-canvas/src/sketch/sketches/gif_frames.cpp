@@ -65,11 +65,7 @@ constexpr float kScale = 3.0f;  // sheet pixels per source pixel
  *  these run across two of them and the frames come round again. */
 constexpr double kSamples[] = {0, 150, 320, 480, 640, 900, 1150, 1420};
 
-constexpr SkColor4f kGround{0.07f, 0.07f, 0.085f, 1};
 constexpr SkColor4f kCellGround{0.12f, 0.12f, 0.14f, 1};
-constexpr SkColor4f kInk{0.90f, 0.90f, 0.92f, 1};
-constexpr SkColor4f kAsh{0.55f, 0.56f, 0.62f, 1};
-constexpr SkColor4f kRule{0.20f, 0.21f, 0.25f, 1};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -180,28 +176,30 @@ struct GifFrames final : sketch::Sketch {
                           ") \xc2\xb7 the moments the lower "
                           "shelf reads"),
          .footer = toU8(foot)},
-        kit::cells({.cells = {kit::cell(header(), toU8("DECODED"),
-                                        toU8("every frame, composited "
-                                             "at decode \xe2\x80\x94 "
-                                             "drawing one never needs "
-                                             "the one before it"),
-                                        decoded(gif)),
-                              kit::cell(header(), toU8("PLAYED"),
-                                        toU8("frameAt looks the moment "
-                                             "up in the durations and "
-                                             "loops past the last one"),
-                                        sampled(gif))},
-                    .column = true,
-                    .gap = 26,
-                    .divider = Fill::color(kRule)}));
+        kit::cells(
+            {.cells = {kit::cell(header(), toU8("DECODED"),
+                                 toU8("every frame, composited "
+                                      "at decode \xe2\x80\x94 "
+                                      "drawing one never needs "
+                                      "the one before it"),
+                                 decoded(gif)),
+                       kit::cell(header(), toU8("PLAYED"),
+                                 toU8("frameAt looks the moment "
+                                      "up in the durations and "
+                                      "loops past the last one"),
+                                 sampled(gif))},
+             .column = true,
+             .gap = 26,
+             .divider = Fill::color(sketch::kit::theme().palette.rule)}));
   }
 
   /** The voice the two shelves are titled in — a heading over the run
    *  rather than a caption under a picture. */
   static kit::Caption header() {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     return {.where = kit::Caption::Where::Above,
-            .label = label(11.5f, kInk, 2.0f),
-            .note = label(10.5f, kAsh, 0.2f),
+            .label = label(11.5f, sheet.palette.ink, 2.0f),
+            .note = label(10.5f, sheet.palette.ash, 0.2f),
             .gap = 12,
             .noteGap = 5};
   }
@@ -210,18 +208,20 @@ struct GifFrames final : sketch::Sketch {
    *  probe keeps a sweep away from this; the app opens whatever is
    *  selected, so it is drawn rather than left blank. */
   static Element missing() {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     return box()
         .absolute()
         .inset(0)
-        .fill(Fill::color(kGround))
+        .fill(Fill::color(sheet.palette.ground))
         .column()
         .gap(10)
         .padding(40)
-        .child(text(toU8("no animated document here"), label(20, kInk)))
+        .child(text(toU8("no animated document here"),
+                    label(20, sheet.palette.ink)))
         .child(text(toU8(std::string(kSource) +
                          " did not decode: the hub reached neither the "
                          "network nor a cached copy of it"),
-                    label(12, kAsh))
+                    label(12, sheet.palette.ash))
                    .width(Dim(620.0f)));
   }
 };

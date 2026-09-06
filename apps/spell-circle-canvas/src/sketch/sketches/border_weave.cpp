@@ -67,7 +67,6 @@ constexpr float kWavelength = 34;
 constexpr float kChamfer = 14;
 
 constexpr SkColor4f kPlate{0.15f, 0.155f, 0.175f, 1};
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kCool{0.46f, 0.70f, 0.86f, 1};
 
 /** The plaque every cell dresses: a chamfered box, so each corner is a
@@ -98,9 +97,10 @@ struct BorderWeave final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
 
     const Border bracket{.width = kWidth,
-                         .fill = Fill::color(kFigure),
+                         .fill = Fill::color(sheet.palette.figure),
                          .inset = kInset,
                          .mode = Border::Mode::Bracket,
                          .corner = kArm};
@@ -124,7 +124,7 @@ struct BorderWeave final : sketch::Sketch {
                        "the outline, following the chamfers because it "
                        "follows the silhouette",
                        plaque().foreground(decorations::border(
-                           kWidth, Fill::color(kFigure), kInset))),
+                           kWidth, Fill::color(sheet.palette.figure), kInset))),
                   cell("Border::Mode::Bracket",
                        "only within 18 px of each corner \xc2\xb7 the "
                        "four L's, landing on the chamfers with no "
@@ -134,19 +134,20 @@ struct BorderWeave final : sketch::Sketch {
                        "everything EXCEPT within 18 px \xc2\xb7 the open "
                        "corner, which is the complement of the one "
                        "above",
-                       plaque().foreground(Border{.width = kWidth,
-                                                  .fill = Fill::color(kFigure),
-                                                  .inset = kInset,
-                                                  .mode = Border::Mode::Gapped,
-                                                  .corner = kArm})),
+                       plaque().foreground(
+                           Border{.width = kWidth,
+                                  .fill = Fill::color(sheet.palette.figure),
+                                  .inset = kInset,
+                                  .mode = Border::Mode::Gapped,
+                                  .corner = kArm})),
                   cell("doubleBorder(weighted, rule)",
                        "two rules as ONE style value \xc2\xb7 the outer "
                        "thickens near each turn, the inner is the same "
                        "value at another inset",
                        plaque().style(decorations::doubleBorder(
                            decorations::weightedCorners(
-                               kWidth, kWidth * 3, Fill::color(kFigure), kArm,
-                               kInset),
+                               kWidth, kWidth * 3,
+                               Fill::color(sheet.palette.figure), kArm, kInset),
                            decorations::border(0.9f, Fill::color(kCool), 14)))),
                   cell("weave(braid(3), alternate())",
                        "three waves at phases k/3 around the same "
@@ -155,7 +156,8 @@ struct BorderWeave final : sketch::Sketch {
                        plaque().stroke(Decoration(brush::weave(
                            kit::braid(kStrands, kAmplitude, kWavelength,
                                       Decoration(brush::solid(
-                                          2.0f, Fill::color(kFigure)))),
+                                          2.0f,
+                                          Fill::color(sheet.palette.figure)))),
                            crossing::alternate())))),
                   cell("Bracket on a CIRCLE",
                        "a curve has no tangent break, so the corner scan "

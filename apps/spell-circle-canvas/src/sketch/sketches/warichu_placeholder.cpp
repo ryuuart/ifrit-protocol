@@ -63,7 +63,6 @@ constexpr float kDrop = 3;  // the slot's bottom, below the base's baseline
 const char* kNote = "which a text sets small and doubled inside the line";
 
 constexpr SkColor4f kBody{0.86f, 0.87f, 0.90f, 1};
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
 constexpr SkColor4f kSlot{0.16f, 0.17f, 0.20f, 1};
 
 weave::TextStyle serif(float size, SkColor4f color) {
@@ -100,11 +99,13 @@ struct WarichuPlaceholder final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    const SkColor4f figure = sketch::kit::theme().palette.figure;
 
     // The note as a paragraph of its own, which is what the split is asked
     // about: its size, its face and its language are the note's, and the
     // base has no say in any of them.
-    weave::Paragraph note = weave::ParagraphBuilder(serif(kNoteSize, kFigure))
+    weave::Paragraph note =
+        weave::ParagraphBuilder(serif(kNoteSize, figure))
                                 .addText(toU8(kNote))
                                 .build();
     split = weave::warichuSplit(*ctx.fonts, note);
@@ -141,7 +142,8 @@ struct WarichuPlaceholder final : sketch::Sketch {
   }
 
   Element text_(const char* utf8) {
-    return text(toU8(utf8), serif(kNoteSize, kFigure));
+    return text(toU8(utf8),
+                serif(kNoteSize, sketch::kit::theme().palette.figure));
   }
 
   /** The base sentence, with one inline slot in the middle of it. */
@@ -203,7 +205,9 @@ struct WarichuPlaceholder final : sketch::Sketch {
   Element stackedNote(bool vertical = false) {
     const float half = split.band * 0.5f;
     const auto row = [&](const std::u8string& text8, float along) {
-      Element leaf = text(text8, serif(kNoteSize, kFigure)).absolute();
+      Element leaf =
+          text(text8, serif(kNoteSize, sketch::kit::theme().palette.figure))
+              .absolute();
       if (vertical) {
         // The band is ACROSS the column in a vertical setting, so the two
         // lines stand side by side and each runs down the note's advance.
@@ -222,9 +226,10 @@ struct WarichuPlaceholder final : sketch::Sketch {
 
   /** What the split answered, printed. */
   Element readoutCell() {
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     Element column = box().column().gap(8);
     for (const std::string& row : report)
-      column.child(text(toU8(row), sketch::kit::theme().mono(10, kFigure))
+      column.child(text(toU8(row), sheet.mono(10, sheet.palette.figure))
                        .width(Dim(kCell - 24)));
     return cell("WarichuSplit{advance, band, cutWord}",
                 "what the split answered for this note at this size "

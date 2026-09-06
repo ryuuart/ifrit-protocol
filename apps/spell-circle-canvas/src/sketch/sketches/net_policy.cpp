@@ -66,8 +66,6 @@ constexpr float kPicture = 190;
 const char* kSeeded = "https://sigil.invalid/plate.png";
 const char* kMissing = "https://sigil.invalid/absent.png";
 
-constexpr SkColor4f kFigure{0.90f, 0.83f, 0.68f, 1};
-
 /** What the seed holds — drawn here so the cell that serves it from the
  *  cache is showing bytes this file wrote and nothing else. */
 sk_sp<SkData> seedBytes() {
@@ -77,7 +75,7 @@ sk_sp<SkData> seedBytes() {
   canvas->clear(SkColor4f{0.11f, 0.13f, 0.17f, 1}.toSkColor());
   SkPaint paint;
   paint.setAntiAlias(true);
-  paint.setColor4f(kFigure);
+  paint.setColor4f(sketch::kit::theme().palette.figure);
   for (int i = 0; i < 5; ++i)
     canvas->drawCircle(24.0f + (float)i * 26.0f,
                        50.0f + (i % 2 ? 18.0f : -18.0f), 11.0f, paint);
@@ -87,6 +85,7 @@ sk_sp<SkData> seedBytes() {
 Element cell(const char* call, const char* note,
              const std::shared_ptr<const img::ImageAsset>& asset,
              const std::string& readout) {
+  const sketch::kit::Theme& sheet = sketch::kit::theme();
   Element art = asset ? image(asset).width(Dim(150)).height(Dim(100))
                       : box().width(Dim(150)).height(Dim(100)).fill(
                             Fill::color({0.13f, 0.10f, 0.11f, 1}));
@@ -96,7 +95,7 @@ Element cell(const char* call, const char* note,
           .column()
           .gap(10)
           .child(std::move(art))
-          .child(text(toU8(readout), sketch::kit::theme().mono(10, kFigure))));
+          .child(text(toU8(readout), sheet.mono(10, sheet.palette.figure))));
 }
 
 }  // namespace
