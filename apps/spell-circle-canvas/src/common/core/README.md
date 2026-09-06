@@ -117,7 +117,6 @@ include their own directory's headers. The hardware feature's are
 | `reconcile/Node.h` | `Node<Derived, Description>` — the tree skeleton a host's node derives from: `parent`, `description`, `memoShell`, `children` |
 | `reconcile/Memo.h` | `Memo<Produced>` — a deferred describe and its key: `props`, `equal`, `invoke`, `env` |
 | `reconcile/Env.h` | `env::Provide`, `env::inherited`, `env::inheritedOr`, `env::bound`, and the `env::Snapshot`, `env::capture`, `env::Restore` a memo is built on |
-| `reconcile/Erased.h` | `Erased<Ops>` under the name a description spells it by; the type is `comparable/Erased.h`'s |
 | `reconcile/Phases.h` | `Phase<Impl>` and `runPhases` — a host's declared pass list with its converging group |
 | `reconcile/Reads.h` | `Facet`, `Read`, `orderByReads` — what one node reads off another, and the order that puts every reader after what it read |
 | `reconcile/Stats.h` | `ReconcileStats` — the pass counts, and `report()` into `sigil::measure::Counters` |
@@ -395,11 +394,10 @@ describe takes one by reference, and a function that scatters points
 takes the stream rather than a seed and a mixer name. It is not a fourth
 mixer: `Stream::pcg(s).bits()` is the word `noise::pcgNext` answers for
 a state of `s`, and the same holds for the other two, so replacing a
-hand-carried state with a stream does not move a picture. Only `unit()`
-differs, and deliberately — it squeezes through the 24 mantissa bits a
-float holds exactly, where `noise::pcgUnitNext` divides by a
-`0xFFFFFFFF` that rounds up to a float whose largest quotient is exactly
-1, a value that function's own range excludes.
+hand-carried state with a stream does not move a picture. Every unit
+draw in both files is the same squeeze — the 24 mantissa bits a float
+holds exactly — so `[0, 1)` is the range drawn and not only the range
+written down.
 
 **A distribution is a value, not a function per name.** A shape is
 anything with an `Answer` type and a `draw(Stream&) const`, and

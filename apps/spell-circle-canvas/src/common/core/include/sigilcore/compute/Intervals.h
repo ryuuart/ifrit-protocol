@@ -144,23 +144,31 @@ std::vector<Interval> intersectIntervals(const std::vector<Interval>& a,
 /** The first run @p a and @p b share by more than @p epsilon, or nullopt.
  *  A shared END POINT is two runs meeting, not two runs overlapping, and
  *  a caller reporting a conflict usually wants a looser threshold than
- *  the one it normalised with. */
+ *  the one it normalised with.
+ *
+ *  Both inputs are normalised, so this is the same one sweep
+ *  `intersectIntervals` makes, stopped at the first run it would emit —
+ *  each side is walked once rather than every pair being tried. */
 template <class Interval, class Ends = IntervalEnds<Interval>>
 std::optional<Interval> firstOverlap(const std::vector<Interval>& a,
                                      const std::vector<Interval>& b,
                                      typename Ends::Value epsilon = {}) {
   using T = typename Ends::Value;
-  for (const Interval& x : a)
-    for (const Interval& y : b) {
-      const T low = std::max(Ends::low(x), Ends::low(y));
-      const T high = std::min(Ends::high(x), Ends::high(y));
-      if (high - low > epsilon) {
-        Interval shared{};
-        Ends::low(shared) = low;
-        Ends::high(shared) = high;
-        return shared;
-      }
+  size_t i = 0, j = 0;
+  while (i < a.size() && j < b.size()) {
+    const T low = std::max(Ends::low(a[i]), Ends::low(b[j]));
+    const T high = std::min(Ends::high(a[i]), Ends::high(b[j]));
+    if (high - low > epsilon) {
+      Interval shared{};
+      Ends::low(shared) = low;
+      Ends::high(shared) = high;
+      return shared;
     }
+    if (Ends::high(a[i]) < Ends::high(b[j]))
+      ++i;
+    else
+      ++j;
+  }
   return std::nullopt;
 }
 

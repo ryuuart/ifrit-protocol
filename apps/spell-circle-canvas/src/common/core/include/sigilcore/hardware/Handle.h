@@ -1,4 +1,15 @@
 #pragma once
+
+/** @file
+ * NAMES FOR DEVICE RESOURCES, AND THE STORE THAT ISSUES THEM.
+ *
+ * A handle is a slot and the generation of that slot when the name was
+ * issued, so a name outliving its resource is REJECTED rather than
+ * answered with whatever now occupies the slot. `TypedHandle` puts the
+ * kind of resource in the type, and the comparison is declared per kind
+ * so that two names of different kinds do not compare at all.
+ */
+
 #include <cstddef>
 #include <cstdint>
 #include <utility>
@@ -30,7 +41,24 @@ struct Handle {
 /** A handle that can only name one kind of resource: a TextureHandle is
  *  not a BufferHandle even when the bits agree. */
 template <typename Tag>
-struct TypedHandle : Handle {};
+struct TypedHandle : Handle {
+  friend bool operator==(const TypedHandle& a, const TypedHandle& b) {
+    return a.index == b.index && a.generation == b.generation;
+  }
+  friend bool operator!=(const TypedHandle& a, const TypedHandle& b) {
+    return !(a == b);
+  }
+};
+
+/** COMPARING TWO KINDS IS THE MISTAKE, NOT AN ANSWER. Without this the
+ *  base's comparison would take both sides and answer true on equal
+ *  bits, which is exactly the confusion the tag exists to prevent. The
+ *  comparison of two handles of ONE kind is the non-template friend
+ *  above, which is the better match and so is the one chosen. */
+template <typename A, typename B>
+bool operator==(const TypedHandle<A>&, const TypedHandle<B>&) = delete;
+template <typename A, typename B>
+bool operator!=(const TypedHandle<A>&, const TypedHandle<B>&) = delete;
 
 struct TextureTag;
 struct BufferTag;

@@ -273,3 +273,23 @@ TEST(Field, IsALookThatComparesExactlySoAMemoOverOneCanBeSkipped) {
   louder.gain = 0.4f;
   EXPECT_NE(grain, louder);
 }
+
+TEST(NoiseField, AWarpedFieldReadsOnlyTheAxesItsDimensionNames) {
+  // The warp displaces every axis, so a one-dimensional warped field
+  // would read a lattice in three if the held axes were not put back.
+  const Field line{.dimension = 1, .frequency = 0.5f, .warp = 0.8f};
+  for (float x = -3.0f; x <= 3.0f; x += 0.25f) {
+    EXPECT_FLOAT_EQ(line.at(x, 0.0f, 0.0f), line.at(x, 5.0f, 0.0f));
+    EXPECT_FLOAT_EQ(line.at(x, 0.0f, 0.0f), line.at(x, 0.0f, -2.0f));
+  }
+  const Field plane{.dimension = 2, .frequency = 0.5f, .warp = 0.8f};
+  for (float x = -2.0f; x <= 2.0f; x += 0.5f)
+    EXPECT_FLOAT_EQ(plane.at(x, 1.0f, 0.0f), plane.at(x, 1.0f, 4.0f));
+}
+
+TEST(NoiseField, AFieldOfNoFrequencyIsOneNumberEverywhere) {
+  const Field flat{.frequency = 0.0f, .warp = 0.5f};
+  const float at00 = flat.at(0.0f, 0.0f);
+  EXPECT_TRUE(std::isfinite(at00));
+  EXPECT_FLOAT_EQ(flat.at(11.0f, -4.0f), at00);
+}

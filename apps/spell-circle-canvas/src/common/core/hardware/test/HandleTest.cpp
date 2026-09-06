@@ -18,6 +18,15 @@ namespace {
 static_assert(!std::is_convertible_v<TextureHandle, BufferHandle>);
 static_assert(!std::is_convertible_v<FenceHandle, TextureHandle>);
 
+// …and two kinds do not COMPARE either. Equal bits in two tables name
+// two different resources, so the comparison is a mistake to refuse
+// rather than a question to answer.
+template <class A, class B>
+concept ComparesWith = requires(A a, B b) { a == b; };
+static_assert(ComparesWith<TextureHandle, TextureHandle>);
+static_assert(!ComparesWith<TextureHandle, BufferHandle>);
+static_assert(!ComparesWith<FenceHandle, TextureHandle>);
+
 }  // namespace
 
 TEST(HardwareHandle, TheNullHandleNamesNothing) {

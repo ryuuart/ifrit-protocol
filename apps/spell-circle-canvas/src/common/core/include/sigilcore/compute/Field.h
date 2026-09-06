@@ -16,7 +16,7 @@
  * field is a `period`; a warped one is `warp`. Every member is a plain
  * number or a small enumeration, so the value compares exactly and a
  * memo keyed on one can be skipped, and a look chosen once for a whole
- * sheet is one of these carried as a token rather than seven arguments
+ * sheet is one of these carried as a token rather than ten arguments
  * repeated at every call site.
  *
  * WHAT AGREES WITH WHAT. `FieldKind::Value` at one octave IS the
@@ -382,7 +382,7 @@ inline void featurePoint(uint32_t seed, int x, int y, int z, int period,
 
 /** A NOISE LOOK AS ONE VALUE, read at a point.
  *
- *  The seven numbers below are what a grain, a drift, a flow or an
+ *  The ten numbers below are what a grain, a drift, a flow or an
  *  erosion is set by, and they are chosen once for a drawing far more
  *  often than they are chosen per call — which is what makes this a
  *  value to carry rather than a call to repeat. It compares exactly,
@@ -441,6 +441,9 @@ struct Field {
     if (dimension < 3) z = 0.0f;
     if (dimension < 2) y = 0.0f;
     if (warp != 0.0f) {
+      // The warp displaces every axis, so the axes the dimension holds
+      // at zero are put back after it; otherwise a one-dimensional
+      // warped field would read a three-dimensional lattice.
       const float wx = base(seed ^ 0x5bf03635u, x * frequency, y * frequency,
                             z * frequency, period);
       const float wy = base(seed ^ 0x1b56c4e9u, x * frequency, y * frequency,
@@ -450,6 +453,8 @@ struct Field {
       x += warp * wx / (frequency != 0.0f ? frequency : 1.0f);
       y += warp * wy / (frequency != 0.0f ? frequency : 1.0f);
       z += warp * wz / (frequency != 0.0f ? frequency : 1.0f);
+      if (dimension < 3) z = 0.0f;
+      if (dimension < 2) y = 0.0f;
     }
 
     const int layers = octaves > 0 ? octaves : 1;

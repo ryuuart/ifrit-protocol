@@ -4,7 +4,6 @@
 
 #include <sigilcore/hardware/GpuDevice.h>
 
-#include <cstdio>
 #include <deque>
 #include <mutex>
 
@@ -44,7 +43,7 @@ struct DeferredRelease {
 }  // namespace
 
 struct GpuDevice::Impl {
-  std::unique_ptr<Backend_> backend;
+  std::unique_ptr<DeviceBackend> backend;
   HandleTable<TextureSlot, TextureHandle> textures;
   HandleTable<FenceSlot, FenceHandle> fences;
   std::deque<DeferredRelease> deferred;
@@ -63,7 +62,7 @@ void report(std::string* error, const char* message) {
 }  // namespace
 
 std::unique_ptr<GpuDevice> GpuDevice::createOwned(std::string* error) {
-  std::unique_ptr<Backend_> impl;
+  std::unique_ptr<DeviceBackend> impl;
 #ifdef __APPLE__
   NativeDevice native;
   native.backend = Backend::Metal;
@@ -80,7 +79,7 @@ std::unique_ptr<GpuDevice> GpuDevice::createOwned(std::string* error) {
 
 std::unique_ptr<GpuDevice> GpuDevice::adopt(const NativeDevice& native,
                                             std::string* error) {
-  std::unique_ptr<Backend_> impl;
+  std::unique_ptr<DeviceBackend> impl;
   switch (native.backend) {
     case Backend::Metal: {
 #ifdef __APPLE__
@@ -103,7 +102,7 @@ std::unique_ptr<GpuDevice> GpuDevice::adopt(const NativeDevice& native,
   return std::unique_ptr<GpuDevice>(new GpuDevice(std::move(impl)));
 }
 
-GpuDevice::GpuDevice(std::unique_ptr<Backend_> backend)
+GpuDevice::GpuDevice(std::unique_ptr<DeviceBackend> backend)
     : m_impl(std::make_unique<Impl>()) {
   m_impl->backend = std::move(backend);
 }
@@ -145,7 +144,12 @@ void GpuDevice::beginFrame() {
   }
 }
 
-uint64_t GpuDevice::frameIndex() const { return m_impl->frame; }
+uint64_t GpuDevice::frameIndex() const {
+  // Read under the lock `beginFrame()` writes it under: the class
+  // promises every call is safe from any thread.
+  const std::lock_guard<std::mutex> lock(m_impl->mutex);
+  return m_impl->frame;
+}
 
 TextureHandle GpuDevice::createTexture(const TextureDesc& desc) {
   if (desc.width <= 0 || desc.height <= 0) return {};

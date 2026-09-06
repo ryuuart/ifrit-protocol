@@ -16,7 +16,7 @@
  * instead, given the view and the targets.
  */
 
-#include <sigilcore/reconcile/Erased.h>
+#include <sigilcore/comparable/Erased.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/frame/Targets.h>
 #include <sigilworld/frame/View.h>

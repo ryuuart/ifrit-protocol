@@ -132,7 +132,7 @@ T fromHandle(uint64_t value) {
 
 // ---------------------------------------------------------------------------
 
-class VulkanBackend final : public GpuDevice::Backend_ {
+class VulkanBackend final : public GpuDevice::DeviceBackend {
  public:
   VulkanBackend(Api api, NativeDevice native) : m_api(api), m_native(native) {
     m_api.getMemoryProperties(physicalDevice(), &m_memory);
@@ -323,7 +323,7 @@ class VulkanBackend final : public GpuDevice::Backend_ {
 
 }  // namespace
 
-std::unique_ptr<GpuDevice::Backend_> createVulkanBackend(
+std::unique_ptr<GpuDevice::DeviceBackend> createVulkanBackend(
     const NativeDevice& native, std::string* error) {
   NativeDevice resolved = native;
   resolved.backend = Backend::Vulkan;

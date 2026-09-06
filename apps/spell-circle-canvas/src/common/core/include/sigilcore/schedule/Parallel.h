@@ -32,7 +32,6 @@
 #include <cstddef>
 #include <iterator>
 #include <ranges>
-#include <utility>
 
 namespace sigil::core::schedule {
 
@@ -58,19 +57,20 @@ void overChunks(size_t count, size_t grain, void* body, ChunkBody run);
  *  Every chunk may run on a different thread, so a body writes only what
  *  its own range names and reads only what nothing else writes.
  *
- *  @p grain is how many items one worker takes at a time — see the file
- *  comment for how a caller chooses it. A grain of zero is one item. A
- *  count no larger than the grain runs on the calling thread.
+ *  @p grain is how many items are worth handing to one worker, which
+ *  follows from what one item costs: the chunk has to be worth more
+ *  than the handing over. A grain of zero is one item. A count no
+ *  larger than the grain runs on the calling thread.
  *
  *  An exception a body throws leaves the range partly run and is
  *  rethrown to this caller. */
 template <std::unsigned_integral Index, class Body>
-void parallelFor(Index count, Index grain, Body&& body) {
+void parallelFor(Index count, size_t grain, Body&& body) {
   auto chunk = [&body](size_t first, size_t last) {
     body(static_cast<Index>(first), static_cast<Index>(last));
   };
-  detail::overChunks(static_cast<size_t>(count), static_cast<size_t>(grain),
-                     &chunk, [](void* held, size_t first, size_t last) {
+  detail::overChunks(static_cast<size_t>(count), grain, &chunk,
+                     [](void* held, size_t first, size_t last) {
                        (*static_cast<decltype(chunk)*>(held))(first, last);
                      });
 }

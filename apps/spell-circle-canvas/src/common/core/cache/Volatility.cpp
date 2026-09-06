@@ -24,7 +24,12 @@ SubtreeVerdict foldSubtree(const NodeVolatility& self,
   // The node's artefact survives that motion (it is drawn through it); an
   // ancestor's would contain it, and would freeze it.
   v.volatileAbove = self.ownPaint || v.subtreeVolatile;
-  v.subtreeReadsBackdrop = self.readsBackdrop || children.anyReadsBackdrop;
+  // Sampling the destination IS reading the backdrop — the header says
+  // one implies the other, and the fold reads the implication rather
+  // than the declaration, so a node that declares only the stronger one
+  // is not treated as blind to the canvas.
+  const bool backdrop = self.readsBackdrop || self.samplesDestination;
+  v.subtreeReadsBackdrop = backdrop || children.anyReadsBackdrop;
 
   // The two halves of the hold question, which are NOT the same predicate.
   //
@@ -38,7 +43,7 @@ SubtreeVerdict foldSubtree(const NodeVolatility& self,
   // A filter that samples the destination is still fatal there, because
   // that one is applied inside.
   const bool memoBlind = self.memoOpaque || never;
-  v.memoSafe = !memoBlind && !self.readsBackdrop && children.allMemoSafe;
+  v.memoSafe = !memoBlind && !backdrop && children.allMemoSafe;
   v.holdRootOK = self.holdSubtree && !memoBlind && children.allMemoSafe &&
                  !self.samplesDestination;
   return v;

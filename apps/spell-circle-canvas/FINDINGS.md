@@ -369,59 +369,22 @@ Should-fix:
 
 ## SigilCore, SigilData, SigilMeasure, SigilMotion, SigilIO, SigilVideo, the product, the build (findings/review-core-io-build.md)
 
-Blocker:
-
-- `src/common/core/include/sigilcore/compute/Chance.h:219-224` —
-  `normal()` rejects until `0 < s < 1`, but a `stratified(0|1)` stream
-  (documented valid) answers `fixed(0)` forever, so it never exits and
-  `Gaussian::draw` hangs. Cap the rejection loop with a Box–Muller
-  fallback, or refuse `stratified(<2)`. Assert: `normal()` over every
-  documented source terminates.
-
-Should-fix (correctness): `reconcile/Reconciler.h:146-152` a second
-same-keyed sibling is destroyed without `m_host.destroy()`;
-`core/hardware/GpuDevice.cpp:148` `frameIndex()` reads unlocked what
-`beginFrame()` writes under the mutex; `io/hub/Network.cpp:95-101`
+Should-fix (correctness): `io/hub/Network.cpp:95-101`
 concurrent fetches of one URL share one `.part` and can commit a torn
 file; `io/hub/Mounts.cpp:18-27` `tellg() == -1` becomes `resize(SIZE_MAX)`
-and a directory reaches it; `data/decode/Csv.cpp:351-352` duplicate
-header names lose a column silently; `io/hub/Selection.cpp:257-266` a
-`./dir/*.ext` glob never matches; `core/cache/Volatility.cpp:27,41`
-`samplesDestination` does not imply `readsBackdrop` as the header says;
+and a directory reaches it; `io/hub/Selection.cpp:257-266` a
+`./dir/*.ext` glob never matches;
 `measure/time/Laps.h:32-37` stores a caller's `string_view`;
-`compute/Field.h:441-452` a one-dimensional warped field reads three
-dimensions; `compute/Noise.h:117-120` `pcgUnitNext` reaches exactly 1.0
-against `[0, 1)`; `compute/Hash.h:63` `combine` narrows a 64-bit member;
 `measure/stats/Fit.h:82-88` the subtractive `den` the README forbids and
-a zero `rmsResidual` on the degenerate path; `Chance.h:98-161` a 64-bit
-seed loses its high half; `hardware/Handle.h:24-33` cross-tag handles
-compare equal; `compute/Curve.h:187-212` elastic eases at period 0
-answer NaN; `Reconciler.h:102-105` `described` unread and `describedNodes`
-counts visits.
+a zero `rmsResidual` on the degenerate path.
 
 Should-fix (API, boundary, docs, build): `io/hub/Cache.cpp:266-288` with
 `Hub.h:115-124` `Hub::probe()` calls `probeImage` and answers an image
-kind (IO owning meaning); `reconcile/Erased.h` a pure re-export that
-makes `SigilCoreCache` link `SigilCoreReconcile`; `reconcile/Reconcile.h`
-omits `Reads.h`; `compute/Hash.h:41,51` `fnv1a` not constexpr so `Env.h`
-re-implements it with a different constant; `scripts/README.md` claims
-`.clang-format-ignore` names the generated sources while the file is
-empty; `GpuDevice.h:93-94` and `Field.h:20,385` doc counts wrong;
-`video/decode/CMakeLists.txt`, `ui/CMakeLists.txt`, `spellcircle/mac`,
-`spellcircle/qt` hand-roll ARC and framework links four ways (an `ARC`
-flag and a `FRAMEWORKS` keyword on `sigil_library`).
+kind (IO owning meaning).
 
-Tests missing: decoders on empty, BOM, CRLF, unterminated quote,
-duplicate headers, `+5`, NaN, deep JSON; the hub under retained leases
+Tests missing: the hub under retained leases
 and concurrent fetches; physics at `dt == 0`, large `dt`, `stiffness >
-1`, attract near zero; the reconciler with same-keyed siblings;
-`normal()` over every source; video `finish()` twice and zero frames;
-malformed UDP scenes.
-
-Stray files to delete: `default/` (an empty untracked directory at the
-app root) and `src/spellcircle/shared/schema/build/` (a stale CMake tree
-inside the source directory); `.gitignore:20-21` entries that match
-nothing; the unused `xcode` presets.
+1`, attract near zero; video `finish()` twice and zero frames.
 
 ## Ring and grid placement is respelled where geometry already has it
 

@@ -104,6 +104,16 @@ inline constexpr float kPi = 3.14159265358979323846f;
 /** Where the decaying sine starts, given amplitude @p a and period @p p.
  *  An amplitude under the travelled distance cannot reach the endpoint,
  *  so it is raised to it and the phase is a quarter period. */
+/** The default ring period, and the one a period of zero reads as: a
+ *  ring of no period is a division by zero, and the curves here answer
+ *  a determinate float for every argument. */
+inline constexpr float kElasticPeriod = 0.3f;
+
+/** @p p, or the default period when it has no ring in it. */
+[[nodiscard]] inline constexpr float elasticPeriod(float p) {
+  return p > 0.0f ? p : kElasticPeriod;
+}
+
 [[nodiscard]] inline float elasticPhase(float& a, float p) {
   if (a < 1.0f) {
     a = 1.0f;
@@ -183,30 +193,35 @@ inline constexpr float kPi = 3.14159265358979323846f;
 }
 
 /** Ring down to rest: a sine decaying under a halving exponential. @p a
- *  is the amplitude, @p p the period. */
+ *  is the amplitude, @p p the period. A period of zero has no ring in
+ *  it at all and is read as the default period, so the curve stays the
+ *  determinate float every shape here promises. */
 [[nodiscard]] inline Curve outElastic(float a = 1.0f, float p = 0.3f) {
   return {[](float t, const float* q) {
             if (t == 0) return 0.0f;
             if (t == 1) return 1.0f;
             float amplitude = q[0];
-            const float s = detail::elasticPhase(amplitude, q[1]);
+            const float period = detail::elasticPeriod(q[1]);
+            const float s = detail::elasticPhase(amplitude, period);
             return amplitude * std::pow(2.0f, -10 * t) *
-                       std::sin((t - s) * (2 * detail::kPi) / q[1]) +
+                       std::sin((t - s) * (2 * detail::kPi) / period) +
                    1.0f;
           },
           {a, p}};
 }
 
-/** The same ring read in: it shakes loose before it goes. */
+/** The same ring read in: it shakes loose before it goes. A period of
+ *  zero is read as the default period, as it is on the way out. */
 [[nodiscard]] inline Curve inElastic(float a = 1.0f, float p = 0.3f) {
   return {[](float t, const float* q) {
             if (t == 0) return 0.0f;
             if (t == 1) return 1.0f;
             float amplitude = q[0];
-            const float s = detail::elasticPhase(amplitude, q[1]);
+            const float period = detail::elasticPeriod(q[1]);
+            const float s = detail::elasticPhase(amplitude, period);
             t -= 1;
             return -(amplitude * std::pow(2.0f, 10 * t) *
-                     std::sin((t - s) * (2 * detail::kPi) / q[1]));
+                     std::sin((t - s) * (2 * detail::kPi) / period));
           },
           {a, p}};
 }

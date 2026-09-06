@@ -91,7 +91,8 @@ struct TextureDesc {
 };
 
 /** How many levels a chain over @p width x @p height can hold: one more
- *  each time both sides can still be halved. */
+ *  each time EITHER side can still be halved, so the chain ends at one
+ *  pixel by one and a long thin texture keeps its length in levels. */
 int mipLevelsFor(int width, int height);
 
 /**
@@ -229,10 +230,10 @@ class GpuDevice {
   /** True while the handle names a fence. */
   bool isValid(FenceHandle handle) const;
 
-  class Backend_;
+  class DeviceBackend;
 
  private:
-  explicit GpuDevice(std::unique_ptr<Backend_> backend);
+  explicit GpuDevice(std::unique_ptr<DeviceBackend> backend);
   struct Impl;
   std::unique_ptr<Impl> m_impl;
 };

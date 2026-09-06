@@ -9,7 +9,7 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
-#include <sigilcore/reconcile/Erased.h>
+#include <sigilcore/comparable/Erased.h>
 #include <sigilworld/element/Geometry.h>
 #include <sigilworld/element/Selector.h>
 #include <sigilworld/frame/View.h>

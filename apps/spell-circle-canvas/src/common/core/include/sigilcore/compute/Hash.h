@@ -38,7 +38,7 @@ inline constexpr uint64_t kFnvPrime = 1099511628211ull;
  *  Byte order is spelled out rather than taken from memory, so the fold
  *  is the same number on a big-endian machine as on a little-endian
  *  one. */
-inline uint64_t fnv1a(uint64_t hash, uint64_t value) {
+inline constexpr uint64_t fnv1a(uint64_t hash, uint64_t value) {
   for (unsigned byte = 0; byte < 8; ++byte) {
     hash ^= (value >> (byte * 8)) & 0xffull;
     hash *= kFnvPrime;
@@ -48,7 +48,7 @@ inline uint64_t fnv1a(uint64_t hash, uint64_t value) {
 
 /** FNV-1a over @p text's bytes, each read unsigned so a high-bit byte
  *  folds the same whether `char` is signed or not. */
-inline uint64_t fnv1a(uint64_t hash, std::string_view text) {
+inline constexpr uint64_t fnv1a(uint64_t hash, std::string_view text) {
   for (char c : text) {
     hash ^= (uint64_t)(unsigned char)c;
     hash *= kFnvPrime;
@@ -59,9 +59,16 @@ inline uint64_t fnv1a(uint64_t hash, std::string_view text) {
 /** Folds @p value into @p hash: the golden-ratio stir, which spreads a
  *  word that is nearly the same as the last one across the whole result
  *  instead of leaving the difference in the low bits. For accumulating
- *  a std::hash over the members of a key struct. */
-inline size_t combine(size_t hash, uint32_t value) {
-  hash ^= value + 0x9E3779B9u + (hash << 6u) + (hash >> 2u);
+ *  a std::hash over the members of a key struct.
+ *
+ *  The whole 64-bit word takes part. A key member is as often a pointer
+ *  or a 64-bit identifier as it is a 32-bit one, and folding the high
+ *  half down rather than dropping it means two members that differ only
+ *  above the 32nd bit hash apart; a value that fits in 32 bits folds
+ *  exactly as it always did. */
+inline constexpr size_t combine(size_t hash, uint64_t value) {
+  const auto folded = (size_t)(value ^ (value >> 32u));
+  hash ^= folded + 0x9E3779B9u + (hash << 6u) + (hash >> 2u);
   return hash;
 }
 

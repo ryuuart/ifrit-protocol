@@ -6,12 +6,13 @@
 # artefact is the host's. Beside them the rebuild guard: the keyed
 # "compare the inputs, rebuild on change" cache an animated consumer
 # otherwise hand-rolls, which knows nothing of what it holds. Links
-# SigilCoreReconcile for the comparable type erasure a seam value takes,
-# and nothing that draws, rasterizes or records.
+# SigilCoreComparable for the type erasure a seam value takes — the
+# header-only pair the kernel needs, not the reconciler behind it — and
+# nothing that draws, rasterizes or records.
 sigil_library(SigilCoreCache
   SOURCES Volatility.cpp
   HEADERS Bake.h Cache.h Policy.h Rebuild.h Settle.h Volatility.h
-  PUBLIC SigilCoreReconcile)
+  PUBLIC SigilCoreComparable)
 
 # Over a fake host, so a link edge that pulled a drawing or rasterizing
 # library in would show up as a build failure here.

@@ -22,12 +22,11 @@
  * one `std::log` or `std::sqrt` call, and inherit whatever that one call
  * rounds to on the machine running it.
  *
- * `unit()` is NOT `noise::pcgUnitNext`. That one divides by `0xFFFFFFFF`
- * converted to float, which rounds up, so its largest draw is 1.0f — a
- * value its own range excludes. Here every source is squeezed through
- * the 24 mantissa bits a float holds exactly, which never reaches 1. A
+ * ONE SQUEEZE. Every source here is read to a float through the 24
+ * mantissa bits a float holds exactly, which is the squeeze `noise::`
+ * uses too, so `[0, 1)` is the range drawn and 1 is never answered. A
  * caller replacing a hand-carried `pcgNext` loop keeps the same WORDS
- * through `bits()`; the unit floats move by at most one part in 2^24.
+ * through `bits()` and the same unit floats.
  */
 
 #include <sigilcore/compute/Hash.h>
@@ -94,7 +93,9 @@ class Stream {
   Stream() = default;
 
   /** The PCG word, seeded so that `pcg(s).bits()` is the word
-   *  `noise::pcgNext` answers for a state of @p seed. */
+   *  `noise::pcgNext` answers for a state of @p seed. A seed wider than
+   *  the 32-bit state has its high half folded onto its low one, so
+   *  every bit of it moves the run. */
   [[nodiscard]] static Stream pcg(uint64_t seed) {
     return Stream(Source::Pcg, seed, 0);
   }
@@ -210,22 +211,43 @@ class Stream {
   /** A STANDARD NORMAL DRAW: Marsaglia's polar method, which spends a
    *  pair of unit draws on a pair of normals and holds the second for
    *  the next call. That held value is why this is a member and not a
-   *  free function — the spare belongs to the stream that paid for it. */
+   *  free function — the spare belongs to the stream that paid for it.
+   *
+   *  The polar method REJECTS the pairs that land outside the unit
+   *  disc, and a source whose pairs do not scatter has nothing else to
+   *  offer: a stratified ladder of one cell answers the same number for
+   *  ever, and that pair is rejected for ever. So the rejections are
+   *  counted, and the pair that exhausts the count is turned by the
+   *  sine-and-cosine form instead, which rejects nothing. Every source
+   *  named by `Source` therefore terminates, and a scattering one takes
+   *  the polar path on all but about one draw in 10^21. */
   float normal() {
     if (m_spareHeld) {
       m_spareHeld = false;
       return m_spare;
     }
-    float u = 0.0f, v = 0.0f, s = 0.0f;
-    do {
-      u = signedUnit();
-      v = signedUnit();
-      s = u * u + v * v;
-    } while (!(s < 1.0f) || !(s > 0.0f));
-    const float f = std::sqrt(-2.0f * std::log(s) / s);
-    m_spare = v * f;
+    for (unsigned attempt = 0; attempt < kNormalRejections; ++attempt) {
+      const float u = signedUnit();
+      const float v = signedUnit();
+      const float s = u * u + v * v;
+      if (s < 1.0f && s > 0.0f) {
+        const float f = std::sqrt(-2.0f * std::log(s) / s);
+        m_spare = v * f;
+        m_spareHeld = true;
+        return u * f;
+      }
+    }
+    // The radius from one draw and the angle from the next. The unit
+    // draw reaches zero, whose logarithm is not a number, so it is
+    // lifted onto the smallest step the 24-bit unit grid has.
+    constexpr float kUnitStep = 1.0f / 16777216.0f;
+    const float drawn = unit();
+    const float radius =
+        std::sqrt(-2.0f * std::log(drawn > kUnitStep ? drawn : kUnitStep));
+    const float angle = 2.0f * 3.14159265358979323846f * unit();
+    m_spare = radius * std::sin(angle);
     m_spareHeld = true;
-    return u * f;
+    return radius * std::cos(angle);
   }
 
   /** THE DRAW: @p shape's own answer, read out of this stream. Any value
@@ -256,10 +278,25 @@ class Stream {
    *  unit interval more evenly than any other single step. */
   static constexpr uint64_t kGoldenStep = 0x9e3779b97f4a7c15ull;
 
+  /** How many pairs `normal()` may reject before it turns the next pair
+   *  by the form that rejects nothing. About a fifth of the pairs a
+   *  scattering source offers fall outside the disc, so this many in a
+   *  row is not a run of bad luck; it is a source that cannot offer a
+   *  second point. */
+  static constexpr unsigned kNormalRejections = 32u;
+
   static uint64_t start(Source source, uint64_t seed) {
-    // The xorshift shifts all fix zero, so a stream that begins there
-    // stays there for ever; one is the nearest state that does not.
-    if (source == Source::Xorshift && (uint32_t)seed == 0u) return 1u;
+    // The two 32-bit mixers step a 32-bit word, so a wider seed would
+    // lose its high half on the way in and two seeds an even 2^32 apart
+    // would walk one run. The half is folded down instead, which leaves
+    // a seed that fits in 32 bits exactly where it was.
+    if (source == Source::Pcg || source == Source::Xorshift) {
+      auto word = (uint32_t)(seed ^ (seed >> 32u));
+      // The xorshift shifts all fix zero, so a stream that begins there
+      // stays there for ever; one is the nearest state that does not.
+      if (source == Source::Xorshift && word == 0u) word = 1u;
+      return word;
+    }
     return seed;
   }
 
@@ -356,6 +393,11 @@ struct Exponential {
  *  It answers an INDEX rather than a value, so one shape serves every
  *  element type and the caller indexes its own container. */
 struct Weighted {
+  /** BORROWED, not held: the span names weights the caller keeps alive
+   *  for as long as it draws from this shape. It is why this is the one
+   *  shape here without an `operator==` — two spans over equal numbers
+   *  in different memory are not the same distribution to compare, and
+   *  comparing the addresses would answer a question nobody asked. */
   std::span<const float> weights;
   using Answer = std::optional<size_t>;
   [[nodiscard]] Answer draw(Stream& stream) const {

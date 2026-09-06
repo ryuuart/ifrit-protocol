@@ -31,7 +31,6 @@
 #include <cstddef>
 #include <iterator>
 #include <ranges>
-#include <utility>
 
 namespace sigil::core::schedule {
 

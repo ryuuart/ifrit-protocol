@@ -63,7 +63,11 @@ class Settle {
   /** READ SIDE, inside the proof. Honours a warmed-up hold.
    *
    *  @p read is called ONLY once the count has reached @p hold, so a node
-   *  that is plainly moving never pays for resolving its values here.
+   *  that is plainly moving never pays for resolving its values here. A
+   *  @p hold of zero or less asks for no warm-up at all, and the release
+   *  then rests on the reading alone: the first proof records it and the
+   *  next proof that reads the same values releases. `observe` has no
+   *  crossing to report for such a node and answers false throughout.
    *  @return true when the node is provably holding still and may stop
    *  declaring — at which point the host registers it for `moved`. A
    *  reading that differs restarts the hold from the new value. */
@@ -81,10 +85,10 @@ class Settle {
    *  @return true when @p now differs from the held reading — the node
    *  must re-declare its volatility and stale everything above it THIS
    *  frame. The hold restarts from the new value. */
-  bool moved(Values now) {
+  bool moved(const Values& now) {
     if (now == m_held) return false;
     m_frames = 0;
-    m_held = std::move(now);
+    m_held = now;
     return true;
   }
 

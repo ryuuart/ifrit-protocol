@@ -99,10 +99,13 @@ class Reconciler {
    *  when the description changed, before reconciling the children. */
   void patch(Node& inst, const Description& node) {
     static_assert(ReconcileHost<Host, Node, Description>);
-    m_stats.describedNodes++;
     bool described = true;
     Description resolved =
         resolveMemo(inst.description ? &inst : nullptr, node, described);
+    // What a memo hit skips is the DESCRIBE, so a hit is not counted as
+    // one; the count and `memoHits` beside it then add up to the nodes
+    // the pass visited.
+    if (described) m_stats.describedNodes++;
     if (m_host.memoOf(node))
       inst.memoShell = node;
     else
@@ -143,8 +146,14 @@ class Reconciler {
       if (child) {
         oldOrder.push_back(child.get());
         const std::string& key = matchKeyOf(*child);
-        if (!key.empty())
-          keyed.emplace(key, std::move(child));
+        // A key names ONE child. A second sibling under the same key
+        // matches nothing by key, but it is still a retained child, so
+        // it joins the unkeyed ones — where it is either matched by
+        // position or retired through the host below. Dropping it here
+        // would destroy it without the host ever hearing of it.
+        auto slot = key.empty() ? keyed.end() : keyed.try_emplace(key).first;
+        if (slot != keyed.end() && !slot->second)
+          slot->second = std::move(child);
         else
           unkeyed.push_back(std::move(child));
       }
@@ -263,7 +272,8 @@ class Reconciler {
     const std::string& key = keyOf(inst);
     if (!key.empty()) byKey[key] = &inst;
     visit(inst);
-    for (auto& child : inst.children) indexKeys(*child, byKey, visit);
+    for (auto& child : inst.children)
+      if (child) indexKeys(*child, byKey, visit);
   }
 
   const ReconcileStats& stats() const { return m_stats; }

@@ -120,4 +120,20 @@ TEST(CacheHost, AReleasedLaneMovingReDeclaresBeforeAnythingReplays) {
   EXPECT_TRUE(root.verdict.subtreeVolatile);
 }
 
+TEST(CacheSettle, AHoldOfNothingRestsOnTheReadingAlone) {
+  Settle<std::vector<float>> settle;
+  // Nothing to warm up, so there is no crossing to report.
+  EXPECT_FALSE(settle.observe(true, {1.0f}, 0));
+  EXPECT_FALSE(settle.observe(true, {1.0f}, 0));
+  EXPECT_FALSE(settle.observe(true, {1.0f}, -3));
+  // The first proof records the reading; the next one that reads the
+  // same values releases.
+  const auto read = [] { return std::vector<float>{2.0f}; };
+  EXPECT_FALSE(settle.release(0, read));
+  EXPECT_TRUE(settle.release(0, read));
+  EXPECT_TRUE(settle.release(-3, read));
+  // …and a reading that moves takes the release away again.
+  EXPECT_FALSE(settle.release(0, [] { return std::vector<float>{3.0f}; }));
+}
+
 }  // namespace

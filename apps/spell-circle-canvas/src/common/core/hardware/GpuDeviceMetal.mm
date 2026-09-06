@@ -35,7 +35,7 @@ MTLTextureUsage toMetal(TextureUsage usage) {
   return out;
 }
 
-class MetalBackend final : public GpuDevice::Backend_ {
+class MetalBackend final : public GpuDevice::DeviceBackend {
  public:
   MetalBackend(const NativeDevice &native, bool owned) : m_native(native), m_owned(owned) {
     if (m_owned) {
@@ -129,7 +129,8 @@ class MetalBackend final : public GpuDevice::Backend_ {
 
 }  // namespace
 
-std::unique_ptr<GpuDevice::Backend_> createMetalBackend(const NativeDevice &native, bool owned) {
+std::unique_ptr<GpuDevice::DeviceBackend> createMetalBackend(const NativeDevice &native,
+                                                             bool owned) {
   NativeDevice resolved = native;
   resolved.backend = Backend::Metal;
   if (owned) {

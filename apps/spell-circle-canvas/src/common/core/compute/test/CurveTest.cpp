@@ -90,3 +90,22 @@ TEST(Curve, EachHouseShapeHasItsOwnCharacter) {
   EXPECT_FLOAT_EQ(curve::smoothstep(0.5f), 0.5f);
   EXPECT_FLOAT_EQ(curve::smoothstep(0.25f), 1.0f - curve::smoothstep(0.75f));
 }
+
+TEST(Curve, AnElasticEaseAtNoPeriodIsStillADeterminateFloat) {
+  // The period divides the ring, so zero would answer inf or NaN from a
+  // shape whose whole contract is a determinate float.
+  for (int i = 0; i <= 20; ++i) {
+    const float t = i / 20.0f;
+    EXPECT_TRUE(std::isfinite(curve::outElastic(1.0f, 0.0f).at(t)));
+    EXPECT_TRUE(std::isfinite(curve::inElastic(1.0f, 0.0f).at(t)));
+  }
+  // A period of zero reads as the default period, so the two are one
+  // curve's answers.
+  EXPECT_FLOAT_EQ(curve::outElastic(1.0f, 0.0f).at(0.4f),
+                  curve::outElastic(1.0f, 0.3f).at(0.4f));
+  EXPECT_FLOAT_EQ(curve::inElastic(1.0f, 0.0f).at(0.4f),
+                  curve::inElastic(1.0f, 0.3f).at(0.4f));
+  // The ends are the ends whatever the period.
+  EXPECT_FLOAT_EQ(curve::outElastic(1.0f, 0.0f).at(0.0f), 0.0f);
+  EXPECT_FLOAT_EQ(curve::outElastic(1.0f, 0.0f).at(1.0f), 1.0f);
+}

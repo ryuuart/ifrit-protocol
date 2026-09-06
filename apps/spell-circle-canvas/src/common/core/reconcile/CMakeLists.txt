@@ -12,7 +12,7 @@ find_package(boost_container_hash CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilCoreReconcile
   SOURCES Env.cpp Reads.cpp
-  HEADERS Env.h Erased.h Host.h Memo.h Node.h Phases.h Reads.h Reconcile.h
+  HEADERS Env.h Host.h Memo.h Node.h Phases.h Reads.h Reconcile.h
           Reconciler.h Stats.h
   PUBLIC SigilCoreComparable SigilMeasure Boost::container_hash
          Boost::unordered)

@@ -8,7 +8,8 @@
  * around the deferred describe.
  */
 
-#include <cassert>
+#include <sigilcore/compute/Hash.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -115,13 +116,7 @@ env::Snapshot& envStack();
  *  compile time and the number is the key. */
 template <class T>
 constexpr std::uint64_t envTypeTag() {
-  const std::string_view spelling = __PRETTY_FUNCTION__;
-  std::uint64_t hash = 14695981039346656037ULL;  // FNV-1a, 64 bit
-  for (const char c : spelling) {
-    hash ^= (std::uint64_t)(unsigned char)c;
-    hash *= 1099511628211ULL;
-  }
-  return hash;
+  return hash::fnv1a(hash::kFnvOffset, std::string_view{__PRETTY_FUNCTION__});
 }
 
 }  // namespace detail
@@ -174,7 +169,11 @@ class Provide {
    *  of LIFO order is misuse; when it happens, the destructor locates its
    *  own entry by the held value's identity and removes exactly that one
    *  — an unconditional pop would unbind a SIBLING that is still alive.
-   *  The misuse warns; the well-nested path stays a compare and a
+   *  The misuse warns, unconditionally and with no switch: a scope
+   *  unbound out of order leaves the stack holding a binding nobody can
+   *  name, so the one line it prints is the only sign a sweep gets that
+   *  the process is wrong; a run that prints nothing is a run where the
+   *  scopes nested. The well-nested path stays a compare and a
    *  pop_back, allocation-free. */
   ~Provide() {
     Snapshot& stack = detail::envStack();
@@ -219,7 +218,7 @@ const T* inherited() {
 template <class T>
 T inheritedOr(const T& fallback) {
   const T* found = inherited<T>();
-  return found ? *found : std::move(fallback);
+  return found ? *found : fallback;
 }
 
 /** Is a binding of `T` in scope? For a component that must behave

@@ -25,9 +25,9 @@ inline int clampedMipLevels(const TextureDesc& desc) {
              : (desc.mipLevels > possible ? possible : desc.mipLevels);
 }
 
-class GpuDevice::Backend_ {
+class GpuDevice::DeviceBackend {
  public:
-  virtual ~Backend_() = default;
+  virtual ~DeviceBackend() = default;
 
   virtual const NativeDevice& native() const = 0;
 
@@ -53,14 +53,14 @@ class GpuDevice::Backend_ {
 };
 
 /** The Metal implementation; null when there is no Metal device. */
-std::unique_ptr<GpuDevice::Backend_> createMetalBackend(
+std::unique_ptr<GpuDevice::DeviceBackend> createMetalBackend(
     const NativeDevice& native, bool owned);
 
 /** The Vulkan implementation over handles the host owns; null, with the
  *  reason in @p error, when a required handle or entry point is
  *  missing. There is no owned Vulkan device: whoever owns the Vulkan API
  *  in a process creates it and this adopts it. */
-std::unique_ptr<GpuDevice::Backend_> createVulkanBackend(
+std::unique_ptr<GpuDevice::DeviceBackend> createVulkanBackend(
     const NativeDevice& native, std::string* error);
 
 }  // namespace sigil::core::hardware

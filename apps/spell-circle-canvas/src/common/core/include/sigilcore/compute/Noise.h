@@ -43,7 +43,7 @@ inline constexpr uint64_t kMix64Gamma = 0x9e3779b97f4a7c15ull;
  *
  *  The stateless form is `mix64(x + kMix64Gamma)`; a stream is a counter
  *  advanced by the gamma and read through here. */
-inline uint64_t mix64(uint64_t z) {
+inline constexpr uint64_t mix64(uint64_t z) {
   z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
   z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
   return z ^ (z >> 31u);
@@ -85,44 +85,51 @@ class Mix64Stream {
   uint64_t m_state;
 };
 
-/** Hash of (seed, i) to [-1, 1]: `mix64` over the pair, packed into one
+/** Hash of (seed, i) to [-1, 1): `mix64` over the pair, packed into one
  *  word. Successive `i` for one seed read as an uncorrelated sequence,
  *  which is what a per-stamp or per-vertex jitter wants. */
-inline float hash(uint32_t seed, uint32_t i) {
+inline constexpr float hash(uint32_t seed, uint32_t i) {
   const uint64_t z =
       mix64((uint64_t(seed) << 32u | uint64_t(i * 0x9e3779b9u)) + kMix64Gamma);
-  return (float)(z & 0xffffffu) / (float)0x7fffff - 1.0f;
+  // Halved against 2^23 rather than 2^23 - 1: the divisor is exact as a
+  // float, so the largest word lands just under 1 instead of a hair
+  // above it, and the range the caller is promised is the range drawn.
+  return (float)(z & 0xffffffu) * (1.0f / 8388608.0f) - 1.0f;
 }
 
 /** One PCG step: the LCG advance. */
-inline uint32_t pcgAdvance(uint32_t state) {
+inline constexpr uint32_t pcgAdvance(uint32_t state) {
   return state * 747796405u + 2891336453u;
 }
 
 /** The PCG output permutation (RXS-M-XS). */
-inline uint32_t pcgMix(uint32_t x) {
+inline constexpr uint32_t pcgMix(uint32_t x) {
   x = ((x >> ((x >> 28u) + 4u)) ^ x) * 277803737u;
   return (x >> 22u) ^ x;
 }
 
 /** Stateless hash of one integer: advance then mix. */
-inline uint32_t pcgHash(uint32_t x) { return pcgMix(pcgAdvance(x)); }
+inline constexpr uint32_t pcgHash(uint32_t x) { return pcgMix(pcgAdvance(x)); }
 
 /** A stream: advances `state` and returns the next word. */
-inline uint32_t pcgNext(uint32_t& state) {
+inline constexpr uint32_t pcgNext(uint32_t& state) {
   state = pcgAdvance(state);
   return pcgMix(state);
 }
 
-/** `pcgNext` squeezed to [0, 1): the next unit float of a stream. */
-inline float pcgUnitNext(uint32_t& state) {
-  return (float)pcgNext(state) / (float)0xFFFFFFFFu;
+/** `pcgNext` squeezed to [0, 1) through the top 24 bits — the 24 a
+ *  float holds exactly, which is the one squeeze every unit draw in
+ *  this tree is made by. Dividing the whole word by 0xFFFFFFFF instead
+ *  answers exactly 1 for the largest word, because both it and the
+ *  divisor round to 2^32 as floats. */
+inline constexpr float pcgUnitNext(uint32_t& state) {
+  return (float)(pcgNext(state) >> 8u) * (1.0f / 16777216.0f);
 }
 
 /** `pcgHash` squeezed to [0, 1) through the 24 mantissa bits a float
  *  can hold exactly — the same squeeze a shader performs, so CPU and GPU
  *  lattices agree. */
-inline float pcgUnit(uint32_t x) {
+inline constexpr float pcgUnit(uint32_t x) {
   return (float)(pcgHash(x) & 0x00FFFFFFu) / 16777216.0f;
 }
 
@@ -137,7 +144,7 @@ inline float pcgUnit(uint32_t x) {
  *
  *  Zero is the one state to keep out: all three shifts fix it, so a
  *  stream that reaches zero stays there. Seed with any other word. */
-inline uint32_t xorshiftNext(uint32_t& state) {
+inline constexpr uint32_t xorshiftNext(uint32_t& state) {
   state ^= state << 13u;
   state ^= state >> 17u;
   state ^= state << 5u;
@@ -147,7 +154,7 @@ inline uint32_t xorshiftNext(uint32_t& state) {
 /** `xorshiftNext` squeezed to [0, 1) through the top 24 bits — the 24 a
  *  float's mantissa holds exactly, taken from the high end, which is the
  *  end an xorshift word mixes best. */
-inline float xorshiftUnitNext(uint32_t& state) {
+inline constexpr float xorshiftUnitNext(uint32_t& state) {
   return (float)(xorshiftNext(state) >> 8u) * (1.0f / 16777216.0f);
 }
 

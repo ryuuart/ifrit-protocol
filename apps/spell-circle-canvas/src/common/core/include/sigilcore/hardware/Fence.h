@@ -1,4 +1,12 @@
 #pragma once
+
+/** @file
+ * THE TIMELINE TWO PROCESSORS AGREE ON: a value that only grows, raised
+ * by the queue as it finishes work and waited on by the queue or by the
+ * CPU. The value a signal issues is the value to wait for, so ordering
+ * between the two sides is one number rather than a protocol.
+ */
+
 #include <chrono>
 #include <cstdint>
 

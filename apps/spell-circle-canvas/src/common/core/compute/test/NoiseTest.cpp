@@ -64,9 +64,9 @@ TEST(Noise, TheAvalancheIsTheSameWordsInEveryImplementation) {
 
 TEST(Noise, TheStatelessHashIsTheSameFloatsInEveryImplementation) {
   EXPECT_EQ(bits(noise::hash(0u, 0u)), 0xbf4464a2u);
-  EXPECT_EQ(bits(noise::hash(7u, 1u)), 0x3f430f78u);
+  EXPECT_EQ(bits(noise::hash(7u, 1u)), 0x3f430f74u);
   EXPECT_EQ(bits(noise::hash(7u, 2u)), 0xbf70191au);
-  EXPECT_EQ(bits(noise::hash(42u, 99u)), 0xbe242270u);
+  EXPECT_EQ(bits(noise::hash(42u, 99u)), 0xbe242278u);
   EXPECT_EQ(bits(noise::hash(0xffffffffu, 0xffffffffu)), 0xbf4f494au);
 }
 

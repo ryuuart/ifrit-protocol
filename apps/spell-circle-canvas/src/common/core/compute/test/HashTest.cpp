@@ -81,7 +81,18 @@ TEST(Combine, TheStirAnswersTheNumberASecondImplementationMustAlsoAnswer) {
   EXPECT_EQ(hash::combine(0u, 0u), 2654435769u);
   EXPECT_EQ(hash::combine(1u, 2u), 2654435834u);
   EXPECT_EQ(hash::combine(hash::combine(0x9E3779B9u, 0x3f800000u), 0xbf800000u),
-            11156902649582ull);
+            11161197616878ull);
+}
+
+TEST(Combine, AWordAboveThirtyTwoBitsFoldsBothOfItsHalves) {
+  // A key member is as often a 64-bit identifier or a pointer as it is a
+  // 32-bit one. Two that differ only above the 32nd bit must not fold to
+  // one key.
+  EXPECT_NE(hash::combine(0u, 0x1'0000'0000ull),
+            hash::combine(0u, 0x2'0000'0000ull));
+  EXPECT_NE(hash::combine(0u, 0x1'0000'0001ull), hash::combine(0u, 1ull));
+  // …and a value that fits in 32 bits folds exactly as a 32-bit one.
+  EXPECT_EQ(hash::combine(0u, uint64_t{7}), hash::combine(0u, uint32_t{7}));
 }
 
 TEST(Combine, OneChangedBitMovesTheWholeResult) {

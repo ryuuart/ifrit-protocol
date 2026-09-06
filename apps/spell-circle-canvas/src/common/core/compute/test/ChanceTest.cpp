@@ -349,3 +349,37 @@ TEST(Chance, CarriesTheSourceSoALookIsChosenOnceAndComparesExactly) {
             (chance::Chance{
                 .seed = 5, .source = chance::Source::Halton, .parameter = 2}));
 }
+
+TEST(ChanceStream, ANormalDrawTerminatesOnEverySourceTheHeaderNames) {
+  // The polar method rejects the pairs outside the unit disc, and a
+  // source that answers one number for ever offers the same rejected
+  // pair for ever. Every source named by `Source` must still answer.
+  const chance::Stream sources[] = {
+      chance::Stream::pcg(7),        chance::Stream::mix64(7),
+      chance::Stream::xorshift(7),   chance::Stream::halton(2),
+      chance::Stream::halton(3, 5),  chance::Stream::sobol(),
+      chance::Stream::golden(7),     chance::Stream::stratified(0),
+      chance::Stream::stratified(1), chance::Stream::stratified(8, 3)};
+  for (chance::Stream stream : sources) {
+    for (int i = 0; i < 64; ++i) {
+      const float drawn = stream.normal();
+      EXPECT_TRUE(std::isfinite(drawn))
+          << "source " << (int)stream.source() << " draw " << i;
+    }
+  }
+}
+
+TEST(ChanceStream, ASeedWiderThanTheStateStillWalksItsOwnRun) {
+  // The two 32-bit mixers step a 32-bit word. Two seeds an even 2^32
+  // apart would walk one run if the high half were dropped.
+  chance::Stream low = chance::Stream::pcg(7);
+  chance::Stream high = chance::Stream::pcg(7 + (1ull << 32));
+  EXPECT_NE(low.bits(), high.bits());
+  chance::Stream lowX = chance::Stream::xorshift(7);
+  chance::Stream highX = chance::Stream::xorshift(7 + (1ull << 32));
+  EXPECT_NE(lowX.bits(), highX.bits());
+  // A seed that fits in 32 bits is where it always was.
+  chance::Stream plain = chance::Stream::pcg(7);
+  uint32_t state = 7;
+  EXPECT_EQ(plain.bits(), noise::pcgNext(state));
+}

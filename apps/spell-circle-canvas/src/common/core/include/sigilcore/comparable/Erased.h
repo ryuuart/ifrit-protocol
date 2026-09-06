@@ -66,6 +66,10 @@ class Erased {
   const Ops* operator->() const {
     return m_state ? m_state->ops.get() : nullptr;
   }
+  /** The operations. A reference has no empty spelling, so this is the
+   *  one accessor with a precondition: the value is not empty, which
+   *  `operator bool` answers. `operator->` and `get()` are the ones that
+   *  take an empty value. */
   const Ops& operator*() const { return *m_state->ops; }
   /** The operations, or null when empty. */
   const Ops* get() const { return m_state ? m_state->ops.get() : nullptr; }

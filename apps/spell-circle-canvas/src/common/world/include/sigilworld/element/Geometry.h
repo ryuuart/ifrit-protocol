@@ -14,7 +14,7 @@
  * its lanes.
  */
 
-#include <sigilcore/reconcile/Erased.h>
+#include <sigilcore/comparable/Erased.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>

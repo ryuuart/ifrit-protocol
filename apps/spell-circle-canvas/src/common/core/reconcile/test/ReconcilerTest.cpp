@@ -136,6 +136,24 @@ TEST(Reconciler, ARemovedChildRetiresStampedWithThePass) {
   EXPECT_LT(reorder, destroy);
 }
 
+TEST(Reconciler, ASecondSiblingUnderOneKeyStillRetiresThroughTheHost) {
+  // Two children under one key is the caller's mistake, not the
+  // reconciler's licence to drop a node: the key matches one of them,
+  // and the other is a retained child the host must be told about.
+  FakeHost host;
+  host.render(
+      description("root", 0, {description("a", 1), description("a", 2)}));
+  ASSERT_EQ(host.childKeys(), (std::vector<std::string>{"a", "a"}));
+  FakeNode* first = host.child(0);
+  const int idSecond = host.child(1)->id;
+  host.render(description("root", 0, {description("a", 1)}));
+  EXPECT_EQ(host.childKeys(), (std::vector<std::string>{"a"}));
+  EXPECT_EQ(host.child(0), first);
+  ASSERT_EQ(host.retired.size(), 1u);
+  EXPECT_EQ(host.retired[0].first, idSecond);
+  EXPECT_EQ(host.reconciler.stats().retired, 1);
+}
+
 TEST(Reconciler, ARemountRuleRetiresTheMatchAndMountsAfresh) {
   FakeHost host;
   host.render(description("root", 0, {description("a", 1)}));
@@ -286,6 +304,22 @@ TEST(Reconciler, TheKeyIndexAddressesAMemoShellByTheShellsKeyElseThePayloads) {
   EXPECT_EQ(byKey.at("payload"), host.child(2));
   // Matching, unlike addressing, reads the shell alone.
   EXPECT_EQ(host.reconciler.matchKeyOf(*host.child(2)), "");
+}
+
+TEST(Reconciler, AMemoHitIsCountedAsAHitAndNotAsADescription) {
+  // What a hit skips is the describe, so the two counts add up to the
+  // nodes the pass visited rather than double-counting one of them.
+  int calls = 0;
+  FakeHost host;
+  host.render(description("root", 0, {memoOf("m", 1, &calls)}));
+  EXPECT_EQ(host.reconciler.stats().describedNodes, 2);
+  // The counts are zeroed by every top-level render, so this pass shows
+  // what this pass did: the root described, the memo hit.
+  host.render(description("root", 0, {memoOf("m", 1, &calls)}));
+  const auto& s = host.reconciler.stats();
+  EXPECT_EQ(calls, 1);
+  EXPECT_EQ(s.memoHits, 1);
+  EXPECT_EQ(s.describedNodes, 1);
 }
 
 TEST(Reconciler, EveryCountItKeepsIsPublishedUnderItsOwnName) {
