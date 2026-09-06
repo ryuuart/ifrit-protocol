@@ -17,5 +17,3 @@ build
 
 # Generated demo renders
 *_demo_out/
---help/
-.skilltree-export.json

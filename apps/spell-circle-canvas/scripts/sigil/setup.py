@@ -7,9 +7,9 @@ Besides the primary `main` preset (build/), the file it writes carries
 one configure, build and test preset for each secondary tree —
 `coverage`, `asan`, `tsan` — so the sanitize verb configures with
 `cmake --preset <name>` and CMake composes the toolchain, the Qt prefix
-and the instrumentation flags itself. What each search root is, what the
-composed presets carry and why each instrumentation flag is set is
-scripts/README.md.
+and the instrumentation flags itself. Switching a tree's flags recompiles
+every object in it, which is why an instrumented lane gets a directory of
+its own rather than a switch on the primary one.
 
 No library is named here. A library whose dependency needs finding
 carries its own find module beside it, so this composes the toolchain,
@@ -251,19 +251,9 @@ def user_presets(qt_installation: Path, vcpkg_root: Path) -> dict:
                 "inherits": main_inherits + ["ninja"],
                 "cacheVariables": MAIN_CACHE,
             },
-            {
-                "name": "main-xcode",
-                "inherits": main_inherits + ["xcode"],
-                "cacheVariables": MAIN_CACHE,
-            },
         ],
         "buildPresets": [
             {"name": "main", "configurePreset": "main", "configuration": "Release"},
-            {
-                "name": "main-xcode",
-                "configurePreset": "main-xcode",
-                "configuration": "Release",
-            },
         ],
         "testPresets": [],
     }

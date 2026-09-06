@@ -125,14 +125,12 @@ target_link_libraries(SpellCircleCanvas
 )
 
 if(APPLE)
-  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
-  find_library(CORE_GRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
+  sigil_frameworks(canvas_frameworks Foundation CoreGraphics)
   find_package(unofficial-syphon CONFIG REQUIRED)
   target_link_libraries(SpellCircleCanvas
       PRIVATE
-        ${FOUNDATION_FRAMEWORK}
+        ${canvas_frameworks}
         unofficial::syphon::syphon
-        ${CORE_GRAPHICS_FRAMEWORK}
   )
 elseif(TARGET Spout2::SpoutDX)
   target_link_libraries(SpellCircleCanvas PRIVATE Spout2::SpoutDX d3d11)
@@ -160,12 +158,9 @@ sigil_qt_target(SpellCircle)
 # App Nap suppression is a main.cpp concern, not a library: fold the one
 # ObjC++ TU straight into the executable on macOS.
 if(APPLE)
-  find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+  sigil_frameworks(app_frameworks Foundation AppKit)
   target_sources(SpellCircle PRIVATE src/AppNap.mm include/AppNap.h)
-  target_link_libraries(SpellCircle PRIVATE
-    ${FOUNDATION_FRAMEWORK}
-    ${APPKIT_FRAMEWORK}
-  )
+  target_link_libraries(SpellCircle PRIVATE ${app_frameworks})
 endif()
 
 target_include_directories(SpellCircle PRIVATE include)
@@ -214,7 +209,6 @@ set_target_properties(SpellCircle PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
-    # WIN32_EXECUTABLE TRUE
 )
 
 target_link_libraries(SpellCircle
