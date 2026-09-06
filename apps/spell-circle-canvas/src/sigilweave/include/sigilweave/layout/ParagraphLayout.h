@@ -36,9 +36,22 @@ namespace sigil::weave {
 
 class FontContext;
 
-/** Positioned output of one paragraph layout pass. */
+/** Positioned output of one paragraph layout pass.
+ *
+ * IT BORROWS THE PARAGRAPH'S GLYPHS. Every PositionedRun points at a
+ * ShapedWord the paragraph holds rather than holding one itself, and every
+ * word and interval index a run carries reads a table on one of the two.
+ * A layout is therefore only meaningful while the paragraph it was set from
+ * is alive and unedited, which is what every consumer of a run already
+ * assumes — the members below all take that paragraph back as an argument.
+ */
 struct ParagraphLayout {
   std::vector<PositionedRun> runs;  ///< in logical word order, ready to draw
+  /// The few words this pass shaped for itself rather than finding in the
+  /// paragraph — a tab leader, an overflow marker — held here so that the
+  /// runs pointing at them borrow from something with the layout's own
+  /// lifetime. Nothing reads this list; it exists to own.
+  std::vector<ShapedWordRef> shapedByTheLayout;
   /// Every flow interval the layout consumed, in the order the geometry
   /// handed them over — the numbering PositionedRun::intervalIndex uses.
   /// A caller that re-places transformed runs reads their geometry here

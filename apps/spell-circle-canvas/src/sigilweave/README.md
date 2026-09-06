@@ -84,7 +84,11 @@ paragraph.setPaint(0, 6, {SK_ColorRED});    // no re-shape, no relayout —
 
 `layout.runs` is a plain vector of `PositionedRun`, so walking the output
 yourself is a first-class option; `draw()` and `drawBatched()` are
-conveniences over it.
+conveniences over it. A run borrows: `run.shaped` is a `const ShapedWord*`
+into the paragraph, and the word, interval and style indices beside it are
+indices into that same paragraph and layout. Keep the paragraph and the
+layout alive for as long as you read runs off it — a run copied out of a
+layout keeps nothing alive on its own.
 
 ### Writing your own geometry
 
@@ -256,6 +260,11 @@ state.
   how a base broken across two lines shares it — and knows nothing about
   what a ruby IS, which unit somebody annotated, or how big a reading
   should be. Turning those answers into glyphs is the caller's.
+- **A layout owns its placement and nothing else.** A `PositionedRun` points
+  at the paragraph's shaped words rather than sharing ownership of them, so
+  reading a layout means holding the paragraph it was set from. The few
+  words a layout shapes for itself — a tab leader, an overflow marker — it
+  retains, so no run ever points at something nobody holds.
 - **Bidi is per-word.** Levels are computed and UAX#9 L2 visual reordering is
   applied per word; glue between reordered runs is approximated, and
   multi-segment RTL words keep logical segment order.

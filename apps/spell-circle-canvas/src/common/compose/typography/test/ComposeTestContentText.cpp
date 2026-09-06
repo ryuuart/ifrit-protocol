@@ -2481,7 +2481,7 @@ std::vector<const void*> runShapes(Host& host, const char* key) {
   const auto* layout = host.composer.paragraphLayout(key);
   if (!layout) return out;
   for (const sigil::weave::PositionedRun& run : layout->runs)
-    out.push_back(run.shaped.get());
+    out.push_back(run.shaped);
   return out;
 }
 

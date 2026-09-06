@@ -178,7 +178,10 @@ a contour interval carries a `geometry::path::Contour`:
   options struct it groups: alignment, break strategy, line metrics,
   hyphenation, justification, Knuth-Plass, overflow, tab stops, path text.
 - **`layout/PositionedRun.h`** — `PositionedRun`, one draw call, and the
-  `LineMetrics` and `ColumnMetrics` bands derived from placed runs.
+  `LineMetrics` and `ColumnMetrics` bands derived from placed runs. A run
+  BORROWS its glyphs: `shaped` is a `const ShapedWord*` into the paragraph
+  the layout was set from, exactly as `wordIndex` is an index into that
+  paragraph's word list.
 - **`layout/ParagraphLayout.h`** — `ParagraphLayout`, `layoutParagraph()`
   and `layoutSingleLine()`. Includes the three above.
 - **`layout/Story.h`** — `Story`: a `RichText` and the `ParagraphStyle`s

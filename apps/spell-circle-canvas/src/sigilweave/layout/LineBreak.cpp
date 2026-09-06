@@ -162,9 +162,9 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
   const ShapedWord& shapedWord = *segment.shaped;
   if (shapedWord.glyphs.empty()) return;
   // THE RUN IS SETTLED BEFORE IT IS APPENDED, and then written straight
-  // into the vector's own slot: a run holds two reference-counted handles,
-  // so building one beside the vector and handing it over is a second set
-  // of stores and a second pass over the same bytes.
+  // into the vector's own slot: building one beside the vector and handing
+  // it over is a second set of stores and a second pass over the same
+  // bytes, and the blob handle it carries is reference-counted.
   sk_sp<SkTextBlob> blob;
   SkPoint origin = {0, 0};
   bool transformed = false;
@@ -211,7 +211,7 @@ void emitSegment(ParagraphLayout& result, const FlatInterval& flatInterval,
   if (!blob) return;
   PositionedRun& run = result.runs.emplace_back();
   run.blob = std::move(blob);
-  run.shaped = segment.shaped;
+  run.shaped = segment.shaped.get();
   run.origin = origin;
   run.styleIndex = segment.styleIndex;
   run.wordIndex = wordIndex;
@@ -401,13 +401,17 @@ void emitLeader(FontContext& fontContext, const Paragraph& paragraph,
       shapeWord(fontContext, span.style.shaping, typeface, stop.leader,
                 static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, false);
   if (!leader || leader->glyphs.empty() || leader->advance <= 0) return;
+  // The leader is shaped HERE and lives nowhere in the paragraph, so the
+  // layout keeps the handle its runs borrow from.
+  result.shapedByTheLayout.push_back(leader);
+  const ShapedWord* const leaderWord = leader.get();
   const auto repeats =
       static_cast<int>(std::floor((gapEnd - gapStart) / leader->advance));
   float pen = gapEnd - static_cast<float>(repeats) * leader->advance;
   for (int repeat = 0; repeat < repeats; ++repeat) {
     PositionedRun run;
     run.blob = wordBlob(*leader);
-    run.shaped = leader;
+    run.shaped = leaderWord;
     run.advance = leader->advance;
     run.styleIndex = styleIndex;
     // A leader belongs to the WORD BEFORE ITS TAB: it is set in that word's
@@ -958,6 +962,9 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
       fontContext, span.style.shaping, typeface, options.overflow.ellipsis,
       static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, uprightMarker);
   if (!marker || marker->glyphs.empty()) return;
+  // Like a tab leader, the marker is the layout's own word and not one of
+  // the paragraph's, so the layout is what keeps it alive for its run.
+  result.shapedByTheLayout.push_back(marker);
 
   size_t lineBegin = result.runs.size();
   while (lineBegin > 0 && result.runs[lineBegin - 1].lineIndex == lineIndex)
@@ -1009,7 +1016,7 @@ void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
   }
 
   PositionedRun run;
-  run.shaped = marker;
+  run.shaped = marker.get();
   run.advance = marker->advance;
   run.styleIndex = styleIndex;
   run.wordIndex = tailWord;

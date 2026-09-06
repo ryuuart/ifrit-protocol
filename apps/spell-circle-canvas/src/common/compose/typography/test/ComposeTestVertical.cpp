@@ -198,7 +198,7 @@ TEST(TextVertical, SpanPaintRecolorsAColumnWithoutReshaping) {
     const auto* layout = host.composer.paragraphLayout("t");
     if (!layout) return out;
     for (const sigil::weave::PositionedRun& run : layout->runs)
-      out.push_back(run.shaped.get());
+      out.push_back(run.shaped);
     return out;
   };
   const auto originsOf = [&] {

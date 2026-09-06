@@ -51,9 +51,21 @@ struct GlyphFit {
 /// Placeholder runs carry no blob at all — just the flow position where the
 /// caller should draw its inline object (see
 /// ParagraphLayout::placeholderRects).
+///
+/// A RUN BORROWS ITS GLYPHS AND OWNS NOTHING BUT ITS PLACEMENT. `shaped`
+/// points at a ShapedWord somebody else holds: the paragraph, for every run
+/// set from a word of the text, and the layout itself for the few words a
+/// layout shapes on its own (a tab leader, an overflow marker), which it
+/// retains in ParagraphLayout::shapedByTheLayout. So a run is valid exactly
+/// as long as BOTH the paragraph it was set from and the layout that holds
+/// it are alive, and copying a run out of a layout does not extend that —
+/// which is the same rule `wordIndex` and `intervalIndex` already carry,
+/// since they index that paragraph's tables and this layout's intervals.
 struct PositionedRun {
   sk_sp<SkTextBlob> blob;     ///< null for placeholder runs
-  ShapedWordRef shaped;       ///< glyph source (batched drawing, choreography)
+  /// Glyph source (batched drawing, choreography) — BORROWED, see above.
+  /// Null on a placeholder run.
+  const ShapedWord* shaped = nullptr;
   SkPoint origin = {0, 0};    ///< draw position; already baked into
                               ///< transformed blobs
   uint32_t styleIndex = 0;    ///< paint lookup into Paragraph::spans()
