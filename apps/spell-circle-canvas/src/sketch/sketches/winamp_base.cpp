@@ -1130,7 +1130,11 @@ struct WinampBase : sketch::Sketch {
     list.child(box().inset(0).clip().child(slot("tracks")));
     w.child(list);
 
-    // the scrollbar rail and its two arrow buttons
+    // The scrollbar rail and its two arrow buttons. NOT a stepper at each
+    // end of a track: the rail runs the whole height of the well and the
+    // two arrows stack INSIDE its bottom 28 px, over it. The grip is a
+    // skin's sprite at the one size the skin cut it, so it is not a
+    // reading of how much list is showing either.
     Element rail = at(box(), W - 20, 20, 20, 319).fill(hex(0x1A1A2A));
     sunken(rail, alpha(hex(0x4A4A70), 0.5f), hex(0x0A0A12));
     w.child(rail);
