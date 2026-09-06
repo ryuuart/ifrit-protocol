@@ -173,7 +173,7 @@ class Manifest:
         self.warn_undocumented = settings["warn_undocumented"]
         self.root = Path(settings["docs_root"])
         self.work = Path(settings["work"])
-        self.module_dir = Path(settings["module_dir"])
+        self.templates = Path(settings["templates"])
 
     def find(self, name: str) -> Library:
         for library in self.libraries:
@@ -278,7 +278,7 @@ def html_pass(manifest: Manifest, template: str, wanted: list) -> None:
     """Pass two: HTML, each library reading every other library's tag file."""
     theme = manifest.work / "theme"
     stylesheets = [theme / name for name in THEME_CSS]
-    stylesheets.append(manifest.module_dir / "custom.css")
+    stylesheets.append(manifest.templates / "custom.css")
     header = make_header(manifest)
 
     for library in wanted:
@@ -370,7 +370,7 @@ def stage_container(manifest: Manifest) -> None:
         ("nginx.conf", "nginx.conf"),
         ("dockerignore", ".dockerignore"),
     ):
-        shutil.copyfile(manifest.module_dir / name, manifest.root / staged)
+        shutil.copyfile(manifest.templates / name, manifest.root / staged)
 
 
 def generate(manifest_path: Path, libraries: list | None) -> int:
@@ -379,7 +379,7 @@ def generate(manifest_path: Path, libraries: list | None) -> int:
     manifest.work.mkdir(parents=True, exist_ok=True)
     fetch(THEME, manifest.work / "theme", quiet=True)
 
-    template = (manifest.module_dir / "Doxyfile.in").read_text()
+    template = (manifest.templates / "Doxyfile.in").read_text()
     index_pass(manifest, template)
     if libraries:
         html_pass(manifest, template, [manifest.find(name) for name in libraries])

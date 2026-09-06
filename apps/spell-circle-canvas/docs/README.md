@@ -17,7 +17,6 @@ optional and adds inheritance graphs.
 
 | File | What it is |
 | --- | --- |
-| `Docs.cmake` | Registration: `sigil_add_docs()`, which `sigil_library_root()` calls for a library, and the targets. Included by the root `CMakeLists.txt`. |
 | `Doxyfile.in` | The settings every library's site shares. |
 | `custom.css` | Project overrides, loaded after the theme. |
 | `Dockerfile`, `nginx.conf`, `dockerignore` | Serving the generated site. |
@@ -27,7 +26,10 @@ theme download, the HTML header, the rendered Doxyfiles, the landing
 page and the container staging. CMake keeps what only CMake knows —
 whether Doxygen is installed, where it is, and which libraries
 registered themselves — and writes that to `build/docs-manifest.txt`,
-which is what the script reads.
+which is what the script reads. Registration is `sigil_add_docs()` in
+`cmake/Docs.cmake`, which `sigil_library_root()` calls for a library;
+the whole tree's CMake modules live in `cmake/`, and the manifest points
+the verb back here for the templates above.
 
 Nothing here is generated, and nothing here is vendored. The theme is
 downloaded at build time.

@@ -1,4 +1,5 @@
-# Doxygen sites for the Sigil libraries.
+# Doxygen sites for the Sigil libraries. Included by Sigil.cmake, whose
+# sigil_library_root() calls sigil_add_docs() for every library.
 #
 # Each library root registers itself through sigil_add_docs(); the root
 # calls sigil_finalize_docs() once every subdirectory has been added,
@@ -11,10 +12,11 @@
 # stays here is what only CMake knows: whether Doxygen is installed,
 # where it is, and which libraries registered themselves.
 
-# Where Doxyfile.in and the container files sit, captured while this file
+# Where Doxyfile.in and the container files sit, resolved while this file
 # is being read so the functions below do not have to assume where the
 # module was included from.
-set(SIGIL_DOCS_MODULE_DIR ${CMAKE_CURRENT_LIST_DIR})
+get_filename_component(SIGIL_DOCS_TEMPLATE_DIR
+                       ${CMAKE_CURRENT_LIST_DIR}/../docs ABSOLUTE)
 
 find_package(Doxygen OPTIONAL_COMPONENTS dot)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -87,7 +89,9 @@ function(sigil_finalize_docs)
   # Everything used to produce them: the rendered Doxyfiles, the tag
   # files, the theme, the generated header.
   string(APPEND manifest "work=${CMAKE_BINARY_DIR}/docs-build\n")
-  string(APPEND manifest "module_dir=${SIGIL_DOCS_MODULE_DIR}\n")
+  # Doxyfile.in, the stylesheet and the container files the verb renders
+  # from.
+  string(APPEND manifest "templates=${SIGIL_DOCS_TEMPLATE_DIR}\n")
 
   foreach(lib IN LISTS libraries)
     get_property(brief GLOBAL PROPERTY SIGIL_DOCS_${lib}_BRIEF)

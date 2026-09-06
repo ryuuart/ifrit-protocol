@@ -34,7 +34,6 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(Sigil) # the calls every library under src/ is built from
-include("${CMAKE_CURRENT_LIST_DIR}/docs/Docs.cmake") # `--target docs`
 
 enable_testing()
 
