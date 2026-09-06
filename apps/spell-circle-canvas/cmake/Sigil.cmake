@@ -348,24 +348,25 @@ function(sigil_test name)
 endfunction()
 
 # sigil_bench(<library>_bench SOURCES <file>... [LIBRARIES <item>...]
-#             [DEFINITIONS <define>...] [SUPPORT_DIRS <dir>...] [GPU] [ARC])
+#             [DEFINITIONS <define>...] [SUPPORT_DIRS <dir>...]
+#             [GPU_LIBRARIES <item>...] [ARC])
 #   Adds this directory's benchmarks to its library's one Google Benchmark
 #   binary, which hangs off the `benches` target and is never a test. It
 #   sees SIGIL_BENCH_DIR and SUPPORT_DIRS and reads fixtures through
 #   SIGIL_TEST_ASSET_DIR and instrument faces through
-#   SIGIL_TEST_INSTRUMENT_DIR. GPU adds the Graphite arm where a device is
-#   guaranteed: on Apple the binary links SigilSkia and is compiled with
-#   SIGIL_BENCH_GPU.
+#   SIGIL_TEST_INSTRUMENT_DIR. GPU_LIBRARIES names the device arm's link
+#   set, added where a device is guaranteed: on Apple the binary links
+#   them and is compiled with SIGIL_BENCH_GPU.
 function(sigil_bench name)
-  cmake_parse_arguments(ARG "GPU;ARC" ""
-    "SOURCES;LIBRARIES;DEFINITIONS;SUPPORT_DIRS" ${ARGN})
+  cmake_parse_arguments(ARG "ARC" ""
+    "SOURCES;LIBRARIES;DEFINITIONS;SUPPORT_DIRS;GPU_LIBRARIES" ${ARGN})
   _sigil_binary(${name} bench)
   target_sources(${name} PRIVATE ${ARG_SOURCES})
   if(ARG_LIBRARIES)
     target_link_libraries(${name} PRIVATE ${ARG_LIBRARIES})
   endif()
-  if(ARG_GPU AND APPLE)
-    target_link_libraries(${name} PRIVATE SigilSkia)
+  if(ARG_GPU_LIBRARIES AND APPLE)
+    target_link_libraries(${name} PRIVATE ${ARG_GPU_LIBRARIES})
     target_compile_definitions(${name} PRIVATE SIGIL_BENCH_GPU)
   endif()
   set(arc)

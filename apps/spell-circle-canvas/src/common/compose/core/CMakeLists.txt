@@ -96,4 +96,4 @@ sigil_test(compose_test
 sigil_bench(compose_bench
   SOURCES bench/ComposeCoreBench.cpp bench/ComposeCoreSceneBench.cpp
   LIBRARIES SigilComposeCore EnTT::EnTT SigilWeavePorts
-  GPU)
+  GPU_LIBRARIES SigilSkia)
