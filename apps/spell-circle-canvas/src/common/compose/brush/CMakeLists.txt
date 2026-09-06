@@ -42,18 +42,28 @@ sigil_library(SigilComposeBrush
          SigilMaterial SigilSkiaDraw SigilWeave
   PRIVATE SigilCoreCompute yoga::yogacore)
 
-# The brush cases, one file per subject: lines and rails, the brush
-# kinds, the brush engine, the stroke grammar, decorations on a node and
-# on text, stamps and strips, the mask gates, the paint values this tier
-# spells over SigilMaterial, the pixel styles and the kit's stroke
-# presets.
+# The brush cases, one file per subject: lines, rails and hatches, the
+# brush kinds, the borders a silhouette wears, the brush engine, the span
+# claim and the window it runs over, bands and ribbons, crossings and
+# composites, the words a change is spelled with, decorations on a node
+# and on text, stamps and strips, the mask gates, the paint values this
+# tier spells over SigilMaterial, the layer styles, the pixel styles, the
+# kit's stroke presets, text and layout on a node, and the caching
+# claims — automatic promotion, the texture bake, the temporal cache, the
+# split bake and the group bake.
 sigil_test(compose_test
   SOURCES test/ComposeTestLines.cpp test/ComposeTestBrushes.cpp
-          test/ComposeTestBrushEngine.cpp test/ComposeTestStrokeGrammar.cpp
+          test/ComposeTestBorders.cpp test/ComposeTestBrushEngine.cpp
+          test/ComposeTestStrokeGrammar.cpp test/ComposeTestSpanWindows.cpp
+          test/ComposeTestBands.cpp test/ComposeTestCrossings.cpp
+          test/ComposeTestStrokeWords.cpp
           test/ComposeTestDecorations.cpp test/ComposeTestTextDecorations.cpp
           test/ComposeTestStampsAndStrips.cpp test/ComposeTestMasks.cpp
-          test/ComposeTestPaintValues.cpp test/ComposeTestPixelStyles.cpp
-          test/ComposeTestStrokePresets.cpp
+          test/ComposeTestPaintValues.cpp test/ComposeTestLayerStyles.cpp
+          test/ComposeTestPixelStyles.cpp test/ComposeTestStrokePresets.cpp
+          test/ComposeTestTextAndLayout.cpp test/ComposeTestPromotion.cpp
+          test/ComposeTestTextureBake.cpp test/ComposeTestTemporalCache.cpp
+          test/ComposeTestSplitBake.cpp test/ComposeTestGroupBake.cpp
   LIBRARIES SigilComposeBrush SigilComposeKit SigilComposeTesting
             SigilWeavePorts)
 
