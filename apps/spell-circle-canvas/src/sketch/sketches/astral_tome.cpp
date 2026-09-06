@@ -525,7 +525,10 @@ inline int degreeOf(const Con& c, int index1) {
 }
 
 /** THE LINK'S WIDTH LAW, as a comparable Profile: full in the middle, 40%
- *  at both endpoints, so a link reads as drawn FROM star TO star.
+ *  at both endpoints, so a link reads as drawn FROM star TO star. It is
+ *  not `profile::taper`, which ramps LINEARLY from one stated width to
+ *  another: this one is symmetric about the midpoint and square-rooted,
+ *  which is the shoulder an engraved rule has and a ramp does not.
  *
  *  Fraction-keyed, and correctly so — the link's ribbons sit under an
  *  UNQUALIFIED stroke with no reveal on the node, so `along` is a fraction
@@ -759,20 +762,17 @@ struct AstralTome : sketch::Sketch {
     const SkRect box2 =
         SkRect::MakeLTRB(std::min(a.fX, b.fX), std::min(a.fY, b.fY),
                          std::max(a.fX, b.fX), std::max(a.fY, b.fY));
-    const SkPoint p0{a.fX - box2.left(), a.fY - box2.top()};
-    const SkPoint p1{b.fX - box2.left(), b.fY - box2.top()};
+    SkPathBuilder spineBuilder;
+    spineBuilder.moveTo(a.fX - box2.left(), a.fY - box2.top());
+    spineBuilder.lineTo(b.fX - box2.left(), b.fY - box2.top());
+    const SkPath spine = spineBuilder.detach();
     return box()
         .rect(SkRect::MakeXYWH(box2.left(), box2.top(),
                                std::max(box2.width(), 1.0f),
                                std::max(box2.height(), 1.0f)))
         .key(std::string("lk") + std::to_string(key) + "_" +
              std::to_string(pass))
-        .shape([p0, p1](SkSize) {
-          SkPathBuilder p;
-          p.moveTo(p0);
-          p.lineTo(p1);
-          return p.detach();
-        })
+        .shape(heldPath(spine))
         .stroke(std::move(bloom))
         .stroke(std::move(body))
         .stroke(std::move(rails));
