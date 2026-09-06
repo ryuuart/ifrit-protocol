@@ -11,6 +11,7 @@
 #include <sigilweave/cache/SingleLineParagraphCache.h>
 
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "support/Faces.h"
@@ -65,7 +66,7 @@ TEST(SingleLineParagraphCache, AReferenceStaysValidAcrossLaterInsertions) {
   const Paragraph* address = &held;
 
   for (int index = 0; index < 512; ++index)
-    cache.paragraphFor(u8"filler" +
+    std::ignore = cache.paragraphFor(u8"filler" +
                            std::u8string(1, (char8_t)('a' + index % 26)) +
                            std::u8string(1, (char8_t)('a' + index / 26)),
                        nullptr, 16.0f);
@@ -118,10 +119,10 @@ TEST(SingleLineParagraphCache, AFullCacheRetiresWhatItHeldBeforeInsertingMore) {
   Paragraph& first = cache.paragraphFor(u8"one", nullptr, 16.0f);
   mark(first);
   for (const char8_t* text : {u8"two", u8"three", u8"four"})
-    cache.paragraphFor(text, nullptr, 16.0f);
+    std::ignore = cache.paragraphFor(text, nullptr, 16.0f);
 
   // The fifth distinct key is the one that cannot fit.
-  cache.paragraphFor(u8"five", nullptr, 16.0f);
+  std::ignore = cache.paragraphFor(u8"five", nullptr, 16.0f);
   EXPECT_NE(firstSpanColor(cache.paragraphFor(u8"one", nullptr, 16.0f)),
             SK_ColorRED)
       << "an entry the cache said it retired was handed back";

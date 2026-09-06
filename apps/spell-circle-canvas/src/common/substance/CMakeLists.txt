@@ -31,11 +31,10 @@ include("${SUBSTANCE_SDK_DIR}/substance-config.cmake")
 sigil_library_root(SigilSubstance
   BRIEF "Adobe Substance 3D archives rendered to channel-tagged texture sets")
 
-# workaround: the Substance engine dylib's install name is @rpath-relative.
-#
-# The framework is a static archive over one engine dylib; the dylib's
-# install name is @rpath-relative, so every executable linking this
-# library carries the SDK's bin/release in its runtime search path.
+# The framework is a static archive over one engine dylib whose install
+# name is @rpath-relative; the dylib is linked by its full path, which is
+# what puts the SDK's bin/release in every linking executable's runtime
+# search path.
 find_package(boost_container CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilSubstance
@@ -47,9 +46,6 @@ sigil_library(SigilSubstance
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC unofficial::skia::skia Boost::container
   PRIVATE Substance::Framework)
-get_filename_component(_substance_bin "${SUBSTANCE_SDK_DIR}/bin/release" ABSOLUTE)
-set_property(TARGET SigilSubstance PROPERTY INTERFACE_LINK_OPTIONS
-  "LINKER:-rpath,${_substance_bin}")
 
 # The test and the benchmark render the SDK's own sample archives, found
 # through this definition; both skip, rather than fail, when the samples

@@ -784,7 +784,7 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
     track.effect = fx::rise(20.0f);
     track.over = sigil::weave::unit::Word;
     track.beatsOver = beats::Text;
-    track.stagger = {.durationMs = 100.0f, .eachMs = 20.0f};
+    track.stagger = {.eachMs = 20.0f, .durationMs = 100.0f};
     track.progress = 0.5f;
     return track;
   };
