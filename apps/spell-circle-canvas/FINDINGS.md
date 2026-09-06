@@ -208,25 +208,6 @@ rule.
 
 Should-fix:
 
-- `src/common/draw/brush/format/Zip.cpp:65-73` — resizes each entry to
-  the size the central directory claims before reading; a tiny hostile
-  zip allocates up to 2 GiB; cap the claimed size.
-- `draw/brush/format/Photoshop.cpp:142-143` — allocates the raw bitmap
-  (up to 128 MiB) from four header integers before any pixel byte is
-  checked; bound by what the block can hold (×129 for PackBits).
-- `draw/brush/format/test/FormatTest.cpp` — no truncated `.abr`, no
-  section past the file, no huge or zero dimensions, no malformed
-  `brush.json`, no zip claiming a huge size; one truncation-at-every-
-  offset case per format plus one per hostile size field.
-- `draw/brush/format/Native.cpp:242-298` vs `draw/README.md:459` — the
-  native format drops the pressure envelope, `markerTip`, `bristles`,
-  `blend`, speed/pressure/tilt responses, `sharpness`, `noise` on round
-  trip while the README says it names the tool's own fields; write and
-  read them with a field-by-field round-trip test. `Native.cpp:84-88`
-  prints floats with `%.6g`, which does not round-trip; `%.9g`.
-- `draw/brush/format/Zip.cpp` — a zip reader private to the brush
-  formats while SigilIO owns resource access; an archive byte source in
-  SigilIO.
 - `src/sigilweave/layout/InitialLetter.cpp:245-272` — the notch is cut
   only on the initial's own block's bands, so a block with fewer lines
   than the sink runs the next block under the cap; carry the cut on or

@@ -6,10 +6,11 @@
 #include <sigilio/source/Archive.h>
 
 #include <algorithm>
+#include <cctype>
 #include <string>
 #include <utility>
 
-#include "Images.h"
+#include "Import.h"
 
 namespace sigil::draw::brush::format {
 
@@ -55,12 +56,8 @@ std::optional<Tool> decodeProcreateBrush(std::span<const std::byte> bytes) {
   }
   if (!shape && !grain) return std::nullopt;
 
-  Tool tool;
-  tool.tip = shape ? Tip::Image : Tip::Nib;
-  tool.opacity = 1.0f;
-  tool.markerTip = false;
-  tool.pressure = {1.0f, 1.0f, 1.0f};
-  tool.pressure.variation.reset();
+  Tool tool = importedTool();
+  if (!shape) tool.tip = Tip::Nib;
   if (shape) tool.shape = Shape{.image = std::move(shape)};
   if (grain) tool.grain = Grain{.image = std::move(grain)};
   return tool;

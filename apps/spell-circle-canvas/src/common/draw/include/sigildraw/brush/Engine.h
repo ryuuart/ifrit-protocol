@@ -24,7 +24,6 @@
 #include <sigildraw/brush/Wash.h>
 
 #include <boost/unordered/unordered_flat_map.hpp>
-#include <functional>
 #include <optional>
 #include <span>
 #include <string>

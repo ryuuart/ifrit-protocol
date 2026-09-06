@@ -8,8 +8,6 @@
 #include <boost/container_hash/hash.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <cstdint>
-#include <cstring>
-#include <functional>
 #include <memory>
 #include <source_location>
 #include <string_view>

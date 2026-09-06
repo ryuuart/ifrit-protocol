@@ -456,10 +456,15 @@ brush::line(pen, ink, {30, 200}, {570, 240});
 **The native format is a directory.** `<name>.sigilbrush/` holds
 `brush.json`, `shape.png` and an optional `grain.png`, so the artwork
 stays a picture a painting program can open and edit in place and the
-numbers stay a text file a person can read. `brush.json` names the tool's
-own fields, a `shape` and a `grain` object, and a `dynamics` object of up
-to three responses; every key it leaves out keeps the library's default.
-`format::encodeBrush(tool)` writes that text back.
+numbers stay a text file a person can read. `brush.json` names every value
+of the tool that is a number, a flag or a word — the envelope under
+`pressure`, with its optional `gaussian` and `variation` — beside a
+`shape`, a `grain` and a `dynamics` object of up to three responses;
+every key it leaves out keeps the library's default. What it does not
+carry is what a text file cannot: the two pictures, which sit beside it,
+and the callables a caller writes in code — a pressure curve, a response
+curve, a custom tip. `format::encodeBrush(tool)` writes that text back,
+and a tool through it and back is the tool that went in.
 
 **Loading is `SigilDrawBrushFormat`, and it never opens a file.**
 Everything there takes bytes — from a hub, a fixture or a caller's own

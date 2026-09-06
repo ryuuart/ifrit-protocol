@@ -10,7 +10,7 @@
 # header.
 find_package(simdjson CONFIG REQUIRED)
 sigil_library(SigilDrawBrushFormat
-  SOURCES Images.cpp Images.h Native.cpp Photoshop.cpp Procreate.cpp
+  SOURCES Import.cpp Import.h Native.cpp Photoshop.cpp Procreate.cpp
   HEADERS Load.h Photoshop.h Procreate.h
   PUBLIC SigilDrawBrush SigilIOSource
   PRIVATE SigilImageDecode simdjson::simdjson)

@@ -1,6 +1,6 @@
 # SigilDraw — an immediate-mode canvas with p5's brevity: a Pen over an
 # SkCanvas carrying p5's verbs with p5's names, held as one value so two
-# pens draw side by side and nothing is global. README.md is the canon.
+# pens draw side by side and nothing is global.
 #
 # The pen is one static target, with the brush library — procedural tools,
 # dabs, strokes, fields and natural-media interiors — as a second target

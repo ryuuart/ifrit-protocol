@@ -9,12 +9,12 @@
 #include <sigilio/source/Archive.h>
 #include <simdjson.h>
 
-#include <algorithm>
 #include <cstdio>
+#include <iterator>
 #include <string>
 #include <utility>
 
-#include "Images.h"
+#include "Import.h"
 
 namespace sigil::draw::brush::format {
 
@@ -31,6 +31,14 @@ constexpr std::string_view kTipNames[] = {"dust",    "fibres", "nib",
                                           "scatter", "image",  "custom"};
 constexpr std::string_view kDriveNames[] = {"pressure", "velocity", "tilt"};
 
+/** The blend words, from `BLEND` on, which is where the blend modes
+ *  begin inside the one constant enumeration the whole library shares —
+ *  so a value is this table's index plus that first mode. */
+constexpr std::string_view kBlendNames[] = {
+    "blend",     "add",    "darkest", "lightest", "difference", "exclusion",
+    "multiply",  "screen", "replace", "remove",   "overlay",    "hardLight",
+    "softLight", "dodge",  "burn",    "subtract"};
+
 template <typename Enumeration, size_t Count>
 Enumeration named(std::string_view word, const std::string_view (&names)[Count],
                   Enumeration fallback) {
@@ -46,11 +54,43 @@ std::string_view wordFor(Enumeration value,
   return index < Count ? names[index] : names[0];
 }
 
+Constant blendNamed(std::string_view text, Constant fallback) {
+  for (size_t index = 0; index < std::size(kBlendNames); ++index)
+    if (kBlendNames[index] == text) return (Constant)(BLEND + index);
+  return fallback;
+}
+
+std::string_view blendWord(Constant blend) {
+  const size_t index = (size_t)blend - (size_t)BLEND;
+  return index < std::size(kBlendNames) ? kBlendNames[index] : kBlendNames[0];
+}
+
 float number(simdjson::dom::object object, std::string_view key,
              float fallback) {
   double value = 0;
   if (object[key].get_double().get(value)) return fallback;
   return (float)value;
+}
+
+int integer(simdjson::dom::object object, std::string_view key, int fallback) {
+  int64_t value = 0;
+  if (object[key].get_int64().get(value)) return fallback;
+  return (int)value;
+}
+
+bool flag(simdjson::dom::object object, std::string_view key, bool fallback) {
+  bool value = false;
+  if (object[key].get_bool().get(value)) return fallback;
+  return value;
+}
+
+/** The object @p key names, or nothing when the key is absent or is not
+ *  an object. */
+std::optional<simdjson::dom::object> child(simdjson::dom::object object,
+                                           std::string_view key) {
+  simdjson::dom::object found;
+  if (object[key].get_object().get(found)) return std::nullopt;
+  return found;
 }
 
 std::string_view word(simdjson::dom::object object, std::string_view key,
@@ -83,7 +123,7 @@ std::optional<Response> responseFrom(simdjson::dom::element element) {
  *  survive a round trip, and no exponent form for the ordinary range. */
 std::string decimal(float value) {
   char text[32];
-  std::snprintf(text, sizeof(text), "%.6g", (double)value);
+  std::snprintf(text, sizeof(text), "%.9g", (double)value);
   return text;
 }
 
@@ -123,6 +163,55 @@ void readDescription(std::span<const std::byte> description, Tool& tool) {
   tool.spacingJitter = number(root, "spacingJitter", tool.spacingJitter);
   tool.rotation = named(word(root, "rotation", "natural"), kRotationNames,
                         Rotation::Natural);
+  tool.bristles = integer(root, "bristles", tool.bristles);
+  tool.blend =
+      blendNamed(word(root, "blend", blendWord(tool.blend)), tool.blend);
+  tool.markerTip = flag(root, "markerTip", tool.markerTip);
+  tool.sharpness = number(root, "sharpness", tool.sharpness);
+  tool.noise = number(root, "noise", tool.noise);
+  tool.speedSize = number(root, "speedSize", tool.speedSize);
+  tool.speedOpacity = number(root, "speedOpacity", tool.speedOpacity);
+  tool.speedReference = number(root, "speedReference", tool.speedReference);
+  tool.pressureSize = number(root, "pressureSize", tool.pressureSize);
+  tool.pressureOpacity = number(root, "pressureOpacity", tool.pressureOpacity);
+  tool.tiltSize = number(root, "tiltSize", tool.tiltSize);
+  tool.tiltOpacity = number(root, "tiltOpacity", tool.tiltOpacity);
+  tool.tiltAspect = number(root, "tiltAspect", tool.tiltAspect);
+  tool.tiltOffset = number(root, "tiltOffset", tool.tiltOffset);
+
+  // The envelope, its bell and its per-stroke variation: a pressure
+  // object states all three, and the two optional ones are absent from
+  // the tool exactly when they are absent from the object.
+  if (std::optional<simdjson::dom::object> pressure = child(root, "pressure")) {
+    tool.pressure.start = number(*pressure, "start", tool.pressure.start);
+    tool.pressure.middle = number(*pressure, "middle", tool.pressure.middle);
+    tool.pressure.end = number(*pressure, "end", tool.pressure.end);
+
+    tool.pressure.gaussian.reset();
+    if (std::optional<simdjson::dom::object> bell =
+            child(*pressure, "gaussian")) {
+      Pressure::Gaussian shaped;
+      shaped.center = number(*bell, "center", shaped.center);
+      shaped.width = number(*bell, "width", shaped.width);
+      shaped.sharpness = number(*bell, "sharpness", shaped.sharpness);
+      shaped.minimum = number(*bell, "minimum", shaped.minimum);
+      shaped.maximum = number(*bell, "maximum", shaped.maximum);
+      shaped.centerJitter = number(*bell, "centerJitter", shaped.centerJitter);
+      shaped.widthJitter = number(*bell, "widthJitter", shaped.widthJitter);
+      tool.pressure.gaussian = shaped;
+    }
+
+    tool.pressure.variation.reset();
+    if (std::optional<simdjson::dom::object> variation =
+            child(*pressure, "variation")) {
+      Pressure::Variation rolled;
+      rolled.offset = number(*variation, "offset", rolled.offset);
+      rolled.scale = number(*variation, "scale", rolled.scale);
+      rolled.warp = number(*variation, "warp", rolled.warp);
+      rolled.tilt = number(*variation, "tilt", rolled.tilt);
+      tool.pressure.variation = rolled;
+    }
+  }
 
   simdjson::dom::array color;
   if (!root["color"].get_array().get(color) && color.size() >= 3) {
@@ -178,12 +267,7 @@ std::optional<Tool> assembleBrush(std::span<const std::byte> description,
   if (description.empty() && shape.empty() && grain.empty())
     return std::nullopt;
 
-  Tool tool;
-  tool.tip = Tip::Image;
-  tool.opacity = 1.0f;
-  tool.markerTip = false;
-  tool.pressure = {1.0f, 1.0f, 1.0f};
-  tool.pressure.variation.reset();
+  Tool tool = importedTool();
 
   if (sk_sp<SkImage> artwork = decodeArtwork(shape))
     tool.shape = Shape{.image = std::move(artwork)};
@@ -202,11 +286,16 @@ std::optional<Tool> assembleBrush(std::span<const std::byte> description,
   return tool;
 }
 
-std::optional<Tool> decodeBrush(const io::Bytes& bytes, std::string_view hint) {
-  const std::span<const std::byte> all(bytes.bytes);
+std::optional<Tool> decodeBrush(std::span<const std::byte> all,
+                                std::string_view hint) {
   if (all.empty()) return std::nullopt;
 
   if (io::ArchiveSource::isArchive(all)) {
+    // Both packs are zips, so a name that says which one it is decides
+    // which reader looks first; either way the other is tried after.
+    if (hint.ends_with(".brush"))
+      if (std::optional<Tool> imported = decodeProcreateBrush(all))
+        return imported;
     const io::ArchiveSource archive(all);
     std::span<const std::byte> description;
     std::span<const std::byte> shape;
@@ -235,7 +324,6 @@ std::optional<Tool> decodeBrush(const io::Bytes& bytes, std::string_view hint) {
   // definition is its numbers.
   if (all.front() == std::byte{'{'}) return assembleBrush(all, {}, {});
 
-  (void)hint;
   return std::nullopt;
 }
 
@@ -259,7 +347,45 @@ std::string encodeBrush(const Tool& tool) {
   out += "  \"spacingJitter\": " + decimal(tool.spacingJitter) + ",\n";
   out += "  \"rotation\": \"";
   out += wordFor(tool.rotation, kRotationNames);
-  out += "\"";
+  out += "\",\n";
+  out += "  \"blend\": \"";
+  out += blendWord(tool.blend);
+  out += "\",\n";
+  out += "  \"bristles\": " + std::to_string(tool.bristles) + ",\n";
+  out += "  \"markerTip\": ";
+  out += tool.markerTip ? "true" : "false";
+  out += ",\n";
+  out += "  \"sharpness\": " + decimal(tool.sharpness) + ",\n";
+  out += "  \"noise\": " + decimal(tool.noise) + ",\n";
+  out += "  \"speedSize\": " + decimal(tool.speedSize) + ",\n";
+  out += "  \"speedOpacity\": " + decimal(tool.speedOpacity) + ",\n";
+  out += "  \"speedReference\": " + decimal(tool.speedReference) + ",\n";
+  out += "  \"pressureSize\": " + decimal(tool.pressureSize) + ",\n";
+  out += "  \"pressureOpacity\": " + decimal(tool.pressureOpacity) + ",\n";
+  out += "  \"tiltSize\": " + decimal(tool.tiltSize) + ",\n";
+  out += "  \"tiltOpacity\": " + decimal(tool.tiltOpacity) + ",\n";
+  out += "  \"tiltAspect\": " + decimal(tool.tiltAspect) + ",\n";
+  out += "  \"tiltOffset\": " + decimal(tool.tiltOffset) + ",\n";
+  out += "  \"pressure\": {\"start\": " + decimal(tool.pressure.start);
+  out += ", \"middle\": " + decimal(tool.pressure.middle);
+  out += ", \"end\": " + decimal(tool.pressure.end);
+  if (const std::optional<Pressure::Gaussian>& bell = tool.pressure.gaussian) {
+    out += ", \"gaussian\": {\"center\": " + decimal(bell->center);
+    out += ", \"width\": " + decimal(bell->width);
+    out += ", \"sharpness\": " + decimal(bell->sharpness);
+    out += ", \"minimum\": " + decimal(bell->minimum);
+    out += ", \"maximum\": " + decimal(bell->maximum);
+    out += ", \"centerJitter\": " + decimal(bell->centerJitter);
+    out += ", \"widthJitter\": " + decimal(bell->widthJitter) + "}";
+  }
+  if (const std::optional<Pressure::Variation>& rolled =
+          tool.pressure.variation) {
+    out += ", \"variation\": {\"offset\": " + decimal(rolled->offset);
+    out += ", \"scale\": " + decimal(rolled->scale);
+    out += ", \"warp\": " + decimal(rolled->warp);
+    out += ", \"tilt\": " + decimal(rolled->tilt) + "}";
+  }
+  out += "}";
 
   if (tool.shape) {
     out += ",\n  \"shape\": {\"image\": \"";

@@ -8,7 +8,6 @@
 
 #include <boost/container_hash/hash.hpp>
 #include <boost/unordered/unordered_node_map.hpp>
-#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>

@@ -36,16 +36,21 @@ inline constexpr std::string_view kGrainName = "grain.png";
 
 /** The brush one run of bytes is, whatever form it takes: a native
  *  archive or bare description, a Photoshop `.abr` (its first sampled
- *  brush) or a Procreate `.brush`. `hint` is the resource's name, used
- *  only to sharpen the sniff — the bytes decide. Null when they are none
- *  of those. */
-[[nodiscard]] std::optional<Tool> decodeBrush(const io::Bytes& bytes,
+ *  brush) or a Procreate `.brush`. The bytes decide; `hint` is the
+ *  resource's name, and the one thing it settles is which reader an
+ *  archive is offered to first, since a native pack and a Procreate
+ *  brush are both zips. Null when the bytes are none of those. */
+[[nodiscard]] std::optional<Tool> decodeBrush(std::span<const std::byte> bytes,
                                               std::string_view hint = {});
 
 /** The description a native brush directory holds, written from @p tool.
- *  The images are not in it: a directory keeps them beside this text,
- *  under `shape.png` and `grain.png`, and whoever writes the directory
- *  encodes them. */
+ *
+ *  Every value of the tool that is a number, a flag or a word is in it,
+ *  so a tool written and read back is the tool that was written. What is
+ *  not in it is what a description cannot hold: the images, which sit
+ *  beside this text as `shape.png` and `grain.png` for whoever writes
+ *  the directory to encode, and the callables — a pressure curve, a
+ *  response curve, a custom tip — which are a caller's own code. */
 [[nodiscard]] std::string encodeBrush(const Tool& tool);
 
 /** The decoder to register with a hub, so `load<Tool>()` answers:
@@ -58,7 +63,7 @@ inline constexpr std::string_view kGrainName = "grain.png";
 struct BrushDecoder {
   [[nodiscard]] std::optional<Tool> decode(const io::Bytes& bytes,
                                            std::string_view hint) const {
-    return decodeBrush(bytes, hint);
+    return decodeBrush(bytes.bytes, hint);
   }
 };
 
@@ -75,6 +80,11 @@ struct BrushDecoder {
  *  decoder runs. */
 template <io::ByteSource S>
 [[nodiscard]] std::optional<Tool> loadBrush(S& source, std::string_view uri) {
+  // One file first: a brush that is one resource costs one fetch, and a
+  // directory has no bytes of its own, so it falls through to its parts.
+  if (const std::shared_ptr<const io::Bytes> packed = source.fetch(uri))
+    if (std::optional<Tool> tool = decodeBrush(packed->bytes, uri)) return tool;
+
   std::string base(uri);
   while (!base.empty() && base.back() == '/') base.pop_back();
 
@@ -90,9 +100,6 @@ template <io::ByteSource S>
                          shape ? std::span(shape->bytes) : kNothing,
                          grain ? std::span(grain->bytes) : kNothing);
   }
-
-  if (const std::shared_ptr<const io::Bytes> packed = source.fetch(uri))
-    return decodeBrush(*packed, uri);
   return std::nullopt;
 }
 

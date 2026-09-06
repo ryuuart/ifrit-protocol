@@ -5,7 +5,6 @@
  * speed or tilt, applied to size, opacity and flow.
  */
 
-#include <algorithm>
 #include <functional>
 #include <optional>
 

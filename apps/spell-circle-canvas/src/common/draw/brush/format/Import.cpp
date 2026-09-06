@@ -2,7 +2,7 @@
  * Artwork in, image out: the one place a brush format meets a codec.
  */
 
-#include "Images.h"
+#include "Import.h"
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
@@ -34,6 +34,16 @@ sk_sp<SkImage> coverageImage(std::span<const uint8_t> coverage, int width,
   }
   bitmap.setImmutable();
   return SkImages::RasterFromBitmap(bitmap);
+}
+
+Tool importedTool() {
+  Tool tool;
+  tool.tip = Tip::Image;
+  tool.opacity = 1.0f;
+  tool.markerTip = false;
+  tool.pressure = {1.0f, 1.0f, 1.0f};
+  tool.pressure.variation.reset();
+  return tool;
 }
 
 }  // namespace sigil::draw::brush::format
