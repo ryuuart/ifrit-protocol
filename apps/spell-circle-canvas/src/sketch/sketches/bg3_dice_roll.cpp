@@ -212,7 +212,9 @@
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/mesh/Vec.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -363,19 +365,12 @@ constexpr int kActiveSkill = 3;  ///< Persuasion
 // ------------------------------------------------------------ the solid
 constexpr float kPhi = 1.618033988749895f;
 
-struct V3 {
-  float x = 0, y = 0, z = 0;
-};
-inline V3 operator-(V3 a, V3 b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }
-inline V3 cross(V3 a, V3 b) {
-  return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-}
-inline float dot(V3 a, V3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-inline float len(V3 a) { return std::sqrt(dot(a, a)); }
-inline V3 norm(V3 a) {
-  const float l = len(a);
-  return l > 1e-6f ? V3{a.x / l, a.y / l, a.z / l} : a;
-}
+// THE VECTOR ALGEBRA IS GLM'S. The subject here is the solid — twelve
+// vertices from three numbers and the faces found by search — and not a
+// dot product; the tree already depends on glm and every 3D thing in it
+// speaks glm::vec3, so a private one would be a third spelling.
+// `mesh::normalized` is the degenerate-input policy glm leaves undefined.
+using V3 = glm::vec3;
 
 /** Twelve vertices: the cyclic permutations of (0, +-1, +-phi). */
 inline std::vector<V3> icosaVertices() {
@@ -408,7 +403,7 @@ inline Solid buildSolid() {
   const int n = (int)s.verts.size();
   auto d2 = [&](int i, int j) {
     const V3 d = s.verts[(size_t)i] - s.verts[(size_t)j];
-    return dot(d, d);
+    return glm::dot(d, d);
   };
   for (int i = 0; i < n; ++i)
     for (int j = i + 1; j < n; ++j) {
@@ -422,14 +417,14 @@ inline Solid buildSolid() {
                  &c = s.verts[(size_t)k];
         V3 cen{(a.x + b.x + c.x) / 3, (a.y + b.y + c.y) / 3,
                (a.z + b.z + c.z) / 3};
-        V3 nrm = cross(b - a, c - a);
-        if (dot(nrm, cen) < 0) {  // wind outward
+        V3 nrm = glm::cross(b - a, c - a);
+        if (glm::dot(nrm, cen) < 0) {  // wind outward
           std::swap(f[1], f[2]);
           nrm = {-nrm.x, -nrm.y, -nrm.z};
         }
         s.faces.push_back(f);
         s.centroid.push_back(cen);
-        s.normal.push_back(norm(nrm));
+        s.normal.push_back(sigil::geometry::mesh::normalized(nrm));
       }
     }
   // Thirty edges, each with the two faces that share it.
@@ -679,12 +674,13 @@ struct Bg3DiceRoll : sketch::Sketch {
                const float fs =
                    radius * 0.30f * (0.55f + 0.45f * nz[(size_t)f]);
                SkFont font(serif, fs);
-               char buf[8];
-               std::snprintf(buf, sizeof(buf), "%d", solid.pip[(size_t)f]);
-               const float w = font.measureText(buf, std::strlen(buf),
+               const std::string pip =
+                   kit::formatted("%d", solid.pip[(size_t)f]);
+               const float w = font.measureText(pip.c_str(), pip.size(),
                                                 SkTextEncoding::kUTF8);
                glyph.setAlphaf(opacity * (0.35f + 0.65f * nz[(size_t)f]));
-               c.drawString(buf, fx - w * 0.5f, fy + fs * 0.34f, font, glyph);
+               c.drawString(pip.c_str(), fx - w * 0.5f, fy + fs * 0.34f, font,
+                            glyph);
              }
            })
         .left(bg3::kCx - boxSize * 0.5f)
