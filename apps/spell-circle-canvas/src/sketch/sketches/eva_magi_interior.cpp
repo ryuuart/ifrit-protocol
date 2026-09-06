@@ -220,6 +220,7 @@
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Curves.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Color.h>
@@ -244,6 +245,7 @@
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
+namespace arrange = sigil::geometry::arrange;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
 
@@ -1363,8 +1365,8 @@ struct EvaMagiInterior : sketch::Sketch {
     for (int s = 0; s <= 40; ++s) {
       const float t = (float)s / 40.0f;
       const float ang = (-168.0f + t * 104.0f) * 0.017453293f;
-      const SkPoint p{Wd * 0.52f + std::cos(ang) * 82.0f,
-                      Ht * 0.60f + std::sin(ang) * 70.0f};
+      const SkPoint p =
+          arrange::onEllipse({Wd * 0.52f, Ht * 0.60f}, {82.0f, 70.0f}, ang);
       if (s == 0)
         arcb.moveTo(p);
       else

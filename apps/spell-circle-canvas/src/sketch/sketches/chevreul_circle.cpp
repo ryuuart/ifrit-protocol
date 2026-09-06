@@ -120,6 +120,7 @@
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/ocio/Ocio.h>
@@ -145,6 +146,7 @@ namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace measure = sigil::measure;
 namespace ocio = sigil::material::ocio;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
@@ -1226,10 +1228,12 @@ struct ChevreulCircle : sketch::Sketch {
                                       const float cx = s.width() * 0.5f,
                                                   cy = s.height() * 0.5f;
                                       SkPathBuilder p;
-                                      p.moveTo(cx + std::cos(bd) * kRLimbIn,
-                                               cy + std::sin(bd) * kRLimbIn);
-                                      p.lineTo(cx + std::cos(bd) * kRLimbOut,
-                                               cy + std::sin(bd) * kRLimbOut);
+                                      p.moveTo(arrange::onEllipse(
+                                          {cx, cy},
+                                          {kRLimbIn, kRLimbIn}, bd));
+                                      p.lineTo(arrange::onEllipse(
+                                          {cx, cy},
+                                          {kRLimbOut, kRLimbOut}, bd));
                                       return p.detach();
                                     }))
                   .stroke(stroke(0.7f, Fill::color(kRule)))

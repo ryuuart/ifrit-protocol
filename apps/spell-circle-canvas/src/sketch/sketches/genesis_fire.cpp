@@ -143,6 +143,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -165,6 +166,7 @@
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -801,8 +803,7 @@ struct GenesisFire final : sketch::DrawSketch {
       const int n = (int)std::lround(0.055f * 2.0f * 3.14159265f * r);
       for (int i = 0; i < n; ++i) {
         const float a = rand01() * 6.2831853f;
-        const SkPoint p{impact.fX + std::cos(a) * r,
-                        impact.fY + std::sin(a) * r};
+        const SkPoint p = arrange::onEllipse(impact, {r, r}, a);
         planMarks.push_back({p, r});
         planPool->add(p, 0, 0.0f, 1.0f, {1, 1, 1, 0.55f});
       }

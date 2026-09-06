@@ -698,7 +698,8 @@ inline void drawGlyph(SkCanvas& canvas, int glyph, float alpha) {
     case gAspect: {  // cat_alchemy.png — the alkimia aspect medallion
       const SkColor4f c = a(aspect::kAlkimia);
       for (int i = 0; i < 6; ++i) {
-        const float ang = (float)i * 60.0f * 0.0174533f;
+        const float ang = arrange::along(0.0f, 6.2831853f, (size_t)i, 6,
+                                        arrange::Turn::Closed);
         k.px(8 + 5 * std::cos(ang) - 0.5f, 8 + 5 * std::sin(ang) - 0.5f, c);
       }
       k.r(6, 4, 4, 1, c);
@@ -1001,9 +1002,10 @@ inline Element cornerPlate(SkColor4f tint) {
         }
         // four studs on the diagonals — the cell's own ornament
         for (int i = 0; i < 4; ++i) {
-          const float a = 0.7853982f + (float)i * 1.5707963f;
-          const float x = m + std::cos(a) * g(7.2f);
-          const float y = m + std::sin(a) * g(7.2f);
+          const SkPoint stud =
+              arrange::onRing((size_t)i, 4, {m, m}, {g(7.2f), g(7.2f)},
+                              0.7853982f, 6.2831853f, arrange::Turn::Closed);
+          const float x = stud.fX, y = stud.fY;
           p.setColor4f(T(scaleRgb(kBrassDark, 1.0f, 0.9f)), nullptr);
           c.drawCircle(x, y, g(1.9f), p);
           p.setColor4f(T(scaleRgb(kBrassLit, 1.15f)), nullptr);
@@ -1176,10 +1178,11 @@ struct Thaumonomicon : sketch::Sketch {
       p.setColor4f(scaleRgb(kBrassLit, 1.0f, 0.17f), nullptr);
       SkPathBuilder t;
       for (int i = 0; i < 72; ++i) {
-        const float aRad = (float)i * 5.0f * 0.0174533f;
         const float r0 = g(i % 6 == 0 ? 182.0f : 192.0f), r1 = g(200.0f);
-        t.moveTo(o.fX + std::cos(aRad) * r0, o.fY + std::sin(aRad) * r0);
-        t.lineTo(o.fX + std::cos(aRad) * r1, o.fY + std::sin(aRad) * r1);
+        t.moveTo(arrange::onRing((size_t)i, 72, o, {r0, r0}, 0.0f, 6.2831853f,
+                                 arrange::Turn::Closed));
+        t.lineTo(arrange::onRing((size_t)i, 72, o, {r1, r1}, 0.0f, 6.2831853f,
+                                 arrange::Turn::Closed));
       }
       // an inscribed pentagram and a hexagram, the plate's own furniture
       for (int k = 0; k < 2; ++k) {
@@ -1188,10 +1191,10 @@ struct Thaumonomicon : sketch::Sketch {
         const float rot = k ? 0.26f : -1.57f;
         for (int i = 0; i < n; ++i) {
           const int j = (i + 2) % n;
-          const float a1 = rot + (float)i * 6.2831853f / (float)n;
-          const float a2 = rot + (float)j * 6.2831853f / (float)n;
-          t.moveTo(o.fX + std::cos(a1) * rad, o.fY + std::sin(a1) * rad);
-          t.lineTo(o.fX + std::cos(a2) * rad, o.fY + std::sin(a2) * rad);
+          t.moveTo(arrange::onRing((size_t)i, (size_t)n, o, {rad, rad}, rot,
+                                   6.2831853f, arrange::Turn::Closed));
+          t.lineTo(arrange::onRing((size_t)j, (size_t)n, o, {rad, rad}, rot,
+                                   6.2831853f, arrange::Turn::Closed));
         }
       }
       c.drawPath(t.detach(), p);

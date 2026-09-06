@@ -91,6 +91,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
@@ -114,6 +115,7 @@
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace sdf = sigil::material::sdf;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -870,8 +872,8 @@ struct KspMapView : sketch::Sketch {
         e.stroke(PathFormat{.width = 1.8f, .strokeFill = Fill::color(c)})
             .fill(Paint::solid(alpha(c, 0.22f)));
       const float rad2 = bearing * 0.017453293f;
-      e.centerAt({hub.fX + std::cos(rad2) * (len * 0.5f + 9),
-                  hub.fY + std::sin(rad2) * (len * 0.5f + 9)})
+      e.centerAt(arrange::onEllipse(
+                     hub, {len * 0.5f + 9, len * 0.5f + 9}, rad2))
           .rotate(bearing)
           .key(k)
           .scale(&armPulse)
@@ -887,8 +889,7 @@ struct KspMapView : sketch::Sketch {
               .height(Dim(18))
               .shape(solid ? ringDot(2.6f, 3.0f) : ringOnly(2.2f))
               .fill(Paint::solid(solid ? c : alpha(c, 0.62f)))
-              .centerAt(
-                  {hub.fX + std::cos(rad2) * 40, hub.fY + std::sin(rad2) * 40})
+              .centerAt(arrange::onEllipse(hub, {40, 40}, rad2))
               .key(k)
               .scale(&armPulse)
               .opacity(animate(from(0.0f).to(1.0f), {380ms, ease::outBack()}));
@@ -898,8 +899,8 @@ struct KspMapView : sketch::Sketch {
     // six axes off one hub rather than two loose dots
     auto spoke = [&](float bearing, SkColor4f c) {
       const float r2 = bearing * 0.017453293f;
-      const SkPoint a{hub.fX + std::cos(r2) * 11, hub.fY + std::sin(r2) * 11};
-      const SkPoint b{hub.fX + std::cos(r2) * 31, hub.fY + std::sin(r2) * 31};
+      const SkPoint a = arrange::onEllipse(hub, {11, 11}, r2);
+      const SkPoint b = arrange::onEllipse(hub, {31, 31}, r2);
       return box()
           .inset(0)
           .shape(keyedShape(std::tuple{a.fX, a.fY, b.fX, b.fY},

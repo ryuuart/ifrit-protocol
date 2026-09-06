@@ -192,6 +192,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -218,6 +219,7 @@
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
+namespace arrange = sigil::geometry::arrange;
 namespace shapers = sigil::geometry::shapers;
 namespace measure = sigil::measure;
 namespace shapes = sigil::geometry::shapes;
@@ -1304,10 +1306,10 @@ struct DunhuangStarChart : sketch::Sketch {
                                                               rOut](SkSize) {
                     SkPathBuilder b;
                     const float a = ang * kD;
-                    b.moveTo(rOut + std::cos(a) * rOut * 0.14f,
-                             rOut + std::sin(a) * rOut * 0.14f);
-                    b.lineTo(rOut + std::cos(a) * rOut,
-                             rOut + std::sin(a) * rOut);
+                    b.moveTo(arrange::onEllipse(
+                        {rOut, rOut}, {rOut * 0.14f, rOut * 0.14f}, a));
+                    b.lineTo(
+                        arrange::onEllipse({rOut, rOut}, {rOut, rOut}, a));
                     return b.detach();
                   }))
                   .stroke(PathFormat{
@@ -1317,8 +1319,9 @@ struct DunhuangStarChart : sketch::Sketch {
                       .trimEnd = 0.90f}));
       {
         const float a = ang * kD;
-        const float lx = rOut + std::cos(a) * (rOut - 16.0f);
-        const float ly = rOut + std::sin(a) * (rOut - 16.0f);
+        const SkPoint label = arrange::onEllipse(
+            {rOut, rOut}, {rOut - 16.0f, rOut - 16.0f}, a);
+        const float lx = label.fX, ly = label.fY;
         g.child(text(toU8(kXiu[m]), type(faceHan ? faceHan : faceSerif, 11.0f,
                                          hex(0x2a2118, 0.85f)))
                     .left(lx - 8)
@@ -1931,7 +1934,7 @@ struct DunhuangStarChart : sketch::Sketch {
     auto plot = [&](float ra, float dec) {
       const float r = (90.0f - dec) * pxPerDeg;
       const float a = ra * kD;
-      return SkPoint{cx + r * std::cos(a), cy + r * std::sin(a)};
+      return arrange::onEllipse({cx, cy}, {r, r}, a);
     };
     for (int ring = 10; ring <= 30; ring += 10) {
       const float rr = (float)ring * pxPerDeg;

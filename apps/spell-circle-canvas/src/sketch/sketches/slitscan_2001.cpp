@@ -209,6 +209,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmeasure/stats/Fit.h>
 #include <sigilmaterial/skia/Color.h>
@@ -234,6 +235,7 @@
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
 namespace patterns = sigil::material::pattern;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -865,8 +867,8 @@ struct SlitScan2001 : sketch::Sketch {
         std::array<int, 120> bin{};
         for (int i = 0; i < 120; ++i) {
           const float u = u0 * std::pow(u1 / u0, (float)i / 119.0f);
-          const float v =
-              lumAt(c.fX + std::cos(ang) * u, c.fY + std::sin(ang) * u);
+          const SkPoint at = arrange::onEllipse(c, {u, u}, ang);
+          const float v = lumAt(at.fX, at.fY);
           bin[(size_t)i] = -1;
           if (v > 1e-6f) {
             bin[(size_t)i] = (int)lx.size();

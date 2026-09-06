@@ -72,6 +72,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -90,6 +91,7 @@
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -588,8 +590,9 @@ struct StrokeAtlasSketch : sketch::Sketch {
                         .shape(hline())
                         .stroke(fan[(size_t)i].dec));
         const float rad = deg * 0.0174532925f;
-        const float ex = originX + std::cos(rad) * (length + 9);
-        const float ey = originY + std::sin(rad) * (length + 9);
+        const SkPoint end = arrange::onEllipse(
+            {originX, originY}, {length + 9, length + 9}, rad);
+        const float ex = end.fX, ey = end.fY;
         const std::string numeral = kit::formatted("%d", i + 1);
         plate.child(
             call(numeral.c_str(), 8.5f, kRed).absolute().left(ex).top(ey - 6));
@@ -709,8 +712,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
       for (const Ring& r : rings) {
         plate.child(bare(cx - span * 0.5f, cy - span * 0.5f, span, span,
                          ringOf(r.r), r.dec));
-        const float lx = cx + std::cos(r.angle) * r.r;
-        const float ly = cy + std::sin(r.angle) * r.r;
+        const SkPoint on = arrange::onEllipse({cx, cy}, {r.r, r.r}, r.angle);
+        const float lx = on.fX, ly = on.fY;
         // The leader runs OUT of the cluster to a caption column clear of
         // every ring. A caption set just off its own ring lands on top of
         // the rings outside it, which is the one thing a plate of concentric

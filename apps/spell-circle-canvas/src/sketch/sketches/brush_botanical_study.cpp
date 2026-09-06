@@ -9,6 +9,7 @@
 //   kGreens   the pigments shared by wet and dry leaves
 
 #include <sigildraw/brush/Brush.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <algorithm>
@@ -16,6 +17,7 @@
 #include <cmath>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
@@ -182,8 +184,8 @@ struct BrushBotanicalStudy final : sketch::DrawSketch {
     brush::Tool twig = brush::pencil({0.30f, 0.22f, 0.13f, 1}, 2.1f);
     twig.opacity = 0.66f;
     for (const LeafSpec& spec : kLeaves) {
-      const SkPoint join{spec.base.fX + std::cos(spec.angle) * 24.0f,
-                         spec.base.fY + std::sin(spec.angle) * 24.0f};
+      const SkPoint join =
+          arrange::onEllipse(spec.base, {24.0f, 24.0f}, spec.angle);
       brush::line(pen, twig, spec.base, join, 0.88f, 0.18f);
     }
 
