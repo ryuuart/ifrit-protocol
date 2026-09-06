@@ -47,6 +47,8 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
       inst.description->textData->annotations;
   if (annotations.empty()) return;
   const sigil::weave::WritingMode mode = inst.paragraph->writingMode();
+  const bool column = mode == sigil::weave::WritingMode::kVerticalRL;
+  std::vector<uint32_t> sources;
 
   for (const Annotation& annotation : annotations) {
     if (annotation.readings.empty()) continue;
@@ -54,11 +56,14 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
     // that broke across a line or a column on BOTH of them, with the source
     // unit beside each — so the split below is a fact the placement already
     // knows and not a case handled here.
-    static thread_local std::vector<uint32_t> sources;
     const std::vector<TextUnit> units =
         unitsOfText(impl, inst, annotation.where, annotation.unit, &sources);
     if (units.empty() || sources.size() != units.size()) continue;
-    const bool column = mode == sigil::weave::WritingMode::kVerticalRL;
+    // A LIST OF ONE reads every unit alike, which is how a row of identical
+    // emphasis marks is written — a broken base included, since the one
+    // reading is what each of its pieces is asked to carry. A list of many
+    // pairs off with the bases.
+    const bool alike = annotation.readings.size() == 1;
 
     auto place = [&](const TextUnit& unit, const std::u16string& text) {
       if (text.empty()) return;
@@ -92,11 +97,6 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
       size_t last = index;
       while (last + 1 < units.size() && sources[last + 1] == sources[last])
         ++last;
-      // A LIST OF ONE reads every unit alike, which is how a row of
-      // identical emphasis marks is written — a broken base included, since
-      // the one reading is what each of its pieces is asked to carry. A
-      // list of many pairs off with the bases.
-      const bool alike = annotation.readings.size() == 1;
       const std::u8string* source = alike
                                         ? &annotation.readings.front()
                                         : (reading < annotation.readings.size()

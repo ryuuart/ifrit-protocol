@@ -468,6 +468,41 @@ TEST(TextVertical, ASubstitutionIsGatedOnTheAxisItsRunAdvancesOn) {
          "after it";
 }
 
+TEST(TextVertical, TheUnitReadBackNamesHowEachOneStandsInItsColumn) {
+  // 縦中横: a short run — two digits, a year — SHAPED HORIZONTALLY and set
+  // upright in the column, so it reads level inside vertical prose. What
+  // anything placed beside a unit needs to know is which of the three a
+  // unit is, because a level run in a column is as wide as it is tall and
+  // a turned one is neither: the read-back names it.
+  const std::u8string mixed = u8"平成30年に";
+  Host host(300, 240);
+  sigil::weave::TextStyle tcy = jp(22, SK_ColorWHITE);
+  tcy.shaping.verticalForm = sigil::weave::VerticalForm::kTateChuYoko;
+  host.composer.render(box().padding(10).child(
+      text(mixed, jp(22, SK_ColorWHITE))
+          .width(200)
+          .height(180)
+          .writingMode(sigil::weave::WritingMode::kVerticalRL)
+          .spanStyle(sigil::weave::sel::text(u8"30"), tcy)
+          .key("t")));
+  host.frame();
+
+  const std::vector<TextUnit> units = host.composer.units(
+      "t", sigil::weave::sel::each(sigil::weave::unit::Cluster),
+      sigil::weave::unit::Cluster);
+  ASSERT_FALSE(units.empty());
+  int upright = 0, level = 0;
+  for (const TextUnit& unit : units) {
+    EXPECT_EQ(unit.writingMode, sigil::weave::WritingMode::kVerticalRL);
+    if (unit.verticalForm == sigil::weave::VerticalForm::kUpright) ++upright;
+    if (unit.verticalForm == sigil::weave::VerticalForm::kTateChuYoko) ++level;
+    EXPECT_NE(unit.verticalForm, sigil::weave::VerticalForm::kAuto)
+        << "kAuto is the horizontal answer; a column resolves the question";
+  }
+  EXPECT_GT(upright, 0) << "the CJK of the passage stands upright";
+  EXPECT_GT(level, 0) << "the digits set across the column were not named";
+}
+
 TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
   // A mark's rect is the union of the advance boxes of the glyphs it
   // addressed, and in a column those boxes stack DOWN one axis. So a
