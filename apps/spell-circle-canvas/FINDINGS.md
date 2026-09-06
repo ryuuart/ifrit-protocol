@@ -120,82 +120,32 @@ deferred by the rulings above. What is left:
 
 ## The sketches (findings/review-sketches.md)
 
-Should-fix:
+Every should-fix and every nit is fixed except the library extractions
+the rulings defer, which are the paragraph below, and five entries the
+fix pass's report names as left with their reasons: `stroke_atlas` keeps
+its absolute placement (a rule specimen is positioned against the shape
+it is shown on, which the file states as its own constraint), and four
+findings that were stale when written — `chaucer_astrolabe` and
+`minard_1869` render their check runs through `kit::console` already,
+`dunhuang_star_chart` has no check run to render, and `xcom_battlescape`,
+`thaumonomicon` and `kumiko_asanoha` already stand on the origin the nit
+names.
 
-- `xcom_battlescape.cpp:1690-1814,1963-1974` and
-  `spacejam_1996.cpp:1376-1408,1507`, `eva_magi_interior.cpp:687-708,
-  1601-1623`, `eva_magi_defense.cpp:935-983`, `penrose_paving.cpp:
-  1095-1200` — audit tables printed to stdout on setup; build a
-  `measure::Table` and render it through `sketch::kit::table`.
-- `twoadvanced_v3.cpp:340-440` — a Rive-container PNG extractor inside a
-  sketch; image meaning is SigilImage's, access SigilIO's.
-- `hitman_verlet.cpp:516-560` — own Verlet integrator and stick/range
-  constraints beside `sigilmotion/physics/Verlet.h` and `Constraints.h`;
-  include and delete the copies.
-- `shared/EvangelionUi.h:53-116` — hand-built cut-corner rounded rects;
-  grow `geometry/kit/Corners.h` with a non-square cut and delete.
-- `minard_1869.cpp:2100`, `chaucer_astrolabe.cpp:2640`,
-  `black_watch.cpp:809`, `chevreul_circle.cpp:961`,
-  `dunhuang_star_chart.cpp:2357` — each lays a `measure::Check` run out
-  by hand; one `kit::table` over `Table::rows`.
-- 46 sketches with local `mono()/sans()/label()` helpers and three
-  recurring face lists (`genesis_fire.cpp:293-335` =
-  `hitman_verlet.cpp:337-382` = `slitscan_2001.cpp:350-392`); bind a
-  Theme whose registers are the resolved faces and put the house lists in
-  the kit once.
-- `eva_magi_interior.cpp:263`, `eva_magi_deliberation.cpp:28` — a private
-  `hex()` beside `compose::hex`.
-- `chaucer_astrolabe.cpp:2489-2512`, `minard_1869.cpp:2115-2141` —
-  hand-placed title strips that are `kit::titleCard`.
-- `penrose_paving.cpp:397`, `fallout2_charsheet.cpp:532`,
-  `thunder_fulu.cpp:1975`, `spacejam_1996.cpp:1358` — private audit
-  structs; `measure::Check`/`Table`.
-- `horizontal_flow.cpp:43-70,136-150` — own paper palette and captioned
-  panel; a paper `Theme` with `kit::caption` and `well`.
-- `stroke_atlas.cpp:211-1151` — 612 lines of furniture around forty
-  specimens; `page` + `panelGrid` + `sectionHeader` + `caption`.
-- Mechanisms hidden in the sketches over 1000 lines, each to its origin:
-  palette-indexed sprites and an atlas packer (`xcom_battlescape`,
-  `cde_motif`, `thaumonomicon`) → `compose/kit/Sprites.h`; an HTML
-  auto-table layout scheme (`spacejam_1996:999-1200`) → compose kit
-  layouts with a test; an icosahedron and a face-up pose
-  (`bg3_dice_roll:376-503`) → `geometry/kit/Solids.h` and a mesh pose;
-  a conic generator and four silhouettes (`ksp_mapview:244-566`) →
-  geometry path and `Silhouettes.h`; Motif bevels (`cde_motif`,
-  `twoadvanced_v4`, `winamp_base`, `fallout2_charsheet`) → `Chrome.h`;
-  a stereographic and a chart projection (`chaucer_astrolabe`,
-  `dunhuang_star_chart`) → a projection value in geometry path; a
-  tartan sett-to-cloth weave (`black_watch:234-295`) → material
-  pattern; a pentagrid (`penrose_paving:264`) and mitred lattice joinery
-  (`kumiko_asanoha:517`) → `Lattice.h`/`Ops.h`; Reeves particles
-  (`genesis_fire:516`) → `sigilmotion/physics/Points.h`.
-- Comment history in `genesis_fire`, `hitman_verlet`, `vertigo_titles`,
-  `matrix_rain`, `black_watch`, `rota_convocationis`,
-  `dunhuang_star_chart`, `chrome_type`, `astral_tome` ("used to", "no
-  longer", "see the perf story"); rewrite as the constraint.
-
-## rota_convocationis cannot hold 60 FPS through its own emissive stack
-
-The scene draws one charged disc: every lit band, seal, star and rim
-flame is an emissive fill laid over the whole disc, and the composite
-misses the 60 FPS gate through the second half of the cycle. The sketch
-carried `ctx.plate()` to be judged as a still instead, which
-`CanvasSpec::plateOnly` states is for a sketch whose subject is the size
-of the sheet it draws and never a timeout override. The mark is gone and
-the look stands, so the scene now presents as what it is.
-
-What the compositor does: each emissive layer is a full-disc fill drawn
-into its own layer and composited, so the per-frame cost scales with the
-number of lit elements rather than with the area any of them covers, and
-nothing coalesces layers that share a blend and a clip.
-
-Intended: a run of emissive fills over one disc is one composite pass,
-whatever it costs to build, so a scene's frame cost tracks the pixels it
-touches rather than the count of nodes that touch them.
-
-Assert once fixed: `--bench` on `rota_convocationis` holds 60 FPS across
-the whole loop on a raster surface, and a case in `compose_bench` pins
-the cost of N emissive fills over one shape as flat in N past the first.
+Deferred, each to its own campaign — the mechanisms hidden in the
+sketches over 1000 lines: palette-indexed sprites and an atlas packer
+(`xcom_battlescape`, `cde_motif`, `thaumonomicon`) → `compose/kit/
+Sprites.h`; an HTML auto-table layout scheme (`spacejam_1996:999-1200`) →
+compose kit layouts with a test; an icosahedron and a face-up pose
+(`bg3_dice_roll:376-503`) → `geometry/kit/Solids.h` and a mesh pose; a
+conic generator and four silhouettes (`ksp_mapview:244-566`) → geometry
+path and `Silhouettes.h`; Motif bevels (`cde_motif`, `twoadvanced_v4`,
+`winamp_base`, `fallout2_charsheet`) → `Chrome.h`; a stereographic and a
+chart projection (`chaucer_astrolabe`, `dunhuang_star_chart`) → a
+projection value in geometry path; a tartan sett-to-cloth weave
+(`black_watch:234-295`) → material pattern; a pentagrid
+(`penrose_paving:264`) and mitred lattice joinery (`kumiko_asanoha:517`)
+→ `Lattice.h`/`Ops.h`; Reeves particles (`genesis_fire:516`) →
+`sigilmotion/physics/Points.h`.
 
 ## SigilGeometry path ops (findings/review-geometry-path-ops.md)
 
@@ -226,11 +176,6 @@ lambdas over them are stated to inline).
 
 Every blocker, should-fix and nit this report names is fixed, with the
 tests it asks for.
-
-One consumer outside the libraries is left for the sketch pass:
-`src/sketch/sketches/gif_frames.cpp` reads `ResourceInfo::Kind` and
-`info->image`, which are gone — it asks
-`hub.probe<sigil::image::ImageProbe>(uri)` now.
 
 ## Ring and grid placement is respelled where geometry already has it
 
