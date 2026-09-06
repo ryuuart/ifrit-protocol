@@ -46,12 +46,15 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -333,9 +336,18 @@ struct Socket {
 
 // ---------------------------------------------------------------------------
 
-inline float cellX(int c) { return c * (kCell + kGap); }
-inline float cellY(int r) { return r * (kCell + kGap); }
-inline float spanW(int cells) { return cells * kCell + (cells - 1) * kGap; }
+/** THE HOARD'S LATTICE: 38 px cells with 2 px between them, and a
+ *  footprint that swallows the gaps it crosses. `arrange::cellRect` is
+ *  that arithmetic's origin — module, gap, origin and span — and the
+ *  three readings below are the four numbers it answers, taken one at a
+ *  time. */
+inline SkRect cellRect(int col, int row, int cols = 1, int rows = 1) {
+  return sigil::geometry::arrange::cellRect({col, row}, {kCell, kCell},
+                                     {kGap, kGap}, {0, 0}, cols, rows);
+}
+inline float cellX(int c) { return cellRect(c, 0).fLeft; }
+inline float cellY(int r) { return cellRect(0, r).fTop; }
+inline float spanW(int cells) { return cellRect(0, 0, cells, 1).width(); }
 
 /** A well: the two-stop ramp under an inner shadow that makes a rectangle
  *  read as a hole punched in the panel. */
@@ -481,10 +493,12 @@ struct LootGrid final : sketch::Sketch {
     cellAtlas = std::make_shared<instancing::Atlas>(2.0f);
     cellAtlas->cell(lt::well(lt::kCell, lt::kCell), {lt::kCell, lt::kCell});
     cellPool = std::make_shared<instancing::Pool>();
-    for (int r = 0; r < lt::kRows; ++r)
-      for (int c = 0; c < lt::kCols; ++c)
-        cellPool->add(
-            {lt::cellX(c) + lt::kCell * 0.5f, lt::cellY(r) + lt::kCell * 0.5f});
+    // An instance sits at the centre of its slot; `place::grid` fills the
+    // lane row-major off the same `cellRect` the laid-out cells use, so
+    // the stamps and the items cannot drift apart.
+    instancing::place::grid(*cellPool, (size_t)lt::kCols * (size_t)lt::kRows,
+                            lt::kCols, {lt::kCell, lt::kCell}, {0, 0},
+                            {lt::kGap, lt::kGap});
 
     ticker.add([this, &ticker](double) {
       const double t = ticker.elapsed();
@@ -958,8 +972,21 @@ struct LootGrid final : sketch::Sketch {
         .child(std::move(grid));
   }
 
+  /** THE SHEET'S OWN VOICE. The kit's components read a theme, and the
+   *  one register this hoard's keys are set in is its own: 10.5 px at
+   *  0.8 tracking, which is what was measured off the reference. Bound
+   *  where the tree is DESCRIBED, because that is the scope a component
+   *  four levels down reads. */
+  static sketch::kit::Theme sheetTheme() {
+    sketch::kit::Theme look = sketch::kit::houseTheme();
+    look.type.captionNote = {10.5f, 0.8f};
+    look.palette.ink = loot::kAsh;
+    return look;
+  }
+
   Element describe() {
     namespace lt = loot;
+    const sketch::kit::Provide look(sheetTheme());
     const std::string goldText = kit::formatted("%d", gold);
 
     auto root = stack().fill(Paint::linear(
@@ -1053,63 +1080,54 @@ struct LootGrid final : sketch::Sketch {
             .child(text(toU8("GOLD"),
                         weave::textStyle({.size = 10, .color = lt::kAsh, .track = 2.2f}))));
 
-    // the legend for the rarity ladder, bottom right
-    auto chip = [&](lt::Rarity r, const char* label) {
+    // The two keys, bottom left and bottom right. Both are
+    // `sketch::kit::legend` under the sheet's own theme: a dim body
+    // inside a bright edge is the entry's `keyline`, and the rarity
+    // ladder's words are set in what they name through its `ink`.
+    auto tier = [](lt::Rarity r, const char* label) {
       const SkColor4f c = lt::rarityColor(r);
-      return box()
-          .row()
-          .alignItems(Align::Center)
-          .gap(6)
-          .child(box()
-                     .width(Dim(9.0f))
-                     .height(Dim(9.0f))
-                     .corners({1.5f})
-                     .fill(Paint::solid(
-                         {c.fR * 0.35f, c.fG * 0.35f, c.fB * 0.35f, 1}))
-                     .foreground(stroke(1.0f, Fill::color(c))))
-          .child(text(toU8(label),
-                      weave::textStyle({.size = 10.5f, .color = c, .track = 0.8f})));
+      return sketch::kit::LegendEntry{
+          Fill::color({c.fR * 0.35f, c.fG * 0.35f, c.fB * 0.35f, 1}),
+          toU8(label), {}, Fill::color(c), c};
     };
-    root.child(box()
-                   .row()
-                   .gap(15)
-                   .alignItems(Align::Center)
+    root.child(sketch::kit::legend({.entries = {tier(lt::Rarity::Normal,
+                                                     "normal"),
+                                                tier(lt::Rarity::Magic,
+                                                     "magic"),
+                                                tier(lt::Rarity::Rare, "rare"),
+                                                tier(lt::Rarity::Set, "set"),
+                                                tier(lt::Rarity::Unique,
+                                                     "unique")},
+                                    .column = false,
+                                    .swatch = 9.0f,
+                                    .gap = 15.0f,
+                                    .corners = 1.5f,
+                                    .labelGap = 6.0f})
                    .right(30)
-                   .bottom(26)
-                   .child(chip(lt::Rarity::Normal, "normal"))
-                   .child(chip(lt::Rarity::Magic, "magic"))
-                   .child(chip(lt::Rarity::Rare, "rare"))
-                   .child(chip(lt::Rarity::Set, "set"))
-                   .child(chip(lt::Rarity::Unique, "unique")));
+                   .bottom(26));
 
+    // The occupancy key. Its two entries stand further apart than the
+    // ladder's, because they name two answers to one question rather
+    // than five steps of one scale.
     root.child(
-        box()
-            .row()
-            .gap(8)
-            .alignItems(Align::Center)
+        sketch::kit::legend(
+            {.entries = {{Fill::color({0.16f, 0.80f, 0.24f, 0.30f}),
+                          toU8("fits"),
+                          {},
+                          Fill::color({0.35f, 1.0f, 0.45f, 0.8f}),
+                          lt::kAsh},
+                         {Fill::color({0.90f, 0.16f, 0.14f, 0.34f}),
+                          toU8("blocked"),
+                          {},
+                          Fill::color({1.0f, 0.35f, 0.30f, 0.8f}),
+                          lt::kAsh}},
+             .column = false,
+             .swatch = 11.0f,
+             .gap = 18.0f,
+             .corners = 2.0f,
+             .labelGap = 8.0f})
             .left(30)
-            .bottom(26)
-            .child(box()
-                       .width(Dim(11.0f))
-                       .height(Dim(11.0f))
-                       .corners({2})
-                       .fill(Paint::solid({0.16f, 0.80f, 0.24f, 0.30f}))
-                       .foreground(stroke(
-                           1.0f, Fill::color({0.35f, 1.0f, 0.45f, 0.8f}))))
-            .child(
-                text(toU8("fits"),
-                     weave::textStyle({.size = 10.5f, .color = lt::kAsh, .track = 0.8f})))
-            .child(box()
-                       .width(Dim(11.0f))
-                       .height(Dim(11.0f))
-                       .corners({2})
-                       .margin(10, 0, 0, 0)
-                       .fill(Paint::solid({0.90f, 0.16f, 0.14f, 0.34f}))
-                       .foreground(stroke(
-                           1.0f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f}))))
-            .child(
-                text(toU8("blocked"),
-                     weave::textStyle({.size = 10.5f, .color = lt::kAsh, .track = 0.8f}))));
+            .bottom(26));
     return root;
   }
 };
