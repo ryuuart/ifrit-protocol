@@ -29,6 +29,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
@@ -64,12 +65,27 @@ struct UiParticles final : sketch::Sketch {
   static constexpr float kPostW = 232.0f, kPostH = 148.0f;
   static constexpr int kPostVariants = 12;
 
+  /** THE SIMULATION'S OWN RATE. It is stated here rather than taken from
+   *  the host, because a simulation stepped at whatever rate the machine
+   *  drew at is a different simulation on every machine. */
+  static constexpr double kStepHz = 60.0;
+  static constexpr float kStepSeconds = 1.0f / (float)kStepHz;
+
   entt::registry chips;
   entt::registry posts;
+  /** The leftover fraction of a step after the frame's stepping — the
+   *  Ticker writes it, the pool fill reads it. */
+  choreograph::Output<float> stepAlpha;
   std::shared_ptr<instancing::Atlas> chipAtlas, postAtlas;
   std::shared_ptr<instancing::Pool> chipPool, postPool;
 
   struct Pos {
+    float x, y;
+  };
+  /** WHERE THE STAMP STOOD AT THE PREVIOUS FIXED STEP. The pool is filled
+   *  from `lerp(Prev, Pos, alpha)`, so what is drawn is the simulation
+   *  read at the frame's own moment rather than at the last step's. */
+  struct Prev {
     float x, y;
   };
   struct Vel {
@@ -375,8 +391,10 @@ struct UiParticles final : sketch::Sketch {
     auto unit = [&] { return (float)(rng() % 10000) / 10000.0f; };
     for (size_t i = 0; i < count; ++i) {
       entt::entity e = reg.create();
-      reg.emplace<Pos>(e, unit() * kSceneSize.width(),
-                       unit() * kSceneSize.height());
+      const float x = unit() * kSceneSize.width();
+      const float y = unit() * kSceneSize.height();
+      reg.emplace<Pos>(e, x, y);
+      reg.emplace<Prev>(e, x, y);
       reg.emplace<Vel>(e, unit() * 40 - 20, -velUp * (0.4f + unit()));
       reg.emplace<Look>(e, (uint8_t)(rng() % variants),
                         scaleLo + unit() * (scaleHi - scaleLo),
@@ -384,38 +402,56 @@ struct UiParticles final : sketch::Sketch {
     }
   }
 
-  static void step(entt::registry& reg, double dt, float margin) {
-    reg.view<Pos, const Vel>().each([dt, margin](Pos& p, const Vel& v) {
-      p.x += v.dx * (float)dt;
-      p.y += v.dy * (float)dt;
-      if (p.y < -margin) p.y += kSceneSize.height() + margin;
-      if (p.x < -margin)
-        p.x += kSceneSize.width() + margin;
-      else if (p.x > kSceneSize.width())
-        p.x -= kSceneSize.width() + margin;
-    });
+  /** ONE FIXED STEP. A WRAP MOVES BOTH ENDS of the interpolation by the
+   *  same offset: leaving the previous position behind would draw one
+   *  frame of a stamp smeared the width of the canvas. */
+  static void step(entt::registry& reg, float margin) {
+    reg.view<Pos, Prev, const Vel>().each(
+        [margin](Pos& p, Prev& was, const Vel& v) {
+          was = {p.x, p.y};
+          p.x += v.dx * kStepSeconds;
+          p.y += v.dy * kStepSeconds;
+          if (p.y < -margin) {
+            const float wrap = kSceneSize.height() + margin;
+            p.y += wrap;
+            was.y += wrap;
+          }
+          if (p.x < -margin) {
+            const float wrap = kSceneSize.width() + margin;
+            p.x += wrap;
+            was.x += wrap;
+          } else if (p.x > kSceneSize.width()) {
+            const float wrap = kSceneSize.width() + margin;
+            p.x -= wrap;
+            was.x -= wrap;
+          }
+        });
   }
 
   // The EnTT → Pool copy-in: the registry stays the sim, the pool spans
   // are the seam the instances() leaf reads (Mode::Live, every frame).
-  static void syncPool(entt::registry& reg, instancing::Pool& pool, double t) {
+  static void syncPool(entt::registry& reg, instancing::Pool& pool, double t,
+                       float alpha) {
     auto positions = pool.positions();
     auto rotations = pool.rotations();
     auto scales = pool.scales();
     auto frames = pool.frames();
     size_t i = 0;
-    reg.view<const Pos, const Look>().each([&](const Pos& p, const Look& l) {
-      positions[i] = {p.x, p.y};
-      rotations[i] = l.spin * (float)std::sin(t * 1.6 + p.x * 0.01);
-      scales[i] = l.scale;
-      frames[i] = l.sprite;
-      ++i;
-    });
+    reg.view<const Pos, const Prev, const Look>().each(
+        [&](const Pos& p, const Prev& was, const Look& l) {
+          const float x = was.x + (p.x - was.x) * alpha;
+          const float y = was.y + (p.y - was.y) * alpha;
+          positions[i] = {x, y};
+          rotations[i] = l.spin * (float)std::sin(t * 1.6 + x * 0.01);
+          scales[i] = l.scale;
+          frames[i] = l.sprite;
+          ++i;
+        });
   }
 
   void update(double t, sketch::SketchContext& ctx) override {
-    syncPool(chips, *chipPool, t);
-    syncPool(posts, *postPool, t);
+    syncPool(chips, *chipPool, t, stepAlpha);
+    syncPool(posts, *postPool, t, stepAlpha);
   }
 
   void setup(sketch::SketchContext& ctx) override {
@@ -434,14 +470,22 @@ struct UiParticles final : sketch::Sketch {
     postPool = std::make_shared<instancing::Pool>();
     chipPool->resize(kChipCount);
     postPool->resize(kPostCount);
-    syncPool(chips, *chipPool, 0.0);
-    syncPool(posts, *postPool, 0.0);
+    syncPool(chips, *chipPool, 0.0, 0.0f);
+    syncPool(posts, *postPool, 0.0, 0.0f);
 
-    ticker.add([this](double dt) {
-      step(chips, dt, kSprite);
-      step(posts, dt, kPostW);
-      return true;
-    });
+    // A FIXED STEP, and the leftover fraction of one as the render
+    // interpolant. Integrating by the frame delta would make the window,
+    // `--video` and `--bench` run a different simulation from the sweep,
+    // so what a plate shows would be a claim about the machine that took
+    // it rather than about the declaration.
+    ticker.addFixed(
+        kStepHz,
+        [this] {
+          step(chips, kSprite);
+          step(posts, kPostW);
+          return true;
+        },
+        8, &stepAlpha);
 
     // instances() fills its parent; each tier gets a full-canvas box so
     // pool positions are canvas pixels. Chips behind, posts in front.

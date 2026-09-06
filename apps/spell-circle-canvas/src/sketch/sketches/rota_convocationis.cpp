@@ -457,11 +457,10 @@ constexpr Seal kSealTable[kSeals] = {
 };
 
 /** THE THRESHOLDS, named on the outer compound's chords: six of the
- *  twelve, the odd ones. A caption no longer stands beside the seal it
- *  names — the seals ride the rim and the chords are bands deeper in —
- *  so the correspondence is carried by the numbering alone, which is how
- *  a plate says two things belong together without drawing a line between
- *  them. */
+ *  twelve, the odd ones. The seals ride the rim and the chords are bands
+ *  deeper in, so no caption can stand beside the seal it names: the
+ *  correspondence is carried by the numbering alone, which is how a plate
+ *  says two things belong together without drawing a line between them. */
 constexpr const char* kLimina[kLimens] = {
     "LIMEN PRIMVM",   "LIMEN TERTIVM", "LIMEN QVINTVM",
     "LIMEN SEPTIMVM", "LIMEN NONVM",   "LIMEN VNDECIMVM",
@@ -2083,26 +2082,6 @@ struct RotaConvocationis : sketch::Sketch {
     // one forming, the rest dark, and the carrier far enough round that
     // the ring is visibly off its stations.
     ctx.captureAt(tSeal[7] + sealSpanS * 0.55);
-
-    // A PLATE, not a live scene. The subject is one charged sheet, and
-    // its cost IS that subject: every lit band, seal, star and rim flame
-    // is an emissive fill laid over the whole disc, and a version of the
-    // picture with fewer of them is a different picture. So the still is
-    // what to judge, and `--bench` measures the capture rather than
-    // holding 60 FPS through the second half of the cycle.
-    ctx.plate();
-
-    // The chained timeline, printed: every number below came out of a
-    // span, and this is where to read what the chaining resolved to.
-    std::fprintf(stderr,
-                 "[rota] vox %.2f+%.2fs  register %.2f+%.2fs (shimmer %.2fs)  "
-                 "nomina %.2f+%.2fs  textura %.2f+%.2fs  arcs %.2f  stars "
-                 "%.2f/%.2f  seals %.2f..%.2f (+%.2fs each)  emblem %.2f+%.2fs "
-                 " ignition %.2f  loop %.2fs\n",
-                 tVox, voxSpanS, tRune, runeSpanS, shimmerS, tNames, nomSpanS,
-                 tTex, texSpanS, tArc, tStar, tInner, tSeal[0],
-                 tSeal[kSeals - 1], sealSpanS, tHub, hubSpanS, tIgnite,
-                 loopSecs);
 
     totalGlyphs = glyphsOf(voxText) + glyphsOf(runeText) + glyphsOf(nomText) +
                   glyphsOf(texText) + glyphsOf(hubRuneText) +

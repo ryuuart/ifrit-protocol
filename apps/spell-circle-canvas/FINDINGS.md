@@ -114,19 +114,6 @@ deferred by the rulings above. What is left:
 
 Should-fix:
 
-- `scripts/sigil/plates.py:39` — `KINDS = ("canvas", "set")`: the 34 draw
-  sketches have no plate, no baseline and no self-difference check though
-  Sketchbook accepts `--kind draw`; add `"draw"` and take their baseline.
-- `src/sketch/sketches/import_native.cpp:139-147` — `settled()` polls a
-  wall-clock 15 s deadline and returns either way, so an unsettled page
-  can be photographed under load; wait on a version count and fail rather
-  than capture.
-- `ui_particles.cpp:440-444` — integrates by frame delta; the window,
-  `--video` and `--bench` run a different simulation from the sweep; use
-  `addFixed` with an interpolant as the other simulations do.
-- `rota_convocationis.cpp:2093` — `ctx.plate()` on a looping animation to
-  pass `--bench` by declaration; remove the mark, keep the look, and
-  file the emissive stack's cost as a compose entry here.
 - `xcom_battlescape.cpp:1690-1814,1963-1974` and
   `spacejam_1996.cpp:1376-1408,1507`, `eva_magi_interior.cpp:687-708,
   1601-1623`, `eva_magi_defense.cpp:935-983`, `penrose_paving.cpp:
@@ -178,6 +165,29 @@ Should-fix:
   `matrix_rain`, `black_watch`, `rota_convocationis`,
   `dunhuang_star_chart`, `chrome_type`, `astral_tome` ("used to", "no
   longer", "see the perf story"); rewrite as the constraint.
+
+## rota_convocationis cannot hold 60 FPS through its own emissive stack
+
+The scene draws one charged disc: every lit band, seal, star and rim
+flame is an emissive fill laid over the whole disc, and the composite
+misses the 60 FPS gate through the second half of the cycle. The sketch
+carried `ctx.plate()` to be judged as a still instead, which
+`CanvasSpec::plateOnly` states is for a sketch whose subject is the size
+of the sheet it draws and never a timeout override. The mark is gone and
+the look stands, so the scene now presents as what it is.
+
+What the compositor does: each emissive layer is a full-disc fill drawn
+into its own layer and composited, so the per-frame cost scales with the
+number of lit elements rather than with the area any of them covers, and
+nothing coalesces layers that share a blend and a clip.
+
+Intended: a run of emissive fills over one disc is one composite pass,
+whatever it costs to build, so a scene's frame cost tracks the pixels it
+touches rather than the count of nodes that touch them.
+
+Assert once fixed: `--bench` on `rota_convocationis` holds 60 FPS across
+the whole loop on a raster surface, and a case in `compose_bench` pins
+the cost of N emissive fills over one shape as flat in N past the first.
 
 ## SigilGeometry path ops (findings/review-geometry-path-ops.md)
 

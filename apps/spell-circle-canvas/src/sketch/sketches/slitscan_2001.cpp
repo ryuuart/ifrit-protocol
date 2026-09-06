@@ -682,12 +682,14 @@ struct SlitScan2001 : sketch::Sketch {
   float rtMaxErr = -1, rtCorr = 0, rtMismatch = 0;
   int rtCols = 0;
   int sheetW = 0, sheetH = 0;
-  double bakeMs = 0, measMs = 0, rtMs = 0;
+  /** The bake's cost, pinned through `ctx.measured` at setup: a plate is
+   *  a function of the declaration, and a number the sketch measured
+   *  about its own execution is not. */
+  double bakeMs = 0;
   // Set from the host's --deterministic flag: suppress any number this
   // study timed about its own execution, so two headless renders of the
   // same code are byte-identical. Left in, a wall-clock digit changes the
   // plate by itself and a pixel comparison blames the code under test.
-  bool deterministic_ = false;
 
   struct Shot {
     const char* name;
@@ -911,7 +913,6 @@ struct SlitScan2001 : sketch::Sketch {
   }
 
   void measureExposure(sigil::weave::FontContext& fonts) {
-    const double t0 = (double)std::clock() / CLOCKS_PER_SEC;
     const Fit big = fitAtK(fonts, slit::kKDisplay);
     const Fit small = fitAtK(fonts, slit::kK);
     fitP = big.p;
@@ -944,7 +945,6 @@ struct SlitScan2001 : sketch::Sketch {
       profY[(size_t)profN] = (float)((anchor - le) / span);
       ++profN;
     }
-    measMs = ((double)std::clock() / CLOCKS_PER_SEC - t0) * 1000.0;
   }
 
   // ==================================================================== 12-E
@@ -959,7 +959,6 @@ struct SlitScan2001 : sketch::Sketch {
   // this one it measures TRANSPORT, which is the claim under test.
   void roundTrip(sigil::weave::FontContext& fonts) {
     using namespace slit;
-    const double t0 = (double)std::clock() / CLOCKS_PER_SEC;
     const Strip& S = strips[0];
     if (!S.image || S.lum.empty()) return;
     constexpr int kFrames = 96;
@@ -1038,7 +1037,6 @@ struct SlitScan2001 : sketch::Sketch {
     rtCorr = (cgg > 0 && cww > 0) ? (float)(cgw / std::sqrt(cgg * cww)) : 0.0f;
     rtMismatch = (float)bad / (float)n;
     rtCols = kFrames * cw;
-    rtMs = ((double)std::clock() / CLOCKS_PER_SEC - t0) * 1000.0;
   }
 
   // =====================================================================
@@ -1516,7 +1514,7 @@ struct SlitScan2001 : sketch::Sketch {
                          mono(9, al(kCold, 0.9f)))))
         .child(t(kit::formatted("ONE ATLAS · %d×%d SHEET · ONE BAKE %.0f ms · "
                                 "texWindows()",
-                                sheetW, sheetH, deterministic_ ? 0.0 : bakeMs),
+                                sheetW, sheetH, bakeMs),
                  mono(6.8f, kTick)));
   }
   Element expoEl() {
@@ -1962,7 +1960,6 @@ void SlitScan2001::drawMeasuredPoints(SkCanvas& c, const PaintContext& ctx) {
 // ===========================================================================
 
 void SlitScan2001::setup(sketch::SketchContext& ctx) {
-  deterministic_ = ctx.deterministic;
   using namespace slit;
   // tau lands on 0.60 here, which is the carriage two thirds down its
   // fourteen feet, mid-exposure — what the +0.60 phase offset is for.
@@ -1987,7 +1984,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
     strips[2] = bakeStrip(artCircuit(gridPat, spekPat), *ctx.fonts, (int)kCellW,
                           (int)kCellH, 0.42f, 903);
   }
-  bakeMs = ((double)std::clock() / CLOCKS_PER_SEC - b0) * 1000.0;
+  bakeMs = ctx.measured(((double)std::clock() / CLOCKS_PER_SEC - b0) * 1000.0);
 
   // ---- ONE atlas, THREE cells, ONE bake: one cell per artwork strip, and
   // nothing else. The crawl across a strip is addressed per stamp through
@@ -2043,17 +2040,6 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
     measureExposure(*ctx.fonts);
     roundTrip(*ctx.fonts);
   }
-  std::fprintf(
-      stderr,
-      "[slitscan] sheet %d x %d px, bake %.1f ms\n"
-      "[slitscan] 12-D  K=%d: p = %.4f  R2 = %.5f  p95 %.2f%%  max %.2f%%"
-      "   |  K=%d: p = %.4f  max %.2f%%   (%d rays, %d pts, %.0f ms)\n"
-      "[slitscan] 12-E  round trip: %d columns, corr %.6f, %.4f%% of pixels "
-      "wrong, max abs err %.3f (%.0f ms)\n",
-      sheetW, sheetH, bakeMs, slit::kKDisplay, fitP, fitR2, fitP95 * 100.0f,
-      fitResid * 100.0f, slit::kK, fitPMin, fitResidMin * 100.0f, fitRays,
-      fitPts, measMs, rtCols, rtCorr, rtMismatch * 100.0f, rtMaxErr, rtMs);
-
   // ---- THE FILM CLOCK. 24 Hz because the film runs at 24 fps. The
   // interpolant drives the shutter bar and the sub-frame readout and
   // NOTHING in the picture: a projector holds a frame for its whole 1/24 s

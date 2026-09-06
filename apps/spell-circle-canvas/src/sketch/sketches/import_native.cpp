@@ -56,6 +56,7 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -134,19 +135,33 @@ and worn by a body</p>
 <div class="box"></div></div></div>)HTML";
 }
 
-/** Waits until the view has published a frame and stopped changing it. */
+/** How many CONSECUTIVE unchanged frame versions count as settled, and
+ *  how many observations the wait is allowed to make before it gives up.
+ *
+ *  The wait is counted in OBSERVATIONS, never against a clock. A
+ *  wall-clock deadline hands back whatever the machine had finished when
+ *  it expired, so the picture becomes a function of the load rather than
+ *  of the declaration — the same set photographed twice on one machine
+ *  wears two pages. A budget of polls either sees the page stop changing
+ *  or does not, and a page that has not stopped is one this set cannot
+ *  photograph. */
+constexpr int kSettledVersions = 8;
+constexpr int kPollBudget = 900;
+
+/** Waits until the view has published a frame and stopped changing it.
+ *  False means it never did, within the budget. */
 bool settled(scry::WebView& view) {
   using namespace std::chrono_literals;
-  const auto deadline = std::chrono::steady_clock::now() + 15s;
   uint64_t published = 0;
-  int stableTicks = 0;
-  while (std::chrono::steady_clock::now() < deadline && stableTicks < 8) {
+  int unchanged = 0;
+  for (int poll = 0; poll < kPollBudget && unchanged < kSettledVersions;
+       ++poll) {
     const uint64_t version = view.frameVersion();
-    stableTicks = (version > 0 && version == published) ? stableTicks + 1 : 0;
+    unchanged = (version > 0 && version == published) ? unchanged + 1 : 0;
     published = version;
     std::this_thread::sleep_for(16ms);
   }
-  return published > 0;
+  return unchanged >= kSettledVersions;
 }
 
 /** A screen: a quad wearing @p dressed, tilted @p yawDeg about the
@@ -197,7 +212,12 @@ struct ImportNative final : sketch::Set {
     if (engine) {
       view = engine->createView(kPageW, kPageH);
       view->loadHTML(page());
-      if (settled(*view)) pageFrame = view->frame().image;
+      // An unsettled page is not a picture this set may wear: the frame
+      // it would photograph is one the engine is still laying out.
+      if (!settled(*view))
+        throw std::runtime_error(
+            "the page never stopped changing, so there is no frame to wear");
+      pageFrame = view->frame().image;
     }
   }
 
