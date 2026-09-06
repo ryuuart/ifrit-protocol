@@ -149,6 +149,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/draw/Draw.h>
+#include <sigilsketch/kit/Meter.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -533,7 +534,7 @@ struct GenesisFire final : sketch::DrawSketch {
     const int nb = (int)std::lround(std::max(0.0f, 25.0f + rand11() * 5.0f));
     for (int k = 0; k < nb && abParts.size() < kAbCount; ++k)
       emitAt(abParts, abSite(), 0, 0.55f, 0.72f, 0.35f);
-    advance(abParts, abSites(), 1.06f, false);
+    advance(abParts, abSites, 1.06f, false);
 
     liveCount = parts.size();
     ++simSteps;
@@ -543,12 +544,12 @@ struct GenesisFire final : sketch::DrawSketch {
   // emitter sits 2 px above the cell's bottom edge, so the whole arc stays
   // inside the clip and the below-emitter cull (2 px under the emitter, in
   // advance()) lands exactly on the cell's edge.
-  static const std::vector<Site>& abSites() {
-    static const std::vector<Site> s = {
-        Site{{65.0f, 50.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}, 0.0f}};
-    return s;
-  }
-  static const Site& abSite() { return abSites()[0]; }
+  /** HELD ON THE SKETCH, not in a function-local static: a static with a
+   *  dynamic initialiser registers its destructor with the process, and a
+   *  hot-reloaded sketch's dylib is unloaded out from under it. */
+  const std::vector<Site> abSites{
+      Site{{65.0f, 50.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}, 0.0f}};
+  const Site& abSite() const { return abSites[0]; }
 
   // =========================================================================
   // The renderer that defines the look.
@@ -842,7 +843,7 @@ struct GenesisFire final : sketch::DrawSketch {
 
   Element dipper() {
     // Real relative geometry, framed into x[430,860] y[40,250].
-    static const DipStar kStars[8] = {
+    static constexpr DipStar kStars[8] = {
         {"ALKAID", 0.05f, 0.10f, 1.85f}, {"MIZAR", 0.24f, 0.26f, 2.23f},
         {"ALIOTH", 0.42f, 0.30f, 1.77f}, {"MEGREZ", 0.58f, 0.36f, 3.31f},
         {"PHECDA", 0.62f, 0.52f, 2.44f}, {"MERAK", 0.86f, 0.44f, 2.37f},
@@ -858,9 +859,9 @@ struct GenesisFire final : sketch::DrawSketch {
     g.child(
         box()
             .inset(0)
-            .shape([&, bx, by, bw, bh](SkSize) {
+            .shape(keyedShape(std::string_view("asterism"), [](SkSize) {
               SkPathBuilder b;
-              auto P = [&](int i) {
+              auto P = [](int i) {
                 return SkPoint{bx + kStars[i].u * bw, by + kStars[i].v * bh};
               };
               b.moveTo(P(0));
@@ -872,7 +873,7 @@ struct GenesisFire final : sketch::DrawSketch {
               b.lineTo(P(6));
               b.lineTo(P(3));
               return b.detach();
-            })
+            }))
             .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
                                         {.duration = 620ms, .delay = 1300ms})),
                     stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.35f))))
@@ -1051,7 +1052,7 @@ struct GenesisFire final : sketch::DrawSketch {
         .opacity(
             animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
         .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
-                                              .ease = ease::outBack(1.70158f),
+                                              .ease = ease::outBack(),
                                               .delay = 900ms}))
         .child(std::move(inner))
         // the impact point itself
@@ -1214,25 +1215,25 @@ struct GenesisFire final : sketch::DrawSketch {
     return t(s, std::move(st)).width(w).shrink(0);
   }
 
+  /** A ROW'S SHARE OF THE LARGEST CENSUS, as a bar SCALED from its left
+   *  edge rather than sized: the sidebar's bed keeps its recording, and
+   *  the live row's bar moves every frame off one bound Output where a
+   *  width would be layout every frame. The entrance eases past its own
+   *  fraction and the rail clips, which is what keeps a bar that
+   *  overshoots inside its own track. The live row names its bar, since
+   *  that row is described again every frame. */
   Element censusBar(float frac, SkColor4f c, const char* key) {
-    Element fill =
-        box()
-            .left(0)
-            .top(0)
-            .width(96)
-            .height(7)
-            .fill(c)
-            .transformOrigin(0.0f, 0.5f)
-            .scaleX(animate(from(0.0f).to(frac), {.duration = 420ms,
-                                                  .ease = ease::outBack(1.2f),
-                                                  .delay = 1200ms}));
-    if (key) fill.scaleX(bind(&liveFrac).clamp(0.02f, 1.0f)).key(key);
-    return box()
-        .width(96)
-        .height(7)
-        .shrink(0)
-        .fill(hex(0x171B24))
-        .child(std::move(fill));
+    sketch::kit::Meter bar{.width = Dim(96),
+                           .height = Dim(7),
+                           .track = Fill::color(hex(0x171B24)),
+                           .bar = Fill::color(c)};
+    bar.level = animate(from(0.0f).to(frac), {.duration = 420ms,
+                                              .ease = ease::outBack(1.2f),
+                                              .delay = 1200ms});
+    if (key) bar.level = bind(&liveFrac).clamp(0.02f, 1.0f);
+    Element rail = sketch::kit::meter(bar).shrink(0);
+    if (key) rail.key(key);
+    return rail;
   }
 
   Element censusRow(const char* fig, const char* sys, const char* particles,
@@ -1339,7 +1340,7 @@ struct GenesisFire final : sketch::DrawSketch {
                              .transformOrigin(0.5f, 1.0f)
                              .scaleY(animate(from(0.0f).to(1.0f),
                                              {.duration = 220ms,
-                                              .ease = ease::outBack(1.70158f),
+                                              .ease = ease::outBack(),
                                               .delay = 1500ms})));
       const bool key = n == 5 || n == 20 || n == 111;
       labels.push_back(t(std::to_string(n).c_str(),
