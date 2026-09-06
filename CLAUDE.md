@@ -16,9 +16,9 @@ do not reconstruct a library's rules from another library's document.
 - `apps/spell-circle-canvas/README.md` — the product: the data path,
   authoring scenes in Python, building and running
 - `src/sigilweave/README.md` — text shaping and layout, with
-  `src/sigilweave/FEATURES.md` beside it for the control-by-control
-  catalogue and the parity table; the paragraph
-  engine is rooted here
+  `src/sigilweave/FEATURES.md` beside it for the feature catalogue and
+  `src/sigilweave/PARITY.md` for the control-by-control table; the
+  paragraph engine is rooted here
   - `src/sigilweave/kit/README.md` — the companion utilities for
     SigilWeave consumers
 - `src/common/compose/README.md` — data-driven drawable components, with
@@ -26,6 +26,8 @@ do not reconstruct a library's rules from another library's document.
   compile-checked: every API name they spell must exist in a header)
 - `src/common/draw/README.md` — SigilDraw: an immediate-mode pen with
   p5's verbs, the imperative way beside compose
+  - `src/common/draw/brush/README.md` — the brush chapter: natural media
+    over the pen, and the brush formats
 - `src/sketch/README.md` — SigilSketch: every renderable thing as one
   sketch, with Sketchbook, the live host and the plates
   - `src/sketch/kit/README.md` — the sheet a sketch stands on: the

@@ -12,8 +12,8 @@
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeaveKit
-  SOURCES Hyphenation.cpp Labels.cpp LineTables.cpp PaintLayers.cpp
-          SampleText.cpp
+  SOURCES EnglishPatterns.cpp Hyphenation.cpp Labels.cpp LineTables.cpp
+          PaintLayers.cpp SampleText.cpp
   HEADERS SigilWeaveKit.h Features.h GlyphBuckets.h Hyphenation.h
           Labels.h LayoutGuard.h LineTables.h PaintLayers.h SampleText.h
   PUBLIC SigilWeavePaint unofficial::skia::skia

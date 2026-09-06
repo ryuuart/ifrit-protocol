@@ -25,9 +25,9 @@ breaker.
 **`FEATURES.md` is the catalogue.** This page is what the library is, its
 seams, how to reach it, and what it will not do. Everything it covers —
 the pipeline stage by stage, the header map, the paragraph controls, the
-parity table with the compose path for every row, what a frame of the
-live composer costs, and the conventions to read before writing against
-it — is one file over.
+parity table in `PARITY.md` with the compose path for every row, what a
+frame of the live composer costs, and the conventions to read before
+writing against it — is one file over.
 
 ## Getting started
 
@@ -214,9 +214,9 @@ this is not it.
 
 ## What it covers
 
-`FEATURES.md` is the catalogue, and its parity table is the fastest
-answer to "can it do X": one row per control a page-layout application's
-panels present, what its status is here, and — for a SigilCompose author
+`FEATURES.md` is the catalogue, and the parity table in `PARITY.md` is
+the fastest answer to "can it do X": one row per control a page-layout
+application's panels present, what its status is here, and — for a SigilCompose author
 — the verb or field that reaches it. Read it before assuming something
 is missing.
 
