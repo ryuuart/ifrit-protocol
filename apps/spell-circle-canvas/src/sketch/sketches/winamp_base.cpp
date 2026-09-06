@@ -103,6 +103,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -243,9 +244,15 @@ inline Element& sunken(Element& e, SkColor4f hi = alpha(hex(0x5C5C86), 0.9f),
 }
 
 /** Right/left/up-pointing triangles for the transport glyphs, as outlines
- *  so the node IS the shape. */
-inline std::function<SkPath(SkSize)> tri(int dir) {  // 0 right 1 left 2 up
-  return [dir](SkSize s) {
+ *  so the node IS the shape.
+ *
+ *  A TRANSPORT GLYPH SPANS ITS WHOLE KEY, so it is not the inscribed
+ *  `shapes::polygon(3)` — that one's vertices ride the box's ellipse and
+ *  land a quarter of the width in. It is a drawing that is a function of
+ *  the direction and of nothing else, so the direction is the key it
+ *  settles on. */
+inline Shape tri(int dir) {  // 0 right 1 left 2 up
+  return keyedShape(dir, [dir](SkSize s) {
     const float w = s.width(), h = s.height();
     SkPathBuilder b;
     if (dir == 0) {
@@ -263,12 +270,12 @@ inline std::function<SkPath(SkSize)> tri(int dir) {  // 0 right 1 left 2 up
     }
     b.close();
     return b.detach();
-  };
+  });
 }
 
 /** The scroll-arrow triangles: up or down. */
-inline std::function<SkPath(SkSize)> upDown(bool up) {
-  return [up](SkSize s) {
+inline Shape upDown(bool up) {
+  return keyedShape(up, [up](SkSize s) {
     const float w = s.width(), h = s.height();
     SkPathBuilder b;
     if (up) {
@@ -282,13 +289,14 @@ inline std::function<SkPath(SkSize)> upDown(bool up) {
     }
     b.close();
     return b.detach();
-  };
+  });
 }
 
 /** The Nullsoft lightning bolt baked into MAIN.BMP's bottom-right corner —
- *  the about/easter-egg hitzone at native 253,91,13,15. */
-inline std::function<SkPath(SkSize)> bolt() {
-  return [](SkSize s) {
+ *  the about/easter-egg hitzone at native 253,91,13,15. One drawing, keyed
+ *  on its own name so the node settles between describes. */
+inline Shape bolt() {
+  return keyedShape(std::string_view("nullsoft-bolt"), [](SkSize s) {
     const float w = s.width(), h = s.height();
     static const float p[7][2] = {
         {0.62f, 0.00f}, {0.05f, 0.56f}, {0.40f, 0.56f}, {0.24f, 1.00f},
@@ -298,7 +306,7 @@ inline std::function<SkPath(SkSize)> bolt() {
     for (int i = 1; i < 7; ++i) b.lineTo(p[i][0] * w, p[i][1] * h);
     b.close();
     return b.detach();
-  };
+  });
 }
 
 }  // namespace wa
@@ -484,13 +492,9 @@ struct WinampBase : sketch::Sketch {
     {
       std::vector<mskia::Stop> steps;
       constexpr int kFrames = 28;
-      const auto lerp = [](SkColor4f a, SkColor4f b, float u) {
-        return SkColor4f{a.fR + (b.fR - a.fR) * u, a.fG + (b.fG - a.fG) * u,
-                         a.fB + (b.fB - a.fB) * u, 1.0f};
-      };
-      const auto ramp = [&lerp](float u) {
-        return u < 0.46f ? lerp(kEqTop, kEqMid, u / 0.46f)
-                         : lerp(kEqMid, kEqBot, (u - 0.46f) / 0.54f);
+      const auto ramp = [](float u) {
+        return u < 0.46f ? mix(kEqTop, kEqMid, u / 0.46f)
+                         : mix(kEqMid, kEqBot, (u - 0.46f) / 0.54f);
       };
       for (int i = 0; i < kFrames; ++i) {
         const float lo = (float)i / (float)kFrames;
@@ -548,8 +552,7 @@ struct WinampBase : sketch::Sketch {
   }
 
   /** A glyph part inside a key, in native px local to the key. */
-  static Element part(float x, float y, float w, float h,
-                      std::function<SkPath(SkSize)> shape = {}) {
+  static Element part(float x, float y, float w, float h, Shape shape = {}) {
     using namespace wa;
     Element e = at(box(), x, y, w, h).fill(kGlyph);
     if (shape) e.shape(std::move(shape));
