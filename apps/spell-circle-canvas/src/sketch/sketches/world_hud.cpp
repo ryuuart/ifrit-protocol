@@ -343,8 +343,15 @@ inline float hash2(int x, int z) {
   return (float)((h ^ (h >> 16U)) & 0xFFFFFFu) / 16777216.0f;
 }
 
-/** One axis-aligned box, 24 vertices and 12 triangles with flat normals
- *  and one colour in the vertex lane. */
+/** One axis-aligned column: FIVE faces, not six, each carrying its own
+ *  fraction of the colour.
+ *
+ *  It is not a box primitive and does not want to be one. The camera
+ *  stands above the valley, so the underside is a tenth of the triangles
+ *  for nothing, and the top face at full colour against the sides at
+ *  0.72 is what makes a voxel field read as blocks rather than as a
+ *  surface. A generic six-faced box would draw a different picture at a
+ *  higher cost. */
 inline void addBox(gm::Mesh& out, glm::vec3 lo, glm::vec3 hi, glm::vec4 tint) {
   static const glm::vec3 kNormals[6] = {{0, 0, 1},  {0, 0, -1}, {1, 0, 0},
                                         {-1, 0, 0}, {0, 1, 0},  {0, -1, 0}};
@@ -527,13 +534,20 @@ struct WorldHud final : sketch::Set {
 
   /** The overlay's quad: it stands a fixed distance in front of the eye
    *  and is exactly as wide and as tall as the frustum is there, so a
-   *  texture pixel and a plate pixel are the same pixel. */
+   *  texture pixel and a plate pixel are the same pixel.
+   *
+   *  THE EXTENT IS ASKED OF THE CAMERA, not of the field of view. The two
+   *  do not agree: this projection's centre stands a unit behind the eye,
+   *  so the frame at a distance is wider than the angle alone makes it,
+   *  and a quad sized from `2 d tan(fov/2)` is short of the frustum by
+   *  that unit — which is a resample of the whole overlay, the one thing
+   *  this quad exists to avoid. */
   world::Element overlayQuad(material::Texture texture) {
     const glm::vec3 forward = glm::normalize(lens.target - lens.eye);
     constexpr float kAt = 60.0f;
-    const float h =
-        2.0f * kAt * std::tan(lens.fovYDeg * 0.5f * 3.14159265358979f / 180.0f);
-    const float w = h * kSceneSize.fWidth / kSceneSize.fHeight;
+    const SkSize frame =
+        lens.extentAt(kAt, kSceneSize.fWidth / kSceneSize.fHeight);
+    const float h = frame.height(), w = frame.width();
     const glm::vec3 at = lens.eye + forward * kAt;
     material::Material surface =
         material::kit::unlit({.baseColor = {1, 1, 1, 1}});
