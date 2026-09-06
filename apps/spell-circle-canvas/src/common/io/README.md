@@ -18,7 +18,7 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilIOSource` | `source/Source.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource` and `Decoder` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
+| `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `networkCacheKey()` and `defaultNetworkCacheDir()` — the file a URL lands under and the directory it lands in when a hub names no other, so a probe with no hub in reach asks the cache the hub's own way; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
 
 `SigilIO` is the umbrella target over both, and
@@ -290,6 +290,38 @@ only: SigilImage does not know the hub exists, and does not open a file
 in either direction — its prober is declared against a span of bytes and
 a name, which is why it costs SigilImage nothing to be askable.
 
+## One file with files inside it
+
+`ArchiveSource` reads a zip out of memory and answers the files inside it
+by the names the archive lists them under, which makes a brush pack, a
+font pack or a scene bundle the same kind of thing as a directory: names
+in, bytes out. It is here rather than inside whichever decoder needed a
+zip first, because reading an archive is resource ACCESS — what the files
+inside mean is the decoding library's answer, exactly as it is for a file
+on disk.
+
+```cpp
+if (sigil::io::ArchiveSource::isArchive(bytes)) {
+  const sigil::io::ArchiveSource archive(bytes);
+  for (const sigil::io::ArchiveEntry& entry : archive.entries())
+    …                                        // in the archive's order
+  auto described = archive.fetch("brush.json");   // or by name
+}
+```
+
+Whole, not streamed: construction reads every entry, so a decoder asking
+for three files out of one pack pays for one read. Directories are left
+out — a name is a path, and what a reader wants is the files under it.
+
+**An archive's directory is a CLAIM.** It states what each entry
+decompresses to before a byte of the entry is read, so a two-hundred-byte
+file can claim a two-gigabyte entry. An entry claiming more than
+`ArchiveSource::kEntryCeiling`, or more than a thousand times the
+archive's own size, is left out rather than allocated for, and the honest
+entries beside it still arrive. An archive of 2 GiB or more is refused
+whole, because the length the reader underneath takes is a signed 32-bit
+count and truncating it would read a different file.
+
 ## Build and test
 
 From `apps/spell-circle-canvas`:
@@ -300,13 +332,14 @@ cmake --build build --config Release --target io_test
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Targets: `SigilIOSource` (`source/` — headers plus the two places only
-the platform can name, where the running binary stands and where a
-process may leave throwaway files) with `source/test/`, whose
-`SourceVocabulary`, `SinkVocabulary` and `Places` suites check the
-concepts against a fixture source, a fixture decoder and a fixture sink
-with no hub in the binary, and `writeBytes` against a real scratch
-directory; `SigilIOHub` (static library, `hub/` — mounts, selection,
+Targets: `SigilIOSource` (`source/` — headers, the archive source, and
+the two places only the platform can name, where the running binary
+stands and where a process may leave throwaway files) with
+`source/test/`, whose `SourceVocabulary`, `SinkVocabulary` and `Places`
+suites check the concepts against a fixture source, a fixture decoder and
+a fixture sink with no hub in the binary, `writeBytes` against a real
+scratch directory, and whose `IOArchive` suite reads zips written by
+hand, one of which claims an entry a thousand times the file it is in; `SigilIOHub` (static library, `hub/` — mounts, selection,
 cache, retention, network and the decoder registry, split behind the
 private `hub/Fetch.h` and `hub/Residency.h`) with `hub/test/`, whose
 `IOHub`, `IOSource`, `IOChannels`, `IOResourceLease`, `IONetwork`,

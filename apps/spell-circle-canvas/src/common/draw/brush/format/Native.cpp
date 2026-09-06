@@ -6,6 +6,7 @@
 #include <sigildraw/brush/format/Load.h>
 #include <sigildraw/brush/format/Photoshop.h>
 #include <sigildraw/brush/format/Procreate.h>
+#include <sigilio/source/Archive.h>
 #include <simdjson.h>
 
 #include <algorithm>
@@ -14,7 +15,6 @@
 #include <utility>
 
 #include "Images.h"
-#include "Zip.h"
 
 namespace sigil::draw::brush::format {
 
@@ -206,19 +206,19 @@ std::optional<Tool> decodeBrush(const io::Bytes& bytes, std::string_view hint) {
   const std::span<const std::byte> all(bytes.bytes);
   if (all.empty()) return std::nullopt;
 
-  if (isZip(all)) {
-    const std::vector<ZipEntry> entries = readZip(all);
+  if (io::ArchiveSource::isArchive(all)) {
+    const io::ArchiveSource archive(all);
     std::span<const std::byte> description;
     std::span<const std::byte> shape;
     std::span<const std::byte> grain;
-    for (const ZipEntry& entry : entries) {
+    for (const io::ArchiveEntry& entry : archive.entries()) {
       const std::string_view name(entry.name);
       if (name.ends_with(kDescriptionName))
-        description = entry.bytes;
+        description = entry.bytes->bytes;
       else if (name.ends_with(kShapeName))
-        shape = entry.bytes;
+        shape = entry.bytes->bytes;
       else if (name.ends_with(kGrainName))
-        grain = entry.bytes;
+        grain = entry.bytes->bytes;
     }
     if (!description.empty() || !shape.empty())
       return assembleBrush(description, shape, grain);

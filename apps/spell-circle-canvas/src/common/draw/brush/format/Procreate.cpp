@@ -3,13 +3,13 @@
  */
 
 #include <sigildraw/brush/format/Procreate.h>
+#include <sigilio/source/Archive.h>
 
 #include <algorithm>
 #include <string>
 #include <utility>
 
 #include "Images.h"
-#include "Zip.h"
 
 namespace sigil::draw::brush::format {
 
@@ -41,17 +41,17 @@ bool isPicture(std::string_view path) {
 }  // namespace
 
 std::optional<Tool> decodeProcreateBrush(std::span<const std::byte> bytes) {
-  const std::vector<ZipEntry> entries = readZip(bytes);
-  if (entries.empty()) return std::nullopt;
+  const io::ArchiveSource archive(bytes);
+  if (archive.empty()) return std::nullopt;
 
   sk_sp<SkImage> shape;
   sk_sp<SkImage> grain;
-  for (const ZipEntry& entry : entries) {
+  for (const io::ArchiveEntry& entry : archive.entries()) {
     if (!isPicture(entry.name)) continue;
     if (!shape && namesPart(entry.name, "shape"))
-      shape = decodeArtwork(entry.bytes);
+      shape = decodeArtwork(entry.bytes->bytes);
     else if (!grain && namesPart(entry.name, "grain"))
-      grain = decodeArtwork(entry.bytes);
+      grain = decodeArtwork(entry.bytes->bytes);
   }
   if (!shape && !grain) return std::nullopt;
 
