@@ -172,6 +172,8 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
     // The canvas follows the archive: a piece whose content is a cooked
     // package cannot declare a size before it knows how many channels
     // came back.
+    // Not arrange::moduleSize: this measures the CONTAINER back from a
+    // fixed module and its gaps, which is that function run backwards.
     const int rows = ((int)swatches.size() + kPerRow - 1) / kPerRow;
     const float cardHeight = kCard + 7 + 18 + 7 + 16;
     ctx.canvas(kMargin * 2 + kPerRow * kCard + (kPerRow - 1) * kGap,

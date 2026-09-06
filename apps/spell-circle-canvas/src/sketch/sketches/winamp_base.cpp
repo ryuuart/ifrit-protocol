@@ -1346,6 +1346,9 @@ struct WinampBase : sketch::Sketch {
     {
       auto pos = ledPool->positions();
       auto tint = ledPool->tints();
+      // Not arrange::cellAt: this analyser is indexed COLUMN-major and
+      // its rows count up from the floor, which is neither of the two
+      // things that function answers.
       for (int c = 0; c < kCols; ++c)
         for (int r = 0; r < kRows; ++r) {
           const size_t i = (size_t)c * (size_t)kRows + (size_t)r;

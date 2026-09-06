@@ -90,6 +90,8 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
  *  the 10x4 shape at 38 px and everything else measures in cells. */
 constexpr float kCell = 38, kGap = 2;
 constexpr int kCols = 10, kRows = 4;
+// Not arrange::moduleSize: these measure the CONTAINER back from a fixed
+// module and its gaps, which is that function run backwards.
 constexpr float kGridW = kCols * kCell + (kCols - 1) * kGap;
 constexpr float kGridH = kRows * kCell + (kRows - 1) * kGap;
 

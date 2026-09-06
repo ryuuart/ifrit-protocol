@@ -1332,6 +1332,9 @@ struct EvaMagiDefense : sketch::Sketch {
 
       const int lines = (L.lines[1] ? (L.lines[2] ? 3 : 2) : 1);
       const SkSize line = ctx.measure(text(u8"Hg", type(size, kRim, 0.94f)));
+      // Not arrange::moduleSize: this measures the STACK back from the
+      // line it is set in and the gaps between, which is that function
+      // run backwards.
       const float drawn =
           line.height() * (float)lines + labelStyle.lineGap * (lines - 1);
       const float availableHeight = L.h - 2.0f * labelStyle.insetY;

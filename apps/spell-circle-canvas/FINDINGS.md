@@ -45,15 +45,48 @@ paint in the emissive stacks.
 moduleSize, step}` (`sigilgeometry/path/Arrange.h`) is the canonical
 ring-and-grid arithmetic, and `compose/kit/Placers.h` and
 `compose/kit/Layouts.h` both state in their own file comments that they
-must delegate to it rather than respell it. Two sketches reach for it;
-sixty-two write the same arithmetic out with `std::cos` and `std::sin`
-(184 sites).
+must delegate to it rather than respell it.
+
+Every RING under `src/sketch/sketches/`, and every GRID that indexes a
+cell or sizes a module from its container, now reaches for it. What is
+left is the third kind the same header owns: a run of `n` values evenly
+spread over an extent, with no circle and no cell —
+`t = (float)i / (float)n`, `x0 + (x1 - x0) * i / (n - 1)`,
+`extent / count` — which is `arrange::step` and `arrange::along` with
+`Turn::Open` or `Turn::Closed`. About seventy such sites stand in these
+fifty-one files:
+
+    axis_ripple, black_watch, blend_options, bound_lane, bristle_bloom,
+    bristle_current, brush_botanical_study, brush_dynamics,
+    chaucer_astrolabe, chevreul_circle, dart_flight, decay_step,
+    dunhuang_star_chart, elastic_type, eva_magi_interior,
+    floating_panels, frame_grid, frame_inputs, genesis_fire, half_float,
+    hit_slots, import_native, ksp_mapview, lain_navi, lane_retarget,
+    material_lab, matte_luma, mesh_generators, minard_1869,
+    observable_l_system_tree, ocio_view, p5_fractal_garden,
+    p5_liquid_layers, painter_gpu, rota_convocationis, scene_surfaces,
+    sigillum_aemeth, slitscan_2001, spacejam_1996, sticker_collection,
+    stroke_atlas, thaumonomicon, thunder_fulu, ticker_lanes,
+    twoadvanced_v3, twoadvanced_v4, vagrant_story_target,
+    vertigo_titles, winamp_base, world_hud
 
 Intended: one rounding. The two spellings do not agree to the pixel, so
 this is not only duplication — it is the drift those file comments warn
 against, and adopting `arrange` moves plates by sub-pixel wherever a
 sketch is converted. It is therefore a per-sketch judgement with the
 cause in each commit, not a sweep.
+
+Seven sites are deliberately NOT arrange's and say so in a comment where
+they stand: a container measured back from its module and gaps is
+`moduleSize` run backwards and the header does not carry that
+(`loot_grid`, `substance_swatches`, `eva_magi_defense`), a measure that
+takes the outer margins out of the width as well is not a module
+(`card_flip`), a run that fills one row and then continues along the
+second without wrapping again is not `cellAt` (`stroke_atlas`), an
+analyser indexed column-major with its rows counting up from the floor
+is neither thing `cellAt` answers (`winamp_base`), and five roots of
+unity solved in double would move every rhomb of a tiling if rounded to
+float (`penrose_paving`).
 
 Assert once fixed: the converted sketch's placement is `arrange::`, and
 its plate is rebased in the same commit that converts it.
