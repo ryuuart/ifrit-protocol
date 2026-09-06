@@ -21,9 +21,10 @@ sigil_library_root(SigilMotion
 # Dependencies point down this list.
 add_subdirectory(bind)
 add_subdirectory(clock)
+add_subdirectory(physics)
 add_subdirectory(schedule)
 add_subdirectory(values)
 
 sigil_library(SigilMotion
   INTERFACE SigilMotionClock SigilMotionValues SigilMotionBind
-            SigilMotionSchedule)
+            SigilMotionPhysics SigilMotionSchedule)
