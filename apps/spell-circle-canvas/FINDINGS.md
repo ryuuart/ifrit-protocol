@@ -39,12 +39,9 @@ Taken on a fresh build directory (the old tree removed, `sigil.py setup
   bench and app-FPS ledgers (both baselines still want an idle-machine
   retake), the sanitizer lanes, a manual Sketchbook launch.
 
-Not reviewed by any pass: `src/common/material` (15k inserted lines:
-Ramp, colormaps, palette, harmony, Dither, phosphorBloom, masks, stock,
-the Slang workflow) and, until its report lands, `src/common/compose`,
-`src/common/skia`, `src/common/scry`. The mechanical checks (no SDK
-headers in public headers, dependency direction, comment-rule greps,
-README name resolution) did run over material and found nothing.
+Not yet reviewed: `src/common/compose`, `src/common/skia`,
+`src/common/scry`, whose pass is still running; its report is appended
+when it lands.
 
 ## Sketch framework (findings/review-sketch-framework.md)
 
@@ -231,6 +228,63 @@ take a Halton or stratified source (no `parameter`, 32-bit seed);
 Tests missing: `chamferCorners`, `displaceSquare`, `Where::MaxCurvature`,
 `relax()` with coincident points and `hold`, `TidyOptions::duplicates`
 at front, middle and end, and the dropped `Blend.OklabMidGrayIsPerceptual`.
+
+## SigilMaterial (findings/review-material.md)
+
+Blockers:
+
+- `src/common/material/skia/Ramp.cpp:46` — `skia::unitRamp` builds a
+  gradient one node-local pixel tall and clamps, while the header
+  promises the stops over the unit square top to bottom; the compose
+  kit's chrome text fills (`compose/kit/Eras.cpp:171,175`) therefore
+  paint the last stop flat. Fix: `Paint::linearUnit`. Assert: `unitRamp`
+  fills a 100 px box with the whole ramp.
+- `material/core/Material.cpp:266` — `*o.leaf` dereferenced without the
+  null-parity check the material branch at 264 has; `Material::child`
+  with a null leaf is a public door. Add the parity guard.
+- `material/mask/shaders/MaskConstant.sksl:2`, `MaskSampled.sksl:15` —
+  the SkSL bodies put the coverage in alpha where `Mask.cpp:6-8` and the
+  Slang twins say all three colour channels at full alpha; a mask drawn
+  alone is transparent, not grey. Return `half4(v,v,v,1)`. Assert: the
+  two twins paint the same pixels.
+
+Should-fix (correctness): `skia/Effect.cpp:606` `then` precomposes and
+drops geometry-dependent children; `kit/Surface.cpp:29` an unguarded
+`find` before `replace`; `field/Field.cpp:119` an unlocked lazily filled
+static cache where the two peer caches take a mutex;
+`core/Combine.cpp:209` a cache keyed on raw recipe pointers that a
+reused address defeats; `skia/Paint.cpp:78` a mutable memo on a shared
+`Live` written from `build()` under the file's own two-thread claim;
+`color/Ramp.h:69` unsorted stops answer silently; `texture/
+EnvironmentMap.cpp:416` a 256 lower bound upsamples small panoramas;
+`texture/Atlas.cpp:215` an out-of-range tag registers an empty sequence
+and skips the fallback; `skia/Paint.cpp:772` silent truncation past 256
+stops; `cmake/SlangEmbedSpirv.cmake:55` `copy_if_different` on a declared
+OUTPUT re-runs the rule every build; `cmake/Slang.cmake:166` imported
+modules are not in DEPENDS.
+
+Should-fix (API, duplicates, comments, docs): `skia/Paint.cpp:996` and
+`skia/Effect.cpp:535` `uniform()` appends without replacing by name
+while `child()` does; `skia/Paint.cpp:892,1482` the first layer's
+`amount` is silently discarded; `mask/Mask.cpp:72` `maskVertexColor` is
+a second name for `maskMap`; `core/shaders/Shading.slang:124` the
+shading terms duplicated line for line in `sigilgeometry/mesh/render/
+Shading.h` with no parity test; `kit/shaders/GrainedPrelude.slang`,
+`kit/shaders/NoisePrelude.sksl`, `field/shaders/Grain.sksl` three value
+noises in one library; `color/Ramp.cpp:23` re-implements `sampleRamp`'s
+bracket; citations of compose headers and wrong file names in
+`skia/Paint.h:424,636,766`, `skia/Effect.h:350,377`, `skia/Paint.cpp:874`,
+`core/shaders/Shading.slang:15`, `core/UniformBlock.h:32`;
+`skia/Paint.h:16,392,636` name a `ch::Output` the API does not take;
+`kit/shaders/Surface.sksl` ignores seven parameters the Slang body
+honours and the header says nothing; `skia/Effect.cpp:220` the 17th
+undeclared uniform is never reported. Files by subject: `skia/Paint.cpp`
+(1573), `skia/Paint.h` (771), `skia/Effect.cpp` (748) and the four test
+files over 680 lines.
+
+Tests missing: `Paint::sweep`, `Paint::conical`, `Paint::buffer` and
+`PixelBuffer`, `unitRamp`/`verticalRamp`, MedianCut on degenerate input,
+a one-stop and an unsorted ramp, harmonies across the 360/0 wrap.
 
 ## SigilWorld, SigilUsd, SigilSubstance, SigilImage (findings/review-geometry-material-world.md)
 
