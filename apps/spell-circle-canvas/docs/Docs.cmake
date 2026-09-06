@@ -7,7 +7,7 @@
 # ${CMAKE_BINARY_DIR}/docs, plus an index linking them.
 #
 # The generation itself — the two passes, the theme, the header, the
-# rendered Doxyfiles, the landing page — is scripts/build_docs.py. What
+# rendered Doxyfiles, the landing page — is the docs verb. What
 # stays here is what only CMake knows: whether Doxygen is installed,
 # where it is, and which libraries registered themselves.
 
@@ -78,7 +78,7 @@ function(sigil_finalize_docs)
   # rather than in the work directory, so both directories the docs
   # build produces stay disposable.
   set(manifest
-      "# Written by sigil_finalize_docs(); read by scripts/build_docs.py.\n")
+      "# Written by sigil_finalize_docs(); read by scripts/sigil.py docs.\n")
   string(APPEND manifest "doxygen=${DOXYGEN_EXECUTABLE}\n")
   string(APPEND manifest "have_dot=${have_dot}\n")
   string(APPEND manifest "warn_undocumented=${warn_undocumented}\n")
@@ -104,7 +104,7 @@ function(sigil_finalize_docs)
   set(manifest_file ${CMAKE_BINARY_DIR}/docs-manifest.txt)
   file(WRITE ${manifest_file} "${manifest}")
 
-  set(build_docs ${CMAKE_SOURCE_DIR}/scripts/build_docs.py)
+  set(build_docs ${CMAKE_SOURCE_DIR}/scripts/sigil.py docs)
   add_custom_target(docs
     COMMAND ${Python3_EXECUTABLE} ${build_docs} --manifest ${manifest_file}
     COMMENT "Writing the documentation to ${CMAKE_BINARY_DIR}/docs/index.html"

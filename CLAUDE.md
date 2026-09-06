@@ -58,7 +58,8 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/substance/README.md`, `src/common/usd/README.md` —
   optional SDK integrations
 - `src/common/ui/README.md` — reusable Qt Quick controls
-- `apps/spell-circle-canvas/scripts/README.md` — the checks and ledgers
+- `apps/spell-circle-canvas/scripts/README.md` — `sigil.py` and its
+  verbs: the checks and the ledgers
 - `docs/README.md` — the generated C++ API reference
 
 Defects found while working go to `apps/spell-circle-canvas/FINDINGS.md`
@@ -106,7 +107,7 @@ made by editing, building the one target it touches, and looking at the
 result. Commit freely; a pass of work carries several breaking changes
 at once and fixes forward. No check, ledger, tidy or sanitizer runs
 between changes. Verification is ONE refinement pass right before a
-push or an integration point, which the owner calls: `check.py`, the
+push or an integration point, which the owner calls: `sigil.py check`, the
 tests, the plate tiers (rebasing the scenes a change was meant to move,
 with the cause in the commit), the window lane, the sanitizers only
 when memory ownership changed.
@@ -148,13 +149,13 @@ feels slow, not gated per change.
 From `apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
 Every workflow is also a mise task (`mise tasks`; arguments after `--`
-are forwarded); mise is optional. `setup.py` discovers Qt 6.11+ and
+are forwarded); mise is optional. `sigil.py setup` discovers Qt 6.11+ and
 vcpkg and writes the uncommitted `CMakeUserPresets.json`; a library
 whose SDK is a licensed download carries its own find module
 (`src/common/substance/cmake`, `src/common/scry/cmake`), which looks
@@ -182,9 +183,11 @@ ones disable themselves without the SDK, GPU cases need Metal, and the
 world's device suites skip without a Vulkan runtime (`brew install
 molten-vk vulkan-loader`). Demo assets come from `mise run assets`.
 
-The checks and ledgers — `check.py`, `plate_ledger.py`,
-`app_fps_ledger.py`, `bench_ledger.py`, `coverage.py`, `sanitize.py` —
-are documented in `apps/spell-circle-canvas/scripts/README.md`. A
+The build's administration is one command with nine verbs —
+`python3 scripts/sigil.py <verb>`: setup, check, plates, bench,
+sanitize, docs, assets, flags, flatbuffers — documented in
+`apps/spell-circle-canvas/scripts/README.md`, which is the canon for
+what each does; `--help` on a verb is the canon for its flags. A
 library's own build module lives with the library
 (`src/common/material/cmake/Slang.cmake`,
 `src/sketch/cmake/SketchLinkSurface.cmake`); `cmake/` at the app root

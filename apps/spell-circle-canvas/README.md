@@ -142,13 +142,14 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 
 ```sh
 cd apps/spell-circle-canvas
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-`setup.py` finds Qt and vcpkg and writes the uncommitted
-`CMakeUserPresets.json`.
+`sigil.py setup` finds Qt and vcpkg and writes the uncommitted
+`CMakeUserPresets.json`. It is one of nine verbs over the build's
+administration; `scripts/README.md` is the canon for all of them.
 
 The test suite covers the libraries and the shared scene core —
 `spellcircle_test` builds wire payloads with the FlatBuffers API and runs
@@ -160,7 +161,7 @@ Use a Release build for any performance work. Several library
 benchmarks and sketches are deliberately stressful and Debug
 timings say nothing useful. The benchmarks are not tests: `cmake --build
 build --config Release --target benches` builds every `*_bench` binary,
-and `scripts/bench_ledger.py` runs them one at a time on a quiet machine
+and `scripts/sigil.py bench` runs them one at a time on a quiet machine
 and judges each benchmark's median real time against the committed
 `bench/baseline_<config>.json` (`--rebase` writes it, `--benches` picks a
 subset; `mise run bench` wraps both steps).
@@ -176,7 +177,7 @@ own — there is nothing to run and nothing to commit.
 
 The **Python modules** are committed, because `apps/python` is installed
 and imported without a CMake build in reach. Run
-`scripts/regen_flatbuffers.sh` from anywhere and commit what it writes:
+`scripts/sigil.py flatbuffers` and commit what it writes:
 
 - `apps/python/SpellCircle/{Vec2,Circle,Point,Edge,Box,Scene}.py`
 
@@ -191,12 +192,12 @@ An archive that cannot be fetched is put into the vcpkg asset cache
 once per machine, and every configure after that resolves it locally:
 
 ```sh
-scripts/stage_asset.py <downloaded-archive>   # or: mise run assets:sdk -- <archive>
+scripts/sigil.py assets --stage <downloaded-archive>
 ```
 
-The script copies the archive into `~/.local/opt/vcpkg-assets/` under
+The verb copies the archive into `~/.local/opt/vcpkg-assets/` under
 the SHA-512 of its contents — the name vcpkg looks it up by — and prints
-that hash. `setup.py` writes the cache into the `vcpkg` preset's
+that hash. `sigil.py setup` writes the cache into the `vcpkg` preset's
 environment as the one asset source, consulted before the network and
 written back to, so every other dependency still downloads normally.
 
@@ -208,22 +209,22 @@ Where each SDK has to go until its port exists is in
 
 Several library examples reproduce real reference designs, and a
 reference typeset in whatever face the host happens to ship is only half
-a reference. One script fetches the open-licensed ones, and the build reaches the
-same script through an opt-in target:
+a reference. One verb fetches the open-licensed ones, and the build reaches
+the same verb through an opt-in target:
 
 ```sh
-scripts/fetch_assets.py
+scripts/sigil.py assets
 cmake --build build --config Release --target fetch_assets
 ```
 
 They land in `build/assets/` (gitignored), reach code as the
 `SIGIL_ASSET_DIR` compile definition, and are also accepted directly by
 tools that take `--assets <dir>`. Nothing here runs during a normal
-build, and configuring the project never touches the network. The script
+build, and configuring the project never touches the network. The verb
 writes files and nothing else, so it runs on a fresh checkout with no
 build tree.
 
-The manifest is `scripts/fetch_assets.py`.
+The manifest is `scripts/sigil/assets.py`.
 Anything added to it carries an open licence with its licence file
 fetched alongside, is pinned to an immutable commit rather than a branch,
 and declares a sha256 so a changed byte is a hard failure.

@@ -1,10 +1,25 @@
 # Scripts
 
-The build's administration lives here as Python, each script with a
-considered interface and a mise task wrapping it (the repository-root
-`mise.toml`; anything after `--` is forwarded). This README is the canon
-for how the checks and ledgers work; `--help` on each script is the canon
-for its flags.
+The build's administration is ONE command with nine verbs:
+
+```sh
+python3 scripts/sigil.py <verb> [flags]
+python3 scripts/sigil.py <verb> --help
+```
+
+`setup`, `check`, `plates`, `bench`, `sanitize`, `docs`, `assets`,
+`flags`, `flatbuffers`. Each is a module in `scripts/sigil/`, over two
+shared ones: `tree.py` is where the build tree is and how to talk to it —
+which directory a preset builds into, where a configuration's binaries
+land, where Sketchbook sits inside its bundle, what tests a configured
+tree registers — and `baseline.py` is how a ledger reads, merges, writes
+and judges what it keeps, in both spellings a baseline comes in. A verb
+never re-derives either.
+
+Every workflow is also a mise task under a one-word name (the
+repository-root `mise.toml`; anything after `--` is forwarded to the
+verb). THIS README IS THE CANON for what each verb does and what it
+refuses; `--help` on a verb is the canon for its flags.
 
 ## Tests
 
@@ -28,9 +43,9 @@ instruments carry one property each and are reached as
 `sigil::test::instrument::sans()` and its siblings; a fixture only one
 library asks for stays in that library's own `test/assets/`.
 
-## Configuring — `setup.py`
+## Configuring — `setup`
 
-`setup.py` discovers Qt 6.11 or newer and vcpkg, writes the uncommitted
+The setup verb discovers Qt 6.11 or newer and vcpkg, writes the uncommitted
 `CMakeUserPresets.json`, then configures and builds. Qt is looked for
 under `~/.local/opt/Qt`, `/usr/local/opt/Qt`, `/opt/homebrew/opt/qt` and
 `/opt/Qt`, each holding one directory per version with a `macos/` inside
@@ -49,18 +64,35 @@ neither, but vcpkg's toolchain reads `CMAKE_BUILD_TYPE` to put the
 release prefix ahead of the debug tree and reads it unset as Debug, so
 naming it is what keeps a Release link free of debug archives.
 
+THE PRESET FILE IS GENERATED, so it is rewritten whenever what generates
+it would say something different — another secondary tree, a different
+instrumentation flag, a Qt that moved — and left alone, timestamp and
+all, when it would not. An edit to the generator reaches the tree on the
+next run rather than waiting for someone to remember a flag; an edit to
+the file itself does not survive one.
+
+No library is named there. A library whose dependency needs finding
+carries its own find module (`src/common/substance/cmake`,
+`src/common/scry/cmake`), so the setup verb composes the toolchain, the
+Qt prefix, the asset cache and the instrumented trees, and nothing about
+what is built with them.
+
 The asset cache is `~/.local/opt/vcpkg-assets`, written into the `vcpkg`
 preset as the one asset source, consulted before the network and written
-back to. It is where `stage_asset.py` puts an archive that cannot be
-fetched at all, so a port whose file is there never reaches the network
-and every other port still downloads normally.
+back to. It is where `sigil.py assets --stage` puts an archive that
+cannot be fetched at all, so a port whose file is there never reaches the
+network and every other port still downloads normally.
 
-## Formatting and linting — `check.py`
+## Formatting and linting — `check`
 
 One command covering clang-format (Google C++ style, stock), ruff (lint
-and format) and qmllint, scoped by default to the files git sees as
-changed. `--all` checks the whole tree, `--fix` applies the format
-fixes, and explicit file arguments check exactly those files. The
+and format) and qmllint. THE DEFAULT SCOPE IS THE BRANCH'S WORK:
+everything this branch changed since it left `main`, committed or not,
+plus untracked files that are not ignored — work is committed freely and
+verified once, so a scope that saw only uncommitted changes would miss
+most of what a branch is by the time anyone runs this. `--all` checks the
+whole tree, `--fix` applies the format fixes, and explicit file arguments
+check exactly those files. The
 configs are at the repository root: `.clang-format` with
 `.clang-format-ignore`, `ruff.toml`. The discipline is check-forward:
 the tools police changes and never mass-reformat; the one whole-tree
@@ -68,15 +100,15 @@ reformat that adopted the style is listed in `.git-blame-ignore-revs`,
 which `git config blame.ignoreRevsFile .git-blame-ignore-revs` makes
 local blame skip. Every tool is required — a missing one fails the run
 rather than passing it. clang-format rides the Xcode toolchain through
-`xcrun`, qmllint the Qt prefix `setup.py` recorded, ruff comes from
+`xcrun`, qmllint the Qt prefix the setup verb recorded, ruff comes from
 `brew install ruff`.
 
 Two paths no checker touches — the FlatBuffers-generated sources and
-`vcpkg_installed/` — are named in the script as well as in
+`vcpkg_installed/` — are named in the verb as well as in
 `.clang-format-ignore` and `ruff.toml`, because a tool that predates its
 own ignore mechanism would otherwise reformat generated code.
 
-## Plates — `plate_ledger.py`
+## Plates — `plates`
 
 Three tiers, one binary. `--tier cpu` (the default) steps every sketch —
 canvas and set alike — to its declared moment and rasterises it on the
@@ -222,7 +254,7 @@ differences them channel by channel.
 
 The manifest is machine-local by design (plates are deterministic per
 machine, not across machines), so a fresh checkout runs
-`plate_ledger.py --rebase` once before a sweep can judge anything. The
+`sigil.py plates --rebase` once before a sweep can judge anything. The
 manifest is keyed by the registry NAME, which can carry spaces (`--scenes
 "aero desktop"`); the frame-rate ledger below is keyed by the sketch's
 STEM (`--sketch aero_desktop`).
@@ -232,19 +264,19 @@ stderr says which entry it was on, the phase (setup, draw, capture) and
 how many plates finished before it, and the run's verdict is a failure.
 The next run can be narrowed to that sketch with `--sketch`.
 
-## Frame rates — `app_fps_ledger.py` and `bench_ledger.py`
+## Timings — `bench`
 
-`app_fps_ledger.py` (`mise run fps`) presents each sketch in the real
-window at a stated size and device pixel ratio through Sketchbook's
-`--window-bench` and judges the presented rate against
-`bench/app_fps_<config>.json`, keyed by the sketch's stem; the host's
-own overhead is in the number, which a raster `--bench` cannot see.
-Two window sweeps cannot share one display, so it runs alone.
-`bench_ledger.py` (`mise run bench`) runs every `*_bench` binary — one
-per library, under `build/bin/<config>/benches/`, which the `benches`
-target builds — on a quiet machine and compares medians
-against `bench/baseline_<config>.json`. Both read, merge and write
-their baseline and judge their rows through `ledger.py`: a narrowed
+TWO LANES, ONE BODY. `sigil.py bench` (`mise run bench`) runs every
+`*_bench` binary — one per library, under `build/bin/<config>/benches/`,
+which the `benches` target builds — one at a time on a quiet machine and
+compares medians against `bench/baseline_<config>.json`, keyed by
+`binary:arm`. `sigil.py bench --lane fps` (`mise run fps`) presents each
+sketch in the real window at a stated size and device pixel ratio through
+Sketchbook's `--window-bench` and judges the presented rate against
+`bench/app_fps_<config>.json`, keyed by the sketch's stem. Two window
+sweeps cannot share one display, so the fps lane runs alone; that is why
+the two stay separate lanes rather than one command, and everything that
+happens to a number after it is taken is the same for both. A narrowed
 sweep merges on `--rebase`, a SLOWER row beyond its band fails the run,
 NEW and MISSING rows do not. Use a Release build for either.
 
@@ -309,19 +341,21 @@ deliberately changed number must not drop the numbers this run never
 took. Only an unnarrowed sweep writes a file wholesale, which is what
 drops a row that no longer exists.
 
-## Secondary trees — `coverage.py` and `sanitize.py`
+## Instrumented trees — `sanitize`
 
-`setup.py` writes three secondary presets into `CMakeUserPresets.json`
-beside `main`: `coverage`, `asan` and `tsan`, each the `main`
-composition plus its instrumentation switch in its own `build-<name>/`,
-reading the primary tree's `vcpkg_installed/` as-is with the manifest
-install disabled. Their test presets carry the runtime environment —
-the raw-profile path for coverage, `ASAN_OPTIONS`/`UBSAN_OPTIONS`/
-`TSAN_OPTIONS` for the sanitizers — so each script is configure, build
-and ctest through its preset plus what CMake cannot do. `testtree.py`
-is what the two share: the tests a configured tree registers, read from
-`ctest --show-only`, to derive the targets a `--filter` needs built and
-the binaries the selected tests ran.
+THREE LANES, ONE BODY: `--lane address` (ASan+UBSan, the default, in
+`build-asan/`), `--lane thread` (TSan, `build-tsan/`) and `--lane
+coverage` (LLVM source-based profiling, `build-coverage/`). The setup
+verb writes one secondary preset per lane into `CMakeUserPresets.json`
+beside `main`, each the `main` composition plus its instrumentation
+switch in its own directory, reading the primary tree's
+`vcpkg_installed/` as-is with the manifest install disabled. Their test
+presets carry the runtime environment — the raw-profile path for
+coverage, `ASAN_OPTIONS`/`UBSAN_OPTIONS`/`TSAN_OPTIONS` for the
+sanitizers — so each lane is a preflight, a configure, a build, a ctest
+and what CMake cannot do. Which targets a `--filter` needs built, and
+which binaries the selected tests ran, come from `ctest --show-only`, so
+nothing here parses generated files.
 
 A tree of its own per lane, because switching a tree's flags recompiles
 every object in it. Only the C++ flags are set: every `.mm` in this tree
@@ -333,7 +367,7 @@ them the stacks degrade to unusable fragments; the instrumented trees
 build RelWithDebInfo, since the instrumentation reads optimised code
 fine and only a debugging session asks for Debug.
 
-`coverage.py` builds the test targets, runs ctest under LLVM
+The coverage lane builds the test targets, runs ctest under LLVM
 source-based profiling, and writes the `llvm-cov` summary to the console
 plus an HTML report under `build/coverage/html/`, with `RUN.txt` beside
 it recording the invocation. `--filter <regex>` runs a subset and builds
@@ -354,10 +388,9 @@ the same toolchain that produced the instrumented objects so the profile
 and coverage-map formats agree, and elsewhere they come from
 `$LLVM_ROOT/bin` or `PATH`.
 
-`sanitize.py` is ASan+UBSan by default (`build-asan/`), the TSan lane
-with `--thread` (`build-tsan/`); `--filter` / `--targets` / `--config`
-as in `coverage.py`. A lane deletes its own tree once ctest has had its
-verdict and refuses to start while the other lane's tree stands;
+The two sanitizer lanes take `--filter` / `--targets` / `--config` the
+same way. A sanitizer lane deletes its own tree once ctest has had its
+verdict and refuses to start while the other one's tree stands;
 `--keep` holds a tree for a debugger. A configure or build failure
 leaves the tree standing, on purpose: only a finished ctest run is a
 verdict, and only a verdict makes the tree disposable. UBSan's default
@@ -392,7 +425,7 @@ startup before any test runs.
 
 ## Docs, assets, flags, schema
 
-`build_docs.py` generates the Doxygen site per library from the manifest
+`sigil.py docs` generates the Doxygen site per library from the manifest
 `sigil_library_root()` and `sigil_add_docs()` calls write (`docs/README.md` is the canon; the
 `docs` target is absent without Doxygen). Generation runs in TWO PASSES
 because the libraries reference each other's types in both directions —
@@ -411,8 +444,13 @@ show as a half-styled page rather than an error — and only the script
 tags are ours. A Doxyfile is written only when its content moved, since
 Doxygen re-runs from a timestamp.
 
-`fetch_assets.py` (`mise run
-assets`) fetches the open-licensed demo assets into `build/assets/`
+`sigil.py docs` with no `--manifest` drives the `docs` build target
+instead, opening the pages when they are written or serving them from a
+container with `--serve`; a fresh checkout is configured first, since
+documentation is parsed from headers and the tree never has to be
+compiled for it.
+
+`sigil.py assets` (`mise run assets`) fetches the open-licensed demo assets into `build/assets/`
 from its hash-pinned manifest and needs no configured tree. The hash is
 the contract: a file already in place is kept only when it hashes to
 what the manifest says, and a download whose bytes hash to something
@@ -424,8 +462,11 @@ declares a sha256. No game, film or museum rips: the studies reproduce
 GEOMETRY and PALETTES, which are facts about a design, and do not ship
 its art.
 
-`extract_sketch_flags.py` lifts the sketch compile command out of the
-compilation database into the flags file the live host uses. The single
+`sigil.py flags` lifts the sketch compile command out of the compilation
+database into the flags file the live host uses. The step itself is
+`src/sketch/cmake/SketchFlags.py`, beside the sketch host whose build
+runs it, and the verb is the front door for running it by hand. The
+single
 source of truth for how a sketch builds is the target graph itself, not
 a hand-maintained flag list, and the fully composed compile line —
 toolchain flags, sysroot, `-std`, vcpkg include directories — is
@@ -435,7 +476,7 @@ dependency-file flags the generator appends) and re-escapes the double
 quotes the database unquoted, so a define whose value is a string
 literal still means what the compile line meant.
 
-`regen_flatbuffers.sh` (`mise run flatbuffers`) regenerates the
+`sigil.py flatbuffers` (`mise run flatbuffers`) regenerates the
 committed Python schema modules. Only the Python side: the C++ header is
 generated into the build tree by the `SpellCircleSchema` target and is
 not committed, while `apps/python` is installed and imported — by
@@ -444,7 +485,7 @@ writes a package, and the `SpellCircle/__init__.py` it emits is a name
 already taken by the hand-written public API, so generation goes to a
 staging directory and only the schema modules are copied over.
 
-`stage_asset.py` (`mise run assets:sdk`)
+`sigil.py assets --stage <archive>`
 puts an archive nobody can download without an account into the vcpkg
 asset cache under the SHA-512 the port declares, so every configure
 after that resolves it locally. vcpkg finds a file in that cache by the

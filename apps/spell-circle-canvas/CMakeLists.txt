@@ -38,7 +38,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/docs/Docs.cmake") # `--target docs`
 
 enable_testing()
 
-# One build command produces the set scripts/bench_ledger.py runs.
+# One build command produces the set the bench verb runs.
 # Benchmarks are not tests: none is registered with ctest.
 add_custom_target(benches)
 
@@ -48,7 +48,7 @@ set(SIGIL_ASSET_DIR "${CMAKE_BINARY_DIR}/assets" CACHE PATH
     "Where fetch_assets writes downloaded demo assets")
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_custom_target(fetch_assets
-  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/fetch_assets.py
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/scripts/sigil.py assets
           --out ${SIGIL_ASSET_DIR}
   COMMENT "Fetching demo assets into ${SIGIL_ASSET_DIR}"
   VERBATIM)

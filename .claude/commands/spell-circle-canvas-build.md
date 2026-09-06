@@ -8,10 +8,10 @@ argument-hint: Optional flags, e.g. --config Release --force
 Run the setup script from the repo root, passing any user-supplied arguments directly:
 
 ```
-python apps/spell-circle-canvas/scripts/setup.py $ARGUMENTS
+python apps/spell-circle-canvas/scripts/sigil.py setup $ARGUMENTS
 ```
 
-If you are unsure what flags are available, run `python apps/spell-circle-canvas/scripts/setup.py --help` first and relay the output to the user.
+If you are unsure what flags are available, run `python apps/spell-circle-canvas/scripts/sigil.py setup --help` first and relay the output to the user.
 
 ## Diagnosing failures
 

@@ -1,22 +1,20 @@
-#!/usr/bin/env python3
-"""The plate ledger, as ONE command: parallel plate sweeps.
+"""Verb: plates — parallel plate sweeps over the sketch registry.
+
+    sigil.py plates --rebase           # bake the baseline manifest
+    sigil.py plates                    # sweep + compare + verdict
+    sigil.py plates --kind set         # only the sketches that light a set
+    sigil.py plates --sketch astral_tome
+    sigil.py plates --scenes "aero desktop" black_watch
+    sigil.py plates --stability 3      # re-render movers 3x to separate
+                                       # flappers from code
+    sigil.py plates --tier device      # the same sketches on the GPU
+    sigil.py plates --tier promotion   # …and with the promoter let go
 
 Renders every sketch through `Sketchbook --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time, hashes the plates,
 and compares against a stored baseline manifest. One binary renders all
 three tiers; what separates them is which rasteriser a sketch draws
 through and what the runtime's promoter is allowed to do.
-
-Usage (from apps/spell-circle-canvas):
-  scripts/plate_ledger.py --rebase           # bake the baseline manifest
-  scripts/plate_ledger.py                    # sweep + compare + verdict
-  scripts/plate_ledger.py --kind set         # only the sketches that light a set
-  scripts/plate_ledger.py --sketch astral_tome
-  scripts/plate_ledger.py --scenes "aero desktop" black_watch
-  scripts/plate_ledger.py --stability 3      # re-render movers 3x to
-                                             # separate flappers from code
-  scripts/plate_ledger.py --tier device      # the same sketches on the GPU
-  scripts/plate_ledger.py --tier promotion   # …and with the promoter let go
 
 What each tier judges, what it refuses and why each ceiling stands where
 it does is scripts/README.md; this refuses to keep a second copy of it.
@@ -28,16 +26,15 @@ differencing and thumbnailing plates is Sketchbook's.
 
 import argparse
 import concurrent.futures
-import fcntl
-import hashlib
 import os
 import shutil
 import subprocess
 import sys
 import time
 
-# One binary renders both tiers, and one prefix names every plate.
-BINARY = "Sketchbook.app/Contents/MacOS/Sketchbook"
+from sigil import baseline, tree
+
+# One prefix names every plate.
 PLATE_PREFIX = "plate_"
 KINDS = ("canvas", "set")
 
@@ -67,7 +64,6 @@ GPU_TOLERANCE = {
     "lantern_room": (4.0, 64),
 }
 
-
 # How far a promoted plate may stand from the same scene rendered with the
 # promoter held off: one code value on any channel of any pixel. It is not
 # a tolerance anyone chose. A promoted node is baked under the live matrix
@@ -77,64 +73,6 @@ GPU_TOLERANCE = {
 # value from the live paint and nothing may land further. Anything past it
 # is a picture that moved rather than a picture that rounded.
 PROMOTION_DRIFT_CEILING = 1
-
-
-def read_manifest(path):
-    """scene -> digest for a baseline manifest, empty when there is none."""
-    baseline = {}
-    if os.path.exists(path):
-        with open(path) as f:
-            for line in f:
-                digest, _, scene = line.strip().partition("  ")
-                if scene:
-                    baseline[scene] = digest
-    return baseline
-
-
-def write_manifest(path, keep, results):
-    """The baseline manifest, replaced whole, with @p results merged over
-    whichever of its entries @p keep selects from the file AS IT STANDS.
-
-    A sweep takes minutes and the merge is decided at the end of them, so
-    the manifest is re-read here rather than reused from the copy the run
-    judged against: a rebase that landed in between wrote entries this one
-    never saw, and merging into the older copy would drop them. The lock
-    makes the read-modify-write one step against another writer holding
-    the same lock, and the temp file plus rename makes it one step against
-    everything else — a reader never sees half a manifest, and a run that
-    dies mid-write leaves the previous one intact.
-
-    @p keep answers which of the standing entries survive: None for a
-    whole sweep, which is the one run entitled to drop what no longer
-    exists; True for a narrowed sweep, which keeps every entry it did not
-    render; or the set of scene names this sweep had nothing to say
-    about."""
-    lock = path + ".lock"
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(lock, "w") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
-        merged = {}
-        if keep is not None:
-            standing = read_manifest(path)
-            merged = (
-                standing
-                if keep is True
-                else {s: d for s, d in standing.items() if s in keep}
-            )
-        merged.update(results)
-        temporary = f"{path}.{os.getpid()}.tmp"
-        with open(temporary, "w") as f:
-            f.writelines(f"{merged[scene]}  {scene}\n" for scene in sorted(merged))
-        os.replace(temporary, path)
-    return merged
-
-
-def sha256(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def registry(binary, kinds):
@@ -148,12 +86,7 @@ def registry(binary, kinds):
     exactly alike, and the difference is the whole point."""
     scenes, unavailable = {}, {}
     for kind in kinds:
-        listed = subprocess.run(
-            [binary, "--list", "--kind", kind],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
+        listed = tree.capture([binary, "--list", "--kind", kind], check=True).stdout
         for line in listed.splitlines():
             if not line.strip():
                 continue
@@ -173,7 +106,7 @@ def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
     slowest scene."""
     started = time.monotonic()
     try:
-        r = subprocess.run(
+        result = subprocess.run(
             [
                 binary,
                 "--headless",
@@ -202,9 +135,9 @@ def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
         )
     elapsed = time.monotonic() - started
     plate = plate_path(outdir, scene)
-    if r.returncode != 0 or not os.path.exists(plate):
-        return scene, None, (r.stderr or r.stdout).strip()[-300:], elapsed
-    return scene, sha256(plate), None, elapsed
+    if result.returncode != 0 or not os.path.exists(plate):
+        return scene, None, (result.stderr or result.stdout).strip()[-300:], elapsed
+    return scene, baseline.digest(plate), None, elapsed
 
 
 def compared(binary, first, second):
@@ -216,11 +149,9 @@ def compared(binary, first, second):
     already does; what stays here is the judgement — which distance is
     close enough on this machine — because that is a tolerance and not a
     fact about two files."""
-    r = subprocess.run(
-        [binary, "--compare", first, second], capture_output=True, text=True
-    )
+    result = tree.capture([binary, "--compare", first, second])
     distances, unusable = {}, {}
-    for line in r.stdout.splitlines():
+    for line in result.stdout.splitlines():
         words = line.split()
         # A registry name CAN CARRY SPACES, so every row is read from its
         # ends inward: the verb is the first word, the fixed-width tail is
@@ -235,11 +166,11 @@ def compared(binary, first, second):
             name = " ".join(words[1:-1])
             unusable[name] = f"{words[0]} {words[-1]}"
     if not distances and not unusable:
-        unusable["--compare"] = (r.stderr or r.stdout).strip()[-300:]
+        unusable["--compare"] = (result.stderr or result.stdout).strip()[-300:]
     return distances, unusable
 
 
-def plate_dir(root, config, *parts, fresh=True):
+def plate_dir(config, *parts, fresh=True):
     """A KEPT plate directory under build/, beside the manifest.
 
     A verdict of MOVED is a hash disagreeing with a hash, which says
@@ -254,11 +185,13 @@ def plate_dir(root, config, *parts, fresh=True):
     scenes this run never rendered. The baseline directory is the one that
     is NOT fresh — it is overwritten scene by scene as a rebase adopts
     them, and pruned to the manifest afterwards."""
-    directory = os.path.join(root, "build", f"plates_{config}", *parts)
+    directory = tree.build_dir() / f"plates_{config}"
+    for part in parts:
+        directory = directory / part
     if fresh:
         shutil.rmtree(directory, ignore_errors=True)
-    os.makedirs(directory, exist_ok=True)
-    return directory
+    directory.mkdir(parents=True, exist_ok=True)
+    return str(directory)
 
 
 def plate_path(directory, scene):
@@ -324,13 +257,7 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
 
     print("[cpu]")
     _, cpu_errors = sweep(
-        binary,
-        scenes,
-        host_dir,
-        timeout,
-        jobs,
-        PROMOTION_OFF,
-        lambda s, d: "rendered",
+        binary, scenes, host_dir, timeout, jobs, PROMOTION_OFF, lambda s, d: "rendered"
     )
     print("[gpu]")
     _, gpu_errors = sweep(
@@ -379,6 +306,13 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     one IS the reference, because the question is not what a sketch draws
     but whether the runtime's own re-baking changes it.
 
+    THE ON HALF IS EAGER: the runtime bakes every node its rules admit,
+    from that node's first frame, instead of the handful a stopwatch found
+    expensive under this run's load. So the tier tests the same node set on
+    every machine, and all of the promotable set rather than the few slow
+    nodes — an idle machine promotes nothing by cost and would report a
+    clean sweep it never earned.
+
     THE BAR IS ONE CODE VALUE ANYWHERE, and a scene past it is a defect to
     file against the promoter, never a plate to rebase — there is no
     baseline here to rebase into. Both halves are kept, so a scene reported
@@ -386,23 +320,11 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
 
     print("[promotion off]")
     _, off_errors = sweep(
-        binary,
-        scenes,
-        off_dir,
-        timeout,
-        jobs,
-        PROMOTION_OFF,
-        lambda s, d: "rendered",
+        binary, scenes, off_dir, timeout, jobs, PROMOTION_OFF, lambda s, d: "rendered"
     )
     print("[promotion on]")
     _, on_errors = sweep(
-        binary,
-        scenes,
-        on_dir,
-        timeout,
-        jobs,
-        PROMOTION_ON,
-        lambda s, d: "rendered",
+        binary, scenes, on_dir, timeout, jobs, PROMOTION_ON, lambda s, d: "rendered"
     )
     errors = len(off_errors) + len(on_errors)
 
@@ -441,12 +363,13 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     return verdict or (1 if errors else 0)
 
 
-def main():
+def main(argv: list) -> int:
     ap = argparse.ArgumentParser(
+        prog="sigil.py plates",
         description="plate sweep over the sketch registry, judged against a "
-        "machine-local baseline manifest"
+        "machine-local baseline manifest",
     )
-    ap.add_argument("--config", default="Release")
+    ap.add_argument("--config", default="Release", choices=tree.CONFIGURATIONS)
     ap.add_argument("--jobs", type=int, default=max(2, (os.cpu_count() or 8) // 2))
     ap.add_argument(
         "--tier",
@@ -494,13 +417,10 @@ def main():
         "the sweep continues — one runaway scene must not "
         "hang the verdict that protects everything else",
     )
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
-    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    binary = os.path.join(root, "build/bin", args.config, BINARY)
-    manifest = os.path.join(root, "build", f"plate_baseline_{args.config}.sha256")
-    if not os.path.exists(binary):
-        sys.exit(f"no binary at {binary} — build the Sketchbook target first")
+    binary = str(tree.sketchbook(args.config))
+    manifest = str(tree.build_dir() / f"plate_baseline_{args.config}.sha256")
 
     kinds = (args.kind,) if args.kind else KINDS
     listed, unavailable = registry(binary, kinds)
@@ -542,8 +462,8 @@ def main():
             list(scenes),
             args.timeout_seconds,
             args.jobs,
-            plate_dir(root, args.config, "device", "cpu"),
-            plate_dir(root, args.config, "device", "gpu"),
+            plate_dir(args.config, "device", "cpu"),
+            plate_dir(args.config, "device", "gpu"),
         )
 
     if args.tier == "promotion":
@@ -564,27 +484,27 @@ def main():
             list(scenes),
             args.timeout_seconds,
             args.jobs,
-            plate_dir(root, args.config, "promotion", "off"),
-            plate_dir(root, args.config, "promotion", "on"),
+            plate_dir(args.config, "promotion", "off"),
+            plate_dir(args.config, "promotion", "on"),
         )
 
     print(f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, tier cpu")
 
     # Read BEFORE the sweep so a scene can be judged the moment it lands.
-    baseline = read_manifest(manifest)
+    standing_manifest = baseline.read_manifest(manifest)
     adopting = args.rebase or not os.path.exists(manifest)
 
     def standing(scene, digest):
-        if args.rebase or scene not in baseline:
+        if args.rebase or scene not in standing_manifest:
             return "rendered"
-        return "identical" if baseline[scene] == digest else "hash miss"
+        return "identical" if standing_manifest[scene] == digest else "hash miss"
 
     # An adopting sweep IS the baseline, so it renders straight into the
     # kept baseline directory and the manifest is written from the same
     # plates. A judging sweep renders beside it, which leaves the two
     # directories `--compare` differences standing when it is over.
-    kept_baseline = plate_dir(root, args.config, "baseline", fresh=False)
-    outdir = kept_baseline if adopting else plate_dir(root, args.config, "cpu")
+    kept_baseline = plate_dir(args.config, "baseline", fresh=False)
+    outdir = kept_baseline if adopting else plate_dir(args.config, "cpu")
     results, errors = sweep(
         binary,
         list(scenes),
@@ -607,7 +527,7 @@ def main():
         # ask them anything, so it has nothing to say about their
         # baselines either.
         keep = True if narrowed else (set(skipped) if skipped else None)
-        merged = write_manifest(manifest, keep, results)
+        merged = baseline.write_manifest(manifest, keep, results)
         prune_plates(kept_baseline, merged)
         print(
             f"baseline written: {manifest} ({len(merged)} scenes, "
@@ -618,9 +538,9 @@ def main():
     else:
         movers, missing = [], []
         for scene, digest in sorted(results.items()):
-            if scene not in baseline:
+            if scene not in standing_manifest:
                 missing.append(scene)
-            elif baseline[scene] != digest:
+            elif standing_manifest[scene] != digest:
                 movers.append(scene)
         identical = len(results) - len(movers) - len(missing)
         print(
@@ -636,7 +556,7 @@ def main():
                     _, digest, _, _ = render_scene(
                         binary,
                         scene,
-                        plate_dir(root, args.config, "stability", fresh=False),
+                        plate_dir(args.config, "stability", fresh=False),
                         args.timeout_seconds,
                     )
                     if digest:
@@ -649,7 +569,7 @@ def main():
                     )
                     continue
             print(
-                f"  MOVED  {scene}  {baseline[scene][:12]} -> "
+                f"  MOVED  {scene}  {standing_manifest[scene][:12]} -> "
                 f"{results[scene][:12]}   <-- FINDING\n"
                 f"           was {plate_path(kept_baseline, scene)}\n"
                 f"           now {plate_path(outdir, scene)}"
@@ -667,7 +587,3 @@ def main():
             print("VERDICT: byte-neutral")
 
     return verdict or (1 if errors else 0)
-
-
-if __name__ == "__main__":
-    sys.exit(main())

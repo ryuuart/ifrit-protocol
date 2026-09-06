@@ -1,33 +1,30 @@
-#!/usr/bin/env python3
-"""Setup and build script for spell-circle-canvas.
+"""Verb: setup — discover Qt and vcpkg, write the presets, configure, build.
 
-Locates Qt and vcpkg, writes CMakeUserPresets.json, then configures and
-builds.
+    sigil.py setup [--config Release|Debug|RelWithDebInfo]
+                   [--configure-only | --build-only]
 
-Usage:
-    python scripts/setup.py [--config Release|Debug] [--build-only] [--configure-only]
-
-Besides the primary `main` preset (build/), the file carries one
-configure, build and test preset for each secondary tree — `coverage`,
-`asan`, `tsan` — so coverage.py and sanitize.py configure with
+Besides the primary `main` preset (build/), the file it writes carries
+one configure, build and test preset for each secondary tree —
+`coverage`, `asan`, `tsan` — so the sanitize verb configures with
 `cmake --preset <name>` and CMake composes the toolchain, the Qt prefix
 and the instrumentation flags itself. What each search root is, what the
 composed presets carry and why each instrumentation flag is set is
 scripts/README.md.
+
+No library is named here. A library whose dependency needs finding
+carries its own find module beside it, so this composes the toolchain,
+the Qt prefix, the asset cache and the instrumented trees, and nothing
+about what is built with them.
 """
 
 import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).parent.resolve()
-PROJECT_DIR = SCRIPT_DIR.parent  # apps/spell-circle-canvas
-USER_PRESETS = PROJECT_DIR / "CMakeUserPresets.json"
-BUILD_DIR = PROJECT_DIR / "build"
+from sigil import tree
 
 # Qt minimum version required by CMakeLists.txt
 QT_MINIMUM_VERSION = (6, 11)
@@ -40,13 +37,6 @@ QT_SEARCH_ROOTS = [
     Path("/opt/Qt"),
 ]
 
-# Where vcpkg looks for a download before it fetches one, and where
-# scripts/stage_asset.py puts an archive that cannot be fetched at all —
-# an SDK behind an account. Consulted first and written back to, so a
-# port whose file is here never reaches the network and every other port
-# still downloads normally.
-ASSET_CACHE_DIR = Path.home() / ".local" / "opt" / "vcpkg-assets"
-
 # Search roots for vcpkg
 VCPKG_SEARCH_ROOTS = [
     Path.home() / ".local" / "share" / "vcpkg",
@@ -56,20 +46,17 @@ VCPKG_SEARCH_ROOTS = [
 ]
 
 
-def _version_tuple(version_text: str) -> tuple[int, ...]:
+def _version_tuple(version_text: str) -> tuple:
     """Parses numeric version components from a directory name."""
-    try:
-        return tuple(
-            int(component)
-            for component in re.split(r"[.\-]", version_text)
-            if component.isdigit()
-        )
-    except ValueError:
-        return (0,)
+    return tuple(
+        int(component)
+        for component in re.split(r"[.\-]", version_text)
+        if component.isdigit()
+    )
 
 
 def find_qt(platform: str = "macos") -> Path | None:
-    """Return the best Qt installation path for the given platform suffix."""
+    """The best Qt installation for the given platform suffix."""
     environment_root = (
         os.environ.get("Qt6_DIR") or os.environ.get("QT_DIR") or os.environ.get("QTDIR")
     )
@@ -79,8 +66,7 @@ def find_qt(platform: str = "macos") -> Path | None:
             print(f"  Qt: found via env var at {environment_path}")
             return environment_path
 
-    candidates: list[tuple[tuple[int, ...], Path]] = []
-
+    candidates: list = []
     for root in QT_SEARCH_ROOTS:
         if not root.exists():
             continue
@@ -96,21 +82,19 @@ def find_qt(platform: str = "macos") -> Path | None:
 
     if not candidates:
         return None
-
     candidates.sort(key=lambda candidate: candidate[0], reverse=True)
-    best_installation = candidates[0][1]
+    best = candidates[0][1]
     version_text = ".".join(str(component) for component in candidates[0][0])
-    print(f"  Qt: {best_installation}  (version {version_text})")
-    return best_installation
+    print(f"  Qt: {best}  (version {version_text})")
+    return best
 
 
 def find_vcpkg() -> Path | None:
-    """Return the vcpkg root directory."""
+    """The vcpkg root directory."""
     environment_root = os.environ.get("VCPKG_ROOT")
     if environment_root:
         environment_path = Path(environment_root)
-        toolchain = environment_path / "scripts" / "buildsystems" / "vcpkg.cmake"
-        if toolchain.exists():
+        if (environment_path / "scripts" / "buildsystems" / "vcpkg.cmake").exists():
             print(f"  vcpkg: found via VCPKG_ROOT at {environment_path}")
             return environment_path
 
@@ -118,7 +102,6 @@ def find_vcpkg() -> Path | None:
         if (candidate / "scripts" / "buildsystems" / "vcpkg.cmake").exists():
             print(f"  vcpkg: {candidate}")
             return candidate
-
     return None
 
 
@@ -136,7 +119,7 @@ def find_vcpkg() -> Path | None:
 # workaround: detect_container_overflow=0, for the uninstrumented vcpkg
 # archives. detect_leaks=0 beside it is a platform limitation, not a
 # dependency one.
-def instrumented(compile_flags: str, link_flags: str) -> dict[str, str]:
+def instrumented(compile_flags: str, link_flags: str) -> dict:
     """The cache variables that carry one instrumentation into a tree: the
     compile flags on C++, the link flags on every kind of binary."""
     return {
@@ -185,7 +168,6 @@ SECONDARY_TREES = {
     },
 }
 
-
 SECONDARY_CONFIGURATION = "RelWithDebInfo"
 
 # The multi-config generator builds the configuration a build names and
@@ -201,14 +183,14 @@ MAIN_CACHE = {
 
 def secondary_presets(presets: dict) -> None:
     """Adds the configure, build and test preset of every secondary tree."""
-    for name, tree in SECONDARY_TREES.items():
+    for name, secondary in SECONDARY_TREES.items():
         presets["configurePresets"].append(
             {
                 "name": name,
                 "inherits": ["main"],
                 "binaryDir": f"${{sourceDir}}/build-{name}",
                 "cacheVariables": {
-                    **tree["cacheVariables"],
+                    **secondary["cacheVariables"],
                     "VCPKG_INSTALLED_DIR": "${sourceDir}/build/vcpkg_installed",
                     "VCPKG_MANIFEST_INSTALL": "OFF",
                     "CMAKE_DEFAULT_BUILD_TYPE": SECONDARY_CONFIGURATION,
@@ -231,19 +213,13 @@ def secondary_presets(presets: dict) -> None:
                 "configurePreset": name,
                 "configuration": SECONDARY_CONFIGURATION,
                 "output": {"outputOnFailure": True},
-                "environment": tree["environment"],
+                "environment": secondary["environment"],
             }
         )
 
 
 def user_presets(qt_installation: Path, vcpkg_root: Path) -> dict:
-    """The local Qt/vcpkg CMake preset composition.
-
-    No library is named here. A library whose dependency needs finding
-    carries its own find module (src/common/substance/cmake, and
-    src/common/scry/cmake beside it), so this file composes the toolchain,
-    the Qt prefix, the asset cache and the instrumented trees and nothing
-    about what is built with them."""
+    """The local Qt/vcpkg CMake preset composition."""
     main_inherits = ["vcpkg", "qt"]
     presets = {
         "version": 4,
@@ -258,7 +234,7 @@ def user_presets(qt_installation: Path, vcpkg_root: Path) -> dict:
                 "environment": {
                     "VCPKG_ROOT": str(vcpkg_root),
                     "X_VCPKG_ASSET_SOURCES": (
-                        f"clear;x-azurl,file://{ASSET_CACHE_DIR}/,,readwrite"
+                        f"clear;x-azurl,file://{tree.ASSET_CACHE_DIR}/,,readwrite"
                     ),
                 },
             },
@@ -282,11 +258,7 @@ def user_presets(qt_installation: Path, vcpkg_root: Path) -> dict:
             },
         ],
         "buildPresets": [
-            {
-                "name": "main",
-                "configurePreset": "main",
-                "configuration": "Release",
-            },
+            {"name": "main", "configurePreset": "main", "configuration": "Release"},
             {
                 "name": "main-xcode",
                 "configurePreset": "main-xcode",
@@ -303,71 +275,46 @@ def write_user_presets(qt_installation: Path, vcpkg_root: Path) -> None:
     """Writes the preset file when what it would say has moved.
 
     The file is generated, so an edit to what generates it — another
-    secondary tree, a different instrumentation flag — has to reach the
-    tree on the next run. Rewriting it unconditionally would reconfigure
-    on every invocation, so the content is compared first and an unchanged
+    secondary tree, a different instrumentation flag, a Qt that moved —
+    has to reach the tree on the next run rather than waiting for someone
+    to remember a flag. Rewriting it unconditionally would reconfigure on
+    every invocation, so the content is compared first and an unchanged
     file keeps its timestamp.
     """
-    ASSET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    tree.ASSET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     text = json.dumps(user_presets(qt_installation, vcpkg_root), indent=2) + "\n"
-    if USER_PRESETS.exists() and USER_PRESETS.read_text() == text:
-        print(f"  {USER_PRESETS.name} is current")
+    if tree.USER_PRESETS.exists() and tree.USER_PRESETS.read_text() == text:
+        print(f"  {tree.USER_PRESETS.name} is current")
         return
-    USER_PRESETS.write_text(text)
-    print(f"  Wrote {USER_PRESETS}")
+    tree.USER_PRESETS.write_text(text)
+    print(f"  Wrote {tree.USER_PRESETS}")
 
 
-def run(command: list[str], working_directory: Path) -> int:
-    """Runs a subprocess visibly and returns its exit code."""
-    print(f"\n$ {' '.join(str(argument) for argument in command)}")
-    result = subprocess.run(command, cwd=working_directory, check=False)
-    return result.returncode
-
-
-def configure() -> int:
-    """Configures the application with the composed ``main`` preset."""
-    return run(["cmake", "--preset", "main"], PROJECT_DIR)
-
-
-def build(configuration: str) -> int:
-    """Builds the selected multi-configuration CMake configuration."""
-    return run(
-        [
-            "cmake",
-            "--build",
-            "build",
-            "--config",
-            configuration,
-            "--parallel",
-        ],
-        PROJECT_DIR,
+def main(argv: list) -> int:
+    parser = argparse.ArgumentParser(
+        prog="sigil.py setup",
+        description="Discover Qt and vcpkg, write CMakeUserPresets.json, "
+        "configure and build spell-circle-canvas",
     )
-
-
-def main() -> int:
-    """Locates dependencies, configures CMake, and builds the application."""
-    argument_parser = argparse.ArgumentParser(
-        description="Setup and build spell-circle-canvas"
-    )
-    argument_parser.add_argument(
+    parser.add_argument(
         "--config",
         default="Release",
-        choices=["Debug", "Release", "RelWithDebInfo"],
-        help="Build configuration (default: Release)",
+        choices=tree.CONFIGURATIONS,
+        help="build configuration (default: Release)",
     )
-    argument_parser.add_argument(
+    parser.add_argument(
         "--build-only",
         action="store_true",
-        help="Skip configure; only build (requires existing build dir)",
+        help="skip discovery and configure; only build (requires a configured tree)",
     )
-    argument_parser.add_argument(
+    parser.add_argument(
         "--configure-only",
         action="store_true",
-        help="Stop after cmake configure, skip build",
+        help="stop after cmake configure, skip the build",
     )
-    arguments = argument_parser.parse_args()
+    arguments = parser.parse_args(argv)
 
-    print(f"spell-circle-canvas setup — project: {PROJECT_DIR}\n")
+    print(f"spell-circle-canvas setup — project: {tree.PROJECT_DIR}\n")
 
     if not arguments.build_only:
         print("Locating dependencies...")
@@ -398,24 +345,22 @@ def main() -> int:
 
         write_user_presets(qt_installation, vcpkg_root)
 
-        return_code = configure()
-        if return_code != 0:
-            print(f"\nConfigure failed (exit {return_code}).", file=sys.stderr)
-            return return_code
-
+        code = tree.run(["cmake", "--preset", "main"])
+        if code != 0:
+            print(f"\nConfigure failed (exit {code}).", file=sys.stderr)
+            return code
         if arguments.configure_only:
             print("\nDone (configure only).")
             return 0
 
-    return_code = build(arguments.config)
-    if return_code != 0:
-        print(f"\nBuild failed (exit {return_code}).", file=sys.stderr)
-        return return_code
+    code = tree.run(
+        ["cmake", "--build", "build", "--config", arguments.config, "--parallel"]
+    )
+    if code != 0:
+        print(f"\nBuild failed (exit {code}).", file=sys.stderr)
+        return code
 
-    executable_path = BUILD_DIR / "bin" / arguments.config / "SpellCircle"
-    print(f"\nBuild complete.  Binary: {executable_path}")
+    print(
+        f"\nBuild complete.  Binary: {tree.bin_dir(arguments.config) / 'SpellCircle'}"
+    )
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

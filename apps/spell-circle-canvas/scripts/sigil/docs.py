@@ -1,14 +1,18 @@
-#!/usr/bin/env python3
-"""Generates the per-library Doxygen sites and the page that lists them.
+"""Verb: docs — the per-library Doxygen sites, generated, opened or served.
 
-Driven by the manifest sigil_finalize_docs() writes, which is the list of
-libraries registered through sigil_library_root() or sigil_add_docs():
-name, brief, input directories, path prefix to strip, and the document
-to use as the site's front page.
+    sigil.py docs                       # build the sites and open them
+    sigil.py docs --serve               # …and serve them from a container
+    sigil.py docs --manifest build/docs-manifest.txt [--library SigilWeave]
 
-Usage (the `docs` and `docs-<Lib>` targets call it):
-  scripts/build_docs.py --manifest build/docs-manifest.txt
-  scripts/build_docs.py --manifest build/docs-manifest.txt --library SigilWeave
+With `--manifest` this IS the generator, and it is what the `docs` and
+`docs-<Lib>` targets run: the manifest is what sigil_finalize_docs()
+writes — name, brief, input directories, path prefix to strip, and the
+document to use as each site's front page. Without it the verb drives the
+build target instead, which is the way a person asks for the pages.
+
+Documentation is parsed from headers, so the build tree only has to be
+CONFIGURED, never compiled; a first run on a fresh checkout therefore
+stops after configure rather than building the whole application.
 
 Why generation takes two passes, where the theme comes from and why the
 HTML header is generated rather than checked in is scripts/README.md.
@@ -16,28 +20,27 @@ HTML header is generated rather than checked in is scripts/README.md.
 Everything used to produce a site — the rendered Doxyfiles, the tag
 files, the theme, the generated header — lands in the work directory,
 apart from the sites themselves, which are what gets served. Both are
-disposable: this script rewrites whatever is missing.
+disposable: this rewrites whatever is missing.
 """
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
 import sys
+import time
+import urllib.error
+import urllib.request
+import webbrowser
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fetch_assets import Asset, fetch
+from sigil import tree
+from sigil.assets import Asset, fetch
 
 # jothepro/doxygen-awesome-css, MIT. The commit release v2.4.2 points at.
-#
-# Doxygen's stock HTML is close to unusable on a phone: fixed-width
-# tables, a navigation tree that assumes a mouse, and no viewport-aware
-# layout. Doxygen Awesome replaces the stylesheet without touching the
-# generated HTML structure, so the fix is a download rather than a fork.
-# The rules are the ones scripts/fetch_assets.py states: open licence,
-# the licence file alongside, pinned to a commit, hashed per file, never
-# vendored.
+# The rules are the ones the assets verb states: open licence, the licence
+# file alongside, pinned to a commit, hashed per file, never vendored.
 _THEME = (
     "https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/"
     "d52eafe3e9303399fda15661f3d7bb8fe3d7eabc"
@@ -113,6 +116,8 @@ CONTINUE = " \\\n" + " " * 25
 
 SOURCE_PATTERNS = ("*.h", "*.hpp", "*.md")
 
+CONTAINER = "spellcircle-docs"
+
 
 class Library:
     """One registered library: what to read, and how to present it."""
@@ -121,10 +126,10 @@ class Library:
         self.name = name
         self.brief = ""
         self.mainpage = ""
-        self.input: list[str] = []
-        self.strip: list[str] = []
+        self.input: list = []
+        self.strip: list = []
 
-    def sources(self) -> list[Path]:
+    def sources(self) -> list:
         """Every file Doxygen will read for this library.
 
         An INPUT entry is either a directory to walk or a single file
@@ -146,8 +151,8 @@ class Manifest:
     """The settings and the libraries sigil_finalize_docs() recorded."""
 
     def __init__(self, path: Path):
-        settings: dict[str, str] = {}
-        self.libraries: list[Library] = []
+        settings: dict = {}
+        self.libraries: list = []
         current: Library | None = None
         for line in path.read_text().splitlines():
             if not line or line.startswith("#"):
@@ -189,7 +194,7 @@ def write_if_changed(path: Path, text: str) -> None:
     path.write_text(text)
 
 
-def render_doxyfile(template: str, values: dict[str, str]) -> str:
+def render_doxyfile(template: str, values: dict) -> str:
     def substitute(match: re.Match) -> str:
         name = match.group(1)
         if name not in values:
@@ -200,14 +205,7 @@ def render_doxyfile(template: str, values: dict[str, str]) -> str:
 
 
 def make_header(manifest: Manifest) -> Path:
-    """Doxygen's own HTML header, with the theme's scripts spliced in.
-
-    Generated rather than checked in: Doxygen emits the header its own
-    version expects — the stock one already carries the viewport meta tag
-    a phone needs — and a copy frozen in the source tree would silently
-    drift from it on every Doxygen upgrade, which shows as a half-styled
-    page rather than an error. Only the script tags are ours.
-    """
+    """Doxygen's own HTML header, with the theme's scripts spliced in."""
     work = manifest.work / "header-work"
     work.mkdir(parents=True, exist_ok=True)
     subprocess.run(
@@ -276,7 +274,7 @@ def index_pass(manifest: Manifest, template: str) -> None:
         run_doxygen(manifest, doxyfile, library)
 
 
-def html_pass(manifest: Manifest, template: str, wanted: list[Library]) -> None:
+def html_pass(manifest: Manifest, template: str, wanted: list) -> None:
     """Pass two: HTML, each library reading every other library's tag file."""
     theme = manifest.work / "theme"
     stylesheets = [theme / name for name in THEME_CSS]
@@ -375,32 +373,113 @@ def stage_container(manifest: Manifest) -> None:
         shutil.copyfile(manifest.module_dir / name, manifest.root / staged)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument(
-        "--library",
-        action="append",
-        help="write only this library's site (repeatable); the landing "
-        "page and the container files are left alone",
-    )
-    args = parser.parse_args()
-
-    manifest = Manifest(args.manifest)
+def generate(manifest_path: Path, libraries: list | None) -> int:
+    manifest = Manifest(manifest_path)
     manifest.root.mkdir(parents=True, exist_ok=True)
     manifest.work.mkdir(parents=True, exist_ok=True)
     fetch(THEME, manifest.work / "theme", quiet=True)
 
     template = (manifest.module_dir / "Doxyfile.in").read_text()
     index_pass(manifest, template)
-    if args.library:
-        html_pass(manifest, template, [manifest.find(name) for name in args.library])
-        return
+    if libraries:
+        html_pass(manifest, template, [manifest.find(name) for name in libraries])
+        return 0
     html_pass(manifest, template, manifest.libraries)
     write_index(manifest)
     stage_container(manifest)
     print(f"Documentation written to {manifest.root / 'index.html'}")
+    return 0
 
 
-if __name__ == "__main__":
-    main()
+def build_target() -> int:
+    """Configure if there is no tree yet, then build the `docs` target."""
+    if not (tree.build_dir() / "CMakeCache.txt").exists():
+        print("No build tree yet — configuring (this does not compile the app).")
+        from sigil import setup
+
+        code = setup.main(["--config", "Release", "--configure-only"])
+        if code != 0:
+            return code
+    return tree.run(
+        ["cmake", "--build", "build", "--config", "Release", "--target", "docs"]
+    )
+
+
+def serve(port: int) -> int:
+    """Serves the generated tree from a container.
+
+    The generated tree is a complete build context: the generator stages
+    the Dockerfile and the nginx config into it alongside the HTML."""
+    root = tree.build_dir() / "docs"
+    if tree.run(["docker", "build", "-t", CONTAINER, str(root)]) != 0:
+        return 1
+    subprocess.run(
+        ["docker", "rm", "-f", CONTAINER],
+        capture_output=True,
+        check=False,
+    )
+    if (
+        tree.run(
+            ["docker", "run", "-d", "--name", CONTAINER, "-p", f"{port}:80", CONTAINER]
+        )
+        != 0
+    ):
+        return 1
+
+    # Opening the page before nginx is listening shows a connection error
+    # that a reload would have fixed, so wait for it to actually answer.
+    url = f"http://localhost:{port}/"
+    for _ in range(40):
+        try:
+            urllib.request.urlopen(url, timeout=1).read()
+            break
+        except (urllib.error.URLError, OSError):
+            time.sleep(0.25)
+    print(f"Serving on {url}")
+    print(f"Stop it with: docker rm -f {CONTAINER}")
+    webbrowser.open(url)
+    return 0
+
+
+def main(argv: list) -> int:
+    parser = argparse.ArgumentParser(
+        prog="sigil.py docs",
+        description="the per-library Doxygen sites: generated from a "
+        "manifest, or built through the docs target and opened",
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help="generate from this manifest — what the docs target passes",
+    )
+    parser.add_argument(
+        "--library",
+        action="append",
+        help="with --manifest, write only this library's site (repeatable); "
+        "the landing page and the container files are left alone",
+    )
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="serve the built sites from a container instead of opening them",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("DOCS_PORT", "8080")),
+        help="port for --serve (default 8080, or DOCS_PORT)",
+    )
+    arguments = parser.parse_args(argv)
+
+    if arguments.manifest:
+        return generate(arguments.manifest, arguments.library)
+
+    code = build_target()
+    if code != 0:
+        return code
+    if arguments.serve:
+        return serve(arguments.port)
+    page = tree.build_dir() / "docs" / "index.html"
+    print(page)
+    webbrowser.open(page.as_uri())
+    return 0

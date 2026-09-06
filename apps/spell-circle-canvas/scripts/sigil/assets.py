@@ -1,35 +1,46 @@
-#!/usr/bin/env python3
-"""Demo assets, fetched from the network into the build tree.
+"""Verb: assets — fetch the demo assets, or stage an SDK archive.
+
+    sigil.py assets                          # fetch into build/assets
+    sigil.py assets --out <dir>
+    sigil.py assets --stage <archive>...     # into the vcpkg asset cache
 
 The studies in src/common/compose/gallery and sketch/sketches are
 reference-grounded, and a reference set in whatever face the host OS
-happens to ship is only half-grounded. This fetches the real
-open-licensed faces those studies want, so a study can name a typeface
-the way it names a hex value.
+happens to ship is only half-grounded. The fetch lane brings down the
+real open-licensed faces those studies want, so a study can name a
+typeface the way it names a hex value. It lands in build/assets/, which
+the sketch host reads with `--assets <dir>` and the libraries find
+through the SIGIL_ASSET_DIR compile definition, and it needs no build
+tree: this only writes files.
 
 Opt in — nothing here runs as part of a build:
 
-    scripts/fetch_assets.py            (or: mise run assets)
+    python3 scripts/sigil.py assets      (or: mise run assets)
     cmake --build build --config Release --target fetch_assets
 
-The result lands in build/assets/, which the sketch host reads with
-`--assets <dir>` and the libraries find through the SIGIL_ASSET_DIR
-compile definition. No build tree is needed: the script only writes
-files.
+The stage lane puts an archive nobody can download without an account
+into the vcpkg asset cache under the SHA-512 of its contents, which is
+the name vcpkg looks it up by, so every configure after that resolves it
+locally. The hash it prints is the one the port's vcpkg_download_distfile
+declares.
 
-The rules anything added to the manifest below has to meet are
-scripts/README.md. The downloader is shared: scripts/build_docs.py
-fetches the Doxygen theme through fetch() with a manifest of its own.
+The rules anything added to the manifest below has to meet, and why the
+cache resolves a file by its hash, are scripts/README.md. The downloader
+is shared: the docs verb fetches the Doxygen theme through fetch() with a
+manifest of its own.
 """
 
 import argparse
 import hashlib
+import shutil
 import ssl
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import NamedTuple
+
+from sigil import tree
 
 
 class Asset(NamedTuple):
@@ -172,17 +183,26 @@ ASSETS.append(
     )
 )
 
+
 # Some hosts answer a request with no product name with a block page,
 # which would arrive as a hash mismatch and read as a corrupt asset.
 USER_AGENT = "spell-circle-canvas-fetch-assets"
 
 
 def sha256_of(path: Path) -> str:
-    digest = hashlib.sha256()
+    return _digest_of(path, hashlib.sha256())
+
+
+def sha512_of(path: Path) -> str:
+    """The lowercase hex SHA-512 vcpkg names a cached download by."""
+    return _digest_of(path, hashlib.sha512())
+
+
+def _digest_of(path: Path, running) -> str:
     with path.open("rb") as handle:
         for block in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(block)
-    return digest.hexdigest()
+            running.update(block)
+    return running.hexdigest()
 
 
 def fetch(assets, out: Path, quiet: bool = False) -> None:
@@ -217,19 +237,51 @@ def fetch(assets, out: Path, quiet: bool = False) -> None:
         target.write_bytes(payload)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+def stage(archive: Path) -> int:
+    """Copies one archive into the vcpkg asset cache under its hash."""
+    if not archive.is_file():
+        print(f"ERROR: {archive} is not a file", file=sys.stderr)
+        return 1
+    tree.ASSET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    digest = sha512_of(archive)
+    destination = tree.ASSET_CACHE_DIR / digest
+    if destination.exists():
+        print(f"  already staged: {archive.name}")
+    else:
+        shutil.copyfile(archive, destination)
+        print(f"  staged: {archive.name} -> {destination}")
+    print(f"    FILENAME {archive.name}")
+    print(f"    SHA512 {digest}")
+    return 0
+
+
+def main(argv: list) -> int:
+    parser = argparse.ArgumentParser(
+        prog="sigil.py assets",
+        description="fetch the open-licensed demo assets, or put a downloaded "
+        "archive into the vcpkg asset cache under its hash",
+    )
     parser.add_argument(
         "--out",
         type=Path,
-        default=Path(__file__).resolve().parent.parent / "build" / "assets",
-        help="where to write the assets (default: build/assets)",
+        default=tree.build_dir() / "assets",
+        help="where to write the fetched assets (default: build/assets)",
     )
-    args = parser.parse_args()
-    out = args.out.resolve()
+    parser.add_argument(
+        "--stage",
+        nargs="+",
+        type=Path,
+        metavar="ARCHIVE",
+        help="stage these archives into the vcpkg asset cache instead of "
+        "fetching anything",
+    )
+    arguments = parser.parse_args(argv)
+
+    if arguments.stage:
+        print(f"vcpkg asset cache: {tree.ASSET_CACHE_DIR}")
+        return max(stage(archive) for archive in arguments.stage)
+
+    out = arguments.out.resolve()
     fetch(ASSETS, out)
     print(f"assets in {out}")
-
-
-if __name__ == "__main__":
-    main()
+    return 0

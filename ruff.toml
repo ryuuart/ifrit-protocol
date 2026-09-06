@@ -7,7 +7,7 @@
 line-length = 88
 
 extend-exclude = [
-    # FlatBuffers output, owned by regen_flatbuffers.sh. Regenerating
+    # FlatBuffers output, owned by the flatbuffers verb. Regenerating
     # would silently discard any hand fix or reformat.
     "apps/python/SpellCircle/Box.py",
     "apps/python/SpellCircle/Circle.py",
@@ -44,7 +44,6 @@ ignore = [
 # runtime; outside TouchDesigner they are undefined names. Its import
 # block, like the two below, predates import sorting.
 "touchdesigner/scripts/spell_circle.py" = ["F821", "I001"]
-"apps/spell-circle-canvas/scripts/plate_ledger.py" = ["I001"]
 "apps/spell-circle-canvas/src/common/compose/test/assets/make_advance_variant_vf.py" = ["I001"]
 
 [format]
@@ -56,11 +55,6 @@ ignore = [
 exclude = [
     "apps/python/SpellCircle/test/animate_spell_circles.py",
     "apps/python/SpellCircle/test/send_spell_circles.py",
-    "apps/spell-circle-canvas/scripts/buildtree.py",
-    "apps/spell-circle-canvas/scripts/coverage.py",
-    "apps/spell-circle-canvas/scripts/plate_ledger.py",
-    "apps/spell-circle-canvas/scripts/sanitize.py",
-    "apps/spell-circle-canvas/scripts/setup.py",
     "apps/spell-circle-canvas/src/common/compose/gallery/tools_gen_skill_tree_data.py",
     "apps/spell-circle-canvas/src/common/compose/test/assets/make_advance_variant_vf.py",
     "apps/spell-circle-canvas/src/common/compose/test/docs/api_doc_probes.py",
