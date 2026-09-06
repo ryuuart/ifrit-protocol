@@ -139,3 +139,25 @@ and `--headless --no-promotion --sketch spacejam_1996` differ by at most
 one code value, and only on antialiased edges; and a compose test that
 promotes a subtree under the plate's host scale reads back the pixels
 the same subtree paints live.
+
+## The blend stack asks a device for more samplers than it has
+
+`material_test` fails `MaterialGpu.EveryRecipeCompilesOnTheDevice` on the
+`over.mix` material — `over(kit::unlit(red), kit::unlit(blue),
+maskConstant(0.5f), Blend::Mix)` — which Graphite compiles into a
+fragment program declaring twenty-eight image samplers, where Metal
+allows sixteen. The device rejects the program, the pass is dropped, and
+the sweep reports the first failure and stops. Run alone
+(`--gtest_filter='MaterialGpu.*'`) the same case passes, so the count
+depends on what the binary compiled before it.
+
+Every `kit::unlit` surface carries an image slot per channel and each is
+filled with a texture even where the parameter is a constant colour, so
+a stack of two surfaces over a mask asks for the union of three
+materials' slots. Intended: a slot whose value is a constant compiles to
+a constant and not to a one-texel texture, so a stack of ordinary
+surfaces fits in any device's sampler budget with room to nest.
+
+Assert once fixed: `EveryRecipeCompilesOnTheDevice` passes in a full
+binary run, and a compiled `over(...)` of two unlit surfaces declares no
+more image samplers than the leaves that actually sample an image.
