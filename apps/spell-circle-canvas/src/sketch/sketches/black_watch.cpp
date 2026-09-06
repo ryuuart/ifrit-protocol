@@ -96,6 +96,8 @@
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -105,7 +107,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
@@ -497,8 +498,7 @@ inline sk_sp<SkTypeface> sansB() {
                             SkFontStyle::kBold_Weight);
 }
 inline sk_sp<SkTypeface> mono() {
-  return weave::ports::face({"Menlo", "Courier New"},
-                            SkFontStyle::kNormal_Weight);
+  return sketch::kit::houseFace(sketch::kit::Voice::Terminal);
 }
 inline sk_sp<SkTypeface> serif() {
   return weave::ports::face({"Baskerville", "Times New Roman"},
@@ -541,6 +541,32 @@ inline Element centred(const std::string& s, const weave::TextStyle& st,
 }
 inline Element rule(float x, float y, float w, float h, SkColor4f c) {
   return at(x, y, w, h).fill(c);
+}
+
+// THE CARD'S OWN SHEET. Every kit component reads the theme in scope, and
+// this card is dark ink on manila rather than the house sheet's pale ink on
+// black, so the study binds its own: the card's two faces, the card's ink,
+// and the tight row it sets a machine-read table at. The faces are resolved
+// once and held, because a style is compared by face POINTER.
+inline const sketch::kit::Theme& sheet() {
+  static const sketch::kit::Theme look = [] {
+    sketch::kit::Theme t;
+    t.palette.ground = kCard;
+    t.palette.cellGround = kWell;
+    t.palette.ink = kInk;
+    t.palette.ash = kInk2;
+    t.palette.rule = kRule;
+    t.palette.figure = kInk;
+    t.type.sans = sans();
+    t.type.mono = mono();
+    t.type.captionLabel = {9.5f, 0.1f, true};
+    t.type.captionNote = {9.5f, 0.1f, true};
+    t.spacing.rowGap = 2.4f;
+    t.spacing.labelGap = 6;
+    t.spacing.swatchSide = 5;
+    return t;
+  }();
+  return look;
 }
 
 // The curves. bind()'s map() runs after from() normalises, and from() lets the
@@ -600,7 +626,6 @@ struct BlackWatch : sketch::Sketch {
   // --- the loom -----------------------------------------------------------
   choreograph::Output<float> loom{0};
   double clock = 0;
-  bool reported = false;
 
   // --- baked material ------------------------------------------------------
   // Held as members: the shared bake IS the identity (Pattern.h), and a fresh
@@ -798,11 +823,11 @@ struct BlackWatch : sketch::Sketch {
     buildQuote();
   }
 
-  /** THE VERIFICATION, as one table. Every row's printed line is COMPUTED
-   *  from the two values it reports, so a row that reads OK cannot
-   *  disagree with the arithmetic beside it — and the panel no longer has
-   *  to sniff a trailing "OK" out of a formatted string to know how to set
-   *  it. The two rows that are measurements with nothing to judge are
+  /** THE VERIFICATION, as one table. Every row's verdict is COMPUTED from
+   *  the two values it reports, so a row that reads PASS cannot disagree
+   *  with the arithmetic beside it, and the panel reads the verdict as a
+   *  value rather than sniffing it out of a formatted string. The two rows
+   *  that are measurements with nothing to judge are
    *  readings; the one that is a statement about the SETTS rather than
    *  about this reconstruction — that Black Watch and Campbell of Argyll
    *  agree unit for unit — is a finding. */
@@ -1330,19 +1355,28 @@ struct BlackWatch : sketch::Sketch {
                 .fill(hex(0xDCD4C4, 0.8f))
                 .foreground(
                     stroke(1, Fill::color(kRule), PathFormat::Align::Inner)));
-    // The LINE is the table's, verdict included; what the card adds is the
-    // ink. A finding that fails is the two setts' agreement drifting, not a
-    // defect here, so it is set in the same red and counted apart.
-    for (size_t i = 0; i < rows; ++i) {
-      const measure::Check& c = verdict.rows[i];
-      const float w0 = kWeaveEnd + (float)i * 0.0092f;
-      g.child(
-          at(x0, y0 + (float)i * lh, 450, 13)
-              .opacity(bind(&loom).source(w0, w0 + 0.011f).clamp(0.0f, 1.0f))
-              .child(text(U(c.line(40, 7)),
-                          mn(9.5f, !c.judged() ? kInk2 : (c.pass ? kInk : kRed),
-                             0.1f))));
+    // The words are the run's own — the label it was made under, the figure
+    // it came to, and the verdict computed from the two. The mark before
+    // each row carries that verdict as colour, so a row that failed is
+    // legible before it is read. A finding that fails is the two setts'
+    // agreement drifting rather than a defect here, and it is marked in the
+    // same red because the run counts it apart, not the card.
+    std::vector<sketch::kit::Row> lines;
+    lines.reserve(rows);
+    for (const measure::Check& c : verdict.rows) {
+      std::string verdictWord;
+      if (c.judged()) verdictWord = c.pass ? "PASS" : "FAIL want " + c.expected;
+      lines.push_back({.cells = {U(c.label), U(c.actual), U(verdictWord)},
+                       .swatch = Fill::color(
+                           !c.judged() ? kRule : (c.pass ? kInk : kRed))});
     }
+    g.child(at(x0, y0, 450, (float)rows * lh)
+                .opacity(bind(&loom)
+                             .source(kWeaveEnd,
+                                     kWeaveEnd + (float)rows * 0.0092f + 0.011f)
+                             .clamp(0.0f, 1.0f))
+                .child(sketch::kit::table(
+                    std::move(lines), {.columns = {{322}, {58, true}, {}}})));
     return g;
   }
 
@@ -1350,6 +1384,10 @@ struct BlackWatch : sketch::Sketch {
 
   Element describe(sketch::SketchContext& ctx) {
     (void)ctx;
+    // The card's sheet stands for everything described below it, so a kit
+    // component four levels down is set in the card's ink without being
+    // handed it.
+    sketch::kit::Provide look(sheet());
     Element root = stack().width(Dim(kCanvasW)).height(Dim(kCanvasH));
 
     // the board: one recipe, paint and tooth together
@@ -1447,32 +1485,6 @@ struct BlackWatch : sketch::Sketch {
       return true;
     });
     ctx.composer.render(describe(ctx));
-
-    std::fprintf(stderr,
-                 "[black watch] %d ends  mirrors %zu (gap %d)  floats %d/%d  "
-                 "perceived %d  cover %d uncovered / %d doubled of %d  "
-                 "argyll %d ends, %d mirrors, %d perceived  "
-                 "unit drift %.3f%%\n",
-                 v.total, v.mirrors.size(), v.mirrorGap, v.maxWarpFloat,
-                 v.maxWeftFloat, v.perceived, v.uncovered, v.doubled, v.samples,
-                 v.argyllTotal, v.argyllMirrors, v.argyllPerceived,
-                 v.unitDrift * 100.0f);
-  }
-
-  void update(double elapsed, sketch::SketchContext& ctx) override {
-    // Read after the card has come to rest, and after the host has actually
-    // drawn: the headless path steps the clock without drawing until it
-    // captures, so an early read reports a frame that never happened.
-    if (!reported && elapsed > 7.42) {
-      reported = true;
-      const Composer::Stats& s = ctx.composer.stats();
-      std::fprintf(stderr,
-                   "[black watch] instances %zu  pictures %zu  recorded %zu  "
-                   "painted-live %zu  layout %.2f ms  volatile %.2f ms  "
-                   "paint %.2f ms\n",
-                   s.instances, s.picturesLive, s.picturesRecorded,
-                   s.nodesPainted, s.layoutMs, s.volatileMs, s.paintMs);
-    }
   }
 };
 
