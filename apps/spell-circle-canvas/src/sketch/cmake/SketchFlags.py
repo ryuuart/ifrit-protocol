@@ -7,7 +7,7 @@ what is left as a clang response file — one argument per line. Why the
 database is the right seam is scripts/README.md.
 
 Usage (invoked by the build; the paths are all absolute):
-  scripts/extract_sketch_flags.py --compdb build/compile_commands.json \\
+  src/sketch/cmake/SketchFlags.py --compdb build/compile_commands.json \\
       --anchor src/sketch/sketches/Anchor.cpp --config Release \\
       --out build/bin/Release/sketch_flags.rsp [--extra <link input>]
 """
@@ -88,7 +88,7 @@ def main() -> None:
         sys.exit(
             f"{args.compdb} not found — CMAKE_EXPORT_COMPILE_COMMANDS is only "
             "supported by the Ninja and Makefiles generators; configure with "
-            "one of those to build the sketch host (see scripts/setup.py)"
+            "one of those to build the sketch host (see scripts/sigil.py setup)"
         )
 
     command = find_command(args.compdb, args.anchor, args.config)

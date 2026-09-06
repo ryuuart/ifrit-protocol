@@ -118,7 +118,7 @@ endif()
 add_custom_command(
   OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/sketch_flags.rsp
   COMMAND ${Python3_EXECUTABLE}
-    ${CMAKE_SOURCE_DIR}/scripts/extract_sketch_flags.py
+    ${CMAKE_SOURCE_DIR}/src/sketch/cmake/SketchFlags.py
     --compdb ${CMAKE_BINARY_DIR}/compile_commands.json
     --anchor ${SIGIL_SKETCH_DIR}/Anchor.cpp
     --config $<CONFIG>
@@ -129,7 +129,7 @@ add_custom_command(
     # put two Skia images in one process, whose objects cannot be
     # exchanged.
   DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-          ${CMAKE_SOURCE_DIR}/scripts/extract_sketch_flags.py
+          ${CMAKE_SOURCE_DIR}/src/sketch/cmake/SketchFlags.py
   COMMENT "Extracting sketch compile flags from compile_commands.json"
   VERBATIM)
 add_custom_target(sketch_flags
