@@ -37,8 +37,8 @@ struct Console {
   /** Unset is the theme's caption-label size, in the face a CALL is set
    *  in. */
   std::optional<float> size;
-  /** Unset is the theme's ink. */
-  std::optional<SkColor4f> ink;
+  /** Unset is the theme's ink. A shader shades the rows' glyphs. */
+  std::optional<compose::Fill> ink;
   /** Unset is the theme's cell ground. */
   std::optional<Ground> ground;
   /** Unset is the theme's rule. Both the keyline and the dividers between

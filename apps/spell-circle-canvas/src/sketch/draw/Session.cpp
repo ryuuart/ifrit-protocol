@@ -12,6 +12,7 @@
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilsketch/core/Crash.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <algorithm>
@@ -111,7 +112,13 @@ class DrawSession final : public Session {
       m_sinceDraw = 0.0;
     }
     m_timing.updateMs = m_laps.mark("draw");
-    paint(canvas);
+    // The phase turns over where the sketch's own body ends and its
+    // runtime's painting begins, so a fault reads the same whichever
+    // host drove the frame: one call in, two phases.
+    {
+      PhaseMark mark(Phase::Draw);
+      paint(canvas);
+    }
     m_timing.drawMs = m_laps.mark("blit");
     m_timing.totalMs = m_laps.totalMs();
     m_lanes = {Lane{"draw", m_timing.updateMs}, Lane{"blit", m_timing.drawMs}};

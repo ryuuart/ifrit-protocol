@@ -10,6 +10,7 @@
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/core/Crash.h>
 
 #include <array>
 #include <cstdio>
@@ -103,7 +104,13 @@ class CanvasSession final : public Session {
     }
     applySize();  // a sketch may resize itself mid-run, p5 style
     m_timing.updateMs = m_laps.mark("update");
-    m_composer->draw(canvas);
+    // The phase turns over where the sketch's own body ends and its
+    // runtime's painting begins, so a fault reads the same whichever
+    // host drove the frame: one call in, two phases.
+    {
+      PhaseMark mark(Phase::Draw);
+      m_composer->draw(canvas);
+    }
     m_timing.drawMs = m_laps.mark("draw");
     m_timing.totalMs = m_laps.totalMs();
     const compose::Composer::Stats& stats = m_composer->stats();

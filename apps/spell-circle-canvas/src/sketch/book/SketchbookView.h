@@ -20,6 +20,10 @@ namespace sigil::sketch {
 class Host;
 }
 
+namespace sigil::weave {
+class FontContext;
+}
+
 /** THE LIVE CANVAS. Frames render on the render thread, through the
  *  shared Skia Graphite context straight into the item's texture when the
  *  QRhi backend supports it, with an explicit raster-and-upload fallback
@@ -104,6 +108,12 @@ class SketchbookView : public QQuickRhiItem {
   /** The shared layer: the directory whose sources are units of every
    *  sketch and whose headers a sketch spells as `<shared/Name.h>`. */
   static std::filesystem::path sharedDir;
+  /** WHAT EVERY SESSION THIS WINDOW OPENS SHAPES TEXT WITH — the
+   *  process's one font context, handed over by main() before QML loads.
+   *  One owner: a context of this window's own would pay for the shaping
+   *  and glyph caches a second time, beside the one the stills and the
+   *  headless lanes already fill. Nothing opens until it is here. */
+  static sigil::weave::FontContext* fonts;
   /** The host the render thread draws and the GUI thread polls — every
    *  access on either side takes the mutex beside it. It is the resident
    *  set's presented session, held as a pointer because that is what

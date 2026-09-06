@@ -3,7 +3,7 @@
  *
  *   Sketchbook [--no-gpu]                      the app, on the last sketch
  *   Sketchbook --sketch <name>                 the app, on that one
- *   Sketchbook --list [--kind canvas|set]      the registry, one per line
+ *   Sketchbook --list [--kind canvas|set|draw] the registry, one per line
  *   Sketchbook --catalog [<file.cpp>]          the browser's rows, one JSON
  *                                              object per line
  *   Sketchbook --compare <dir-a> <dir-b>       two sweeps' plates, differenced
@@ -82,11 +82,6 @@
 #include <QtGui/QGuiApplication>
 #include <QtGui/QImage>
 #include <QtQml/QQmlApplicationEngine>
-
-// Generated with the QML module: registers every QML_ELEMENT it compiled.
-void qml_register_types_Sigil_Sketchbook();
-#include <QtQml/qqml.h>
-
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
 
@@ -343,8 +338,10 @@ bool awaitFirstBuild(sketch::Host& host) {
  *  glyph atlases, and folding those into the sample measures the wrong
  *  thing.
  *
- *  Always exits 0. The verdict is the output, not the exit status, so a
- *  slow sketch does not abort a pipeline that is benching several. */
+ *  A SLOW SKETCH IS NOT A FAILURE: the verdict is the output, not the
+ *  exit status, so benching several in a row does not stop at the first
+ *  one over budget. It exits 0 whenever it measured; a sketch that never
+ *  built, or a surface that could not be allocated, exits 1. */
 int runBench(sketch::Host& host, const CaptureOptions& options,
              const std::filesystem::path& path) {
   if (!awaitFirstBuild(host)) return 1;
@@ -733,7 +730,7 @@ std::filesystem::path thumbnailStoreDir(const std::string& override) {
  *  It answers to the same budget the window's fill does: a still that
  *  runs past it is abandoned and NOTED, so the note stands in for the
  *  thumbnail and neither this command nor the window spends the budget
- *  on that sketch again while its source and its host stay put. A sketch
+ *  on that sketch again while its source stays put. A sketch
  *  this machine cannot run is stood down by name rather than failed, and
  *  a sketch whose thumbnail or note is already fresh is left alone. */
 int runThumbnails(int only, const std::string& kind,
@@ -765,6 +762,7 @@ int runThumbnails(int only, const std::string& kind,
     }
     sketch::ThumbnailRun run;
     run.out = sketch::thumbnailFile(dir, entry.name, key);
+    run.stem = entry.name;
     run.maxDimension = sketch::kThumbnailWidth;
     run.budget = budget;
     run.heavy = heavy;
@@ -1028,10 +1026,18 @@ int main(int argc, char* argv[]) {
   // as the browser's lazy render does, and never brings a device up.
   if (warmThumbnails) {
     SketchCatalog::sketchDir = SIGIL_SKETCH_DIR;
+    // A SKETCH THAT DRAWS A PAGE NEEDS THE ONE ENGINE HERE TOO. Without
+    // it `sharedEngine()` answers null and such a sketch draws the card
+    // that says why it could not — which would then be written to disk
+    // under the sketch's own key, as if it were the picture.
+    SharedWebEngineScope sharedWebEngine;
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);
-    return runThumbnails(chosen, kind, thumbnailStoreDir(thumbnailDirArg),
-                         thumbnailBudget, thumbnailHeavy, fonts(), assets());
+    const int result =
+        runThumbnails(chosen, kind, thumbnailStoreDir(thumbnailDirArg),
+                      thumbnailBudget, thumbnailHeavy, fonts(), assets());
+    sharedWebEngine.shutdown();
+    return result;
   }
 
   if (!storyOptions.out.empty() && storyOptions.framesPerSketch > 0) {
@@ -1039,8 +1045,21 @@ int main(int argc, char* argv[]) {
     storyOptions.kind = kind;
     // `--gpu` FIRST, exactly as the sweep tests it: a montage of a set
     // needs the device its materials run in, and a run that did not ask
-    // for one must not bring it up as a side effect of the test.
-    if (gpu && selectionNeedsDevice(chosen, kind) && !useDevice()) return 1;
+    // for one must not bring it up as a side effect of the test. A
+    // selection that holds a set and did not ask is REFUSED rather than
+    // encoded on the CPU mesh executor: a set is lit by the device
+    // renderer, so the cut under that sketch's name would be a picture
+    // no recipe ran in.
+    if (selectionNeedsDevice(chosen, kind)) {
+      if (!gpu) {
+        std::fprintf(stderr,
+                     "--video: this selection holds a set, which is lit on "
+                     "the device; pass --gpu or narrow the selection with "
+                     "--kind\n");
+        return 2;
+      }
+      if (!useDevice()) return 1;
+    }
     SharedWebEngineScope sharedWebEngine;
     sketch::installCrashReporter({});
     finishMaterialWarmup(materialWarmup);
@@ -1188,6 +1207,7 @@ int main(int argc, char* argv[]) {
   SketchCatalog::thumbnailHeavy = thumbnailHeavy;
   SketchCatalog::thumbnailFonts = &fonts();
   SketchCatalog::thumbnailAssets = &assets();
+  SketchbookView::fonts = &fonts();
   SketchbookView::assetsDir = options.assetsDir;
   SketchbookView::flagsFile = options.flagsFile;
   SketchbookView::sharedDir = options.sharedDir;
@@ -1214,23 +1234,10 @@ int main(int argc, char* argv[]) {
   sketch::installCrashReporter(sketchFile.empty() ? sketchDir : sketchFile);
 
   QGuiApplication application(argc, argv);
-  QGuiApplication::setOrganizationDomain("sigil.dev");
-  QGuiApplication::setApplicationName("Sketchbook");
 
   finishMaterialWarmup(materialWarmup);
 
   QQmlApplicationEngine engine;
-  // The module's own types register lazily, when the engine first imports
-  // its URI — and only if no type module of that name exists yet. A type
-  // registered by hand into the same URI beforehand creates the module,
-  // and the engine then never asks for the rest. So the module's
-  // generated registration runs first, explicitly, and the hand
-  // registration joins it.
-  qml_register_types_Sigil_Sketchbook();
-  // SketchCatalog is set up by main() before QML loads, so it is
-  // registered into the module's URI here, beside that setup, rather
-  // than by a QML_ELEMENT the module compiled.
-  qmlRegisterType<SketchCatalog>("Sigil.Sketchbook", 1, 0, "SketchCatalog");
   QObject::connect(
       &engine, &QQmlApplicationEngine::objectCreationFailed, &application,
       [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
@@ -1320,6 +1327,14 @@ int main(int argc, char* argv[]) {
   // process does — and before it, whatever still holds textures it made:
   // released after its own queue, those take their teardown into static
   // destruction, where the locks they want no longer exist.
+  //
+  // THE BACKGROUND STILL IS THE FIRST THING ENDED, because it is the one
+  // thing still running: the QML engine is destroyed after this function
+  // returns, so a worker left to its own destructor would be walking a
+  // sketch while everything below is let go.
+  for (QObject* root : engine.rootObjects())
+    for (SketchCatalog* browser : root->findChildren<SketchCatalog*>())
+      browser->stopThumbnails();
   {
     QMutexLocker lock(&SketchbookView::hostMutex);
     SketchbookView::sessions.clear();

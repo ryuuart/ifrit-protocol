@@ -276,28 +276,37 @@ constexpr CanvasSpec kUnloaded{};
 }  // namespace
 
 std::filesystem::file_time_type hostBinaryTime() {
-  Dl_info info{};
-  if (dladdr(reinterpret_cast<void*>(&hostBinaryTime), &info) &&
-      info.dli_fname) {
-    std::error_code ec;
-    auto t = std::filesystem::last_write_time(info.dli_fname, ec);
-    if (!ec) return t;
-  }
-  return {};
+  // TAKEN ONCE, at the first ask, which is before any rebuild of this
+  // executable can land: the file behind a running image is replaced in
+  // place, so a stat taken after that replacement describes the NEW
+  // binary and postdates every header — and the guard that exists for
+  // exactly that moment would wave it through.
+  static const std::filesystem::file_time_type stamp = [] {
+    Dl_info info{};
+    if (dladdr(reinterpret_cast<const void*>(&hostBinaryTime), &info) &&
+        info.dli_fname) {
+      std::error_code ec;
+      auto t = std::filesystem::last_write_time(info.dli_fname, ec);
+      if (!ec) return t;
+    }
+    return std::filesystem::file_time_type{};
+  }();
+  return stamp;
 }
 
 namespace {
 
-/** Whether anything in this process has walked yet, so a host being
- *  built does not walk again after an owner already did. Set by the walk
- *  itself rather than guarding it: the walk is idempotent and a caller
- *  that asks for one is asking for one. */
+/** Whether this process's one walk has been claimed, so a host being
+ *  built does not walk again after an owner already took it. Claimed
+ *  rather than set by the walk, so that an owner starting the walk on a
+ *  thread of its own has taken it before the first host can ask. */
 std::atomic_bool g_swept{false};
 
 }  // namespace
 
+bool Host::claimSweep() { return !g_swept.exchange(true); }
+
 void Host::sweepAbandonedBuildDirs() {
-  g_swept.store(true, std::memory_order_relaxed);
   std::error_code ec;
   const std::filesystem::path root = std::filesystem::temp_directory_path(ec);
   if (ec) return;
@@ -318,10 +327,9 @@ Host::Host(Options options, weave::FontContext& fonts)
       m_assets(m_options.assetsDir) {
   // Before this process claims its own: the directories of runs that were
   // killed or that faulted are the ones nothing else will ever clear. An
-  // owner that swept while its window was coming up has already done it,
-  // and this host walks nothing.
-  if (!g_swept.exchange(true, std::memory_order_relaxed))
-    sweepAbandonedBuildDirs();
+  // owner that swept while its window was coming up claimed the walk
+  // before this host existed, and this host walks nothing.
+  if (claimSweep()) sweepAbandonedBuildDirs();
   m_buildDir = acquireBuildDir();
   m_hostId = ++g_nextHostId;
   // A sketch this binary already carries opens instantly, and the file is
@@ -452,24 +460,18 @@ void Host::startCompile() {
   m_compileStart = std::chrono::steady_clock::now();
 
   // Skew guard: never hand a dylib built against newer framework headers
-  // to an older host — the crash it prevents is unattributable.
-  if (const auto hostTime = hostBinaryTime();
-      hostTime != std::filesystem::file_time_type{}) {
+  // to an older host — the crash it prevents is unattributable. The
+  // reference point is the image that is RUNNING, not the file on disk,
+  // which a rebuild replaces underneath it.
+  if (m_options.hostStamp != std::filesystem::file_time_type{}) {
     if (const std::string stale =
-            newerHeaderThanHost(m_options.flagsFile, hostTime);
+            newerHeaderThanHost(m_options.flagsFile, m_options.hostStamp);
         !stale.empty()) {
       m_errorLog =
-          "framework headers are NEWER than this host binary (" + stale +
-          ").\n"
-          "A sketch compiled against skewed headers would corrupt the host "
-          "ABI, so this build is refused rather than risked.\n\n"
-          "If you are ONE AGENT IN A SHARED SESSION: this is normal and "
-          "expected. Someone changed the library and the host is being "
-          "rebuilt. WAIT A MOMENT AND RE-RUN THIS EXACT COMMAND. Do not run "
-          "cmake or ninja yourself — the build directory is shared and a "
-          "second build will corrupt it. If it persists past a few "
-          "minutes, say so rather than working around it.\n\n"
-          "If you OWN this checkout: rebuild the host.";
+          "framework headers are newer than this host (" + stale +
+          ").\nA sketch built against them would load into a host whose "
+          "structs have the old layout, so this build is refused: rebuild "
+          "Sketchbook and restart it.";
       m_status = "stale host — waiting for a rebuild";
       return;  // keep the previous sketch alive
     }
@@ -548,21 +550,27 @@ void Host::adopt(const std::filesystem::path& library) {
   auto abi = reinterpret_cast<unsigned (*)()>(dlsym(handle, "sigilSketchAbi"));
   auto exported =
       reinterpret_cast<const Entry* (*)()>(dlsym(handle, "sigilSketchEntry"));
+  // A REFUSED IMAGE IS CLOSED. Nothing in it is referenced — no session
+  // was opened, no vtable and no string literal of its is held — which
+  // is what separates it from the images below, none of which is ever
+  // closed.
   if (!abi || !exported || abi() != kAbiVersion) {
+    dlclose(handle);
     m_errorLog =
         "sketch ABI mismatch — is SIGIL_SKETCH(...) present? "
         "(after framework changes, restart the host)";
     m_status = "load failed";
     return;
   }
-  m_libraries.push_back(handle);
 
   const Entry* entry = exported();
   if (!entry || !entry->kind) {
+    dlclose(handle);
     m_errorLog = "the sketch exported no kind";
     m_status = "load failed";
     return;
   }
+  m_libraries.push_back(handle);
   m_kind = entry->kind();
   openSession(m_kind);
   m_errorLog.clear();

@@ -13,6 +13,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 
 #include "ScratchDir.h"
 #include "support/Fixtures.h"
@@ -96,9 +97,10 @@ Entry entryOf(const char* name) {
   return Entry{name, name, "Test", "a thumbnail fixture", &kindOf<SketchType>};
 }
 
-ThumbnailRun runInto(const std::filesystem::path& out) {
+ThumbnailRun runInto(const std::filesystem::path& out, std::string stem) {
   ThumbnailRun run;
   run.out = out;
+  run.stem = std::move(stem);
   run.maxDimension = 64;
   return run;
 }
@@ -188,7 +190,8 @@ TEST(ThumbnailRender, AWalkLetGoAnswersWithoutFinishingIt) {
   g_frames.store(0);
   g_stop.store(false);
   const Entry entry = entryOf<Counting>("thumbnail_counting");
-  ThumbnailRun run = runInto(thumbnailFile(dir.path, "counting", "aaaa"));
+  ThumbnailRun run =
+      runInto(thumbnailFile(dir.path, "counting", "aaaa"), "counting");
   run.budget = std::chrono::milliseconds::zero();  // only the stop ends it
   run.stop = &g_stop;
 
@@ -206,7 +209,7 @@ TEST(ThumbnailRender, AWalkPastItsBudgetIsAbandoned) {
   const ScratchDir dir("sigil_thumbnail_budget");
   g_frames.store(0);
   const Entry entry = entryOf<Long>("thumbnail_long");
-  ThumbnailRun run = runInto(thumbnailFile(dir.path, "long", "aaaa"));
+  ThumbnailRun run = runInto(thumbnailFile(dir.path, "long", "aaaa"), "long");
   // The smallest budget there is: whatever this machine's speed, one
   // frame of anything outlasts it, and what is asserted is that the walk
   // ended far short of its whole rather than when.
@@ -222,7 +225,7 @@ TEST(ThumbnailRender, ASketchThatDeclaredItselfAPlateIsNotWalked) {
   const ScratchDir dir("sigil_thumbnail_heavy");
   g_frames.store(0);
   const Entry entry = entryOf<Plate>("thumbnail_plate");
-  ThumbnailRun run = runInto(thumbnailFile(dir.path, "plate", "aaaa"));
+  ThumbnailRun run = runInto(thumbnailFile(dir.path, "plate", "aaaa"), "plate");
 
   EXPECT_EQ(ThumbnailOutcome::Heavy,
             renderThumbnail(entry, fonts(), assets(), run));
@@ -240,7 +243,7 @@ TEST(ThumbnailRender, AWalkInsideItsBudgetWritesTheStill) {
   const ScratchDir dir("sigil_thumbnail_wrote");
   g_frames.store(0);
   const Entry entry = entryOf<Plate>("thumbnail_plate_again");
-  ThumbnailRun run = runInto(thumbnailFile(dir.path, "plate", "cccc"));
+  ThumbnailRun run = runInto(thumbnailFile(dir.path, "plate", "cccc"), "plate");
   run.heavy = true;
   run.budget = std::chrono::milliseconds::zero();
 

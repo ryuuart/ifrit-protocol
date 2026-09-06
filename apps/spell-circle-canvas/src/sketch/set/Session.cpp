@@ -8,6 +8,7 @@
 #include <sigilmeasure/time/Laps.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilsketch/core/Crash.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/scene/Scene.h>
@@ -20,14 +21,16 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sigil::sketch {
 
 namespace {
 
-/** The process's runtime. A device is one device and one queue for the
- *  whole run; an empty value is the CPU mesh executor. */
+/** The runtime a session opens on when its kind states none. A device
+ *  is one device and one queue for the whole run; an empty value is the
+ *  CPU mesh executor. */
 world::Runtime& processRuntime() {
   static world::Runtime runtime;
   return runtime;
@@ -61,8 +64,9 @@ void throughPasses(world::Frame& frame, const SkColor4f& background) {
 /** ONE 3D SKETCH, RUNNING. */
 class SetSession final : public Session {
  public:
-  SetSession(Set* set, weave::FontContext& fonts, Assets& assets)
-      : m_set(set), m_scene(m_ticker) {
+  SetSession(Set* set, weave::FontContext& fonts, Assets& assets,
+             world::Runtime runtime)
+      : m_set(set), m_scene(m_ticker), m_runtime(std::move(runtime)) {
     m_spec.size = {900, 640};
     m_spec.background = {0.04f, 0.045f, 0.06f, 1.0f};
     m_spec.captureSeconds = 1.0;
@@ -99,8 +103,8 @@ class SetSession final : public Session {
       // camera — which stands before whatever the set declared.
       frame.scene(world::Element().camera(m_orbit).child(frame.scene()));
     }
-    if (processRuntime()) {
-      frame.runtime(processRuntime());
+    if (m_runtime) {
+      frame.runtime(m_runtime);
       throughPasses(frame, m_spec.background);
     }
     m_scene.render(frame);
@@ -115,7 +119,13 @@ class SetSession final : public Session {
       m_declared = declared ? *declared : m_camera;
     }
     m_timing.updateMs = m_laps.mark("update");
-    paint(canvas);
+    // The phase turns over where the sketch's own body ends and its
+    // runtime's painting begins, so a fault reads the same whichever
+    // host drove the frame: one call in, two phases.
+    {
+      PhaseMark mark(Phase::Draw);
+      paint(canvas);
+    }
     m_timing.drawMs = m_laps.mark("draw");
     m_timing.totalMs = m_laps.totalMs();
     const world::SceneStats& stats = m_scene.stats();
@@ -208,6 +218,9 @@ class SetSession final : public Session {
    *  still standing when its wearer goes. */
   std::vector<std::shared_ptr<compose::TextureScene>> m_scenes;
   std::unique_ptr<Set> m_set;
+  /** Taken once, when this session opened: every frame it draws goes
+   *  through this one, whatever the process installed after. */
+  world::Runtime m_runtime;
   motion::Ticker m_ticker;
   world::Scene m_scene;
   CanvasSpec m_spec;
@@ -234,7 +247,18 @@ std::unique_ptr<Session> SetKind::open(weave::FontContext& fonts,
                                        Assets& assets,
                                        bool deterministic) const {
   (void)deterministic;
-  return std::make_unique<SetSession>(m_factory(), fonts, assets);
+  return std::make_unique<SetSession>(
+      m_factory(), fonts, assets, m_runtime ? *m_runtime : processRuntime());
+}
+
+Kind onRuntime(const Kind& kind, const world::Runtime& runtime) {
+  // The concrete kind is asked for by type because the runtime is a set's
+  // own vocabulary: a canvas and a pen have no frame to run through one,
+  // and a host holding a mixed selection says this about every kind it
+  // holds rather than sorting them first.
+  if (const auto* set = dynamic_cast<const SetKind*>(kind.get()))
+    return set->on(runtime);
+  return kind;
 }
 
 void useRuntime(const world::Runtime& runtime) { processRuntime() = runtime; }

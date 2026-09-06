@@ -90,69 +90,24 @@ defer, and the nits the fix pass's report names as left.
 
 ## Sketch framework (findings/review-sketch-framework.md)
 
-Blockers:
+Both blockers, the correctness should-fixes, the kit's spellings and its
+look defaults are fixed. What is left of this group:
 
-- `src/sketch/set/Session.cpp:102-104`, `book/SketchCatalog.cpp:464-488`,
-  `book/main.cpp:1169,1329` — the thumbnail worker renders set sketches
-  through the process-wide runtime, which in the app is the Diligent
-  device installed before the catalog exists, so a background thread
-  drives the device and queue the render thread draws with, and at quit
-  `releaseDevice()` runs before the worker is joined. Intended: a
-  thumbnail is CPU-only whatever the process holds. Fix: the runtime
-  becomes a per-session value and thumbnails open on `Runtime::cpu()`;
-  until then stand `needsDevice()` kinds down while a device is installed
-  and end the fill before the device is released. Assert: a set-kind
-  thumbnail with a runtime installed never reaches it.
-- `src/sketch/live/Host.cpp:456-457,278-287` — the skew guard stats the
-  executable on disk at every compile; once the host is rebuilt while the
-  old window runs, the file is newer than every header, the guard passes
-  and the old process loads a dylib built against new headers. Fix:
-  capture the stamp once at first call (or in `Host::Options`). Assert:
-  moving the binary's mtime forward after construction keeps the refusal.
-
-Should-fix:
-
-- `book/SketchbookView.cpp:369,442,452` — `openSketch`/`publishMetrics`
-  assign `m_orbitable`, `m_metrics`, `m_orbit` on the render thread
-  outside `synchronize()` while the GUI reads them; carry the values in
-  the queued lambdas.
-- `plate/Sweep.cpp:415` vs `Sweep.h:98` — a failed GPU readback
-  `continue`s with no plate and exits 0; return 1 as the raster path does.
-- `README.md:623-627` vs `book/main.cpp:1037-1051` — README says `--video`
-  on a set requires `--gpu`; the code encodes on the CPU executor; refuse
-  or rewrite.
-- `Host.h:36-45`, `SketchCatalog.h:44`, `main.cpp:736` — say the host
-  stamp is in the thumbnail key; the code and README say it is not;
-  delete the host clause.
-- `live/Host.cpp:461-472`, `core/Crash.cpp:1018-1033` — shipped strings
-  carry agent-workflow prose, file citations and a stale "dylib links its
-  own libskia.a" claim; reduce both to the constraint.
-- `live/Residency.cpp:35-36`, `live/Host.cpp:342`,
-  `SketchbookView.cpp:344,657,760` — eviction runs under `hostMutex` on
-  the render thread and `~Host` joins its compile; hand the evicted host
-  back to be destroyed outside the lock.
-- `kit/Rows.h:30,46`, `Legend.h:67`, `Ticker.h:75`, `Heading.h:39`,
-  `Scrollbar.h:64` — `swatch` is a `Ground` in one struct and a `float`
-  side in the next; `ink` is `Fill` on Timeline and `SkColor4f` on five
-  others; `Scrollbar::horizontal` inverts the `column` polarity;
-  `swatchSide`, `Fill` everywhere, `column`.
-- `kit/Panel.h:71-77`, `Legend.h:128`, `Ticker.h:71`, `Cells.h:108-124`
-  — corner radii, bezel and tick reach are look defaults hard-coded in
-  props rather than `Theme::spacing`; `columns()` is `panelGrid` with
-  `columns = cells.size()`; optional props read from `Spacing`, fold
-  `columns` into `panelGrid`.
-- `book/main.cpp:1029-1035` — `--thumbnails` never creates the shared
-  web engine scope, so a web sketch's still is its "unavailable" card.
-- `book/main.cpp:211` = `SketchbookView.cpp:80` — two identical `fonts()`
-  each leaking a `FontContext`; one owner.
 - `kit/README.md:365-368`, `kit/CMakeLists.txt:12-19` — "links no device
   and no runtime" while the target links `SigilSketch` PUBLIC; split
   `core/` into its own target or state the link.
 - Files by subject: `book/main.cpp` (1331), `book/SketchbookView.cpp`
-  (896), `kit/test/SketchKitTest.cpp` (1221), `book/qml/Main.qml` (850).
+  (896), `book/qml/Main.qml` (850) — deferred by the rulings above.
 - Tests: the thumbnail worker's queue and cancellation (lift into a
   Qt-free `ThumbnailQueue` under `plate/`); a set-kind thumbnail case;
   the rebuilt-while-running skew case.
+- `sketch::device()` and `sketch::painterRuntime()` are still process-wide
+  where a set's runtime is now per-session, so a CANVAS sketch that stands
+  a mesh up in space (`floating_panels`, `painter_gpu`) still draws its
+  background thumbnail through whatever device the process installed.
+  Intended: a still is CPU-only whatever the process holds, for every
+  runtime. Assert: a canvas thumbnail with a painter runtime installed
+  never reaches it.
 
 ## The sketches (findings/review-sketches.md)
 

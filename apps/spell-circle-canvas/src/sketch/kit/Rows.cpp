@@ -21,7 +21,7 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
       box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (how.measure > 0) row.width(Dim(how.measure));
   if (!reading.swatch.none()) {
-    const float side = how.swatch.value_or(look.spacing.swatch);
+    const float side = how.swatchSide.value_or(look.spacing.swatchSide);
     Element mark = box().width(Dim(side)).height(Dim(side));
     reading.swatch.paint(mark);
     mark.shrink(0);
@@ -84,7 +84,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
                        .gap(how.gap.value_or(look.spacing.labelGap));
     if (!row.key.empty()) line.key(row.key);
     if (!row.swatch.none()) {
-      const float side = how.swatch.value_or(look.spacing.swatch);
+      const float side = how.swatchSide.value_or(look.spacing.swatchSide);
       Element mark = box().width(Dim(side)).height(Dim(side));
       row.swatch.paint(mark);
       mark.shrink(0);

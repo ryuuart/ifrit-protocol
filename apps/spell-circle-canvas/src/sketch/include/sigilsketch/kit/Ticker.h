@@ -56,17 +56,17 @@ struct Timeline {
     std::u8string label;
     /** A minor mark's tick is half as long and its word is absent. */
     bool major = true;
-    /** THE WORD'S OWN COLOUR; unset leaves it in the scale's ink. It is
-     *  here because one mark of a scale is often called out — a now, a
+    /** THE WORD'S OWN INK; unset leaves it in the scale's. It is here
+     *  because one mark of a scale is often called out — a now, a
      *  deadline — and the rest of the words stay quiet. */
-    std::optional<SkColor4f> ink;
+    std::optional<compose::Fill> ink;
   };
   std::vector<Mark> marks;
   compose::Dim width;
   /** Unset is the theme's bar height. */
   std::optional<float> height;
-  /** How far a major tick reaches past the rail. */
-  float tick = 5;
+  /** How far a major tick reaches past the rail; unset is the theme's. */
+  std::optional<float> tick;
   /** The rail; unset is the theme's rule colour. */
   std::optional<Ground> rail;
   /** THE INK EVERY MARK IS DRAWN IN — the ticks and the words alike,

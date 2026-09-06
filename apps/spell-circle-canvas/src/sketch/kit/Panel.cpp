@@ -42,21 +42,27 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
   Element opening = compose::box().column().grow(1);
   chrome.screen.value_or(Fill::color(look.palette.ground)).paint(opening);
   opening.clip().child(std::move(screen));
-  if (chrome.screenCorners > 0) opening.corners(Corners{chrome.screenCorners});
+  if (const float round =
+          chrome.screenCorners.value_or(look.spacing.screenCorners);
+      round > 0)
+    opening.corners(Corners{round});
   const Fill rule = chrome.keyline.value_or(Fill::color(look.palette.rule));
   if (rule.kind != Fill::Kind::None)
     opening.stroke(compose::stroke(1, rule, compose::PathFormat::Align::Inner));
 
-  Element shell = compose::box().column().padding(chrome.bezel);
+  const float bezel = chrome.bezel.value_or(look.spacing.bezel);
+  Element shell = compose::box().column().padding(bezel);
   chrome.shell.value_or(Fill::color(look.palette.cellGround)).paint(shell);
   if (chrome.width.unit != Dim::Unit::Auto) shell.width(chrome.width);
   if (chrome.height.unit != Dim::Unit::Auto) shell.height(chrome.height);
-  if (chrome.corners > 0) shell.corners(Corners{chrome.corners});
+  if (const float round = chrome.corners.value_or(look.spacing.panelCorners);
+      round > 0)
+    shell.corners(Corners{round});
   shell.child(std::move(opening));
   if (!chrome.plate.empty())
     shell.child(
         text(chrome.plate, look.style(look.type.eyebrow, look.palette.ash))
-            .margin(0, chrome.bezel * 0.5f, 0, 0)
+            .margin(0, bezel * 0.5f, 0, 0)
             .alignSelf(Align::Center));
   return shell;
 }

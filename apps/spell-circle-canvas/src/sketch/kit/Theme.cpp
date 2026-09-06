@@ -12,6 +12,24 @@ weave::TextStyle Theme::style(const Register& line, SkColor4f color) const {
        .track = line.track});
 }
 
+weave::TextStyle Theme::style(const Register& line,
+                              const compose::Fill& ink) const {
+  switch (ink.kind) {
+    case compose::Fill::Kind::Color:
+      return style(line, ink.colorValue);
+    case compose::Fill::Kind::Shader: {
+      // The glyphs are painted through the shader itself; the colour
+      // under it only has to be opaque for the shader to show.
+      weave::TextStyle word = style(line, SkColors::kWhite);
+      word.paint.foreground.setShader(ink.shaderValue);
+      return word;
+    }
+    case compose::Fill::Kind::None:
+      break;
+  }
+  return style(line, SkColor4f{0, 0, 0, 0});
+}
+
 weave::TextStyle Theme::sans(float size, SkColor4f color, float track) const {
   return style({.size = size, .track = track, .mono = false}, color);
 }

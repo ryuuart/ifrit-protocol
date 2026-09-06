@@ -48,7 +48,8 @@ compose::Element titleCard(const TitleCard& card) {
   const auto say = [&](const Line& line, const Register& reg, SkColor4f ink,
                        const char* which, float before) {
     if (line.words.empty()) return;
-    place(spoken(line, look.style(reg, line.ink.value_or(ink)), named(which)),
+    place(spoken(line, look.style(reg, line.ink.value_or(Fill::color(ink))),
+                 named(which)),
           before);
   };
   say(card.eyebrow, look.type.eyebrow, look.palette.ash, "eyebrow", 0);
@@ -71,11 +72,12 @@ compose::Element titleCard(const TitleCard& card) {
       box().column().gap(look.spacing.rowGap).alignItems(Align::End);
   for (size_t i = 0; i < card.notes.size(); ++i) {
     const Line& note = card.notes[i];
-    ranged.child(spoken(
-        note,
-        look.style(look.type.captionNote, note.ink.value_or(look.palette.ash)),
-        card.key.empty() ? std::string()
-                         : card.key + "-note" + std::to_string(i)));
+    ranged.child(
+        spoken(note,
+               look.style(look.type.captionNote,
+                          note.ink.value_or(Fill::color(look.palette.ash))),
+               card.key.empty() ? std::string()
+                                : card.key + "-note" + std::to_string(i)));
   }
   return box()
       .row()

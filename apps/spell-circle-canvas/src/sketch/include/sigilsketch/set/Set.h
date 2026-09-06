@@ -17,6 +17,7 @@
 
 #include <concepts>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace sigil::weave {
@@ -110,9 +111,26 @@ class SetKind final : public KindOps {
  public:
   using Factory = Set* (*)();
   explicit SetKind(Factory factory) : m_factory(factory) {}
-  /** What identifies a kind is the body it opens; see the 2D kind. */
+  /** What identifies a kind is the body it opens and where it opens it;
+   *  see the 2D kind for the first half. */
   bool operator==(const SetKind& other) const {
-    return m_factory == other.m_factory;
+    return m_factory == other.m_factory && m_runtime == other.m_runtime;
+  }
+
+  /** THIS KIND, OPENING ITS SESSIONS ON @p runtime — an empty one being
+   *  the CPU mesh executor.
+   *
+   *  A session takes its runtime once, when it opens, and draws every
+   *  frame through that one: what a host installed on the process is the
+   *  DEFAULT a session takes, not a value it re-reads. So a host that
+   *  must draw a set somewhere other than where the process's device
+   *  stands — a background still on a thread that shares no queue with
+   *  the one presenting — says so here and the sessions it opens are
+   *  unaffected by what any other thread installed. */
+  [[nodiscard]] SetKind on(const world::Runtime& runtime) const {
+    SetKind stated = *this;
+    stated.m_runtime = runtime;
+    return stated;
   }
 
   [[nodiscard]] std::string_view runtime() const override { return "set"; }
@@ -130,7 +148,18 @@ class SetKind final : public KindOps {
 
  private:
   Factory m_factory;
+  /** Unset is the process's own — the runtime a host installed once. */
+  std::optional<world::Runtime> m_runtime;
 };
+
+/** @p kind WITH THE RUNTIME ITS SESSIONS DRAW THROUGH STATED, rather
+ *  than read off the process when each opens.
+ *
+ *  A kind that draws through no such runtime — a 2D canvas, a pen — is
+ *  returned unchanged, so a host may say this about whatever it is
+ *  holding. An empty runtime is the CPU mesh executor, which is what a
+ *  caller that must not reach the process's device asks for. */
+[[nodiscard]] Kind onRuntime(const Kind& kind, const world::Runtime& runtime);
 
 /** The factory SIGIL_SKETCH takes the ADDRESS of; see the 2D one for why
  *  it is a named template rather than a lambda. */
@@ -146,13 +175,17 @@ template <class SetType>
   return SetKind{&makeSet<SetType>};
 }
 
-/** THE RUNTIME EVERY SET SESSION DRAWS THROUGH, for this process.
+/** THE RUNTIME A SET SESSION DRAWS THROUGH UNLESS ITS KIND STATED ONE,
+ *  for this process.
  *
  *  An empty runtime is the CPU mesh executor: it needs no device, it is
  *  what a machine with no Vulkan runtime renders on, and it is what a
  *  byte-identity plate is hashed from. A host that brought a device up
- *  says so ONCE — one device, one queue, every session — because a
- *  device is a property of the process and not of a sketch.
+ *  says so ONCE — one device, one queue — because a device is a property
+ *  of the process and not of a sketch. It is READ AT OPEN: a session
+ *  keeps the runtime it opened with, so installing another does not
+ *  reach into a session already running, and `onRuntime` above is how a
+ *  host opens one somewhere else.
  *
  *  A call that takes the DEVICE itself rather than a runtime over it
  *  reaches `sketch::device()`, from `<sigilsketch/core/Device.h>`. */

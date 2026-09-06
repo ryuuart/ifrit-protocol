@@ -1,23 +1,23 @@
 #pragma once
 
 /** @file
- * The look a sheet is set in, as one comparable value: the five colours,
- * the registers the four lines are set in, and the distances between
- * things. It is bound for a scope and read where a component is
- * described, so a component four levels down obeys it without being
- * handed it.
+ * The look a sheet is set in, as one comparable value: the colours, the
+ * registers its lines are set in, and the distances between things. It is bound
+ * for a scope and read where a component is described, so a component four
+ * levels down obeys it without being handed it.
  */
 
 #include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcore/reconcile/Env.h>
 #include <sigilweave/style/TextStyle.h>
 
 namespace sigil::sketch::kit {
 
-/** THE FIVE COLOURS A SHEET IS SET IN.
+/** THE COLOURS A SHEET IS SET IN.
  *
  *  A comparable VALUE, and the comparison is exact: two palettes are
  *  equal when everything described under them describes the same, which
@@ -128,9 +128,24 @@ struct Spacing {
   /** Inside a panel or a device's shell, around what it holds. */
   float panelPadding = 12;
   /** The side of a legend's swatch. */
-  float swatch = 10;
+  float swatchSide = 10;
   /** The thickness of a meter's bar and of a timeline's rail. */
   float barHeight = 6;
+  /** THE RADII AND THE REACHES A LOOK RATHER THAN A CALLER FIXES: how
+   *  round a panel or a device's shell is, how round the screen inset
+   *  into it is, how much shell stands around that screen, how round a
+   *  chip is, and how far a scale's major tick reaches past its rail.
+   *
+   *  They are here rather than in the components' own props because they
+   *  are the same decision on every sheet: a sketch under another theme
+   *  states them once instead of restating them at every call, and a
+   *  component takes one as the answer wherever its (optional) prop is
+   *  unset. */
+  float panelCorners = 6;
+  float screenCorners = 2;
+  float bezel = 10;
+  float chipCorners = 2;
+  float tickReach = 5;
   bool operator==(const Spacing&) const = default;
 };
 
@@ -155,8 +170,16 @@ struct Theme {
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,
                                        SkColor4f color) const;
+  /** @p line IN AN INK, which is what a component that fills a patch and
+   *  names it beside is holding: the same value paints both. A colour
+   *  sets the glyphs in it; a shader is carried onto the glyphs' own
+   *  paint, so a word shades the way the patch beside it does; an ink
+   *  that paints nothing leaves the line as absent as it leaves the
+   *  patch. */
+  [[nodiscard]] weave::TextStyle style(const Register& line,
+                                       const compose::Fill& ink) const;
   /** A line in the sans face at an arbitrary size — for the text a sheet
-   *  sets that is none of the four registers. */
+   *  sets that none of the registers above covers. */
   [[nodiscard]] weave::TextStyle sans(float size, SkColor4f color,
                                       float track = 0) const;
   /** The same in the mono face. */

@@ -6,6 +6,7 @@
 #include "sigilsketch/live/Residency.h"
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include "sigilsketch/live/Host.h"
@@ -32,17 +33,29 @@ Residency::Presented Residency::present(const std::string& key,
     if (m_sessions.front().host) m_sessions.front().host->resume();
     return {m_sessions.front().host.get(), false};
   }
+  // ROOM FIRST, THEN THE SESSION. Opening before evicting would hold one
+  // session more than the capacity states — every switch, at the moment
+  // the set is widest — and the capacity is a memory budget.
+  Presented presented;
+  while (m_sessions.size() >= m_capacity) {
+    presented.evicted = std::move(m_sessions.back().host);
+    m_sessions.pop_back();
+  }
   m_sessions.insert(m_sessions.begin(), Resident{key, open()});
-  while (m_sessions.size() > m_capacity) m_sessions.pop_back();
-  return {m_sessions.front().host.get(), true};
+  presented.host = m_sessions.front().host.get();
+  presented.opened = true;
+  return presented;
 }
 
 Host* Residency::presented() const {
   return m_sessions.empty() ? nullptr : m_sessions.front().host.get();
 }
 
-void Residency::dropPresented() {
-  if (!m_sessions.empty()) m_sessions.erase(m_sessions.begin());
+std::unique_ptr<Host> Residency::dropPresented() {
+  if (m_sessions.empty()) return nullptr;
+  std::unique_ptr<Host> dropped = std::move(m_sessions.front().host);
+  m_sessions.erase(m_sessions.begin());
+  return dropped;
 }
 
 std::vector<std::string> Residency::keys() const {

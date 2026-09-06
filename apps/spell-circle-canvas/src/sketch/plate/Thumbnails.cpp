@@ -14,6 +14,7 @@
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/plate/Thumbnails.h>
+#include <sigilsketch/set/Set.h>
 
 #include <algorithm>
 #include <atomic>
@@ -175,7 +176,14 @@ bool stopped(const std::atomic_bool* stop) {
 
 ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
                                  Assets& assets, const ThumbnailRun& run) {
-  const Kind kind = entry.kind();
+  // ON THE CPU WHATEVER THE PROCESS INSTALLED. A still is drawn on a
+  // worker beside a window that is presenting, and a device is one device
+  // and one queue: a background walk driving the queue the render thread
+  // is drawing with is two threads inside one graphics context. So the
+  // kind is opened on an empty runtime — the CPU mesh executor, which is
+  // also the tier a plate is hashed from — and what a host installed
+  // reaches nothing here.
+  const Kind kind = onRuntime(entry.kind(), {});
   if (!kind) return ThumbnailOutcome::Failed;
   // Deterministic, so a sketch that measured something about its own
   // execution pins it — a thumbnail is a picture that will be looked at
@@ -241,10 +249,7 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
       image::encodeImage(bitmap.pixmap(), image::Format::Png);
   if (!png || !io::writeBytes(run.out, png->data(), png->size()))
     return ThumbnailOutcome::Failed;
-  pruneThumbnails(
-      run.out.parent_path(),
-      run.out.stem().string().substr(0, run.out.stem().string().find(kKeyMark)),
-      run.out);
+  pruneThumbnails(run.out.parent_path(), run.stem, run.out);
   return ThumbnailOutcome::Wrote;
 }
 

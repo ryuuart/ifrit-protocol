@@ -125,12 +125,10 @@ void handler(int number) {
   emit(
       "\n\nThis is a fault inside the SKETCH image, not the host. The two\n"
       "that account for almost all of them:\n"
-      "  * a stock SkSL material whose main() is not monolithic, or that\n"
-      "    has a uniform-guarded loop bound. A sketch dylib links its own\n"
-      "    libskia.a, so the AST is built in the sketch's Skia image while\n"
-      "    the inliner runs in the host's, and dispatch across that\n"
-      "    boundary faults on PAC. See the rule beside patterns::grain in\n"
-      "    Patterns.h, and sketches/stock_materials.cpp.\n"
+      "  * an SkSL material whose main() is not monolithic, or whose loop\n"
+      "    bound is a uniform: its AST is built on one side of the\n"
+      "    host/dylib line and inlined on the other, and dispatch across\n"
+      "    that boundary faults on PAC.\n"
       "  * a steppable that captured SketchContext& — it is a per-frame\n"
       "    value the host rebuilds, so the reference dangles. Capture\n"
       "    `this` and take the context as a parameter.\n\nstack:\n");

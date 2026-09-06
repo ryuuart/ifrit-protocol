@@ -149,23 +149,24 @@ compose::Element cells(Run run) {
                      run.align, /*column=*/false, run.align);
 }
 
-compose::Element columns(Columns run) {
-  const float gap = run.gap.value_or(theme().spacing.cellGap);
+compose::Element panelGrid(PanelGrid grid) {
+  const float gap = grid.gap.value_or(theme().spacing.cellGap);
   // Every cell takes one share, and a share has no floor of its own: that
   // is what makes three panels of very different content three equal
   // columns, where a run of content tracks would give each its own width.
-  const size_t count = run.cells.size();
-  std::vector<compose::layouts::Track> tracks =
-      interleave(run.cells, compose::layouts::fr(), ruleOf(run.ruled),
-                 /*column=*/false, std::max<size_t>(count, 1));
-  return arrangement(std::move(run.cells), std::move(tracks),
-                     {crossTrack(run.align)}, {gap, 0}, compose::Align::Stretch,
-                     run.align, /*column=*/false, run.align);
-}
-
-compose::Element panelGrid(PanelGrid grid) {
-  const float gap = grid.gap.value_or(theme().spacing.cellGap);
-  const size_t across = (size_t)std::max(grid.columns, 1);
+  // A grid told nothing about how many stand across puts them all in one
+  // row, which is that band and not a wrap of one column.
+  const bool oneRow = grid.columns <= 0;
+  if (oneRow) {
+    std::vector<compose::layouts::Track> tracks =
+        interleave(grid.cells, compose::layouts::fr(), ruleOf(grid.ruled),
+                   /*column=*/false, std::max<size_t>(grid.cells.size(), 1));
+    return arrangement(std::move(grid.cells), std::move(tracks),
+                       {crossTrack(grid.align)}, {gap, 0},
+                       compose::Align::Stretch, grid.align, /*column=*/false,
+                       grid.align);
+  }
+  const size_t across = (size_t)grid.columns;
   // The wrap is the grid's own flow: the cells fill a row of equal shares
   // and drop to the next. A short last row keeps its cells at one share
   // each, because the shares are the TRACKS and not the children — there

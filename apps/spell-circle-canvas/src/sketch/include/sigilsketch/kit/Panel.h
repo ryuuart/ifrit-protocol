@@ -68,13 +68,16 @@ struct Frame {
   compose::Dim height;
   /** The body; unset is the theme's cell ground. */
   std::optional<Ground> shell;
-  float corners = 6;
-  /** How much shell stands around the screen on every side. */
-  float bezel = 10;
+  /** Unset is the theme's panel radius. */
+  std::optional<float> corners;
+  /** How much shell stands around the screen on every side; unset is the
+   *  theme's bezel. */
+  std::optional<float> bezel;
   /** The screen's own ground; unset is the theme's page ground, which is
    *  the darker of the theme's two. */
   std::optional<Ground> screen;
-  float screenCorners = 2;
+  /** Unset is the theme's screen radius. */
+  std::optional<float> screenCorners;
   /** A keyline around the screen's opening; unset is the theme's rule.
    *  `Fill::none()` draws none — the same spelling `Well::ground` takes,
    *  for the shell whose only rule runs round its OUTER edge. */

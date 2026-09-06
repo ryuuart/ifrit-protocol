@@ -23,7 +23,7 @@ Thumb Scrolled::thumb() const {
 
 compose::Element scrollbar(Scrollbar bar) {
   const Theme& look = theme();
-  const bool down = !bar.horizontal;
+  const bool down = bar.column;
 
   Element shell = box();
   if (down)

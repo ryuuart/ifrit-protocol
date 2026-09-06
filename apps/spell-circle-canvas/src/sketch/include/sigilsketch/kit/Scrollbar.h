@@ -60,8 +60,9 @@ struct Scrolled {
  *  is the bar's own box, so the shell's fill, its keyline, its padding
  *  and its gutter are chained onto it in the caller's own words. */
 struct Scrollbar {
-  /** false runs the bar down the page, true along it. */
-  bool horizontal = false;
+  /** true (default) runs the bar down the page, false along it — the
+   *  same polarity every other run in this kit reads. */
+  bool column = true;
   /** The stepper at the start of the bar and the one at its end; unset
    *  draws none and spends no room. */
   std::optional<compose::Element> leading;

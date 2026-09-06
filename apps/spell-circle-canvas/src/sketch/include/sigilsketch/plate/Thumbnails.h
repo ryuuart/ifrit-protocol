@@ -11,7 +11,9 @@
  * a hash of the sketch's SOURCE and nothing else — so a thumbnail whose
  * key no longer matches is stale and is re-rendered. The render is the
  * same capture the CPU plate tier takes, scaled down, and it never
- * touches a device.
+ * touches a device: it opens every kind on the CPU runtime whatever the
+ * process installed, which is what lets it run on a worker thread beside
+ * a window that is presenting.
  */
 
 #include <sigilsketch/core/Registry.h>
@@ -118,6 +120,12 @@ enum class ThumbnailOutcome {
  *  what stops it. */
 struct ThumbnailRun {
   std::filesystem::path out;
+  /** THE NAME THE STILL IS FILED UNDER — the sketch's, as the store
+   *  spells it. It is what the spent stills and notes of other keys are
+   *  found by when this one lands, and the caller always has it: a name
+   *  recovered from the output's filename would be recovering what was
+   *  just put there. */
+  std::string stem;
   /** The still's larger side in pixels. */
   int maxDimension = kThumbnailWidth;
   /** How long the frame walk may take. Zero waits for the walk however
@@ -144,10 +152,12 @@ struct ThumbnailRun {
  *  fixed rate to its declared moment (or the sweep's derived default when
  *  it names none), takes the still the plate tier takes, and scales it so
  *  its larger side is `run.maxDimension` pixels before encoding a PNG.
- *  CPU only — it allocates a raster surface and never a device one, so it
- *  can run on a worker that shares no graphics context. Any older
- *  thumbnail for the same stem under the output's directory is
- *  removed. */
+ *  CPU ONLY, whatever the process holds — it allocates a raster surface
+ *  and never a device one, and it opens the kind on the CPU runtime
+ *  rather than on the one a host installed, so it can run on a worker
+ *  that shares no device and no queue with the thread that is
+ *  presenting. Any older thumbnail for `run.stem` under the output's
+ *  directory is removed. */
 [[nodiscard]] ThumbnailOutcome renderThumbnail(const Entry& entry,
                                                weave::FontContext& fonts,
                                                Assets& assets,

@@ -309,6 +309,17 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
 }
 
 SketchCatalog::~SketchCatalog() {
+  // The child render is this window's too: started from a button here,
+  // it has nothing to report to once the window is gone, so it is ended
+  // rather than left for QProcess to kill with a warning.
+  if (m_task.state() != QProcess::NotRunning) {
+    m_task.kill();
+    m_task.waitForFinished();
+  }
+  stopThumbnails();
+}
+
+void SketchCatalog::stopThumbnails() {
   // LEAVING IS NOT WAITING FOR A PICTURE. A still is a walk from zero to
   // the sketch's declared moment, so a render in flight can have minutes
   // left in it; a join alone would spend every one of them with the
@@ -323,6 +334,7 @@ SketchCatalog::~SketchCatalog() {
   }
   m_wake.notify_all();
   if (m_worker.joinable()) m_worker.join();
+  m_filling = false;
 }
 
 QVariantMap SketchCatalog::learn(int index, const QString& canvas,
@@ -479,6 +491,7 @@ void SketchCatalog::renderLoop() {
     sketch::ThumbnailRun run;
     run.out =
         sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name, key);
+    run.stem = entry.name;
     run.maxDimension = sketch::kThumbnailWidth;
     run.budget = SketchCatalog::thumbnailBudget;
     run.heavy = SketchCatalog::thumbnailHeavy;

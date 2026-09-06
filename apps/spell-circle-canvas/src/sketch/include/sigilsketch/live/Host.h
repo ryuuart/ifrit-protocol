@@ -33,15 +33,18 @@ class FontContext;
 
 namespace sigil::sketch {
 
-/** THE HOST BINARY'S BUILD IDENTITY: the last-write time of the running
- *  executable image.
+/** THE BUILD IDENTITY OF THE IMAGE THAT IS RUNNING: the last-write time
+ *  the executable carried when this process first asked.
  *
  *  It is what the reload skew guard compares framework headers against —
  *  a dylib compiled against headers newer than this stamp would load into
- *  a host whose structs have the old layout — and it is the same value a
- *  thumbnail key folds in, so that a rebuilt host (new drawing code)
- *  regenerates the stills it shows. A zero stamp means the image could
- *  not be located. */
+ *  a host whose structs have the old layout.
+ *
+ *  READ ONCE AND KEPT. The file on disk is replaced while the process
+ *  that mapped it keeps running, and a stamp re-read after that rebuild
+ *  postdates every header — which is exactly the moment the guard exists
+ *  for, and exactly the moment a fresh stat would let pass. A zero stamp
+ *  means the image could not be located. */
 [[nodiscard]] std::filesystem::file_time_type hostBinaryTime();
 
 /** THE LIVE HOST, and it is Qt-free on purpose: it watches the sketch's
@@ -90,6 +93,12 @@ class Host {
      *  than by building the file, and compile only once the file
      *  changes. Null means always build. */
     const Entry* compiledIn = nullptr;
+    /** THE IMAGE THIS HOST IS PART OF, as the skew guard's reference
+     *  point: a dylib built against a framework header newer than this
+     *  is refused. It defaults to the stamp the process read of its own
+     *  executable at first ask, and is a field so that a test can state
+     *  one. */
+    std::filesystem::file_time_type hostStamp = hostBinaryTime();
     /** How long between re-reads of the directories the sketch is
      *  built from — the one beside the entry and the shared layer. The
      *  entry itself is stamped every poll; the directories around it
@@ -125,10 +134,18 @@ class Host {
    *  system directly, and only the answer that says NOBODY HOLDS IT
    *  removes anything: a directory whose process is alive — this
    *  process's own included — is left standing. Calling it walks, every
-   *  time and from any thread; what runs once per process is the walk a
-   *  HOST does, so an owner that sweeps while its window is coming up
-   *  keeps it off the thread its first host is built on. */
+   *  time and from any thread. */
   static void sweepAbandonedBuildDirs();
+
+  /** TAKES THIS PROCESS'S ONE WALK, answering true to whoever took it
+   *  and false to everyone after.
+   *
+   *  The walk is worth doing once per run and it reads a whole temporary
+   *  directory, so an owner that wants it OFF the thread its first host
+   *  is built on claims it here — synchronously, before launching the
+   *  walk — and the first host then finds it claimed and walks nothing.
+   *  A host that finds it unclaimed walks itself. */
+  [[nodiscard]] static bool claimSweep();
 
   /** Drives the reload machinery: source mtime, finished compiles, asset
    *  changes. Call once per frame. */

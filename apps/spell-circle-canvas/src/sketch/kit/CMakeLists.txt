@@ -25,5 +25,8 @@ sigil_library(SigilSketchKit
 # the same values draws — asserted in pixels, because that is the claim a
 # migrated sketch's plate rests on.
 sigil_test(sketch_test
-  SOURCES test/SketchKitTest.cpp
+  SOURCES test/CellsTest.cpp test/ConsoleTest.cpp test/HeadingTest.cpp
+          test/LegendTest.cpp test/MeterTest.cpp test/PageTest.cpp
+          test/PanelTest.cpp test/PassageTest.cpp test/RowsTest.cpp
+          test/ScrollbarTest.cpp test/ThemeTest.cpp test/TickerTest.cpp
   LIBRARIES SigilSketchKit SigilMaterialKit SigilMotionClock)

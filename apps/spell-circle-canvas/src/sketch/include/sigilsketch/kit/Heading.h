@@ -8,6 +8,7 @@
 #include <include/core/SkColor.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/typography/Track.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilsketch/kit/Theme.h>
@@ -32,11 +33,12 @@ namespace sigil::sketch::kit {
  */
 struct Line {
   std::u8string words;
-  /** THE LINE'S OWN COLOUR; unset is whatever the theme's palette gives
-   *  the register this line is set in. It is here rather than in the
-   *  palette because a note ranged at the far edge is often a step
-   *  quieter than the subtitle beside it, and one ash cannot say both. */
-  std::optional<SkColor4f> ink;
+  /** THE LINE'S OWN INK; unset is whatever the theme's palette gives the
+   *  register this line is set in. It is here rather than in the palette
+   *  because a note ranged at the far edge is often a step quieter than
+   *  the subtitle beside it, and one ash cannot say both. A shader shades
+   *  the glyphs. */
+  std::optional<compose::Fill> ink;
   /** Fades the line in; unset leaves it opaque. */
   std::optional<motion::Animatable<float>> opacity;
   /** Moves the line down, px; unset leaves it where it was laid out. */

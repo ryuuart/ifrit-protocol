@@ -27,7 +27,6 @@
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
 
 #include <QtCore/QByteArray>
 #include <QtCore/QMetaObject>
@@ -57,6 +56,7 @@ std::filesystem::path SketchbookView::assetsDir;
 std::filesystem::path SketchbookView::flagsFile;
 std::filesystem::path SketchbookView::sharedDir;
 sketch::Host* SketchbookView::host = nullptr;
+sigil::weave::FontContext* SketchbookView::fonts = nullptr;
 sketch::Residency SketchbookView::sessions;
 // QMutex's constructor does not throw
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
@@ -76,15 +76,6 @@ std::atomic<int> g_backend{0};  // 0 unknown, 1 Graphite GPU, 2 CPU raster
  *  one drag fall inside it, short enough that letting go and looking is
  *  not a wait. */
 constexpr int kResizeSettleMs = 180;
-
-sigil::weave::FontContext& fonts() {
-  // Leaked deliberately: it owns Skia-backed state, and a static
-  // destructor racing Skia teardown is a class of crash worth not
-  // having.
-  static auto* context =
-      new sigil::weave::FontContext(sigil::weave::ports::systemFontManager());
-  return *context;
-}
 
 /** ONE INDEX OVER TWO LISTS: the registry first, the files this session
  *  was pointed at after it. An index below the registry's size selects a
@@ -206,10 +197,13 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
 
  private:
   void drawSketch(SkCanvas& canvas, QSize pixelSize);
-  void runPendingCaptures();   // hostMutex must be held
-  void refreshThumbnail();     // hostMutex must be held
-  void openSketch(int index);  // hostMutex must be held
-  void publishMetrics();       // hostMutex must be held
+  void runPendingCaptures();  // hostMutex must be held
+  void refreshThumbnail();    // hostMutex must be held
+  /** hostMutex must be held. Hands back the session evicted to make
+   *  room, for the caller to let go of once the lock is released:
+   *  ~Host waits on the build it may be in the middle of. */
+  [[nodiscard]] std::unique_ptr<sketch::Host> openSketch(int index);
+  void publishMetrics();  // hostMutex must be held
   /** Routes a session's captures through this renderer's own context.
    *  Once live frames render on the device, the runtime's caches hold
    *  device-backed images that cannot replay onto a raster canvas, so
@@ -218,8 +212,6 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
 
 #ifdef SIGILSKETCH_BOOK_GPU
   bool readbackGraphite(SkSurface& surface, const SkPixmap& out);
-  // Declared before everything Skia so reverse destruction releases any
-  // Graphite-backed images before the context goes.
   std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
 #endif
   SketchbookView* m_view = nullptr;
@@ -317,7 +309,7 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   }
 }
 
-void SketchbookRenderer::openSketch(int index) {
+std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
   const auto& entries = sketch::registry();
   sketch::Host::Options options;
   if (index >= 0 && index < (int)entries.size()) {
@@ -332,22 +324,24 @@ void SketchbookRenderer::openSketch(int index) {
     // it opens on the compiler rather than on an entry.
     options.sketchPath = SketchCatalog::externals[external];
   } else {
-    return;
+    return nullptr;
   }
+  if (!SketchbookView::fonts) return nullptr;  // nothing shapes text yet
   options.assetsDir = SketchbookView::assetsDir;
   options.flagsFile = SketchbookView::flagsFile;
   options.sharedDir = SketchbookView::sharedDir;
   // The file is the session's name: it is what distinguishes a registry
   // entry from every other, and a file opened by path from every other.
   const std::string key = options.sketchPath.string();
-  const sketch::Residency::Presented presented =
+  sketch::Residency::Presented presented =
       SketchbookView::sessions.present(key, [this, &options] {
-        auto host = std::make_unique<sketch::Host>(std::move(options), fonts());
+        auto host = std::make_unique<sketch::Host>(std::move(options),
+                                                   *SketchbookView::fonts);
         installCaptureBackend(*host);
         return host;
       });
   SketchbookView::host = presented.host;
-  if (!SketchbookView::host) return;
+  if (!SketchbookView::host) return std::move(presented.evicted);
   // Residency keeps the expensive host/compiler warm, but PRESENTATION is
   // a fresh run. In particular, a retained Composer's mount transitions have
   // already finished; merely resuming it makes entrance-heavy sketches look
@@ -365,11 +359,19 @@ void SketchbookRenderer::openSketch(int index) {
   m_clock.setTimeScale(m_timeScale);
   const bool orbits = SketchbookView::host->session() &&
                       SketchbookView::host->session()->hasViewpoint();
-  if (m_view) {
-    m_view->m_orbitable = orbits;
-    QMetaObject::invokeMethod(m_view, &SketchbookView::sketchIndexChanged,
-                              Qt::QueuedConnection);
-  }
+  // THE ITEM'S OWN STATE IS WRITTEN ON THE GUI THREAD. This runs on the
+  // render thread, outside synchronize(), while the GUI thread reads the
+  // same members through the property getters — so the value travels in
+  // the queued call rather than being assigned here and announced after.
+  if (SketchbookView* view = m_view)
+    QMetaObject::invokeMethod(
+        view,
+        [view, orbits] {
+          view->m_orbitable = orbits;
+          emit view->sketchIndexChanged();
+        },
+        Qt::QueuedConnection);
+  return std::move(presented.evicted);
 }
 
 void SketchbookRenderer::installCaptureBackend(sketch::Host& host) {
@@ -439,20 +441,31 @@ void SketchbookRenderer::publishMetrics() {
     lanes.push_back(row);
   }
   metrics.insert(QStringLiteral("lanes"), lanes);
-  m_view->m_metrics = std::move(metrics);
-  QMetaObject::invokeMethod(m_view, &SketchbookView::metricsChanged,
-                            Qt::QueuedConnection);
+  // THE MAP TRAVELS IN THE CALL. It is implicitly shared, and this is the
+  // render thread: assigning it here and announcing it after would let
+  // the GUI thread copy a map while its buckets were being replaced.
+  SketchbookView* view = m_view;
+  QMetaObject::invokeMethod(
+      view,
+      [view, metrics = std::move(metrics)]() mutable {
+        view->m_metrics = std::move(metrics);
+        emit view->metricsChanged();
+      },
+      Qt::QueuedConnection);
 
   // WHERE THE SKETCH IS SEEN FROM, published whether or not a pointer
   // has moved it: a drag reads this at the moment it starts, so the
   // first one continues the sketch's own framing and every one after it
   // continues where the last left off.
   if (const std::optional<sigil::geometry::mesh::camera::Orbit> orbit =
-          session->orbit()) {
-    m_view->m_orbit = *orbit;
-    QMetaObject::invokeMethod(m_view, &SketchbookView::orbitChanged,
-                              Qt::QueuedConnection);
-  }
+          session->orbit())
+    QMetaObject::invokeMethod(
+        view,
+        [view, seen = *orbit] {
+          view->m_orbit = seen;
+          emit view->orbitChanged();
+        },
+        Qt::QueuedConnection);
 }
 
 void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
@@ -650,6 +663,10 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
 #ifdef SIGILSKETCH_BOOK_GPU
   if (m_graphiteContext) {
     bool rendered = false;
+    // LET GO OF AN EVICTED SESSION OUTSIDE THE LOCK: ~Host waits on the
+    // build it may be in the middle of, which is a compiler run, and
+    // this lock is the one every frame and every poll takes.
+    std::unique_ptr<sketch::Host> evicted;
     {
       sigil::skia::OffscreenSurface surface =
           sigil::skia::wrapTexture(*m_graphiteContext, texture, pixelSize);
@@ -657,7 +674,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
         QMutexLocker lock(&SketchbookView::hostMutex);
         if (m_index != m_requestedIndex) {
           m_index = m_requestedIndex;
-          openSketch(m_index);
+          evicted = openSketch(m_index);
         }
         drawSketch(*canvas, pixelSize);
         const sigil::measure::Stopwatch submitWatch;
@@ -675,6 +692,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
         rendered = true;
       }
     }
+    evicted.reset();
     if (rendered) {
       update();
       return;
@@ -691,12 +709,14 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     std::fprintf(stderr,
                  "[sketchbook] Graphite frame failed for the current sketch; "
                  "dropping its session and keeping the context\n");
+    std::unique_ptr<sketch::Host> dropped;
     {
       QMutexLocker lock(&SketchbookView::hostMutex);
-      SketchbookView::sessions.dropPresented();
+      dropped = SketchbookView::sessions.dropPresented();
       SketchbookView::host = SketchbookView::sessions.presented();
       m_index = -1;
     }
+    dropped.reset();  // outside the lock, for the reason above
     update();
     return;
   }
@@ -713,11 +733,12 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
     update();
     return;
   }
+  std::unique_ptr<sketch::Host> evicted;
   {
     QMutexLocker lock(&SketchbookView::hostMutex);
     if (m_index != m_requestedIndex) {
       m_index = m_requestedIndex;
-      openSketch(m_index);
+      evicted = openSketch(m_index);
     }
     drawSketch(*surface->getCanvas(), pixelSize);
     refreshThumbnail();
@@ -727,6 +748,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
       publishMetrics();
     }
   }
+  evicted.reset();  // outside the lock: ~Host waits on its build
 
   const sigil::measure::Stopwatch submitWatch;
   QRhiResourceUpdateBatch* batch = rhi()->nextResourceUpdateBatch();

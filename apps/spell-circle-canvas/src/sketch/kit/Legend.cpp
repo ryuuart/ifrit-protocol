@@ -23,8 +23,9 @@ void words(Element& line, const LegendEntry& entry) {
   const Theme& look = theme();
   if (!entry.label.empty())
     line.child(
-        text(entry.label, look.style(look.type.captionNote,
-                                     entry.ink.value_or(look.palette.ink))));
+        text(entry.label,
+             look.style(look.type.captionNote,
+                        entry.ink.value_or(Fill::color(look.palette.ink)))));
   if (!entry.note.empty())
     line.child(
         text(entry.note, look.style(look.type.captionNote, look.palette.ash)));
@@ -61,7 +62,7 @@ Element swatchOf(const Legend& key, const LegendEntry& entry, float side) {
 
 compose::Element legend(const Legend& key) {
   const Theme& look = theme();
-  const float side = key.swatch.value_or(look.spacing.swatch);
+  const float side = key.swatchSide.value_or(look.spacing.swatchSide);
   const float gap = key.gap.value_or(key.column ? look.spacing.rowGap
                                                 : look.spacing.labelGap);
   Element run =
@@ -123,10 +124,12 @@ compose::Element chip(const Chip& tag) {
   Element plate =
       box().padding(look.spacing.chipPaddingX, look.spacing.chipPaddingY);
   tag.ground.value_or(Fill::color(look.palette.figure)).paint(plate);
-  plate.child(text(
-      tag.label,
-      look.style(look.type.eyebrow, tag.ink.value_or(look.palette.ground))));
-  if (tag.corners > 0) plate.corners(Corners{tag.corners});
+  plate.child(text(tag.label,
+                   look.style(look.type.eyebrow, tag.ink.value_or(Fill::color(
+                                                     look.palette.ground)))));
+  if (const float round = tag.corners.value_or(look.spacing.chipCorners);
+      round > 0)
+    plate.corners(Corners{round});
   return plate;
 }
 

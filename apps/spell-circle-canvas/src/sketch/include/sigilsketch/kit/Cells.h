@@ -101,47 +101,39 @@ struct Run {
  *  sizes nothing. */
 [[nodiscard]] compose::Element cells(Run run);
 
-/** EQUAL SHARES OF THE WIDTH, one per cell — the shape a page divides
- *  itself into when the cells are panels rather than specimens, and the
- *  one a run of fixed widths cannot make because it does not know how
- *  wide the page is. */
-struct Columns {
-  std::vector<compose::Element> cells;
-  /** Unset is the theme's cell gap. */
-  std::optional<float> gap;
-  bool ruled = false;
-  /** Stretch (default) makes every column as tall as the tallest, which
-   *  is what a row of grounded panels wants. */
-  compose::Align align = compose::Align::Stretch;
-};
-
-/** THE COLUMNS.
- *
- *      sketch::kit::columns({.cells = {left, middle, right}})
- *
- *  Every cell is grown to one share, so a cell that carries its own width
- *  loses it. A run of cells at their own widths is `cells` above. */
-[[nodiscard]] compose::Element columns(Columns run);
-
-/** A GRID OF PANELS: equal shares across, wrapped every @p columns. */
+/** EQUAL SHARES OF THE WIDTH — the shape a page divides itself into when
+ *  the cells are panels rather than specimens, and the one a run of fixed
+ *  widths cannot make because it does not know how wide the page is. */
 struct PanelGrid {
   std::vector<compose::Element> cells;
+  /** How many shares stand across before the next row. ZERO IS ONE ROW:
+   *  every cell takes a share of the width and nothing wraps, which is
+   *  the two- or three-panel band a page is divided into. */
   int columns = 3;
   /** Across; unset is the theme's cell gap. */
   std::optional<float> gap;
   /** Down; unset is whatever `gap` resolves to, so a grid is square in
-   *  its air unless it is told not to be. */
+   *  its air unless it is told not to be. Nothing to a single row. */
   std::optional<float> rowGap;
   bool ruled = false;
+  /** How the cells of a SINGLE ROW range against each other. Stretch
+   *  (default) makes every one as tall as the tallest, which is what a
+   *  band of grounded panels wants. A wrapped grid ranges its rows for
+   *  itself. */
+  compose::Align align = compose::Align::Stretch;
 };
 
 /** THE GRID.
  *
  *      sketch::kit::panelGrid({.cells = panels, .columns = 4})
+ *      sketch::kit::panelGrid({.cells = {left, middle, right},
+ *                              .columns = 0})
  *
- *  The last row is filled out with empty shares, so four panels over
- *  three columns leave the fourth at one third of the width rather than
- *  at the whole of it. */
+ *  Every cell is grown to one share, so a cell that carries its own width
+ *  loses it; a run of cells at their own widths is `cells` above. The
+ *  last row is filled out with empty shares, so four panels over three
+ *  columns leave the fourth at one third of the width rather than at the
+ *  whole of it. */
 [[nodiscard]] compose::Element panelGrid(PanelGrid grid);
 
 }  // namespace sigil::sketch::kit

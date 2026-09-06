@@ -5,6 +5,8 @@
  * thumbnail store it fills on demand.
  */
 
+#include <QtQml/qqmlregistration.h>
+
 #include <QtCore/QObject>
 #include <QtCore/QProcess>
 #include <QtCore/QUrl>
@@ -41,7 +43,7 @@ class Assets;
  *    of itself, and the knobs it says to reach for first;
  *  * the **plate** — the still, as a thumbnail, from this app's own
  *    store: rendered on demand into a cache beside the binary and kept
- *    until the sketch's source or the host changes.
+ *    until the sketch's source changes.
  *
  *  What is NOT here is the canvas: a sketch declares its size, its
  *  ground and the moment it is worth photographing from inside its own
@@ -55,6 +57,7 @@ class Assets;
  *  pointed at. */
 class SketchCatalog : public QObject {
   Q_OBJECT
+  QML_ELEMENT
   /** CONSTANT because the LIST is: every row is built once, when the
    *  catalog is constructed, and the registry a binary was built with
    *  cannot gain or lose an entry while it runs. A row's own fields do
@@ -119,6 +122,17 @@ class SketchCatalog : public QObject {
    *  per-sketch budget. Nothing happens when the store, the fonts or the
    *  assets were never handed over. */
   Q_INVOKABLE void fillThumbnails();
+  /** ENDS THE FILL AND JOINS THE WORKER, after which this object
+   *  renders nothing again.
+   *
+   *  The destructor calls it; a host calls it FIRST when it is about to
+   *  let go of something a still could be drawn through, because a
+   *  worker joined after the release would be finishing its frame
+   *  against what was released. Idempotent, and it costs one frame of
+   *  whatever sketch was being walked: the walk is let go before the
+   *  join rather than waited out. */
+  void stopThumbnails();
+
   /** ENDS THE FILL, which opening a sketch does. Whatever was in flight
    *  is let go at its next frame and the queue is dropped: from here on
    *  the canvas is what draws, and a thumbnail is refreshed by looking at

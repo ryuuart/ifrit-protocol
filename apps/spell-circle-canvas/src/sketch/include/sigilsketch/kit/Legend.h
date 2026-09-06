@@ -34,17 +34,18 @@ struct LegendEntry {
    *  `Legend::strokeWidth` is a different thing: it replaces the patch
    *  with an outline for a key to a map whose own marks are outlines. */
   std::optional<compose::Fill> keyline;
-  /** THE LABEL'S OWN COLOUR — for a key whose words are set in what they
+  /** THE LABEL'S OWN INK — for a key whose words are set in what they
    *  name, which is how a ladder of tiers and a coloured plot's key read.
    *  Unset is the theme's ink, which is what a key to a picture with one
-   *  ink wants. The note beside it stays in the quiet ash either way: a
-   *  gloss is not part of the naming. */
-  std::optional<SkColor4f> ink;
+   *  ink wants. A shader shades the glyphs as it shades a patch. The note
+   *  beside it stays in the quiet ash either way: a gloss is not part of
+   *  the naming. */
+  std::optional<compose::Fill> ink;
   /** THE MARK ITSELF, where a patch of colour is not what the key shows —
    *  a quarried sample at its own two dimensions, a live figure, a
    *  sprite. It stands exactly where the swatch would and keeps whatever
    *  size, corners and edge it was built with, so `swatch`, `keyline`,
-   *  `Legend::swatch`, `Legend::corners` and `Legend::strokeWidth` say
+   *  `Legend::swatchSide`, `Legend::corners` and `Legend::strokeWidth` say
    *  nothing about it. It is last because a key's mark is usually a
    *  colour, and the fields before it are what says which. */
   std::optional<compose::Element> mark;
@@ -64,7 +65,7 @@ struct Legend {
    *  the key that stands under a plot rather than beside it. */
   bool column = true;
   /** The side of each swatch; unset is the theme's. */
-  std::optional<float> swatch;
+  std::optional<float> swatchSide;
   /** Between entries; unset is the theme's row gap down a column and its
    *  label gap along a line. */
   std::optional<float> gap;
@@ -123,9 +124,10 @@ struct Chip {
   /** Unset is the theme's figure colour. */
   std::optional<Ground> ground;
   /** Unset is the theme's page ground, so the word is knocked out of the
-   *  chip rather than laid over it. */
-  std::optional<SkColor4f> ink;
-  float corners = 2;
+   *  chip rather than laid over it. A shader shades the word. */
+  std::optional<compose::Fill> ink;
+  /** Unset is the theme's chip radius. */
+  std::optional<float> corners;
 };
 
 /** THE CHIP, set in the theme's eyebrow register.

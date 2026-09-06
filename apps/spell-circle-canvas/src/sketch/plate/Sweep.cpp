@@ -227,7 +227,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       // frame and differ only in whether the backend drain is inside.
       const measure::Stopwatch watch;
       target.getCanvas()->clear(clearColor);
-      PhaseMark mark(Phase::Draw);
+      PhaseMark mark(Phase::Update);
       session->frame(*target.getCanvas(), kStep);
       stats.addWork(watch.elapsedMs());
       if (flushHook) flushHook();
@@ -412,7 +412,16 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       graphite->context()->submit(submitInfo);
       for (int spin = 0; spin < 5000 && !read.called; ++spin)
         graphite->context()->checkAsyncWorkCompletion();
-      if (!read.result) continue;
+      if (!read.result) {
+        // A PLATE THAT WAS NOT READ BACK IS A PLATE THAT WAS NOT WRITTEN,
+        // and the run's answer is that every selected sketch rendered:
+        // carrying on would leave the name with no picture under it and
+        // still exit as though it had one.
+        std::fprintf(stderr, "could not read back the device plate for %s\n",
+                     entry.name);
+        if (timingJson) std::fclose(timingJson);
+        return 1;
+      }
       const auto* src = static_cast<const uint8_t*>(read.result->data(0));
       const size_t srcRowBytes = read.result->rowBytes(0);
       for (int y = 0; y < plateInfo.height(); ++y)

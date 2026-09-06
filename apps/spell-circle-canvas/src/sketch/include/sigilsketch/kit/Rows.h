@@ -43,7 +43,7 @@ struct Readout {
    *  length; a measure is what makes a key-and-figure table a table. */
   float nameMeasure = 0;
   /** The side of a reading's swatch; unset is the theme's. */
-  std::optional<float> swatch;
+  std::optional<float> swatchSide;
   float swatchCorners = 0;
   /** A hairline between neighbouring rows, in the theme's rule colour. */
   bool ruled = false;
@@ -100,7 +100,7 @@ struct Table {
   /** Between columns; unset is the theme's label gap. */
   std::optional<float> gap;
   /** The side of a row's swatch; unset is the theme's. */
-  std::optional<float> swatch;
+  std::optional<float> swatchSide;
   float swatchCorners = 0;
   /** A hairline between neighbouring rows. */
   bool ruled = false;
