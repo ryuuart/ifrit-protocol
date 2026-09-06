@@ -39,27 +39,6 @@ Assert once fixed: `--bench --at 9`, `--at 12` and `--at 15` all verdict
 PASS at 1280x1280, and the per-frame report shows no full-canvas live
 paint in the emissive stacks.
 
-## The weave kit's showcase corpus, palette and style shorthand reach nobody
-
-`weave::kit::mixedScriptFiller()` (`sigilweave/kit/SampleText.h`) is
-documented as the shared deterministic corpus every specimen sets, and no
-sketch calls it. `weave::kit::palette` (`sigilweave/kit/Palette.h`) is
-documented as the shared showcase palette, and no sketch reads it — it is
-also `SkColor` where every consumer here works in `SkColor4f`.
-`weave::kit::makeStyle()` (`sigilweave/kit/Labels.h`) is the documented
-one-call style shorthand, and the sketches wrote 222 hand-rolled
-`TextStyle` factories instead.
-
-Intended: either these are what the sheets set their specimens in, or
-their headers stop claiming a role nothing plays. The three are not one
-decision — the corpus and the shorthand are plainly useful and simply
-unreached, while the palette duplicates what `sketch::kit::Theme` now
-carries in the right colour type.
-
-Assert once fixed: a specimen sheet that needs filler text calls
-`mixedScriptFiller()` rather than embedding a literal, and either
-`weave::kit::palette` has a consumer or it is gone.
-
 ## Ring and grid placement is respelled where geometry already has it
 
 `geometry::arrange::{along, onEllipse, onRing, cellAt, cellRect,
