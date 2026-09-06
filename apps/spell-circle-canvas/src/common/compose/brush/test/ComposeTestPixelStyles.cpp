@@ -60,8 +60,8 @@ TEST(ComposePixelStyles, TheBevelPairLightsTheNearEdgesAndShadesTheFar) {
 TEST(ComposePixelStyles, TheDerivedPairLightensAndDropsTheFace) {
   const SkColor4f face{0.4f, 0.5f, 0.6f, 1};
   const styles::BevelPair pair = styles::bevelPair(face, 0.2f, 0.5f, 3.0f);
-  EXPECT_EQ(pair.light, lighten(face, 0.2f));
-  EXPECT_EQ(pair.dark, scaleRgb(face, 0.5f));
+  EXPECT_EQ(pair.light, material::skia::lighten(face, 0.2f));
+  EXPECT_EQ(pair.dark, material::skia::scale(face, 0.5f));
   EXPECT_FLOAT_EQ(pair.lightWidth, 3.0f);
   EXPECT_FLOAT_EQ(pair.darkWidth, 3.0f);
   EXPECT_FLOAT_EQ(pair.reach(), 3.0f);

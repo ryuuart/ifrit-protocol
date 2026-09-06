@@ -89,6 +89,7 @@
 
 namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
 namespace path = sigil::geometry::path;
 namespace sdf = sigil::material::sdf;
@@ -107,7 +108,6 @@ namespace {
 // ---------------------------------------------------------------------------
 // palette
 
-using sigil::compose::alpha;     // the same colour at a different alpha
 using sigil::compose::hexColor;  // 0xRRGGBB -> SkColor4f
 
 const SkColor4f kBody = hexColor(0x0B1E21);
@@ -438,7 +438,7 @@ inline KindArt artOf(Kind k) {
       return {hexColor(0x563F1D), hexColor(0xE2C088), "REL"};
     case Blank:
     default:
-      return {hexColor(0x0A1B1E), alpha(kCyan, 0.88f), nullptr};
+      return {hexColor(0x0A1B1E), mskia::withAlpha(kCyan, 0.88f), nullptr};
   }
 }
 
@@ -619,17 +619,19 @@ struct Ds2Bench : sketch::Sketch {
   // the pip atlas: two chevron cells, tinted per instance
 
   void bakePips() {
-    Element filled = box()
-                         .shape(chevron())
-                         .fill(Paint::linear({0, 0}, {0, kPipH},
-                                             {{0.0f, hexColor(0xC8DADA)},
-                                              {0.42f, hexColor(0x92AAAC)},
-                                              {0.52f, hexColor(0x70898C)},
-                                              {1.0f, hexColor(0xB0C6C8)}}))
-                         .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.5f)),
-                                        PathFormat::Align::Inner));
-    Element empty = box().shape(chevron()).stroke(stroke(
-        1.2f, Fill::color(alpha(kCyan, 0.30f)), PathFormat::Align::Inner));
+    Element filled =
+        box()
+            .shape(chevron())
+            .fill(Paint::linear({0, 0}, {0, kPipH},
+                                {{0.0f, hexColor(0xC8DADA)},
+                                 {0.42f, hexColor(0x92AAAC)},
+                                 {0.52f, hexColor(0x70898C)},
+                                 {1.0f, hexColor(0xB0C6C8)}}))
+            .stroke(stroke(1.0f, Fill::color(mskia::withAlpha(kCyan, 0.5f)),
+                           PathFormat::Align::Inner));
+    Element empty = box().shape(chevron()).stroke(
+        stroke(1.2f, Fill::color(mskia::withAlpha(kCyan, 0.30f)),
+               PathFormat::Align::Inner));
     pipFilled = pips->cell(std::move(filled), {kPipW, kPipH});
     pipEmpty = pips->cell(std::move(empty), {kPipW, kPipH});
 
@@ -742,7 +744,8 @@ struct Ds2Bench : sketch::Sketch {
             // every part of it, and an opaque body makes the same
             // drawing a flat rectangle on black.
             .fill(Paint::blend(
-                {{Paint::solid(alpha(kBody, 0.70f)), SkBlendMode::kSrcOver},
+                {{Paint::solid(mskia::withAlpha(kBody, 0.70f)),
+                  SkBlendMode::kSrcOver},
                  // unit-square ramp: the lift is authored against the
                  // box, not against a pixel extent transcribed by hand
                  {Paint::radialUnit({0.40f, 0.32f}, 1.15f,
@@ -750,7 +753,7 @@ struct Ds2Bench : sketch::Sketch {
                                      {0.5f, hexColor(0xC0D0D0)},
                                      {1.0f, hexColor(0x4E6264)}}),
                   SkBlendMode::kMultiply},
-                 {scanField(alpha(kCyan, 0.075f), 3.0f, &scanClock),
+                 {scanField(mskia::withAlpha(kCyan, 0.075f), 3.0f, &scanClock),
                   SkBlendMode::kScreen}}))
             .zIndex(1));
 
@@ -771,37 +774,47 @@ struct Ds2Bench : sketch::Sketch {
                    .zIndex(2));
 
     // frame: a soft plus-blended halo under a crisp cyan keyline
-    root.child(
-        box()
-            .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
-            .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
-            .stroke(LayeredBrush{{
-                {14, alpha(kCyan, 0.09f), 8, {}, 0, SkBlendMode::kPlus},
-                {5, alpha(kCyan, 0.22f), 2.6f, {}, 0, SkBlendMode::kPlus},
-                {2.4f, alpha(hexColor(0xCFF2F5), 0.95f)},
-            }})
-            .zIndex(6));
+    root.child(box()
+                   .rect(SkRect::MakeXYWH(kPX, kPY, kPW, kPH))
+                   .shape(panelOuter(kOuterCut, kOuterStep, kOuterShoulder))
+                   .stroke(LayeredBrush{{
+                       {14,
+                        mskia::withAlpha(kCyan, 0.09f),
+                        8,
+                        {},
+                        0,
+                        SkBlendMode::kPlus},
+                       {5,
+                        mskia::withAlpha(kCyan, 0.22f),
+                        2.6f,
+                        {},
+                        0,
+                        SkBlendMode::kPlus},
+                       {2.4f, mskia::withAlpha(hexColor(0xCFF2F5), 0.95f)},
+                   }})
+                   .zIndex(6));
 
     // the inner contour: a thin line whose dipped centre IS the header rule
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kPX + kInset, kPY + kInset,
-                                          kPW - 2 * kInset, kPH - 2 * kInset))
-                   .shape(panelInner(kInnerCut, kInnerDip, kInnerShoulderL,
-                                     kInnerShoulderR))
-                   .stroke(stroke(1.1f, Fill::color(alpha(kCyan, 0.55f))))
-                   .zIndex(6));
-    // and a dotted echo just inside it (the frame's second, ticked pass)
     root.child(
         box()
-            .rect(SkRect::MakeXYWH(kPX + kInset + 7, kPY + kInset + 7,
-                                   kPW - 2 * kInset - 14,
-                                   kPH - 2 * kInset - 14))
-            .shape(panelInner(kInnerCut - 4, kInnerDip - 7, kInnerShoulderL - 7,
-                              kInnerShoulderR - 7))
-            .stroke(PathFormat{.width = 1.0f,
-                               .strokeFill = Fill::color(alpha(kCyan, 0.26f)),
-                               .dashIntervals = {2.0f, 6.0f}})
+            .rect(SkRect::MakeXYWH(kPX + kInset, kPY + kInset, kPW - 2 * kInset,
+                                   kPH - 2 * kInset))
+            .shape(panelInner(kInnerCut, kInnerDip, kInnerShoulderL,
+                              kInnerShoulderR))
+            .stroke(stroke(1.1f, Fill::color(mskia::withAlpha(kCyan, 0.55f))))
             .zIndex(6));
+    // and a dotted echo just inside it (the frame's second, ticked pass)
+    root.child(box()
+                   .rect(SkRect::MakeXYWH(kPX + kInset + 7, kPY + kInset + 7,
+                                          kPW - 2 * kInset - 14,
+                                          kPH - 2 * kInset - 14))
+                   .shape(panelInner(kInnerCut - 4, kInnerDip - 7,
+                                     kInnerShoulderL - 7, kInnerShoulderR - 7))
+                   .stroke(PathFormat{.width = 1.0f,
+                                      .strokeFill = Fill::color(
+                                          mskia::withAlpha(kCyan, 0.26f)),
+                                      .dashIntervals = {2.0f, 6.0f}})
+                   .zIndex(6));
   }
 
   // -------------------------------------------------------------------
@@ -819,17 +832,18 @@ struct Ds2Bench : sketch::Sketch {
                        .fx({.effect = fx::typeOn(),
                             .stagger = {.eachMs = 26, .durationMs = 190},
                             .progress = animate(from(0.0f).to(1.0f), {760ms})})
-                       .effect(styles::textGlow(alpha(kCyan, 0.5f), 5.0f))));
+                       .effect(styles::textGlow(mskia::withAlpha(kCyan, 0.5f),
+                                                5.0f))));
 
     // under the rule: the repair caption at left, and at right the RIG's
     // integrity as an ANNULAR GAUGE — shapes::sector is a closed wedge, so
     // the track and the fill are the same generator twice
-    root.child(
-        box()
-            .at({kPX + 34, kRuleY + 13})
-            .zIndex(7)
-            .child(text(toU8("NANOCIRCUIT REPAIR · TIER III"),
-                        benchType(10.5f, alpha(kCyan, 0.5f), 0.2f, false))));
+    root.child(box()
+                   .at({kPX + 34, kRuleY + 13})
+                   .zIndex(7)
+                   .child(text(toU8("NANOCIRCUIT REPAIR · TIER III"),
+                               benchType(10.5f, mskia::withAlpha(kCyan, 0.5f),
+                                         0.2f, false))));
     const float gaugeD = 26, gaugeX = 786, gaugeY = kRuleY + 6;
     // 359.99, not 360: shapes::sector() with a full-turn sweep produces an
     // EMPTY path (SkPathBuilder::arcTo swallows |sweep| == 360), so the
@@ -838,19 +852,19 @@ struct Ds2Bench : sketch::Sketch {
     root.child(box()
                    .rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
                    .shape(shapes::sector(0, 359.99f, 0.58f))
-                   .fill(Paint::solid(alpha(kCyan, 0.18f)))
+                   .fill(Paint::solid(mskia::withAlpha(kCyan, 0.18f)))
                    .zIndex(7));
     root.child(box()
                    .rect(SkRect::MakeXYWH(gaugeX, gaugeY, gaugeD, gaugeD))
                    .shape(shapes::sector(-90, 360 * 0.78f, 0.58f))
-                   .fill(Paint::solid(alpha(kCyan, 0.9f)))
+                   .fill(Paint::solid(mskia::withAlpha(kCyan, 0.9f)))
                    .zIndex(7));
-    root.child(
-        box()
-            .at({gaugeX + 34, kRuleY + 13})
-            .zIndex(7)
-            .child(text(toU8("R.I.G. INTEGRITY 78%"),
-                        benchType(10.5f, alpha(kCyan, 0.5f), 0.2f, false))));
+    root.child(box()
+                   .at({gaugeX + 34, kRuleY + 13})
+                   .zIndex(7)
+                   .child(text(toU8("R.I.G. INTEGRITY 78%"),
+                               benchType(10.5f, mskia::withAlpha(kCyan, 0.5f),
+                                         0.2f, false))));
   }
 
   // -------------------------------------------------------------------
@@ -866,7 +880,7 @@ struct Ds2Bench : sketch::Sketch {
                    const float w = ctx.size.width(), h = ctx.size.height();
                    SkPaint p;
                    p.setAntiAlias(true);
-                   p.setColor4f(alpha(kCyan, 0.8f), nullptr);
+                   p.setColor4f(mskia::withAlpha(kCyan, 0.8f), nullptr);
                    SkPathBuilder t;
                    t.moveTo(0, h * 0.16f);
                    t.lineTo(w * 0.8f, h * 0.5f);
@@ -887,7 +901,7 @@ struct Ds2Bench : sketch::Sketch {
                  p.setAntiAlias(true);
                  p.setStyle(SkPaint::kStroke_Style);
                  p.setStrokeWidth(1.6f);
-                 p.setColor4f(alpha(kCyan, 0.78f), nullptr);
+                 p.setColor4f(mskia::withAlpha(kCyan, 0.78f), nullptr);
                  // the socket housing: a rectangle broken on the left, where
                  // the feed enters
                  SkPathBuilder b;
@@ -924,20 +938,21 @@ struct Ds2Bench : sketch::Sketch {
         box().inset(0).zIndex(4).staggerChildren(30ms, Spread::From::Start);
     for (int i = 0; i < c.edgeCount; ++i) {
       const EdgeDef& e = c.edges[i];
-      wires.child(connector(c.key(e.a), c.key(e.b), pcb(9.0f, e.jog))
-                      .key(std::string(c.tag) + "e" + std::to_string(i))
-                      .inset(0)
-                      .mask(by::spans(
-                          spans::upTo(animate(from(0.0f).to(1.0f), {620ms}))))
-                      .stroke(LayeredBrush{{{7.0f,
-                                             alpha(kCyan, 0.075f),
-                                             3.4f,
-                                             {},
-                                             0,
-                                             SkBlendMode::kPlus}}})
-                      .stroke(lines::presets::cased(
-                          1.2f, Fill::color(alpha(kCyan, c.traceAlpha)),
-                          c.typedDia > 24 ? 4.2f : 3.4f)));
+      wires.child(
+          connector(c.key(e.a), c.key(e.b), pcb(9.0f, e.jog))
+              .key(std::string(c.tag) + "e" + std::to_string(i))
+              .inset(0)
+              .mask(
+                  by::spans(spans::upTo(animate(from(0.0f).to(1.0f), {620ms}))))
+              .stroke(LayeredBrush{{{7.0f,
+                                     mskia::withAlpha(kCyan, 0.075f),
+                                     3.4f,
+                                     {},
+                                     0,
+                                     SkBlendMode::kPlus}}})
+              .stroke(lines::presets::cased(
+                  1.2f, Fill::color(mskia::withAlpha(kCyan, c.traceAlpha)),
+                  c.typedDia > 24 ? 4.2f : 3.4f)));
     }
     root.child(std::move(wires));
 
@@ -954,7 +969,7 @@ struct Ds2Bench : sketch::Sketch {
           .borderWidth = typed ? 2.4f : 1.7f,
           .borderColor = toColor(art.ring),
           .glowRadius = typed ? 5.2f : 3.4f,
-          .glowColor = toColor(alpha(kCyan, typed ? 0.32f : 0.22f)),
+          .glowColor = toColor(mskia::withAlpha(kCyan, typed ? 0.32f : 0.22f)),
           .shadowOffset = {0, 0},
           .shadowBlur = typed ? 6.0f : 4.5f,
           .shadowColor = toColor(hexColor(0x01080A, 1.0f))};
@@ -982,28 +997,30 @@ struct Ds2Bench : sketch::Sketch {
       if (!typed) continue;
       // the speckled corona + the type label, both keyed leaves: the
       // instancing atlas has no per-instance string, so labels stay text
-      layer.child(box()
-                      .width(Dim(dia + 24))
-                      .height(Dim(dia + 24))
-                      .centerAt(at)
-                      .shape(burst(24, 0.72f))
-                      .stroke(stroke(0.9f, Fill::color(alpha(kCyan, 0.20f))))
-                      .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-                      .zIndex(4));
+      layer.child(
+          box()
+              .width(Dim(dia + 24))
+              .height(Dim(dia + 24))
+              .centerAt(at)
+              .shape(burst(24, 0.72f))
+              .stroke(stroke(0.9f, Fill::color(mskia::withAlpha(kCyan, 0.20f))))
+              .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+              .zIndex(4));
       layer.child(
           box()
               .width(Dim(dia * 0.42f))
               .height(Dim(dia * 0.42f))
               .centerAt({at.fX - dia * 0.09f, at.fY - dia * 0.10f})
               .fill(Paint::radial({dia * 0.21f, dia * 0.21f}, dia * 0.28f,
-                                  {{0.0f, alpha(art.ring, 0.42f)},
-                                   {1.0f, alpha(art.ring, 0.0f)}}))
+                                  {{0.0f, mskia::withAlpha(art.ring, 0.42f)},
+                                   {1.0f, mskia::withAlpha(art.ring, 0.0f)}}))
               .zIndex(5));
-      layer.child(text(toU8(art.label),
-                       benchType(c.labelSize, alpha(kCyan, 0.78f), 0.11f))
-                      .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
-                      .opacity(animate(from(0.0f).to(1.0f), {320ms}))
-                      .zIndex(5));
+      layer.child(
+          text(toU8(art.label),
+               benchType(c.labelSize, mskia::withAlpha(kCyan, 0.78f), 0.11f))
+              .centerAt({at.fX + dia * 0.88f, at.fY + c.labelDy})
+              .opacity(animate(from(0.0f).to(1.0f), {320ms}))
+              .zIndex(5));
     }
     root.child(std::move(layer));
 
@@ -1021,22 +1038,25 @@ struct Ds2Bench : sketch::Sketch {
     // whose corona then eats the digits — and the lattice geometry is read
     // off the reference frame, so it is the caption that moves.
     constexpr float kRuleW = 350.0f;
-    root.child(box()
-                   .at({c.x0 - 34, c.y0 - 58})
-                   .width(Dim(kRuleW))
-                   .row()
-                   .alignItems(Align::Center)
-                   .justify(Justify::SpaceBetween)
-                   .zIndex(8)
-                   .child(text(toU8(c.caption),
-                               benchType(11, alpha(kCyan, 0.62f), 0.18f)))
-                   .child(text(toU8(slots), benchType(9.5f, alpha(kCyan, 0.4f),
-                                                      0.18f, false))));
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, kRuleW, 1.0f))
-                   .shape(hline())
-                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.28f))))
-                   .zIndex(8));
+    root.child(
+        box()
+            .at({c.x0 - 34, c.y0 - 58})
+            .width(Dim(kRuleW))
+            .row()
+            .alignItems(Align::Center)
+            .justify(Justify::SpaceBetween)
+            .zIndex(8)
+            .child(text(toU8(c.caption),
+                        benchType(11, mskia::withAlpha(kCyan, 0.62f), 0.18f)))
+            .child(text(
+                toU8(slots),
+                benchType(9.5f, mskia::withAlpha(kCyan, 0.4f), 0.18f, false))));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(c.x0 - 34, c.y0 - 32, kRuleW, 1.0f))
+            .shape(hline())
+            .stroke(stroke(1.0f, Fill::color(mskia::withAlpha(kCyan, 0.28f))))
+            .zIndex(8));
   }
 
   // -------------------------------------------------------------------
@@ -1058,8 +1078,9 @@ struct Ds2Bench : sketch::Sketch {
         .child(box()
                    .width(Dim(160.0f))
                    .alignItems(Align::End)
-                   .child(text(toU8(s.label),
-                               benchType(14, alpha(kCyan, 0.95f), 0.10f))))
+                   .child(text(
+                       toU8(s.label),
+                       benchType(14, mskia::withAlpha(kCyan, 0.95f), 0.10f))))
         .child(box()
                    .width(Dim(9.0f))
                    .height(Dim(9.0f))
@@ -1086,8 +1107,9 @@ struct Ds2Bench : sketch::Sketch {
             .key("legend")
             .rect(SkRect::MakeXYWH(kLegX, kBandY, kLegW, kBandH))
             .fill(Paint::blend(
-                {{Paint::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
-                 {scanField(alpha(kCyan, 0.05f), 3.0f, &scanClock),
+                {{Paint::solid(mskia::withAlpha(kStrip, 0.6f)),
+                  SkBlendMode::kSrcOver},
+                 {scanField(mskia::withAlpha(kCyan, 0.05f), 3.0f, &scanClock),
                   SkBlendMode::kScreen}}))
             .shape(chamfer(12))
             .zIndex(7)
@@ -1096,45 +1118,49 @@ struct Ds2Bench : sketch::Sketch {
             .gap(3)
             .staggerChildren(70ms, Spread::From::Start);
 
-    card.child(box()
-                   .row()
-                   .height(Dim(14.0f))
-                   .child(box()
-                              .width(Dim(160.0f))
-                              .alignItems(Align::End)
-                              .child(text(toU8("SPECIFICATION"),
-                                          benchType(9, alpha(kCyan, 0.42f),
-                                                    0.22f, false))))
-                   .child(box().width(Dim(35.0f)))
-                   .child(text(toU8("NANOCIRCUIT LOAD"),
-                               benchType(9, alpha(kCyan, 0.42f), 0.22f, false)))
-                   .child(box().grow(1))
-                   .child(box()
-                              .width(Dim(84.0f))
-                              .child(text(toU8("VALUE"),
-                                          benchType(9, alpha(kCyan, 0.42f),
-                                                    0.22f, false)))));
+    card.child(
+        box()
+            .row()
+            .height(Dim(14.0f))
+            .child(box()
+                       .width(Dim(160.0f))
+                       .alignItems(Align::End)
+                       .child(text(toU8("SPECIFICATION"),
+                                   benchType(9, mskia::withAlpha(kCyan, 0.42f),
+                                             0.22f, false))))
+            .child(box().width(Dim(35.0f)))
+            .child(text(
+                toU8("NANOCIRCUIT LOAD"),
+                benchType(9, mskia::withAlpha(kCyan, 0.42f), 0.22f, false)))
+            .child(box().grow(1))
+            .child(box()
+                       .width(Dim(84.0f))
+                       .child(text(toU8("VALUE"),
+                                   benchType(9, mskia::withAlpha(kCyan, 0.42f),
+                                             0.22f, false)))));
     for (int r = 0; r < kStatCount; ++r) card.child(statRow(r));
     root.child(std::move(card));
 
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kLegX - 8, kBandY - 8, kLegW + 16,
-                                          kBandH + 16))
-                   .shape(cornerBrackets(26))
-                   .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.72f))))
-                   .zIndex(8));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(kLegX - 8, kBandY - 8, kLegW + 16,
+                                   kBandH + 16))
+            .shape(cornerBrackets(26))
+            .stroke(stroke(1.5f, Fill::color(mskia::withAlpha(kCyan, 0.72f))))
+            .zIndex(8));
     root.child(
         box()
             .rect(SkRect::MakeXYWH(kLegX + 16, kBandY + 32, kLegW - 32, 1.0f))
             .shape(hline())
-            .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
+            .stroke(stroke(1.0f, Fill::color(mskia::withAlpha(kCyan, 0.26f))))
             .zIndex(8));
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kLegX + kLegW - 108, kBandY + 14,
-                                          1.0f, kBandH - 28))
-                   .shape(vline())
-                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.26f))))
-                   .zIndex(8));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(kLegX + kLegW - 108, kBandY + 14, 1.0f,
+                                   kBandH - 28))
+            .shape(vline())
+            .stroke(stroke(1.0f, Fill::color(mskia::withAlpha(kCyan, 0.26f))))
+            .zIndex(8));
   }
 
   // -------------------------------------------------------------------
@@ -1147,8 +1173,9 @@ struct Ds2Bench : sketch::Sketch {
             .rect(SkRect::MakeXYWH(kCntX, kBandY, kCntW, kBandH))
             .shape(chamfer(12))
             .fill(Paint::blend(
-                {{Paint::solid(alpha(kStrip, 0.6f)), SkBlendMode::kSrcOver},
-                 {scanField(alpha(kCyan, 0.05f), 3.0f, &scanClock),
+                {{Paint::solid(mskia::withAlpha(kStrip, 0.6f)),
+                  SkBlendMode::kSrcOver},
+                 {scanField(mskia::withAlpha(kCyan, 0.05f), 3.0f, &scanClock),
                   SkBlendMode::kScreen}}))
             .column()
             .alignItems(Align::Center)
@@ -1161,9 +1188,11 @@ struct Ds2Bench : sketch::Sketch {
                        .alignItems(Align::Center)
                        .justify(Justify::Center)
                        .shape(chamfer(6))
-                       .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.45f))))
+                       .stroke(stroke(
+                           1.0f, Fill::color(mskia::withAlpha(kCyan, 0.45f))))
                        .child(text(toU8("NODES"),
-                                   benchType(12, alpha(kCyan, 0.95f), 0.16f))))
+                                   benchType(12, mskia::withAlpha(kCyan, 0.95f),
+                                             0.16f))))
             // the brass power-node puck: side wall, top face, bore ring
             .child(
                 box()
@@ -1198,27 +1227,29 @@ struct Ds2Bench : sketch::Sketch {
                        .key("nodecount")
                        .transition({.duration = 200ms})));
 
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kCntX - 8, kBandY - 8, kCntW + 16,
-                                          kBandH + 16))
-                   .shape(cornerBrackets(22))
-                   .stroke(stroke(1.5f, Fill::color(alpha(kCyan, 0.72f))))
-                   .zIndex(8));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(kCntX - 8, kBandY - 8, kCntW + 16,
+                                   kBandH + 16))
+            .shape(cornerBrackets(22))
+            .stroke(stroke(1.5f, Fill::color(mskia::withAlpha(kCyan, 0.72f))))
+            .zIndex(8));
   }
 
   // -------------------------------------------------------------------
   // the hardware hint row along the panel's bottom rail
 
   void hints(Element& root) {
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(kPX + 32, kHintY, kPW - 64, 1.0f))
-                   .shape(hline())
-                   .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.36f))))
-                   .zIndex(8));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(kPX + 32, kHintY, kPW - 64, 1.0f))
+            .shape(hline())
+            .stroke(stroke(1.0f, Fill::color(mskia::withAlpha(kCyan, 0.36f))))
+            .zIndex(8));
 
     auto hint = [&](const std::string& label) {
       return text(toU8(label),
-                  benchType(12, alpha(kCyan, 0.78f), 0.06f, false));
+                  benchType(12, mskia::withAlpha(kCyan, 0.78f), 0.06f, false));
     };
 
     root.child(
@@ -1243,13 +1274,14 @@ struct Ds2Bench : sketch::Sketch {
                           p.setAntiAlias(true);
                           p.setStyle(SkPaint::kStroke_Style);
                           p.setStrokeWidth(1.3f);
-                          p.setColor4f(alpha(kCyan, 0.82f), nullptr);
+                          p.setColor4f(mskia::withAlpha(kCyan, 0.82f), nullptr);
                           canvas.drawCircle(r, r, r - 1.1f, p);
                           const float k =
                               0.5f +
                               0.5f * std::sin((float)ctx.elapsedSeconds * 3.4f);
                           p.setStyle(SkPaint::kFill_Style);
-                          p.setColor4f(alpha(kCyan, 0.3f + 0.5f * k), nullptr);
+                          p.setColor4f(mskia::withAlpha(kCyan, 0.3f + 0.5f * k),
+                                       nullptr);
                           canvas.drawCircle(r, r, r * 0.4f, p);
                           p.setStyle(SkPaint::kStroke_Style);
                           for (int i = 0; i < 4; ++i) {
@@ -1271,10 +1303,11 @@ struct Ds2Bench : sketch::Sketch {
 
     // the empty hardware sockets the bezel carries at its bottom corners
     for (float x : {kPX + 34, kPR - 46}) {
-      root.child(box()
-                     .rect(SkRect::MakeXYWH(x, kHintY + 13, 12.0f, 12.0f))
-                     .stroke(stroke(1.2f, Fill::color(alpha(kCyan, 0.45f))))
-                     .zIndex(8));
+      root.child(
+          box()
+              .rect(SkRect::MakeXYWH(x, kHintY + 13, 12.0f, 12.0f))
+              .stroke(stroke(1.2f, Fill::color(mskia::withAlpha(kCyan, 0.45f))))
+              .zIndex(8));
     }
   }
 
@@ -1287,9 +1320,9 @@ struct Ds2Bench : sketch::Sketch {
                    .translateY(&scanY)
                    .backdrop(styles::ripple(1.0f, 130.0f, 0.0f))
                    .fill(Paint::linear({0, 0}, {0, 34},
-                                       {{0.0f, alpha(kCyan, 0.0f)},
-                                        {0.5f, alpha(kCyan, 0.05f)},
-                                        {1.0f, alpha(kCyan, 0.0f)}}))
+                                       {{0.0f, mskia::withAlpha(kCyan, 0.0f)},
+                                        {0.5f, mskia::withAlpha(kCyan, 0.05f)},
+                                        {1.0f, mskia::withAlpha(kCyan, 0.0f)}}))
                    .blend(SkBlendMode::kPlus)
                    .cache(Cache::None)
                    .zIndex(9));

@@ -47,11 +47,10 @@ before the review, rewritten to what the tree holds now.
   tier (which reports rather than gates until the glyph-edge cause is
   found), ASan and TSan over the suite, and the bench and app-FPS
   retake on an idle machine.
-- Naming: compose's colour verbs unify onto SigilMaterial's
-  linear-light vocabulary, which is made fast enough to stand in for
-  them (no conversion where the input is already linear, constexpr
-  where a palette constant needs it), and every plate that ramps a
-  colour is rebased with that cause.
+- `winamp_base` and `lain_navi` are rebased with the colour mix moving
+  into linear light named as the cause — they are the only two scenes
+  that mixed two colours through compose's own verb, and `lain_navi`'s
+  default still does not show it.
 - Rules of the pass: a library pass builds its own targets and never
   edits a sketch; the sketch pass comes last and brings every sketch
   onto the new vocabulary; no agent runs the plate ledger — each names

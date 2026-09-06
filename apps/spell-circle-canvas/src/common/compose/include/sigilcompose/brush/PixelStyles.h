@@ -88,8 +88,9 @@ inline BevelPair bevelPair(SkColor4f light, SkColor4f dark, float width = 1.0f,
  *  outright. */
 inline BevelPair bevelPair(SkColor4f base, float lift, float drop,
                            float width = 1.0f, bool sunken = false) {
-  return BevelPair{lighten(base, lift), scaleRgb(base, 1.0f - drop), width,
-                   width, sunken};
+  return BevelPair{material::skia::lighten(base, lift),
+                   material::skia::scale(base, 1.0f - drop), width, width,
+                   sunken};
 }
 
 /** CORNER BRACKETS standing off a box: an L of @p arm px at each selected

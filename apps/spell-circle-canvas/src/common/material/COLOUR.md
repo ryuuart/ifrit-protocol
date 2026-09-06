@@ -90,7 +90,11 @@ walks the numbers a file stores; `mixLinear` walks the light they stand
 for, which is the answer whenever the question is about QUANTITIES — how
 much pigment, how much exposure — and is why half way between black and
 white is near #BCBCBC there and #808080 in the other; `lerpOklab` walks
-what an eye reports. `luminance()` is what shows the difference: the
+what an eye reports. `mixLinear` reads two equal channels as the channel
+itself: one quantity of light mixed with itself is that light, and the
+transfer function either side of the mix is where the whole cost of the
+walk is, so a grey ladder, a single-hue ramp and an alpha-only fade pay
+none of it. `luminance()` is what shows the difference: the
 code-value midpoint carries a fifth of white's light, the linear one
 half. **Two Lab spaces, for two jobs.** OKLab is where colour is
 INTERPOLATED, CIELAB (`toLab`, `fromLab`) is where it is MEASURED — it
@@ -110,6 +114,22 @@ seam, two executors: `Palette::at` is the CPU reading, and
 to a shader as an N x 1 texture sampled NEAREST at texel centres, which
 is what makes an indexed picture one channel of indices and one child
 slot instead of a branch over N literals.
+
+**The arithmetic verbs, and what each of them touches.** `withAlpha`
+replaces the alpha and nothing else; `scale` multiplies the three colour
+channels and takes the alpha it is given, or keeps the colour's own when
+that argument is negative; `lighten` ADDS to the three channels and
+saturates at white. The last two are not one verb with a sign: a scale
+keeps the hue of what it scales and has no ceiling to hit, an offset
+walks every channel toward white and stops there, and a caller
+lightening a nearly-white base wants the saturated answer rather than a
+channel above 1 that the next blend reads as glow. All three are
+constexpr, as `rgb` is, because a palette is a list of constants and the
+verbs an authored constant is written through have to fold where it is
+written. `skia::withAlpha`, `skia::scale`, `skia::lighten` and
+`skia::mixLinear` are the same four answered in `SkColor4f`, for the
+consumer whose slots are Skia's — the arithmetic is not restated there,
+only crossed.
 
 **Two ways to name a colour, for two different jobs.** `rgb()` is how an
 authored palette is typed in; `hsv(hueDegrees, saturation, value)` is how

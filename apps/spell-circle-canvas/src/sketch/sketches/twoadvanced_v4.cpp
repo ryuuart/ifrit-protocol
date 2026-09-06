@@ -182,9 +182,10 @@ constexpr SkColor4f kBody = hexColor(0xC9DEDD);
 constexpr SkColor4f kDate = hexColor(0x1C4040);
 constexpr SkColor4f kHeadDim = hexColor(0xB8A0A0);
 
-/** The shadow tone: the complement spelling of `scaleRgb()`, because a bevel
- *  is authored as "how much darker" rather than as a surviving fraction. */
-inline SkColor4f dark(SkColor4f c, float k) { return scaleRgb(c, 1 - k); }
+/** The shadow tone: the complement spelling of `mskia::scale()`, because a
+ * bevel is authored as "how much darker" rather than as a surviving fraction.
+ */
+inline SkColor4f dark(SkColor4f c, float k) { return mskia::scale(c, 1 - k); }
 
 // ---------------------------------------------------------------------------
 // Type — the studio's chassis (the faces, the 1/1000-em tracking unit and
@@ -251,18 +252,19 @@ struct RailFlares {
       b.moveTo(x0, y0);
       b.lineTo(x0 + lean, y0 + len);
       const SkPath path = b.detach();
-      p.setColor4f(alpha(color, 0.55f), nullptr);
+      p.setColor4f(mskia::withAlpha(color, 0.55f), nullptr);
       c.drawPath(path, p);
       SkPaint f;
       f.setAntiAlias(true);
-      f.setColor4f(alpha(color, 0.8f), nullptr);
+      f.setColor4f(mskia::withAlpha(color, 0.8f), nullptr);
       c.drawRect(SkRect::MakeXYWH(x0 + lean - 3, y0 + len, 6, 3), f);
       SkPaint g;
       g.setAntiAlias(true);
       g.setStyle(SkPaint::kStroke_Style);
       g.setStrokeWidth(2);
-      g.setColor4f(alpha(kCyan, 0.9f * (1.0f - std::abs(scan - 0.5f) * 2)),
-                   nullptr);
+      g.setColor4f(
+          mskia::withAlpha(kCyan, 0.9f * (1.0f - std::abs(scan - 0.5f) * 2)),
+          nullptr);
       SkPathBuilder hb;
       hb.moveTo(x0 + lean * scan, y0 + len * scan);
       const float s2 = std::min(1.0f, scan + 0.16f);
@@ -285,7 +287,8 @@ struct RailFlares {
  *  the SWF's did. */
 inline Element singleBevel(Element e, SkColor4f base) {
   e.fill(base);
-  e.overlay(styles::BevelPair{lighten(base, 0.15f), dark(base, 0.60f), 3, 2});
+  e.overlay(
+      styles::BevelPair{mskia::lighten(base, 0.15f), dark(base, 0.60f), 3, 2});
   return e;
 }
 
@@ -295,9 +298,10 @@ inline Element singleBevel(Element e, SkColor4f base) {
  *  UPDATES wear this; everything smaller is single. */
 inline Element doubleBevel(Element e, SkColor4f base, float insetPx = 6) {
   e = singleBevel(std::move(e), base);
-  e.foreground(
-      inset(insetPx, styles::BevelPair{alpha(lighten(base, 0.16f), 0.8f),
-                                       alpha(dark(base, 0.55f), 0.85f), 2, 1}));
+  e.foreground(inset(
+      insetPx,
+      styles::BevelPair{mskia::withAlpha(mskia::lighten(base, 0.16f), 0.8f),
+                        mskia::withAlpha(dark(base, 0.55f), 0.85f), 2, 1}));
   return e;
 }
 
@@ -507,21 +511,23 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .alignItems(Align::Center)
         .padding(10, 0)
         .fill(stripesLive)
-        .foreground(onEdges(path::Edge::Bottom,
-                            stroke(1, Fill::color(alpha(kCyan, 0.35f)),
-                                   PathFormat::Align::Inner)))
+        .foreground(
+            onEdges(path::Edge::Bottom,
+                    stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.35f)),
+                           PathFormat::Align::Inner)))
         .child(t(boldHalf, heavy(17, kNear, 40)))
         .child(t(restHalf,
                  sigil::weave::kit::tracked(arial(), 15, kHeadDim, 40, 0.95f)))
         .child(box().width(12))
-        .child(box().width(1).height(12).fill(alpha(kCyan, 0.4f)))
+        .child(box().width(1).height(12).fill(mskia::withAlpha(kCyan, 0.4f)))
         .child(box().width(10))
-        .child(t(flavor, micro(11, alpha(kDust, 1.0f), 260)))
+        .child(t(flavor, micro(11, mskia::withAlpha(kDust, 1.0f), 260)))
         .child(box().grow(1))
         .child(tickDots(cluster))
         .child(box().width(8))
-        .child(box().width(34).height(10).foreground(styles::TickRail{
-            alpha(kCyan, 0.55f), 4, 3, 7, 1, 3, 0.5f, path::Edge::Bottom}));
+        .child(box().width(34).height(10).foreground(
+            styles::TickRail{mskia::withAlpha(kCyan, 0.55f), 4, 3, 7, 1, 3,
+                             0.5f, path::Edge::Bottom}));
   }
 
   /** CTA: chamfered, blood-red ramp in UNIT space so the gradient follows
@@ -537,9 +543,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
             {0, 0}, {0, 1},
             {{0.0f, kCtaHi}, {0.42f, kCta}, {1.0f, hexColor(0x3A0000)}}))
         .stroke(stroke(1, Fill::color(kChrome), PathFormat::Align::Outer))
-        .foreground(kit::gloss(alpha(kCtaHi, 0.55f), h * 0.30f, {0, -h * 0.26f},
-                               0.62f, 0.30f))
-        .foreground(stroke(1, Fill::color(alpha(hairline, 0.45f)),
+        .foreground(kit::gloss(mskia::withAlpha(kCtaHi, 0.55f), h * 0.30f,
+                               {0, -h * 0.26f}, 0.62f, 0.30f))
+        .foreground(stroke(1, Fill::color(mskia::withAlpha(hairline, 0.45f)),
                            PathFormat::Align::Inner))
         .row()
         .justify(Justify::Center)
@@ -555,9 +561,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .height(Dim(h))
         .shape(shapes::chamfered(7, shapes::Corner::AntiDiagonal))
         .fill(ground)
-        .foreground(
-            styles::BevelPair{alpha(kChromeHi, 0.6f), {0, 0, 0, 0.5f}, 1, 1})
-        .foreground(styles::Brackets{alpha(kCyan, 0.55f), 8, 2, 3,
+        .foreground(styles::BevelPair{
+            mskia::withAlpha(kChromeHi, 0.6f), {0, 0, 0, 0.5f}, 1, 1})
+        .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.55f), 8, 2, 3,
                                      shapes::Corner::All});
   }
 
@@ -567,9 +573,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
     return box()
         .inset(0)
         .shape(shapes::sector(-100, 78, inner))
-        .fill(mskia::Paint::linearUnit(
-            {0, 0}, {1, 1},
-            {{0.0f, alpha(tint, 0.85f)}, {1.0f, alpha(tint, 0.05f)}}))
+        .fill(mskia::Paint::linearUnit({0, 0}, {1, 1},
+                                       {{0.0f, mskia::withAlpha(tint, 0.85f)},
+                                        {1.0f, mskia::withAlpha(tint, 0.05f)}}))
         .rotate(&gauge[(size_t)i])
         .opacity(&gaugeAlpha[(size_t)i]);
   }
@@ -605,8 +611,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
                            {{0.0f, kCyanRing},
                             {0.55f, kTealBar},
                             {1.0f, hexColor(0x0C2A2C)}}))
-                       .stroke(stroke(1, Fill::color(alpha(kCyan, 0.7f)),
-                                      PathFormat::Align::Inner))
+                       .stroke(
+                           stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.7f)),
+                                  PathFormat::Align::Inner))
                        .justify(Justify::Center)
                        .alignItems(Align::Center)
                        .child(box().width(9).height(9).corners({5}).stroke(
@@ -615,12 +622,14 @@ struct TwoAdvancedV4 : sketch::Sketch {
             // capture: the boot callsign, then the two region labels the
             // page hangs over its modules.
             .child(t("INITREQ 2A", micro(12, kNear, 240)))
-            .child(box().width(1).height(14).fill(alpha(kCyan, 0.4f)))
+            .child(
+                box().width(1).height(14).fill(mskia::withAlpha(kCyan, 0.4f)))
             .child(t("\xe2\x80\xba GLOBAL AMBIENCE",
-                     micro(11, alpha(kCyan, 0.9f), 240)))
+                     micro(11, mskia::withAlpha(kCyan, 0.9f), 240)))
             .child(box().grow(1))
-            .child(box().width(90).height(12).foreground(styles::TickRail{
-                alpha(kNear, 0.45f), 6, 3, 8, 1, 3, 0.5f, path::Edge::Bottom}))
+            .child(box().width(90).height(12).foreground(
+                styles::TickRail{mskia::withAlpha(kNear, 0.45f), 6, 3, 8, 1, 3,
+                                 0.5f, path::Edge::Bottom}))
             .child(box().width(46));
 
     Element maroon =
@@ -645,8 +654,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .child(box()
                        .height(24)
                        .padding(9, 0)
-                       .stroke(stroke(1, Fill::color(alpha(kNear, 0.75f)),
-                                      PathFormat::Align::Inner))
+                       .stroke(stroke(
+                           1, Fill::color(mskia::withAlpha(kNear, 0.75f)),
+                           PathFormat::Align::Inner))
                        .row()
                        .alignItems(Align::Center)
                        .child(t("V4.PROPHECY", heavy(14, kNear, 80))));
@@ -676,11 +686,14 @@ struct TwoAdvancedV4 : sketch::Sketch {
               .alignItems(Align::Center)
               .padding(6, 0)
               .gap(6)
-              .fill(sel ? kChromeHi : alpha(hexColor(0x2A0A0C), 0.85f))
+              .fill(sel ? kChromeHi
+                        : mskia::withAlpha(hexColor(0x2A0A0C), 0.85f))
               .foreground(onEdges(
                   path::Edge::Left,
-                  stroke(2, Fill::color(sel ? kCyan : alpha(kDust, 0.35f)),
-                         PathFormat::Align::Inner)))
+                  stroke(
+                      2,
+                      Fill::color(sel ? kCyan : mskia::withAlpha(kDust, 0.35f)),
+                      PathFormat::Align::Inner)))
               .child(t(sel ? "\xe2\x96\xb8" : " ", micro(11, kCyan, 0)))
               .child(t(tracks[i], sigil::weave::kit::tracked(
                                       blackFace(), 13, sel ? kNear : kHeadDim,
@@ -694,9 +707,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .shape(shapes::chamfered(8, shapes::Corner::AntiDiagonal))
             .fill(spectrum)
             .foreground(styles::Scanlines{{0, 0, 0, 0.16f}, 3, 1})
-            .foreground(styles::Brackets{alpha(kCyan, 0.6f), 10, 2, 3,
-                                         shapes::Corner::All})
-            .foreground(stroke(1, Fill::color(alpha(kCyan, 0.35f)),
+            .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.6f), 10, 2,
+                                         3, shapes::Corner::All})
+            .foreground(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.35f)),
                                PathFormat::Align::Inner));
 
     auto key = [&](const char* glyph, bool hot) {
@@ -709,7 +722,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
               {{0.0f, hot ? kCtaHi : hexColor(0x5A2226)},
                {0.5f, hot ? kCta : hexColor(0x3A0F12)},
                {1.0f, hexColor(0x240607)}}))
-          .stroke(stroke(1, Fill::color(alpha(kDust, 0.35f)),
+          .stroke(stroke(1, Fill::color(mskia::withAlpha(kDust, 0.35f)),
                          PathFormat::Align::Inner))
           .justify(Justify::Center)
           .alignItems(Align::Center)
@@ -737,28 +750,29 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .foreground(styles::Brackets{
             kCyan, 18, 3, 4,
             shapes::Corner::TopLeft | shapes::Corner::TopRight})
-        .foreground(styles::TickRail{alpha(kDust, 0.45f), 7, 3, 6, 1, 4, 0.5f,
-                                     path::Edge::Bottom})
+        .foreground(styles::TickRail{mskia::withAlpha(kDust, 0.45f), 7, 3, 6, 1,
+                                     4, 0.5f, path::Edge::Bottom})
         .child(box().row().gap(8).height(100).child(list).child(scope))
-        .child(box()
-                   .row()
-                   .gap(5)
-                   .alignItems(Align::Center)
-                   .child(key("\xe2\x97\x82\xe2\x97\x82", false))
-                   .child(key("\xe2\x96\xa0", false))
-                   .child(key("\xe2\x96\xb8", true))
-                   .child(key("\xe2\x96\xb8\xe2\x96\xb8", false))
-                   .child(box().width(8))
-                   .child(meter(64, &vuLeft, alpha(kCyan, 0.85f)))
-                   .child(box().grow(1))
-                   .child(t("VOL", micro(10, kDustDim, 200)))
-                   .child(meter(56, &vuRight, alpha(kCyanRing, 0.8f))))
+        .child(
+            box()
+                .row()
+                .gap(5)
+                .alignItems(Align::Center)
+                .child(key("\xe2\x97\x82\xe2\x97\x82", false))
+                .child(key("\xe2\x96\xa0", false))
+                .child(key("\xe2\x96\xb8", true))
+                .child(key("\xe2\x96\xb8\xe2\x96\xb8", false))
+                .child(box().width(8))
+                .child(meter(64, &vuLeft, mskia::withAlpha(kCyan, 0.85f)))
+                .child(box().grow(1))
+                .child(t("VOL", micro(10, kDustDim, 200)))
+                .child(meter(56, &vuRight, mskia::withAlpha(kCyanRing, 0.8f))))
         .child(box()
                    .height(18)
                    .row()
                    .alignItems(Align::Center)
                    .padding(6, 0)
-                   .fill(alpha(kChrome, 0.9f))
+                   .fill(mskia::withAlpha(kChrome, 0.9f))
                    .child(t("AUDIO PREFERENCES", micro(11, kDust, 240)))
                    .child(box().grow(1))
                    .child(t("STREAM 128K \xc2\xb7 STEREO",
@@ -785,34 +799,36 @@ struct TwoAdvancedV4 : sketch::Sketch {
                     .opacity(animate(motion::from(0.0f).to(1.0f),
                                      {240ms, &ch::easeOutQuad, 2250ms}))
                     .child(t(kNavItems[i], label(13, kNear, 80)))
-                    .child(box().width(8).height(2).fill(alpha(kDust, 0.6f))));
+                    .child(box().width(8).height(2).fill(
+                        mskia::withAlpha(kDust, 0.6f))));
       if (i < 6)
-        bar.child(
-            box().width(1).height(20).fill(alpha(hexColor(0x2A0A0C), 0.9f)));
+        bar.child(box().width(1).height(20).fill(
+            mskia::withAlpha(hexColor(0x2A0A0C), 0.9f)));
     }
     // The GLOBAL NAVIGATOR's live selection mark: one cyan bar whose X is
     // a single bound value, gliding between items as the section cycle
     // walks the taxonomy.
-    bar.child(box()
-                  .left(Dim(0))
-                  .top(Dim(38))
-                  .width(24)
-                  .height(3)
-                  .fill(kCyan)
-                  .background(styles::OuterGlow{alpha(kGlow, 0.5f), 6, 0})
-                  .translateX(&navIndX));
+    bar.child(
+        box()
+            .left(Dim(0))
+            .top(Dim(38))
+            .width(24)
+            .height(3)
+            .fill(kCyan)
+            .background(styles::OuterGlow{mskia::withAlpha(kGlow, 0.5f), 6, 0})
+            .translateX(&navIndX));
     return bar;
   }
 
   Element masthead() {
     using namespace tav;
-    Element emblem =
-        box()
-            .width(78)
-            .height(78)
-            .background(styles::OuterGlow{alpha(kGlow, 0.45f), 14, 0})
-            .justify(Justify::Center)
-            .alignItems(Align::Center);
+    Element emblem = box()
+                         .width(78)
+                         .height(78)
+                         .background(styles::OuterGlow{
+                             mskia::withAlpha(kGlow, 0.45f), 14, 0})
+                         .justify(Justify::Center)
+                         .alignItems(Align::Center);
     if (logoBugSvg) {
       // The production mark itself, recoloured to the wordmark cyan: a
       // solid fill masked by the SVG raster's coverage, so the vector
@@ -829,7 +845,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                      .width(50)
                      .height(50)
                      .shape(shapes::polygon(6, 0))
-                     .stroke(stroke(1, Fill::color(alpha(kCyanRing, 0.75f))))
+                     .stroke(stroke(
+                         1, Fill::color(mskia::withAlpha(kCyanRing, 0.75f))))
                      .justify(Justify::Center)
                      .alignItems(Align::Center)
                      .child(t("2", sigil::weave::kit::tracked(
@@ -859,7 +876,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                     sigil::weave::kit::tracked(
                                         blackFace(), 25, kCyan, 80, 0.90f))
                                       .effect(styles::textGlow(
-                                          alpha(kGlow, 0.55f), 6)))
+                                          mskia::withAlpha(kGlow, 0.55f), 6)))
                            .child(t("PROGRESSIVE DESIGN TECHNOLOGY",
                                     micro(12, kDust, 240)))
                            .child(box()
@@ -867,7 +884,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                       .gap(6)
                                       .alignItems(Align::Center)
                                       .child(box().width(30).height(1).fill(
-                                          alpha(kCyan, 0.5f)))
+                                          mskia::withAlpha(kCyan, 0.5f)))
                                       .child(t("EST. 1999 \xc2\xb7 IRVINE CA",
                                                micro(10, kDustDim, 200)))))
                 .child(box().grow(1))
@@ -882,7 +899,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                     micro(10, kDustDim, 200)))))
         // the glowing 2px cyan divider under the whole masthead panel
         .child(box().height(2).fill(kCyan).background(
-            styles::OuterGlow{alpha(kGlow, 0.55f), 10, 1}));
+            styles::OuterGlow{mskia::withAlpha(kGlow, 0.55f), 10, 1}));
   }
 
   // ---- the hero -----------------------------------------------------------
@@ -1105,9 +1122,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
     // one kPlus ramp is the whole of the fix.
     scene.child(at(box().fill(mskia::Paint::linearUnit(
                        {0, 0}, {0, 1},
-                       {{0.00f, alpha(kTealBar, 0.0f)},
-                        {0.62f, alpha(kTealBar, 0.10f)},
-                        {1.00f, alpha(kTealBar, 0.34f)}})),
+                       {{0.00f, mskia::withAlpha(kTealBar, 0.0f)},
+                        {0.62f, mskia::withAlpha(kTealBar, 0.10f)},
+                        {1.00f, mskia::withAlpha(kTealBar, 0.34f)}})),
                    0, horizon - 132, w, 132)
                     .blend(SkBlendMode::kPlus));
 
@@ -1119,12 +1136,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
     // this adds is the atmosphere around it: a low-alpha core under a
     // reaching glow, screened over the render rather than pasted in front
     // of it.
-    msdf::Style ps{
-        .fill = mskia::toColor(alpha(kGlow, 0.07f)),
-        .borderWidth = 2,
-        .borderColor = mskia::toColor(alpha({0.90f, 1.0f, 1.0f, 1.0f}, 0.35f)),
-        .glowRadius = 54,
-        .glowColor = mskia::toColor(alpha(kGlow, 0.42f))};
+    msdf::Style ps{.fill = mskia::toColor(mskia::withAlpha(kGlow, 0.07f)),
+                   .borderWidth = 2,
+                   .borderColor = mskia::toColor(
+                       mskia::withAlpha({0.90f, 1.0f, 1.0f, 1.0f}, 0.35f)),
+                   .glowRadius = 54,
+                   .glowColor = mskia::toColor(mskia::withAlpha(kGlow, 0.42f))};
     const float pbox = msdf::minBoxFor(ps, 132);
     mskia::Paint pm = mskia::Paint::recipe(msdf::material(msdf::circle(), ps));
     if (!still) pm.uniform("uGlowR", &portalGlow);  // ±8 % sine, period 4 s
@@ -1141,11 +1158,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
     scene.child(portal);
 
     // an orbital ring, trim-revealed with the panel
-    Element ring =
-        at(box()
-               .shape(shapes::arc(-125, 310))
-               .stroke(stroke(2, Fill::color(alpha(kCyanRing, 0.34f)))),
-           cx - 118, horizon - 226, 236, 236);
+    Element ring = at(
+        box()
+            .shape(shapes::arc(-125, 310))
+            .stroke(stroke(2, Fill::color(mskia::withAlpha(kCyanRing, 0.34f)))),
+        cx - 118, horizon - 226, 236, 236);
     if (!still)
       ring.mask(by::spans(spans::upTo(animate(
           motion::from(0.0f).to(1.0f), {700ms, &ch::easeOutQuint, 2600ms}))));
@@ -1162,43 +1179,45 @@ struct TwoAdvancedV4 : sketch::Sketch {
                       .fill(waterStreaks)
                       .opacity(0.55f)
                       .blend(SkBlendMode::kPlus));
-    water.child(
-        box()
-            .left(Dim(cx - 190))
-            .top(Dim(-72))
-            .width(380)
-            .height(300)
-            .fill(mskia::Paint::radialUnit({0.5f, 0.14f}, 1.05f,
-                                           {{0.0f, alpha(kGlow, 0.75f)},
-                                            {0.45f, alpha(kTealBar, 0.32f)},
-                                            {1.0f, alpha(kTealBar, 0.0f)}}))
-            // smear the reflection down into the water: sigma 26
-            // along the 90° axis (straight down), 14 across it
-            .effect(mskia::Effect::directionalBlur(26, 90, 14))
-            .opacity(0.78f)
-            .blend(SkBlendMode::kPlus));
+    water.child(box()
+                    .left(Dim(cx - 190))
+                    .top(Dim(-72))
+                    .width(380)
+                    .height(300)
+                    .fill(mskia::Paint::radialUnit(
+                        {0.5f, 0.14f}, 1.05f,
+                        {{0.0f, mskia::withAlpha(kGlow, 0.75f)},
+                         {0.45f, mskia::withAlpha(kTealBar, 0.32f)},
+                         {1.0f, mskia::withAlpha(kTealBar, 0.0f)}}))
+                    // smear the reflection down into the water: sigma 26
+                    // along the 90° axis (straight down), 14 across it
+                    .effect(mskia::Effect::directionalBlur(26, 90, 14))
+                    .opacity(0.78f)
+                    .blend(SkBlendMode::kPlus));
     // the specular COLUMN — the vertical smear of a light in water, and
     // the single cue that reads "reflection" from across the room
-    water.child(
-        box()
-            .left(Dim(cx - 40))
-            .top(Dim(0))
-            .width(80)
-            .height(Dim(h - horizon))
-            .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                           {{0.00f, alpha(kGlow, 0.55f)},
-                                            {0.35f, alpha(kGlow, 0.20f)},
-                                            {1.00f, alpha(kGlow, 0.0f)}}))
-            // soften the column's sides: sigma 10 along the 0° axis
-            // (horizontal), only 3 down its length
-            .effect(mskia::Effect::directionalBlur(10, 0, 3))
-            .blend(SkBlendMode::kPlus));
+    water.child(box()
+                    .left(Dim(cx - 40))
+                    .top(Dim(0))
+                    .width(80)
+                    .height(Dim(h - horizon))
+                    .fill(mskia::Paint::linearUnit(
+                        {0, 0}, {0, 1},
+                        {{0.00f, mskia::withAlpha(kGlow, 0.55f)},
+                         {0.35f, mskia::withAlpha(kGlow, 0.20f)},
+                         {1.00f, mskia::withAlpha(kGlow, 0.0f)}}))
+                    // soften the column's sides: sigma 10 along the 0° axis
+                    // (horizontal), only 3 down its length
+                    .effect(mskia::Effect::directionalBlur(10, 0, 3))
+                    .blend(SkBlendMode::kPlus));
     scene.child(water);
 
     // THE horizon hairline. A hard, bright edge where the water starts
     // sells the reflection below it more than the blur itself does.
-    scene.child(at(box().fill(alpha(kGlow, 0.62f)), 0, horizon - 1, w, 2));
-    scene.child(at(box().fill(alpha(kCyanRing, 0.16f)), 0, horizon + 3, w, 1));
+    scene.child(
+        at(box().fill(mskia::withAlpha(kGlow, 0.62f)), 0, horizon - 1, w, 2));
+    scene.child(at(box().fill(mskia::withAlpha(kCyanRing, 0.16f)), 0,
+                   horizon + 3, w, 1));
     return scene;
   }
 
@@ -1222,8 +1241,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                   {0.58f, {0, 0, 0, 0.10f}},
                                   {1.00f, {0, 0, 0, 0.66f}}})));
     s.child(box().inset(0).foreground(styles::Scanlines{}));
-    s.child(box().inset(0).foreground(
-        styles::Brackets{alpha(kCyan, 0.7f), 22, 2, 8, shapes::Corner::All}));
+    s.child(box().inset(0).foreground(styles::Brackets{
+        mskia::withAlpha(kCyan, 0.7f), 22, 2, 8, shapes::Corner::All}));
 
     auto corner = [&](const char* a, const char* b, float l, float tp,
                       bool end) {
@@ -1233,8 +1252,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
           .alignItems(end ? Align::End : Align::Start)
           .left(Dim(l))
           .top(Dim(tp))
-          .child(t(a, micro(10, alpha(kCyan, 0.8f), 220)))
-          .child(t(b, micro(10, alpha(kCyanRing, 0.45f), 220)));
+          .child(t(a, micro(10, mskia::withAlpha(kCyan, 0.8f), 220)))
+          .child(t(b, micro(10, mskia::withAlpha(kCyanRing, 0.45f), 220)));
     };
     s.child(corner("REND / MAXON C4D R8", "PASS 04 \xc2\xb7 FRM 0142", 20, 18,
                    false));
@@ -1246,9 +1265,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                 .row()
                 .gap(6)
                 .alignItems(Align::Center)
-                .child(box().width(120).height(8).foreground(styles::TickRail{
-                    alpha(kCyan, 0.6f), 6, 3, 8, 1, 4, 0.5f, path::Edge::Top}))
-                .child(t("SIG 88%", micro(10, alpha(kCyan, 0.85f), 200))));
+                .child(box().width(120).height(8).foreground(
+                    styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 6, 3, 8, 1,
+                                     4, 0.5f, path::Edge::Top}))
+                .child(t("SIG 88%",
+                         micro(10, mskia::withAlpha(kCyan, 0.85f), 200))));
     return s;
   }
 
@@ -1269,9 +1290,10 @@ struct TwoAdvancedV4 : sketch::Sketch {
               .fill(mskia::Paint::linearUnit(
                   {0, 0}, {1, 0},
                   {{0.0f, hexColor(0x2A0708)}, {1.0f, hexColor(0x1A0405)}}))
-              .foreground(onEdges(path::Edge::Bottom,
-                                  stroke(3, Fill::color(alpha(kCyan, 0.5f)),
-                                         PathFormat::Align::Inner)))
+              .foreground(
+                  onEdges(path::Edge::Bottom,
+                          stroke(3, Fill::color(mskia::withAlpha(kCyan, 0.5f)),
+                                 PathFormat::Align::Inner)))
               .scaleY(&shutter[(size_t)i])
               .transformOrigin(0.5f, 0.0f));
     // The ACCESSING readout that rides the closed shutters.
@@ -1281,11 +1303,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                    .width(440)
                    .height(64)
                    .shape(shapes::chamfered(10, shapes::Corner::Diagonal))
-                   .fill(alpha(hexColor(0x140404), 0.92f))
-                   .stroke(stroke(1, Fill::color(alpha(kCyan, 0.6f)),
+                   .fill(mskia::withAlpha(hexColor(0x140404), 0.92f))
+                   .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.6f)),
                                   PathFormat::Align::Inner))
-                   .foreground(styles::Brackets{alpha(kCyan, 0.7f), 10, 2, 3,
-                                                shapes::Corner::All})
+                   .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.7f),
+                                                10, 2, 3, shapes::Corner::All})
                    .justify(Justify::Center)
                    .alignItems(Align::Center)
                    .child(slot("mfload"))
@@ -1310,11 +1332,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .row()
         .gap(10)
         .alignItems(Align::Center)
-        .child(t("ACCESSING", micro(12, alpha(kCyan, 0.85f), 260)))
+        .child(t("ACCESSING", micro(12, mskia::withAlpha(kCyan, 0.85f), 260)))
         .child(t("\xe2\x96\xb8", micro(11, kCyan, 0)))
         .child(t(kNavItems[section], heavy(17, kNear, 80)))
-        .child(box().width(60).height(10).foreground(styles::TickRail{
-            alpha(kCyan, 0.6f), 5, 3, 8, 1, 4, 0.5f, path::Edge::Bottom}));
+        .child(box().width(60).height(10).foreground(
+            styles::TickRail{mskia::withAlpha(kCyan, 0.6f), 5, 3, 8, 1, 4, 0.5f,
+                             path::Edge::Bottom}));
   }
 
   // ---- teal monitor panels ------------------------------------------------
@@ -1328,12 +1351,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                         {0.15f, kPanel},
                                         {0.88f, kPanel},
                                         {1.00f, kPanelSh}}))
-        .foreground(kit::gloss(alpha(kPanelHi, 0.5f), 40, {0, -h * 0.34f},
-                               0.72f, 0.28f))
-        .foreground(
-            onEdges(path::Edge::Top,
-                    stroke(1, Fill::color(alpha(hexColor(0xCFEFEC), 0.7f)),
-                           PathFormat::Align::Inner)));
+        .foreground(kit::gloss(mskia::withAlpha(kPanelHi, 0.5f), 40,
+                               {0, -h * 0.34f}, 0.72f, 0.28f))
+        .foreground(onEdges(
+            path::Edge::Top,
+            stroke(1, Fill::color(mskia::withAlpha(hexColor(0xCFEFEC), 0.7f)),
+                   PathFormat::Align::Inner)));
   }
 
   /** Four procedural "stills" — each a different flat-shape composition
@@ -1349,29 +1372,31 @@ struct TwoAdvancedV4 : sketch::Sketch {
               .grow(1)
               .column()
               .gap(3)
-              .child(
-                  box()
-                      .grow(1)
-                      .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
-                      .fill(mskia::Paint::linearUnit(
-                          {0, 0}, {0, 1},
-                          {{0.0f, hexColor(0x0A2C33)},
-                           {1.0f, hexColor(0x02171B)}}))
-                      .stroke(stroke(
-                          1, Fill::color(alpha(hexColor(0x0B3B40), 0.9f)),
-                          PathFormat::Align::Inner))
-                      .child(box().inset(0).fill(mskia::Paint::radialUnit(
-                          {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
-                          {{0.0f, alpha(kGlow, g)},
-                           {1.0f, alpha(kGlow, 0.0f)}})))
-                      .child(at(box().fill(hexColor(0x011114)),
-                                6 + 4 * (float)i, 18, 12, 30))
-                      .child(at(box().fill(hexColor(0x01191D)),
-                                24 + 3 * (float)i, 8, 16, 40))
-                      .child(at(box().fill(alpha(kGlow, 0.55f)), 0, 40, 200, 1))
-                      .foreground(styles::Brackets{alpha(kCyan, 0.5f), 6, 1, 2,
-                                                   shapes::Corner::All})
-                      .foreground(styles::Scanlines{{0, 0, 0, 0.24f}, 3, 1}))
+              .child(box()
+                         .grow(1)
+                         .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
+                         .fill(mskia::Paint::linearUnit(
+                             {0, 0}, {0, 1},
+                             {{0.0f, hexColor(0x0A2C33)},
+                              {1.0f, hexColor(0x02171B)}}))
+                         .stroke(stroke(1,
+                                        Fill::color(mskia::withAlpha(
+                                            hexColor(0x0B3B40), 0.9f)),
+                                        PathFormat::Align::Inner))
+                         .child(box().inset(0).fill(mskia::Paint::radialUnit(
+                             {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
+                             {{0.0f, mskia::withAlpha(kGlow, g)},
+                              {1.0f, mskia::withAlpha(kGlow, 0.0f)}})))
+                         .child(at(box().fill(hexColor(0x011114)),
+                                   6 + 4 * (float)i, 18, 12, 30))
+                         .child(at(box().fill(hexColor(0x01191D)),
+                                   24 + 3 * (float)i, 8, 16, 40))
+                         .child(at(box().fill(mskia::withAlpha(kGlow, 0.55f)),
+                                   0, 40, 200, 1))
+                         .foreground(
+                             styles::Brackets{mskia::withAlpha(kCyan, 0.5f), 6,
+                                              1, 2, shapes::Corner::All})
+                         .foreground(styles::Scanlines{{0, 0, 0, 0.24f}, 3, 1}))
               .child(t(caps[i], micro(9, hexColor(0x123B3D), 220)));
       out.push_back(std::move(cell));
     }
@@ -1384,8 +1409,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
     return box()
         .column()
         .gap(2)
-        .child(t(k, micro(9, alpha(hexColor(0x123B3D), 0.75f), 260)))
-        .child(box().height(1).fill(alpha(kDate, 0.28f)))
+        .child(t(k, micro(9, mskia::withAlpha(hexColor(0x123B3D), 0.75f), 260)))
+        .child(box().height(1).fill(mskia::withAlpha(kDate, 0.28f)))
         .child(t(v, sigil::weave::kit::tracked(blackFace(), 11,
                                                hexColor(0x0E3234), 40, 0.92f)));
   }
@@ -1401,19 +1426,21 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .fill(mskia::Paint::linearUnit(
                 {0, 0}, {0, 1},
                 {{0.0f, hexColor(0x06232A)}, {1.0f, hexColor(0x011114)}}))
-            .stroke(stroke(1, Fill::color(alpha(hexColor(0x0B3B40), 0.9f)),
-                           PathFormat::Align::Inner))
-            .child(box().inset(0).fill(
-                mskia::Paint::radialUnit({0.5f, 0.72f}, 0.95f,
-                                         {{0.0f, alpha(kGlow, 0.8f)},
-                                          {0.5f, alpha(kTealBar, 0.28f)},
-                                          {1.0f, alpha(kTealBar, 0.0f)}})))
+            .stroke(stroke(
+                1, Fill::color(mskia::withAlpha(hexColor(0x0B3B40), 0.9f)),
+                PathFormat::Align::Inner))
+            .child(box().inset(0).fill(mskia::Paint::radialUnit(
+                {0.5f, 0.72f}, 0.95f,
+                {{0.0f, mskia::withAlpha(kGlow, 0.8f)},
+                 {0.5f, mskia::withAlpha(kTealBar, 0.28f)},
+                 {1.0f, mskia::withAlpha(kTealBar, 0.0f)}})))
             .child(at(box().fill(hexColor(0x010A0C)), 18, 74, 30, 60))
             .child(at(box().fill(hexColor(0x02171B)), 52, 46, 44, 88))
             .child(at(box().fill(hexColor(0x010A0C)), 100, 62, 34, 72))
-            .child(at(box().fill(alpha(kGlow, 0.6f)), 0, 108, 150, 1))
-            .foreground(styles::Brackets{alpha(kCyan, 0.85f), 12, 2, 4,
-                                         shapes::Corner::All})
+            .child(
+                at(box().fill(mskia::withAlpha(kGlow, 0.6f)), 0, 108, 150, 1))
+            .foreground(styles::Brackets{mskia::withAlpha(kCyan, 0.85f), 12, 2,
+                                         4, shapes::Corner::All})
             .foreground(styles::Scanlines{{0, 0, 0, 0.22f}, 3, 1});
 
     Element copy =
@@ -1421,20 +1448,20 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .grow(1)
             .column()
             .gap(6)
-            .child(
-                box()
-                    .row()
-                    .gap(7)
-                    .alignItems(Align::Center)
-                    .child(box()
-                               .width(9)
-                               .height(9)
-                               .shape(shapes::polygon(3, 90))
-                               .fill(kDate))
-                    .child(
-                        t("01.30.06", sigil::weave::kit::tracked(
-                                          blackFace(), 14, kDate, 40, 0.95f)))
-                    .child(box().grow(1).height(1).fill(alpha(kDate, 0.35f))))
+            .child(box()
+                       .row()
+                       .gap(7)
+                       .alignItems(Align::Center)
+                       .child(box()
+                                  .width(9)
+                                  .height(9)
+                                  .shape(shapes::polygon(3, 90))
+                                  .fill(kDate))
+                       .child(t("01.30.06",
+                                sigil::weave::kit::tracked(blackFace(), 14,
+                                                           kDate, 40, 0.95f)))
+                       .child(box().grow(1).height(1).fill(
+                           mskia::withAlpha(kDate, 0.35f))))
             .child(t("N.O.-XPLODE TV COMMERCIAL",
                      sigil::weave::kit::tracked(blackFace(), 17,
                                                 hexColor(0x0E3234), 40, 0.92f)))
@@ -1442,8 +1469,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        .height(84)
                        .padding(9)
                        .fill(dither.material())
-                       .foreground(stroke(1, Fill::color(alpha(kPanelSh, 0.9f)),
-                                          PathFormat::Align::Inner))
+                       .foreground(stroke(
+                           1, Fill::color(mskia::withAlpha(kPanelSh, 0.9f)),
+                           PathFormat::Align::Inner))
                        // the ONE place this interface is not tracked caps
                        .child(t("2Advanced completes a broadcast spot for "
                                 "BSN's N.O.-Xplode line \xe2\x80\x94 full CG "
@@ -1477,7 +1505,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        .child(box()
                                   .width(150)
                                   .height(6)
-                                  .fill(alpha(kPanelSh, 0.7f))
+                                  .fill(mskia::withAlpha(kPanelSh, 0.7f))
                                   .child(box()
                                              .left(Dim(0))
                                              .top(Dim(0))
@@ -1495,11 +1523,13 @@ struct TwoAdvancedV4 : sketch::Sketch {
                 .gap(4)
                 .padding(8)
                 .fill(dither.material())
-                .foreground(stroke(1, Fill::color(alpha(kPanelSh, 0.9f)),
-                                   PathFormat::Align::Inner))
-                .child(t("CREDITS",
-                         micro(9, alpha(hexColor(0x123B3D), 0.8f), 260)))
-                .child(box().height(1).fill(alpha(kDate, 0.28f)))
+                .foreground(
+                    stroke(1, Fill::color(mskia::withAlpha(kPanelSh, 0.9f)),
+                           PathFormat::Align::Inner))
+                .child(t(
+                    "CREDITS",
+                    micro(9, mskia::withAlpha(hexColor(0x123B3D), 0.8f), 260)))
+                .child(box().height(1).fill(mskia::withAlpha(kDate, 0.28f)))
                 .child(t("DIRECTION", micro(9, kDate, 200)))
                 .child(t("ERIC JORDAN",
                          sigil::weave::kit::tracked(
@@ -1515,7 +1545,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                            .gap(4)
                            .alignItems(Align::Center)
                            .child(box().width(7).height(7).fill(
-                               alpha(kDate, 0.8f)))
+                               mskia::withAlpha(kDate, 0.8f)))
                            .child(t("ARCHIVED", micro(9, kDate, 200)))));
 
     Element bodyArea =
@@ -1599,25 +1629,25 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
     Element list = box().column().gap(9);
     for (const Entry& e : entries)
-      list.child(
-          box()
-              .column()
-              .gap(4)
-              .child(
-                  box()
-                      .row()
-                      .gap(7)
-                      .alignItems(Align::Center)
-                      .fill(alpha(kPanelSh, 0.55f))
-                      .padding(6, 3)
-                      .child(t(e.date, sigil::weave::kit::tracked(
-                                           blackFace(), 13, kDate, 40, 0.95f)))
-                      .child(box().grow(1).height(1).fill(alpha(kDate, 0.3f)))
-                      .child(t("\xe2\x96\xb8", micro(9, kDate, 0))))
-              .child(t(e.headline,
-                       sigil::weave::kit::tracked(
-                           blackFace(), 13, hexColor(0x0E3234), 50, 0.92f)))
-              .child(t(e.body, prose(12.5f, hexColor(0x0C2E30)))));
+      list.child(box()
+                     .column()
+                     .gap(4)
+                     .child(box()
+                                .row()
+                                .gap(7)
+                                .alignItems(Align::Center)
+                                .fill(mskia::withAlpha(kPanelSh, 0.55f))
+                                .padding(6, 3)
+                                .child(t(e.date, sigil::weave::kit::tracked(
+                                                     blackFace(), 13, kDate, 40,
+                                                     0.95f)))
+                                .child(box().grow(1).height(1).fill(
+                                    mskia::withAlpha(kDate, 0.3f)))
+                                .child(t("\xe2\x96\xb8", micro(9, kDate, 0))))
+                     .child(t(e.headline, sigil::weave::kit::tracked(
+                                              blackFace(), 13,
+                                              hexColor(0x0E3234), 50, 0.92f)))
+                     .child(t(e.body, prose(12.5f, hexColor(0x0C2E30)))));
     return list;
   }
 
@@ -1647,8 +1677,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
                           .fill(mskia::Paint::linearUnit(
                               {0, 0}, {1, 0},
                               {{0.0f, hexColor(0xCFEFEC)}, {1.0f, kPanelHi}}))
-                          .stroke(stroke(1, Fill::color(alpha(kDate, 0.4f)),
-                                         PathFormat::Align::Inner)),
+                          .stroke(stroke(
+                              1, Fill::color(mskia::withAlpha(kDate, 0.4f)),
+                              PathFormat::Align::Inner)),
              .scrolled = well,
              // The list's own scroll, in the thumb's units. A list that
              // fits has no travel and the target collapses to nothing;
@@ -1657,7 +1688,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                              .source(0.0f, -std::max(pressOverflow, 1.0f))
                              .target(0.0f, well.thumb().travel),
              .thumbInset = 2,
-             .track = Fill::color(alpha(kPanelSh, 0.6f))})
+             .track = Fill::color(mskia::withAlpha(kPanelSh, 0.6f))})
             .width(16)
             .gap(3);
 
@@ -1666,20 +1697,22 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .column()
             .padding(11)
             .gap(9)
-            .child(box()
-                       .grow(1)
-                       .row()
-                       .gap(8)
-                       .child(box()
-                                  .grow(1)
-                                  .clip()
-                                  .padding(9)
-                                  .fill(dither.material())
-                                  .foreground(stroke(
-                                      1, Fill::color(alpha(kPanelSh, 0.9f)),
-                                      PathFormat::Align::Inner))
-                                  .child(list))
-                       .child(scrollbar))
+            .child(
+                box()
+                    .grow(1)
+                    .row()
+                    .gap(8)
+                    .child(box()
+                               .grow(1)
+                               .clip()
+                               .padding(9)
+                               .fill(dither.material())
+                               .foreground(stroke(1,
+                                                  Fill::color(mskia::withAlpha(
+                                                      kPanelSh, 0.9f)),
+                                                  PathFormat::Align::Inner))
+                               .child(list))
+                    .child(scrollbar))
             .child(box()
                        .row()
                        .alignItems(Align::Center)
@@ -1725,7 +1758,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .fill(mskia::Paint::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, kPanelHi}, {0.5f, kPanel}, {1.0f, kPanelSh}}))
-        .stroke(stroke(1, Fill::color(alpha(hexColor(0xCFEFEC), 0.6f)),
+        .stroke(stroke(1,
+                       Fill::color(mskia::withAlpha(hexColor(0xCFEFEC), 0.6f)),
                        PathFormat::Align::Inner))
         .justify(Justify::Center)
         .alignItems(Align::Center)
@@ -1768,22 +1802,24 @@ struct TwoAdvancedV4 : sketch::Sketch {
                              {0, 0}, {0, 1},
                              {{0.0f, hexColor(0x8E2A2A)},
                               {1.0f, hexColor(0x3A0C0E)}}))
-                         .stroke(stroke(1, Fill::color(alpha(kNear, 0.4f)),
-                                        PathFormat::Align::Inner))
+                         .stroke(stroke(
+                             1, Fill::color(mskia::withAlpha(kNear, 0.4f)),
+                             PathFormat::Align::Inner))
                          .justify(Justify::Center)
                          .alignItems(Align::Center)
                          .child(t(it.glyph, micro(11, kPanelHi, 0))))
-              .child(
-                  box()
-                      .grow(1)
-                      .column()
-                      .child(t(it.l1, prose(11.5f, kCopy)))
-                      .child(box()
-                                 .row()
-                                 .child(t(it.l2, prose(11.5f, kCopy)))
-                                 .child(box().grow(1))
-                                 .child(t(it.link, micro(9, alpha(kNear, 0.85f),
-                                                         160))))));
+              .child(box()
+                         .grow(1)
+                         .column()
+                         .child(t(it.l1, prose(11.5f, kCopy)))
+                         .child(box()
+                                    .row()
+                                    .child(t(it.l2, prose(11.5f, kCopy)))
+                                    .child(box().grow(1))
+                                    .child(t(
+                                        it.link,
+                                        micro(9, mskia::withAlpha(kNear, 0.85f),
+                                              160))))));
 
     // Column 2: the book plate is white — the one white rectangle on the
     // whole page — with the title set dark on it.
@@ -1839,8 +1875,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
                            {0, 0}, {0, 1},
                            {{0.0f, hexColor(0x2A0A0C)},
                             {1.0f, hexColor(0x140404)}}))
-                       .stroke(stroke(1, Fill::color(alpha(kDust, 0.4f)),
-                                      PathFormat::Align::Inner))
+                       .stroke(
+                           stroke(1, Fill::color(mskia::withAlpha(kDust, 0.4f)),
+                                  PathFormat::Align::Inner))
                        .child(box()
                                   .width(20)
                                   .height(20)
@@ -1896,9 +1933,10 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        {0, 0}, {0, 1},
                        {{0.0f, hexColor(0x0A4148)}, {1.0f, hexColor(0x02181C)}})
                  : mskia::Paint::solid(hexColor(0x220608)))
-        .stroke(stroke(
-            1, Fill::color(on ? alpha(kCyan, 0.7f) : alpha(kDust, 0.35f)),
-            PathFormat::Align::Inner))
+        .stroke(stroke(1,
+                       Fill::color(on ? mskia::withAlpha(kCyan, 0.7f)
+                                      : mskia::withAlpha(kDust, 0.35f)),
+                       PathFormat::Align::Inner))
         .justify(Justify::Center)
         .alignItems(Align::Center)
         .child(t(lbl, micro(10, on ? kCyan : kDustDim, 160)));
@@ -1911,7 +1949,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                "EQUIPMENT", "CONTACT"};
     std::vector<Element> out;
     for (int i = 0; i < 8; ++i) {
-      if (i) out.push_back(box().width(1).height(9).fill(alpha(kDust, 0.3f)));
+      if (i)
+        out.push_back(
+            box().width(1).height(9).fill(mskia::withAlpha(kDust, 0.3f)));
       out.push_back(t(l[i], micro(10, kDustDim, 200)));
     }
     return out;
@@ -1927,7 +1967,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
           .fill(mskia::Paint::linearUnit(
               {0, 0}, {0, 1},
               {{0.0f, hexColor(0x6A1B21)}, {1.0f, hexColor(0x220608)}}))
-          .stroke(stroke(1, Fill::color(alpha(kDust, 0.5f)),
+          .stroke(stroke(1, Fill::color(mskia::withAlpha(kDust, 0.5f)),
                          PathFormat::Align::Inner))
           .justify(Justify::Center)
           .alignItems(Align::Center)
@@ -1946,7 +1986,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                   .fill(mskia::Paint::radialUnit(
                       {0.5f, 0.76f}, 1.1f,
                       {{0.0f, hexColor(0x0A4148)}, {1.0f, hexColor(0x010D10)}}))
-                  .stroke(stroke(1, Fill::color(alpha(kCyan, 0.5f)),
+                  .stroke(stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.5f)),
                                  PathFormat::Align::Inner)))
           .child(box()
                      .column()
@@ -1970,20 +2010,20 @@ struct TwoAdvancedV4 : sketch::Sketch {
             styles::Overlay{hazard.material(), SkBlendMode::kSrcOver, 0.16f})
         .opacity(animate(motion::from(0.0f).to(1.0f),
                          {400ms, &ch::easeOutQuad, 3650ms}))
-        .foreground(styles::TickRail{alpha(kDust, 0.35f), 9, 4, 8, 1, 4, 0.5f,
-                                     path::Edge::Top})
+        .foreground(styles::TickRail{mskia::withAlpha(kDust, 0.35f), 9, 4, 8, 1,
+                                     4, 0.5f, path::Edge::Top})
         .child(t("SUB", heavy(15, kNear, 40)))
         .child(t("SYSTEM",
                  sigil::weave::kit::tracked(arial(), 14, kHeadDim, 40, 0.95f)))
-        .child(box().width(1).height(30).fill(alpha(kDust, 0.35f)))
+        .child(box().width(1).height(30).fill(mskia::withAlpha(kDust, 0.35f)))
         .child(t("PARTNERS:", micro(11, kDust, 240)))
         .child(chip("A"))
         .child(chip("M"))
-        .child(box().width(1).height(30).fill(alpha(kDust, 0.35f)))
+        .child(box().width(1).height(30).fill(mskia::withAlpha(kDust, 0.35f)))
         .child(selector("DESKTOPS", "'FIBERGLASS'"))
-        .child(box().width(1).height(30).fill(alpha(kDust, 0.35f)))
+        .child(box().width(1).height(30).fill(mskia::withAlpha(kDust, 0.35f)))
         .child(selector("APP SKINS", "'PROPHECY PRIME'"))
-        .child(box().width(1).height(30).fill(alpha(kDust, 0.35f)))
+        .child(box().width(1).height(30).fill(mskia::withAlpha(kDust, 0.35f)))
         .child(box()
                    .column()
                    .gap(3)
@@ -1994,7 +2034,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                               .alignItems(Align::Center)
                               .child(toggle("ON", true))
                               .child(toggle("OFF", false))))
-        .child(box().width(1).height(30).fill(alpha(kDust, 0.35f)))
+        .child(box().width(1).height(30).fill(mskia::withAlpha(kDust, 0.35f)))
         .child(box()
                    .column()
                    .gap(3)
@@ -2006,7 +2046,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                               .child(toggle("LOW", false))
                               .child(toggle("MED", false))
                               .child(toggle("HIGH", true))))
-        .child(box().width(1).height(30).fill(alpha(kDust, 0.35f)))
+        .child(box().width(1).height(30).fill(mskia::withAlpha(kDust, 0.35f)))
         .child(box()
                    .column()
                    .gap(3)
@@ -2021,10 +2061,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                    .gap(3)
                    .child(t("BANDWIDTH  \xe2\x96\xa0\xe2\x96\xa0\xe2\x96\xa0"
                             "\xe2\x96\xa0\xe2\x96\xa0\xe2\x96\xa1\xe2\x96\xa1",
-                            micro(11, alpha(kCyan, 0.85f), 200)))
+                            micro(11, mskia::withAlpha(kCyan, 0.85f), 200)))
                    .child(t("UPTIME 118:24:07", micro(10, kDustDim, 200))))
-        .child(box().width(70).height(40).foreground(styles::TickRail{
-            alpha(kCyan, 0.45f), 6, 4, 10, 1, 3, 0.5f, path::Edge::Bottom}));
+        .child(box().width(70).height(40).foreground(
+            styles::TickRail{mskia::withAlpha(kCyan, 0.45f), 6, 4, 10, 1, 3,
+                             0.5f, path::Edge::Bottom}));
     return row;
   }
 
@@ -2049,7 +2090,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                            .gap(6)
                            .alignItems(Align::Center)
                            .child(box().width(60).height(1).fill(
-                               alpha(kDust, 0.35f)))
+                               mskia::withAlpha(kDust, 0.35f)))
                            .child(t("SITE REQUIRES MACROMEDIA FLASH "
                                     "PLAYER 6",
                                     micro(10, kDustDim, 200))))
@@ -2067,9 +2108,10 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                 .shape(shapes::chamfered(
                                     7, shapes::Corner::Diagonal))
                                 .fill(hexColor(0x2A0A0C))
-                                .stroke(stroke(1,
-                                               Fill::color(alpha(kDust, 0.45f)),
-                                               PathFormat::Align::Inner))
+                                .stroke(stroke(
+                                    1,
+                                    Fill::color(mskia::withAlpha(kDust, 0.45f)),
+                                    PathFormat::Align::Inner))
                                 .row()
                                 .gap(6)
                                 .alignItems(Align::Center)
@@ -2082,9 +2124,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                    .row()
                    .gap(9)
                    .alignItems(Align::Center)
-                   .child(box().width(40).height(1).fill(alpha(kDust, 0.3f)))
+                   .child(box().width(40).height(1).fill(
+                       mskia::withAlpha(kDust, 0.3f)))
                    .children(footerLinks())
-                   .child(box().width(40).height(1).fill(alpha(kDust, 0.3f))))
+                   .child(box().width(40).height(1).fill(
+                       mskia::withAlpha(kDust, 0.3f))))
         .child(box().height(4))
         .child(t("COPYRIGHT (C) 2003 2ADVANCED STUDIOS, LLC.  ALL RIGHTS "
                  "RESERVED.",
@@ -2094,9 +2138,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
                    .gap(10)
                    .alignItems(Align::Center)
                    .child(t("LEGAL", micro(11, kDustDim, 200)))
-                   .child(box().width(1).height(10).fill(alpha(kDust, 0.35f)))
+                   .child(box().width(1).height(10).fill(
+                       mskia::withAlpha(kDust, 0.35f)))
                    .child(t("PRIVACY POLICY", micro(11, kDustDim, 200)))
-                   .child(box().width(1).height(10).fill(alpha(kDust, 0.35f)))
+                   .child(box().width(1).height(10).fill(
+                       mskia::withAlpha(kDust, 0.35f)))
                    .child(t("SITE MAP", micro(11, kDustDim, 200))));
   }
 
@@ -2109,14 +2155,14 @@ struct TwoAdvancedV4 : sketch::Sketch {
     for (int i = 0; i < 56; ++i) {
       const float v = 0.14f + 0.82f * std::abs(std::sin(i * 0.51f) *
                                                std::cos(i * 0.19f + 0.7f));
-      bars.push_back(
-          box()
-              .grow(1)
-              .shrink(0)
-              .height(Dim(72 * v))
-              .fill(mskia::Paint::linearUnit(
-                  {0, 0}, {0, 1},
-                  {{0.0f, alpha(kD7, 1.0f)}, {1.0f, alpha(kD4, 0.9f)}})));
+      bars.push_back(box()
+                         .grow(1)
+                         .shrink(0)
+                         .height(Dim(72 * v))
+                         .fill(mskia::Paint::linearUnit(
+                             {0, 0}, {0, 1},
+                             {{0.0f, mskia::withAlpha(kD7, 1.0f)},
+                              {1.0f, mskia::withAlpha(kD4, 0.9f)}})));
     }
     return bars;
   }
@@ -2176,7 +2222,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                      .child(box().grow(1).height(1).fill(kD4))
                      .child(t("\xc2\xbb", micro(11, kD5, 0))))
           .child(t(a, micro(10, kD6, 220)))
-          .child(t(b, micro(10, alpha(kD6, 0.7f), 220)))
+          .child(t(b, micro(10, mskia::withAlpha(kD6, 0.7f), 220)))
           .child(box().grow(1))
           .child(
               box()
@@ -2279,7 +2325,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
               .child(box()
                          .inset(26)
                          .corners({16})
-                         .fill(alpha(kD1, 0.92f))
+                         .fill(mskia::withAlpha(kD1, 0.92f))
                          .stroke(stroke(1, Fill::color(kD4),
                                         PathFormat::Align::Inner)))
               .child(t(i == 0 ? "01" : (i == 1 ? "02" : "03"),
@@ -2313,10 +2359,10 @@ struct TwoAdvancedV4 : sketch::Sketch {
                                         {0.22f, kChrome},
                                         {0.70f, hexColor(0x2A0708)},
                                         {1.00f, hexColor(0x0A0000)}}))
-        .foreground(
-            onEdges(right ? path::Edge::Left : path::Edge::Right,
-                    stroke(1, Fill::color(alpha(hexColor(0x99AAAA), 0.35f)),
-                           PathFormat::Align::Inner)))
+        .foreground(onEdges(
+            right ? path::Edge::Left : path::Edge::Right,
+            stroke(1, Fill::color(mskia::withAlpha(hexColor(0x99AAAA), 0.35f)),
+                   PathFormat::Align::Inner)))
         .foreground(RailFlares{hexColor(0x99AAAA), 6.0f, right ? 3.0f : 0.0f});
   }
 
@@ -2360,7 +2406,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                .shape(shapes::arc(-90, 359))
                .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f),
                                            {500ms, &ch::easeOutQuint, 260ms})),
-                       stroke(1, Fill::color(alpha(kCyan, 0.7f)))),
+                       stroke(1, Fill::color(mskia::withAlpha(kCyan, 0.7f)))),
            cx - 92, cy - 92, 184, 184));
     // 3. the 0→100 readout (a slot: TEXT, so it cannot be a binding)
     o.child(
@@ -2374,14 +2420,14 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .child(box()
                        .width(420)
                        .height(2)
-                       .fill(alpha(kCyan, 0.18f))
+                       .fill(mskia::withAlpha(kCyan, 0.18f))
                        .child(box().inset(0).shape(ray(1, 1)).stroke(
                            spans::upTo(animate(motion::from(0.0f).to(1.0f),
                                                {800ms, &ch::easeNone, 550ms})),
                            stroke(2, Fill::color(kCyan)))))
             .child(t("LOADING PROPHECY INTERFACE \xc2\xb7 970\xc3\x97"
                      "655",
-                     micro(11, alpha(kCyan, 0.6f), 240))));
+                     micro(11, mskia::withAlpha(kCyan, 0.6f), 240))));
     // 4. the boot-complete flash
     o.child(box()
                 .inset(0)
@@ -2402,8 +2448,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
         .gap(6)
         .child(t(buf.c_str(),
                  sigil::weave::kit::tracked(blackFace(), 46, kCyan, 40, 0.9f)))
-        .child(t("%", sigil::weave::kit::tracked(
-                          blackFace(), 20, alpha(kCyan, 0.6f), 40, 0.9f)));
+        .child(t("%", sigil::weave::kit::tracked(blackFace(), 20,
+                                                 mskia::withAlpha(kCyan, 0.6f),
+                                                 40, 0.9f)));
   }
 
   // =========================================================================
@@ -2512,12 +2559,15 @@ struct TwoAdvancedV4 : sketch::Sketch {
     // --- generated materials, built ONCE and HELD (identity = pruning) ---
     hazard = patterns::stripes(6, 10, mskia::toColor(kChromeHi));
     hazard.rotate(45);
-    hatchA = patterns::stripes(1, 7, mskia::toColor(alpha(kD4, 0.5f)));
+    hatchA =
+        patterns::stripes(1, 7, mskia::toColor(mskia::withAlpha(kD4, 0.5f)));
     hatchA.rotate(45);
-    hatchB = patterns::stripes(1, 7, mskia::toColor(alpha(kD1, 0.55f)));
+    hatchB =
+        patterns::stripes(1, 7, mskia::toColor(mskia::withAlpha(kD1, 0.55f)));
     hatchB.rotate(-45);
-    dither = patterns::checker(1.5f, mskia::toColor(alpha(kPanelSh, 0.28f)),
-                               mskia::toColor(alpha(kPanelHi, 0.15f)));
+    dither = patterns::checker(
+        1.5f, mskia::toColor(mskia::withAlpha(kPanelSh, 0.28f)),
+        mskia::toColor(mskia::withAlpha(kPanelHi, 0.15f)));
     // LUMINANCE grain (one channel, not three), so the kOverlay pass
     // reads as LIGHT on the oxblood ramp instead of hue-shifting it —
     // `field::noise()` is fractal RGB and turns the page into rainbow

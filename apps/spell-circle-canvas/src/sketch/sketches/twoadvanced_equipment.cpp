@@ -58,6 +58,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -70,6 +71,7 @@
 #include <string>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
 namespace weave = sigil::weave;
@@ -252,7 +254,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
       // The dwell: one second lit out of every eight, the four starting
       // 1.2 s apart, so the pointer walks the row.
       const float on0 = teq::kHoverFirst + (float)i * teq::kHoverStep;
-      f.child(at(box().fill(alpha(kWhite, 0.4f)), x, 82, w, 11)
+      f.child(at(box().fill(mskia::withAlpha(kWhite, 0.4f)), x, 82, w, 11)
                   .opacity(motion::bind(&clock)
                                .source(on0, on0 + teq::kHoverCycle)
                                .square(teq::kHoverDwell / teq::kHoverCycle)));

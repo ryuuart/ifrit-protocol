@@ -271,6 +271,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -286,6 +287,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
@@ -324,7 +326,6 @@ constexpr float kUlen = kRenderBox / (float)kGrid;  // 3.0645 GUI px
 constexpr float kLineBreadth = 2.0f;                // Cluster:240
 
 using sigil::compose::hexColor;  // 0xRRGGBB -> SkColor4f
-using sigil::compose::scaleRgb;  // scale RGB by k, optionally replacing alpha
 
 // Palette, sampled out of the mod's own PNGs (see the header).
 const SkColor4f kLeatherDark =
@@ -637,12 +638,12 @@ struct AstralTome : sketch::Sketch {
             .fill(Paint::blend(
                 {{Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
                  {Paint::radialUnit({0.42f, 0.38f}, 0.85f,
-                                    {{0.0f, at::scaleRgb(at::kNebula, 2.2f)},
+                                    {{0.0f, mskia::scale(at::kNebula, 2.2f)},
                                      {0.5f, at::kNebula},
                                      {1.0f, {0, 0, 0, 1}}}),
                   SkBlendMode::kPlus},
                  {Paint::radialUnit({0.78f, 0.74f}, 0.55f,
-                                    {{0.0f, at::scaleRgb(at::kNebula, 1.6f)},
+                                    {{0.0f, mskia::scale(at::kNebula, 1.6f)},
                                      {1.0f, {0, 0, 0, 0}}}),
                   SkBlendMode::kPlus}}));
     // The field. Six scatter runs on lissajous routes with a wide normal
@@ -667,7 +668,7 @@ struct AstralTome : sketch::Sketch {
               .width(1.5f * r.mag)
               .height(1.5f * r.mag)
               .shape(shapes::star(4, 0.26f, 0.14f))
-              .fill(Fill::color(at::scaleRgb(at::kFieldStar, 1.0f, r.alpha)));
+              .fill(Fill::color(mskia::scale(at::kFieldStar, 1.0f, r.alpha)));
       p.child(box()
                   .inset(-60)
                   .key(std::string("field") + std::to_string(i))
@@ -719,10 +720,10 @@ struct AstralTome : sketch::Sketch {
     rails.rails = {
         {.across = 0,
          .width = band * (25.0f / 64.0f),
-         .fill = Fill::color(at::scaleRgb(col, 1.0f, 0.309f))},
+         .fill = Fill::color(mskia::scale(col, 1.0f, 0.309f))},
         {.across = 0,
          .width = band * (9.0f / 64.0f),
-         .fill = Fill::color(at::scaleRgb(col, 1.45f, 0.580f))},
+         .fill = Fill::color(mskia::scale(col, 1.45f, 0.580f))},
         // the two dotted flanks — the departure, and the per-rail phase test:
         // same width, same fill, same dash, HALF A PERIOD apart, so the two
         // rows of dots interleave down the link the way a plate's register
@@ -740,12 +741,12 @@ struct AstralTome : sketch::Sketch {
         // dash is exactly that near-zero kind.
         {.across = -half * 1.9f,
          .width = 1.4f,
-         .fill = Fill::color(at::scaleRgb(col, 1.35f, 0.52f)),
+         .fill = Fill::color(mskia::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .cap = SkPaint::kRound_Cap},
         {.across = half * 1.9f,
          .width = 1.4f,
-         .fill = Fill::color(at::scaleRgb(col, 1.35f, 0.52f)),
+         .fill = Fill::color(mskia::scale(col, 1.35f, 0.52f)),
          .dash = {2.2f, 9.4f},
          .dashPhase = 5.8f,
          .cap = SkPaint::kRound_Cap},
@@ -755,12 +756,12 @@ struct AstralTome : sketch::Sketch {
     // reads as drawn FROM star TO star. Two Ribbons: a wide bloom and the
     // sprite's own 12-px body.
     brush::Ribbon bloom;
-    bloom.fill = Fill::color(at::scaleRgb(col, 1.0f, 0.055f));
+    bloom.fill = Fill::color(mskia::scale(col, 1.0f, 0.055f));
     bloom.step = 6.0f;
     bloom.width = at::LinkTaper{band * 2.1f};
 
     brush::Ribbon body;
-    body.fill = Fill::color(at::scaleRgb(col, 1.0f, 0.135f));
+    body.fill = Fill::color(mskia::scale(col, 1.0f, 0.135f));
     body.step = 4.0f;
     body.width = at::LinkTaper{band};
 
@@ -809,16 +810,16 @@ struct AstralTome : sketch::Sketch {
     // further and holds more of the light than the glyph does.
     grp.child(box().inset(0).fill(
         Paint::glowUnit({0.5f, 0.5f}, 0.62f,
-                        {{0.0f, at::scaleRgb(col, 1.0f, 0.60f)},
-                         {0.22f, at::scaleRgb(col, 1.0f, 0.30f)},
-                         {0.55f, at::scaleRgb(col, 1.0f, 0.09f)},
-                         {1.0f, at::scaleRgb(col, 1.0f, 0.0f)}})));
+                        {{0.0f, mskia::scale(col, 1.0f, 0.60f)},
+                         {0.22f, mskia::scale(col, 1.0f, 0.30f)},
+                         {0.55f, mskia::scale(col, 1.0f, 0.09f)},
+                         {1.0f, mskia::scale(col, 1.0f, 0.0f)}})));
     // the glyph
     grp.child(
         box()
             .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
             .shape(shapes::star(4, 0.24f, 0.16f))
-            .fill(Fill::color(at::scaleRgb(col, 1.15f, 0.74f))));
+            .fill(Fill::color(mskia::scale(col, 1.15f, 0.74f))));
     // the white-hot core. The one kPlus on this canvas, declared as a
     // departure on the plate: the source is GL_SRC_ALPHA/ONE_MINUS_SRC_ALPHA
     // throughout (Blending.java:23).
@@ -849,7 +850,7 @@ struct AstralTome : sketch::Sketch {
             .fill(Paint::linearUnit(
                 {0, 0}, {0, 1}, {{0.0f, at::kOlive}, {1.0f, at::kOliveDim}}))
             .foreground(decorations::border(
-                1.2f, Fill::color(at::scaleRgb(at::kGilt, 1.0f, 0.7f))));
+                1.2f, Fill::color(mskia::scale(at::kGilt, 1.0f, 0.7f))));
     if (hovered)
       e.scale(1.1f);
     else
@@ -913,12 +914,12 @@ struct AstralTome : sketch::Sketch {
                      .fill(Paint::linearUnit(
                          {0, 0}, {1, 0},
                          {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
-                          {0.6f, at::scaleRgb(at::kLeatherMid, 0.8f)},
+                          {0.6f, mskia::scale(at::kLeatherMid, 0.8f)},
                           {1.0f, at::kLeatherDark}}))
                      .foreground(decorations::border(
                          1.2f,
                          Fill::color(
-                             at::scaleRgb(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
+                             mskia::scale(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
                          1.0f)));
       (void)kNames;  // the label rides 15 GUI px into a tab that starts
                      // 2.75 px from the tome's right edge: at 3x it is
@@ -1042,7 +1043,7 @@ struct AstralTome : sketch::Sketch {
       const float w = (float)std::char_traits<char>::length(c.name) * 8.6f;
       root.child(label(c.name, at::gx(o.fX + at::kCellW * 0.5f) - w * 0.5f,
                        at::gy(o.fY + 90.0f), 19.0f,
-                       at::scaleRgb(at::kInk, 1.0f, kInkAlphaOf()), 2.4f)
+                       mskia::scale(at::kInk, 1.0f, kInkAlphaOf()), 2.4f)
                      .key(std::string("nm") + std::to_string(ci))
                      .zIndex(6));
     }

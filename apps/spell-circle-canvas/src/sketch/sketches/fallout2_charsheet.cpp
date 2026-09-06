@@ -170,6 +170,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
@@ -191,6 +192,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace mskia = sigil::material::skia;
 
 namespace field = sigil::material::field;
 namespace path = sigil::geometry::path;
@@ -1040,8 +1042,8 @@ struct Fallout2CharSheet : sketch::Sketch {
                   .fill(Paint::linearUnit(
                       {0, 0}, {0, 1},
                       {{0.0f, kParchLit2}, {1.0f, hexColor(0x8C6428)}})));
-      g.child(
-          at(box(), kPlaqueX - 4, y + 15, 2, 7).fill(alpha(kParchLit, 0.85f)));
+      g.child(at(box(), kPlaqueX - 4, y + 15, 2, 7)
+                  .fill(mskia::withAlpha(kParchLit, 0.85f)));
       g.child(bodyAt(descriptor(value), kGreen, kDescX, y + 8));
     }
     return g;
@@ -1217,7 +1219,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       const float x1 = 314 - countW - gap * 2;
       if (x1 > x0)
         g.child(at(box(), x0, y + kRowPitch11 * 0.5f - 1.0f, x1 - x0, 1)
-                    .fill(Fill::color(alpha(kGreen, 0.85f))));
+                    .fill(Fill::color(mskia::withAlpha(kGreen, 0.85f))));
     }
 
     // The scroll arrows at x = 317 (characterEditorFolderViewClear).
@@ -1234,7 +1236,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       // `shapes::polygon(3)` — it is a triangle keyed on the one thing it
       // is a function of, which is the direction it points.
       a.child(at(box(), 2, 3, 7, 6)
-                  .fill(Fill::color(alpha(kGold, 0.9f)))
+                  .fill(Fill::color(mskia::withAlpha(kGold, 0.9f)))
                   .shape(keyedShape(up, [up](SkSize s) {
                     SkPathBuilder b;
                     if (up) {
@@ -1420,42 +1422,44 @@ struct Fallout2CharSheet : sketch::Sketch {
     c.overlay(styles::Overlay{parchTooth, SkBlendMode::kSoftLight, 0.55f});
     // creases: two diagonal slivers and one bottom-right scuff. The creases
     // are what sell the card as a stuck-on scrap.
-    c.child(at(box(), -40, -20, 60, 260)
-                .rotate(-16.0f)
-                .translateX(n(120))
-                .fill(Paint::linearUnit({0, 0}, {1, 0},
-                                        {{0.0f, alpha(kRust, 0.0f)},
-                                         {0.5f, alpha(kRust, 0.16f)},
-                                         {1.0f, alpha(kRust, 0.0f)}})));
+    c.child(
+        at(box(), -40, -20, 60, 260)
+            .rotate(-16.0f)
+            .translateX(n(120))
+            .fill(Paint::linearUnit({0, 0}, {1, 0},
+                                    {{0.0f, mskia::withAlpha(kRust, 0.0f)},
+                                     {0.5f, mskia::withAlpha(kRust, 0.16f)},
+                                     {1.0f, mskia::withAlpha(kRust, 0.0f)}})));
     c.child(at(box(), -40, -20, 34, 260)
                 .rotate(9.0f)
                 .translateX(n(232))
                 .fill(Paint::linearUnit(
                     {0, 0}, {1, 0},
-                    {{0.0f, alpha(hexColor(0x7C581C), 0.0f)},
-                     {0.5f, alpha(hexColor(0x6A4A18), 0.20f)},
-                     {1.0f, alpha(hexColor(0x7C581C), 0.0f)}})));
+                    {{0.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)},
+                     {0.5f, mskia::withAlpha(hexColor(0x6A4A18), 0.20f)},
+                     {1.0f, mskia::withAlpha(hexColor(0x7C581C), 0.0f)}})));
     c.child(at(box(), 150, 120, 130, 55)
-                .fill(Paint::radialUnit({0.55f, 0.75f}, 1.0f,
-                                        {{0.0f, alpha(kParchScuff, 0.30f)},
-                                         {1.0f, alpha(kParchScuff, 0.0f)}})));
+                .fill(Paint::radialUnit(
+                    {0.55f, 0.75f}, 1.0f,
+                    {{0.0f, mskia::withAlpha(kParchScuff, 0.30f)},
+                     {1.0f, mskia::withAlpha(kParchScuff, 0.0f)}})));
     c.child(at(box(), -6, -10, 60, 190)
                 .fill(Paint::linearUnit(
                     {0, 0}, {1, 0},
-                    {{0.0f, alpha(hexColor(0x5A3C10), 0.28f)},
-                     {1.0f, alpha(hexColor(0x5A3C10), 0.0f)}})));
+                    {{0.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.28f)},
+                     {1.0f, mskia::withAlpha(hexColor(0x5A3C10), 0.0f)}})));
     // the scrap's own soiling — kept light: the reference card is bright ochre
     // right into its corners
-    c.child(box().inset(0).fill(
-        Paint::radialUnit({0.46f, 0.42f}, 1.35f,
-                          {{0.0f, alpha(hexColor(0x2A1C08), 0.0f)},
-                           {0.70f, alpha(hexColor(0x2A1C08), 0.04f)},
-                           {1.0f, alpha(hexColor(0x2A1C08), 0.22f)}})));
+    c.child(box().inset(0).fill(Paint::radialUnit(
+        {0.46f, 0.42f}, 1.35f,
+        {{0.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.0f)},
+         {0.70f, mskia::withAlpha(hexColor(0x2A1C08), 0.04f)},
+         {1.0f, mskia::withAlpha(hexColor(0x2A1C08), 0.22f)}})));
     c.child(at(box(), 178, 118, 110, 60)
                 .fill(Paint::radialUnit(
                     {0.60f, 0.85f}, 1.0f,
-                    {{0.0f, alpha(hexColor(0x3A2A12), 0.18f)},
-                     {1.0f, alpha(hexColor(0x3A2A12), 0.0f)}})));
+                    {{0.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.18f)},
+                     {1.0f, mskia::withAlpha(hexColor(0x3A2A12), 0.0f)}})));
     c.stroke(stroke(n(1.5f), Fill::color(hexColor(0x2A1C08, 0.75f)),
                     PathFormat::Align::Inner));
     c.child(box().inset(0).child(slot("card")));

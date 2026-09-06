@@ -60,8 +60,16 @@ struct Color {
 };
 
 /** A colour from a packed 0xRRGGBB, with @p a as its alpha — the spelling
- *  a palette is authored in. */
-Color rgb(uint32_t hex, float a = 1.0f);
+ *  a palette is authored in, one hex integer per colour.
+ *
+ *  constexpr, because a palette is a list of constants and a constant
+ *  that has to be built at run time is a constant the compiler cannot
+ *  fold into the value that holds it. */
+constexpr Color rgb(uint32_t hex, float a = 1.0f) {
+  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
+          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
+          a};
+}
 
 /** A colour from HUE, SATURATION and VALUE — the wheel a palette is
  *  WALKED on, where `rgb()` is the one an authored palette is typed in.
@@ -238,11 +246,41 @@ inline Color fitToSrgb(const Oklch& lch) {
   return fromOklab(oklabOf(fitted));
 }
 
-/** @p c scaled by @p k in every channel, at alpha @p a. The shading verb
- *  a highlight and a shadow are both written with: one colour, brighter
- *  or darker, at a chosen opacity. */
-constexpr Color scale(Color c, float k, float a) {
-  return {c.r * k, c.g * k, c.b * k, a};
+/** THE SAME COLOUR AT A DIFFERENT ALPHA — `{c.r, c.g, c.b, a}`, and
+ *  nothing else touched.
+ *
+ *  Kept separate from `scale` deliberately: replacing an alpha and
+ *  scaling the colour channels are different operations, and folding
+ *  both into one signature would leave a defaulted argument deciding
+ *  which of the two the caller meant. */
+constexpr Color withAlpha(Color c, float a) { return {c.r, c.g, c.b, a}; }
+
+/** @p c scaled by @p k in every channel, at alpha @p a — or at its own
+ *  alpha, which is what a negative @p a asks for. The shading verb a
+ *  highlight and a shadow are both written with: one colour, brighter or
+ *  darker, at a chosen opacity, and a tone ramp read off one sampled
+ *  base when the opacity is not part of the question.
+ *
+ *  It does NOT clamp. A channel above 1 is a legal float colour and
+ *  means something under a wide-gamut or an OCIO view; a renderer clamps
+ *  when the colour lands in an eight-bit surface. A caller who needs the
+ *  clamped value is asking for a different operation. */
+constexpr Color scale(Color c, float k, float a = -1.0f) {
+  return {c.r * k, c.g * k, c.b * k, a < 0.0f ? c.a : a};
+}
+
+/** THE LADDER UPWARD: @p k added to each colour channel, CLAMPED at 1,
+ *  alpha kept — the highlight a lit edge is drawn with.
+ *
+ *  Clamping is what makes it a different operation from `scale`, not an
+ *  inconsistency with it. A scale keeps the hue of what it scales and
+ *  has no ceiling to hit; an offset walks every channel toward white and
+ *  saturates there, and a caller lightening a nearly-white base wants
+ *  the saturated answer rather than a channel above 1 that the next
+ *  blend reads as glow. */
+constexpr Color lighten(Color c, float k) {
+  return {std::min(1.0f, c.r + k), std::min(1.0f, c.g + k),
+          std::min(1.0f, c.b + k), c.a};
 }
 
 /** @p c moved a fraction @p t toward @p target, at alpha @p a. Straight
@@ -267,8 +305,15 @@ constexpr Color mixToward(Color c, Color target, float t, float a) {
  *  reports. Say which one the drawing means. */
 inline Color mixLinear(const Color& a, const Color& b, float t) {
   auto channel = [t](float x, float y) {
-    return linearToSrgb(srgbToLinear(x) +
-                        (srgbToLinear(y) - srgbToLinear(x)) * t);
+    // Two equal channels stand for one quantity of light, so the mix of
+    // them IS that channel and no transfer function can change it. The
+    // check is here rather than at the call site because the whole cost
+    // of this walk is the curve either side of the mix, and a grey
+    // ladder, a single-hue ramp and an alpha-only fade all hand it
+    // channels that are already equal.
+    if (x == y) return x;
+    const float low = srgbToLinear(x);
+    return linearToSrgb(low + (srgbToLinear(y) - low) * t);
   };
   return {channel(a.r, b.r), channel(a.g, b.g), channel(a.b, b.b),
           a.a + (b.a - a.a) * t};

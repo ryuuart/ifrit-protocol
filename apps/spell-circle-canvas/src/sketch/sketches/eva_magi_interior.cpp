@@ -299,15 +299,15 @@ const SkColor4f kBgRule =
 // The portrait's warm palette — a DIFFERENT plate, kept different on purpose.
 // Two palettes, one canvas; they share the orange, so the orange is the seam.
 constexpr float kBack = 0.42f;
-const SkColor4f kPBody = scaleRgb(hexColor(0x711B0F), kBack);
-const SkColor4f kPBodyHi = scaleRgb(hexColor(0xB63014), kBack);
-const SkColor4f kPRail = scaleRgb(hexColor(0x703912), kBack);
-const SkColor4f kPRailHi = scaleRgb(hexColor(0xE17B33), kBack);
-const SkColor4f kPRailDim = scaleRgb(hexColor(0xB05A20), kBack);
-const SkColor4f kPChart = scaleRgb(hexColor(0xB1CE3C), kBack);
-const SkColor4f kPPin = scaleRgb(hexColor(0xEFE033), kBack);
-const SkColor4f kPMagenta = scaleRgb(hexColor(0xAD5196), kBack);
-const SkColor4f kPViolet = scaleRgb(hexColor(0x4A3283), kBack);
+const SkColor4f kPBody = mskia::scale(hexColor(0x711B0F), kBack);
+const SkColor4f kPBodyHi = mskia::scale(hexColor(0xB63014), kBack);
+const SkColor4f kPRail = mskia::scale(hexColor(0x703912), kBack);
+const SkColor4f kPRailHi = mskia::scale(hexColor(0xE17B33), kBack);
+const SkColor4f kPRailDim = mskia::scale(hexColor(0xB05A20), kBack);
+const SkColor4f kPChart = mskia::scale(hexColor(0xB1CE3C), kBack);
+const SkColor4f kPPin = mskia::scale(hexColor(0xEFE033), kBack);
+const SkColor4f kPMagenta = mskia::scale(hexColor(0xAD5196), kBack);
+const SkColor4f kPViolet = mskia::scale(hexColor(0x4A3283), kBack);
 
 // ---------------------------------------------------------------------------
 // TYPE
@@ -1112,21 +1112,21 @@ struct EvaMagiInterior : sketch::Sketch {
 
     // two faint boundary conics — shapes::parametric, real curves
     for (float r : {780.0f * S, 860.0f * S})
-      g.child(box()
-                  .left(kPCX - r)
-                  .top(kPCY - r * 0.985f)
-                  .width(r * 2)
-                  .height(r * 1.97f)
-                  .shape(shapes::parametric(
-                      [](float t) {
-                        return arrange::onEllipse({0.5f, 0.5f}, {0.5f, 0.5f},
-                                                  t);
-                      },
-                      0.0f, 6.2831853f, 240, true))
-                  .fill(Fill::none())
-                  .foreground(decorations::border(
-                      2.0f,
-                      Fill::color(scaleRgb(hexColor(0x5A1A0C), magi::kBack)))));
+      g.child(
+          box()
+              .left(kPCX - r)
+              .top(kPCY - r * 0.985f)
+              .width(r * 2)
+              .height(r * 1.97f)
+              .shape(shapes::parametric(
+                  [](float t) {
+                    return arrange::onEllipse({0.5f, 0.5f}, {0.5f, 0.5f}, t);
+                  },
+                  0.0f, 6.2831853f, 240, true))
+              .fill(Fill::none())
+              .foreground(decorations::border(
+                  2.0f,
+                  Fill::color(mskia::scale(hexColor(0x5A1A0C), magi::kBack)))));
 
     // 12 neuron somas at r 690..790, each trailing dendrites BACK toward the
     // centre — brush::Ribbon, tapered.
@@ -1148,25 +1148,26 @@ struct EvaMagiInterior : sketch::Sketch {
                   .inset(0)
                   .fill(Fill::none())
                   .shape(heldPath(dend))
-                  .stroke(brush::Ribbon{.fill = Fill::color(scaleRgb(
+                  .stroke(brush::Ribbon{.fill = Fill::color(mskia::scale(
                                             hexColor(0x8A2412), magi::kBack)),
                                         .widthStart = 8.0f,
                                         .widthEnd = 1.0f,
                                         .step = 6.0f}));
-      g.child(box()
-                  .left(kPCX + p.fX - d * 0.5f)
-                  .top(kPCY + p.fY - d * 0.5f)
-                  .width(d)
-                  .height(d)
-                  .shape(shapes::circle())
-                  .fill(mskia::Paint::radialUnit(
-                      {0.5f, 0.5f}, 1.0f,
-                      {{0.0f, magi::kPBodyHi},
-                       {0.55f, magi::kPBody},
-                       {1.0f, scaleRgb(hexColor(0x3A0E06), magi::kBack)}}))
-                  .foreground(lines::presets::concentric(
-                      Fill::color(scaleRgb(hexColor(0xC03C18), magi::kBack)), 4,
-                      1.2f)));
+      g.child(
+          box()
+              .left(kPCX + p.fX - d * 0.5f)
+              .top(kPCY + p.fY - d * 0.5f)
+              .width(d)
+              .height(d)
+              .shape(shapes::circle())
+              .fill(mskia::Paint::radialUnit(
+                  {0.5f, 0.5f}, 1.0f,
+                  {{0.0f, magi::kPBodyHi},
+                   {0.55f, magi::kPBody},
+                   {1.0f, mskia::scale(hexColor(0x3A0E06), magi::kBack)}}))
+              .foreground(lines::presets::concentric(
+                  Fill::color(mskia::scale(hexColor(0xC03C18), magi::kBack)), 4,
+                  1.2f)));
     }
 
     // 24 small hexagons at r 555..665, two lines of tiny text each
@@ -1175,8 +1176,8 @@ struct EvaMagiInterior : sketch::Sketch {
       const float r = ((k % 2) ? 610.0f : 560.0f) * S;
       const SkPoint p = polar(r, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, 48.0f * S, magi::kPRailHi, 1.4f,
-                    scaleRgb(hexColor(0x2A0C05), magi::kBack), "TYPE", "M-04",
-                    4.6f));
+                    mskia::scale(hexColor(0x2A0C05), magi::kBack), "TYPE",
+                    "M-04", 4.6f));
     }
 
     // the heavy arc the 12 big hexagons sit on, dressed with the bead and
@@ -1233,7 +1234,7 @@ struct EvaMagiInterior : sketch::Sketch {
       const float a = (float)k * 30.0f - 90.0f;
       const SkPoint p = polar(490.0f * S, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, 74.0f * S, magi::kPRailHi, 2.2f,
-                    scaleRgb(hexColor(0x351107), magi::kBack), "APS", "17",
+                    mskia::scale(hexColor(0x351107), magi::kBack), "APS", "17",
                     5.4f));
     }
 
@@ -1254,7 +1255,7 @@ struct EvaMagiInterior : sketch::Sketch {
                   .fill(Fill::none())
                   .shape(heldPath(fan))
                   .stroke(PathFormat{.width = 0.8f,
-                                     .strokeFill = Fill::color(scaleRgb(
+                                     .strokeFill = Fill::color(mskia::scale(
                                          hexColor(0xD08A9A), magi::kBack))}));
       SkPathBuilder cb;
       const SkPoint base = polar(296.0f * S, a);
@@ -1293,14 +1294,14 @@ struct EvaMagiInterior : sketch::Sketch {
     // the 6-fold core: seven flat-top hexagons in a honeycomb
     const float hexA = 88.0f * S;
     g.child(hexAt({kPCX, kPCY}, hexA, magi::kPRailHi, 2.0f,
-                  scaleRgb(hexColor(0x4A140A), magi::kBack), "MAGI", "SYS",
+                  mskia::scale(hexColor(0x4A140A), magi::kBack), "MAGI", "SYS",
                   5.6f));
     for (int k = 0; k < 6; ++k) {
       const float a = (float)k * 60.0f - 90.0f;
       const SkPoint p = polar(hexA * 0.90f, a);
       g.child(hexAt({kPCX + p.fX, kPCY + p.fY}, hexA, magi::kPRailHi, 1.8f,
-                    scaleRgb(hexColor(0x3E1108), magi::kBack), "TYPE", "0417",
-                    5.2f));
+                    mskia::scale(hexColor(0x3E1108), magi::kBack), "TYPE",
+                    "0417", 5.2f));
     }
     return g;
   }
@@ -1339,9 +1340,9 @@ struct EvaMagiInterior : sketch::Sketch {
                     .fill(mskia::Paint::linearUnit(
                         {0, 0}, {1, 0},
                         {{0.0f, mag ? magi::kPMagenta : magi::kPViolet},
-                         {0.5f, scaleRgb(mag ? hexColor(0xC464A5)
-                                             : hexColor(0x643D93),
-                                         magi::kBack)},
+                         {0.5f, mskia::scale(mag ? hexColor(0xC464A5)
+                                                 : hexColor(0x643D93),
+                                             magi::kBack)},
                          {1.0f, mag ? magi::kPMagenta : magi::kPViolet}})));
       }
     }

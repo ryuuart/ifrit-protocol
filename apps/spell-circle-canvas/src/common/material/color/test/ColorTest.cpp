@@ -137,11 +137,41 @@ TEST(Color, MixingInLinearLightIsADifferentAnswerFromMixingTheCodeValues) {
   const Color clear{1, 0, 0, 0};
   EXPECT_NEAR(mixLinear(clear, white, 0.25f).a, 0.25f, 1e-5f);
 
+  // Two equal channels stand for one quantity of light: the mix is that
+  // channel exactly, with no round trip through the curve to round it.
+  const Color grey{0.25f, 0.25f, 0.25f, 1};
+  EXPECT_EQ(mixLinear(grey, Color{0.25f, 0.25f, 0.25f, 0}, 0.5f).r, 0.25f);
+  EXPECT_FLOAT_EQ(mixLinear(grey, Color{0.25f, 0.25f, 0.25f, 0}, 0.5f).a, 0.5f);
+
   // Luminance is what the primaries weigh, not what the channels count:
   // full green carries three times full red's light.
   EXPECT_NEAR(luminance(white), 1.0f, 1e-4f);
   EXPECT_NEAR(luminance(Color{0, 1, 0, 1}), 0.7152f, 1e-4f);
   EXPECT_NEAR(luminance(Color{1, 0, 0, 1}), 0.2126f, 1e-4f);
+}
+
+TEST(Color, TheArithmeticVerbsAreConstexprAndSayWhichChannelsTheyTouch) {
+  // A palette is a list of constants, so every verb an authored constant
+  // is written through has to fold at compile time.
+  constexpr Color rubric = rgb(0x8C2F22);
+  static_assert(rgb(0xFFFFFF).r == 1.0f);
+  static_assert(withAlpha(rubric, 0.4f).a == 0.4f);
+  static_assert(withAlpha(rubric, 0.4f).r == rubric.r,
+                "withAlpha touches the alpha and nothing else");
+  static_assert(scale(rubric, 1.5f).a == rubric.a,
+                "a negative alpha KEEPS the source's");
+  static_assert(scale(rubric, 0.5f, 0.2f).a == 0.2f);
+  static_assert(lighten(Color{0.9f, 0.9f, 0.9f, 1}, 0.5f).r == 1.0f,
+                "the offset saturates at white where the scale has no "
+                "ceiling");
+
+  EXPECT_FLOAT_EQ(rubric.r, 0x8C / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.g, 0x2F / 255.0f);
+  EXPECT_FLOAT_EQ(rubric.b, 0x22 / 255.0f);
+  EXPECT_FLOAT_EQ(scale(rubric, 1.5f).r, rubric.r * 1.5f);
+  // Deliberately unclamped: a float channel above 1 is meaningful.
+  EXPECT_GT(scale(Color{0.9f, 0.9f, 0.9f, 1}, 2.0f).r, 1.0f);
+  EXPECT_FLOAT_EQ(lighten(rubric, 0.1f).a, rubric.a);
 }
 
 TEST(Color, CielabMeasuresWhereOklabInterpolates) {

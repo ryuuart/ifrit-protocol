@@ -506,8 +506,8 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
 }
 
 TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
-  // hexColor() is defined 24 times across 64 files under three names with
-  // byte-identical bodies and no shared brief between the groups.
+  // hexColor() is the one colour spelling this library carries, and it
+  // answers SigilMaterial's arithmetic in Skia's colour.
   constexpr SkColor4f rubric = hexColor(0x8C2F22);
   static_assert(hexColor(0xFFFFFF).fR == 1.0f,
                 "must stay constexpr — the "
@@ -517,24 +517,8 @@ TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
   EXPECT_FLOAT_EQ(rubric.fB, 0x22 / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fA, 1.0f);
   EXPECT_FLOAT_EQ(hexColor(0x000000, 0.25f).fA, 0.25f);
-
-  // alpha() and scaleRgb() are two names on purpose: 45 gallery sites override
-  // alpha and 16 scale channels, and they are different operations.
-  const SkColor4f faded = alpha(rubric, 0.4f);
-  EXPECT_FLOAT_EQ(faded.fR, rubric.fR);
-  EXPECT_FLOAT_EQ(faded.fA, 0.4f);
-
-  const SkColor4f lit = scaleRgb(rubric, 1.5f);
-  EXPECT_FLOAT_EQ(lit.fR, rubric.fR * 1.5f);
-  EXPECT_FLOAT_EQ(lit.fA, rubric.fA) << "a < 0 must KEEP the source alpha";
-  EXPECT_FLOAT_EQ(scaleRgb(rubric, 0.5f, 0.2f).fA, 0.2f);
-  // Deliberately unclamped: SkColor4f is float and >1 is meaningful.
-  EXPECT_GT(scaleRgb(SkColor4f{0.9f, 0.9f, 0.9f, 1}, 2.0f).fR, 1.0f);
-
-  const SkColor4f half = mix({0, 0, 0, 0}, {1.0f, 0.5f, 0.25f, 1.0f}, 0.5f);
-  EXPECT_FLOAT_EQ(half.fR, 0.5f);
-  EXPECT_FLOAT_EQ(half.fG, 0.25f);
-  EXPECT_FLOAT_EQ(half.fA, 0.5f) << "mix() interpolates alpha too";
+  EXPECT_EQ(rubric, material::skia::toSkColor(material::rgb(0x8C2F22)))
+      << "the same colour SigilMaterial's own spelling answers";
 
   // phase() wraps and never NaNs on a zero period.
   EXPECT_FLOAT_EQ(motion::phase(0.0, 4.0), 0.0f);

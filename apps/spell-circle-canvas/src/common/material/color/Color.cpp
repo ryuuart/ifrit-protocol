@@ -1,16 +1,10 @@
 /** @file
- * The colour value's packed spelling, and the walk around the hue wheel.
+ * The walk around the hue wheel.
  */
 
 #include "sigilmaterial/color/Color.h"
 
 namespace sigil::material {
-
-Color rgb(uint32_t hex, float a) {
-  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
-          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
-          a};
-}
 
 Color hsv(float hueDegrees, float saturation, float value, float a) {
   float h = std::fmod(hueDegrees, 360.0f);

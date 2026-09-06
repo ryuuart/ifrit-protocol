@@ -378,14 +378,14 @@ inline shapes::OutlineFn barOutline(float shear) {
  *  where the "brushed capstan" reading comes from — it is not a highlight, it
  *  is a cylinder lit from outside its own silhouette. */
 inline mskia::Paint barBevel(SkColor4f hi, SkColor4f lo, float bias) {
-  auto at = [&](float k) { return mix(lo, hi, k); };
+  auto at = [&](float k) { return mskia::mixLinear(lo, hi, k); };
   return mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                  {{0.00f, scaleRgb(at(0.05f), bias)},
-                                   {0.13f, scaleRgb(at(1.00f), bias)},
-                                   {0.30f, scaleRgb(at(0.32f), bias)},
-                                   {0.62f, scaleRgb(at(0.28f), bias)},
-                                   {0.87f, scaleRgb(at(1.00f), bias)},
-                                   {1.00f, scaleRgb(at(0.02f), bias)}});
+                                  {{0.00f, mskia::scale(at(0.05f), bias)},
+                                   {0.13f, mskia::scale(at(1.00f), bias)},
+                                   {0.30f, mskia::scale(at(0.32f), bias)},
+                                   {0.62f, mskia::scale(at(0.28f), bias)},
+                                   {0.87f, mskia::scale(at(1.00f), bias)},
+                                   {1.00f, mskia::scale(at(0.02f), bias)}});
 }
 
 // ---------------------------------------------------------------------------
@@ -409,8 +409,9 @@ inline mskia::Paint pedestal() {
   std::vector<mskia::Stop> stops;
   stops.reserve(20);
   for (int i = 0; i < 19; ++i)
-    stops.push_back({kEyeAt[i] / 359.0f, mix(kBodyEdge, kBodyMid, kEyeK[i])});
-  stops.push_back({1.0f, scaleRgb(kBodyEdge, 0.55f)});
+    stops.push_back(
+        {kEyeAt[i] / 359.0f, mskia::mixLinear(kBodyEdge, kBodyMid, kEyeK[i])});
+  stops.push_back({1.0f, mskia::scale(kBodyEdge, 0.55f)});
   // radius01 is a fraction of the HALF-DIAGONAL (513 px for this body), so
   // 0.70 puts the last measured annulus (r=336) at its own radius.
   return mskia::Paint::radialUnit({0.483f, 0.456f}, 0.70f, std::move(stops));
@@ -824,8 +825,8 @@ struct LainNavi : sketch::Sketch {
       auto place = [&](Element e) {
         return e.at({kTextX, y - monoSize * 0.98f});
       };
-      g.child(place(text(line, type(monoFace(), monoSize, scaleRgb(c, 0.40f),
-                                    sigma + 2.4f)))
+      g.child(place(text(line, type(monoFace(), monoSize,
+                                    mskia::scale(c, 0.40f), sigma + 2.4f)))
                   .key("halo" + std::to_string(i)));
       g.child(place(text(line, type(monoFace(), monoSize, c, sigma)))
                   .key("mips" + std::to_string(i)));
@@ -851,7 +852,7 @@ struct LainNavi : sketch::Sketch {
                 .inset(0)
                 .shape(keyedShape(
                     phi, [phi](SkSize) { return generatrices(phi, 7); }))
-                .foreground(add(1.5f, scaleRgb(kWire, 0.44f), 0.0f))
+                .foreground(add(1.5f, mskia::scale(kWire, 0.44f), 0.0f))
                 .key("ruling"));
 
     // the two rims and the waist — DOTTED, never solid (1.6 on 4.4 with a
@@ -876,9 +877,9 @@ struct LainNavi : sketch::Sketch {
     // tilted orbit is three concentric dotted rings and reads as a lampshade;
     // the plate shows arcs that leave frame and never close.
     ellArc({kAxis.fX, kAxis.fY - kHalfH}, kRim, kRim * kEcc, 0,
-           scaleRgb(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
+           mskia::scale(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
     ellArc({kAxis.fX, kAxis.fY + kHalfH}, kRim, kRim * kEcc, 0,
-           scaleRgb(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
+           mskia::scale(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
     ell(kAxis, waist, waist * kEcc, 0, kWire, 2.0f, "waist");
     ell(kOrbit2C, kOrbit2A, kOrbit2B, tilt2, kWire, 2.0f, "orbit2");
 
@@ -895,7 +896,7 @@ struct LainNavi : sketch::Sketch {
                       b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
                       return b.detach();
                     }))
-                .foreground(add(2.4f, scaleRgb(kWire, 0.72f), 0.7f)));
+                .foreground(add(2.4f, mskia::scale(kWire, 0.72f), 0.7f)));
 
     // `make me feel alright?` stands UPRIGHT beside the orbit's lower-left
     // arc rather than riding it. A run laid on the conic is turned per
@@ -928,25 +929,26 @@ struct LainNavi : sketch::Sketch {
         k = (float)std::max(0.0, 1.0 - (u - p.hold) / 0.9);
       if (k <= 0.01f) continue;
       k = k * k * (3.0f - 2.0f * k);
-      const SkColor4f c = scaleRgb(kMinds, k);
+      const SkColor4f c = mskia::scale(kMinds, k);
       // the bloom is a second, blurred pass DECLARED FIRST so it paints under
       // the core; kPlus makes the order irrelevant for colour but not for the
       // core's own crispness
       // in-flow sharp CORE sizes the box; the bloom rides over it as an
       // absolute overlay (a stack() measures to nothing here and shoots the
       // run out of its own centre)
-      g.child(
-          box()
-              .centerAt(p.centre)
-              .key("ph" + std::to_string(i))
-              .child(text(std::u8string(p.text),
-                          type(serifFace(), p.size, scaleRgb(c, 0.42f), 6.5f))
-                         .inset(0))
-              .child(text(std::u8string(p.text),
-                          type(serifFace(), p.size, scaleRgb(c, 0.55f), 2.2f))
-                         .inset(0))
-              .child(text(std::u8string(p.text),
-                          type(serifFace(), p.size, c, 0.7f))));
+      g.child(box()
+                  .centerAt(p.centre)
+                  .key("ph" + std::to_string(i))
+                  .child(text(std::u8string(p.text),
+                              type(serifFace(), p.size, mskia::scale(c, 0.42f),
+                                   6.5f))
+                             .inset(0))
+                  .child(text(std::u8string(p.text),
+                              type(serifFace(), p.size, mskia::scale(c, 0.55f),
+                                   2.2f))
+                             .inset(0))
+                  .child(text(std::u8string(p.text),
+                              type(serifFace(), p.size, c, 0.7f))));
     }
     return g;
   }
@@ -987,17 +989,17 @@ struct LainNavi : sketch::Sketch {
 
     // S2 — the lightened panel. Measured x 190..470, y 100..380, and it is
     // soft-edged: a radial ramp to nothing rather than a rect with a blur.
-    root.child(
-        box()
-            .rect(SkRect::MakeXYWH(178, 88, 304, 304))
-            .fill(mskia::Paint::radialUnit({0.48f, 0.46f}, 0.95f,
-                                           {{0.0f, kPanel},
-                                            {0.55f, scaleRgb(kPanel, 0.86f)},
-                                            {0.86f, scaleRgb(kPanel, 0.30f)},
-                                            {1.0f, scaleRgb(kPanel, 0.0f)}}))
-            .blend(SkBlendMode::kPlus)
-            .cache(Cache::Texture)
-            .key("panel"));
+    root.child(box()
+                   .rect(SkRect::MakeXYWH(178, 88, 304, 304))
+                   .fill(mskia::Paint::radialUnit(
+                       {0.48f, 0.46f}, 0.95f,
+                       {{0.0f, kPanel},
+                        {0.55f, mskia::scale(kPanel, 0.86f)},
+                        {0.86f, mskia::scale(kPanel, 0.30f)},
+                        {1.0f, mskia::scale(kPanel, 0.0f)}}))
+                   .blend(SkBlendMode::kPlus)
+                   .cache(Cache::Texture)
+                   .key("panel"));
 
     // ---- S3, THE CONSOLE WINDOW ---------------------------------------------
 
@@ -1105,8 +1107,8 @@ struct LainNavi : sketch::Sketch {
             .child(text(u8"Copland OS Enterprise",
                         type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)))
             .child(text(u8"Produced By Tachibana Lab",
-                        type(serifItalicFace(), 16, scaleRgb(kWordmark, 0.7f),
-                             1.6f, 0.8f))));
+                        type(serifItalicFace(), 16,
+                             mskia::scale(kWordmark, 0.7f), 1.6f, 0.8f))));
 
     // ---- S4..S8, the Layer 07 strata over the window ------------------------
     root.child(slot("wire"));
@@ -1117,8 +1119,8 @@ struct LainNavi : sketch::Sketch {
         box()
             .centerAt({730, 182})
             .key("cover")
-            .child(text(u8"cover me",
-                        type(phraseFace(), 62, scaleRgb(kCover, 0.5f), 6.5f))
+            .child(text(u8"cover me", type(phraseFace(), 62,
+                                           mskia::scale(kCover, 0.5f), 6.5f))
                        .centerAt({0, 0}))
             .child(text(u8"cover me", type(phraseFace(), 62, kCover, 1.4f))));
 
@@ -1143,10 +1145,10 @@ struct LainNavi : sketch::Sketch {
                     .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
                     .fill(mskia::Paint::linearUnit(
                         {0, 0}, {1, 0},
-                        {{0.0f, scaleRgb(kMagenta, 0.0f)},
-                         {0.30f, scaleRgb(kMagenta, b[3])},
-                         {0.68f, scaleRgb(kMagenta, b[3] * 0.8f)},
-                         {1.0f, scaleRgb(kMagenta, 0.0f)}}))
+                        {{0.0f, mskia::scale(kMagenta, 0.0f)},
+                         {0.30f, mskia::scale(kMagenta, b[3])},
+                         {0.68f, mskia::scale(kMagenta, b[3] * 0.8f)},
+                         {1.0f, mskia::scale(kMagenta, 0.0f)}}))
                     .blend(SkBlendMode::kPlus)
                     .cache(Cache::Texture));
       root.child(std::move(g));

@@ -131,8 +131,8 @@ struct SevDress {
 };
 inline const SevDress& dress(int sev) {
   static const SevDress kDress[kSevCount] = {
-      {alpha(kDim, 0.55f), "tag-trace", "trace"},
-      {alpha(kChrome, 0.6f), "tag-info", ""},
+      {mskia::withAlpha(kDim, 0.55f), "tag-trace", "trace"},
+      {mskia::withAlpha(kChrome, 0.6f), "tag-info", ""},
       {kOk, "tag-seal", "seal"},
       {kWarn, "tag-flux", "flux"},
       {kCrit, "tag-breach", "breach"},
@@ -337,7 +337,7 @@ struct DaemonConsole final : sketch::Sketch {
       return weave::textStyle(
           {.face = faceMonoMed, .size = 11, .color = color});
     };
-    s.set("tag-trace", tag(alpha(dc::kDim, 0.8f)));
+    s.set("tag-trace", tag(mskia::withAlpha(dc::kDim, 0.8f)));
     s.set("tag-info", tag(dc::kChrome));
     s.set("tag-seal", tag(dc::kOk));
     s.set("tag-flux", tag(dc::kWarn));
@@ -559,7 +559,8 @@ struct DaemonConsole final : sketch::Sketch {
                           Fill::color(d.stripe)))
                       .child(std::move(leaf));
     // Severity in form as well as ink: a breach line carries its own wash.
-    if (r.sev == dc::kBreach) row.fill(Fill::color(alpha(dc::kCrit, 0.09f)));
+    if (r.sev == dc::kBreach)
+      row.fill(Fill::color(mskia::withAlpha(dc::kCrit, 0.09f)));
     return row;
   }
 

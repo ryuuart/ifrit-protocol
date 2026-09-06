@@ -118,6 +118,7 @@
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/kit/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
@@ -634,13 +635,13 @@ inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
           .clip(true)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
-  d.child(
-      box().inset(0).fill(mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
-                                                 {{0.0f, alpha(hi, 0.42f)},
-                                                  {0.34f, alpha(hi, 0.10f)},
-                                                  {0.62f, {0, 0, 0, 0}},
-                                                  {0.90f, {0, 0, 0, 0.30f}},
-                                                  {1.0f, {0, 0, 0, 0.62f}}})));
+  d.child(box().inset(0).fill(
+      mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
+                             {{0.0f, mskia::withAlpha(hi, 0.42f)},
+                              {0.34f, mskia::withAlpha(hi, 0.10f)},
+                              {0.62f, {0, 0, 0, 0}},
+                              {0.90f, {0, 0, 0, 0.30f}},
+                              {1.0f, {0, 0, 0, 0.62f}}})));
   return d;
 }
 
@@ -860,7 +861,7 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   // dorsal ridge highlight
   ship.child(rect(S(28), S(25), S(72), S(3))
                  .shape(shapes::squircle(2.0f))
-                 .fill(Fill::color(alpha(C5(0xFFC6D6), 0.85f))));
+                 .fill(Fill::color(mskia::withAlpha(C5(0xFFC6D6), 0.85f))));
   // nose spike
   ship.child(rect(S(108), S(27), S(24), S(8))
                  .shape(shapes::arrow(0.28f, 0.90f))

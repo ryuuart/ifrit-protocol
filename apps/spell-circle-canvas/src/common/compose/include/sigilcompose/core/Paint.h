@@ -20,6 +20,8 @@
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>
 #include <include/effects/SkGradient.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
@@ -78,54 +80,16 @@ struct Fill {
  *  each one written where it is used.
  *
  *  Not `rgb`, because `rgb(0xRRGGBB)` reads as "three arguments" when
- *  there is only one. constexpr, so palette constants stay constexpr. */
+ *  there is only one. constexpr, so palette constants stay constexpr. The
+ *  arithmetic is SigilMaterial's `rgb`, which is where a colour is
+ *  defined; this is the spelling and the Skia colour it answers in.
+ *
+ *  It is the only colour verb here. What a colour BECOMES — a different
+ *  alpha, a tone off a base, a lighter edge, a mix — is SigilMaterial's
+ *  vocabulary and is spelled from it: `material::skia::withAlpha`,
+ *  `scale`, `lighten` and `mixLinear`, over <sigilmaterial/skia/Color.h>. */
 constexpr SkColor4f hexColor(uint32_t rrggbb, float a = 1.0f) noexcept {
-  return {(float)((rrggbb >> 16u) & 0xffu) / 255.0f,
-          (float)((rrggbb >> 8u) & 0xffu) / 255.0f,
-          (float)(rrggbb & 0xffu) / 255.0f, a};
-}
-
-/** The same colour at a different alpha — `{c.fR, c.fG, c.fB, a}`.
- *
- *  Kept separate from scaleRgb() deliberately: replacing alpha and scaling
- *  the colour channels are different operations, and folding both into
- *  one signature would leave a defaulted argument deciding which the
- *  caller meant. */
-constexpr SkColor4f alpha(SkColor4f c, float a) noexcept {
-  return {c.fR, c.fG, c.fB, a};
-}
-
-/** The brightness ladder: scale RGB by @p k, optionally replacing alpha
- *  (`a < 0` keeps it) — a tone ramp off one sampled base colour.
- *
- *  Deliberately does NOT clamp. SkColor4f is float and a channel above 1
- *  is legal (and meaningful under a wide-gamut or OCIO view); Skia clamps
- *  when it lands in an 8-bit surface. A caller who needs the clamped value
- *  is asking for a different operation and writes it at the call site. */
-constexpr SkColor4f scaleRgb(SkColor4f c, float k, float a = -1.0f) noexcept {
-  return {c.fR * k, c.fG * k, c.fB * k, a < 0 ? c.fA : a};
-}
-
-/** The ladder upward: add @p k to each RGB channel, CLAMPED at 1, alpha
- *  kept — the highlight a bevel's lit edge is drawn with.
- *
- *  Clamping is what makes it a different operation from scaleRgb(), not
- *  an inconsistency with it. A scale keeps the hue of what it scales and
- *  has no ceiling to hit; an offset walks every channel toward white and
- *  saturates there, and a caller lightening a nearly-white base wants the
- *  saturated answer rather than a channel above 1 that the next blend
- *  reads as glow. */
-constexpr SkColor4f lighten(SkColor4f c, float k) noexcept {
-  return {std::min(1.0f, c.fR + k), std::min(1.0f, c.fG + k),
-          std::min(1.0f, c.fB + k), c.fA};
-}
-
-/** Linear interpolation between two colours, alpha included. Component-wise
- *  in whatever space the colours are already in — plain arithmetic, not a
- *  colour-managed blend. */
-constexpr SkColor4f mix(SkColor4f a, SkColor4f b, float t) noexcept {
-  return {a.fR + (b.fR - a.fR) * t, a.fG + (b.fG - a.fG) * t,
-          a.fB + (b.fB - a.fB) * t, a.fA + (b.fA - a.fA) * t};
+  return material::skia::toSkColor(material::rgb(rrggbb, a));
 }
 
 /** Corner radii, clockwise from top-left. `{r}` rounds all four; the
