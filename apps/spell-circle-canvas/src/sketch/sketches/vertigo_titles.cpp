@@ -667,7 +667,7 @@ struct VertigoTitles : sketch::Sketch {
     for (int i = 0; i < 4; ++i)
       sources.push_back(
           {.words = toU8(kSrc[i]),
-           .ink = kSteelDim,
+           .ink = Fill::color(kSteelDim),
            .opacity = animate(from(0.0f).to(1.0f),
                               ramp(520.0f + (float)i * 70.0f, 260))});
 

@@ -869,7 +869,7 @@ struct ThunderFulu : sketch::Sketch {
                             .advance = 26.0f,
                             .cornerAngleDeg = 30.0f,
                             .cornerLength = 34.0f,
-                            .reach = 22.0f}))
+                            .bleedPx = 22.0f}))
             .cache(Cache::Texture)
             .key("ironedge"));
     return g;
@@ -1316,7 +1316,7 @@ struct ThunderFulu : sketch::Sketch {
             .foreground(brush::Scatter{.art = footPrint,
                                        .spacing = 46.0f,
                                        .alignToPath = true,
-                                       .reach = 18.0f})
+                                       .bleedPx = 18.0f})
             .opacity(bind(&scribe).window(tStars - 0.4f, tStars + 0.5f))
             .key("walkpath"));
 

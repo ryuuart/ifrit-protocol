@@ -674,7 +674,7 @@ struct AstralTome : sketch::Sketch {
                                          .jitterNormal = 300.0f,
                                          .jitterScale = 0.85f,
                                          .alignToPath = false,
-                                         .reach = 330.0f}));
+                                         .bleedPx = 330.0f}));
     }
     return p;
   }

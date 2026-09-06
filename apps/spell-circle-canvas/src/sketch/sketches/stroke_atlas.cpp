@@ -495,12 +495,12 @@ std::vector<Style> stampedStyles() {
   seeds.jitterNormal = 3.4f;
   seeds.jitterScale = 0.5f;
   seeds.jitterRotateDeg = 40.0f;
-  seeds.reach = 14.0f;
+  seeds.bleedPx = 14.0f;
 
   brush::Scatter ladder;
   ladder.art = tick(kRed, 1.6f, 11.0f);
   ladder.spacing = 9.0f;
-  ladder.reach = 10.0f;
+  ladder.bleedPx = 10.0f;
 
   brush::Pattern chain;
   chain.side = box()
@@ -509,7 +509,7 @@ std::vector<Style> stampedStyles() {
                    .shape(shapes::circle())
                    .foreground(stroke(1.4f, ink()));
   chain.advance = 11.0f;
-  chain.reach = 12.0f;
+  chain.bleedPx = 12.0f;
 
   PathFormat vine = stroke(1.2f, ink());
   {
@@ -935,7 +935,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
                                             .foreground(stroke(1.3f, red())),
                                         brush::CornerAlign::Bisector};
         tiled.advance = 11.0f;
-        tiled.reach = 16.0f;
+        tiled.bleedPx = 16.0f;
         add("brush::Pattern{side, corner = lozenge}", frameRect(8), tiled,
             0.9f);
       }
@@ -1083,7 +1083,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
         pb.corner = brush::CornerArt{chevron(), variants[i].align};
         pb.advance = 12.0f;
         pb.cornerLength = 20.0f;
-        pb.reach = 20.0f;
+        pb.bleedPx = 20.0f;
         plate.child(box()
                         .absolute()
                         .left(56.0f + 360.0f * (float)i)
@@ -1119,7 +1119,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
                                      brush::CornerAlign::Bisector};
       octo.advance = 12.0f;
       octo.cornerLength = 16.0f;
-      octo.reach = 18.0f;
+      octo.bleedPx = 18.0f;
       plate.child(box()
                       .absolute()
                       .left(776)

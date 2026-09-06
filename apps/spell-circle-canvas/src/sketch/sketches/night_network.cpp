@@ -271,7 +271,7 @@ struct NightNetwork final : sketch::Sketch {
     orbital.layer(brush::Scatter{.art = ringStamp,
                                  .spacing = 74.6f,
                                  .alignToPath = false,
-                                 .reach = 12.0f});
+                                 .bleedPx = 12.0f});
 
     // -- 7. TWIN SERVICE: shared running as ALTERNATING two-color dashes
     //    (the network-map convention for two services on one track): two

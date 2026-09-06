@@ -79,6 +79,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/kit/Marquee.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
@@ -692,8 +693,9 @@ struct WinampBase : sketch::Sketch {
     Element titleWell = at(box(), 109, 22, 158, 11).fill(hex(0x101020));
     sunken(titleWell, alpha(hex(0x4A4A70), 0.5f), hex(0x08080E));
     Element title = at(box(), 2, 1, 154, 9).clip();
-    title.child(kit::marquee(t(marqueeText(), pix(5, hex(0x00E000))), marqueeW,
-                             &marqueePhase, n(40)));
+    title.child(kit::marquee(
+        t(marqueeText(), pix(5, hex(0x00E000))),
+        {.phase = &marqueePhase, .gap = n(40), .contentWidth = marqueeW}));
     titleWell.child(title);
     w.child(titleWell);
 

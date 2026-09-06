@@ -719,7 +719,7 @@ struct Bg3DiceRoll : sketch::Sketch {
                          brush::CornerAlign::Bisector};
     ornament.advance = 21.0f;
     ornament.cornerLength = 26.0f;
-    ornament.reach = 26.0f;
+    ornament.bleedPx = 26.0f;
     // brush::Pattern has its OWN threshold, and its default is 35 — higher
     // than Border's 30. It needs telling separately.
     ornament.cornerAngleDeg = a;

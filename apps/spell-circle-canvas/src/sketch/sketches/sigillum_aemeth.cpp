@@ -786,7 +786,7 @@ struct SigillumAemeth : sketch::Sketch {
                                .fill(Fill::color(hex(0x2c1c06, 0.85f))),
                     .spacing = step,
                     .alignToPath = true,
-                    .reach = 8.0f})
+                    .bleedPx = 8.0f})
                 .key("pricks"));
     return g;
   }
@@ -937,7 +937,7 @@ struct SigillumAemeth : sketch::Sketch {
                                       crossTile, brush::CornerAlign::Outgoing},
                               .advance = 22.0f,
                               .cornerAngleDeg = 40.0f,
-                              .reach = 16.0f}))
+                              .bleedPx = 16.0f}))
               .key("plate" + std::to_string(k)));
     }
     g.child(std::move(plates));

@@ -1040,7 +1040,7 @@ struct EvaMagiInterior : sketch::Sketch {
                        // No corner art on this brush, so there is nothing for a
                        // corner alignment to align.
                        .stretchToFit = true,
-                       .reach = 12.0f};
+                       .bleedPx = 12.0f};
     chevronBrush =
         brush::Pattern{.side = box()
                                    .width(9.0f)
@@ -1052,7 +1052,7 @@ struct EvaMagiInterior : sketch::Sketch {
                        .cornerLength = 0.0f,
                        // Likewise: no corner art on this brush either.
                        .stretchToFit = true,
-                       .reach = 11.0f};
+                       .bleedPx = 11.0f};
   }
 
   Element portraitStatic() {

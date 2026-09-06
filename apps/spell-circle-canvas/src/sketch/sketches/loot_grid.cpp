@@ -1098,7 +1098,7 @@ struct LootGrid final : sketch::Sketch {
           toU8(label),
           {},
           Fill::color(c),
-          c};
+          Fill::color(c)};
     };
     root.child(
         sketch::kit::legend({.entries = {tier(lt::Rarity::Normal, "normal"),
@@ -1107,7 +1107,7 @@ struct LootGrid final : sketch::Sketch {
                                          tier(lt::Rarity::Set, "set"),
                                          tier(lt::Rarity::Unique, "unique")},
                              .column = false,
-                             .swatch = 9.0f,
+                             .swatchSide = 9.0f,
                              .gap = 15.0f,
                              .corners = 1.5f,
                              .labelGap = 6.0f})
@@ -1122,14 +1122,14 @@ struct LootGrid final : sketch::Sketch {
                                  toU8("fits"),
                                  {},
                                  Fill::color({0.35f, 1.0f, 0.45f, 0.8f}),
-                                 lt::kAsh},
+                                 Fill::color(lt::kAsh)},
                                 {Fill::color({0.90f, 0.16f, 0.14f, 0.34f}),
                                  toU8("blocked"),
                                  {},
                                  Fill::color({1.0f, 0.35f, 0.30f, 0.8f}),
-                                 lt::kAsh}},
+                                 Fill::color(lt::kAsh)}},
                     .column = false,
-                    .swatch = 11.0f,
+                    .swatchSide = 11.0f,
                     .gap = 18.0f,
                     .corners = 2.0f,
                     .labelGap = 8.0f})

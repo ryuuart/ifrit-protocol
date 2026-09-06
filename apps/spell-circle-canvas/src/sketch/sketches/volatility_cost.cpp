@@ -125,7 +125,7 @@ sketch::kit::Theme sheetTheme() {
   look.type.captionLabel = {.size = 11};
   look.spacing.labelGap = 8;
   look.spacing.rowGap = 3;
-  look.spacing.swatch = 9;
+  look.spacing.swatchSide = 9;
   return look;
 }
 
@@ -325,7 +325,7 @@ struct VolatilityCost final : sketch::Sketch {
           {Fill::color(tierColor(state)), toU8(tierName(state)), toU8(what)});
     return sketch::kit::legend({.entries = std::move(entries),
                                 .column = false,
-                                .swatch = 11,
+                                .swatchSide = 11,
                                 .gap = 16,
                                 .strokeWidth = 1.4f,
                                 .wrap = true});
@@ -395,7 +395,7 @@ struct VolatilityCost final : sketch::Sketch {
     column.child(sketch::kit::table(
         std::move(rows), {.columns = {{126, true}, {46, true}, {66}, {}},
                           .gap = 8,
-                          .swatch = 9}));
+                          .swatchSide = 9}));
     return column;
   }
 

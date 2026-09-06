@@ -41,6 +41,7 @@
 
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
+namespace shapers = sigil::geometry::shapers;
 namespace shapes = sigil::geometry::shapes;
 
 using namespace sigil::compose;
@@ -131,7 +132,8 @@ struct FormationBands final : sketch::Sketch {
     const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    const path::Profile wave = path::profile::wave(kAmplitude, kWavelength);
+    const path::Profile wave =
+        path::Profile(shapers::wave(kAmplitude, kWavelength));
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("FORMATION BANDS \xc2\xb7 Profile + profileOffset "
@@ -183,7 +185,7 @@ struct FormationBands final : sketch::Sketch {
                                        strokePaint(kFigure, 2.4f));
                                  }),
                             cell("profileOffset(spine, "
-                                 "profile::wave(11, 54))",
+                                 "shapers::wave(11, 54))",
                                  kit::formatted(
                                      "one rail of the wave law \xc2\xb7 "
                                      "max() %.0f px, which is what "

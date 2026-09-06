@@ -15,9 +15,12 @@
  * lower shelf asks for one moment per cell across two loop periods, so
  * the same frames come round again with the moment printed under each.
  *
- * `Hub::probe()` reads the metadata WITHOUT decoding pixels: the format,
- * the byte size, the dimensions and the frame count. The readout at the
- * foot is that probe beside what the decode actually produced.
+ * A probe reads the metadata WITHOUT decoding pixels. `Hub::probe()`
+ * answers the bytes — how many there are, and where they came from;
+ * `Hub::probe<image::ImageProbe>()` answers what they MEAN, through the
+ * prober SigilImage registers: the format, the dimensions and the frame
+ * count. The readout at the foot is that pair beside what the decode
+ * actually produced.
  *
  * THE SUBJECT IS THE REAL FILE. `fastbreak.gif` is the one thing that
  * ever moved on the 1996 Space Jam site, fetched here over https through
@@ -117,10 +120,12 @@ struct GifFrames final : sketch::Sketch {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     io::Hub& hub = ctx.assets.hub();
-    const std::optional<io::ResourceInfo> probed = hub.probe(kSource);
+    const std::optional<io::ResourceInfo> bytes = hub.probe(kSource);
+    const std::optional<image::ImageProbe> meaning =
+        hub.probe<image::ImageProbe>(kSource);
     const std::shared_ptr<const image::ImageAsset> gif = hub.image(kSource);
 
-    ctx.composer.render(gif ? sheet(*gif, probed) : missing());
+    ctx.composer.render(gif ? sheet(*gif, bytes, meaning) : missing());
   }
 
   /** The shelf of decoded frames, in file order, each with its own
@@ -150,13 +155,14 @@ struct GifFrames final : sketch::Sketch {
   }
 
   Element sheet(const image::ImageAsset& gif,
-                const std::optional<io::ResourceInfo>& probed) const {
+                const std::optional<io::ResourceInfo>& bytes,
+                const std::optional<image::ImageProbe>& meaning) const {
     std::string foot = "Hub::probe() \xe2\x80\x94 ";
-    if (probed)
-      foot += probed->image.format + ", " + std::to_string(probed->byteSize) +
-              " bytes, " + std::to_string(probed->image.width) + "\xc3\x97" +
-              std::to_string(probed->image.height) + ", " +
-              std::to_string(probed->image.frames) +
+    if (meaning && bytes)
+      foot += meaning->format + ", " + std::to_string(bytes->byteSize) +
+              " bytes, " + std::to_string(meaning->width) + "\xc3\x97" +
+              std::to_string(meaning->height) + ", " +
+              std::to_string(meaning->frames) +
               " frames, no pixels "
               "decoded";
     else

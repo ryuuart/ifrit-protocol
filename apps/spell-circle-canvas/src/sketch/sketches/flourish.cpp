@@ -364,7 +364,7 @@ struct Flourish final : sketch::Sketch {
         .padding(30, 26)
         .gap(9)
         .alignItems(Align::Center)
-        .child(layout(layouts::Scatter{7, 0.7f})
+        .child(layout(layouts::Jittered{7, 0.7f})
                    .inset(22)
                    .children(std::move(sparks)))
         .child(

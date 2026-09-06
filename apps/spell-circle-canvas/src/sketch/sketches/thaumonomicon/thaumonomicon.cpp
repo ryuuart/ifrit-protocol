@@ -430,7 +430,7 @@ inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
                           .jitterScale = 0.8f,
                           .jitterRotateDeg = 40,
                           .alignToPath = false,
-                          .reach = g(6)});
+                          .bleedPx = g(6)});
   return br;
 }
 
@@ -455,7 +455,7 @@ inline Element straightTile(SkColor4f tint, const Element& spatter,
       brush::Scatter{.art = knot,
                      .place = {.mode = brush::Placement::Mode::CentralPoint},
                      .alignToPath = true,
-                     .reach = g(6)});
+                     .bleedPx = g(6)});
   return box()
       .width(w)
       .height(h)
@@ -508,7 +508,7 @@ inline Element elbowTile(float arm, float handed, SkColor4f tint,
       brush::Scatter{.art = knot,
                      .place = {.mode = brush::Placement::Mode::InnerVertices},
                      .alignToPath = true,
-                     .reach = g(6)});
+                     .bleedPx = g(6)});
   return box()
       .width(side)
       .height(side)
@@ -1255,7 +1255,7 @@ struct Thaumonomicon : sketch::Sketch {
                       .advance = kCell,
                       .cornerAngleDeg = 35.0f,
                       .stretchToFit = true,
-                      .reach = g(56)};
+                      .bleedPx = g(56)};
     if (elbow >= 0) {
       // An elbow of PIPE, not an ornament: entry, exit and a handedness, and
       // elbowTile() authors it with local +x along the outgoing leg. On the
@@ -1391,7 +1391,7 @@ struct Thaumonomicon : sketch::Sketch {
             .cornerAngleDeg = 35.0f,
             .cornerLength = g(20),
             .stretchToFit = true,
-            .reach = g(26)});
+            .bleedPx = g(26)});
   }
 
   /** The inner rule: four OPEN contours that STOP SHORT of the corners — a
