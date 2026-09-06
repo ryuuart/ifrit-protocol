@@ -60,9 +60,7 @@ constexpr int kLutSize = 33;    // the 3D LUT's side
 constexpr const char* kConfig = "ocio://default";
 
 SkPath whole() {
-  static const SkPath path =
-      SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
-  return path;
+  return SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
 }
 
 /** THE SUBJECT every cell transforms: a linear step wedge over three
@@ -116,10 +114,10 @@ Element cell(const char* call, const std::string& note,
       kCell, toU8(call), toU8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          custom(call, [paint = std::move(paint)](SkCanvas& canvas,
-                                                  const PaintContext& pc) {
+          custom(call, [paint = std::move(paint), face = whole()](
+                           SkCanvas& canvas, const PaintContext& pc) {
             material::skia::fill(
-                canvas, whole(), paint,
+                canvas, face, paint,
                 {.resolution = {pc.size.width(), pc.size.height()}});
           })));
 }

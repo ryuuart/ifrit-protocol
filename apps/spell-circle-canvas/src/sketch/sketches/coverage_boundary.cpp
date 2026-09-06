@@ -97,12 +97,20 @@ LayerStyle halo() {
   return style;
 }
 
-Element art(float alpha = 1.0f) {
-  static const std::shared_ptr<const sigil::image::ImageAsset> solid =
-      cutOut(1.0f);
-  static const std::shared_ptr<const sigil::image::ImageAsset> faint =
-      cutOut(kWash);
-  return image(alpha < 1.0f ? faint : solid).width(Dim(kArt)).height(Dim(kArt));
+/** THE TWO CUT-OUTS THIS SHEET SHOWS, baked once and held together for
+ *  the sketch's life: an image is compared by POINTER, so a fresh bake per
+ *  cell would make every cell's node unequal to every other's. Held on the
+ *  sketch and not in a static, since this file is a dylib a reload
+ *  unloads. */
+struct CutOuts {
+  std::shared_ptr<const sigil::image::ImageAsset> solid = cutOut(1.0f);
+  std::shared_ptr<const sigil::image::ImageAsset> faint = cutOut(kWash);
+};
+
+Element art(const CutOuts& cut, float alpha = 1.0f) {
+  return image(alpha < 1.0f ? cut.faint : cut.solid)
+      .width(Dim(kArt))
+      .height(Dim(kArt));
 }
 
 Element cell(const char* call, const char* note, Element body) {
@@ -117,6 +125,8 @@ Element cell(const char* call, const char* note, Element body) {
 }  // namespace
 
 struct CoverageBoundary final : sketch::Sketch {
+  const CutOuts cut;
+
   void setup(sketch::SketchContext& ctx) override {
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
@@ -153,24 +163,24 @@ struct CoverageBoundary final : sketch::Sketch {
                        "the source \xc2\xb7 an opaque star with a hole "
                        "punched through it, and a rectangle of nothing "
                        "around both",
-                       art()),
+                       art(cut)),
                   cell("\xe2\x80\xa6"
                        ".style(halo)",
                        "Boundary::Auto is the node's own shape \xc2\xb7 "
                        "the halo hugs the BOX, which is what the "
                        "picture is not",
-                       art().style(halo())),
+                       art(cut).style(halo())),
                   cell("\xe2\x80\xa6"
                        ".boundary(Coverage).style(halo)",
                        "the same style on the traced silhouette \xc2\xb7 "
                        "a staircase of whole pixels, which is what "
                        "reading a raster gives",
-                       art().boundary(Boundary::Coverage).style(halo())),
+                       art(cut).boundary(Boundary::Coverage).style(halo())),
                   cell("the same cut-out at 30% alpha",
                        "under half a pixel covered is not a silhouette "
                        "\xc2\xb7 the trace comes back EMPTY, and an "
                        "empty trace keeps the node's own shape",
-                       art(kWash).boundary(Boundary::Coverage).style(halo())),
+                       art(cut, kWash).boundary(Boundary::Coverage).style(halo())),
                   cell("children only \xc2\xb7 boundary(Coverage)",
                        "the content and the CHILDREN are in the trace "
                        "\xc2\xb7 three discs, one outline, and no "

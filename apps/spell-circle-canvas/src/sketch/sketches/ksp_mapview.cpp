@@ -466,8 +466,7 @@ struct MarchingDots {
 // One monolithic main(), no user-defined SkSL functions, no loops.
 
 inline sk_sp<SkRuntimeEffect> navballEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    const char* src = R"(
+  const char* src = R"(
 uniform float2 uResolution;
 uniform float  uYaw;
 uniform float  uPitch;
@@ -531,19 +530,16 @@ half4 main(float2 xy) {
   return half4(half3(col * edge), half(edge));
 }
 )";
-    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-    if (!e) std::fprintf(stderr, "navball sksl: %s\n", err.c_str());
-    return e;
-  }();
-  return fx;
+  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
+  if (!e) std::fprintf(stderr, "navball sksl: %s\n", err.c_str());
+  return e;
 }
 
 /** Restrained bright-pass: luminance above a knee, nothing else. Paired with
  *  a small Gaussian and re-blended kPlus — the photographic half of the CRT
  *  recipe, deliberately without the scanline/backdrop half. */
 inline sk_sp<SkRuntimeEffect> brightPassEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    const char* src = R"(
+  const char* src = R"(
 uniform shader content;
 half4 main(float2 xy) {
   half4 s = content.eval(xy);
@@ -554,11 +550,9 @@ half4 main(float2 xy) {
   return half4(half3(straight * k), half(k));
 }
 )";
-    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-    if (!e) std::fprintf(stderr, "brightpass sksl: %s\n", err.c_str());
-    return e;
-  }();
-  return fx;
+  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
+  if (!e) std::fprintf(stderr, "brightpass sksl: %s\n", err.c_str());
+  return e;
 }
 
 }  // namespace ksp

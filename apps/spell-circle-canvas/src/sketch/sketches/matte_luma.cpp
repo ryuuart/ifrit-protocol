@@ -130,8 +130,8 @@ mskia::Paint bandStrip(float width) {
 /** THE MATTE, baked at panel size so its local matrix is the identity.
  *  Left of kSplit: OPAQUE greys (alpha 1, luma ramps). Right: white whose
  *  ALPHA ramps — premultiplied, so its luma ramps identically. */
-const sk_sp<SkImage>& matte() {
-  static const sk_sp<SkImage> img = [] {
+sk_sp<SkImage> matte() {
+  return [] {
     const int n = (int)kPanel;
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(n, n));
     SkCanvas* c = s->getCanvas();
@@ -147,7 +147,6 @@ const sk_sp<SkImage>& matte() {
     }
     return s->makeImageSnapshot();
   }();
-  return img;
 }
 
 mskia::Paint atPanelSize(const sk_sp<SkImage>& image, float w, float h) {

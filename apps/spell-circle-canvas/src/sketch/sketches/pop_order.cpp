@@ -109,8 +109,8 @@ mesh::camera::Camera lookAtCrown() {
  *  semi-transparent, so a mis-ordered sprite reads as haze rather than as
  *  occlusion. The rim is BLACK because the tint is applied by kModulate —
  *  0 * anything is 0, so a black outline survives every tint. */
-const sk_sp<SkImage>& disc() {
-  static const sk_sp<SkImage> img = [] {
+sk_sp<SkImage> disc() {
+  return [] {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));
     SkCanvas* c = s->getCanvas();
     c->clear(SK_ColorTRANSPARENT);
@@ -124,7 +124,6 @@ const sk_sp<SkImage>& disc() {
     c->drawCircle(32, 32, 28, p);
     return s->makeImageSnapshot();
   }();
-  return img;
 }
 
 /** The sink: NO depth sort and NO additive blending, because both of those

@@ -502,15 +502,15 @@ struct ChargeParams {
   sigil::material::Color uGold;
 };
 
-/** The definition, made once for the process — a recipe's identity is the
- *  object, so a fresh one per describe would compile a fresh program and
- *  never compare equal to itself. */
+/** The definition, made where it is asked for — which is ONCE: a recipe's
+ *  identity is the object, so a second one of this body compiles a second
+ *  program and never compares equal to the first. Asking for one per
+ *  describe would be that mistake; a static holding one would hold it in a
+ *  dylib a hot reload unloads. */
 std::shared_ptr<const sigil::material::Recipe> chargeRecipe() {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      std::make_shared<const sigil::material::Recipe>(
-          sigil::material::Recipe::of<ChargeParams>("rota.charge")
-              .body(sigil::material::Target::SkSL, kChargeSksl));
-  return recipe;
+  return std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<ChargeParams>("rota.charge")
+          .body(sigil::material::Target::SkSL, kChargeSksl));
 }
 
 // ---- helpers --------------------------------------------------------------
@@ -739,12 +739,10 @@ struct RaysParams {
 };
 
 std::shared_ptr<const sigil::material::Recipe> raysRecipe() {
-  static const std::shared_ptr<const sigil::material::Recipe> recipe =
-      std::make_shared<const sigil::material::Recipe>(
-          sigil::material::Recipe::of<RaysParams>("rota.rays")
-              .frame(sigil::material::FrameInput::Resolution)
-              .body(sigil::material::Target::SkSL, kRaysSksl));
-  return recipe;
+  return std::make_shared<const sigil::material::Recipe>(
+      sigil::material::Recipe::of<RaysParams>("rota.rays")
+          .frame(sigil::material::FrameInput::Resolution)
+          .body(sigil::material::Target::SkSL, kRaysSksl));
 }
 
 /** THE CREST'S COLOUR FRINGE: the picture beneath re-sampled with its red

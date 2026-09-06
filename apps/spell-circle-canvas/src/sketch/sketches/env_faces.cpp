@@ -94,8 +94,8 @@ sk_sp<SkImage> face(SkColor4f tint, float bar) {
 
 /** The six faces in the order every graphics API names them: +x, -x, +y,
  *  -y, +z, -z, each looking outward with +y up. */
-const material::EnvironmentMap::Faces& faces() {
-  static const material::EnvironmentMap::Faces six = {
+material::EnvironmentMap::Faces faces() {
+  return {
       face({0.86f, 0.32f, 0.28f, 1}, 0.15f),  // +x
       face({0.30f, 0.52f, 0.88f, 1}, 0.30f),  // -x
       face({0.94f, 0.86f, 0.40f, 1}, 0.45f),  // +y
@@ -103,36 +103,26 @@ const material::EnvironmentMap::Faces& faces() {
       face({0.36f, 0.80f, 0.56f, 1}, 0.75f),  // +z
       face({0.72f, 0.44f, 0.86f, 1}, 0.86f),  // -z
   };
-  return six;
 }
 
 /** The same six laid into one 6:1 row — the layout `fromCubeMap` names
  *  by aspect ratio, in the same +x -x +y -y +z -z order. */
-sk_sp<SkImage> row() {
-  static const sk_sp<SkImage> sheet = [] {
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(
-        SkImageInfo::MakeN32Premul(kFaceSide * 6, kFaceSide));
-    for (int i = 0; i < 6; ++i)
-      surface->getCanvas()->drawImage(faces()[(size_t)i],
-                                      (float)(i * kFaceSide), 0);
-    return surface->makeImageSnapshot();
-  }();
-  return sheet;
+sk_sp<SkImage> row(const material::EnvironmentMap::Faces& six) {
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::MakeN32Premul(kFaceSide * 6, kFaceSide));
+  for (int i = 0; i < 6; ++i)
+    surface->getCanvas()->drawImage(six[(size_t)i], (float)(i * kFaceSide), 0);
+  return surface->makeImageSnapshot();
 }
 
 /** The disc every reflective cell shades, and the normals under it. */
 SkPath disc() {
-  static const SkPath path =
-      SkPathBuilder()
-          .addCircle(kCell * 0.5f, kPicture * 0.5f, kPicture * 0.40f)
-          .detach();
-  return path;
+  return SkPathBuilder()
+      .addCircle(kCell * 0.5f, kPicture * 0.5f, kPicture * 0.40f)
+      .detach();
 }
 
-material::Texture shoulder() {
-  static const material::Texture map = material::bevelNormals(disc(), kBevel);
-  return map;
-}
+material::Texture shoulder() { return material::bevelNormals(disc(), kBevel); }
 
 Element cell(const char* call, const std::string& note,
              std::function<void(SkCanvas&, const material::FrameData&)> draw) {
@@ -167,10 +157,13 @@ Element reflector(const char* call, const std::string& note,
   material::kit::ChromeParams params;
   params.roughness = roughness;
   params.contrast = 1.5f;
+  // The face is captured BY VALUE: this program is invoked at paint time,
+  // long after the frame that described it.
   return cell(call, note,
-              [paint = material::kit::chrome(shoulder(), env, params)](
-                  SkCanvas& canvas, const material::FrameData& frame) {
-                material::skia::fill(canvas, disc(), paint, frame);
+              [paint = material::kit::chrome(shoulder(), env, params),
+               face = disc()](SkCanvas& canvas,
+                              const material::FrameData& frame) {
+                material::skia::fill(canvas, face, paint, frame);
               });
 }
 
@@ -185,10 +178,13 @@ struct EnvFaces final : sketch::Sketch {
 
     const material::EnvironmentMap studio =
         material::kit::studioEnvironment(384);
+    // The six faces are baked ONCE and read twice — once as faces, once
+    // laid into the 6:1 row the cube-map layout is named by.
+    const material::EnvironmentMap::Faces six = faces();
     const material::EnvironmentMap resampled =
-        material::EnvironmentMap::fromFaces(faces());
+        material::EnvironmentMap::fromFaces(six);
     const material::EnvironmentMap unpacked =
-        material::EnvironmentMap::fromCubeMap(row());
+        material::EnvironmentMap::fromCubeMap(row(six));
     const material::EnvironmentMap rewrapped =
         material::EnvironmentMap::fromEquirect(resampled.image(0));
     const material::EnvironmentMap grounded =

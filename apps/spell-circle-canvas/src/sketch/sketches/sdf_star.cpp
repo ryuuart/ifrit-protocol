@@ -56,9 +56,7 @@ constexpr float kPointiness = 2.6f;  // m in [2, points]
 constexpr float kGlow = 14;          // the glow's falloff radius, px
 
 SkPath whole() {
-  static const SkPath path =
-      SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
-  return path;
+  return SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
 }
 
 /** The style every cell starts from: a warm fill under a thin border,
@@ -75,10 +73,10 @@ Element cell(const char* call, const std::string& note, sdf::Shape shape,
       kCell, toU8(call), toU8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          custom(call, [paint = sdf::material(shape, style)](
+          custom(call, [paint = sdf::material(shape, style), face = whole()](
                            SkCanvas& canvas, const PaintContext& pc) {
             material::skia::fill(
-                canvas, whole(), paint,
+                canvas, face, paint,
                 {.resolution = {pc.size.width(), pc.size.height()}});
           })));
 }

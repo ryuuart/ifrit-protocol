@@ -64,10 +64,9 @@ constexpr float kBevel = 26;  // the shoulder the slope normals come from
 /** The plate every cell paints: one rounded octagon, so the slope mask's
  *  bevel has real corners to shade and the brass has an edge to catch. */
 SkPath plate() {
-  static const SkPath path = shapes::rounded(shapes::chamfered(30), 8)
-                                 .path({kCell - 36, kPicture - 36})
-                                 .makeTransform(SkMatrix::Translate(18, 18));
-  return path;
+  return shapes::rounded(shapes::chamfered(30), 8)
+      .path({kCell - 36, kPicture - 36})
+      .makeTransform(SkMatrix::Translate(18, 18));
 }
 
 /** A diagonal black-to-white ramp, baked once — the painted map every
@@ -120,10 +119,10 @@ Element cell(const char* call, const std::string& note,
       kCell, toU8(call), toU8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          custom(call, [paint = std::move(paint)](SkCanvas& canvas,
-                                                  const PaintContext& pc) {
+          custom(call, [paint = std::move(paint), face = plate()](
+                           SkCanvas& canvas, const PaintContext& pc) {
             material::skia::fill(
-                canvas, plate(), paint,
+                canvas, face, paint,
                 {.resolution = {pc.size.width(), pc.size.height()}});
           })));
 }

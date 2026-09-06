@@ -29,7 +29,7 @@
 //    scene is described once and never again.
 //
 // EDIT THESE FIRST
-//   runs()        — the measured arc table: inner and outer radius as a
+//   kRuns         — the measured arc table: inner and outer radius as a
 //                   fraction of the poster width, and the two math-convention
 //                   angles. Everything the plate draws is in it.
 //   kRingBaseMs   — the innermost ring's reveal, which every ring outward
@@ -45,6 +45,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -95,8 +96,7 @@ struct Run {
   float rInner, rOuter;    // × poster W
   float startDeg, endDeg;  // math convention
 };
-inline const std::vector<Run>& runs() {
-  static const std::vector<Run> table = {
+inline constexpr auto kRuns = std::to_array<Run>({
       {0.3480f, 0.3607f, -33.75f, 22.50f},
       {0.3480f, 0.3607f, -146.25f, -135.00f},
       {0.3640f, 0.3913f, -22.50f, 45.00f},
@@ -106,14 +106,9 @@ inline const std::vector<Run>& runs() {
       {0.4500f, 0.5560f, -150.00f, 90.00f},
       {0.5600f, 0.7770f, -150.00f, 45.00f},
       {0.7820f, 1.2070f, -150.00f, 101.25f},
-  };
-  return table;
-}
+});
 // Ring index per run (for the doubling reveal durations).
-inline const std::vector<int>& rings() {
-  static const std::vector<int> table = {0, 0, 1, 1, 2, 2, 3, 4, 5};
-  return table;
-}
+inline constexpr auto kRings = std::to_array<int>({0, 0, 1, 1, 2, 2, 3, 4, 5});
 
 }  // namespace beethoven_plate
 
@@ -230,8 +225,8 @@ struct Beethoven final : sketch::Sketch {
             .fill(Fill::color(bp::kPaper))
             .background(styles::dropShadow({0, 0, 0, 0.45f}, {0, 8}, 22))
             .clip();
-    const auto& table = bp::runs();
-    const auto& ringOf = bp::rings();
+    const auto& table = bp::kRuns;
+    const auto& ringOf = bp::kRings;
     for (size_t i = 0; i < table.size(); ++i)
       poster.child(arcRun(table[i], ringOf[i]).key("arc" + std::to_string(i)));
 

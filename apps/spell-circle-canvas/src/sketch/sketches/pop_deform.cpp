@@ -103,11 +103,8 @@ geometry::mesh::camera::Camera lookAtColumn() {
   return camera;
 }
 
-/** The point stamp, baked once for the process. */
-const sk_sp<SkImage>& disc() {
-  static const sk_sp<SkImage> img = kit::dotSprite();
-  return img;
-}
+/** The point stamp, baked where it is asked for — which is once. */
+sk_sp<SkImage> disc() { return kit::dotSprite(); }
 
 Element splat(geometry::mesh::Cloud cloud) {
   return custom([cloud = std::move(cloud)](SkCanvas& canvas,

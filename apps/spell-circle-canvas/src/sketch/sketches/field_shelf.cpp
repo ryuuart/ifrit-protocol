@@ -69,9 +69,7 @@ sketch::kit::Theme sheetTheme() {
 }
 
 SkPath whole() {
-  static const SkPath path =
-      SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
-  return path;
+  return SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
 }
 
 /** What `ripple` warps: a ruled grid, baked once, so the displacement is
@@ -119,21 +117,21 @@ Element cell(const char* call, const char* note,
 /** A field on its own. */
 Element plain(const char* call, const char* note, material::Material paint) {
   return cell(call, note,
-              [paint = std::move(paint)](SkCanvas& canvas,
-                                         const material::FrameData& frame) {
-                material::skia::fill(canvas, whole(), paint, frame);
+              [paint = std::move(paint), face = whole()](
+                  SkCanvas& canvas, const material::FrameData& frame) {
+                material::skia::fill(canvas, face, paint, frame);
               });
 }
 
 /** A field over a lit ground — what crtOverlay is for. */
 Element aged(const char* call, const char* note, material::Material paint) {
   return cell(call, note,
-              [paint = std::move(paint)](SkCanvas& canvas,
-                                         const material::FrameData& frame) {
+              [paint = std::move(paint), face = whole()](
+                  SkCanvas& canvas, const material::FrameData& frame) {
                 SkPaint ground;
                 ground.setColor4f(kScreen);
-                canvas.drawPath(whole(), ground);
-                material::skia::fill(canvas, whole(), paint, frame);
+                canvas.drawPath(face, ground);
+                material::skia::fill(canvas, face, paint, frame);
               });
 }
 

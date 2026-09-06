@@ -83,7 +83,7 @@ camera::Camera stage() {
  *  a splat's projected size and the sink's sorting are both legible
  *  where the default soft dot would just be a haze. */
 sk_sp<SkImage> ringSprite() {
-  static const sk_sp<SkImage> image = [] {
+  return [] {
     constexpr int kSide = 64;
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
@@ -97,7 +97,6 @@ sk_sp<SkImage> ringSprite() {
     canvas->drawCircle(kSide * 0.5f, kSide * 0.5f, kSide * 0.34f, ring);
     return surface->makeImageSnapshot();
   }();
-  return image;
 }
 
 /** The subject cloud: points scattered on a torus, sized and tinted by
