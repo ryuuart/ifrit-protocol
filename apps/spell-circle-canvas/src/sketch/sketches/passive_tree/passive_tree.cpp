@@ -63,7 +63,9 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -758,6 +760,18 @@ struct PassiveTree final : sketch::Sketch {
     root.child(card.key("detail"));
   }
 
+  /** The sheet's own look, for the masthead: the two registers the title
+   *  and its line are set in, and the two inks. */
+  static sketch::kit::Theme mastheadTheme() {
+    sketch::kit::Theme look = sketch::kit::houseTheme();
+    look.palette.ink = skill_tree::kBone;
+    look.palette.ash = skill_tree::kAsh;
+    look.type.title = {.size = 24, .track = 3};
+    look.type.subtitle = {.size = 12, .track = 1.0f};
+    look.spacing.subtitleGap = 6;
+    return look;
+  }
+
   void hud(Element& root) {
     namespace pt = skill_tree;
     int allocated = 0, matched = 0;
@@ -768,17 +782,19 @@ struct PassiveTree final : sketch::Sketch {
     const std::string points = kit::formatted("%d / 123", allocated);
     const std::string found = kit::formatted("%d matched", matched);
 
-    root.child(
-        box()
-            .column()
-            .top(30)
-            .left(38)
-            .zIndex(8)
-            .child(text(toU8("EMBERWOOD REACH"), pt::type(24, pt::kBone, 3)))
-            .child(text(toU8("passive cluster \xe2\x80\x94 real orbit "
-                             "geometry, four frame states"),
-                        pt::type(12, pt::kAsh, 1.0f))
-                       .margin(0, 6, 0, 0)));
+    {
+      // Bound only round the card, since everything else on this HUD is
+      // set in the tree's own registers rather than in a sheet's.
+      const sketch::kit::Provide look(mastheadTheme());
+      root.child(
+          sketch::kit::titleCard(
+              {.title = toU8("EMBERWOOD REACH"),
+               .subtitle = toU8("passive cluster \xe2\x80\x94 real orbit "
+                                "geometry, four frame states")})
+              .top(30)
+              .left(38)
+              .zIndex(8));
+    }
     root.child(
         box()
             .column()

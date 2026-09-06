@@ -25,9 +25,25 @@ struct Well {
   /** Unset is the theme's cell ground. Set it to `Fill::none()` for a
    *  well that paints nothing. */
   std::optional<compose::Fill> ground;
-  /** Unset is the theme's well padding. */
+  /** Across; unset is the theme's well padding. */
   std::optional<float> padding;
+  /** Down, where a plate is set tighter or looser than it is wide; unset
+   *  is whatever `padding` resolves to. */
+  std::optional<float> paddingY;
   bool clip = true;
+  /** Rounds the well. 0 is the square corner a specimen sheet uses. */
+  float corners = 0;
+  /** ONE HAIRLINE ROUND THE WELL, over its ground — what turns a patch of
+   *  ground into a PLATE. Unset draws none; unset is not the theme's rule,
+   *  because a specimen well is grounded and unruled and that is the
+   *  common case.
+   *
+   *  IT IS DRAWN INSIDE THE WELL'S OWN BOX. A rule centred on the
+   *  boundary would put half its width outside, so a plate and the plate
+   *  beside it would no longer be the width they were given — which is
+   *  the one thing a fixed surface may not do. */
+  std::optional<compose::Fill> keyline;
+  float keylineWidth = 1;
 };
 
 /** @p surface, sized, grounded, padded and clipped as @p spec and the

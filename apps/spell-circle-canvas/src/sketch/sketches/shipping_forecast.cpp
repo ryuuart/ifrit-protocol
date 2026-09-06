@@ -149,6 +149,7 @@
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/paragraph/Unit.h>
@@ -487,15 +488,15 @@ struct ShippingForecast : sketch::Sketch {
   [[nodiscard]] Element galeStrip() {
     TextEffect arrive = fx::seq(fx::slide(-46.0f).until(0.46f).xfade(0.20f),
                                 fx::pop(0.86f, 2.6f));
-    return box()
+    return sketch::kit::well({.ground = Fill::color(hex(0x1C1206)),
+                              .padding = 13,
+                              .paddingY = 10,
+                              .clip = false,
+                              .corners = 3,
+                              .keyline = Fill::color(hex(0x4A3411))})
         .row()
         .alignItems(Align::Center)
         .gap(12)
-        .padding(13, 10)
-        .corners({3})
-        .fill(Fill::color(hex(0x1C1206)))
-        .stroke(
-            stroke(1.0f, Fill::color(hex(0x4A3411)), PathFormat::Align::Inner))
         .opacity(beat(0.10f, 0.70f))
         .child(box().width(7).height(7).corners({4}).shrink(0).fill(
             Fill::color(kAmber)))

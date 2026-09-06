@@ -1,3 +1,4 @@
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilsketch/kit/Cells.h>
@@ -11,14 +12,25 @@ namespace sigil::sketch::kit {
 
 compose::Element well(const Well& spec, compose::Element surface) {
   const Theme& look = theme();
-  return compose::kit::well(
+  const float padX = spec.padding.value_or(look.spacing.wellPadding);
+  const float padY = spec.paddingY.value_or(padX);
+  // The padding is chained here rather than handed down, because the
+  // primitive takes one distance and a plate may be set tighter down than
+  // across. Everything else is the primitive's.
+  compose::Element plate = compose::kit::well(
       {.width = spec.width,
        .height = spec.height,
        .ground = spec.ground.value_or(
            compose::Fill::color(look.palette.cellGround)),
-       .padding = spec.padding.value_or(look.spacing.wellPadding),
+       .padding = 0,
        .clip = spec.clip},
       std::move(surface));
+  if (padX != 0 || padY != 0) plate.padding(padX, padY);
+  if (spec.corners > 0) plate.corners(compose::Corners{spec.corners});
+  if (spec.keyline)
+    plate.stroke(compose::stroke(spec.keylineWidth, *spec.keyline,
+                                 compose::PathFormat::Align::Inner));
+  return plate;
 }
 
 compose::Element well(const Well& spec) {

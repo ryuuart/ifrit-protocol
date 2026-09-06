@@ -47,9 +47,10 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
           .clip()
           .child(std::move(screen));
   if (chrome.screenCorners > 0) opening.corners(Corners{chrome.screenCorners});
-  opening.stroke(compose::stroke(
-      1, chrome.keyline.value_or(Fill::color(look.palette.rule)),
-      compose::PathFormat::Align::Inner));
+  const Fill rule = chrome.keyline.value_or(Fill::color(look.palette.rule));
+  if (rule.kind != Fill::Kind::None)
+    opening.stroke(
+        compose::stroke(1, rule, compose::PathFormat::Align::Inner));
 
   Element shell =
       compose::box()

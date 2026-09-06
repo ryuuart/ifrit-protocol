@@ -41,6 +41,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Ticker.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -472,7 +473,11 @@ struct Y2kChrome final : sketch::Sketch {
                                    "PRESET \xc2\xb7 kit::aquaGel()"))));
 
     // ---- status bar: marquee, ticker-driven phase -------------------
-    Element strip = kit::marquee(stripContent(), &tickX, yc::kTickerGap);
+    // The crawl, named: a strip run past a window twice so the loop has no
+    // seam, with the wrap this file already keeps on `tickX`.
+    Element strip = sketch::kit::ticker({.content = stripContent(),
+                                         .phase = &tickX,
+                                         .gap = yc::kTickerGap});
     strip.grow(1);
     Element statusBar =
         box()

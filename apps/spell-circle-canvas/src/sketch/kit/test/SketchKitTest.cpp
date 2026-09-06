@@ -281,6 +281,87 @@ TEST(SketchKitCells, WellTakesTheThemesCellGround) {
                 compose::box().child(subject()))));
 }
 
+/** THE PLATE: a grounded well with rounded corners and one hairline round
+ *  it, against the four calls a sketch writes by hand for the same
+ *  picture. */
+TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
+  const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
+  const Fill edge = Fill::color({0.42f, 0.38f, 0.22f, 1});
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .width(compose::Dim(163))
+          .height(compose::Dim(176))
+          .corners(compose::Corners{8})
+          .padding(16)
+          .clip()
+          .fill(ground)
+          .stroke(compose::stroke(1.0f, edge,
+                                  compose::PathFormat::Align::Inner))
+          .child(subject()),
+      kit::well({.width = compose::Dim(163),
+                 .height = compose::Dim(176),
+                 .ground = ground,
+                 .padding = 16,
+                 .corners = 8,
+                 .keyline = edge},
+                compose::box().child(subject()))));
+}
+
+/** A plate set tighter down than across, which one distance cannot say. */
+TEST(SketchKitCells, APaddingDownOfItsOwn) {
+  const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .width(compose::Dim(163))
+          .height(compose::Dim(176))
+          .padding(13, 10)
+          .clip()
+          .fill(ground)
+          .child(subject()),
+      kit::well({.width = compose::Dim(163),
+                 .height = compose::Dim(176),
+                 .ground = ground,
+                 .padding = 13,
+                 .paddingY = 10},
+                compose::box().child(subject()))));
+}
+
+/** A well carrying neither draws exactly what it always did. */
+TEST(SketchKitCells, AWellWithoutThemDrawsWhatItAlwaysDid) {
+  const kit::Theme& house = kit::houseTheme();
+  EXPECT_TRUE(sameDrawing(
+      compose::kit::well({.width = compose::Dim(163),
+                          .height = compose::Dim(176),
+                          .ground = Fill::color(house.palette.cellGround),
+                          .padding = house.spacing.wellPadding},
+                         compose::box().child(subject())),
+      kit::well({.width = compose::Dim(163), .height = compose::Dim(176)},
+                compose::box().child(subject()))));
+}
+
+/** A shell whose only rule runs round its OUTER edge asks the frame for
+ *  none, and gets none — where a `Fill` with no kind would otherwise paint
+ *  the stroke's own default. */
+TEST(SketchKitPanel, AKeylineOfNoneDrawsNoKeyline) {
+  const Fill shell = Fill::color({0.22f, 0.20f, 0.17f, 1});
+  const Fill screen = Fill::color({0.86f, 0.84f, 0.78f, 1});
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .width(compose::Dim(220))
+          .height(compose::Dim(180))
+          .padding(20)
+          .fill(shell)
+          .child(compose::box().column().grow(1).fill(screen).clip()),
+      kit::frame({.width = compose::Dim(220),
+                  .height = compose::Dim(180),
+                  .shell = shell,
+                  .corners = 0,
+                  .bezel = 20,
+                  .screen = screen,
+                  .screenCorners = 0,
+                  .keyline = Fill::none()})));
+}
+
 TEST(SketchKitCells, AnExplicitGroundWinsOverTheThemes) {
   EXPECT_FALSE(sameDrawing(
       kit::well({.width = compose::Dim(163), .height = compose::Dim(176)},

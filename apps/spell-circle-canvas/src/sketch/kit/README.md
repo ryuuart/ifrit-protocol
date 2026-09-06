@@ -97,7 +97,7 @@ as a thousand lines of furniture.
 | --- | --- |
 | `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpec`, with the ground taken from the theme unless the stage names one |
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the theme's three registers, its margins, its ground and its hairline |
-| `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground |
+| `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — and, with `corners` and a `keyline`, the PLATE a panel stands on |
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice; `measure` is the cell's own width, the one distance a caption cannot inherit |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `columns(Columns)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is |
@@ -114,6 +114,25 @@ footer, and `Page::ground` names a fill for a sheet whose ground is not a
 flat colour, because a palette holds colours and a gradient is not one. A
 well that must paint nothing passes `Fill::none()`; a well that must
 paint something else passes that.
+
+**A PLATE IS A WELL WITH TWO MORE FIELDS.** A grounded panel with rounded
+corners and one hairline round it is what a page puts a heading, a rack of
+pills or a warning strip on, and it is four calls every time it is written
+by hand:
+
+```cpp
+sketch::kit::well({.ground = Fill::color(kPlate), .padding = 13,
+                   .paddingY = 10, .clip = false, .corners = 3,
+                   .keyline = Fill::color(kRule)})
+    .row()
+```
+
+`keyline` unset draws none — a specimen well is grounded and unruled, and
+that is the common case. Where it is set it is drawn INSIDE the well's own
+box: a rule centred on the boundary puts half its width outside, and a
+plate that is not the width it was given is the one thing a fixed surface
+may not be. `paddingY` is there because a plate is often set tighter down
+than across, which one distance cannot say.
 
 ### What announces something — `Heading.h`
 
@@ -240,7 +259,9 @@ sketch::kit::frame({.width = Dim(275), .height = Dim(116), .bezel = 6,
 ```
 
 `Backdrop::over` is the canvas — a vignette is a fact about an extent,
-which is the one thing here a theme cannot carry.
+which is the one thing here a theme cannot carry. `Frame::keyline` unset
+is the theme's rule and `Fill::none()` draws none, which is what a shell
+whose only rule runs round its OUTER edge asks for.
 
 ### A log, and things along an axis — `Console.h`, `Ticker.h`
 

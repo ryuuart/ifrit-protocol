@@ -139,6 +139,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/kit/PaintLayers.h>
@@ -308,14 +309,12 @@ Element ring(float r, SkColor4f color, float width) {
 }
 
 Element plate(float height) {
-  return box()
-      .height(height)
-      .corners({8})
-      .padding(16)
-      .column()
-      .clip(true)
-      .fill(Fill::color(kPlate))
-      .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner));
+  return sketch::kit::well({.height = Dim(height),
+                            .ground = Fill::color(kPlate),
+                            .padding = 16,
+                            .corners = 8,
+                            .keyline = Fill::color(kKeyline)})
+      .column();
 }
 
 }  // namespace

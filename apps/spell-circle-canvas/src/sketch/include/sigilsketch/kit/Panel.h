@@ -74,7 +74,9 @@ struct Frame {
    *  the darker of the theme's two. */
   std::optional<compose::Fill> screen;
   float screenCorners = 2;
-  /** A keyline around the screen's opening; unset is the theme's rule. */
+  /** A keyline around the screen's opening; unset is the theme's rule.
+   *  `Fill::none()` draws none — the same spelling `Well::ground` takes,
+   *  for the shell whose only rule runs round its OUTER edge. */
   std::optional<compose::Fill> keyline;
   /** Engraved under the screen in the theme's eyebrow register; empty
    *  leaves the shell blank and spends no room on a plate. */
