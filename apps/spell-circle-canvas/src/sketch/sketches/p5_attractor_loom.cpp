@@ -30,8 +30,7 @@ constexpr int kSettlingSteps = 90;
 constexpr int kTraceSteps = 720;
 
 sk_sp<SkRuntimeEffect> threadEffect() {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
+  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform shader uGrain;
       uniform float2 uResolution;
       uniform float uTime;
@@ -49,9 +48,7 @@ sk_sp<SkRuntimeEffect> threadEffect() {
         return half4(half3(colour), 0.62);
       }
     )"));
-    return built;
-  }();
-  return effect;
+  return built;
 }
 
 mskia::Paint threadInk() {

@@ -33,8 +33,7 @@ float hash01(int value) {
 }
 
 sk_sp<SkRuntimeEffect> flowEffect() {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
+  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform shader uField;
       uniform float2 uResolution;
       uniform float uTime;
@@ -50,9 +49,7 @@ sk_sp<SkRuntimeEffect> flowEffect() {
         return half4(half3(colour), 0.72 + 0.22 * field);
       }
     )"));
-    return built;
-  }();
-  return effect;
+  return built;
 }
 
 mskia::Paint currentInk() {

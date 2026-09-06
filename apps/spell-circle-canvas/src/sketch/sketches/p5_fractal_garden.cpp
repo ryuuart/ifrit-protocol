@@ -33,8 +33,7 @@ constexpr int kDepth = 7;
 constexpr float kFirstLength = 108.0f;
 
 sk_sp<SkRuntimeEffect> branchEffect() {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
+  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform shader uGrain;
       uniform float2 uResolution;
       uniform float uTime;
@@ -49,9 +48,7 @@ sk_sp<SkRuntimeEffect> branchEffect() {
         return half4(half3(colour), 0.94);
       }
     )"));
-    return built;
-  }();
-  return effect;
+  return built;
 }
 
 mskia::Paint branchInk() {
