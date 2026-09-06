@@ -45,7 +45,7 @@ sigil_library(SigilSubstance
           package/Package.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC unofficial::skia::skia Boost::container
-  PRIVATE Substance::Framework)
+  PRIVATE SigilIOSource Substance::Framework)
 
 # The test and the benchmark render the SDK's own sample archives, found
 # through this definition; both skip, rather than fail, when the samples

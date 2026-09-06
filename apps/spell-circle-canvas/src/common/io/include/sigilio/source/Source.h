@@ -9,12 +9,17 @@
  * hub be replaced by a pack file or an in-memory table without any
  * decoder noticing.
  *
+ * `readBytes` is the local-filesystem end of it, the one place in this
+ * tree where a file becomes a run of bytes, as `writeBytes` beside the
+ * sink concept is the one place a run of bytes becomes a file.
+ *
  * Standard library only, header only.
  */
 
 #include <concepts>
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -37,6 +42,26 @@ struct Bytes {
 
 /** A second name for Bytes; the two are one type. */
 using Blob = Bytes;
+
+/** Every byte of @p path, or nothing when it cannot be read whole. A
+ *  file that shrank between the size and the read, or that could not be
+ *  opened at all, answers nothing rather than the part that arrived: a
+ *  short read is not a shorter resource. An empty file answers empty
+ *  bytes, emptiness being a value a resource may have. */
+inline std::optional<Bytes> readBytes(const std::filesystem::path& path) {
+  std::ifstream stream(path, std::ios::binary | std::ios::ate);
+  if (!stream) return std::nullopt;
+  const std::streamoff size = stream.tellg();
+  if (size < 0) return std::nullopt;
+  Bytes out;
+  out.bytes.resize((size_t)size);
+  stream.seekg(0);
+  if (size > 0)
+    stream.read(reinterpret_cast<char*>(out.bytes.data()),
+                (std::streamsize)size);
+  if (!stream) return std::nullopt;
+  return out;
+}
 
 /** Anything that answers a URI with bytes: null when the URI cannot be
  *  served. The result is shared and immutable, so a source may hand out

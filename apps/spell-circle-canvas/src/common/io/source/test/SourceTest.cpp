@@ -1,8 +1,9 @@
 /** @file
  * The byte vocabulary on its own: a fixture source satisfies the
  * concepts, a decoder written against them is one, AnyByteSource erases
- * a borrowed or a shared source without a hub in sight, and the sink
- * half writes a run of bytes to a path.
+ * a borrowed or a shared source without a hub in sight, and the two
+ * ends of the local filesystem — a run of bytes written to a path and a
+ * path read back as bytes.
  */
 
 #include <gtest/gtest.h>
@@ -14,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -149,6 +151,28 @@ TEST(SinkVocabulary, TheBytesSpellingWritesTheSameFile) {
   const std::filesystem::path file = root.path / "abc.bin";
   EXPECT_TRUE(writeBytes(file, bytes));
   EXPECT_EQ(std::filesystem::file_size(file), 3u);
+}
+
+TEST(SourceVocabulary, ReadBytesAnswersEveryByteWriteBytesPutThere) {
+  const ScratchDir root("sigilio_source");
+  const std::filesystem::path file = root.path / "round" / "trip.bin";
+  Bytes wrote;
+  for (int i = 0; i < 512; ++i) wrote.bytes.push_back((std::byte)(i & 0xFF));
+  ASSERT_TRUE(writeBytes(file, wrote));
+  const std::optional<Bytes> read = readBytes(file);
+  ASSERT_TRUE(read);
+  EXPECT_EQ(read->bytes, wrote.bytes);
+}
+
+TEST(SourceVocabulary, ReadBytesAnswersNothingForAFileThatIsNotThere) {
+  const ScratchDir root("sigilio_source");
+  EXPECT_FALSE(readBytes(root.path / "nothing.bin").has_value());
+  // …and empty bytes for a file that is there and holds none.
+  const std::filesystem::path empty = root.path / "empty.bin";
+  ASSERT_TRUE(writeBytes(empty, nullptr, 0));
+  const std::optional<Bytes> read = readBytes(empty);
+  ASSERT_TRUE(read);
+  EXPECT_TRUE(read->bytes.empty());
 }
 
 // ---- the two places the platform names -------------------------------------

@@ -6,12 +6,15 @@
  * sibling references against its directory.
  */
 
+#include <sigilio/source/Source.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <fstream>
 #include <glm/gtc/matrix_transform.hpp>
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "Internal.h"
 #include "sigilgeometry/mesh/codec/Decode.h"
@@ -181,26 +184,18 @@ std::optional<Model> model(const void* bytes, size_t size,
 }
 
 std::optional<Model> model(const std::filesystem::path& file) {
-  std::ifstream stream(file, std::ios::binary | std::ios::ate);
-  if (!stream) return std::nullopt;
-  const std::streamsize size = stream.tellg();
-  stream.seekg(0);
-  std::vector<std::byte> bytes((size_t)size);
-  if (!stream.read(reinterpret_cast<char*>(bytes.data()), size))
-    return std::nullopt;
+  // Resource ACCESS is SigilIO's; what the bytes MEAN is this library's.
+  const std::optional<io::Bytes> read = io::readBytes(file);
+  if (!read) return std::nullopt;
+  const std::vector<std::byte>& bytes = read->bytes;
   const std::filesystem::path dir = file.parent_path();
   const Resolver siblings =
       [dir =
            dir](std::string_view uri) -> std::optional<std::vector<std::byte>> {
-    std::ifstream ref(dir / std::filesystem::path(std::string(uri)),
-                      std::ios::binary | std::ios::ate);
-    if (!ref) return std::nullopt;
-    const std::streamsize refSize = ref.tellg();
-    ref.seekg(0);
-    std::vector<std::byte> refBytes((size_t)refSize);
-    if (!ref.read(reinterpret_cast<char*>(refBytes.data()), refSize))
-      return std::nullopt;
-    return refBytes;
+    std::optional<io::Bytes> beside =
+        io::readBytes(dir / std::filesystem::path(std::string(uri)));
+    if (!beside) return std::nullopt;
+    return std::move(beside->bytes);
   };
   return model(bytes.data(), bytes.size(), file.filename().string(), siblings);
 }

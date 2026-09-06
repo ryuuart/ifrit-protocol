@@ -20,8 +20,8 @@ sigil_library(SigilGeometryMeshCodec
   HEADERS Decode.h Encode.h Model.h
   INCLUDE_PRIVATE ${CGLTF_INCLUDE_DIR}
   PUBLIC SigilGeometryMesh SigilGeometryMeshPop Boost::container
-  PRIVATE tinyobjloader::tinyobjloader Alembic::Alembic Boost::unordered
-          simdjson::simdjson)
+  PRIVATE SigilIOSource tinyobjloader::tinyobjloader Alembic::Alembic
+          Boost::unordered simdjson::simdjson)
 
 # The decode tests write Alembic archives in memory with the O* API, so
 # the binary needs the library directly, not just the codec's door; they

@@ -15,9 +15,9 @@
 #include <pxr/usd/usdShade/connectableAPI.h>
 #include <pxr/usd/usdShade/input.h>
 #include <pxr/usd/usdShade/shader.h>
+#include <sigilio/source/Source.h>
 
 #include <cstring>
-#include <fstream>
 #include <memory>
 #include <optional>
 
@@ -28,15 +28,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace sigil::usd {
 
 namespace {
-
-std::optional<std::vector<std::byte>> readBytes(const std::string& path) {
-  std::ifstream in(path, std::ios::binary);
-  if (!in) return std::nullopt;
-  std::vector<std::byte> bytes;
-  char c;
-  while (in.get(c)) bytes.push_back((std::byte)c);
-  return bytes;
-}
 
 /** @p resolved through the asset resolver, which is the only way to
  *  reach an image INSIDE a package: a stage opened from a `.usdz`
@@ -93,7 +84,10 @@ void readMaterial(const UsdShadeMaterial& material,
     }
     std::filesystem::path p(resolved);
     if (p.is_relative()) p = stageDir / p;
-    if (auto bytes = readBytes(p.string())) bytesOut = std::move(*bytes);
+    // Resource ACCESS is SigilIO's, here as everywhere: a file on disk
+    // becomes bytes through the one door.
+    if (std::optional<io::Bytes> bytes = io::readBytes(p))
+      bytesOut = std::move(bytes->bytes);
   };
   if (auto tex = image("diffuseColor")) {
     fetch(*tex, part.textureUri, part.textureBytes);

@@ -1,14 +1,15 @@
 # The read feature: a stage poured into geometry's decode::Model, with
 # its emitters and cameras read back as values. Links the codec feature
 # the Model comes from, SigilWorldElement and SigilWorldLight and the geometry
-# camera those values are; OpenUSD is private to it.
+# camera those values are, and SigilIO for the one door a file's bytes
+# come through; OpenUSD is private to it.
 sigil_library(SigilUsdRead
   SOURCES Camera.cpp Environment.cpp GfMatrix.h Instancer.cpp Lights.cpp
           Material.cpp Mesh.cpp Primvar.h ReadContext.h Reader.cpp
   HEADERS Reader.h
   PUBLIC SigilGeometryMeshCodec SigilGeometryMesh SigilGeometryMeshCamera
          SigilWorldElement SigilWorldLight
-  PRIVATE usd usdGeom usdShade usdLux ar sdf tf gf vt)
+  PRIVATE SigilIOSource usd usdGeom usdShade usdLux ar sdf tf gf vt)
 
 # Links the library it exercises, the runtime probe it skips on, and the
 # writer whose stages it round-trips; the committed fixtures under the
