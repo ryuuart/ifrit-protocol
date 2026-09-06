@@ -183,8 +183,10 @@ bool isStack(std::string_view recipeName) {
  *  life of the process, so the identity a cache key spells is stable.
  *  Null when there is nothing to compose for — no target that needs it
  *  has a compiler, or an operand has no body for one that does. */
-std::shared_ptr<const Recipe> composed(Blend blend, const Recipe* base,
-                                       const Recipe* top, const Recipe* mask) {
+std::shared_ptr<const Recipe> composed(
+    Blend blend, const std::shared_ptr<const Recipe>& base,
+    const std::shared_ptr<const Recipe>& top,
+    const std::shared_ptr<const Recipe>& mask) {
   bool wanted = false;
   for (Target target : kComposedTargets) {
     // The operands are asked FIRST, because that answer is the recipes'
@@ -198,12 +200,22 @@ std::shared_ptr<const Recipe> composed(Blend blend, const Recipe* base,
   }
   if (!wanted) return nullptr;
 
+  // The operands are HELD in the key, not pointed at: a definition freed
+  // and a second allocated at its address would otherwise inherit the
+  // first's composition. Holding them also keeps the composed body's
+  // sources alive for as long as the composition is cached.
   struct Key {
     Blend blend;
-    const Recipe* base;
-    const Recipe* top;
-    const Recipe* mask;
-    auto operator<=>(const Key&) const = default;
+    std::shared_ptr<const Recipe> base;
+    std::shared_ptr<const Recipe> top;
+    std::shared_ptr<const Recipe> mask;
+    auto operator<=>(const Key& other) const {
+      if (auto c = blend <=> other.blend; c != 0) return c;
+      if (auto c = base.get() <=> other.base.get(); c != 0) return c;
+      if (auto c = top.get() <=> other.top.get(); c != 0) return c;
+      return mask.get() <=> other.mask.get();
+    }
+    bool operator==(const Key& other) const = default;
   };
   static std::mutex mutex;
   static boost::container::flat_map<Key, std::shared_ptr<const Recipe>> built;
@@ -211,7 +223,7 @@ std::shared_ptr<const Recipe> composed(Blend blend, const Recipe* base,
   const std::lock_guard lock(mutex);
   auto it = built.find(key);
   if (it != built.end()) return it->second;
-  const Recipe* operands[3] = {base, top, mask};
+  const Recipe* operands[3] = {base.get(), top.get(), mask.get()};
   return built.emplace(key, composeRecipe(blend, operands)).first->second;
 }
 
@@ -273,7 +285,7 @@ const std::shared_ptr<const Recipe>& overRecipe(Blend blend) {
 Material over(Material base, Material top, Material mask, Blend blend,
               float amount) {
   const std::shared_ptr<const Recipe> recipe =
-      composed(blend, &base.recipe(), &top.recipe(), &mask.recipe());
+      composed(blend, base.recipePtr(), top.recipePtr(), mask.recipePtr());
   const auto fill = [&](Material out) {
     out.child("base", std::move(base));
     out.child("top", std::move(top));

@@ -293,41 +293,18 @@ at front, middle and end, and the dropped `Blend.OklabMidGrayIsPerceptual`.
 
 ## SigilMaterial (findings/review-material.md)
 
-Should-fix (correctness): `skia/Effect.cpp:606` `then` precomposes and
-drops geometry-dependent children; `kit/Surface.cpp:29` an unguarded
-`find` before `replace`; `field/Field.cpp:119` an unlocked lazily filled
-static cache where the two peer caches take a mutex;
-`core/Combine.cpp:209` a cache keyed on raw recipe pointers that a
-reused address defeats; `skia/Paint.cpp:78` a mutable memo on a shared
-`Live` written from `build()` under the file's own two-thread claim;
-`color/Ramp.h:69` unsorted stops answer silently; `texture/
-EnvironmentMap.cpp:416` a 256 lower bound upsamples small panoramas;
-`texture/Atlas.cpp:215` an out-of-range tag registers an empty sequence
-and skips the fallback; `skia/Paint.cpp:772` silent truncation past 256
-stops; `cmake/SlangEmbedSpirv.cmake:55` `copy_if_different` on a declared
-OUTPUT re-runs the rule every build; `cmake/Slang.cmake:166` imported
-modules are not in DEPENDS.
-
-Should-fix (API, duplicates, comments, docs): `skia/Paint.cpp:996` and
-`skia/Effect.cpp:535` `uniform()` appends without replacing by name
-while `child()` does; `skia/Paint.cpp:892,1482` the first layer's
-`amount` is silently discarded; `core/shaders/Shading.slang:124` the
+Should-fix (duplicates, docs): `core/shaders/Shading.slang:124` the
 shading terms duplicated line for line in `sigilgeometry/mesh/render/
 Shading.h` with no parity test; `kit/shaders/GrainedPrelude.slang`,
 `kit/shaders/NoisePrelude.sksl`, `field/shaders/Grain.sksl` three value
-noises in one library; `color/Ramp.cpp:23` re-implements `sampleRamp`'s
-bracket; citations of compose headers and wrong file names in
-`skia/Paint.h:424,636,766`, `skia/Effect.h:350,377`, `skia/Paint.cpp:874`,
-`core/shaders/Shading.slang:15`, `core/UniformBlock.h:32`;
-`skia/Paint.h:16,392,636` name a `ch::Output` the API does not take;
-`kit/shaders/Surface.sksl` ignores seven parameters the Slang body
-honours and the header says nothing; `skia/Effect.cpp:220` the 17th
-undeclared uniform is never reported. Files by subject:
-`texture/test/TextureTest.cpp` (690) and `kit/test/KitTest.cpp` (686).
+noises in one library; `kit/shaders/Surface.sksl` ignores seven
+parameters the Slang body honours and the header says nothing. Files by
+subject: `texture/test/TextureTest.cpp` (690) and `kit/test/KitTest.cpp`
+(686).
 
 Tests missing: `Paint::sweep`, `Paint::conical`, `Paint::buffer` and
-`PixelBuffer`, MedianCut on degenerate input, a one-stop and an unsorted
-ramp, harmonies across the 360/0 wrap.
+`PixelBuffer`, MedianCut on degenerate input, harmonies across the 360/0
+wrap.
 
 ## SigilGeometry mesh, point operators, kit, device (findings/review-geometry-mesh-pop.md)
 

@@ -408,12 +408,13 @@ SkISize EnvironmentMap::size() const {
 
 int EnvironmentMap::prefilterSize() const {
   if (m_prefilter > 0) return m_prefilter;
-  // Level 8 of the chain is one 256th of level 0, and a level under four
-  // texels wide stops being a panorama, so the default bound is what
-  // leaves the last level readable without prefiltering a 4K sky nine
-  // times.
+  // Bounded ABOVE only, so a 4K sky is not prefiltered nine times at its
+  // full width. There is no lower bound: raising a small panorama to a
+  // width it never had would prefilter upsampled pixels — invented
+  // detail, at a cost — and a set-by-hand size has no lower bound
+  // either, so the two would have disagreed about the same picture.
   const int w = size().width();
-  return w > 0 ? std::clamp(w, 1 << (kLevels - 1), 1024) : 0;
+  return w > 0 ? std::min(w, 1024) : 0;
 }
 
 EnvironmentMap EnvironmentMap::withPrefilterSize(int width) const {

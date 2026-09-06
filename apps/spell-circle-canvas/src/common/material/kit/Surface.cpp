@@ -9,6 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/core/Program.h>
 #include <sigilshaders/MaterialKit.h>
 
 #include <string>
@@ -27,6 +28,16 @@ std::string slangSurface(Reflection reflection) {
   std::string body(shaderSource("Surface.slang"));
   const std::string_view mark = "REFLECTION_WEIGHT";
   const size_t at = body.find(mark);
+  // A body with no mark in it is a body the reflection cannot be written
+  // into: report it and hand back what was read, rather than throwing out
+  // of a recipe definition on a shader edit.
+  if (at == std::string::npos) {
+    reportOnce("kit.surface.mark",
+               "the Slang surface body carries no REFLECTION_WEIGHT mark, so "
+               "the reflection choice could not be written into it; the body "
+               "compiles as it stands");
+    return body;
+  }
   body.replace(at, mark.size(),
                reflection == Reflection::SplitSum
                    ? "-1.0"

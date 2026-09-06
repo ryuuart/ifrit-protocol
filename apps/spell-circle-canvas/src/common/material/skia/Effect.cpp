@@ -29,6 +29,25 @@
 
 namespace sigil::material::skia {
 
+namespace {
+
+/** ONE ENTRY PER NAME, in every uniform lane, as `child()` does for its
+ *  slots: setting a uniform twice replaces the first value rather than
+ *  stacking two the builder would both assign — an unbounded lane, and a
+ *  recipe that compares unequal to the same effect described once. */
+template <class Value>
+void putByName(std::vector<std::pair<std::string, Value>>& lane,
+               std::string name, Value value) {
+  for (auto& entry : lane)
+    if (entry.first == name) {
+      entry.second = std::move(value);
+      return;
+    }
+  lane.emplace_back(std::move(name), std::move(value));
+}
+
+}  // namespace
+
 Effect Effect::filter(sk_sp<SkImageFilter> f) {
   Effect e;
   e.m_filter = std::move(f);
@@ -217,8 +236,11 @@ void warnUndeclaredEffectUniform(const char* door, const std::string& name) {
   static std::vector<std::string> seen;
   for (const std::string& s : seen)
     if (s == name) return;
-  if (seen.size() >= 16) return;
-  seen.push_back(name);
+  // Past the cap the name is still reported — it is the report that a
+  // caller acts on — and only the ledger stops growing, which means a
+  // program that mints names is told about each of them once per call
+  // rather than once ever.
+  if (seen.size() < 16) seen.push_back(name);
   SkDebugf(
       "[material] skia::Effect::%s(\"%s\"): the effect declares no uniform by "
       "that name at this value's size — ignored (warned once; an array "
@@ -468,7 +490,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
           name.c_str());
       return *this;
     }
-    m_bound.emplace_back(std::move(name), std::move(value));
+    putByName(m_bound, std::move(name), std::move(value));
     return *this;
   }
   if (m_paramBlur) {
@@ -480,7 +502,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
           name.c_str());
       return *this;
     }
-    m_bound.emplace_back(std::move(name), std::move(value));
+    putByName(m_bound, std::move(name), std::move(value));
     return *this;
   }
   if (m_effect) {
@@ -493,7 +515,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
       warnUndeclaredEffectUniform("uniform", name);
       return *this;
     }
-    m_bound.emplace_back(std::move(name), std::move(value));
+    putByName(m_bound, std::move(name), std::move(value));
     return *this;
   }
   SkDebugf(
@@ -532,7 +554,7 @@ Effect& Effect::uniform(std::string name, float value) {
   if (!effectTakesConstant(m_effect, name, sizeof(float),
                            m_dirBlur || m_paramBlur))
     return *this;
-  m_uniforms.emplace_back(std::move(name), value);
+  putByName(m_uniforms, std::move(name), value);
   m_filter = buildFilter(nullptr);  // refresh the snapshot, as child() does
   return *this;
 }
@@ -541,7 +563,7 @@ Effect& Effect::uniform(std::string name, std::array<float, 2> value) {
   if (!effectTakesConstant(m_effect, name, 2 * sizeof(float),
                            m_dirBlur || m_paramBlur))
     return *this;
-  m_uniforms2.emplace_back(std::move(name), value);
+  putByName(m_uniforms2, std::move(name), value);
   m_filter = buildFilter(nullptr);
   return *this;
 }
@@ -550,7 +572,7 @@ Effect& Effect::uniform(std::string name, std::array<float, 4> value) {
   if (!effectTakesConstant(m_effect, name, 4 * sizeof(float),
                            m_dirBlur || m_paramBlur))
     return *this;
-  m_uniforms4.emplace_back(std::move(name), value);
+  putByName(m_uniforms4, std::move(name), value);
   m_filter = buildFilter(nullptr);
   return *this;
 }
@@ -561,7 +583,7 @@ Effect& Effect::uniform(std::string name, std::vector<float> values) {
   if (!effectTakesConstant(m_effect, name, values.size() * sizeof(float),
                            m_dirBlur || m_paramBlur))
     return *this;
-  m_uniformArrays.emplace_back(std::move(name), std::move(values));
+  putByName(m_uniformArrays, std::move(name), std::move(values));
   m_filter = buildFilter(nullptr);
   return *this;
 }
@@ -580,7 +602,7 @@ Effect& Effect::uniform(std::string name,
     return *this;
   // A rejected block is not recorded, so it declares no volatility —
   // the same rule a rejected Output binding follows.
-  m_blocks.emplace_back(std::move(name), std::move(block));
+  putByName(m_blocks, std::move(name), std::move(block));
   return *this;  // now LIVE: read at every paint, like a bound Output
 }
 
@@ -593,12 +615,20 @@ Effect Effect::then(const Effect& next) const {
   Effect e;
   const sk_sp<SkImageFilter> mine = liftedFilter();
   const sk_sp<SkImageFilter> theirs = next.liftedFilter();
-  const bool thisReal = mine || isAnimated();
-  const bool nextReal = theirs || next.isAnimated();
+  // A GEOMETRY-dependent child counts as content exactly as a live one
+  // does. Precomposing freezes the whole chain at the null-context
+  // snapshot, so a sigma map that reads uResolution, or a blur whose crop
+  // is the box, would paint the box it was first described in for ever —
+  // and the composed effect would answer usesWorldSpace() with false
+  // because the children it was built from are gone.
+  const bool mineNeedsCtx = isAnimated() || anyChildNeedsContext();
+  const bool nextNeedsCtx = next.isAnimated() || next.anyChildNeedsContext();
+  const bool thisReal = mine || mineNeedsCtx;
+  const bool nextReal = theirs || nextNeedsCtx;
   if (!thisReal) return next;
   if (!nextReal) return *this;
-  if (isAnimated() || next.isAnimated()) {
-    // A live side cannot precompose: hold both and re-compose per paint.
+  if (mineNeedsCtx || nextNeedsCtx) {
+    // Neither side can precompose: hold both and re-compose per paint.
     e.m_chainA = std::make_shared<const Effect>(*this);
     e.m_chainB = std::make_shared<const Effect>(next);
     return e;

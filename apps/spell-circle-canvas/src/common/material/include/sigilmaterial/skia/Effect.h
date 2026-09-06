@@ -346,11 +346,11 @@ class Effect {
   // Derived from nothing else, so it takes part in equality: two effects
   // over the same program and uniforms paint differently by it.
   bool m_gatheredHalo = false;
-  // The child slots: `uniform shader NAME` → Material. Held by
-  // shared_ptr because Material is only FORWARD-DECLARED here (Material.h
-  // includes this header, so it cannot be included back) — the surface is
-  // still child(name, Material) by value, and a copied Effect never
-  // mutates a shared child, it replaces the pointer.
+  // The child slots: `uniform shader NAME` → Paint. Held by shared_ptr
+  // so a copied Effect shares its children rather than deep-copying a
+  // whole paint tree per copy; the surface is still child(name, Paint) by
+  // value, and filling a slot replaces the pointer rather than mutating
+  // what another copy is holding.
   std::vector<std::pair<std::string, std::shared_ptr<const Paint>>> m_children;
   // then()-chain retained only when a side is live (static chains
   // precompose into m_filter and carry no nodes).
@@ -374,9 +374,12 @@ class Effect {
    *  for it by name. */
   sk_sp<SkImageFilter> liftedFilter() const;
 
-  /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). operator== is
-   *  hand-written in Effects.cpp and reads these members directly; the state
-   *  is private, so the decomposition lives inside the class. */
+  /** FIELD PIN: `operator==` is hand-written and reads these members
+   *  directly, so a member added without a rule in it would silently not
+   *  take part in equality. The structured binding below fails to compile
+   *  when the member list changes, and the static_assert's message says
+   *  what to decide. The state is private, so the decomposition lives
+   *  inside the class. */
   static void fieldPin(Effect& v) {
     auto& [filter, colorFilter, effect, uniforms, uniforms2, uniforms4,
            uniformArrays, bound, blocks, dirBlur, paramBlur, blurLevels,

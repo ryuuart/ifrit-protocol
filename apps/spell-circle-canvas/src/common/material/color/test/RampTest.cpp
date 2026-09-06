@@ -8,6 +8,8 @@
 #include <gtest/gtest.h>
 #include <sigilmaterial/color/Ramp.h>
 
+#include <string>
+
 using namespace sigil::material;
 
 namespace {
@@ -98,6 +100,35 @@ TEST(Ramp, TwoStopsAtOnePositionAreAHardEdge) {
                     .space = RampSpace::Srgb};
   EXPECT_FLOAT_EQ(banded.at(0.49f).r, 0.0f);
   EXPECT_FLOAT_EQ(banded.at(0.51f).r, 1.0f);
+}
+
+TEST(Ramp, OneStopIsFlatAndAnUnorderedListIsReported) {
+  // One stop is a ramp with no walk in it: every position is that
+  // colour, at both ends and outside them.
+  const Ramp single{.stops = {{0.5f, {0.25f, 0.5f, 0.75f, 1}}},
+                    .space = RampSpace::Srgb};
+  for (float t : {0.0f, 0.5f, 1.0f, -2.0f, 3.0f}) {
+    EXPECT_FLOAT_EQ(single.at(t).r, 0.25f) << t;
+    EXPECT_FLOAT_EQ(single.at(t).b, 0.75f) << t;
+  }
+
+  // Stops out of position order are read in the order given, with the
+  // first and last as the extremes, so the colours are not the ramp
+  // anybody meant — and the caller who built the list from a map or a
+  // set cannot see that from the picture. It is said once, on stderr.
+  const Ramp jumbled{.stops = {{1.0f, {1, 0, 0, 1}},
+                               {0.0f, {0, 0, 1, 1}},
+                               {0.5f, {0, 1, 0, 1}}},
+                     .space = RampSpace::Srgb};
+  testing::internal::CaptureStderr();
+  jumbled.at(0.25f);
+  const std::string said = testing::internal::GetCapturedStderr();
+  EXPECT_NE(said.find("position order"), std::string::npos) << said;
+
+  // An ordered ramp says nothing, however many times it is read.
+  testing::internal::CaptureStderr();
+  for (int i = 0; i <= 10; ++i) blackToWhite().at((float)i / 10.0f);
+  EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
 }
 
 TEST(Ramp, ATableIsReadAtBandCentresAndComesBackAsARamp) {

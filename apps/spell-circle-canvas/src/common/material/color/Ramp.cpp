@@ -8,36 +8,33 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <mutex>
 
 namespace sigil::material {
 namespace {
 
-/** The two stops @p position falls between, and how far it is across
- *  them. A position on or past an end answers that end twice, so every
- *  caller below mixes without a special case. */
-struct Bracket {
-  Color low, high;
-  float fraction = 0.0f;
-};
+/** A STOP LIST OUT OF ORDER, said once for the process. The read walks
+ *  the stops in the order given and takes the first and the last as the
+ *  extremes, so an unsorted list answers a colour that is wrong with
+ *  nothing else to show for it — and a caller who built the list from a
+ *  map or a set is the one who cannot see that from the picture. */
+void reportUnorderedStops() {
+  static std::once_flag once;
+  std::call_once(once, [] {
+    std::fprintf(stderr,
+                 "[sigil::material] a Ramp's stops are not in position "
+                 "order; the read takes the first and last stops as the "
+                 "ends and walks the rest in the order given, so the "
+                 "colours it answers are not the ramp that was meant. "
+                 "Sort the stops by position. (said once)\n");
+  });
+}
 
-Bracket bracket(const std::vector<RampStop>& stops, float position) {
-  if (stops.empty()) return {{0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f};
-  if (position <= stops.front().pos)
-    return {stops.front().color, stops.front().color, 0.0f};
-  if (position >= stops.back().pos)
-    return {stops.back().color, stops.back().color, 0.0f};
-  for (size_t i = 1; i < stops.size(); ++i) {
-    if (position > stops[i].pos) continue;
-    const RampStop& lo = stops[i - 1];
-    const RampStop& hi = stops[i];
-    const float span = hi.pos - lo.pos;
-    // Two stops at one position are a hard edge: the upper one wins,
-    // and dividing by the zero between them would not have said
-    // anything.
-    return {lo.color, hi.color,
-            span > 0.0f ? (position - lo.pos) / span : 1.0f};
-  }
-  return {stops.back().color, stops.back().color, 0.0f};
+bool inOrder(const std::vector<RampStop>& stops) {
+  for (size_t i = 1; i < stops.size(); ++i)
+    if (stops[i].pos < stops[i - 1].pos) return false;
+  return true;
 }
 
 /** The hue @p b reached from @p a along the arc the ramp names, as an
@@ -102,10 +99,15 @@ float Ramp::position(float value) const {
 
 Color Ramp::at(float value) const {
   if (stops.empty()) return {0, 0, 0, 0};
-  const Bracket span = bracket(stops, position(value));
-  if (span.fraction <= 0.0f) return span.low;
-  if (span.fraction >= 1.0f) return span.high;
-  return mixIn(space, arc, span.low, span.high, span.fraction);
+  if (!inOrder(stops)) reportUnorderedStops();
+  // The same search every reading of a ramp makes; what this one adds is
+  // the SPACE the walk between the two stops happens in.
+  const RampBracket span = rampBracket(stops, position(value));
+  const Color& low = stops[span.low].color;
+  const Color& high = stops[span.high].color;
+  if (span.fraction <= 0.0f) return low;
+  if (span.fraction >= 1.0f) return high;
+  return mixIn(space, arc, low, high, span.fraction);
 }
 
 Palette palette(const Ramp& ramp, int entries) {

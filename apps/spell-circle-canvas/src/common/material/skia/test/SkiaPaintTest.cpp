@@ -19,10 +19,12 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "support/Shade.h"
@@ -158,6 +160,41 @@ TEST(SkiaPaint, ChildAndBlendInheritTheirLayersTier) {
        {skia::Paint::sksl(resolutionEffect()), SkBlendMode::kPlus}});
   EXPECT_FALSE(stack.isAnimated());
   EXPECT_TRUE(stack.geometryDependent());
+}
+
+TEST(SkiaPaint, SettingOneUniformTwiceReplacesItRatherThanStacking) {
+  // Two entries under one name are both assigned by the builder, so the
+  // picture is the last one either way — but the lane grows without
+  // bound in a live-coding host that re-describes every frame, and the
+  // paint stops comparing equal to the same paint described once, which
+  // is what a node prunes on.
+  skia::Paint twice = skia::Paint::sksl(constantEffect());
+  twice.uniform("uK", 0.25f);
+  twice.uniform("uK", 1.0f);
+  EXPECT_TRUE(twice == skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}}));
+  EXPECT_TRUE(identical(
+      render(twice.staticShader()),
+      render(
+          skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}}).staticShader())));
+}
+
+TEST(SkiaPaint, TwoThreadsResolveOneSharedPaintsMemo) {
+  // Copies of a Paint share the state its resolve memo hangs off, and a
+  // host may paint two composers on two threads: both reach the memo,
+  // and the answer has to be a whole shader either way.
+  skia::Paint live = skia::Paint::sksl(resolutionEffect());
+  EXPECT_TRUE(live.geometryDependent());
+  std::vector<std::thread> painters;
+  std::atomic<int> built{0};
+  for (int t = 0; t < 4; ++t)
+    painters.emplace_back([copy = live, t, &built] {
+      for (int i = 0; i < 64; ++i) {
+        const float side = (float)(8 + ((t + i) % 16));
+        if (copy.shaderFor(skia::PaintFrame{.size = {side, side}})) ++built;
+      }
+    });
+  for (std::thread& painter : painters) painter.join();
+  EXPECT_EQ(built.load(), 4 * 64);
 }
 
 TEST(SkiaPaint, EqualityIsTheRecipeSoARebuiltPaintPrunes) {

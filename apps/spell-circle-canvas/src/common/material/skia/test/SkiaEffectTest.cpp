@@ -13,6 +13,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
 #include <cmath>
@@ -57,6 +58,52 @@ TEST(SkiaEffect, ChainingPrecomposesAndAnEmptySideIsTheOther) {
   // needs no branch at the call site.
   EXPECT_TRUE(blur.then(skia::Effect{}) == blur);
   EXPECT_TRUE(skia::Effect{}.then(blur) == blur);
+}
+
+TEST(SkiaEffect, ChainingKeepsTheNodesAContextNeedingChildLivesIn) {
+  // Precomposing two static sides into one filter is what makes a chain
+  // cost nothing per paint — but a child that needs the paint context is
+  // not static: a sigma map reading uResolution, an image fitted to the
+  // box. Frozen into the null-context snapshot it would paint the box it
+  // was first described in for ever, and the composed effect would answer
+  // usesWorldSpace() with false because the children are gone.
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;\n"
+               "uniform shader tint;\n"
+               "half4 main(float2 p) { return content.eval(p) * "
+               "tint.eval(p); }"));
+  ASSERT_NE(effect, nullptr);
+  skia::Paint anchored = skia::Paint::solid({1, 0, 0, 1});
+  anchored.worldSpace();
+  EXPECT_TRUE(anchored.geometryDependent());
+
+  skia::Effect shaded = skia::Effect::shader(effect);
+  shaded.child("tint", anchored);
+  EXPECT_FALSE(shaded.isAnimated());
+  EXPECT_TRUE(shaded.usesWorldSpace());
+
+  const skia::Effect chained = shaded.then(skia::Effect::glow({0, 1, 1, 1}, 4));
+  EXPECT_TRUE(chained.usesWorldSpace());
+  EXPECT_NE(chained.resolvedImageFilter(nullptr), nullptr);
+  // …and the other way round, since either side may hold the child.
+  EXPECT_TRUE(
+      skia::Effect::glow({0, 1, 1, 1}, 4).then(shaded).usesWorldSpace());
+}
+
+TEST(SkiaEffect, SettingOneUniformTwiceReplacesItRatherThanStacking) {
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader content;\n"
+               "uniform float uK;\n"
+               "half4 main(float2 p) { return content.eval(p) * half(uK); }"));
+  ASSERT_NE(effect, nullptr);
+  skia::Effect twice = skia::Effect::shader(effect);
+  twice.uniform("uK", 0.25f);
+  twice.uniform("uK", 0.75f);
+  // Last write wins, as child() does: the same effect described once at
+  // the final value is the same recipe, so a re-described node prunes.
+  skia::Effect once = skia::Effect::shader(effect);
+  once.uniform("uK", 0.75f);
+  EXPECT_TRUE(twice == once);
 }
 
 namespace {

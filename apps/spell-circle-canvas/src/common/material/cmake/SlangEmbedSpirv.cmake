@@ -50,8 +50,13 @@ string(APPEND _out "\n};\n\n")
 string(APPEND _out "}  // namespace sigil::slangmodule::${NAME}\n")
 
 # Written only when it changed, so a rebuild that produced identical
-# words does not recompile everything that includes it.
+# words does not recompile everything that includes it — and TOUCHED
+# either way, because the header is a declared output of the rule that
+# runs this script and a build system compares its timestamp against the
+# shader's: left older than its input, the rule would re-run on every
+# build for ever.
 file(WRITE "${HEADER}.tmp" "${_out}")
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${HEADER}.tmp" "${HEADER}")
 file(REMOVE "${HEADER}.tmp")
+file(TOUCH "${HEADER}")

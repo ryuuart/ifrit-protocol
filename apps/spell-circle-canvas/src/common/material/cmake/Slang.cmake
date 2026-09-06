@@ -87,10 +87,18 @@ function(sigil_slang_module)
   endif()
   get_filename_component(_source "${ARG_SOURCE}" ABSOLUTE)
 
+  # The modules reachable through a search path are INPUTS of this
+  # compile: a body that imports one is recompiled when that module is
+  # edited, which is what a glob into DEPENDS below buys. CONFIGURE_DEPENDS
+  # so a module added to a directory re-runs the configure that finds it.
   set(_includeFlags "")
+  set(_importable "")
   foreach(_dir IN LISTS ARG_INCLUDE)
     list(APPEND _includeFlags -I "${_dir}")
+    file(GLOB _modules CONFIGURE_DEPENDS "${_dir}/*.slang")
+    list(APPEND _importable ${_modules})
   endforeach()
+  list(REMOVE_ITEM _importable "${_source}")
 
   set(_fpFlags "")
   if((ARG_CPP_VAR OR ARG_SPIRV_VAR))
@@ -163,7 +171,7 @@ function(sigil_slang_module)
     COMMAND ${CMAKE_COMMAND} -E make_directory
             "${SIGIL_SLANG_GENERATED_DIR}/sigilslang"
     ${_spvCommands}
-    DEPENDS "${_source}" ${ARG_DEPENDS}
+    DEPENDS "${_source}" ${_importable} ${ARG_DEPENDS}
     COMMENT "slangc ${ARG_NAME}.slang"
     VERBATIM)
   if(ARG_PROOF_VAR)

@@ -408,25 +408,43 @@ struct Palette {
  *  order given and are expected to be ordered; @p t clamps, so outside
  *  the ramp is the end stop's flat colour rather than an extrapolation.
  *  An empty ramp answers transparent black. */
-inline Color sampleRamp(std::span<const RampStop> stops, float t) {
-  if (stops.empty()) return {0, 0, 0, 0};
-  if (t <= stops.front().pos) return stops.front().color;
-  if (t >= stops.back().pos) return stops.back().color;
+/** WHERE A POSITION FALLS in a stop list: the two stops it lies between
+ *  and how far across them it is. One position on or past an end answers
+ *  that end twice at fraction 0, so every reader mixes without a special
+ *  case for the ends. Undefined for an empty list — ask that first. */
+struct RampBracket {
+  size_t low = 0;
+  size_t high = 0;
+  float fraction = 0.0f;
+};
+
+/** The bracket @p t falls in, over stops read in the order given. Every
+ *  reading of a ramp goes through this one search — the CPU sample below,
+ *  and the ramp value's own read in whatever space it names — so the two
+ *  cannot disagree about which stops a position lies between. */
+inline RampBracket rampBracket(std::span<const RampStop> stops, float t) {
+  const size_t last = stops.size() - 1;
+  if (t <= stops.front().pos) return {0, 0, 0.0f};
+  if (t >= stops.back().pos) return {last, last, 0.0f};
   for (size_t i = 1; i < stops.size(); ++i) {
-    const RampStop& hi = stops[i];
-    if (t > hi.pos) continue;
-    const RampStop& lo = stops[i - 1];
-    const float span = hi.pos - lo.pos;
+    if (t > stops[i].pos) continue;
+    const float span = stops[i].pos - stops[i - 1].pos;
     // Two stops at one position are a HARD EDGE, which is what a ramp
     // says a band boundary with: the upper one wins, and dividing by the
     // zero between them would not have said anything.
-    const float f = span > 0.0f ? (t - lo.pos) / span : 1.0f;
-    return {lo.color.r + (hi.color.r - lo.color.r) * f,
-            lo.color.g + (hi.color.g - lo.color.g) * f,
-            lo.color.b + (hi.color.b - lo.color.b) * f,
-            lo.color.a + (hi.color.a - lo.color.a) * f};
+    return {i - 1, i, span > 0.0f ? (t - stops[i - 1].pos) / span : 1.0f};
   }
-  return stops.back().color;
+  return {last, last, 0.0f};
+}
+
+inline Color sampleRamp(std::span<const RampStop> stops, float t) {
+  if (stops.empty()) return {0, 0, 0, 0};
+  const RampBracket b = rampBracket(stops, t);
+  const Color& lo = stops[b.low].color;
+  const Color& hi = stops[b.high].color;
+  const float f = b.fraction;
+  return {lo.r + (hi.r - lo.r) * f, lo.g + (hi.g - lo.g) * f,
+          lo.b + (hi.b - lo.b) * f, lo.a + (hi.a - lo.a) * f};
 }
 
 }  // namespace sigil::material

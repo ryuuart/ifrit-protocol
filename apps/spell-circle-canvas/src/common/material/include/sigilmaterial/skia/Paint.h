@@ -13,7 +13,8 @@
  *  - GEOMETRY (an sksl() material declaring only `uResolution`): resolves
  *    when the node RECORDS and caches between layouts — it depends on the
  *    box, not on the clock (see geometryDependent()).
- *  - LIVE (an sksl() material with a ch::Output-bound uniform, or one
+ *  - LIVE (an sksl() material with a `motion::Animatable<float>`-bound
+ *    uniform, or one
  *    reading `uTime`/`uContentScale`, or one whose CHILD is live): carries
  *    the runtime-effect recipe
  *    and is re-resolved every frame from the current values (resolve());
@@ -105,8 +106,8 @@ enum class Fit : uint8_t {
   Contain,  ///< keep the aspect, sit inside the box, leave the margin
 };
 
-/** A gradient ramp stop (position 0..1 + color) — the MaterialX `<ramp>` atom.
- *  Authored in the working color space. */
+/** A gradient ramp stop: where along the ramp it sits, in 0..1, and the
+ *  colour there, authored in the working colour space. */
 struct Stop {
   float pos = 0.0f;
   SkColor4f color = {0, 0, 0, 1};
@@ -317,14 +318,16 @@ class Paint {
 
   // ---- combinator ----------------------------------------------------------
   /** Layer materials into ONE flattened shader: layers paint bottom-to-top,
-   *  each composited over the accumulation with its SkBlendMode (the first
-   *  layer's mode is the base and ignored). Nested SkShaders::Blend — one
-   *  draw, fully picture-cacheable, no saveLayer. A blend whose layers are
-   *  all static flattens eagerly; one containing a LIVE or geometry-
-   *  dependent layer DEFERS the flatten to resolve time (per frame / per
-   *  record respectively), so bound uniforms and SDF layers contribute
-   *  their correct current form — the blend simply inherits its layers'
-   *  volatility tier. */
+   *  each composited over the accumulation with its SkBlendMode. The first
+   *  layer IS the accumulation, so both of its layer properties are
+   *  ignored: its blend mode, having nothing beneath to composite with,
+   *  and its `amount`, having nothing to mix back toward. Nested
+   * SkShaders::Blend — one draw, fully picture-cacheable, no saveLayer. A blend
+   * whose layers are all static flattens eagerly; one containing a LIVE or
+   * geometry- dependent layer DEFERS the flatten to resolve time (per frame /
+   * per record respectively), so bound uniforms and SDF layers contribute their
+   * correct current form — the blend simply inherits its layers' volatility
+   * tier. */
   static Paint blend(std::vector<std::pair<Paint, SkBlendMode>> layers);
 
   // ---- unit-space ramps ----------------------------------------------------
@@ -389,7 +392,8 @@ class Paint {
   /** Set / bind a NAMED uniform. This is meaningful ONLY on an sksl()
    *  material — the one kind that has named uniforms to hook against:
    *   - `uniform(name, value)` bakes a constant in; the material stays static.
-   *   - `uniform(name, &output)` binds a ch::Output; the material becomes LIVE
+   *   - `uniform(name, &output)` binds a `motion::Animatable<float>`; the
+   *     material becomes LIVE
    *     (re-resolved every frame from the Output's current value, and its node
    *     is declared volatile so it paints live — this is how a material
    *     animates).
@@ -421,7 +425,7 @@ class Paint {
    *  the builder refuses a partial write, so a count that is not the
    *  declaration's warns once and is ignored. */
   Paint& uniform(std::string name, std::vector<float> values);
-  /** A LIVE ARRAY — a `UniformBlock` (Compose.h) the caller owns, writes
+  /** A LIVE ARRAY — a `UniformBlock` the caller owns, writes
    *  and commit()s, read at every paint. The material becomes LIVE exactly
    *  as a bound scalar makes it: re-resolved per frame, its node declared
    *  volatile, no cache can freeze the table — and the resolve memo reads
@@ -482,8 +486,10 @@ class Paint {
    *  picture as thinning the layer's own alpha first, which changes what
    *  the blend mode sees. Clamped to [0, 1]; the default 1 is free.
    *
-   *  Read ONLY by blend(). A material used directly as a fill ignores it,
-   *  because there is no accumulation to mix back toward. Participates in
+   *  Read ONLY by blend(), and there only from the SECOND layer up: the
+   *  first layer is the accumulation itself, and a material used directly
+   *  as a fill has no accumulation either — in both places there is
+   *  nothing to mix back toward, so the value is ignored. Participates in
    *  equality like every recipe field. */
   Paint& amount(float a01);
 
@@ -632,8 +638,8 @@ class Paint {
   Paint& quantizeTime(float hz);
 
   // ---- resolution ----------------------------------------------------------
-  /** THE VOLATILITY DECLARATION — the same word every decoration scheme
-   *  spells (see the AnimatedDecoration concept). True once any ch::Output
+  /** THE VOLATILITY DECLARATION — the same word every value in this tree
+   *  answers with. True once any `motion::Animatable<float>`
    *  uniform is bound OR the effect reads uTime or uContentScale (both
    *  change independently of the node): the material re-resolves per frame
    *  and its node stays volatile. A blend() inherits this from its
@@ -763,8 +769,8 @@ class Paint {
                                             boundOffset, solid, shader, live,
                                             recipe, backed))> == 10,
         "Paint gained or lost a member — rule on it in Paint::operator== "
-        "(Paint.cpp: is it RECIPE, or is it derived from the recipe?), "
-        "then bump this count.");
+        "(is it RECIPE, or is it derived from the recipe?), then bump "
+        "this count.");
   }
 };
 

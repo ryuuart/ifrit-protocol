@@ -29,7 +29,7 @@ namespace sigil::material {
  *  each time and re-patches its node — hold the block beside your model,
  *  not in the describe. The values belong to the system and never enter
  *  the prune comparison. Not thread-safe, deliberately: one owner, one
- *  writer, matching PixelBuffer. */
+ *  writer. */
 class UniformBlock {
  public:
   /** `floatCount` is the buffer's length in FLOATS, and it must equal the

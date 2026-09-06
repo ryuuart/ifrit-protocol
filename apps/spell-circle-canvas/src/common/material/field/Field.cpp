@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <array>
+#include <mutex>
 #include <string>
 #include <string_view>
 
@@ -117,6 +118,11 @@ Material noise(float frequency, int octaves, float seed, bool turbulence) {
 const std::shared_ptr<const Recipe>& grainRecipe(int octaves) {
   const int n = std::clamp(octaves, 1, 8);
   static std::array<std::shared_ptr<const Recipe>, 9> cache{};
+  // Held under a lock: two threads describing grain at once would
+  // otherwise write the same slot while the other reads it, and the
+  // reference handed back has to name a recipe that is fully built.
+  static std::mutex mutex;
+  const std::lock_guard lock(mutex);
   if (cache[(size_t)n]) return cache[(size_t)n];
   std::string src(shaderSource("Grain.sksl"));
   replace(src, "const int kOctaves = 1;",

@@ -17,6 +17,7 @@
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
@@ -31,6 +32,54 @@
 #include <string_view>
 
 namespace sigil::material::skia {
+
+namespace {
+
+/** THE RESOLVE MEMO, which two threads may reach at once. Copies of one
+ *  Paint share the state a memo hangs off, and a host may paint two
+ *  composers on two threads, so the key and the shader are read and
+ *  written under a lock. A copy starts empty: the memo is derived from
+ *  the values it was built against and rebuilds itself on the first
+ *  resolve, and copying a lock would be copying a claim on nothing. */
+template <class Key>
+struct ResolveMemo {
+  mutable std::mutex mutex;
+  Key key;
+  sk_sp<SkShader> shader;
+
+  ResolveMemo() = default;
+  ResolveMemo(const ResolveMemo&) {}
+  ResolveMemo& operator=(const ResolveMemo&) { return *this; }
+
+  /** The memoised shader when @p against is the key it was built with. */
+  sk_sp<SkShader> hit(const Key& against) const {
+    const std::lock_guard lock(mutex);
+    return shader && key == against ? shader : nullptr;
+  }
+  void store(Key taken, sk_sp<SkShader> built) {
+    const std::lock_guard lock(mutex);
+    key = std::move(taken);
+    shader = std::move(built);
+  }
+};
+
+}  // namespace
+
+/** ONE ENTRY PER NAME, in every uniform lane: setting a uniform twice
+ *  replaces the first value rather than stacking two the builder would
+ *  both assign, which grew the lane without bound and made a paint set
+ *  twice compare unequal to the same paint set once. `child()` follows
+ *  the same rule for the same reason. */
+template <class Value>
+void putByName(std::vector<std::pair<std::string, Value>>& lane,
+               std::string name, Value value) {
+  for (auto& entry : lane)
+    if (entry.first == name) {
+      entry.second = std::move(value);
+      return;
+    }
+  lane.emplace_back(std::move(name), std::move(value));
+}
 
 /** The sksl recipe behind a Paint (opaque in the header). */
 struct Paint::Live {
@@ -73,8 +122,7 @@ struct Paint::Live {
   // previous shader is returned — quantized time makes consecutive frames
   // identical, and the paint layer turns that stability into replayed
   // pictures instead of re-rasterized shaders.
-  mutable std::vector<float> lastInputs;
-  mutable sk_sp<SkShader> lastShader;
+  mutable ResolveMemo<std::vector<float>> memo;
 };
 
 /** The SigilMaterial instance behind a recipe() material, with the memo
@@ -84,8 +132,7 @@ struct Paint::Live {
  *  replayed recording. */
 struct Paint::Backed {
   sigil::material::Material material;
-  mutable std::vector<std::byte> lastKey;
-  mutable sk_sp<SkShader> lastShader;
+  mutable ResolveMemo<std::vector<std::byte>> memo;
 };
 
 namespace {
@@ -440,14 +487,14 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
     // child's varying inputs are the CHILD's (its own binds, its own uTime,
     // its own uResolution) and this digest cannot see them, so a material
     // with a context-needing child skips the memo entirely and rebuilds.
-    // Returning `lastShader` there would freeze the child at the frame it
-    // was first resolved. Static children (an image, a ramp) are recipe and
-    // never vary, so they leave the memo intact.
+    // Returning the memoised shader there would freeze the child at the
+    // frame it was first resolved. Static children (an image, a ramp) are
+    // recipe and never vary, so they leave the memo intact.
     bool childNeedsCtx = false;
     for (const auto& [name, child] : live.children)
       childNeedsCtx |= child.isAnimated() || child.geometryDependent();
-    if (!childNeedsCtx && live.lastShader && inputs == live.lastInputs)
-      return live.lastShader;
+    if (!childNeedsCtx)
+      if (sk_sp<SkShader> memoised = live.memo.hit(inputs)) return memoised;
   }
   // An sdf style reserves its glow, shadow and border padding INSIDE the
   // node's box, so a generous glow on a modest box leaves almost no
@@ -515,10 +562,7 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* ctx,
   // recording can replay. Wrapping after the store would mint a fresh
   // wrapper per resolve and the material would read as never holding still.
   if (worldSpace && ctx) built = anchorToRoot(std::move(built), *ctx);
-  if (ctx) {
-    live.lastInputs = std::move(inputs);
-    live.lastShader = built;
-  }
+  if (ctx) live.memo.store(std::move(inputs), built);
   return built;
 }
 
@@ -538,7 +582,7 @@ Paint Paint::shader(sk_sp<SkShader> shader) {
 Paint Paint::recipe(sigil::material::Material material) {
   sigil::material::skia::install();
   Paint m;
-  m.m_backed = std::make_shared<Backed>(Backed{std::move(material), {}, {}});
+  m.m_backed = std::make_shared<Backed>(Backed{std::move(material), {}});
   m.m_shader = m.buildBacked(nullptr);  // static snapshot
   return m;
 }
@@ -606,14 +650,11 @@ sk_sp<SkShader> Paint::buildBacked(const PaintFrame* ctx) const {
       const auto* bytes = reinterpret_cast<const std::byte*>(w.data());
       key.insert(key.end(), bytes, bytes + w.size() * sizeof(float));
     }
-    if (backed.lastShader && key == backed.lastKey) return backed.lastShader;
+    if (sk_sp<SkShader> memoised = backed.memo.hit(key)) return memoised;
   }
   sk_sp<SkShader> built = sigil::material::skia::shader(backed.material, frame);
   if (m_worldSpace && ctx) built = anchorToRoot(std::move(built), *ctx);
-  if (ctx) {
-    backed.lastKey = std::move(key);
-    backed.lastShader = built;
-  }
+  if (ctx) backed.memo.store(std::move(key), built);
   return built;
 }
 
@@ -769,7 +810,15 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial) {
   if (stops.empty()) return Paint::solid(SkColor4f{0, 0, 0, 0});
   if (stops.size() == 1) return Paint::solid(stops.front().color);
   constexpr size_t kMaxStops = 256;
-  if (stops.size() > kMaxStops) stops.resize(kMaxStops);
+  if (stops.size() > kMaxStops) {
+    material::reportOnce(
+        "ramp:stops",
+        "a unit-space ramp takes at most " + std::to_string(kMaxStops) +
+            " stops and was given " + std::to_string(stops.size()) +
+            "; the rest are dropped, so the ramp ends at stop " +
+            std::to_string(kMaxStops) + "'s colour rather than the last one");
+    stops.resize(kMaxStops);
+  }
   const size_t n = stops.size();
 
   struct Cached {
@@ -857,7 +906,7 @@ Paint Paint::sksl(sk_sp<SkRuntimeEffect> effect,
       warnUnknownUniform("sksl", name);
       continue;
     }
-    m.m_live->constants.emplace_back(std::move(name), value);
+    putByName(m.m_live->constants, std::move(name), value);
   }
   m.m_live->usesTime = validUniform(m.m_live->effect, "uTime", sizeof(float));
   m.m_live->usesScale =
@@ -870,12 +919,16 @@ Paint Paint::sksl(sk_sp<SkRuntimeEffect> effect,
 
 namespace {
 /** mix(a, b, t) as one nested shader — what a blend layer's amount()
- *  lerps with (SkShaders has Blend but no Lerp). One effect for the
- *  whole process, per the Patterns.h one-effect rule. */
+ *  lerps with (SkShaders has Blend but no Lerp). Compiled once for the
+ *  whole process: the body is fixed text, so a second compile of it could
+ *  only produce the same program. */
 sk_sp<SkShader> mixShaders(sk_sp<SkShader> a, sk_sp<SkShader> b, float t) {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, err] =
         SkRuntimeEffect::MakeForShader(SkString(shaderSource("Mix.sksl")));
+    if (!effect)
+      SkDebugf("[material] the blend mix body did not compile: %s\n",
+               err.c_str());
     return effect;
   }();
   if (!fx) return b;
@@ -993,7 +1046,7 @@ Paint& Paint::uniform(std::string name, float value) {
     m_live->usesTime = false;
   else if (name == "uContentScale")
     m_live->usesScale = false;
-  m_live->constants.emplace_back(std::move(name), value);
+  putByName(m_live->constants, std::move(name), value);
   m_shader = build(*m_live, nullptr);  // refresh the static snapshot
   return *this;
 }
@@ -1055,7 +1108,7 @@ Paint& Paint::uniform(std::string name, motion::Animatable<float> output) {
     return *this;
   }
   detachLive();
-  m_live->binds.emplace_back(std::move(name), std::move(output));
+  putByName(m_live->binds, std::move(name), std::move(output));
   return *this;  // now LIVE; painting resolves per frame (resolve())
 }
 
@@ -1304,7 +1357,7 @@ Paint& Paint::uniform(std::string name, std::array<float, 2> value) {
     return *this;
   }
   detachLive();
-  m_live->constants2.emplace_back(std::move(name), value);
+  putByName(m_live->constants2, std::move(name), value);
   m_shader = build(*m_live, nullptr);  // refresh the static snapshot
   return *this;
 }
@@ -1329,9 +1382,8 @@ Paint& Paint::uniform(std::string name, SkColor4f value) {
     return *this;
   }
   detachLive();
-  m_live->constants4.emplace_back(
-      std::move(name),
-      std::array<float, 4>{value.fR, value.fG, value.fB, value.fA});
+  putByName(m_live->constants4, std::move(name),
+            std::array<float, 4>{value.fR, value.fG, value.fB, value.fA});
   m_shader = build(*m_live, nullptr);  // refresh the static snapshot
   return *this;
 }
@@ -1356,7 +1408,7 @@ Paint& Paint::uniform(std::string name, std::array<float, 4> value) {
     return *this;
   }
   detachLive();
-  m_live->constants4.emplace_back(std::move(name), value);
+  putByName(m_live->constants4, std::move(name), value);
   m_shader = build(*m_live, nullptr);  // refresh the static snapshot
   return *this;
 }
@@ -1383,7 +1435,7 @@ Paint& Paint::uniform(std::string name, std::vector<float> values) {
     return *this;
   }
   detachLive();
-  m_live->constantArrays.emplace_back(std::move(name), std::move(values));
+  putByName(m_live->constantArrays, std::move(name), std::move(values));
   m_shader = build(*m_live, nullptr);  // refresh the static snapshot
   return *this;
 }
@@ -1414,7 +1466,7 @@ Paint& Paint::uniform(std::string name,
     return *this;
   }
   detachLive();
-  m_live->blocks.emplace_back(std::move(name), std::move(block));
+  putByName(m_live->blocks, std::move(name), std::move(block));
   return *this;  // now LIVE; painting resolves per frame (resolve())
 }
 

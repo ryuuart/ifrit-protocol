@@ -12,8 +12,9 @@
 // is spelled differently in every language a renderer speaks while
 // arithmetic is not: a caller fetches the radiance and hands it in. That
 // is what lets one text be the terms for a device shader, for a 2D paint
-// and — transcribed once, in Terms.h — for a host tier that has no
-// shading language at all.
+// and — transcribed once in C++, and pinned against this text by a test
+// that evaluates both — for a host tier that has no shading language at
+// all.
 //
 // ONE TEXT, TWO LANGUAGES. This module is what a Slang renderer imports;
 // the same text with the module line and the `public` qualifiers removed
