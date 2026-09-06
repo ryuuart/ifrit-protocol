@@ -69,9 +69,17 @@ struct SceneStats {
   bool hasGeometry() const { return circles > 0 || edges > 0 || boxes > 0; }
 };
 
-/** Returns whether @p payload is a structurally valid FlatBuffers Scene.
+/** The largest payload a scene may arrive in. A scene reaches this decoder
+ *  as one datagram and nothing else, and a datagram carries no more than
+ *  this, so a larger buffer cannot have come off the wire: it is refused
+ *  whole rather than walked. */
+inline constexpr size_t kMaximumScenePayload = 65536;
+
+/** Returns whether @p payload is a scene this decoder will accept: within
+ *  kMaximumScenePayload and structurally valid FlatBuffers reachable from a
+ *  Scene root, every offset, string and vector landing inside @p size.
  *  Callers must verify before decode() — decoding an unverified buffer is
- *  undefined behavior. */
+ *  undefined behavior. An empty or null payload is not a scene. */
 bool verifyScenePayload(const void* payload, size_t size);
 
 /**

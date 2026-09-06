@@ -59,6 +59,11 @@ entt::entity getOrCreatePointEntity(
 }  // namespace
 
 bool verifyScenePayload(const void* payload, size_t size) {
+  // Refused before a Verifier is built: the Verifier's own bounds arithmetic
+  // is written for a buffer it can address, and nothing this decoder is fed
+  // legitimately exceeds one datagram.
+  if (!payload || size == 0 || size > kMaximumScenePayload) return false;
+
   flatbuffers::Verifier verifier(static_cast<const uint8_t*>(payload), size);
   return SpellCircle::VerifySceneBuffer(verifier);
 }

@@ -112,6 +112,167 @@ TEST(SceneModel, RejectsTruncatedPayload) {
   EXPECT_FALSE(spellcircle::verifyScenePayload(garbage, sizeof(garbage)));
 }
 
+TEST(SceneModel, RejectsAnEmptyOrOversizedPayload) {
+  // Nothing at all is not a scene, and neither is a buffer bigger than the
+  // one datagram a scene arrives in: both are refused before any offset in
+  // them is followed.
+  EXPECT_FALSE(spellcircle::verifyScenePayload(nullptr, 0));
+  const uint8_t byte = 0;
+  EXPECT_FALSE(spellcircle::verifyScenePayload(&byte, 0));
+
+  flatbuffers::FlatBufferBuilder fbb;
+  const std::vector<uint8_t> scene =
+      finishScene(fbb, SpellCircle::CreateScene(fbb));
+  ASSERT_LT(scene.size(), spellcircle::kMaximumScenePayload);
+  EXPECT_TRUE(spellcircle::verifyScenePayload(scene.data(), scene.size()));
+
+  // The same valid scene with trailing bytes that push it past the ceiling
+  // is refused for its size alone: a payload that large never came off the
+  // wire.
+  std::vector<uint8_t> padded = scene;
+  padded.resize(spellcircle::kMaximumScenePayload + 1, 0);
+  EXPECT_FALSE(spellcircle::verifyScenePayload(padded.data(), padded.size()));
+}
+
+TEST(SceneModel, RejectsASceneTruncatedToTheDatagramCeiling) {
+  // A sender that builds a scene larger than one datagram loses the tail:
+  // what reaches the app is a prefix that still starts with a well-formed
+  // Scene root. Its vectors and strings then point past the bytes that
+  // arrived, and verification must refuse the whole payload rather than let
+  // decode read there.
+  flatbuffers::FlatBufferBuilder fbb;
+  const SpellCircle::Vec2 center(100.0f, 100.0f);
+  std::vector<flatbuffers::Offset<SpellCircle::Circle>> circles;
+  for (int i = 0; i < 4000; ++i)
+    circles.push_back(SpellCircle::CreateCircleDirect(
+        fbb, &center, ("ring " + std::to_string(i)).c_str(),
+        /*radius=*/static_cast<uint32_t>(i)));
+  const std::vector<uint8_t> whole =
+      finishScene(fbb, SpellCircle::CreateSceneDirect(fbb, &circles));
+  ASSERT_GT(whole.size(), spellcircle::kMaximumScenePayload);
+
+  const std::vector<uint8_t> delivered(
+      whole.begin(), whole.begin() + spellcircle::kMaximumScenePayload);
+  EXPECT_FALSE(
+      spellcircle::verifyScenePayload(delivered.data(), delivered.size()));
+}
+
+TEST(SceneModel, DenselySharedTablesStayInsideTheVerifiersBudget) {
+  // The verifier gives up past a nesting depth and a number of visited
+  // tables. Neither ceiling can be reached from a datagram: the schema
+  // nests Scene -> Edge -> Point -> Circle and no deeper, and one vector
+  // element is a four-byte offset naming at most that chain of four
+  // tables, so a full-size payload asks for far fewer visits than the
+  // verifier refuses at. Raising the payload ceiling breaks this.
+  static_assert(
+      spellcircle::kMaximumScenePayload / sizeof(uint32_t) * 4 < 1000000,
+      "a datagram must not be able to exhaust the verifier's "
+      "table budget");
+
+  // Densest sharing a sender can express: one Edge table named by every
+  // element of the edges vector, so the verifier walks the same tables
+  // thousands of times over a few kilobytes.
+  flatbuffers::FlatBufferBuilder fbb;
+  const SpellCircle::Vec2 pos(10.0f, 20.0f);
+  const auto circle = SpellCircle::CreateCircleDirect(fbb, &pos, nullptr, 0);
+  const auto first = SpellCircle::CreatePointDirect(fbb, nullptr, circle);
+  const auto second = SpellCircle::CreatePointDirect(fbb, nullptr, circle);
+  const auto edge = SpellCircle::CreateEdge(fbb, first, second);
+  constexpr int kAliases = 4000;
+  const std::vector<flatbuffers::Offset<SpellCircle::Edge>> edges(kAliases,
+                                                                  edge);
+  const std::vector<uint8_t> bytes =
+      finishScene(fbb, SpellCircle::CreateSceneDirect(fbb, nullptr, &edges));
+  ASSERT_LT(bytes.size(), spellcircle::kMaximumScenePayload);
+
+  ASSERT_TRUE(spellcircle::verifyScenePayload(bytes.data(), bytes.size()));
+  SceneDocument document;
+  const spellcircle::SceneStats stats =
+      document.decode(bytes.data(), bytes.size());
+
+  // Every element decodes to its own Edge entity, but the two Point tables
+  // behind them are one pair of entities however often they are named.
+  EXPECT_EQ(stats.edges, kAliases);
+  EXPECT_EQ(document.registry().view<spellcircle::PointComponent>().size(), 2u);
+  const spellcircle::ResolvedScene resolved =
+      spellcircle::resolveScene(document, 1000.0f, 1000.0f);
+  EXPECT_EQ(resolved.edges.size(), static_cast<size_t>(kAliases));
+}
+
+TEST(SceneModel, MissingReferencesDecodeToNothingAndResolveSafely) {
+  // Every reference in the schema is optional, so a sender can leave one
+  // out (or emit a table it never filled in): a Point with no Circle, an
+  // Edge with no endpoints, a Box with no Point. None of them names an
+  // entity that exists, and resolution must answer a coordinate for each
+  // rather than follow a dangling handle.
+  flatbuffers::FlatBufferBuilder fbb;
+  const auto circleless = SpellCircle::CreatePointDirect(fbb, "loose");
+  const auto danglingEdge = SpellCircle::CreateEdge(fbb);
+  const auto halfEdge = SpellCircle::CreateEdge(fbb, circleless);
+  const auto anchorless = SpellCircle::CreateBoxDirect(fbb, "floating");
+  const std::vector<flatbuffers::Offset<SpellCircle::Edge>> edges{danglingEdge,
+                                                                  halfEdge};
+  const std::vector<flatbuffers::Offset<SpellCircle::Box>> boxes{anchorless};
+  const std::vector<uint8_t> bytes = finishScene(
+      fbb, SpellCircle::CreateSceneDirect(fbb, nullptr, &edges, &boxes));
+
+  const SceneDocument document = decodeScene(bytes);
+  // The point that carries no circle still decodes, as the anchor a
+  // radius-0 circle describes: the origin of author space.
+  ASSERT_EQ(document.registry().view<spellcircle::PointComponent>().size(), 1u);
+
+  const spellcircle::ResolvedScene resolved =
+      spellcircle::resolveScene(document, 1000.0f, 1000.0f);
+  ASSERT_EQ(resolved.edges.size(), 2u);
+  for (const spellcircle::ResolvedEdge& edge : resolved.edges) {
+    EXPECT_EQ(edge.first.x, 0.0f);
+    EXPECT_EQ(edge.first.y, 0.0f);
+    EXPECT_EQ(edge.second.x, 0.0f);
+    EXPECT_EQ(edge.second.y, 0.0f);
+  }
+  ASSERT_EQ(resolved.boxes.size(), 1u);
+  EXPECT_EQ(resolved.boxes.front().anchor.x, 0.0f);
+  EXPECT_EQ(resolved.boxes.front().anchor.y, 0.0f);
+
+  // Drawing it is the last thing that could read through a missing
+  // reference, so the whole path runs.
+  spellcircle::SceneRenderer renderer;
+  RectRecordingCanvas canvas(1000, 1000);
+  renderer.draw(&canvas, resolved, spellcircle::SceneStyle{});
+}
+
+TEST(SceneModel, AnEmptySceneClearsWhateverWasDrawnBefore) {
+  // A Scene with no vectors at all is valid on the wire — it is how a
+  // sender says "nothing" — and must decode to an empty document rather
+  // than leave the previous scene standing.
+  const std::vector<uint8_t> withBox = sceneWithBox(500.0f, 500.0f, "one");
+  SceneDocument document;
+  ASSERT_TRUE(spellcircle::verifyScenePayload(withBox.data(), withBox.size()));
+  ASSERT_TRUE(document.decode(withBox.data(), withBox.size()).hasGeometry());
+
+  flatbuffers::FlatBufferBuilder fbb;
+  const std::vector<uint8_t> empty =
+      finishScene(fbb, SpellCircle::CreateScene(fbb));
+  ASSERT_TRUE(spellcircle::verifyScenePayload(empty.data(), empty.size()));
+  const spellcircle::SceneStats stats =
+      document.decode(empty.data(), empty.size());
+
+  EXPECT_EQ(stats.circles, 0);
+  EXPECT_EQ(stats.edges, 0);
+  EXPECT_EQ(stats.boxes, 0);
+  EXPECT_FALSE(stats.hasGeometry());
+  EXPECT_EQ(document.registry().view<spellcircle::PointComponent>().size(), 0u);
+  EXPECT_EQ(document.sceneWidth(), 0.0f);
+  EXPECT_EQ(document.sceneHeight(), 0.0f);
+
+  const spellcircle::ResolvedScene resolved =
+      spellcircle::resolveScene(document, 1000.0f, 1000.0f);
+  EXPECT_TRUE(resolved.circles.empty());
+  EXPECT_TRUE(resolved.edges.empty());
+  EXPECT_TRUE(resolved.boxes.empty());
+  EXPECT_TRUE(resolved.pointLabels.empty());
+}
+
 TEST(SceneModel, SharedPointTablesDecodeToOneEntity) {
   // FlatBuffers is zero-copy, so one Point table referenced by both an Edge
   // and a Box must decode to a single shared entity, not one per reference.
