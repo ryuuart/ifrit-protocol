@@ -580,7 +580,7 @@ TEST(ComposeLayouts, BaselineGridSnapsBottomsAndBaselines) {
   EXPECT_LT(200.0f - t->top(), t->height() - 0.5f);  // baseline, not bottom
 }
 
-TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
+TEST(ComposeLayouts, JitteredIsDeterministicAndContained) {
   auto centers = [&](uint32_t seed) {
     Host host;
     std::vector<Element> bits;
@@ -588,7 +588,7 @@ TEST(ComposeLayouts, ScatterIsDeterministicAndContained) {
     for (int i = 0; i < 9; ++i)
       bits.push_back(
           box().width(12).height(12).fill(blue()).key("s" + std::to_string(i)));
-    host.composer.render(box().child(layout(layouts::Scatter{.seed = seed})
+    host.composer.render(box().child(layout(layouts::Jittered{.seed = seed})
                                          .width(200)
                                          .height(200)
                                          .children(bits)));

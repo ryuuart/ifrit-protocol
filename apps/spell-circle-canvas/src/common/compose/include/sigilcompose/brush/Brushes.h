@@ -19,10 +19,10 @@
  *
  * EQUALITY IS THE THING TO WATCH. A brush assembled from comparable parts
  * is itself a comparable value, so a styled connector prunes and caches as
- * one value. Any raw callable in it — a `StampModFn`, an `ops::PathOp` —
- * makes it conservatively unequal forever, so its node re-patches on every
- * describe; memo the host node, or keep the value itself alive rather than
- * rebuilding it.
+ * one value. Any raw callable in it — a `StampModFn`, a
+ * `geometry::path::ops::PathOp` — makes it conservatively unequal forever,
+ * so its node re-patches on every describe; memo the host node, or keep the
+ * value itself alive rather than rebuilding it.
  *
  * Two numbers every brush declares, and they are not the same: `bleed()` is
  * how far paint escapes the outline, which grows a cached recording's cull;
@@ -329,8 +329,8 @@ namespace brush {
  *  jitter, rounding without knowing.
  *
  *  THE ONE MECHANISM DOOR. It takes a `GeometryOp`, which a comparable
- *  shaper value and a raw `ops::PathOp` lambda both convert to — and the
- *  lambda has nowhere else to go.
+ *  shaper value and a raw `geometry::path::ops::PathOp` lambda both
+ *  convert to — and the lambda has nowhere else to go.
  *
  *  The WRAPPER is incomparable either way, because it has no operator== at
  *  all, so a node wearing one never prunes whichever op it was handed:
@@ -396,6 +396,17 @@ struct StampMod {
 using StampModFn =
     std::function<StampMod(const PathSample&, size_t index, size_t count)>;
 
+/** Is `held` the node `now`, by IDENTITY rather than by address? A cache
+ *  that remembers a bare pointer cannot tell a destroyed art node from a
+ *  new one handed the same address by the allocator, and would stamp the
+ *  old bake for the new art. A weak handle expires with the node it
+ *  names, so the two can never be confused. Two empty handles are the
+ *  same nothing, which is what "no art here" means. */
+inline bool bakedFromNode(const std::weak_ptr<detail::ElementNode>& held,
+                          const std::shared_ptr<detail::ElementNode>& now) {
+  return !held.owner_before(now) && !now.owner_before(held);
+}
+
 /** The SCATTER brush: an Element instanced along the path at `spacing`,
  *  with seeded jitter and the StampMod hook. The art bakes ONCE via
  *  snapshot() (its own decorations and all) and replays per slot. Keep
@@ -422,19 +433,25 @@ struct Scatter {
   float jitterScale = 0;                    ///< ±fraction of 1
   float jitterRotateDeg = 0;                ///< ±deg
   bool alignToPath = true;
-  float reach = 32.0f;  ///< cull reserve: half the art's extent + jitter
+  /** How far a stamp escapes the outline: half the art's extent plus the
+   *  jitter. The CULL's number, measured from the path outwards — the
+   *  mark's own width is `reach()`, twice this. */
+  float bleedPx = 32.0f;
   StampModFn mod;
   bool animatedMod = false;  ///< mod reads time → repaint per frame
 
   bool isAnimated() const { return animatedMod; }
-  float bleed() const { return reach; }
+  float bleed() const { return bleedPx; }
+  /** The mark's full width: a stamp is centred on the path, so it spans
+   *  the reserve on both sides of it. */
+  float reach() const { return bleedPx * 2.0f; }
   bool operator==(const Scatter& o) const {
     return art.node() == o.art.node() && spacing == o.spacing &&
            place == o.place && seed == o.seed && jitterAlong == o.jitterAlong &&
            jitterNormal == o.jitterNormal && jitterScale == o.jitterScale &&
            jitterRotateDeg == o.jitterRotateDeg &&
-           alignToPath == o.alignToPath && reach == o.reach && !mod && !o.mod &&
-           animatedMod == o.animatedMod;
+           alignToPath == o.alignToPath && bleedPx == o.bleedPx && !mod &&
+           !o.mod && animatedMod == o.animatedMod;
   }
 
   /** The scatter's baked stamp, shared by every copy of the brush
@@ -442,8 +459,8 @@ struct Scatter {
    *  copy that swaps art re-bakes instead of stamping the old one. */
   struct Cache {
     sk_sp<SkPicture> pic;
-    const void* bakedFor = nullptr;  // the art node the bake belongs to —
-                                     // copies that swap art re-bake
+    // The art node the bake belongs to — copies that swap art re-bake.
+    std::weak_ptr<detail::ElementNode> bakedFor;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
@@ -539,12 +556,17 @@ struct Pattern {
    *  runs are shorter. */
   float cornerLength = 0.0f;
   bool stretchToFit = true;  ///< false: natural size, slack spread evenly
-  float reach = 32.0f;       ///< cull reserve
-  StampModFn mod;            ///< side tiles only
+  /** How far a tile escapes the outline: half a tile's extent across the
+   *  path. The CULL's number — the mark's own width is `reach()`. */
+  float bleedPx = 32.0f;
+  StampModFn mod;  ///< side tiles only
   bool animatedMod = false;
 
   bool isAnimated() const { return animatedMod; }
-  float bleed() const { return reach; }
+  float bleed() const { return bleedPx; }
+  /** The mark's full width: a tile is centred on the path, so it spans
+   *  the reserve on both sides of it. */
+  float reach() const { return bleedPx * 2.0f; }
   bool operator==(const Pattern& o) const {
     auto node = [](const std::optional<Element>& e) {
       return e ? e->node().get() : nullptr;
@@ -553,11 +575,12 @@ struct Pattern {
            node(end) == node(o.end) && corner == o.corner &&
            advance == o.advance && cornerAngleDeg == o.cornerAngleDeg &&
            cornerLength == o.cornerLength && stretchToFit == o.stretchToFit &&
-           reach == o.reach && !mod && !o.mod && animatedMod == o.animatedMod;
+           bleedPx == o.bleedPx && !mod && !o.mod &&
+           animatedMod == o.animatedMod;
   }
 
-  /** The baked tile art, keyed on each art Element's node POINTER — which
-   *  is what makes the rule below matter.
+  /** The baked tile art, keyed on each art Element's NODE — which is what
+   *  makes the rule below matter.
    *
    *  THE CACHE IN THIS VALUE IS THE FALLBACK. Inside a composer the bakes
    *  live in the INSTANCE's stamp cache, handed in through
@@ -570,10 +593,8 @@ struct Pattern {
    *  value starts empty. */
   struct Cache {
     sk_sp<SkPicture> side, start, end, corner;
-    const void* bakedSide = nullptr;
-    const void* bakedStart = nullptr;
-    const void* bakedEnd = nullptr;
-    const void* bakedCorner = nullptr;
+    std::weak_ptr<detail::ElementNode> bakedSide, bakedStart, bakedEnd,
+        bakedCorner;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
@@ -714,13 +735,19 @@ struct Art {
   Element art;
   float height = 0;        ///< ribbon height (0 → the art's intrinsic)
   float stationPx = 6.0f;  ///< arc-length between strip stations
-  float reach = 32.0f;     ///< cull reserve: half height + art overhang
+  /** How far the ribbon escapes the outline: half its height plus what
+   *  the art hangs over. The CULL's number — the mark's own width is
+   *  `reach()`. */
+  float bleedPx = 32.0f;
 
   bool isAnimated() const { return false; }
-  float bleed() const { return reach; }
+  float bleed() const { return bleedPx; }
+  /** The mark's full width: the ribbon is centred on the path, so it
+   *  spans the reserve on both sides of it. */
+  float reach() const { return bleedPx * 2.0f; }
   bool operator==(const Art& o) const {
     return art.node() == o.art.node() && height == o.height &&
-           stationPx == o.stationPx && reach == o.reach;
+           stationPx == o.stationPx && bleedPx == o.bleedPx;
   }
 
   /** The art's rastered strip, shared by every copy of the brush value
@@ -728,7 +755,7 @@ struct Art {
   struct Cache {
     sk_sp<SkImage> image;  // the 2x bake
     SkSize artSize{0, 0};  // logical art size
-    const void* bakedFor = nullptr;
+    std::weak_ptr<detail::ElementNode> bakedFor;
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 

@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -175,9 +176,25 @@ struct Well {
   return text != nullptr ? std::string(text) : std::string{};
 }
 
+/** Only trivially-copyable arguments: the pack is passed through the C
+ *  ellipsis of `snprintf`, and a type with a non-trivial copy has
+ *  undefined behaviour there — `std::string` is the one an author reaches
+ *  for first, and `.c_str()` is what the pattern wants. The format
+ *  attribute puts the compiler's own printf check on the call, so a `%d`
+ *  fed a float is a diagnostic here rather than a wrong reading on a
+ *  plate. */
+#if defined(__clang__)
+// Clang honours the attribute on a template pack; GCC accepts it only on a
+// function with a real ellipsis and says so, which is noise in every
+// translation unit that includes this header.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgcc-compat"
+#endif
 template <typename... Args>
-  requires(sizeof...(Args) > 0)
-[[nodiscard]] std::string formatted(const char* pattern, Args... args) {
+  requires(sizeof...(Args) > 0 && (std::is_trivially_copyable_v<Args> && ...))
+[[nodiscard]]
+__attribute__((format(printf, 1, 2))) std::string formatted(const char* pattern,
+                                                            Args... args) {
   if (pattern == nullptr) return {};
   const int length = std::snprintf(nullptr, 0, pattern, args...);
   if (length <= 0) return {};
@@ -186,6 +203,9 @@ template <typename... Args>
   result.resize((size_t)length);
   return result;
 }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 // ---------------------------------------------------------------------------
 // A run of cells

@@ -6,7 +6,7 @@
  * and columns. Six schemes live here: `Radial` (a ring or fan), `AlongPath`
  * (arc-length placement on any contour), `ModularGrid` (columns × rows of
  * modules), `Diagonal` (a sheared stack), `BaselineGrid` (a vertical type
- * rhythm) and `Scatter` (seeded jitter).
+ * rhythm) and `Jittered` (a seeded deviation from a regular grid).
  *
  *   layout(layouts::Radial{.radiusFraction = 0.8f})
  *       .children(glyphs | std::views::transform(rune));
@@ -27,7 +27,7 @@
  * catalog keeps arriving at — where item i of n falls on a ring, and which
  * cell of a grid of modules it occupies — belong to nothing here and are
  * SigilGeometry's, in `<sigilgeometry/path/Arrange.h>`. `Radial`,
- * `AlongPath`, `ModularGrid` and `Scatter` step through those bodies; the
+ * `AlongPath`, `ModularGrid` and `Jittered` step through those bodies; the
  * pool fillers of `<sigilcompose/kit/Placers.h>` step through the same
  * ones. A scheme that re-derived a ring here would round its own way, and
  * the same ring drawn two ways would differ by a pixel with nothing in
@@ -68,7 +68,7 @@ struct Radial {
   /** Per-child radius: a fraction per index, overriding `radiusFraction`
    *  where present — an orbit diagram's bands, a skill wheel's tiers. May
    *  be shorter than the child list; the tail falls back to
-   *  `radiusFraction`. Participates in equality like every field. */
+   *  `radiusFraction`. */
   std::vector<float> radiusAt;
 
   std::vector<SkRect> place(const LayoutInput& in) const {
@@ -280,10 +280,14 @@ struct BaselineGrid {
   }
 };
 
-/** Seeded chaotic placement: children scatter over the container on a
- *  jittered grid — deterministic per seed (same seed, same chaos,
- *  fully cacheable), never escaping the container. */
-struct Scatter {
+/** Seeded chaotic placement: children sit on a JITTERED GRID over the
+ *  container — deterministic per seed (same seed, same chaos, fully
+ *  cacheable), never escaping the container.
+ *
+ *  Named for the grid it deviates from, not for the scattering: a brush
+ *  that instances art along a path is `brush::Scatter`, and the two answer
+ *  different questions. */
+struct Jittered {
   uint32_t seed = 1;
   float jitter = 0.6f;  // 0 = regular grid, 1 = up to half a cell off
 

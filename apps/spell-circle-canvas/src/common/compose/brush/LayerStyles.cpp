@@ -12,6 +12,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -58,7 +59,7 @@ void OuterGlow::paint(SkCanvas& c, const PaintContext& ctx) const {
 }
 
 void BevelEmboss::paint(SkCanvas& c, const PaintContext& ctx) const {
-  const float rad = angleDeg * 3.1415927f / 180.0f;
+  const float rad = geometry::path::radians(angleDeg);
   // Canvas y grows downward: light FROM angle → the vector pointing away
   // from the light. An inner shadow's visible edge is OPPOSITE its offset.
   const SkVector away = {-std::cos(rad) * depth, std::sin(rad) * depth};

@@ -369,7 +369,7 @@ TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
       brush::CornerArt{directedCornerTile(), brush::CornerAlign::Bisector};
   brush.advance = 24;
   brush.cornerLength = 40;
-  brush.reach = 40;
+  brush.bleedPx = 40;
   host.composer.render(box().child(box()
                                        .absolute()
                                        .inset(0)
@@ -435,7 +435,7 @@ TEST(ComposeBrushes, OutgoingCornerAlignmentFacesTheNextEdge) {
       brush::CornerArt{directedCornerTile(), brush::CornerAlign::Outgoing};
   brush.advance = 24;
   brush.cornerLength = 40;
-  brush.reach = 40;
+  brush.bleedPx = 40;
   host.composer.render(box().child(box()
                                        .absolute()
                                        .inset(0)

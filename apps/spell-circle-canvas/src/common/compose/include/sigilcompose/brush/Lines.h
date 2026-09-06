@@ -58,16 +58,6 @@ namespace sigil::compose::lines {
 SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
                     float phase);
 
-/** Offset a CLOSED outline inward (positive @p px) or outward (negative),
- *  following any silhouette — a chamfered panel, a star, a blob — not just
- *  rectangles.
- *
- *  How it works: stroking the outline at width 2|px| gives the RING
- *  straddling it, so subtracting that ring shrinks the shape and unioning
- *  it grows the shape by the same amount. Returns the input unchanged if
- *  the boolean op fails. */
-SkPath insetOutline(const SkPath& outline, float px);
-
 /** CORNER BRACKETS as GEOMETRY: keep only the arc within @p arm px of each
  *  corner, so a rectangle becomes four L-shaped marks and nothing else —
  *  the reticle, the selection handle, the crop mark. It follows ANY

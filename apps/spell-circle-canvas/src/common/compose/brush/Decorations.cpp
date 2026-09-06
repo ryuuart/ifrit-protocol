@@ -9,6 +9,8 @@
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilgeometry/path/Edges.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <cmath>
 
@@ -127,7 +129,7 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
       const sk_sp<SkPicture>& art = own ? own : stampPicture;
       canvas.save();
       canvas.translate(pos.x(), pos.y());
-      canvas.rotate(std::atan2(tan.y(), tan.x()) * 180.0f / 3.14159265f);
+      canvas.rotate(geometry::path::degrees(std::atan2(tan.y(), tan.x())));
       if (art) {
         const SkRect cull = art->cullRect();
         canvas.save();
@@ -171,8 +173,9 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const float heaviest =
       mode == Mode::Weighted ? std::max(width, cornerWidth) : width;
   if (ctx.outline.isEmpty() || heaviest <= 0) return;
-  const SkPath base =
-      inset != 0 ? lines::insetOutline(ctx.outline, inset) : ctx.outline;
+  const SkPath base = inset != 0
+                          ? geometry::path::insetOutline(ctx.outline, inset)
+                          : ctx.outline;
 
   auto strokeWith = [&](const SkPath& path, float w) {
     if (path.isEmpty() || w <= 0) return;

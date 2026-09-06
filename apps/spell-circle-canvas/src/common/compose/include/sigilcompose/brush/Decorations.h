@@ -33,7 +33,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
-#include <sigilcompose/brush/Lines.h>  // insetOutline, cornerBrackets, cornerGaps
+#include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
 #include <sigilskia/draw/Direct.h>

@@ -8,8 +8,9 @@
 #
 # The shelves of stock values are here: WHERE a child lands (`layouts::`),
 # WHAT JOINS two of them (`routers::`), HOW a glyph deviates from rest
-# (the `fx::` presets over the typography tier's effect seam, with the
-# marquee, in kit/Kinetic.h), and HOW a pool is filled (the placers). The
+# (the `fx::` presets over the typography tier's effect seam in
+# kit/Kinetic.h, with the marquee beside it in kit/Marquee.h), and HOW a
+# pool is filled (the placers). The
 # silhouette generators are the geometry library's, because a
 # `path(SkSize)` value needs nothing of a component tree.
 #
@@ -30,8 +31,8 @@
 sigil_library(SigilComposeKit
   SOURCES Eras.cpp Kit.cpp Routers.cpp
   HEADERS Chrome.h Frame.h Gel.h Gloss.h Grid.h Ground.h Annotations.h
-          Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h PixelType.h
-          Placers.h Routers.h Specimen.h Sprites.h
+          Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h Marquee.h
+          PixelType.h Placers.h Routers.h Specimen.h Sprites.h
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
          SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave)
 

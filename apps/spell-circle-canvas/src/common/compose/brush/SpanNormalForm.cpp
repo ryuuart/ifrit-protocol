@@ -6,20 +6,13 @@
  */
 
 #include <include/core/SkContourMeasure.h>
-#include <include/core/SkImageFilter.h>
-#include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathUtils.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/pathops/SkPathOps.h>
+#include <include/core/SkRect.h>
 #include <sigilcore/compute/Intervals.h>
 
 #include <algorithm>
-#include <cmath>  // std::isfinite — the geometry::path::profileOffset non-finite guard
-#include <cstdio>  // std::snprintf — variationDrive's effect key
+#include <cmath>
+#include <vector>
 
 #include "ComposeInternal.h"
 #include "SpanArithmetic.h"
@@ -212,25 +205,38 @@ SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
       return true;
     };
 
-    // THE SEAM. Spans arrive sorted, so a claim that straddles fraction 0
-    // — a corner sitting on the seam, a wrapped window — arrives as its
-    // two halves at opposite ends of the list. On a CLOSED contour those
-    // halves are geometrically adjacent, and emitting them as two
-    // subpaths makes round caps and additive halo brushes double-hit
-    // there (the same defect the Wrap-mode trim path stitches away). So
-    // emit the tail first and append the head to it. An OPEN contour has
-    // no seam: joining its ends would invent a straight chord.
+    // Spans are fractions of the WHOLE path, so a multi-contour path
+    // interleaves every contour's claims in one sorted list. This contour
+    // sees only the ones that reach it, and its seam is read off those.
+    std::vector<const Span*> claims;
+    for (const Span& s : spans) {
+      const float lo = std::max(s.begin * total, run.start);
+      const float hi = std::min(s.end * total, run.start + run.length);
+      if (hi - lo > 1e-4f) claims.push_back(&s);
+    }
+    if (claims.empty()) continue;
+
+    // THE SEAM. Spans arrive sorted, so a claim that straddles this
+    // contour's start — a corner sitting on the seam, a wrapped window —
+    // arrives as its two halves at opposite ends of the contour's claims.
+    // On a CLOSED contour those halves are geometrically adjacent, and
+    // emitting them as two subpaths makes round caps and additive halo
+    // brushes double-hit there (the same defect the Wrap-mode trim path
+    // stitches away). So emit the tail first and append the head to it. An
+    // OPEN contour has no seam: joining its ends would invent a straight
+    // chord.
     const bool seamStraddled =
-        run.closed && spans.size() >= 2 &&
-        spans.front().begin * total <= run.start + 1e-4f &&
-        spans.back().end * total >= run.start + run.length - 1e-4f;
+        run.closed && claims.size() >= 2 &&
+        claims.front()->begin * total <= run.start + 1e-4f &&
+        claims.back()->end * total >= run.start + run.length - 1e-4f;
     if (seamStraddled) {
-      const bool inFlight = emit(spans.back(), false);
-      (void)emit(spans.front(), inFlight);
-      for (size_t k = 1; k + 1 < spans.size(); ++k) (void)emit(spans[k], false);
+      const bool inFlight = emit(*claims.back(), false);
+      (void)emit(*claims.front(), inFlight);
+      for (size_t k = 1; k + 1 < claims.size(); ++k)
+        (void)emit(*claims[k], false);
       continue;
     }
-    for (const Span& s : spans) (void)emit(s, false);
+    for (const Span* s : claims) (void)emit(*s, false);
   }
   return out.detach();
 }
@@ -249,7 +255,8 @@ std::vector<Span> Spans::resolve(const SpanInput& in) const {
   // begin, end, offset per term — the order Instance::spanAnims and
   // spanEndpoints() both walk. The offset is ADDED to both ends before the
   // interval is read, which is exactly what trim() does with its third
-  // argument (Bounds.cpp's trim block: s0 = start + off, e0 = end + off).
+  // argument: both endpoints move by the offset, the window keeps its
+  // length.
   auto at = [&](size_t i, float fallback) {
     return in.values && in.values->size() > i ? (*in.values)[i] : fallback;
   };

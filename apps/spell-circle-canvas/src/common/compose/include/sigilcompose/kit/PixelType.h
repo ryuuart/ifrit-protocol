@@ -101,9 +101,11 @@ inline SkBitmap rasterize(Element root, sigil::weave::FontContext& fonts,
 }
 }  // namespace detail
 
-/** Slack around the measured run, in px **on each side**. See trap 1: the
- *  defaults are a starting point, not a guarantee — `coverage()` grows
- *  them, up to a limit, until no ink touches an edge. */
+/** Slack around the measured run, in px **on each side** — ink overhangs
+ *  the advance a measurement reports, and it overhangs on the left as
+ *  readily as on the right. The defaults are a starting point, not a
+ *  guarantee: `coverage()` grows them, up to a limit, until no ink
+ *  touches an edge. */
 struct Pad {
   int x = 8;
   int y = 4;
@@ -154,9 +156,9 @@ struct Coverage {
  *  overhangs further than that comes back cropped and looks like a
  *  rasterisation bug rather than a sizing one.
  *
- *  Built on `snapshot()`, which carries the neighbouring trap: it sizes by
- *  the root's CHILDREN, so the wrapper must carry explicit dimensions or an
- *  absolutely-placed child resolves against nothing. */
+ *  Built on `snapshot()`, which sizes by the root's CHILDREN, so the
+ *  wrapper must carry explicit dimensions or an absolutely-placed child
+ *  resolves against nothing. */
 inline Coverage coverage(std::u8string_view run,
                          sigil::weave::FontContext& fonts,
                          const sigil::weave::TextStyle& style, Pad pad = {}) {
@@ -228,9 +230,11 @@ struct Mask {
 /** Threshold a `Coverage` to 1-bit A8 and (by default) crop to its ink.
  *
  *  @p threshold is in coverage units [0, 1] and is **inert under aliased
- *  shaping**, where the coverage is already binary — see trap 2. It
- *  becomes a real control only when the run was deliberately shaped
- *  antialiased and is being quantised afterwards. */
+ *  shaping**: there Skia lights a pixel iff its centre is inside the
+ *  outline, so the coverage is already 0 or 1 and every threshold in
+ *  (0, 1] classifies it identically. It becomes a real control only when
+ *  the run was deliberately shaped antialiased and is being quantised
+ *  afterwards. */
 inline Mask threshold(const Coverage& cov, float threshold = 0.5f,
                       bool cropToInk = true) {
   Mask m;
@@ -264,8 +268,7 @@ inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext& fonts,
 /** How a baked mask is presented. */
 struct Present {
   SkColor4f colour = {1, 1, 1, 1};
-  /** INTEGER, please — trap 4. A bitmap face at 1.5× is a blurry bitmap
-   *  face. */
+  /** INTEGER, please: a bitmap face at 1.5× is a blurry bitmap face. */
   float scale = 1.0f;
   /** A second pass underneath, offset by this many DESTINATION px, with
    *  the colour's RGB multiplied by `shadowMul`. The defaults follow
@@ -343,7 +346,8 @@ struct PixFont {
    *  a line box for the caller. It is NOT the tallest cell: a cell is
    *  cropped to its ink and sits at its own drop inside the box. */
   int lineHeight = 0;
-  /** The widest DIGIT advance, shared by all ten — see trap 3. */
+  /** The widest DIGIT advance, shared by all ten, so a rolling readout
+   *  does not shiver as a `1` narrows the string. */
   int digitAdvance = 0;
 
   const Cell& cell(char c) const {
@@ -400,8 +404,8 @@ inline PixFont bakeFont(sigil::weave::FontContext& fonts,
 struct Blit {
   /** px added after every cell. */
   float track = 1.0f;
-  /** Digits take `PixFont::digitAdvance` instead of their own — trap 3.
-   *  On for a readout, off for prose. */
+  /** Digits take `PixFont::digitAdvance` instead of their own, so a
+   *  rolling readout does not shiver. On for a readout, off for prose. */
   bool tabularDigits = true;
   /** Round every pen position to a multiple of this many px (0 = off).
    *  A bitmap face that lands off the device grid is a resampled bitmap

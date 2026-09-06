@@ -8,6 +8,7 @@
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilgeometry/path/Numeric.h>
 #include <sigilgeometry/path/Ops.h>
 
 #include <algorithm>
@@ -247,11 +248,10 @@ struct OrbitRail {
       const float r2 = SkPoint::Distance(to, center);
       const float r = (r1 + r2) * 0.5f;
       if (r > 1.0f && std::abs(r1 - r2) <= tolerance * r) {
-        const float a1 =
-            std::atan2(from.y() - center.y(), from.x() - center.x()) *
-            57.29578f;
-        const float a2 =
-            std::atan2(to.y() - center.y(), to.x() - center.x()) * 57.29578f;
+        const float a1 = geometry::path::degrees(
+            std::atan2(from.y() - center.y(), from.x() - center.x()));
+        const float a2 = geometry::path::degrees(
+            std::atan2(to.y() - center.y(), to.x() - center.x()));
         float sweep = a2 - a1;
         while (sweep > 180.0f) sweep -= 360.0f;
         while (sweep <= -180.0f) sweep += 360.0f;

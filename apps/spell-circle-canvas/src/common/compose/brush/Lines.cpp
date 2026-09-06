@@ -13,6 +13,7 @@
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
 #include <cmath>
@@ -30,24 +31,11 @@ SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
   sk_sp<SkPathEffect> fx = SkDashPathEffect::Make(intervals, phase);
   if (!fx) return src;
   SkPathBuilder dashed;
-  SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);  // NOT kFill — see above
+  // Hairline, not kFill: a fill rec hands the dash effect the solid path
+  // back and the pattern never appears.
+  SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
   if (!fx->filterPath(&dashed, src, &rec)) return src;
   return dashed.detach();
-}
-
-SkPath insetOutline(const SkPath& outline, float px) {
-  if (px == 0 || outline.isEmpty()) return outline;
-  SkPaint offset;
-  offset.setStyle(SkPaint::kStroke_Style);
-  offset.setStrokeWidth(std::abs(px) * 2.0f);
-  offset.setStrokeJoin(SkPaint::kMiter_Join);
-  const SkPath ring = skpathutils::FillPathWithPaint(outline, offset);
-  SkPath result;
-  if (Op(outline, ring,
-         px > 0 ? SkPathOp::kDifference_SkPathOp : SkPathOp::kUnion_SkPathOp,
-         &result))
-    return result;
-  return outline;
 }
 
 SkPath cornerBrackets(const SkPath& src, float arm, float angleDeg) {
@@ -425,8 +413,8 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.clipPath(ctx.outline, true);
   if (spokes > 0) {
     SkPathBuilder b;
-    const float step = 2.0f * SK_FloatPI / (float)spokes;
-    const float base = rotateDeg * SK_FloatPI / 180.0f;
+    const float step = geometry::path::kTau / (float)spokes;
+    const float base = geometry::path::radians(rotateDeg);
     for (int i = 0; i < spokes; ++i) {
       const float a = base + (float)i * step;
       const float cs = std::cos(a), sn = std::sin(a);

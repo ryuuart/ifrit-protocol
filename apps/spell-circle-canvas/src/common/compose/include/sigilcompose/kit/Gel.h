@@ -28,8 +28,10 @@ namespace sigil::compose::kit {
 
 /** Knobs the gel bundle exposes; the defaults dress a pill. */
 struct AquaGelOptions {
-  float lensAlphaTop = 0.72f;    ///< lens ramp: white at the top, clear below
-  float lensBottomFrac = 0.52f;  ///< lens ends this far down the box
+  float lensAlphaTop = 0.72f;    ///< lens ramp: white at the top…
+  float lensAlphaBottom = 0.0f;  ///< …and what it has faded to at its end
+  float lensTopFrac = 0.04f;     ///< lens starts this far down the box
+  float lensBottomFrac = 0.52f;  ///< …and ends here
   float lensInsetXFrac = 0.05f;  ///< lens inset each side; ~0.16 on spheres
   /** Where down the lens its ramp has reached its bottom value, as a
    *  fraction of the lens's own height. Below 1 the lens's lower arc is

@@ -16,6 +16,7 @@
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <algorithm>
 #include <cmath>
@@ -44,34 +45,6 @@ void LayeredBrush::paint(SkCanvas& c, const PaintContext& ctx) const {
     c.drawPath(ctx.outline, p);
   }
 }
-
-namespace ops {
-
-PathOp debug(const char* tag) {
-  std::string t = tag;
-  return [t](const SkPath& p) {
-    const SkRect b = p.getBounds();
-    SkDebugf("[ops::debug %s] bounds (%.1f,%.1f %.1fx%.1f)\n", t.c_str(),
-             b.left(), b.top(), b.width(), b.height());
-    SkContourMeasureIter iter(p, false);
-    int i = 0;
-    while (sk_sp<SkContourMeasure> c = iter.next())
-      SkDebugf("  contour %d: len %.1f %s\n", i++, c->length(),
-               c->isClosed() ? "CLOSED" : "open");
-    return p;
-  };
-}
-
-PathOp chain(std::vector<PathOp> steps) {
-  return [steps = std::move(steps)](const SkPath& p) {
-    SkPath r = p;
-    for (const PathOp& op : steps)
-      if (op) r = op(r);
-    return r;
-  };
-}
-
-}  // namespace ops
 
 GeometryOp::GeometryOp(geometry::path::Shaper s) : m_bleed(s.bleed()) {
   m_held = s;
@@ -286,6 +259,10 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
       const float len = contour->length();
       const float step =
           interval <= 1.0f ? len * std::max(interval, 0.001f) : interval;
+      // A zero-length contour, or a fractional interval on one, gives a
+      // step that never advances: the walk below would stand still
+      // forever on any offset that starts before the end.
+      if (step <= 0 || len <= 0) continue;
       const float phase = p.offset <= 1.0f && p.offset >= -1.0f &&
                                   p.mode == Mode::Interval && interval <= 1.0f
                               ? len * p.offset
@@ -385,7 +362,8 @@ void drawStamp(SkCanvas& c, const SkPicture& pic, const PathSample& sample,
   c.save();
   c.translate(sample.position.x(), sample.position.y());
   if (align)
-    c.rotate(std::atan2(sample.tangent.y(), sample.tangent.x()) * 57.29578f);
+    c.rotate(geometry::path::degrees(
+        std::atan2(sample.tangent.y(), sample.tangent.x())));
   c.translate(m.dAlong, m.dNormal);  // tangent frame (post-align)
   c.rotate(rotateDeg + m.rotateDeg);
   c.scale(scaleX * m.scale, scaleY * m.scale);
@@ -417,9 +395,9 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
       ctx.stamps->put(art.node(), {pic, nullptr, {0, 0}});
     }
   } else {
-    if (!cache->pic || cache->bakedFor != art.node().get()) {
+    if (!cache->pic || !bakedFromNode(cache->bakedFor, art.node())) {
       cache->pic = snapshot(box().child(art), *ctx.fonts);
-      cache->bakedFor = art.node().get();
+      cache->bakedFor = art.node();
     }
     pic = cache->pic;
   }
@@ -446,15 +424,20 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
 
 void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (!ctx.fonts) return;
-  auto node = [](const std::optional<Element>& e) -> const void* {
-    return e ? e->node().get() : nullptr;
+  static const std::shared_ptr<detail::ElementNode> kNoArt;
+  auto node = [](const std::optional<Element>& e)
+      -> const std::shared_ptr<detail::ElementNode>& {
+    return e ? e->node() : kNoArt;
   };
-  const void* sideNode = side.node().get();
-  const void* startNode = node(start);
-  const void* endNode = node(end);
-  const void* cornerNode = corner ? corner->art.node().get() : nullptr;
-  if (cache->bakedSide != sideNode || cache->bakedStart != startNode ||
-      cache->bakedEnd != endNode || cache->bakedCorner != cornerNode) {
+  const std::shared_ptr<detail::ElementNode>& sideNode = side.node();
+  const std::shared_ptr<detail::ElementNode>& startNode = node(start);
+  const std::shared_ptr<detail::ElementNode>& endNode = node(end);
+  const std::shared_ptr<detail::ElementNode>& cornerNode =
+      corner ? corner->art.node() : kNoArt;
+  if (!bakedFromNode(cache->bakedSide, sideNode) ||
+      !bakedFromNode(cache->bakedStart, startNode) ||
+      !bakedFromNode(cache->bakedEnd, endNode) ||
+      !bakedFromNode(cache->bakedCorner, cornerNode)) {
     *cache = Cache{};
     cache->bakedSide = sideNode;
     cache->bakedStart = startNode;
@@ -480,8 +463,12 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (end) bake(*end, cache->end);
   if (corner) bake(corner->art, cache->corner);
   if (!cache->side) return;
+  // An AUTHORED advance is floored at a pixel exactly as the intrinsic
+  // one is: a tile a fraction of a pixel long is millions of tiles on any
+  // run long enough to see.
+  const float authored = advance > 0 ? std::max(advance, 1.0f) : 0.0f;
   const float tileLen =
-      advance > 0 ? advance : std::max(cache->side->cullRect().width(), 1.0f);
+      authored > 0 ? authored : std::max(cache->side->cullRect().width(), 1.0f);
 
   size_t placed = 0;
   // Two passes: count side tiles first so mod sees the true total.
@@ -513,9 +500,9 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
     // Open-contour caps reserve their slots at the ends.
     float head = 0, tail = 0;
     if (!closed && cache->start)
-      head = advance > 0 ? advance : cache->start->cullRect().width();
+      head = authored > 0 ? authored : cache->start->cullRect().width();
     if (!closed && cache->end)
-      tail = advance > 0 ? advance : cache->end->cullRect().width();
+      tail = authored > 0 ? authored : cache->end->cullRect().width();
 
     // Runs between corners (and cap margins). Each corner RESERVES half
     // its own length at each end of its two adjacent runs, so the side
@@ -647,7 +634,7 @@ SkPath Ribbon::band(const SkPath& spine) const {
         w = width.acrossAt(s.fraction, len);
       } else if (nibAngleDeg >= 0) {
         const float a =
-            std::atan2(tan.y(), tan.x()) - nibAngleDeg * 0.017453293f;
+            std::atan2(tan.y(), tan.x()) - geometry::path::radians(nibAngleDeg);
         w = widthStart *
             (nibContrast + (1 - nibContrast) * std::abs(std::sin(a)));
       } else {
@@ -755,8 +742,8 @@ void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
 
 void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (!ctx.fonts) return;
-  if (!cache->image || cache->bakedFor != art.node().get()) {
-    cache->bakedFor = art.node().get();
+  if (!cache->image || !bakedFromNode(cache->bakedFor, art.node())) {
+    cache->bakedFor = art.node();
     cache->image = nullptr;
     // Consult the instance-side store before doing any raster work.
     if (ctx.stamps) {
@@ -831,7 +818,7 @@ Art artAlong(Element art, float height, float stationPx) {
   b.art = std::move(art);
   b.height = height;
   b.stationPx = stationPx;
-  b.reach = std::max(32.0f, height);
+  b.bleedPx = std::max(32.0f, height);
   return b;
 }
 

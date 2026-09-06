@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -91,12 +90,21 @@ struct Track {
   return Track::minmax(low, high);
 }
 
-/** @p count copies of @p track — the spelling for "four equal columns". */
-[[nodiscard]] inline std::vector<Track> repeat(int count, Track track) {
+/** @p count copies of @p track — the spelling for "four equal columns".
+ *  Named for what it repeats, because a pool of instances is repeated by
+ *  `instancing::place::repeat` and the two answer different questions. */
+[[nodiscard]] inline std::vector<Track> repeatTrack(int count, Track track) {
   return std::vector<Track>(count > 0 ? (size_t)count : 0u, track);
 }
 
 namespace detail {
+
+/** Says so, once, when a name in the picture claims cells that do not
+ *  form a rectangle. Out of line because a diagnostic printed from an
+ *  inline header would be one copy per translation unit, each with its own
+ *  "said it already" flag, and the same complaint would then be printed
+ *  several times over. */
+void warnAreaNotRectangular(const std::string& name);
 
 /** One name from a `Grid::areas` picture, and the block of cells it
  *  covers. */
@@ -165,16 +173,7 @@ inline AreaPicture readAreas(const std::vector<std::string>& rows) {
   for (const auto& [name, e] : seen) {
     const int wide = e.right - e.left + 1;
     const int tall = e.bottom - e.top + 1;
-    if (wide * tall != e.cells) {
-      static thread_local bool warned = false;
-      if (!warned) {
-        warned = true;
-        std::fprintf(stderr,
-                     "compose: grid area \"%s\" does not cover a rectangle; "
-                     "placed at the rectangle that bounds it\n",
-                     name.c_str());
-      }
-    }
+    if (wide * tall != e.cells) warnAreaNotRectangular(name);
     picture.areas.push_back({name, e.left, e.top, wide, tall});
   }
   return picture;
@@ -287,30 +286,18 @@ struct Grid {
   };
 
   Resolved solve(const LayoutInput& in) const {
-    const std::vector<CellSpan> spans = flowed(in);
     const detail::AreaPicture picture = detail::readAreas(areas);
-    const int cols = columnCount(spans, picture);
-    const int lines = rowCount(spans, picture);
-
-    Resolved out;
-    // A column list that was never given is equal shares of the width; a
-    // row list that was never given is a page that grows down, so its rows
-    // are as tall as what is in them.
-    out.columnWidths =
-        resolve(columns, Track::fr(1.0f), cols, in.container.width(),
-                gap.width(), spans, in, /*horizontal=*/true);
-    out.rowHeights =
-        resolve(rows, Track::content(), lines, in.container.height(),
-                gap.height(), spans, in, /*horizontal=*/false);
-    out.columnX = origins(out.columnWidths, gap.width());
-    out.rowY = origins(out.rowHeights, gap.height());
-    return out;
+    return solve(in, flowed(in, picture), picture);
   }
 
   /** Where every child lands, in child order. */
   std::vector<SkRect> place(const LayoutInput& in) const {
-    const std::vector<CellSpan> spans = flowed(in);
-    const Resolved grid = solve(in);
+    // The picture is read ONCE per call and handed down: parsing it again
+    // inside each step would read the same strings three times over for
+    // every layout pass.
+    const detail::AreaPicture picture = detail::readAreas(areas);
+    const std::vector<CellSpan> spans = flowed(in, picture);
+    const Resolved grid = solve(in, spans, picture);
     std::vector<SkRect> rects(in.childSizes.size());
     for (size_t i = 0; i < spans.size() && i < rects.size(); ++i) {
       const CellSpan& s = spans[i];
@@ -335,11 +322,31 @@ struct Grid {
   }
 
  private:
+  Resolved solve(const LayoutInput& in, const std::vector<CellSpan>& spans,
+                 const detail::AreaPicture& picture) const {
+    const int cols = columnCount(spans, picture);
+    const int lines = rowCount(spans, picture);
+
+    Resolved out;
+    // A column list that was never given is equal shares of the width; a
+    // row list that was never given is a page that grows down, so its rows
+    // are as tall as what is in them.
+    out.columnWidths =
+        resolve(columns, Track::fr(1.0f), cols, in.container.width(),
+                gap.width(), spans, in, /*horizontal=*/true);
+    out.rowHeights =
+        resolve(rows, Track::content(), lines, in.container.height(),
+                gap.height(), spans, in, /*horizontal=*/false);
+    out.columnX = origins(out.columnWidths, gap.width());
+    out.rowY = origins(out.rowHeights, gap.height());
+    return out;
+  }
+
   /** Every child's cells: the name it claimed resolved against the
    *  picture, the numbers it claimed taken as they stand, and the ones
    *  that claimed nothing flowed into what is left. */
-  std::vector<CellSpan> flowed(const LayoutInput& in) const {
-    const detail::AreaPicture picture = detail::readAreas(areas);
+  std::vector<CellSpan> flowed(const LayoutInput& in,
+                               const detail::AreaPicture& picture) const {
     std::vector<CellSpan> out(in.childSizes.size());
     for (size_t i = 0; i < out.size(); ++i) {
       if (i < in.childCells.size()) out[i] = in.childCells[i];

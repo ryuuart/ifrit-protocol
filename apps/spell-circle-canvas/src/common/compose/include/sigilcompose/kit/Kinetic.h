@@ -3,8 +3,7 @@
 /** @file
  * SigilCompose KIT — kinetic type: the stock entrances and loops for the
  * kernel's multi-track `fx()` seam, all as plain comparable `TextEffect`
- * VALUES built from the same constructor any caller may use, and the
- * marquee, a ticker composed from a clipped strip and a wrapping phase.
+ * VALUES built from the same constructor any caller may use.
  *
  * One track:
  *
@@ -51,6 +50,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/path/Numeric.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilweave/style/ShapingStyle.h>
@@ -61,78 +61,125 @@
 
 namespace sigil::compose::fx {
 
-// The three curves the presets below shape their glyphs with are
-// Choreograph's own — `easeOutCubic`, `easeOutExpo` and the
-// shape-parameterised `easeOutBack` — called directly here rather than
-// wrapped, because a preset shapes one float per glyph per frame and an
-// EaseFn through a std::function would put an indirect call in that
-// loop. `motion::ease::outBack` is the same curve in the form a
-// Transition holds. A scale-only effect's reach is read against
-// `kNominalSizePx`, the display size the seam declares reaches at when no
-// effect knows its font size at construction.
+// A scale-only effect's reach is read against `kNominalSizePx`, the
+// display size the seam declares reaches at when no effect knows its font
+// size at construction. `motion::ease::outBack` is the same curve as
+// `Curve::OutBack` in the form a Transition holds.
+
+/** THE CURVE an entrance settles on — named rather than a callable,
+ *  because a preset shapes one float per glyph per frame and an `EaseFn`
+ *  through a `std::function` puts an indirect call in that loop. These
+ *  are Choreograph's own, called directly by the body. `OutBack` is the
+ *  shape-parameterised overshoot the elastic pop lands with. */
+enum class Curve : uint8_t { OutCubic, OutExpo, OutBack };
+
+/** THE ENTRANCE: one shape for every staggered reveal, said in the lanes
+ *  a glyph can travel on.
+ *
+ *  Every entrance is the same sentence — the glyph starts displaced and
+ *  the displacement is multiplied by `1 - curve(t)` until it is home,
+ *  while the alpha completes over the first `fadeOver` of local progress
+ *  so a glyph is opaque while it is still moving. What differs between a
+ *  rise, a slide and a tumble is only WHICH LANES carry the displacement,
+ *  so they are props here and not six bodies.
+ *
+ *      text(u8"KINETIC", display).fx({.effect = fx::enter({.dy = 26})})
+ *
+ *  The `scatter` lanes are the one lane that is not a constant: each
+ *  glyph draws its own offset inside a `scatterPx` disc, and its own lean
+ *  up to `scatterLeanDeg`, from the stream seeded on the glyph's own
+ *  identity — so the draw is stable across frames and relayouts, which is
+ *  what lets a settled scatter cache instead of jittering forever. */
+struct Entrance {
+  float dx = 0;                ///< px to the side the glyph comes in from
+  float dy = 0;                ///< px below (positive) or above its rest
+  float rotateDeg = 0;         ///< the lean it straightens out of
+  float fromScale = 1;         ///< the size it grows from (1 = no growth)
+  float overshoot = 1.70158f;  ///< OutBack's shape, ignored by the others
+  float scatterPx = 0;         ///< seeded per-glyph disc, added to dx/dy
+  float scatterLeanDeg = 0;    ///< seeded per-glyph lean, added to rotateDeg
+  /** The share of local progress the fade takes; 0 enters at full alpha. */
+  float fadeOver = 0.35f;
+  Curve curve = Curve::OutCubic;
+
+  bool operator==(const Entrance&) const = default;
+};
+
+/** The entrance as an effect value. */
+[[nodiscard]] inline TextEffect enter(Entrance e) {
+  // A rotated or scaled glyph swings its corners out of its advance box;
+  // half the nominal size covers any angle, and OutBack's overshoot peaks
+  // about a tenth of its shape above 1.
+  float reach =
+      std::max(std::abs(e.dx), std::abs(e.dy)) + std::abs(e.scatterPx);
+  if (e.rotateDeg != 0 || e.scatterLeanDeg != 0) reach += kNominalSizePx * 0.5f;
+  if (e.curve == Curve::OutBack)
+    reach += std::max(e.overshoot, 0.0f) * 0.1f * kNominalSizePx;
+  const bool moves = e.dx != 0 || e.dy != 0 || e.rotateDeg != 0 ||
+                     e.fromScale != 1 || e.scatterPx != 0 ||
+                     e.scatterLeanDeg != 0;
+  return TextEffect(
+      "enter",
+      {e.dx, e.dy, e.rotateDeg, e.fromScale, e.overshoot, e.scatterPx,
+       e.scatterLeanDeg, e.fadeOver, (float)e.curve},
+      [e](const GlyphInfo&, float t, core::noise::Mix64Stream& rng) {
+        const float eased = e.curve == Curve::OutExpo
+                                ? choreograph::easeOutExpo(t)
+                            : e.curve == Curve::OutBack
+                                ? choreograph::easeOutBack(t, e.overshoot)
+                                : choreograph::easeOutCubic(t);
+        const float left = 1.0f - eased;
+        float dx = e.dx, dy = e.dy, lean = e.rotateDeg;
+        if (e.scatterPx != 0) {
+          dx += rng.signedUnit() * e.scatterPx;
+          dy += rng.signedUnit() * e.scatterPx;
+        }
+        if (e.scatterLeanDeg != 0) lean += rng.signedUnit() * e.scatterLeanDeg;
+        GlyphMod m;
+        m.dx = left * dx;
+        m.dy = left * dy;
+        m.rotateDeg = left * lean;
+        if (e.fromScale != 1) m.scale = e.fromScale + (1 - e.fromScale) * eased;
+        m.alpha = e.fadeOver > 0 ? std::min(1.0f, t / e.fadeOver) : 1.0f;
+        return m;
+      },
+      reach, {}, moves);
+}
 
 /** The stagger-reveal workhorse: glyphs rise from `distancePx` below their
  *  rest while fading in. Ease-out-expo motion; alpha completes over the
  *  first 35% of local progress, so a glyph is fully opaque while it is
  *  still moving rather than fading and settling together. */
 [[nodiscard]] inline TextEffect rise(float distancePx = 26) {
-  return TextEffect(
-      "rise", {distancePx},
-      [distancePx](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
-        GlyphMod m;
-        m.dy = (1 - choreograph::easeOutExpo(t)) * distancePx;
-        m.alpha = std::min(1.0f, t / 0.35f);
-        return m;
-      },
-      std::abs(distancePx));
+  return enter({.dy = distancePx, .curve = Curve::OutExpo});
 }
 
 /** Slide-in from the side (negative = from the left). */
 [[nodiscard]] inline TextEffect slide(float distancePx = -32) {
-  return TextEffect(
-      "slide", {distancePx},
-      [distancePx](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
-        GlyphMod m;
-        m.dx = (1 - choreograph::easeOutCubic(t)) * distancePx;
-        m.alpha = std::min(1.0f, t * 1.7f);
-        return m;
-      },
-      std::abs(distancePx));
+  return enter({.dx = distancePx, .fadeOver = 1.0f / 1.7f});
 }
 
 /** Scale-overshoot entrance (back.out(1.7) — the elastic pop). */
 [[nodiscard]] inline TextEffect pop(float fromScale = 0.35f,
                                     float overshoot = 1.70158f) {
-  // The curve peaks above 1 by roughly overshoot/10 at these parameters.
-  const float peak = 1.0f + std::max(overshoot, 0.0f) * 0.1f;
-  return TextEffect(
-      "pop", {fromScale, overshoot},
-      [fromScale, overshoot](const GlyphInfo&, float t,
-                             core::noise::Mix64Stream&) {
-        GlyphMod m;
-        m.scale = fromScale +
-                  (1 - fromScale) * choreograph::easeOutBack(t, overshoot);
-        m.alpha = std::min(1.0f, t * 2.2f);
-        return m;
-      },
-      (peak - 1.0f) * kNominalSizePx);
+  return enter({.fromScale = fromScale,
+                .overshoot = overshoot,
+                .fadeOver = 1.0f / 2.2f,
+                .curve = Curve::OutBack});
 }
 
 /** Tumble-in: glyphs spin from `degrees` while rising and fading. */
 [[nodiscard]] inline TextEffect spinIn(float degrees = 70, float risePx = 14) {
-  return TextEffect(
-      "spinIn", {degrees, risePx},
-      [degrees, risePx](const GlyphInfo&, float t, core::noise::Mix64Stream&) {
-        const float e = choreograph::easeOutCubic(t);
-        GlyphMod m;
-        m.rotateDeg = (1 - e) * degrees;
-        m.dy = (1 - e) * risePx;
-        m.alpha = std::min(1.0f, t * 1.7f);
-        return m;
-      },
-      // A rotated glyph's corners swing out of its advance box; half the
-      // nominal size covers any angle.
-      std::abs(risePx) + kNominalSizePx * 0.5f);
+  return enter({.dy = risePx, .rotateDeg = degrees, .fadeOver = 1.0f / 1.7f});
+}
+
+/** Seeded scatter: every glyph flies in from its own random offset inside
+ *  a `radiusPx` disc, with its own random lean. */
+[[nodiscard]] inline TextEffect scatter(float radiusPx = 40,
+                                        float leanDeg = 24) {
+  return enter({.scatterPx = radiusPx,
+                .scatterLeanDeg = leanDeg,
+                .fadeOver = 1.0f / 1.7f});
 }
 
 /** Hard typewriter: a glyph is absent, then simply THERE (pair with a
@@ -162,36 +209,12 @@ namespace sigil::compose::fx {
       [amplitudeEm, phaseRadPerGlyph](const GlyphInfo& g, float t,
                                       core::noise::Mix64Stream&) {
         GlyphMod m;
-        m.dy = std::sin(t * 6.2831853f - (float)g.index * phaseRadPerGlyph) *
+        m.dy = std::sin(t * geometry::path::kTau -
+                        (float)g.index * phaseRadPerGlyph) *
                amplitudeEm * (g.fontSize > 0 ? g.fontSize : 16.0f);
         return m;
       },
       std::abs(amplitudeEm) * kNominalSizePx);
-}
-
-/** Seeded scatter: every glyph flies in from its own random offset inside
- *  a `radiusPx` disc, with its own random lean. The draw is stable across
- *  frames and relayouts (the stream is seeded from the glyph's
- *  identity), which
- *  is what lets a settled scatter cache instead of jittering forever. */
-[[nodiscard]] inline TextEffect scatter(float radiusPx = 40,
-                                        float leanDeg = 24) {
-  return TextEffect(
-      "scatter", {radiusPx, leanDeg},
-      [radiusPx, leanDeg](const GlyphInfo&, float t,
-                          core::noise::Mix64Stream& rng) {
-        const float dx = rng.signedUnit() * radiusPx;
-        const float dy = rng.signedUnit() * radiusPx;
-        const float lean = rng.signedUnit() * leanDeg;
-        const float e = choreograph::easeOutCubic(t);
-        GlyphMod m;
-        m.dx = (1 - e) * dx;
-        m.dy = (1 - e) * dy;
-        m.rotateDeg = (1 - e) * lean;
-        m.alpha = std::min(1.0f, t * 1.7f);
-        return m;
-      },
-      std::abs(radiusPx) + kNominalSizePx * 0.5f);
 }
 
 /** A variable-font axis SWEPT across local progress: `from` at t = 0,
@@ -262,50 +285,3 @@ namespace sigil::compose::fx {
 }
 
 }  // namespace sigil::compose::fx
-
-namespace sigil::compose::kit {
-
-// ---------------------------------------------------------------------------
-// The marquee — text in motion that costs a repaint and never a reflow
-
-/** The seamless ticker (news crawl, y2k status bar): `content` twice in a
- *  row inside a clipped box, slid by a caller-owned WRAPPING phase Output
- *  in px. Step the phase over [-(w + gap), 0] where w = the content's
- *  width — intrinsicSize(content, fonts).width() gives it — and the loop is
- *  invisible. Binding translateX is paint-only volatility: the strip's
- *  recording replays every frame, nothing re-records. Keep `content`
- *  keyless (it mounts twice). */
-inline Element marquee(const Element& content, motion::Animatable<float> phase,
-                       float gap = 0.0f) {
-  return box().clip(true).child(box()
-                                    .row()
-                                    .gap(gap)
-                                    .shrink(0)
-                                    .alignSelf(Align::Start)
-                                    .translateX(phase)
-                                    .child(content)
-                                    .child(content));
-}
-
-/** The width-pinned marquee: each copy rides in a fixed `contentWidth`
- *  box, so text content can NEVER wrap against the clip viewport. An
- *  unpinned strip resolves its width against the clip box instead and
- *  wraps to two lines, which is what the overload above risks with text.
- *  Measure once — `ctx.measure(strip).width()` — and pass it here; wrap
- *  the phase over [-(contentWidth + gap), 0]. */
-inline Element marquee(Element content, float contentWidth,
-                       motion::Animatable<float> phase, float gap = 0.0f) {
-  auto pinned = [&] {
-    return box().width(Dim(contentWidth)).shrink(0).child(content);
-  };
-  return box().clip(true).child(box()
-                                    .row()
-                                    .gap(gap)
-                                    .shrink(0)
-                                    .alignSelf(Align::Start)
-                                    .translateX(phase)
-                                    .child(pinned())
-                                    .child(pinned()));
-}
-
-}  // namespace sigil::compose::kit

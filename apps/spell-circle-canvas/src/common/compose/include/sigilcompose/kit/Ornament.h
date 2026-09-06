@@ -17,6 +17,8 @@
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <cmath>
 #include <vector>
@@ -123,7 +125,7 @@ inline SkPath taperedStroke(const std::vector<SkPoint>& pts, float wMax,
     // max() guards the tip: sin(pi*1.0f) is a tiny NEGATIVE float and
     // pow(negative, fractional) is NaN — one NaN voids the whole path.
     const float swell =
-        std::pow(std::max(0.0f, std::sin(t * 3.14159265f)), 0.65f);
+        std::pow(std::max(0.0f, std::sin(t * geometry::path::kPi)), 0.65f);
     return 0.5f * (wTip + (wMax - wTip) * swell);
   };
   b.moveTo(pts[0].x() + normalAt(0).x() * halfWidth(0),
@@ -291,7 +293,7 @@ struct SwirlCorners {
       appendCubic(curl, curl.back(), {size * 0.42f, size * 0.02f},
                   {size * 0.10f, size * 0.14f}, {size * 0.16f, size * 0.72f});
       appendSpiral(curl, {size * 0.34f, size * 0.86f}, size * 0.18f, 0.8f,
-                   3.6f + 3.14159f, 0.2f + 3.14159f);
+                   3.6f + geometry::path::kPi, 0.2f + geometry::path::kPi);
       drawTaperedSweep(c, curl, pal.stem, weight);
       drawDiamond(c, {size * 0.16f, size * 0.16f}, size * 0.11f, pal.gold);
       c.restore();
@@ -400,24 +402,13 @@ inline Element illuminatedPanel(const Palette& pal) {
 }
 
 /** Starburst outline for spiky shout dialogs: `spikes` points, `depth`
- *  0..1 how deep the valleys cut. */
+ *  0..1 how deep the valleys cut.
+ *
+ *  The star inscribed in the box, with the valleys at `1 - depth` of the
+ *  outer radius — `geometry::shapes::Star` says exactly that, and says it
+ *  once for every consumer. */
 inline std::function<SkPath(SkSize)> starburstOutline(int spikes, float depth) {
-  return [spikes, depth](SkSize s) {
-    SkPathBuilder b;
-    const float cx = s.width() / 2, cy = s.height() / 2;
-    const int n = spikes * 2;
-    for (int i = 0; i < n; ++i) {
-      const float a = (float)i / (float)n * 6.28318f - 1.5708f;
-      const float k = ((unsigned)i & 1u) ? 1.0f - depth : 1.0f;
-      const SkPoint pt = {cx + std::cos(a) * cx * k, cy + std::sin(a) * cy * k};
-      if (i == 0)
-        b.moveTo(pt);
-      else
-        b.lineTo(pt);
-    }
-    b.close();
-    return b.detach();
-  };
+  return geometry::shapes::star(spikes, 1.0f - depth);
 }
 
 /** Scalloped outline: rounded lobes bulging out of each edge — the

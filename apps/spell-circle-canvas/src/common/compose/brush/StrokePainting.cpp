@@ -6,36 +6,16 @@
  * that install it on a description.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkFontMetrics.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathEffect.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkPictureRecorder.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/effects/SkTrimPathEffect.h>
-#include <sigilimage/asset/ImageAsset.h>
-#include <sigilweave/choreograph/Choreograph.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
+#include <include/core/SkTypes.h>
+#include <sigilgeometry/path/Band.h>
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <tuple>
+#include <optional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "ComposeRuntime.h"
 #include "SpanArithmetic.h"
-#include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 
@@ -58,7 +38,9 @@ std::string passLabel(const detail::StrokePass& pass, size_t index) {
  *  message says so — that is the only place an author learns it. */
 void warnOverlappingClaims(const std::string& a, const std::string& b,
                            Span shared) {
-  static std::vector<std::string> seen;
+  // Thread-local: this tier takes no locks, so two composers on two
+  // threads would race on one shared set.
+  static thread_local std::vector<std::string> seen;
   const std::string key = a + "|" + b;
   for (const std::string& k : seen)
     if (k == key) return;

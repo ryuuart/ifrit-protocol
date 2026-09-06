@@ -88,11 +88,14 @@ LayerStyle aquaGel(SkColor4f tint, AquaGelOptions opts) {
   hairline.strokeFill = Fill::color(material::skia::toSkColor(
       material::kit::aquaHairline(material::skia::toColor(tint))));
   hairline.align = PathFormat::Align::Inner;
-  return LayerStyle{
-      {Decoration(AquaBody{tint, opts})},
-      {Decoration(AquaGloss{opts.lensInsetXFrac, 0.04f, opts.lensBottomFrac,
-                            opts.lensAlphaTop, 0.0f, opts.lensFadeEnd}),
-       Decoration(hairline)}};
+  return LayerStyle{{Decoration(AquaBody{tint, opts})},
+                    {Decoration(AquaGloss{.insetXFrac = opts.lensInsetXFrac,
+                                          .topFrac = opts.lensTopFrac,
+                                          .bottomFrac = opts.lensBottomFrac,
+                                          .alphaTop = opts.lensAlphaTop,
+                                          .alphaBottom = opts.lensAlphaBottom,
+                                          .fadeEnd = opts.lensFadeEnd}),
+                     Decoration(hairline)}};
 }
 
 LayerStyle aquaOrb(SkColor4f tint, float expectedDiameter) {
@@ -147,7 +150,7 @@ void ChromeSliver::paint(SkCanvas& c, const PaintContext& ctx) const {
 LayerStyle y2kChrome(ChromeOptions opts) {
   PathFormat keyline;
   keyline.width = opts.keylineWidth;
-  keyline.strokeFill = Fill::color(material::skia::toSkColor(opts.keyline));
+  keyline.strokeFill = Fill::color(opts.keyline);
   keyline.align = PathFormat::Align::Outer;
   LayerStyle bundle;
   bundle.under = {Decoration(Shadow{{0, 0, 0, 0.45f}, {0, 6}, 10}),
