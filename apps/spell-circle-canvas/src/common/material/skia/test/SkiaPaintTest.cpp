@@ -11,6 +11,7 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkMatrix.h>
+#include <include/core/SkPoint.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkString.h>
 #include <include/core/SkTileMode.h>
@@ -160,6 +161,88 @@ TEST(SkiaPaint, ChildAndBlendInheritTheirLayersTier) {
        {skia::Paint::sksl(resolutionEffect()), SkBlendMode::kPlus}});
   EXPECT_FALSE(stack.isAnimated());
   EXPECT_TRUE(stack.geometryDependent());
+}
+
+TEST(SkiaPaint, ASweepWindowPastTheCircleClampsRatherThanWraps) {
+  // A hue wheel that is meant to start at red is written `sweep(c, stops,
+  // 90, 450)` by everyone who writes it once — and no canvas angle ever
+  // reaches past 360, so the run before 90 degrees paints the first
+  // stop's flat colour instead of the ramp's tail. The factory says so,
+  // once for the process.
+  const std::vector<skia::Stop> stops{{0.0f, {1, 0, 0, 1}},
+                                      {1.0f, {0, 0, 1, 1}}};
+  testing::internal::CaptureStderr();
+  const skia::Paint past = skia::Paint::sweep({50, 50}, stops, 90, 450);
+  const std::string said = testing::internal::GetCapturedStderr();
+  EXPECT_NE(said.find("do not wrap"), std::string::npos) << said;
+
+  const SkBitmap bm = render(past.staticShader(), 100, 100);
+  // Down and to the right of the centre is 45 degrees on the canvas —
+  // before the window opens at 90 — so it paints the first stop flat
+  // rather than the ramp the caller thought they had rotated onto it.
+  EXPECT_EQ(SkColorGetR(bm.getColor(85, 85)), 255u);
+  EXPECT_EQ(SkColorGetB(bm.getColor(85, 85)), 0u);
+  // …and a window inside the circle says nothing at all.
+  testing::internal::CaptureStderr();
+  const skia::Paint inside = skia::Paint::sweep({50, 50}, stops, 0, 360);
+  EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
+  EXPECT_FALSE(inside == past);
+}
+
+TEST(SkiaPaint, AConicalRampMovesItsHotSpotAndLeavesItsOuterCircle) {
+  // What a radial cannot do: moving a radial's centre slides the whole
+  // ramp, its outer edge included, where a conical keeps the outer circle
+  // where it was put and moves only the focus. A displaced highlight on a
+  // sphere is the case, and the corner farthest from the displacement is
+  // where the difference shows.
+  const std::vector<skia::Stop> stops{{0.0f, {1, 1, 1, 1}},
+                                      {1.0f, {0, 0, 0, 1}}};
+  const SkBitmap centred =
+      render(skia::Paint::radial({50, 50}, 50, stops).staticShader(), 100, 100);
+  const SkBitmap displaced = render(
+      skia::Paint::conical({30, 30}, 0, {50, 50}, 50, stops).staticShader(),
+      100, 100);
+  const SkBitmap slid =
+      render(skia::Paint::radial({30, 30}, 50, stops).staticShader(), 100, 100);
+
+  // The hot spot moved in both.
+  EXPECT_GT(SkColorGetR(displaced.getColor(30, 30)),
+            SkColorGetR(centred.getColor(30, 30)));
+  // The outer circle did not, in the conical: at the left edge the ramp
+  // has all but run out, as it had before the focus moved — where the
+  // slid radial, whose whole ramp went with its centre, still has a long
+  // way to go there.
+  EXPECT_LT(SkColorGetR(displaced.getColor(2, 50)),
+            SkColorGetR(slid.getColor(2, 50)));
+  EXPECT_NEAR(SkColorGetR(displaced.getColor(2, 50)),
+              SkColorGetR(centred.getColor(2, 50)), 24);
+}
+
+TEST(SkiaPaint, ABufferPrunesUntilItIsCommitted) {
+  // The whole point of a buffer over a custom leaf: the node keeps its
+  // picture caching, because the recipe compares by (source, revision).
+  // An identical re-describe between commits is the same value, and the
+  // first describe after a commit is a different one — exactly once.
+  auto pixels = std::make_shared<skia::PixelBuffer>(4, 4);
+  pixels->bitmap().eraseColor(SK_ColorRED);
+  const skia::Paint described = skia::Paint::buffer(pixels);
+  EXPECT_TRUE(described == skia::Paint::buffer(pixels));
+
+  // Writing without committing publishes nothing: the snapshot the
+  // shader holds is the one taken at the last commit, so a describe over
+  // an edited-but-uncommitted buffer still prunes.
+  pixels->bitmap().eraseColor(SK_ColorBLUE);
+  EXPECT_TRUE(described == skia::Paint::buffer(pixels));
+  EXPECT_EQ(SkColorGetR(render(described.staticShader()).getColor(1, 1)), 255u);
+
+  pixels->commit();
+  const skia::Paint after = skia::Paint::buffer(pixels);
+  EXPECT_FALSE(described == after);
+  EXPECT_TRUE(after == skia::Paint::buffer(pixels));
+  EXPECT_EQ(SkColorGetB(render(after.staticShader()).getColor(1, 1)), 255u);
+
+  // A null buffer is a paint that draws nothing rather than a crash.
+  EXPECT_EQ(skia::Paint::buffer(nullptr).staticShader(), nullptr);
 }
 
 TEST(SkiaPaint, SettingOneUniformTwiceReplacesItRatherThanStacking) {

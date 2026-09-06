@@ -28,6 +28,7 @@ namespace {
  *  recipe to generate the program it generates when it is dressed. */
 Texture stand(SkColor color) {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
+  if (!s) return {};
   s->getCanvas()->clear(color);
   return Texture::of(s->makeImageSnapshot());
 }

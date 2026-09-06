@@ -2,9 +2,10 @@
 
 /** @file
  * Shader fields — surfaces evaluated per pixel rather than baked as a
- * tile: the halftone ramp, Perlin noise, luminance grain, and the ripple
- * that resamples a layer through a sine displacement. Every parameter is
- * a uniform; each returns a Material.
+ * tile: the halftone ramp, Perlin noise, luminance grain, the tube
+ * overlay of a scanline, a mask and a bloom, and the ripple that
+ * resamples a layer through a sine displacement. Every parameter is a
+ * uniform; each returns a Material.
  */
 
 #include <sigilmaterial/color/Color.h>

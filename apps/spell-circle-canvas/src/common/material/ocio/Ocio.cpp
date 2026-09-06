@@ -169,7 +169,6 @@ OCIO::ConstConfigRcPtr loadConfig(std::string_view config) {
 
 Material bake(const OCIO::ConstConfigRcPtr& config,
               const OCIO::ConstTransformRcPtr& transform, int lutSize) {
-  const int n = std::clamp(lutSize, 8, 129);
   OCIO::ConstProcessorRcPtr proc = config->getProcessor(transform);
   OCIO::ConstCPUProcessorRcPtr cpu = proc->getDefaultCPUProcessor();
   // A transform whose channels are independent carries no more than one
@@ -178,6 +177,7 @@ Material bake(const OCIO::ConstConfigRcPtr& config,
   // transforms that actually need it.
   if (std::optional<std::vector<float>> row = bakeResponse(cpu))
     return responseMaterial(f16Image(*row, kResponseSize, 1));
+  const int n = std::clamp(lutSize, 8, 129);
   return lutMaterial(bakeLut(cpu, n), n);
 }
 

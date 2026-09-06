@@ -54,10 +54,10 @@ std::string uncommented(std::string_view source) {
       out[i++] = ' ';
       while (i + 1 < out.size() && !(out[i] == '*' && out[i + 1] == '/'))
         out[i++] = ' ';
-      if (i + 1 < out.size()) {
-        out[i++] = ' ';
-        out[i++] = ' ';
-      }
+      // An unterminated block comment runs to the end of the source, and
+      // every character of it is comment: blanking all but the last one
+      // would leave a word behind for the scan to read as code.
+      while (i < out.size()) out[i++] = ' ';
     } else {
       ++i;
     }

@@ -110,7 +110,9 @@ class EnvironmentMap {
   /** The width level 0 of `chain()` is built at. A panorama is often
    *  larger than a reflection can show, and every level above 0 is a blur
    *  of it, so the chain is built at a bounded size rather than at the
-   *  source's. */
+   *  source's — bounded ABOVE only. A panorama smaller than that bound
+   *  keeps its own width: raising it would prefilter pixels that were
+   *  invented on the way up. */
   int prefilterSize() const;
   /** This map with `prefilterSize()` set to @p width. The panorama is
    *  untouched; only the chain changes. */

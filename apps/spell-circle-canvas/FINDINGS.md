@@ -293,11 +293,7 @@ at front, middle and end, and the dropped `Blend.OklabMidGrayIsPerceptual`.
 
 ## SigilMaterial (findings/review-material.md)
 
-Should-fix: `texture/test/TextureTest.cpp` (690) split by subject.
-
-Tests missing: `Paint::sweep`, `Paint::conical`, `Paint::buffer` and
-`PixelBuffer`, MedianCut on degenerate input, harmonies across the 360/0
-wrap.
+Left: the README's chapter files (colour and paint).
 
 ## SigilGeometry mesh, point operators, kit, device (findings/review-geometry-mesh-pop.md)
 

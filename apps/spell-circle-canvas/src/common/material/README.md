@@ -1063,7 +1063,11 @@ from wherever that consumer keeps it.
 
 The core links no renderer; the texture feature links Skia because a
 texture IS a Skia image with its sampling, and SigilImage because an
-asset is a source. SigilIO owns resource access and SigilImage owns
+asset is a source. The Skia seam is therefore wider than
+`sigilmaterial/skia/*`: every `texture/*.h`, `pattern/Tile.h` and
+`kit/TextPaint.h` names a Skia type in its own signatures, because an
+image, a baked tile and a text paint ARE Skia values. A header outside
+those places that needed one would be the boundary moving. SigilIO owns resource access and SigilImage owns
 image meaning, so this library decodes no pixels and opens no consumer asset
 file — every door that needs pixels takes them or takes a decoder. Its own
 shader files are compiled into its archives rather than read through SigilIO,

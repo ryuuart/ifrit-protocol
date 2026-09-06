@@ -74,9 +74,10 @@ constexpr char kFillPrefix[] = "material.kit.surface.";
  *  surfaces compare equal. */
 Texture flat(const char* key, SkColor4f color) {
   return Texture::produce(std::string(kFillPrefix) + key,
-                          [color] {
+                          [color]() -> sk_sp<SkImage> {
                             sk_sp<SkSurface> s = SkSurfaces::Raster(
                                 SkImageInfo::MakeN32Premul(1, 1));
+                            if (!s) return nullptr;
                             s->getCanvas()->clear(color);
                             return s->makeImageSnapshot();
                           })

@@ -61,6 +61,9 @@ sk_sp<SkImage> bevelImage(const SkPath& path, SkIRect bounds, float bevelPx,
   SkBitmap out;
   out.allocPixels(
       SkImageInfo::Make(w, h, kRGBA_8888_SkColorType, kOpaque_SkAlphaType));
+  // RGBA is asked for, so RGBA is written: byte 0 red, byte 3 alpha. The
+  // N32 shift macros describe the platform's own 32-bit order, which is
+  // this one on every target this builds for and is not the same claim.
   const float steep = std::max(bevelPx, 1.0f) * heightScale;
   auto at = [&](int x, int y) {
     x = std::clamp(x, 0, w - 1);
@@ -81,8 +84,7 @@ sk_sp<SkImage> bevelImage(const SkPath& path, SkIRect bounds, float bevelPx,
         return (uint32_t)std::clamp(
             (int)std::lround((f * 0.5f + 0.5f) * 255.0f), 0, 255);
       };
-      row[x] = (0xffu << SK_A32_SHIFT) | (enc(nx) << SK_R32_SHIFT) |
-               (enc(ny) << SK_G32_SHIFT) | (enc(nz) << SK_B32_SHIFT);
+      row[x] = enc(nx) | (enc(ny) << 8) | (enc(nz) << 16) | (0xffu << 24);
     }
   }
   out.setImmutable();

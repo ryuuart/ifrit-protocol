@@ -165,9 +165,11 @@ std::vector<Material> everyRecipe() {
   all.push_back(crtOverlay());
   sk_sp<SkSurface> content =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
-  content->getCanvas()->clear(SK_ColorMAGENTA);
   Material warp = ripple(4, 32);
-  warp.child("content", Texture::of(content->makeImageSnapshot()));
+  if (content) {
+    content->getCanvas()->clear(SK_ColorMAGENTA);
+    warp.child("content", Texture::of(content->makeImageSnapshot()));
+  }
   all.push_back(std::move(warp));
   return all;
 }

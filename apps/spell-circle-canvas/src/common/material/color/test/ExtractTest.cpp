@@ -214,6 +214,72 @@ TEST(Extract, TheDividedBoxesCoverTheRangeTheyWereGiven) {
   EXPECT_GT(table.at(3).r, 0.65f);
 }
 
+TEST(Harmony, TheAnglesHoldAcrossTheWrapAtZero) {
+  // Every angle in a scheme is read modulo the circle, so a base near
+  // the end of the turn is the case where a rotation that forgot to
+  // normalise shows: the hue asked for lands past 360 and comes back
+  // somewhere else entirely, or the fit into sRGB is asked about an
+  // angle that is not on the wheel.
+  const Oklch nearTheWrap{0.62f, 0.11f, 350.0f, 1.0f};
+  const Color base = fromOklch(nearTheWrap);
+  const float baseHue = toOklch(base).hueDegrees;
+  EXPECT_NEAR(hueApart(baseHue, 350.0f), 0.0f, 1.0f);
+
+  // 350 + 30 is 20, not 380.
+  const Color turned = rotateHue(base, 30.0f);
+  EXPECT_NEAR(hueApart(toOklch(turned).hueDegrees, baseHue), 30.0f, 1.0f);
+  EXPECT_NEAR(toOklch(turned).hueDegrees < 180.0f
+                  ? toOklch(turned).hueDegrees
+                  : toOklch(turned).hueDegrees - 360.0f,
+              20.0f, 1.5f);
+
+  // …and a whole scheme crosses it the same way, spread and all.
+  const Palette wrapped = harmony(base, Scheme::Tetrad, 350.0f);
+  ASSERT_EQ(wrapped.size(), 4u);
+  EXPECT_EQ(wrapped.at(0), base);
+  for (int i = 1; i < 4; ++i)
+    EXPECT_LE(hueApart(toOklch(wrapped.at(i)).hueDegrees, baseHue), 180.0f);
+  // A tetrad is two complementary pairs however far round the wheel its
+  // spread reaches: the base against entry 2, and the spread hue against
+  // entry 3.
+  EXPECT_NEAR(hueApart(toOklch(wrapped.at(2)).hueDegrees, baseHue), 180.0f,
+              1.0f);
+  EXPECT_NEAR(hueApart(toOklch(wrapped.at(3)).hueDegrees,
+                       toOklch(wrapped.at(1)).hueDegrees),
+              180.0f, 1.0f);
+  // The spread itself crossed the wrap: 350 degrees on from the base is
+  // ten degrees back from it, not a turn and ten degrees on.
+  EXPECT_NEAR(hueApart(toOklch(wrapped.at(1)).hueDegrees, baseHue), 10.0f,
+              1.0f);
+}
+
+TEST(Extract, MedianCutAnswersTheDegenerateInputsTheSameWayKMeansDoes) {
+  // The two methods are one door with a prop, so the answers a caller
+  // can rely on cannot depend on which was asked for: nothing to read is
+  // an empty table, one colour is a table of one, and a picture with
+  // fewer colours than the table asked for is a shorter table rather
+  // than one entry repeated.
+  constexpr PaletteOptions kCut{.entries = 4,
+                                .method = PaletteMethod::MedianCut};
+  EXPECT_TRUE(palette({}, kCut).empty());
+
+  const std::vector<Color> onlyRed(32, Color{1, 0, 0, 1});
+  const Palette one = palette(onlyRed, kCut);
+  ASSERT_EQ(one.size(), 1u);
+  EXPECT_LT(deltaE(one.at(0), Color{1, 0, 0, 1}), 2.0f);
+
+  const std::vector<Color> two{{1, 0, 0, 1}, {0, 0, 1, 1}, {1, 0, 0, 1}};
+  EXPECT_EQ(
+      palette(two, {.entries = 6, .method = PaletteMethod::MedianCut}).size(),
+      2u);
+
+  // A cut-out's transparent surround is not one of its colours, on this
+  // method either.
+  std::vector<Color> withHole = two;
+  for (int i = 0; i < 500; ++i) withHole.push_back({0, 0, 0, 0});
+  EXPECT_EQ(palette(withHole, kCut).size(), 2u);
+}
+
 TEST(Extract, ItReadsTheSamePixelsTheSameWayAndSkipsTheOnesItIsTold) {
   std::vector<Color> pixels;
   for (int i = 0; i < 64; ++i)

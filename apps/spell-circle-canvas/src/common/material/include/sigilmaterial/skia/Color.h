@@ -32,8 +32,10 @@ constexpr SkColor4f toSkColor(const Color& c) noexcept {
   return {c.r, c.g, c.b, c.a};
 }
 
-/** A palette converted in one call — the shape every generator taking a
- *  list of colours is handed. */
+/** A palette converted in one call — the shape a generator taking a list
+ *  of colours is handed. A convenience with no caller in this tree: it is
+ *  kept because the two crossings are a pair, and a consumer holding
+ *  Skia colours should not write the loop again. */
 inline std::vector<Color> toColors(std::span<const SkColor4f> in) {
   std::vector<Color> out;
   out.reserve(in.size());
