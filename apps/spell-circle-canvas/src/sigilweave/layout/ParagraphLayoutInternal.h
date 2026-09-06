@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <deque>
 #include <span>
 #include <vector>
 
@@ -397,6 +398,69 @@ inline bool hyphenTakenAt(const std::vector<Word>& words, uint32_t endWordIndex,
          words[endWordIndex - 1].hyphenGlyph &&
          !words[endWordIndex - 1].mandatoryBreakAfter;
 }
+
+// THE SLACK EVERY FIT WORKS TO. A quarter of a layout unit: finer than a
+// hairline and coarse enough that a word whose width lands on the measure
+// by rounding is not pushed to the next line.
+inline constexpr float kFitEpsilon = 0.25f;
+
+// The BLOCKS of a text — the words between mandatory breaks — each with its
+// style resolved against the layout's own, its pitch resolved from its own
+// first span, and the air before it resolved by the one spacing rule: THE
+// GAP IS THE LARGER of the block before's `spaceAfter` and this block's
+// `spaceBefore`, everywhere, the head of the flow included.
+//
+// `settings` receives the resolved settings the blocks point at, one per run
+// of blocks that resolves alike and none at all for a text whose blocks
+// override nothing. It must outlive the blocks. Defined in Blocks.cpp.
+std::vector<Block> resolveBlocks(FontContext& fontContext,
+                                 const Paragraph& paragraph,
+                                 const ParagraphLayoutOptions& options,
+                                 std::deque<ParagraphLayoutOptions>& settings);
+
+// One block's runs, as the fill left them: the half-open range in
+// ParagraphLayout::runs and how many flow lines they landed on.
+struct PlacedBlock {
+  const Block* block = nullptr;
+  size_t firstRun = 0;
+  size_t endRun = 0;
+  int lines = 0;
+};
+
+// ENFORCES THE KEEPS AT THE FRAME BOUNDARY: lines the block may not leave
+// behind are taken out of this fill and reported as overflow, so the next
+// frame of the chain gets them. Answers the depth the retracted lines had
+// occupied, which the frame's vertical distribution must not spend. Defined
+// in Blocks.cpp.
+float enforceKeeps(FontContext& fontContext, Paragraph& paragraph,
+                   const std::vector<PlacedBlock>& placed,
+                   float remainderMeasure, ParagraphLayout& result);
+
+// Where the first baseline sits, in band units off the flow's near edge.
+// Defined in Blocks.cpp.
+float firstBandStart(const FrameOptions& frame, const Paragraph::Strut& strut,
+                     float ascent, float pitch);
+
+// What becomes of the room a frame has left over once the lines are in it.
+// Defined in Blocks.cpp.
+void distributeInFrame(const FrameOptions& frame, float usedDepth,
+                       int lineCount, ParagraphLayout& layout);
+
+// Greedy entry, one BLOCK at a time: fits and places every word of it that
+// fits, appending to `result`, and answers the last interval it used.
+// Defined in Greedy.cpp.
+size_t greedyBlock(FontContext& fontContext, Paragraph& paragraph,
+                   IntervalSequence& intervalSequence, const Block& block,
+                   size_t firstInterval, ParagraphLayout& result,
+                   uint32_t& overflowWord);
+
+// Trims the last placed line back and sets the overflow marker in the room
+// that made, in the style the text it stands for was set in. Defined in
+// Ellipsis.cpp.
+void applyEllipsis(FontContext& fontContext, Paragraph& paragraph,
+                   IntervalSequence& intervalSequence,
+                   const ParagraphLayoutOptions& options,
+                   ParagraphLayout& result);
 
 // Knuth-Plass entry, one BLOCK at a time: breaks + places every word of it
 // that fits, appending to `result`. Takes the paragraph (not just its words)

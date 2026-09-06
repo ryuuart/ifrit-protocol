@@ -15,8 +15,9 @@ find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 sigil_library(SigilWeaveLayout
-  SOURCES BandScan.cpp BandScan.h Beside.cpp Flow.cpp Silhouette.cpp
-          InitialLetter.cpp LineBreak.cpp KnuthPlass.cpp LayoutMetrics.cpp
+  SOURCES BandScan.cpp BandScan.h Beside.cpp Blobs.cpp Blobs.h Blocks.cpp
+          Ellipsis.cpp Flow.cpp Greedy.cpp InitialLetter.cpp KnuthPlass.cpp
+          LayoutMetrics.cpp LineBreak.cpp Placement.cpp Silhouette.cpp
           ParagraphLayoutInternal.h
   HEADERS Beside.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
           LayoutOptions.h Mojikumi.h Overflow.h ParagraphLayout.h

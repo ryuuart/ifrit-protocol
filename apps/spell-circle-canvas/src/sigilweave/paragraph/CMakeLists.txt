@@ -10,7 +10,8 @@
 find_package(boost_container CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilWeaveParagraph
-  SOURCES Paragraph.cpp WordSegmentList.cpp RichText.cpp
+  SOURCES ParagraphAnalysis.cpp ParagraphEdits.cpp
+          ParagraphShaping.cpp WordSegmentList.cpp RichText.cpp
   HEADERS Paragraph.h Word.h RichText.h Unit.h
   PUBLIC SigilWeaveFonts
   PRIVATE SigilWeaveUnicode Boost::container)
