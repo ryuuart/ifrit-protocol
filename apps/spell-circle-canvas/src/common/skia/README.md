@@ -19,7 +19,8 @@ Graphite on whatever device it is handed and reads it through the entry
 points below.
 
 Namespace `sigil::skia`. Headers live under `<sigilskia/<feature>/...>`;
-`<sigilskia/Skia.h>` is the umbrella over the Qt-free features.
+`<sigilskia/Skia.h>` is the umbrella over the graphite feature; the draw
+feature is included by its own header, `<sigilskia/draw/Direct.h>`.
 
 ## Features
 
@@ -38,8 +39,8 @@ links `SigilCoreHardware` — the qt feature links graphite — and nothing
 there knows Skia exists.
 The draw feature is header-only over Skia and links neither. A Qt host links `SigilSkiaQt`, which carries the
 umbrella with it. A consumer that owns its own Metal device (the native
-macOS app, the headless gallery, the GPU tests and benchmarks) links
-`SigilSkia` and never sees Qt.
+macOS app, the GPU tests and benchmarks) links `SigilSkia` and never
+sees Qt.
 
 ## Using it
 
@@ -165,8 +166,8 @@ rather than raw handles: it takes whichever API the device is and calls
 the matching bring-up. A stale handle wraps nothing — `canvas()` stays
 null — so a texture destroyed under a host's feet stops it drawing
 rather than reaching whatever now holds the slot. What a device is, how a
-handle goes stale and what a fence promises are all in SigilCore's
-README; what is here is only what Graphite does over one.
+handle goes stale and what a fence promises are SigilCoreHardware's;
+what is here is only what Graphite does over one.
 
 **A float image needs a half-float copy to be sampled.** A decoded HDR
 panorama lands as 32-bit float RGBA, which keeps the range a sun needs
@@ -202,7 +203,7 @@ handles it by drawing another way, never by assuming an API.
 Graphite shares the device's one command queue, so a signal queued behind
 `submit()` is reached only once the work has run. What a fence is, how a
 handle goes stale and when a destroyed texture is actually released are
-SigilCoreHardware's — its README states them.
+SigilCoreHardware's.
 
 **One recorder per thread, one context under a lock.** A Graphite
 `Recorder` belongs to the thread that records on it; the `Context` may be
@@ -268,8 +269,8 @@ device's business, not this library's.
 `createVulkan` on the adopted Vulkan handles; `GraphiteContext::create`
 picks between them off the device it is handed. The Vulkan path is live
 only where the linked Skia carries the backend, and a device with no
-Vulkan runtime behind it never reaches this library at all — SigilCore's
-README states what each backend a device can be actually supports.
+Vulkan runtime behind it never reaches this library at all — what each
+backend a device can be actually supports is SigilCoreHardware's.
 
 **A null canvas means the wrap failed.** `OffscreenSurface::canvas()`
 returns null in that case — check it before drawing. A wrap by handle
@@ -337,19 +338,22 @@ or a scene.
 umbrella are always built, with one test binary `skia_test` over
 `draw/test/` and `graphite/test/` and one benchmark binary `skia_bench`
 (Google Benchmark, through the `benches` target and
-`scripts/bench_ledger.py`). The pixel cases are arithmetic over an
-`SkImage` — no device, no context, no bring-up — which is why they carry
-no label and run on every machine. The `SigilSkiaGraphite` suite takes
+`scripts/bench_ledger.py`). The `SkiaPixels` case is arithmetic over an
+`SkImage` — no device, no context, no bring-up — which is why it carries
+no label and runs on every machine. The `SigilSkiaGraphite` suite takes
 the Metal path end to end on
 the system device: a context, a wrapped texture, a clear, and the pixels
-read back through the queue the context shares. It then takes the same
+read back through the queue the context shares. It reads the same
+texture back the other way as an image a draw samples, and refuses to
+wrap one that is not there. It then takes the same
 wrap through a device — a texture the device made, the surface built
 from its handle, a stale handle that wraps nothing, a fence the submit
 signals, and the factory that reads a device the host adopted — on
-Metal. The same wrap on a Vulkan device is SigilGeometry's `Device` suite's,
+Metal. The same wrap on a Vulkan device is SigilGeometry's
+`AdoptedGraphite` suite's,
 since that is where a Vulkan device is made. The half-float read is
-checked in the pixel binary, since its whole reason is a sampler that
-refuses F32.
+checked in the `SkiaPixels` case, since its whole reason is a sampler
+that refuses F32.
 Every case in it that needs a device says so — the `SigilSkiaGraphite`
 suite carries the ctest label `gpu` and each such case skips, naming what it
 wanted, rather than failing on a machine with no Metal device. A case

@@ -65,8 +65,8 @@ SIGIL_SKETCH(Bounce, "Draw", "The bouncing ball, pasted from p5.")
 ```
 
 `createCanvas`, `loadImage` and the moment a plate is taken belong to
-whoever steps the pen — here the `sketch::DrawSketch` runtime, whose
-canon is `src/sketch/README.md` — and both `setup` and `draw` speak to
+whoever steps the pen — here the `sketch::DrawSketch` runtime — and
+both `setup` and `draw` speak to
 that runtime through its context, which hands over the pen: in `setup`
 for anything a p5 setup would have set on the canvas, in `draw` as the
 pen of the frame. Everything else is the pen.
@@ -499,7 +499,9 @@ file's and the numbers are this library's.
 `brush_live_tutorial` moves through field lines, the stock-tool wheel,
 overlapping hatches, accumulating watercolor and pressure-bearing splines
 in one authoring example. `brush_engine_atlas` and `brush_dynamics` are
-compact plates for tool definitions and stylus input. `brush_rain`,
+compact plates for tool definitions and stylus input, and `brush_custom`
+is the one for a tool built from one shape source and one grain source.
+`brush_rain`,
 `brushwork_currents` and `brush_botanical_study` use the same parts in
 complete compositions. `bristle_bloom` and `bristle_current` are
 lower-level companion studies that build brush bundles from the pen's
@@ -543,7 +545,7 @@ painted is its own library's business: that library declares
 `paintRetained(Pen&, const Guest&, const SkRect&, Slot)` in the guest's
 own namespace, argument lookup finds it, and this library names no
 guest. SigilCompose declares it for `Element`, in its `draw` feature,
-which is also where `compose::draw(program)` hosts a pen program inside
+which is also where `compose::pen(program)` hosts a pen program inside
 a node — the same door from the other side.
 
 **The clock is the runtime's.** A guest's own clock is stepped by the
@@ -596,13 +598,16 @@ src/common/draw/
   Text.cpp        text through SigilWeave
   Color.cpp       the colour models and the CSS string
   Noise.cpp       the layered field
-  brush/          one source per header above; the executors (Stamps, Fibres,
+  brush/          one source per header above that has a body to compile
+                  (Shape.h, Dab.h, Field.h and Brush.h are declarations
+                  alone); the executors (Stamps, Fibres,
                   Tips, Grain) and the engine's strokes and surfaces in their
                   own files; the private seams DabStyle.h, Executors.h,
                   HatchLines.h, PenUnits.h, PolygonMath.h; test/ and bench/
   brush/format/   the native reader and writer (Native), the two importers
                   (Photoshop, Procreate), and the private Zip and Images;
                   test/
+  shaders/        Subtract.sksl, the ground SUBTRACT is laid with
   test/           the pen's cases and the Paper fixture in support/
   bench/          draw_bench
 ```
@@ -618,8 +623,9 @@ src/common/draw/
   engine's direction registry (`brush/Engine.h`) and the brush catalogue
   (`brush/Catalogue.h`) each hold a Boost table or fold one of its keys,
   so a consumer of those headers compiles against Boost. Both are
-  header-only and declared PUBLIC on the targets; the keys live inside
-  one run, which is why Boost's fold rather than the pinned one.
+  header-only and declared PUBLIC where they are named — `SigilDraw`
+  takes both, `SigilDrawBrush` takes the table — and the keys live
+  inside one run, which is why Boost's fold rather than the pinned one.
 * **Knows no runtime and no compose.** The pen is handed a canvas and a
   frame; the sketch runtime that steps it and the compose feature that
   hosts it both stand above this library. A guest reaches the pen
@@ -652,9 +658,14 @@ src/common/draw/
 
 From `apps/spell-circle-canvas`:
 
+Targets: `SigilDraw`, `SigilDrawBrush` and `SigilDrawBrushFormat` — one
+per feature directory (`.`, `brush/`, `brush/format/`) — with one test
+binary, `draw_test`, over every one of their `test/` directories and one
+benchmark binary, `draw_bench`, over the two `bench/` ones.
+
 ```sh
 cmake --build build --config Release --target draw_test draw_bench
-ctest --test-dir build -C Release -R '^draw_' --output-on-failure
+ctest --test-dir build -C Release --output-on-failure
 ./build/bin/Release/benches/draw_bench
 ```
 
@@ -671,10 +682,12 @@ density and put down in canvas units, a unit-space material ramping
 across the frame under `CANVAS` and across each box under `SHAPE`, a
 built `SkVertices` drawn with the pen's fill and moved by the pen's
 transform, and both paints answering null where the style says there is
-nothing to draw with. The text cases, under the ctest label `fonts`,
-holds text shaped and centred by its alignment and seated by its box; it
-shapes against the machine's system fonts, so it pins relations rather
-than pixels. `draw_bench` times ten thousand circles filled and stroked,
+nothing to draw with. The text cases hold text shaped and centred by its
+alignment, seated by its box, and black until a fill is set; they shape
+against the tree's instrument face, so they pin relations rather than
+pixels. The one case that names no face reads the machine's own
+families, and it alone — the `PenMachineFace` suite — carries the
+`fonts` ctest label. `draw_bench` times ten thousand circles filled and stroked,
 ten thousand rects, a screen of text, a translucent background and a
 thousand noise samples per frame; it builds through the `benches` target
 and runs through `scripts/bench_ledger.py`.
@@ -691,7 +704,12 @@ angle under a pen in degrees; the wash's interior and its closed layer;
 the mass inside its surface, with holes, under the engine's clip; the
 polygon's edges derived from its vertices; relative plots placed and
 scaled by the caller; the cursor through its field and inside its
-bounds; and the engine — selection and state, the pen's units and clock,
+bounds; the stamp's spacing as a fraction of its width, its scatter in
+both axes and the angle jitter on top of the heading; the grain standing
+still in the pen's space or riding the stamp, and how much of the canvas
+its depth may take; the trace that follows any callable direction, the
+stock fields as values with the vortex turning clockwise, and the warp
+that closes its path; and the engine — selection and state, the pen's units and clock,
 one clip over every interior and the outline, a closed shape's outline
 on its bent interior, plots placed where they were drawn, live input
 across event batches, the first live dab's heading, and cancel.
@@ -703,13 +721,14 @@ directory through a table and through a hub, the packed archive, the
 sampled tips at either subversion, and bytes that are no brush answering
 nothing.
 
-Every binary here draws on one fixture, `test/support/Paper.h` — a pen
+The cases that put pixels down draw on one fixture,
+`test/support/Paper.h` — a pen
 over a raster surface with the pixels readable back — whose font context
 is the tree-wide `src/test/Fonts.h`, so one process shapes against one
 memoised context. A case asserts one thing the pen promises and is
 named that promise as a sentence; it pins only what editing this library
-could falsify, and the one binary whose claims depend on the machine's
-faces carries the `fonts` label.
+could falsify, and the one case whose claim depends on the machine's
+faces — the `PenMachineFace` suite — carries the `fonts` label.
 
 The brush arms of `draw_bench` measure sampling, a field-traced watercolor mark,
 hatching, a curved dry mass, a pigment wash, and one stroke of an

@@ -148,7 +148,7 @@ Targets: `SigilSubstance`, `substance_test` (ctest) and `substance_bench`
 `scripts/bench_ledger.py`).
 
 ```sh
-ctest --test-dir build -C Release -R substance_test --output-on-failure
+ctest --test-dir build -C Release -R '^Substance' --output-on-failure
 build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
     --sketch substance_swatches
 ```

@@ -2,12 +2,14 @@
 
 SigilUsd moves the world's data in and out of USD. Out: a `Writer` builds
 a stage from the values a scene is made of — meshes with their placements
-and material slots, stamps as point instancers, lights, a camera — and
+and material slots, stamps as point instancers, lights, an environment
+map, a camera — and
 saves it as binary crate (`.usdc`, the default), ASCII (`.usda`), or a
 `.usdz` package. In: `readModel()` pours a USD stage's meshes, point
 instancers and materials into `geometry::mesh::codec::decode::Model`,
-the same currency every other format lands in, and `readLights()` and
-`readCameras()` hand back its emitters and cameras as the same values
+the same currency every other format lands in, and `readLights()`,
+`readEnvironments()` and `readCameras()` hand back its emitters,
+environment maps and cameras as the same values
 the writer took — so a stage this library authors round-trips whole.
 
 Materials travel as `UsdPreviewSurface` with `UsdUVTexture` inputs — the
@@ -23,7 +25,7 @@ a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilUsdRuntime` | `runtime/Runtime.h` | `usd::available()` — whether the USD file-format plugins are present in this process |
 | `SigilUsdWrite`   | `write/Writer.h`    | `WriteOptions` and `Writer` — a stage built from values and saved |
-| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model`; `readLights()` and `readCameras()` — its emitters and cameras as values |
+| `SigilUsdRead`    | `read/Reader.h`     | `ReadInfo` and `readModel()` — a stage read into a `Model`; `readLights()`, `readEnvironments()` and `readCameras()` — its emitters, environment maps and cameras as values |
 
 `SigilUsd` is the umbrella target over all three, and
 `<sigilusd/Usd.h>` the umbrella header. Write and read are independent
@@ -167,9 +169,9 @@ authored by hand must spell it.
 Public: SigilMaterialKit for the surface a preview surface is written
 from, SigilWorldLight for the emitters, SigilWorldElement for the
 environment map a dome light carries, and the geometry features each
-door takes values from (mesh, pop and camera for the writer; codec and
-mesh for the reader), plus Skia. Private: OpenUSD core (`usd`, `usdGeom`, `usdShade`, `usdLux`,
-`sdf`, `tf`, `gf`, `vt`) — no imaging, no MaterialX, and no public
+door takes values from (mesh, pop and camera for the writer; codec, mesh
+and camera for the reader), plus Skia. Private: OpenUSD core (`usd`, `usdGeom`, `usdShade`, `usdLux`,
+`usdUtils`, `ar`, `sdf`, `tf`, `gf`, `vt`) — no imaging, no MaterialX, and no public
 header names a `pxr` type; USD is included only by the sources and the
 internal headers beside them. Nothing beneath it links or includes this
 library; it is a leaf. It does not bake materials or
@@ -188,16 +190,17 @@ Targets: `SigilUsdRuntime`, `SigilUsdWrite`, `SigilUsdRead`, the
 Benchmark, through the `benches` target and `scripts/bench_ledger.py`).
 
 ```sh
-ctest --test-dir build -C Release -R '^usd_' --output-on-failure
+ctest --test-dir build -C Release -R '^Usd' --output-on-failure
 ```
 
-Two test binaries, one per door, over one fixture header at
+One test binary over both doors' cases — `UsdWrite` and `UsdRead`, with
+`UsdRuntime` beside them — sharing one fixture header at
 `test/Fixture.h`: the scratch path an authored stage is written to —
 the tree-wide `src/test/ScratchDir.h`, named for the process, so two
 runs never read each other's files and neither leaves one behind — the
 skip every case opens with, and the two-slot ring both doors are
-exercised over. Both binaries carry the `usd` ctest label, because
-without the plugin registry every case in them skips. The runtime leaf carries no test binary of its own; its
+exercised over. Every case carries the `usd` ctest label, because
+without the plugin registry all of them skip. The runtime leaf carries no test file of its own; its
 claim, that the probe answers and answers the same way twice, is
 asserted in `read/test/` beside the cases that skip on it.
 
@@ -206,20 +209,22 @@ them through USD's own API, one case per subject: the crate bytes and
 the stage metrics a consumer reads them by, a mesh's points with one
 bound subset per slot, the same material binding one prim and writing
 one image file, stamps as a point instancer over one prototype, the
-ascii a `.usda` extension asks for, and the prim paths names are
-sanitized into. The `.usdz` case stands in the read test, because what
+ascii a `.usda` extension asks for, the prim paths names are
+sanitized into, and the path it refuses to write. The `.usdz` case stands in the read test, because what
 a package is for is only visible from the far side of it: the archive's
 own magic bytes, nothing of the stage left standing beside it, and the
 model — the material's image included — read back out of the one file. The read test reads the hand-authored stages committed
-under `read/test/assets/` (an ASCII stage with a parent xform, a mixed
+under `test/assets/` (an ASCII stage with a parent xform, a mixed
 triangle-and-quad mesh with per-vertex `st` and `displayColor`, two
 subsets bound to two materials, a texture file beside it, and a point
 instancer, and a stage as another tool would author it: a sphere light
 with a shaping cone and no `sigil:` data, aimed by its own rotation
 under a translated parent, beside a camera with no focus distance) and
-round-trips stages the writer produced — its meshes, and one case each
+round-trips stages the writer produced — its meshes, an instancer read
+as a faceless part, and one case each
 for the sun, the point light, the spot, the camera, and a dome light's
-panorama beside the stage and its orientation. Every case skips, with
+panorama beside the stage and its orientation — beside what it refuses
+to open at all. Every case skips, with
 the reason, when the runtime probe says the plugins are absent, so a
 machine without them checks nothing here; every benchmark then registers
 nothing.

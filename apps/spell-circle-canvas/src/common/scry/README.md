@@ -155,8 +155,8 @@ one frame and Skia's caches keyed on it stay warm.
 
 **One renderer per process.** Ultralight allows exactly one, for the
 program's lifetime. `WebEngine::create()` returns null on a second call
-— which is why the CPU-mode and GPU-mode engines are tested and
-benchmarked in separate binaries.
+— which is why the CPU-mode and GPU-mode engines are tested in separate
+processes and benchmarked in separate runs.
 
 **Ownership is explicit by default.** A consumer chooses a
 `WebEngineConfig`, calls `WebEngine::create(config)` and owns the result.
@@ -203,13 +203,13 @@ and pass the handle to `updateTexture()`, or use `paint()`.
 
 ## Boundary
 
-Public dependencies: Skia, SigilCoreHardware and SigilSkia's graphite
-feature — every texture the engine hands
+Public dependencies: Skia, SigilCoreHardware, SigilSkia's graphite
+feature and Boost.Unordered — every texture the engine hands
 out is a `sigil::core::hardware::TextureHandle` on the host's `GpuDevice`, and the
 GPU driver draws over the host's `GraphiteContext`. Private:
 `Ultralight::Ultralight`, `Ultralight::AppCore` (the engine feature
-only), and Metal on Apple. No public header includes an Ultralight
-header.
+only), `SigilIOSource` (the platform feature only), and Metal on Apple.
+No public header includes an Ultralight header.
 
 SigilScry brings up no device and no context of its own unless the host
 shares none. It has no window, no event loop of its own beyond the web
