@@ -186,6 +186,7 @@
 
 #include <include/core/SkColor.h>
 #include <include/core/SkPaint.h>
+#include <shared/Instrument.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -338,51 +339,28 @@ inline float len(SkPoint a) { return std::sqrt(dot(a, a)); }
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> monoFace() {
-  return weave::ports::face({"Menlo"}, SkFontStyle::Normal());
-}
-sk_sp<SkTypeface> monoBoldFace() {
-  return weave::ports::face({"Menlo"}, SkFontStyle::Bold());
-}
-sk_sp<SkTypeface> uiFace() {
-  return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Normal());
-}
-sk_sp<SkTypeface> heavyFace() {
-  return weave::ports::face({"Helvetica Neue", "Helvetica"},
-                            SkFontStyle::kBlack_Weight);
-}
-
-weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,
-                       float track = 0.0f) {
-  return weave::textStyle(
-      {.face = std::move(tf), .size = size, .color = color, .track = track});
-}
-weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
-  return faced(monoFace(), size, c, track);
-}
-weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
-  return faced(monoBoldFace(), size, c, track);
-}
-weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
-  return faced(uiFace(), size, c, track);
-}
-Element t(const char* s, weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
-}
+using instrument::faced;
+using instrument::heavyFace;
+using instrument::mono;
+using instrument::monoB;
+using instrument::monoBoldFace;
+using instrument::monoFace;
+using instrument::t;
+using instrument::ui;
+using instrument::uiFace;
 
 /** The same three registers on the PEN: a pen carries one type and one
  *  fill, so a register is set rather than described. */
 void penMono(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
-  pen.textFont(weave::Type{.face = monoFace(), .size = size, .track = track});
+  pen.textFont(instrument::penType(monoFace(), size, track));
   pen.fill(c);
 }
 void penMonoB(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
-  pen.textFont(
-      weave::Type{.face = monoBoldFace(), .size = size, .track = track});
+  pen.textFont(instrument::penType(monoBoldFace(), size, track));
   pen.fill(c);
 }
 void penUi(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
-  pen.textFont(weave::Type{.face = uiFace(), .size = size, .track = track});
+  pen.textFont(instrument::penType(uiFace(), size, track));
   pen.fill(c);
 }
 

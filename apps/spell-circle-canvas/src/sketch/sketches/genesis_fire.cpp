@@ -134,6 +134,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkVertices.h>
+#include <shared/Instrument.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
@@ -290,46 +291,20 @@ constexpr double kFrontCrossSeconds = (kStageW - kX0) / kSpread;  // 5.762 s
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> monoFace() {
-  return weave::ports::face({"Menlo"}, SkFontStyle::Normal());
-}
-sk_sp<SkTypeface> monoBoldFace() {
-  return weave::ports::face({"Menlo"}, SkFontStyle::Bold());
-}
-sk_sp<SkTypeface> uiFace() {
-  return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Normal());
-}
-sk_sp<SkTypeface> heavyFace() {
-  return weave::ports::face({"Helvetica Neue", "Helvetica"},
-                            SkFontStyle::kBlack_Weight);
-}
-
-// A positional shorthand over the library's designated-init `textStyle()`,
-// for the one display line that names its own face.
-weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,
-                       float track = 0.0f) {
-  return weave::textStyle(
-      {.face = std::move(tf), .size = size, .color = color, .track = track});
-}
-// The three registers the panel is set in.
-weave::TextStyle mono(float size, SkColor4f c, float track = 0.0f) {
-  return faced(monoFace(), size, c, track);
-}
-weave::TextStyle monoB(float size, SkColor4f c, float track = 0.0f) {
-  return faced(monoBoldFace(), size, c, track);
-}
-weave::TextStyle ui(float size, SkColor4f c, float track = 0.0f) {
-  return faced(uiFace(), size, c, track);
-}
-
-Element t(const char* s, weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
-}
+using instrument::faced;
+using instrument::heavyFace;
+using instrument::mono;
+using instrument::monoB;
+using instrument::monoBoldFace;
+using instrument::monoFace;
+using instrument::t;
+using instrument::ui;
+using instrument::uiFace;
 
 /** The same register on the PEN: a pen carries one type and one fill, so
  *  a register is set rather than described. */
 void penMono(Pen& pen, float size, SkColor4f c, float track = 0.0f) {
-  pen.textFont(weave::Type{.face = monoFace(), .size = size, .track = track});
+  pen.textFont(instrument::penType(monoFace(), size, track));
   pen.fill(c);
 }
 

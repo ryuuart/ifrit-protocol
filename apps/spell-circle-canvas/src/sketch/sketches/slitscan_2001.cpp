@@ -198,6 +198,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <shared/Instrument.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
@@ -347,45 +348,22 @@ constexpr float kPanelStripW = 432;  // 144 in at 3.0 px/in, exact
 // ---------------------------------------------------------------------------
 // Type
 
-sk_sp<SkTypeface> uiFace() {
-  return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Normal());
-}
-sk_sp<SkTypeface> uiBoldFace() {
-  return weave::ports::face({"Helvetica Neue"}, SkFontStyle::Bold());
-}
-sk_sp<SkTypeface> monoFace() {
-  return weave::ports::face({"Menlo"}, SkFontStyle::Normal());
-}
-sk_sp<SkTypeface> monoBoldFace() {
-  return weave::ports::face({"Menlo"}, SkFontStyle::Bold());
-}
+using instrument::faced;
+using instrument::mono;
+using instrument::monoB;
+using instrument::monoBoldFace;
+using instrument::monoFace;
+using instrument::t;
+using instrument::ui;
+using instrument::uiB;
+using instrument::uiBoldFace;
+using instrument::uiFace;
 
-weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,
-                       float track = 0.0f) {
-  return weave::textStyle(
-      {.face = std::move(tf), .size = size, .color = color, .track = track});
-}
-weave::TextStyle ui(float s, SkColor4f c, float tr = 0) {
-  return faced(uiFace(), s, c, tr);
-}
-weave::TextStyle uiB(float s, SkColor4f c, float tr = 0) {
-  return faced(uiBoldFace(), s, c, tr);
-}
-weave::TextStyle mono(float s, SkColor4f c, float tr = 0) {
-  return faced(monoFace(), s, c, tr);
-}
-weave::TextStyle monoB(float s, SkColor4f c, float tr = 0) {
-  return faced(monoBoldFace(), s, c, tr);
-}
 /** The quotation register: condensed 0.94 with 0.4 of tracking. */
 weave::TextStyle quo(float s, SkColor4f c) {
   weave::TextStyle st = faced(uiFace(), s, c, 0.4f);
   st.condense(0.94f);
   return st;
-}
-
-Element t(const std::string& s, weave::TextStyle st) {
-  return text(toU8(s), std::move(st));
 }
 
 Element rule(float w, SkColor4f c, float h = 1.0f) {
