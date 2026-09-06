@@ -6,20 +6,16 @@
  */
 
 #include <QtQml/qqmlregistration.h>
+#include <sigilsketch/plate/ThumbnailQueue.h>
 
 #include <QtCore/QObject>
 #include <QtCore/QProcess>
 #include <QtCore/QUrl>
 #include <QtCore/QVariantList>
 #include <QtCore/QVariantMap>
-#include <atomic>
 #include <chrono>
-#include <condition_variable>
-#include <deque>
 #include <filesystem>
-#include <mutex>
-#include <set>
-#include <thread>
+#include <memory>
 #include <vector>
 
 namespace sigil::weave {
@@ -216,11 +212,13 @@ class SketchCatalog : public QObject {
   void run(const QString& label, const QStringList& arguments,
            const QString& prefix);
 
-  /** The background worker loop: one render at a time, in the order rows
-   *  asked, marshalling each result back to the GUI thread. */
-  void renderLoop();
-  /** What the worker reports after one still, on the GUI thread: the row
-   *  or the note, and how much of the fill is left. */
+  /** WHAT THE QUEUE'S WORKER LEFT, on the worker's own thread: the note
+   *  a sketch with no still is remembered by, and the marshalling back to
+   *  the GUI thread of everything that touches the model. */
+  void reportThumbnail(int index, sigil::sketch::ThumbnailOutcome outcome,
+                       int remaining);
+  /** What one still came to, on the GUI thread: the row or the note, and
+   *  how much of the fill is left. */
   void finished(int index, const QString& name, const QString& note,
                 int remaining);
   /** Fills @p index's row plate from a fresh thumbnail already on disk,
@@ -232,32 +230,15 @@ class SketchCatalog : public QObject {
   QString m_taskLine;
   QString m_taskPrefix;
 
-  // The thumbnail worker and its queue. The mutex guards the queue, the
-  // in-flight index and the stop flag; the row model is touched only on
-  // the GUI thread.
-  std::thread m_worker;
-  std::mutex m_mutex;
-  std::condition_variable m_wake;
-  std::deque<int> m_pending;
-  std::set<int> m_queued;  // what is pending or in flight, to dedupe
-  std::set<int> m_failed;  // rendered once and failed — never retried
-  int m_inFlight = -1;
-  bool m_stop = false;
+  /** THE ORDER STILLS ARE DRAWN IN, and the worker that draws them —
+   *  the library's, so what is ordered is testable without a window.
+   *  This class supplies the render and marshals every report back to
+   *  the GUI thread, and touches the row model nowhere else. */
+  std::unique_ptr<sigil::sketch::ThumbnailQueue> m_thumbnails;
 
   // The fill, touched only on the GUI thread.
   bool m_filling = false;
   int m_fillTotal = 0;
   int m_fillDone = 0;
   QString m_fillNote;
-
-  /** RAISED TO LET GO OF THE RENDER ITSELF, and read by it between
-   *  frames. Outside the mutex because the render reads it while the
-   *  worker holds nothing, and because whoever raises it is about to
-   *  wait for the worker to answer.
-   *
-   *  It is never lowered. Both things that raise it — the fill ending
-   *  and this object going — are one-way: after either, no still is
-   *  wanted from this worker again, and a flag that could be lowered
-   *  would have to be raised again by whoever races it. */
-  std::atomic_bool m_abandon{false};
 };

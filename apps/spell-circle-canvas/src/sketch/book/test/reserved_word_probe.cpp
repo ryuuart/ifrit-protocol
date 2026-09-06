@@ -13,12 +13,11 @@
 //   Sketchbook src/sketch/book/test/reserved_word_probe.cpp --gpu
 //   # then, from the browser, present any other sketch — it must draw.
 //
-// Headless this cannot be seen: the failure is the window's, not the
-// host's (see live/Host.cpp — a second Host for a second file is fresh).
-// The fix is in SketchbookView::render() and its timer: a failed Graphite
-// frame drops only that session and keeps the context and the residents,
-// and every exit re-requests update(), so the window keeps asking for
-// frames and the next selection reopens.
+// Headless this cannot be seen: the failure is the window's and not the
+// host's, and a host opened for a second file is fresh. What must hold is
+// that a failed Graphite frame drops ONE session and keeps the context
+// and the other residents, and that every exit re-requests a frame, so
+// the window goes on asking and the next selection reopens.
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>

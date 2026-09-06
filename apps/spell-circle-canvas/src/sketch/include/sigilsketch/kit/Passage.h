@@ -5,10 +5,16 @@
  * typed into it.
  */
 
-#include <sigilsketch/canvas/Sketch.h>
-
 #include <string>
 #include <string_view>
+
+namespace sigil::sketch {
+/** The per-frame value a sketch body is handed; its own words are
+ *  `<sigilsketch/canvas/Sketch.h>`, which this names and does not
+ *  include: the kit's headers reach one signature's worth of the canvas
+ *  runtime, not the whole compose surface behind it. */
+struct SketchContext;
+}  // namespace sigil::sketch
 
 namespace sigil::sketch::kit {
 

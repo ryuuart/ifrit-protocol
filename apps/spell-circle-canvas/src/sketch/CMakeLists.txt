@@ -54,18 +54,18 @@ set(SIGIL_SKETCH_SOURCES
   canvas/Context.cpp canvas/Session.cpp
   set/Context.cpp set/Session.cpp
   draw/Session.cpp
-  live/Host.cpp live/Residency.cpp
+  live/BuildDir.cpp live/Host.cpp live/Residency.cpp live/SkewGuard.cpp
   plate/Compare.cpp plate/Graphite.cpp plate/Story.cpp plate/Sweep.cpp
-  plate/Thumbnails.cpp)
+  plate/ThumbnailQueue.cpp plate/Thumbnails.cpp)
 set(SIGIL_SKETCH_HEADERS
-  core/Assets.h core/CanvasSpec.h core/Crash.h core/Device.h core/Kind.h
-  core/Registry.h core/Session.h core/Sources.h
+  core/Assets.h core/CanvasSpec.h core/Crash.h core/Device.h core/Fit.h
+  core/Kind.h core/Registry.h core/Session.h core/Sources.h
   canvas/Sketch.h
   set/Set.h
   draw/Draw.h
   live/Host.h live/Residency.h
   plate/Compare.h plate/FrameStats.h plate/Graphite.h plate/Story.h
-  plate/Sweep.h plate/Thumbnails.h)
+  plate/Sweep.h plate/ThumbnailQueue.h plate/Thumbnails.h)
 set(SIGIL_SKETCH_PUBLIC
   SigilCoreComparable SigilGeometryMeshCamera SigilImageAsset SigilIO
   SigilVideoDecode SigilVideoCore SigilImageEncode SigilMeasure

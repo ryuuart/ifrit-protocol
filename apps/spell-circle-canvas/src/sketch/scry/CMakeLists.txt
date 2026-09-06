@@ -5,7 +5,7 @@
 # The engine allows one renderer per process, and the shared-engine case
 # ends by shutting its one down for good, so these two cases must not meet
 # in one process. ctest runs every discovered case in a process of its own,
-# which is what keeps them apart now that the library has one binary.
+# which is what keeps them apart, since the library has one binary.
 sigil_test(sketch_test
   SOURCES test/SharedEngineTest.cpp test/SettledPageTest.cpp
   LIBRARIES SigilSketch

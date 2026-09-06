@@ -7,6 +7,9 @@
 #include <gtest/gtest.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Thumbnails.h>
+#include <sigilsketch/set/Set.h>
+#include <sigilworld/element/Element.h>
+#include <sigilworld/frame/Runtime.h>
 
 #include <atomic>
 #include <chrono>
@@ -92,6 +95,35 @@ struct Plate : Sketch {
   }
 };
 
+namespace world = sigil::world;
+
+/** AN EXECUTOR THAT DRAWS NOTHING AND REMEMBERS BEING REACHED — the
+ *  stand-in for the device runtime a host installs, so a case can assert
+ *  that a still never went through it. */
+struct Reached : world::Executor {
+  std::atomic_int* reached = nullptr;
+  void execute(const world::PassWork&, const world::View&,
+               world::Targets&) const override {
+    if (reached) reached->fetch_add(1);
+  }
+  bool operator==(const Reached& other) const {
+    return reached == other.reached;
+  }
+};
+
+/** A set with nothing in it: what is being asserted is which runtime the
+ *  session opened on, which needs no subject. */
+struct Lit : Set {
+  void setup(SetContext& ctx) override {
+    ctx.canvas(48, 32);
+    ctx.background({0, 0, 0, 1});
+    ctx.captureAt(0.05);
+  }
+  world::Frame describe(float /*seconds*/) override {
+    return world::Element().key("empty");
+  }
+};
+
 template <class SketchType>
 Entry entryOf(const char* name) {
   return Entry{name, name, "Test", "a thumbnail fixture", &kindOf<SketchType>};
@@ -103,6 +135,29 @@ ThumbnailRun runInto(const std::filesystem::path& out, std::string stem) {
   run.stem = std::move(stem);
   run.maxDimension = 64;
   return run;
+}
+
+/** A STILL IS CPU-ONLY WHATEVER THE PROCESS HOLDS. The worker that draws
+ *  one runs beside a window that is presenting, and a device is one
+ *  device and one queue: a background walk driving the queue the render
+ *  thread draws with is two threads inside one graphics context. */
+TEST(ThumbnailStore, ASetIsDrawnOnTheCpuWhateverTheProcessInstalled) {
+  const ScratchDir dir("sigil_thumbnail_set");
+  std::atomic_int reached{0};
+  Reached installed;
+  installed.reached = &reached;
+  useRuntime(world::Runtime(installed));
+
+  const Entry entry = entryOf<Lit>("lit");
+  ThumbnailRun run = runInto(thumbnailFile(dir.path, "lit", "aaaa"), "lit");
+  const ThumbnailOutcome outcome =
+      renderThumbnail(entry, fonts(), assets(), run);
+  useRuntime({});
+
+  EXPECT_EQ(ThumbnailOutcome::Wrote, outcome);
+  EXPECT_TRUE(std::filesystem::exists(run.out));
+  EXPECT_EQ(reached.load(), 0)
+      << "the still went through the runtime the process installed";
 }
 
 /** A file with @p text in it, so a key has something to hash. */
@@ -144,6 +199,36 @@ TEST(ThumbnailStore, TheKeyIsTheSourceAndNothingElse) {
   std::filesystem::last_write_time(source, when);
   EXPECT_EQ(first, thumbnailKey(source))
       << "the source is back, so the still it had is fresh again";
+}
+
+/** A SKETCH THAT IS A DIRECTORY IS BUILT FROM EVERY SOURCE BESIDE ITS
+ *  ENTRY, so its still is stale when any of them changed — and the answer
+ *  cannot depend on the order a directory happens to be read in, which no
+ *  filesystem promises. */
+TEST(ThumbnailStore, ADirectorySketchIsKeyedOnEverySourceBesideItsEntry) {
+  const ScratchDir dir("sigil_thumbnail_directory");
+  const std::filesystem::path root = dir.path / "rain";
+  std::filesystem::create_directories(root);
+  const std::filesystem::path entry = root / "rain.cpp";
+  write(entry, "// the entry");
+  write(root / "tables.cpp", "// a unit beside it");
+  write(root / "palette.h", "// a header beside it");
+  const std::string first = thumbnailKey(entry);
+  EXPECT_EQ(first, thumbnailKey(entry)) << "the same directory keyed twice";
+
+  // A unit the entry does not name is still a unit of the sketch.
+  write(root / "tables.cpp", "// a unit beside it, longer than it was");
+  const std::string moved = thumbnailKey(entry);
+  EXPECT_NE(first, moved);
+
+  // …and so is a header beside it.
+  write(root / "palette.h", "// a header beside it, longer than it was");
+  EXPECT_NE(moved, thumbnailKey(entry));
+
+  // A file that is neither is nothing to the sketch.
+  const std::string standing = thumbnailKey(entry);
+  write(root / "notes.txt", "not a source");
+  EXPECT_EQ(standing, thumbnailKey(entry));
 }
 
 TEST(ThumbnailStore, AStillIsFreshOnlyUnderTheKeyItWasWrittenAt) {

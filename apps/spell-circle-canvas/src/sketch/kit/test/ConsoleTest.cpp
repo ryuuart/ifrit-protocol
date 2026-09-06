@@ -3,8 +3,10 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/kit/Plate.h>
+#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include "Drawn.h"

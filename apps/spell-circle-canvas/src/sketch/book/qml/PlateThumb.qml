@@ -1,4 +1,4 @@
-// A SKETCH AS ONE PICTURE: the still the quick tier photographed it as.
+// A SKETCH AS ONE PICTURE: the still the app's own store holds.
 //
 // A sketch with no plate gets a drawn glyph for the runtime it draws
 // through rather than a blank — the two runtimes are the one thing about

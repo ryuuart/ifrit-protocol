@@ -1,3 +1,4 @@
+#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Passage.h>
 
 #include <cstdio>

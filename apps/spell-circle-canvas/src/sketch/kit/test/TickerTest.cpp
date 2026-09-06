@@ -4,7 +4,9 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Marquee.h>
+#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include "Drawn.h"

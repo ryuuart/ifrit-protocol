@@ -56,6 +56,24 @@ TEST(SketchCompare, IdenticalPlatesStandNoDistanceApart) {
       << report;
 }
 
+/** TWO SIZES ARE NOT A DISTANCE. A plate that changed shape is a plate
+ *  whose scene changed, and averaging one against the other would answer
+ *  a number about two different pictures — so it is named and the run
+ *  fails, exactly as a missing plate does. */
+TEST(SketchCompare, APlateThatChangedShapeIsNamedRatherThanMeasured) {
+  const ScratchDir scratch("compare_resized");
+  const std::filesystem::path first = scratch.path / "a";
+  const std::filesystem::path second = scratch.path / "b";
+  writePlate(first, "probe", SK_ColorBLUE, 8);
+  writePlate(second, "probe", SK_ColorBLUE, 12);
+
+  testing::internal::CaptureStdout();
+  EXPECT_EQ(compare({first.string(), second.string()}), 1);
+  const std::string report = testing::internal::GetCapturedStdout();
+  EXPECT_NE(report.find("size probe 8x8 12x12"), std::string::npos) << report;
+  EXPECT_EQ(report.find("compared probe"), std::string::npos) << report;
+}
+
 TEST(SketchCompare, ReportsTheChannelDistanceItMeasured) {
   const ScratchDir scratch("compare_moved");
   const std::filesystem::path first = scratch.path / "a";

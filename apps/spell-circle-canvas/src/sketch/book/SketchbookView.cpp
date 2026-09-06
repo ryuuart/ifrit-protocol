@@ -22,6 +22,7 @@
 #include <rhi/qrhi.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmotion/clock/FrameClock.h>
+#include <sigilsketch/core/Fit.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
@@ -92,23 +93,6 @@ std::string nameOf(int index) {
   if (external >= 0 && external < (int)SketchCatalog::externals.size())
     return SketchCatalog::externals[external].stem().string();
   return {};
-}
-
-/** HOW A CANVAS IS FITTED INTO A SURFACE: the scale that letterboxes a
- *  canvas of @p size into @p width by @p height, and where its top-left
- *  corner lands. The frame is drawn through this and a pointer is read
- *  back through its inverse, so it is written once. */
-struct Fit {
-  float scale = 1.0f;
-  float x = 0.0f;
-  float y = 0.0f;
-};
-Fit fitOf(SkSize size, float width, float height) {
-  Fit fit;
-  fit.scale = std::min(width / size.width(), height / size.height());
-  fit.x = (width - size.width() * fit.scale) / 2;
-  fit.y = (height - size.height() * fit.scale) / 2;
-  return fit;
 }
 
 /** THE KEY AS A SKETCH READS IT: the name a keyboard spells it by, and
@@ -497,7 +481,7 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   canvas.clear(SkColorSetRGB(0x0b, 0x0a, 0x14));
   if (!host || !host->live()) return;
   const SkSize size = host->canvasSize();
-  const Fit fit = fitOf(size, width, height);
+  const sketch::Fit fit = sketch::fitInto(size, SkRect::MakeWH(width, height));
   canvas.save();
   // The compensation above, applied. It is the identity whenever the item
   // and the texture agree in shape, which is every frame of a zoom.
@@ -904,7 +888,8 @@ void SketchbookView::pointer(qreal x, qreal y, bool pressed) {
   // canvas letterboxed into the item, so a point on the item is a point
   // on the declared canvas by the inverse of that fit.
   const SkSize size = host->canvasSize();
-  const auto fit = fitOf(size, (float)width(), (float)height());
+  const sketch::Fit fit =
+      sketch::fitInto(size, SkRect::MakeWH((float)width(), (float)height()));
   session->pointer(((float)x - fit.x) / fit.scale,
                    ((float)y - fit.y) / fit.scale, pressed);
 }

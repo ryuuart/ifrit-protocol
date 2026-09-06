@@ -1193,9 +1193,13 @@ int main(int argc, char* argv[]) {
   // The build directories of runs that were killed are the process's to
   // clear, not the first sketch's: swept while the window is coming up,
   // the first host built on the render thread walks no directories under
-  // the lock the live canvas draws under.
-  std::future<void> buildDirSweep =
-      std::async(std::launch::async, &sketch::Host::sweepAbandonedBuildDirs);
+  // the lock the live canvas draws under. THE WALK IS CLAIMED HERE, on
+  // this thread and before the async starts, so a first host opened
+  // before the async has run finds it taken and walks nothing.
+  std::future<void> buildDirSweep;
+  if (sketch::Host::claimSweep())
+    buildDirSweep =
+        std::async(std::launch::async, &sketch::Host::sweepAbandonedBuildDirs);
   SketchCatalog::sketchDir = sketchDir;
   // WHERE THE BROWSER'S THUMBNAILS COME FROM: this app's own store, filled
   // on demand by a background worker and by the `--thumbnails` warm

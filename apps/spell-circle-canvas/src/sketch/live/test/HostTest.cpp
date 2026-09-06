@@ -214,6 +214,48 @@ TEST(SketchHost, RefusesToBuildAgainstAFrameworkHeaderNewerThanTheHost) {
       << host.errorLog();
 }
 
+/** THE GUARD READS THE IMAGE THAT IS RUNNING, not the file on disk.
+ *
+ *  Rebuilding the host replaces that file underneath the process that
+ *  mapped it, and a stamp read after the replacement postdates every
+ *  header — so a guard that re-stated the question at every compile would
+ *  wave through exactly the dylib it exists to refuse: one built against
+ *  the new headers, loaded into the old image still running. */
+TEST(SketchHost, KeepsRefusingAfterTheBinaryOnDiskIsReplaced) {
+  const Watched file("sigil_sketch_host_rebuilt");
+  const std::filesystem::path root =
+      file.dir.path / "src" / "common" / "compose" / "include";
+  const std::filesystem::path header =
+      root / "sigilcompose" / "core" / "Instances.h";
+  std::filesystem::create_directories(header.parent_path());
+  std::ofstream(header) << "#pragma once\n";
+  const auto now = std::filesystem::file_time_type::clock::now();
+  std::filesystem::last_write_time(header, now + std::chrono::hours(1));
+  const std::filesystem::path flags = file.dir.path / "flags.rsp";
+  std::ofstream(flags) << "-I" << root.generic_string() << "\n";
+
+  // The image this host is part of, as it stood when the process started.
+  const std::filesystem::path binary = file.dir.path / "Sketchbook";
+  std::ofstream(binary) << "the host\n";
+  std::filesystem::last_write_time(binary, now);
+
+  Host::Options opts = options(file.path);
+  opts.flagsFile = flags;
+  opts.siblingScanInterval = std::chrono::milliseconds(0);
+  opts.hostStamp = std::filesystem::last_write_time(binary);
+  Host host(std::move(opts), fonts());
+
+  // The rebuild lands: the file on disk is now newer than the header,
+  // while the process still running is the old one.
+  std::filesystem::last_write_time(binary, now + std::chrono::hours(2));
+
+  std::ofstream(file.dir.path / "palette.h") << "// a helper\n";
+  host.poll();
+  EXPECT_FALSE(host.compiling());
+  EXPECT_NE(host.errorLog().find("Instances.h"), std::string::npos)
+      << host.errorLog();
+}
+
 TEST(SketchHost, ReportsWaitingWhenNothingHasLoaded) {
   Host::Options opts;
   opts.sketchPath = std::filesystem::temp_directory_path() / "absent.cpp";

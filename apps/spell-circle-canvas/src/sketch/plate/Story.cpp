@@ -12,6 +12,7 @@
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
+#include <sigilsketch/core/Fit.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilvideo/encode/Encode.h>
@@ -71,13 +72,8 @@ bool appendTitle(video::Encoder& encoder, SkSurface& surface,
 }
 
 SkRect fit(const SkImage& image, const SkRect& box, float zoom) {
-  const float scale =
-      std::min(box.width() / image.width(), box.height() / image.height()) *
-      zoom;
-  const float width = image.width() * scale;
-  const float height = image.height() * scale;
-  return SkRect::MakeXYWH(box.centerX() - width * 0.5f,
-                          box.centerY() - height * 0.5f, width, height);
+  const SkSize size = {(float)image.width(), (float)image.height()};
+  return fitInto(size, box, zoom).rect(size);
 }
 
 void drawClip(SkCanvas& canvas, const sk_sp<SkImage>& image,

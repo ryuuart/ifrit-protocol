@@ -1,8 +1,7 @@
 /** @file
- * sketch_settled_test — the still of a page is the frame the settle
- * accepted, on a page that never stops repainting. Ultralight allows one
- * Renderer per process, so this is a binary of its own rather than a
- * case beside the shared-engine test.
+ * The still of a page is the frame the settle accepted, on a page that
+ * never stops repainting. The engine allows one renderer per process, so
+ * this is a case ctest runs in a process of its own.
  */
 
 #include <gtest/gtest.h>

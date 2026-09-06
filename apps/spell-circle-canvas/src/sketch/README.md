@@ -623,8 +623,10 @@ sketches are named and skipped rather than encoded as failure cards.
 `--gpu` is REQUIRED for a selection that holds a set, exactly as it is for
 the sweep, and for the same reason: a set is lit by the device renderer,
 so a montage that included one without a device would put a picture no
-recipe ran in under that sketch's name. A run that asks for the device
-and cannot have it fails; a run that does not ask brings none up.
+recipe ran in under that sketch's name. A selection that holds a set and
+did not ask is refused, naming `--kind` as the other way out; a run that
+asks and cannot have the device fails; a run whose selection needs none
+brings none up.
 
 The app's **Export video** action writes the full registry through this path.
 The selected sketch's **Video** action writes a one-sketch cut; both use a
@@ -691,8 +693,10 @@ percentiles and a verdict — then a human line naming which phase
 dominated, and the runtime's own lanes under it.
 
 The gate is **p99 under 16.6 ms** — a sustained 60 FPS at the sketch's
-own declared canvas size. It always exits 0; the verdict is the output,
-not the exit status, so it can sit in a pipeline.
+own declared canvas size. It exits 0 whenever it measured: the verdict is
+the output, not the exit status, so a slow sketch can sit in a pipeline.
+A sketch that never built, or a surface that could not be allocated,
+exits 1.
 
 **A sketch that declares `ctx.plate()` is judged on its capture cost, not
 on 60 FPS.** Some sketches are plates rather than live scenes: a large
@@ -817,7 +821,10 @@ presented.
 canvas dark, and draws a still for every sketch that has none: the
 sketch's kind opened and stepped to its declared moment — the same
 capture the CPU plate tier takes — scaled to the thumbnail size, one at a
-time, on the CPU and never touching the device. The status strip counts
+time, on the CPU and never touching the device. That holds whatever the
+process installed: a still opens every kind on the CPU runtime, so a set
+sketch's thumbnail is drawn on the mesh executor even in a window whose
+live canvas is lighting sets on a device. The status strip counts
 them off, `thumbnails 12/41 …`, and each row fills in as its file lands
 without remounting the others; a row on screen is moved to the front of
 the queue, so what you are looking at is drawn first. **Opening a sketch
@@ -848,8 +855,8 @@ gets a drawn glyph for the runtime it draws through.
 
 `Sketchbook --thumbnails` fills the store headless, over the same budget
 and writing the same notes, and exits non-zero naming the sketches that
-failed. Set sketches render through the same path the CPU tier uses for
-them.
+failed. It is the same render the window's fill takes, down to the
+runtime: a set is drawn on the CPU mesh executor either way.
 
 **What is not in a row is the canvas.** A sketch declares its size, its
 ground and the moment it names from inside its own setup, so those are

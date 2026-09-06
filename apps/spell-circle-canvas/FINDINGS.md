@@ -90,17 +90,12 @@ defer, and the nits the fix pass's report names as left.
 
 ## Sketch framework (findings/review-sketch-framework.md)
 
-Both blockers, the correctness should-fixes, the kit's spellings and its
-look defaults are fixed. What is left of this group:
+Both blockers, every should-fix and every nit but one are fixed: the kit
+spellings and look defaults, the README drift, the shipped strings, the
+`ThumbnailQueue` lift and the cases the report named. The file splits
+`book/main.cpp`, `book/SketchbookView.cpp` and `book/qml/Main.qml` are
+deferred by the rulings above. What is left:
 
-- `kit/README.md:365-368`, `kit/CMakeLists.txt:12-19` — "links no device
-  and no runtime" while the target links `SigilSketch` PUBLIC; split
-  `core/` into its own target or state the link.
-- Files by subject: `book/main.cpp` (1331), `book/SketchbookView.cpp`
-  (896), `book/qml/Main.qml` (850) — deferred by the rulings above.
-- Tests: the thumbnail worker's queue and cancellation (lift into a
-  Qt-free `ThumbnailQueue` under `plate/`); a set-kind thumbnail case;
-  the rebuilt-while-running skew case.
 - `sketch::device()` and `sketch::painterRuntime()` are still process-wide
   where a set's runtime is now per-session, so a CANVAS sketch that stands
   a mesh up in space (`floating_panels`, `painter_gpu`) still draws its
@@ -108,6 +103,12 @@ look defaults are fixed. What is left of this group:
   Intended: a still is CPU-only whatever the process holds, for every
   runtime. Assert: a canvas thumbnail with a painter runtime installed
   never reaches it.
+- `book/SketchbookView.cpp` — `keyAs` (the p5 key table) is still an
+  anonymous-namespace function in the app and untested. It was left in
+  place: its input is a `Qt::Key`, and `core/` is Qt-free, so moving it
+  there would either bring Qt into the library or hard-code Qt's
+  numbers. Either it moves with a seam of its own or the table is
+  pinned where it stands, from the book's script tests.
 
 ## The sketches (findings/review-sketches.md)
 

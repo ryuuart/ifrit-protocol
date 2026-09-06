@@ -4,7 +4,7 @@
  * WHAT EVERY SESSION PROMISES, whatever runtime it draws through.
  *
  * A host steps, repaints and photographs a session without ever learning
- * which runtime it is holding, so the five claims below are the whole of
+ * which runtime it is holding, so the six claims below are the whole of
  * what it may rely on — and each runtime would otherwise state them
  * again in its own file, which is how three files came to carry three
  * spellings of one promise. They are stated here once and instantiated

@@ -362,9 +362,12 @@ A leaf may not invent what an ancestor should own.
 
 ## Boundaries
 
-It draws nothing, holds no kernel state, links no device and no runtime,
-and nothing links it back — `SigilSketches` links it, and no library
-below does. It is PIC, because a hot-reloaded sketch's dylib force-loads
+It draws nothing and holds no kernel state, and nothing links it back —
+`SigilSketches` links it, and no library below does. It LINKS THE SKETCH
+ARCHIVE, because `stage()` writes a sketch's `CanvasSpec` through the
+canvas runtime's own context: no device backend and no window come with
+that, but the reload engine and the headless renderer stand in the same
+archive and do. It is PIC, because a hot-reloaded sketch's dylib force-loads
 it out of the host.
 
 ## Build and test

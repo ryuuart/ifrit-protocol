@@ -9,12 +9,19 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Ground.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
 #include <string>
+
+namespace sigil::sketch {
+/** The per-frame value a sketch body is handed; its own words are
+ *  `<sigilsketch/canvas/Sketch.h>`, which this names and does not
+ *  include: the kit's headers reach one signature's worth of the canvas
+ *  runtime, not the whole compose surface behind it. */
+struct SketchContext;
+}  // namespace sigil::sketch
 
 namespace sigil::sketch::kit {
 
