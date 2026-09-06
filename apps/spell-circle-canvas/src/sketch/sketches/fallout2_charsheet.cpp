@@ -171,9 +171,12 @@
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -527,16 +530,15 @@ inline std::string thousands(int v) {
 // ---------------------------------------------------------------------------
 // THE AUDIT. The same derive()/skillValue() run against the three shipped
 // premades, whose sheets the character-selection screens print. 21 independent
-// numbers. If a formula above is wrong, the caption band says so.
+// numbers, each row's verdict COMPUTED from the shipped value and the one this
+// file derives, so the fraction on the caption band cannot disagree with the
+// arithmetic behind it. If a formula above is wrong, the caption band says so.
 
-struct Audit {
-  int passed = 0, total = 0;
-};
-inline Audit audit() {
-  Audit a;
-  auto chk = [&](int got, int want) {
-    a.total++;
-    if (got == want) a.passed++;
+inline sigil::measure::Table audit() {
+  namespace measure = sigil::measure;
+  measure::Table t;
+  auto chk = [&](const char* premade, const char* what, int got, int want) {
+    t.add(measure::check(kit::formatted("%s  %s", premade, what), want, got));
   };
   // Narg — Heavy Handed, Gifted.
   {
@@ -544,13 +546,14 @@ inline Audit audit() {
     Traits tr;
     tr.heavyHanded = tr.gifted = true;
     Derived d = derive(s, tr, 1, 0);
-    chk(d.hitPoints, 44);
-    chk(d.armorClass, 8);
-    chk(d.actionPoints, 9);
-    chk(d.meleeDamage, 8);
-    chk(skillValue(4, s, tr, true, 0), 64);  // Melee Weapons
-    chk(skillValue(0, s, tr, true, 0), 47);  // Small Guns
-    chk(skillValue(5, s, tr, true, 0), 42);  // Throwing
+    t.add(measure::heading("NARG  Heavy Handed, Gifted"));
+    chk("Narg", "hit points", d.hitPoints, 44);
+    chk("Narg", "armor class", d.armorClass, 8);
+    chk("Narg", "action points", d.actionPoints, 9);
+    chk("Narg", "melee damage", d.meleeDamage, 8);
+    chk("Narg", "Melee Weapons %", skillValue(4, s, tr, true, 0), 64);
+    chk("Narg", "Small Guns %", skillValue(0, s, tr, true, 0), 47);
+    chk("Narg", "Throwing %", skillValue(5, s, tr, true, 0), 42);
   }
   // Mingan — Skilled, Small Frame.
   {
@@ -558,28 +561,30 @@ inline Audit audit() {
     Traits tr;
     tr.skilled = tr.smallFrame = true;
     Derived d = derive(s, tr, 1, 0);
-    chk(d.hitPoints, 28);
-    chk(d.armorClass, 10);
-    chk(d.actionPoints, 10);
-    chk(d.meleeDamage, 1);
-    chk(skillValue(8, s, tr, true, 0), 55);   // Sneak
-    chk(skillValue(9, s, tr, true, 0), 48);   // Lockpick
-    chk(skillValue(10, s, tr, true, 0), 50);  // Steal
+    t.add(measure::heading("MINGAN  Skilled, Small Frame"));
+    chk("Mingan", "hit points", d.hitPoints, 28);
+    chk("Mingan", "armor class", d.armorClass, 10);
+    chk("Mingan", "action points", d.actionPoints, 10);
+    chk("Mingan", "melee damage", d.meleeDamage, 1);
+    chk("Mingan", "Sneak %", skillValue(8, s, tr, true, 0), 55);
+    chk("Mingan", "Lockpick %", skillValue(9, s, tr, true, 0), 48);
+    chk("Mingan", "Steal %", skillValue(10, s, tr, true, 0), 50);
   }
   // Chitsa — One Hander, Sex Appeal (neither touches these numbers).
   {
     Special s{{4, 5, 4, 10, 7, 6, 4}};
     Traits tr;
     Derived d = derive(s, tr, 1, 0);
-    chk(d.hitPoints, 27);
-    chk(d.armorClass, 6);
-    chk(d.actionPoints, 8);
-    chk(d.meleeDamage, 1);
-    chk(skillValue(14, s, tr, true, 0), 70);  // Speech
-    chk(skillValue(15, s, tr, true, 0), 60);  // Barter
-    chk(skillValue(6, s, tr, true, 0), 44);   // First Aid
+    t.add(measure::heading("CHITSA  One Hander, Sex Appeal"));
+    chk("Chitsa", "hit points", d.hitPoints, 27);
+    chk("Chitsa", "armor class", d.armorClass, 6);
+    chk("Chitsa", "action points", d.actionPoints, 8);
+    chk("Chitsa", "melee damage", d.meleeDamage, 1);
+    chk("Chitsa", "Speech %", skillValue(14, s, tr, true, 0), 70);
+    chk("Chitsa", "Barter %", skillValue(15, s, tr, true, 0), 60);
+    chk("Chitsa", "First Aid %", skillValue(6, s, tr, true, 0), 44);
   }
-  return a;
+  return t;
 }
 
 // ---------------------------------------------------------------------------
@@ -733,7 +738,7 @@ struct Fallout2CharSheet : sketch::Sketch {
   std::array<bool, 18> tagged{};
   std::array<int, 18> invested{};
   int pointsEarned = 0, pointsSpent = 0;
-  fo::Audit sheetAudit;
+  sigil::measure::Table sheetAudit;
 
   // ---- interaction state (the only motion this screen has) ---------------
   static constexpr std::array<int, 3> kWalk{0, 7, 4};  // Small Guns, Doctor,
@@ -1636,7 +1641,50 @@ struct Fallout2CharSheet : sketch::Sketch {
     // ---- the plate caption. NOT part of the artefact: the screen above is
     // exactly 1280x960 and this band sits below it, carrying the audit.
     root.child(captionBand());
+    if (sheetAudit.failures() > 0) root.child(failureCard());
     return root;
+  }
+
+  /** THE FAILING CLAIMS, PAINTED — and only when there are any. The screen
+   *  above is the artefact and carries no drafting chrome, so a sheet whose
+   *  arithmetic holds shows the arithmetic and nothing else; a formula that
+   *  disagrees with the shipped premades is dealt over the card where
+   *  nobody can miss it. */
+  Element failureCard() const {
+    using namespace fo;
+    sketch::kit::Theme look;
+    look.palette.ash = kGreen;
+    look.palette.figure = hex(0xE04020);
+    look.type.sans = bodyFace();
+    look.type.mono = bodyFace();
+    look.type.captionNote = {17.0f, 0.1f};
+    look.type.captionLabel = {17.0f, 0.1f, true};
+    look.spacing.rowGap = 6;
+    std::vector<sketch::kit::Row> rows;
+    for (const sigil::measure::Check& c : sheetAudit.rows) {
+      if (c.pass || !c.judged()) continue;
+      rows.push_back({{toU8(c.label), toU8(c.actual),
+                       toU8("shipped sheet says " + c.expected)},
+                      Fill::color(hex(0xE04020))});
+    }
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(Dim(120))
+        .top(Dim(160))
+        .width(Dim(kScreenW - 240))
+        .height(Dim(120.0f + 24.0f * (float)rows.size()))
+        .fill(Fill::color(hex(0x0B0D08, 0.96f)))
+        .foreground(
+            stroke(3.0f, Fill::color(hex(0xE04020)), PathFormat::Align::Inner))
+        .column()
+        .padding(28)
+        .gap(14)
+        .child(text(toU8("THE ARITHMETIC DOES NOT MATCH THE SHIPPED "
+                         "PREMADES"),
+                    sheetType(bodyBold(), 22.0f, hex(0xE04020), 1.2f)))
+        .child(sketch::kit::table(
+            std::move(rows),
+            {.columns = {{420}, {90, true}, {}}, .gap = 16, .swatchSide = 11}));
   }
 
   Element captionBand() {
@@ -1656,7 +1704,7 @@ struct Fallout2CharSheet : sketch::Sketch {
         "SEVEN NUMBERS BECOME SIXTY \xc2\xb7 %d/%d derived values "
         "match the shipped sheets (Narg, Mingan, Chitsa), trait "
         "corrections included",
-        sheetAudit.passed, sheetAudit.total);
+        sheetAudit.checks() - sheetAudit.failures(), sheetAudit.checks());
     auto line = [&](const char* s, float size, SkColor4f c, float y,
                     float track) {
       return text(toU8(s), fo::sheetType(bodyFace(), size, c, track))
