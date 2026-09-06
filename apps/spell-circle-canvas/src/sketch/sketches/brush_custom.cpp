@@ -78,6 +78,8 @@ struct BrushCustom final : sketch::DrawSketch {
 
   void setup(sketch::DrawContext& context) override {
     context.canvas(1000, 760);
+    // The sheet is complete once every row has been laid.
+    context.captureAt(0.25);
     context.pen.randomSeed(0xC5A17u);
     context.pen.noiseSeed(0xC5A17u);
     shape = chiselTip();

@@ -136,13 +136,13 @@ Element splat(geometry::mesh::Cloud cloud) {
 }
 
 Element panel(const char* title, const char* note, Element inner) {
-  return sketch::kit::caption(kPanel, toU8(title), toU8(note),
-                              box()
-                                  .width(kPanel)
-                                  .height(kPanel * 0.8f)
-                                  .clip()
-                                  .stroke(stroke(1.0f, Fill::color(kFrame)))
-                                  .child(std::move(inner)));
+  return sketch::kit::caption(
+      kPanel, toU8(title), toU8(note),
+      sketch::kit::well({.width = Dim(kPanel),
+                         .height = Dim(kPanel * 0.8f),
+                         .ground = Fill::none(),
+                         .keyline = Fill::color(kFrame)})
+          .child(std::move(inner)));
 }
 
 // a literal table; only allocation could throw

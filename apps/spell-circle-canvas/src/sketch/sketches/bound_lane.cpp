@@ -219,12 +219,14 @@ Element locus(const char* key, const BoundFloat& wx, const BoundFloat& wy,
 Element panel(float width, float height, const char* title, const char* sub,
               Element inner) {
   inner.inset(0);  // the plot fills its frame
-  return sketch::kit::caption(width, toU8(title), toU8(sub),
-                              box()
-                                  .width(width)
-                                  .height(height)
-                                  .stroke(stroke(1.0f, Fill::color(kFrame)))
-                                  .child(std::move(inner)));
+  return sketch::kit::caption(
+      width, toU8(title), toU8(sub),
+      sketch::kit::well({.width = Dim(width),
+                         .height = Dim(height),
+                         .ground = Fill::none(),
+                         .clip = false,
+                         .keyline = Fill::color(kFrame)})
+          .child(std::move(inner)));
 }
 
 /** The mark: 22 px, and its CENTRE (the default transformOrigin, hence

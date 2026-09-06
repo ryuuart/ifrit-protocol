@@ -60,6 +60,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -84,10 +85,17 @@ constexpr int kTargets = 9;
 constexpr double kFirstStation = 0.8;
 constexpr double kStationGap = 1.05;
 
-constexpr SkColor4f kInk{0.94f, 0.88f, 0.69f, 1};
-constexpr SkColor4f kDim{0.58f, 0.60f, 0.70f, 1};
 constexpr SkColor4f kWire{0.42f, 0.46f, 0.62f, 0.55f};
 constexpr SkColor4f kLit{1.0f, 0.71f, 0.42f, 1};
+
+/** The house sheet warmed to this one's own ink, so every line on it is
+ *  set from the theme rather than from a colour restated beside it. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ink = {0.94f, 0.88f, 0.69f, 1};
+  look.palette.ash = {0.58f, 0.60f, 0.70f, 1};
+  return look;
+}
 
 weave::TextStyle label(float size, SkColor4f color, float track = 0) {
   return weave::textStyle({.size = size, .color = color, .track = track});
@@ -243,16 +251,17 @@ struct HitSlots final : sketch::Sketch {
             .inset(20, ctx.size.height() - 78, 20, 14)
             .hitTestable(false)
             .child(text(toU8("hitTest(probe) \xe2\x86\x92 " + hitLabel),
-                        label(16, kInk)))
+                        label(16, sketch::kit::theme().palette.ink)))
             .child(
                 text(toU8("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect),
-                     label(12.5f, kDim)))
+                     label(12.5f, sketch::kit::theme().palette.ash)))
             .child(text(
                 toU8("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " + routes),
-                label(12.5f, kDim))));
+                label(12.5f, sketch::kit::theme().palette.ash))));
   }
 
   void setup(sketch::SketchContext& ctx) override {
+    const sketch::kit::Provide look(sheetTheme());
     sketch::kit::stage(
         ctx, {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
               .captureAt = stationTime(4),
@@ -267,6 +276,11 @@ struct HitSlots final : sketch::Sketch {
   }
 
   void update(double elapsed, sketch::SketchContext& ctx) override {
+    // The answer is described AGAIN whenever it changes, and a describe
+    // outside the scope setup opened has no theme bound: the look must be
+    // in scope wherever the tree is built, not only where it is first
+    // built.
+    const sketch::kit::Provide look(sheetTheme());
     Composer& composer = ctx.composer;
     probe = walk(elapsed);
     // Per frame: the marker moved, so its content is different.

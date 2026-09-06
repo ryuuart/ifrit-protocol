@@ -48,8 +48,6 @@ constexpr float kCell = 250;        // the drawn square of one cell
 constexpr float kReach = 15;        // a strand's full mark width, px
 constexpr float kPatchRadius = 30;  // the cap on one patch's reach, px
 
-/** Behind one cell's specimen, a shade off the sheet's own ground. */
-constexpr SkColor4f kCellGround{0.11f, 0.11f, 0.13f, 1};
 constexpr SkColor4f kCasing{0.05f, 0.05f, 0.06f, 1};
 constexpr SkColor4f kCore{0.86f, 0.80f, 0.66f, 1};
 constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
@@ -63,6 +61,8 @@ constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
  *  `stage()` runs. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
+  // Behind one cell's specimen, a shade off the sheet's own ground.
+  look.palette.cellGround = {0.11f, 0.11f, 0.13f, 1};
   look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
   look.type.captionNote = {.size = 11, .track = 0.3f};
   return look;
@@ -157,7 +157,7 @@ Element cell(std::string key, std::vector<SkPath> strands,
              })
           .width(kCell)
           .height(kCell)
-          .fill(Fill::color(kCellGround)));
+          .fill(Fill::color(sketch::kit::theme().palette.cellGround)));
 }
 
 }  // namespace

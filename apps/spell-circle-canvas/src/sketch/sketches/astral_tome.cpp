@@ -561,7 +561,9 @@ struct LinkTaper {
 // =============================================================================
 
 struct AstralTome : sketch::Sketch {
-  // TEN Outputs for 93 twinkling primitives — see the perf story.
+  // TEN Outputs for 93 twinkling primitives: an Output per primitive is
+  // a write per primitive per frame, and the twinkle reads the same at a
+  // tenth of them shared round.
   std::array<ch::Output<float>, at::kDivCount> bright;
   ch::Output<float> arrowScale{1.0f};
 

@@ -393,7 +393,8 @@ float cue(double ms, float delayMs, float durationMs,
 }
 
 /** A sidebar panel shell. Each panel is its own guest at its own box, so
- *  the entrance the column used to stagger is the panel's own delay. */
+ *  each carries its own entrance delay rather than taking a stagger from
+ *  a column above it. */
 Element panel(float height, const char* heading, int order) {
   const auto delay = std::chrono::milliseconds(85 * order);
   return box()

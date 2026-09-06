@@ -130,13 +130,13 @@ Element panel(const char* title, const char* note, Element inner) {
   // The cell is held to the picture's width: a call longer than its own
   // panel would otherwise widen the cell and the two rows would stop
   // lining up column for column.
-  return sketch::kit::caption(kPanel, toU8(title), toU8(note),
-                              box()
-                                  .width(kPanel)
-                                  .height(kPanel * 1.6f)
-                                  .clip()
-                                  .stroke(stroke(1.0f, Fill::color(kFrame)))
-                                  .child(std::move(inner)))
+  return sketch::kit::caption(
+             kPanel, toU8(title), toU8(note),
+             sketch::kit::well({.width = Dim(kPanel),
+                                .height = Dim(kPanel * 1.6f),
+                                .ground = Fill::none(),
+                                .keyline = Fill::color(kFrame)})
+                 .child(std::move(inner)))
       .width(Dim(kPanel));
 }
 

@@ -351,8 +351,8 @@ std::function<SkPath(SkSize)> limbOutline() {
 }
 
 /** A panel shell: ground, keyline, corners, padding. Each panel is its
- *  own guest at its own box, so the entrance the column used to stagger
- *  is the panel's own delay. */
+ *  own guest at its own box, so each carries its own entrance delay
+ *  rather than taking a stagger from a column above it. */
 Element panel(float height, int order) {
   const auto delay = std::chrono::milliseconds(90 * order);
   return box()
@@ -1261,7 +1261,8 @@ struct GenesisFire final : sketch::DrawSketch {
 
   /** The live census row. The numbers tick, so the row is re-described
    *  every frame and reconciled against what the guest's own composer
-   *  already holds — which is what a slot used to buy. */
+   *  already holds: the reconcile is what keeps a ticking number from
+   *  re-recording the panel around it. */
   Element liveRow() {
     char parts_[32], per_[24], sys_[16];
     std::snprintf(parts_, sizeof parts_, "%zu,%03zu", liveCount / 1000,

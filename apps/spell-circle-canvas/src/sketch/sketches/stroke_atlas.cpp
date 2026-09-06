@@ -207,15 +207,6 @@ shapes::OutlineFn hairpin() {
   };
 }
 
-/** A ring of the given radius, centred in the box. */
-shapes::OutlineFn ringOf(float radius) {
-  return [radius](SkSize s) {
-    SkPathBuilder b;
-    b.addCircle(s.width() * 0.5f, s.height() * 0.5f, radius);
-    return b.detach();
-  };
-}
-
 /** A plain rectangle inset by `pad` — the frame specimens' carrier. */
 shapes::OutlineFn frameRect(float pad) {
   return [pad](SkSize s) {
@@ -721,8 +712,10 @@ struct StrokeAtlasSketch : sketch::Sketch {
       };
       const float span = 380;
       for (const Ring& r : rings) {
+        // A ring of radius r in a box of side `span` is the inscribed
+        // circle pulled in by the difference.
         plate.child(bare(cx - span * 0.5f, cy - span * 0.5f, span, span,
-                         ringOf(r.r), r.dec));
+                         shapes::circle(span * 0.5f - r.r), r.dec));
         const SkPoint on = arrange::onEllipse({cx, cy}, {r.r, r.r}, r.angle);
         const float lx = on.fX, ly = on.fY;
         // The leader runs OUT of the cluster to a caption column clear of

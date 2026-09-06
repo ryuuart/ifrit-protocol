@@ -1,18 +1,18 @@
 /** @file
  * chrome_type — the layer styles on LETTERS: the same aqua, chrome and
- * gloss bundles a pill wears, dressing a word's glyph outline instead of
- * its box, beside the same styles on the box they used to get.
+ * gloss bundles a pill wears, dressing a word's glyph outline, beside the
+ * same styles dressing the node's own box.
  */
 
-// A DECORATION WAS NEVER ABOUT A BOX. Every layer style in the brush tier
-// — the aqua gel, the y2k chrome, a bevel, an inner shadow, an outer glow
-// — is drawn ACROSS AN OUTLINE, and until now the outline a text leaf
-// handed them was its rectangle. That is why a chrome style on a word
-// bevelled a slab behind the word.
+// A DECORATION IS NOT ABOUT A BOX. Every layer style in the brush tier —
+// the aqua gel, the y2k chrome, a bevel, an inner shadow, an outer glow —
+// is drawn ACROSS AN OUTLINE, and a text leaf can hand them either of two:
+// its rectangle, which bevels a slab behind the word, or the glyph
+// contours the placement produced.
 //
-// `boundary(Boundary::Glyphs)` hands them the glyph contours the placement
-// produced instead. Nothing else changes: no new preset, no second code
-// path, no per-style special case for text. The rows on this page are
+// `boundary(Boundary::Glyphs)` is what asks for the second. Nothing else
+// changes: no new preset, no second code path, no per-style special case
+// for text. The rows on this page are
 // pairs — the same style value, once on the box and once on the letters —
 // so the difference is the boundary and nothing else.
 //
@@ -118,8 +118,8 @@ struct ChromeType final : sketch::Sketch {
   Element pair(const char* name, const LayerStyle& style,
                SkColor4f letterInk = {0.72f, 0.75f, 0.80f, 1}) {
     namespace c = chrome;
-    // The box it used to get: the style dresses the node's own shape and
-    // the word sits inside it.
+    // On the box: the style dresses the node's own shape and the word
+    // sits inside it.
     Element onBox = sketch::kit::caption(
         0, toU8("Boundary::Auto"), toU8("the node's rectangle"),
         box().padding(18).corners({6}).style(style).child(

@@ -42,6 +42,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -81,8 +82,19 @@ constexpr SkColor4f kFaces[6] = {
 };
 constexpr const char* kFaceNames[6] = {"F", "R", "T", "L", "B", "K"};
 
+/** The house sheet in this one's restrained palette: paper, ink and one
+ *  accent per panel. Every line on the sheet is set from it. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme look = sketch::kit::houseTheme();
+  look.palette.ground = kGround;
+  look.palette.cellGround = kPanel;
+  look.palette.ink = kInk;
+  look.palette.ash = kAsh;
+  return look;
+}
+
 weave::TextStyle type(float size, SkColor4f color, float track = 0) {
-  return weave::textStyle({.size = size, .color = color, .track = track});
+  return sketch::kit::theme().sans(size, color, track);
 }
 
 /** A panel: a dark plate with a caption under it, and the view every
@@ -92,7 +104,7 @@ Element panel(SkRect frame, const char* caption) {
       .absolute()
       .rect(frame)
       .corners({10})
-      .fill(Fill::color(kPanel))
+      .fill(Fill::color(sketch::kit::theme().palette.cellGround))
       .perspective(kViewDistance)
       .child(text(toU8(caption), type(13, kAsh, 2))
                  .absolute()
@@ -106,13 +118,14 @@ struct CardFlip final : sketch::Sketch {
   choreograph::Output<float> flip{0}, spinX{0}, spinY{0}, sway{0};
 
   void setup(sketch::SketchContext& ctx) override {
+    const sketch::kit::Provide look(sheetTheme());
     // MID-TURN. At 2.2 s the card is past its quarter turn and the back
     // has just taken over, the cube shows three faces at an oblique, and
     // the plate is near the end of its sway.
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 2.2,
-                        .background = kGround});
+                        .background = sketch::kit::theme().palette.ground});
     flip = 0;
     spinX = 0;
     spinY = 0;
@@ -216,7 +229,7 @@ struct CardFlip final : sketch::Sketch {
     // of the width as well, and a module's gaps sit only between.
     constexpr float pw = (kCanvas.fWidth - 4 * gap) / 3;
     return stack()
-        .fill(Fill::color(kGround))
+        .fill(Fill::color(sketch::kit::theme().palette.ground))
         .child(text(toU8("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE"),
                     type(14, kAsh, 3))
                    .absolute()

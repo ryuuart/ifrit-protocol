@@ -19,7 +19,9 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -47,26 +49,43 @@ constexpr SkColor4f kQuiet{0.42f, 0.37f, 0.31f, 1};
 constexpr SkColor4f kCinnabar{0.67f, 0.16f, 0.11f, 1};
 constexpr SkColor4f kGold{0.78f, 0.55f, 0.16f, 1};
 
-weave::TextStyle sans(float size, SkColor4f color, float track = 0) {
-  const sk_sp<SkTypeface> face = weave::ports::face(
+constexpr float kMeasure = 430;
+
+/** THE SHEET'S LOOK, as the theme every component below reads.
+ *
+ *  Its two faces are a grotesque and a BOOK face: a theme's second face
+ *  is whichever one the sheet's subject is set in, and this sheet's
+ *  subject is a paragraph. Both panels stand as wells on the paper, and
+ *  each carries its caption over its passage rather than around it,
+ *  because what a caption names here is the whole passage under it. */
+sketch::kit::Theme sheetTheme() {
+  sketch::kit::Theme paper = sketch::kit::houseTheme();
+  paper.palette.ground = kPaper;
+  paper.palette.cellGround = kPanel;
+  paper.palette.ink = kInk;
+  paper.palette.ash = kQuiet;
+  paper.palette.figure = kCinnabar;
+  paper.type.sans = weave::ports::face(
       {"Avenir Next", "Helvetica Neue", "DejaVu Sans", "sans-serif"});
-  return weave::textStyle(
-      {.face = face, .size = size, .color = color, .track = track});
+  paper.type.mono = weave::ports::face(
+      {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
+  paper.type.title = {24, 3.2f};
+  paper.type.subtitle = {13, 0.5f};
+  paper.type.captionLabel = {11, 1.8f};
+  paper.type.captionNote = {11};
+  paper.spacing.captionGap = 18;
+  paper.spacing.captionNoteGap = 5;
+  paper.spacing.wellPadding = 22;
+  paper.captionWhere = sigil::compose::kit::Caption::Where::Above;
+  return paper;
 }
 
 weave::TextStyle serif(float size, SkColor4f color, float track = 0) {
-  const sk_sp<SkTypeface> face = weave::ports::face(
-      {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
-  return weave::textStyle(
-      {.face = face, .size = size, .color = color, .track = track});
+  return sketch::kit::theme().mono(size, color, track);
 }
 
-Element caption(const char* title, const char* note) {
-  return box()
-      .column()
-      .gap(5)
-      .child(text(toU8(title), sans(11, kCinnabar, 1.8f)))
-      .child(text(toU8(note), sans(11, kQuiet)).width(430));
+weave::TextStyle sans(float size, SkColor4f color, float track = 0) {
+  return sketch::kit::theme().sans(size, color, track);
 }
 
 Element shapePassage() {
@@ -134,39 +153,36 @@ Element droppedPassage() {
 }
 
 Element panel(float left, const char* title, const char* note, Element body) {
-  return box()
+  return sketch::kit::well({.width = Dim(476), .height = Dim(438)},
+                           sketch::kit::caption(kMeasure, toU8(title),
+                                                toU8(note), std::move(body)))
       .absolute()
       .left(left)
-      .top(126)
-      .width(476)
-      .height(438)
-      .padding(22)
-      .column()
-      .gap(18)
-      .fill(Fill::color(kPanel))
-      .child(caption(title, note))
-      .child(std::move(body));
+      .top(126);
 }
 
 }  // namespace
 
 struct HorizontalFlow final : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
+    const sketch::kit::Provide look(sheetTheme());
+    const sketch::kit::Theme& sheet = sketch::kit::theme();
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 0.05,
-                        .background = kPaper});
+                        .background = sheet.palette.ground});
 
     ctx.composer.render(
         box()
-            .fill(Fill::color(kPaper))
-            .child(text(u8"HORIZONTAL TEXT FLOW", sans(24, kInk, 3.2f))
+            .fill(Fill::color(sheet.palette.ground))
+            .child(text(u8"HORIZONTAL TEXT FLOW",
+                        sheet.style(sheet.type.title, sheet.palette.ink))
                        .absolute()
                        .left(42)
                        .top(34))
             .child(text(u8"one exclusion rule · a shape in the measure · an "
                         u8"ornament at the opening",
-                        sans(13, kQuiet, 0.5f))
+                        sheet.style(sheet.type.subtitle, sheet.palette.ash))
                        .absolute()
                        .left(43)
                        .top(76))

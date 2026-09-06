@@ -324,10 +324,10 @@ Element plate(float height) {
 
 struct VertigoTitles : sketch::Sketch {
   // --- the perpetual loop's live cells ---------------------------------
-  // One clock and three cells per card. What used to be a fourth cell —
-  // the nib's trailing edge — is a shaped binding on `growth`, and what
-  // used to be a fifth is the turntable, which is a shaped binding on the
-  // clock. A value derived from another one is not its own state.
+  // One clock and three cells per card. The nib's trailing edge is a
+  // shaped binding on `growth` and the turntable is a shaped binding on
+  // the clock, so neither is a cell: a value derived from another one is
+  // not its own state.
   ch::Output<float> secs{0};
   std::array<ch::Output<float>, 4> growth{};  // trim end   — the pen
   std::array<ch::Output<float>, 4> cardA{};   // card opacity

@@ -472,12 +472,12 @@ struct MatrixRain : sketch::Sketch {
                                         {0.0f, 0.45f, 1.0f})));
 
     root.child(
-        // NO GLYPH COUNT. The number this caption used to carry was
-        // derived from a probe against the host's own fonts: stable per
-        // font set, and therefore the one thing on the page that could
-        // differ between two machines rendering the same declared moment.
-        // What it said — that there are four planes — is a fact about the
-        // declaration, so the declaration is what the caption states.
+        // NO GLYPH COUNT. A caption states the DECLARATION, never a
+        // probe against the host's own fonts: a count read off the
+        // installed faces is stable per font set and therefore the one
+        // thing on the page that could differ between two machines
+        // rendering the same declared moment. That there are four planes
+        // is a fact about the declaration, so that is what is stated.
         text(toU8("SIMON WHITELEY'S DIGITAL RAIN \xc2\xb7 FOUR PLANES OF "
                   "HALF-WIDTH KATAKANA AND DIGITS, "
                   "MIRRORED PER GLYPH, HELD UPRIGHT \xc2\xb7 THE LIGHT FALLS, "
