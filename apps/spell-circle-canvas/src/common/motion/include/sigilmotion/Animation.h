@@ -11,5 +11,7 @@
 #include "sigilmotion/bind/WiggleNoise.h"
 #include "sigilmotion/values/Animatable.h"
 #include "sigilmotion/values/Keyframes.h"
+#include "sigilmotion/values/Oscillator.h"
+#include "sigilmotion/values/Sequence.h"
 #include "sigilmotion/values/Time.h"
 #include "sigilmotion/values/Transition.h"

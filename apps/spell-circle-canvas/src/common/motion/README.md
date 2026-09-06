@@ -16,7 +16,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/Curve.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all four | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; `ease::Curve`, the shaped curve as a comparable value; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
-| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all seven | `Transition`, `ease::`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()` |
+| `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Sequence.h`, `values/Spring.h`, `values/Time.h`; `values/Values.h` includes all nine | `Transition`, `ease::`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal; `Sequence`, `Step` and `Interpolation`, the keyed track |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/Ticker.h` | the clock and the ticker |
 | `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
 | `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Constraints.h`, `physics/Verlet.h`; `physics/Physics.h` includes all four | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Constraint` with `distance()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper |
@@ -189,6 +189,56 @@ are promises rather than incidental facts about the body — `wiggle`'s
 `amount` is a peak displacement in the property's own units only because
 the sum is normalised — so a test may name the three pieces and hold each
 to its own range, which is the one thing outside this library that may.
+
+## Two signals that are functions of a time and nothing else
+
+`bind()` shapes a phase somebody else is stepping, and `Transitioned`
+plays once when a node mounts. Both need a ticker and an `Output`. These
+two need neither: a number in, a number out, the same answer every time
+it is asked. That is what makes them readable from a bake, a scrub, a
+force's strength and a test as well as from a frame.
+
+```cpp
+const Oscillator breath{.wave = Wave::Sine, .hertz = 0.4f,
+                        .amplitude = 0.08f, .centre = 1.0f};
+const Sequence flare{.steps = {{0.0f, 0.f}, {0.06f, 1.f}, {0.4f, 0.15f}},
+                     .interpolation = Interpolation::CatmullRom};
+
+scale(breath.at(clock.elapsed()));      // read wherever the number is wanted
+glow(flare.at(ageOfTheHit));
+```
+
+**`Oscillator` is one repeating signal with props**: the `wave` — sine,
+triangle, sawtooth or square with a `duty` — `hertz`, a starting
+`phase` in cycles, an `amplitude` and the `centre` it swings about.
+Every wave is stated on the same folded phase and answers on [-1, 1]
+before the amplitude, so swapping one for another keeps the timing and
+the range and changes only the feel; the triangle is on the sine's
+phase for exactly that reason. `fold(seconds)` is where in the cycle a
+time falls, for anything travelling with the signal, and `shape(u)` is
+the waveform on a phase that has already been folded — which is what
+`bind(&value).source(0, period).wave(...)` is handed. What it removes at
+a call site is the FOLD: `sin(t*k)` is one expression, but a wave that
+starts somewhere, swings by something and sits about something is four,
+and a hand-written modulus is what gets a negative time wrong.
+
+**`Sequence` is a number given at several times.** `Step{at, value,
+curve}` are the keys, in the caller's own units, and `interpolation`
+says what happens between them: `Hold` for states that cut, `Linear`
+shaped by each key's own `ease::Curve`, `CatmullRom` for the spline
+through them — a prop rather than a second type, since the keys are the
+same keys. An envelope is one of these, and so is a step sequencer, a
+cue list and a curve authored elsewhere. Outside the keys it is flat
+unless it `loop`s, in which case the last key's time is the wrap point
+and a loop is authored with its last key repeating its first; across
+that seam the spline reaches for the keys either side of the join
+rather than for the key that closes it. Two keys at one time are a cut.
+
+Both are comparable, and both are CALLABLE — so either one plugs into
+the bind chain's `wave()` or `map()` as the shape, and into anything
+else that hands a number to an interpolator. A capturing lambda would
+compare unequal to everything and re-patch every describe, which is what
+carrying the shape as a value rather than as a closure avoids.
 
 ## The spring: the one value that carries its own velocity
 

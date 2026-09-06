@@ -1,6 +1,9 @@
 # The animation values: Transition and the ease:: house curves, the
 # animate()/from()/to()/through() keyframe builders, ramp(), phase(),
-# quantizeTime() and Animatable<T>, the property slot that holds any one
+# quantizeTime(), the Oscillator and the keyed Sequence — the two values
+# that are functions of a time and of nothing else, so they read the
+# same in a describe, in a bake and in a test — and Animatable<T>, the
+# property slot that holds any one
 # of them or a shaped binding (hence it links the bind leaf) — the held
 # motion an animatable runs as, which is why this feature links the
 # clock: a value that is MOVING is moving on a ticker — and the lanes a
@@ -17,7 +20,7 @@ find_package(choreograph CONFIG REQUIRED)
 sigil_library(SigilMotionValues
   SOURCES Animated.cpp Transition.cpp
   HEADERS ../Animation.h Animatable.h Animated.h Keyframes.h Lanes.h
-          Spring.h Time.h Transition.h Values.h
+          Oscillator.h Sequence.h Spring.h Time.h Transition.h Values.h
   PUBLIC SigilMotionBind SigilMotionClock SigilCoreComparable
          choreograph::choreograph)
 
@@ -26,7 +29,7 @@ sigil_library(SigilMotionValues
 # as a build failure here.
 sigil_test(motion_test
   SOURCES test/ValuesTest.cpp test/AnimatedTest.cpp test/LanesTest.cpp
-          test/SpringTest.cpp
+          test/OscillatorTest.cpp test/SequenceTest.cpp test/SpringTest.cpp
   LIBRARIES SigilMotionValues SigilMotionClock)
 
 sigil_bench(motion_bench
