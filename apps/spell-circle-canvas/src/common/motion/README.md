@@ -36,434 +36,18 @@ the motion the slot runs as. Schedule links NEITHER the clock nor the
 values: see below. Physics links neither, and does not link Choreograph
 either — a step is a number of seconds the caller states.
 
-## Using it
-
-```cpp
-#include <sigilmotion/Animation.h>
-#include <sigilmotion/clock/FrameClock.h>
-#include <sigilmotion/clock/Ticker.h>
-
-using namespace sigil::motion;
-using namespace std::chrono_literals;
-
-FrameClock clock;
-Ticker ticker;
-
-// A live value cell, ramped to 1 over 0.4 s by the master timeline.
-ch::Output<float> opacity = 0.0f;
-ticker.timeline().apply(&opacity).then<ch::RampTo>(1.0f, 0.4f);
-
-// A second cell computed from the first every tick, shaped on the way.
-ch::Output<float> trail;
-ticker.derive(&trail, bind(&opacity).offset(-0.1f).clamp(0.0f, 1.0f));
-
-// A fixed-rate simulation, stepped 27 times a second whatever the draw rate.
-ch::Output<float> alpha;
-Ticker::FixedStatus status;
-ticker.addFixed(27.0, [&] { stepFire(); return true; }, 8, &alpha, &status);
-
-while (running) {
-  const bool animating = ticker.tick(clock.tick());
-  draw(opacity.value(), trail.value(), alpha.value());
-  if (!animating)
-    blockUntilNextEvent();   // nothing is moving; stop burning frames
-}
-```
-
-`Animatable<T>` is the property slot a consumer stores. It accepts a
-constant, a transition spec, a bare `Output<T>*`, or a shaped `bind()`:
-
-```cpp
-Animatable<float> a = 1.0f;                                  // constant
-Animatable<float> b = animate(from(0.0f).to(1.0f), {400ms}); // entrance
-Animatable<float> c = &opacity;                              // live cell
-Animatable<float> d = bind(&phase).window(0.2f, 0.6f)
-                          .map(ease::outBack()).target(-70, 170);
-```
-
-## Mental model
-
-Choreograph supplies the vocabulary — `Timeline`, `Motion`, `Phrase`,
-`Output<T>`, `EaseFn`. This library only drives it. `Output<T>` is the
-live value cell: your code owns it, the ticker writes it, and everything
-downstream reads it through a pointer.
-
-`FrameClock` produces deltas; `Ticker` consumes them. `Ticker::active()`
-is the event-driven-redraw signal — true while the timeline holds motions
-or any steppable remains registered, so a host can render when it is true
-and sleep when it is not.
-
-`Ticker::tick` runs two phases. First the timeline and every steppable, in
-registration order; then the derivations. Because derivations run second,
-a derived cell never reads a source that has not been stepped this frame,
-whatever order things were registered in.
-
-A moving `Animatable<float>` has a second half: the motion a ticker is
-actually running for it. That is `AnimatedFloat` — a held `Output<float>`,
-whether it has started, and the endpoint it is flying at — and a consumer
-that retains state keeps one beside each animatable it lets move. Four
-operations are stated over one held motion, so the consumer's storage (a
-fixed array, a vector, one member) stays its own business:
-
-```cpp
-AnimatedFloat*                    held;    // what the consumer retains
-resolveFloatAt(held, v);                   // the value for this frame
-transitionFloatAt(ticker, held, prev, next, fallback);  // a moved target
-mountEntrance(ticker, held, v, extraDelaySeconds);      // the first appearance
-```
-
-`resolveFloatAt` is the reading order and the reason there is one body:
-a bound `Output` wins (shaped through its map when it has one), then a
-running ramp, then the plain value. `transitionFloatAt` starts a ramp
-from WHERE THE VALUE IS rather than from the previous description, so a
-target that moves mid-flight bends the motion instead of restarting it;
-a motion already headed at the new target keeps flying, and a next value
-that is plain or bound snaps and disconnects. `mountEntrance` plays the
-`from` an `animate(from(a).to(b))` declares, or a `through({…})`
-waypoint list segment by segment, after whatever extra delay the caller
-staggers by. `resolveProp<T>` is the flattening underneath: an animatable
-read against a fallback transition, giving a target, a binding, or a
-spec.
-
-`Animatable<T>` holds one of four forms, discriminated by `index()`: `0`
-plain constant, `1` `Transitioned<T>`, `2` bare `Output<T>*`, `3` shaped
-binding. `Bound` is the builder and `BoundFloat::apply` runs a fixed
-pipeline: pre-normalise (`source`/`window`), optional input clamp, the
-envelope (`pingPong`/`cosine`/`trapezoid`/`square`/`wave`), ease curve
-(`map`), `quantize`, the affine chain (`scale`/`offset`/`target`/`invert`,
-composed in call order), `wrap`, `wiggle` noise, output `clamp`. The
-wiggle phase is read from the *normalised* value, before the envelope and
-the curve, so easing or folding the signal does not ease or fold the
-shake.
-
-The envelope is the shape a one-way phase takes across its span, and it is
-the answer to the loop signals every study otherwise hand-steps into its
-ticker:
-
-```cpp
-bind(&secs).source(0, 7.2f).cosine()                  // the breath
-bind(&secs).source(0, 4.0f).pingPong().target(0, 240) // there and back
-bind(&cycle).source(0, 15.f).trapezoid(0, .03f, .84f, .95f)  // hold, cut
-bind(&secs).source(0, 1.06f).square(0.58f).target(0.1f, 1.f) // the blink
-bind(&secs).wave([](float u) { return u * u; })       // your own period
-```
-
-Together the stages are the library's **waveform vocabulary** — each verb
-is one of the classic signal shapes, spoken where its output lands:
-
-| verb        | classic waveform | what it says |
-|-------------|------------------|--------------|
-| `pingPong`  | triangle         | there and back across the span, repeating |
-| `cosine`    | sine             | the swell — 0, up to 1 at mid-span, back, eased |
-| `square`    | pulse            | ON for the first `duty` of each period, OFF after; phase 0 is ON |
-| `trapezoid` | gate             | ramp, hold at 1, ramp, dark — positions inside one pass |
-| `wrap`      | sawtooth         | folds the **output** into [0, period) |
-| `wiggle`    | noise            | smooth value noise, added in output units |
-| `wave`      | custom           | your function on the folded phase u ∈ [0,1) |
-
-The first four are envelopes and share one slot; `wrap` and `wiggle` are
-their own later stages and compose with any of them. The distinction that
-keeps `wrap` out of the envelope row: an envelope shapes the *normalised
-phase* before the curve and the affine chain, while `wrap` folds the
-value *after* the affine chain — a sawtooth over the schedule is an
-unfolded phase driving `wrap`, not an envelope.
-
-`cosine`, `pingPong` and `square` are periodic in the normalised phase, so
-a monotonic seconds Output keeps breathing, bouncing or pulsing;
-`trapezoid` names positions inside one pass and stays dark past its last
-corner, so a repeating sheet rides a phase that already wraps. `wave` is
-periodic by the same fold the others use: the function is evaluated on
-u ∈ [0,1) and repeats whatever it drew there. Because the envelope runs
-*before* `map`, any curve through (0,0) and (1,1) rounds a trapezoid's
-shoulders while leaving its hold at exactly 1 and its dark at exactly 0 —
-where the corners are and what shape the shoulders take are separate
-decisions. `square` has no shoulders to round, and its phase 0 is ON —
-a caret born at the start of its cycle is born visible.
-
-The field behind `wiggle` is a **testable seam**: `bind/WiggleNoise.h`
-names its three pieces — one lattice cell, one quintic-smoothed octave,
-and the normalised fractal sum — in `sigil::motion::detail`, and states a
-range for each. They sit in `detail` because they are this library's own
-field and must never be swapped for a GPU hash bit-matched to a compute
-kernel: doing that would tie every wiggle already written to a shader
-ABI, and a future parity fix there would move all of them. But the ranges
-are promises rather than incidental facts about the body — `wiggle`'s
-`amount` is a peak displacement in the property's own units only because
-the sum is normalised — so a test may name the three pieces and hold each
-to its own range, which is the one thing outside this library that may.
-
-## Two signals that are functions of a time and nothing else
-
-`bind()` shapes a phase somebody else is stepping, and `Transitioned`
-plays once when a node mounts. Both need a ticker and an `Output`. These
-two need neither: a number in, a number out, the same answer every time
-it is asked. That is what makes them readable from a bake, a scrub, a
-force's strength and a test as well as from a frame.
-
-```cpp
-const Oscillator breath{.wave = Wave::Sine, .hertz = 0.4f,
-                        .amplitude = 0.08f, .centre = 1.0f};
-const Sequence flare{.steps = {{0.0f, 0.f}, {0.06f, 1.f}, {0.4f, 0.15f}},
-                     .interpolation = Interpolation::CatmullRom};
-
-scale(breath.at(clock.elapsed()));      // read wherever the number is wanted
-glow(flare.at(ageOfTheHit));
-```
-
-**`Oscillator` is one repeating signal with props**: the `wave` — sine,
-triangle, sawtooth or square with a `duty` — `hertz`, a starting
-`phase` in cycles, an `amplitude` and the `centre` it swings about.
-Every wave is stated on the same folded phase and answers on [-1, 1]
-before the amplitude, so swapping one for another keeps the timing and
-the range and changes only the feel; the triangle is on the sine's
-phase for exactly that reason. `fold(seconds)` is where in the cycle a
-time falls, for anything travelling with the signal, and `shape(u)` is
-the waveform on a phase that has already been folded — which is what
-`bind(&value).source(0, period).wave(...)` is handed. What it removes at
-a call site is the FOLD: `sin(t*k)` is one expression, but a wave that
-starts somewhere, swings by something and sits about something is four,
-and a hand-written modulus is what gets a negative time wrong.
-
-**`Sequence` is a number given at several times.** `Step{at, value,
-curve}` are the keys, in the caller's own units, and `interpolation`
-says what happens between them: `Hold` for states that cut, `Linear`
-shaped by each key's own `core::curve::Curve`, `CatmullRom` for the spline
-through them — a prop rather than a second type, since the keys are the
-same keys. An envelope is one of these, and so is a step sequencer, a
-cue list and a curve authored elsewhere. Outside the keys it is flat
-unless it `loop`s, in which case the last key's time is the wrap point
-and a loop is authored with its last key repeating its first; across
-that seam the spline reaches for the keys either side of the join
-rather than for the key that closes it. Two keys at one time are a cut.
-
-Both are comparable, and both are CALLABLE — so either one plugs into
-the bind chain's `wave()` or `map()` as the shape, and into anything
-else that hands a number to an interpolator. A capturing lambda would
-compare unequal to everything and re-patch every describe, which is what
-carrying the shape as a value rather than as a closure avoids.
-
-## The spring: the one value that carries its own velocity
-
-Every other value here is a function of a progress or a clock reading.
-A **spring** is not: it is a position and a velocity, stepped towards a
-target that is allowed to move.
-
-```cpp
-Spring cursor;                                   // value 0, at rest
-SpringParams p{.periodSeconds = 0.39f, .damping = 0.22f};
-cursor = spring(cursor, selectedX, dt, p);       // every frame
-if (!springMoving(cursor, selectedX)) sleep();   // done, to within a pixel
-```
-
-`periodSeconds` is the period the spring would ring at with no damping —
-how fast — and `damping` is the ratio: under 1 it overshoots and rings,
-at 1 it arrives as fast as it can without ever crossing, over 1 it crawls
-in from one side. The two are independent, which is the reason they are
-the pair named: re-timing a bounce leaves its shape, reshaping it leaves
-its timing. Successive extremes shrink by `exp(-ζπ/√(1-ζ²))`, so a
-damping is picked from the overshoot a designer can see rather than from
-a stiffness nobody can.
-
-The target is an argument to the step and not a member of the spring,
-because a target that moves mid-flight is the whole reason to reach for
-one. An `ease::` curve runs between two fixed endpoints and can only
-restart when one of them moves; `transitionFloatAt` bends by starting a
-new ramp from where the value is, which loses the speed it had. A spring
-keeps that speed and turns.
-
-It is solved in closed form rather than integrated, so **one step of any
-size is exact**: fifty steps of a frame and one step of fifty frames land
-on the same value. That is what makes it safe on the delta a frame clock
-actually hands over — the clock's clamped quarter-second is a big step
-and not an explosion — and it takes no substepping to keep it there. It
-is also why a caller with no state to keep can have the closed form for
-free, stepping a spring at rest by the age of the thing it animates,
-exactly as `decay` is read.
-
-`springMoving` is the *running* question asked of a spring. An
-exponential approach never exactly arrives, so rest is a tolerance rather
-than a fact, and it is stated once as a distance and a rate together: a
-value sitting on its target at speed is passing through it, not resting
-on it.
-
-## Physics: the set of values that push on each other
-
-A spring is one value flying at a target. A **point set** is many of
-them, pushing on each other and tied together, and there is no closed
-form for that — so this is the one feature here that is stepped rather
-than read.
-
-```cpp
-#include <sigilmotion/physics/Physics.h>
-using namespace sigil::motion::physics;
-
-Points cloth;                                  // the lanes
-std::vector<Constraint> weave;
-for (int i = 0; i < 40; ++i) cloth.add({i * 10.0f, 0}, {}, 1.0f, i % 8 == 0);
-for (int i = 1; i < 40; ++i) weave.push_back(distance(i - 1, i, 10.0f));
-
-const std::vector<Force> forces{gravity({0, 980}), wind(breeze, 40.0f),
-                                repel(cursor, 6000.0f, 120.0f)};
-const Verlet stepper{.dt = 1.0f / 120.0f, .damping = 0.4f, .iterations = 8};
-
-ticker.addFixed(120.0, [&] { stepper.step(cloth, forces, weave); return true; });
-```
-
-**`Points` is lanes, not particles.** `position`, `previous`,
-`velocity`, `force`, `mass` and `pinned` are six parallel vectors,
-because everything that reads a simulation reads one property of all of
-it. They are public: a simulation is a value the caller reads and
-writes, and `add`/`remove`/`clear` exist only so the lanes cannot be
-left at different lengths. `remove` moves the LAST point into the hole,
-which renumbers — so a set with constraints over it is grown and
-cleared, not thinned.
-
-**Reading it into a drawing is one loop.** A stamping leaf's pool holds
-its own lanes of two-float positions, so a frame copies `position[i]`
-into the pool's position lane and takes whatever else it draws from —
-a rotation off the velocity's angle, a scale off the mass, an alpha off
-an age the caller keeps beside these lanes. Nothing here holds a colour,
-an age or a size: what a point IS on screen is the drawing's business,
-and a simulation that carried it would have to name a renderer. `Vec2`
-converts from any two-float point by SHAPE (`fX`, `fY`), so a renderer's
-point crosses in without this library including a renderer's header.
-
-**`dt` is a prop of the stepper, not an argument.** That is the whole
-determinism claim: a simulation stepped by a frame's delta is a
-different simulation on every machine and on every frame that stutters,
-while one stepped by a fixed number is the same run everywhere and can
-be replayed and compared. A host with a varying clock drives it from
-`Ticker::addFixed`, which is exactly this shape.
-
-**One force value with a kind, one constraint value with a kind.** A
-force is `Uniform` (an acceleration, so weight does not enter it),
-`Drag`, `Attract` (negative strength is `repel`), `Wind` (a
-`core::noise::Field` read at the point and taken as an angle), `Flock`
-(the three steerings over the neighbours within a radius, sharing one
-neighbour search) or `Body`, the caller's own captureless function. A
-constraint is `Distance` — a BAND, `rest` to `rest + slack`, which is
-the stick, the spring and the rope in one value read three ways — or
-`Pin`, a point held where the caller puts it this frame. Both compare
-exactly, so a scene's forces and constraints are data a describe can
-carry.
-
-**Constraints move positions; the velocity is recovered afterwards**
-from the movement the step actually achieved. That is what makes a chain
-solvable by walking the list a few times, and what makes a point stopped
-by a stick lose the speed the stick took without any force having said
-so. `iterations` is how many walks: more is stiffer, not more correct.
-
-**The flock compares every pair.** A neighbour index over the point set
-answers the same question in the time one query takes rather than the
-time the whole set does, and it is the same index a packing, a poisson
-scatter and a collision pass all want; the bench's `FlockStep` arm
-beside `ParticleStep` is what it would move, and `applyFlock` is the one
-body that changes when the tree grows one.
-
-## Schedules: how N units share one progress
-
-A `Spread` says how a run of units divides one master progress between
-them — the delay between one and the next, the order they are dealt in,
-how long one unit's own motion lasts, and whether the whole thing loops.
-It says nothing about WHAT a unit is. `Cascade` resolves it against the
-counts a frame actually has, and then answers per index:
-
-```cpp
-Spread spec{.eachMs = 60, .durationMs = 420};
-spec.from = Spread::From::Center;
-
-Cascade cascade;                     // reused in place across frames
-cascade.build(spec, unitCount, 0);
-for (uint32_t i = 0; i < unitCount; ++i)
-  paint(i, cascade.localTime(master, i, 0));   // this unit's own 0→1
-```
-
-`master` is a float in [0, 1] the caller owns — a track's progress, a
-lane, a bare `phase()`. That is the whole interface, and it is why the
-schedule feature links no clock: nothing in it reads time, so a text
-engine, a set mounting its children, a feed's rows and a study's loop
-counter can all drive the same body from four different clocks.
-
-`spanMs()` is the DECLARE-TIME half: what a progress transition's
-duration has to be for the last beat to close exactly as the master
-arrives at 1, before any of the units exist. `Cascade::totalMs` is the
-same number off a resolved cascade, and the two agree because one body
-computes both.
-
-Four things a spread can be, in the order they override each other: an
-even ladder (`eachMs`), a fixed total divided across whatever the count
-turns out to be (`amountMs`), an irregular table of start times cut
-against a recording (`cueMs`, which replaces the ladder, the order and
-the distribution outright, and which `Spread::cues()` sets on a spread
-already in hand), and a second spread nested inside every beat
-of the first (`then()`, exactly one level deep). `rankBy` is the ORDER
-said the same way: one number per unit — a radius, a role, a depth from a
-root — and the ladder is dealt smallest first, ties opening together. It
-replaces `from` and `seed` and yields to a cue table, and everything else
-the spread says still applies. `loopMs` turns any of
-them into a wrapping beat: each unit re-opens on its own cycle, phase-
-offset by its start, and one sweep of the master 0→1 is one cycle.
-
-`Cascade::beat()` is the schedule read BACK rather than driven — start
-time, local time and whether the beat is running — for anything that has
-to travel with a cascade without being one of its units: a playhead, a
-travelling underline, a per-unit meter. Without it each of those restates
-`i · eachMs` and stops agreeing with the engine the moment the cascade
-nests or takes a table.
-
-## Lanes: where a host's motions live
-
-A retained host holds one `AnimatedFloat` per animatable it lets move,
-and a patch has to bend the running motions of the old description onto
-the endpoints the new one asks for. A **lane** is that pairing: an
-animatable the description carries, and the address of the held motion
-that serves it.
-
-```cpp
-enum class Family : uint8_t { Slot, Span };   // the HOST's storages
-
-std::vector<Lane<Family>> prev, next;         // filled by the host
-retargetSlots<Family>(ticker, anims, familyLanes(prev, Family::Slot),
-                      familyLanes(next, Family::Slot), nodeTransition);
-retargetFamily<Family>(ticker, spanAnims, familyLanes(prev, Family::Span),
-                       familyLanes(next, Family::Span), nodeTransition);
-```
-
-`Family` is the host's own enumeration and nothing here reads it beyond
-grouping — which is why lanes are motion's rather than a reconciler's.
-A **fixed** family is a slot array whose rows are a property of the host,
-so a row one description lacks ramps from or to the lane's `standing`
-value and a row neither carries is skipped entirely. A **positional**
-family is sized by the description, so a change of SHAPE drops the
-running motions rather than carrying them onto endpoints that now mean
-something else.
-
-## Stillness, in three words
-
-"Is anything still moving" is three different questions, and answering one
-with another is how a tree that has come to rest goes on repainting
-forever. Each has its own word here:
-
-| word | asks | grain |
-|---|---|---|
-| **declared** — a value holds a binding or a transition | *could* this move? | one value, from the description alone |
-| **running** — `isLive(anim, v)` | is it moving *now*? | one value plus the motion held for it |
-| **settled** — `core::Settle` in SigilCore | has it provably *held still*? | a node's values, observed across frames |
-
-The trap is that the first two can never say "it stopped". A binding
-stays attached for the whole life of the value it drives, so a
-declaration is permanent; and `AnimatedFloat::started` is permanent in
-the same way, which is why `isLive` asks `Output::isConnected()` instead
-— Choreograph disconnects an output when its motion finishes, and that is
-the one thing in a running motion that changes when it lands.
-
-Even "running" is a declaration about the *machinery*, not about the
-numbers: a wave held at a constant phase is connected and moves nothing.
-Only the third question is a FACT, and answering it means comparing the
-values across frames, which is a caching concern and lives with the cache.
-`Ticker::active()` is the same question asked of a whole animation domain
-rather than one value — is any motion registered at all — and it is the
-signal a host sleeps on.
+## The chapters
+
+One chapter per feature, beside this page. Each is the canon for the
+feature it names, and everything below is the library as a whole.
+
+| chapter | what it covers |
+|---------|----------------|
+| **[CLOCK.md](CLOCK.md)** | `FrameClock` and `Ticker`: deltas, the two phases of a tick, derivations, the fixed-rate lane, and the signal a host sleeps on |
+| **[VALUES.md](VALUES.md)** | `Transition`, `Animatable<T>` and its four forms, the held `AnimatedFloat` a ticker runs, `Oscillator` and `Sequence`, `Spring`, the lanes a host retargets through, and the three words for stillness |
+| **[BIND.md](BIND.md)** | `bind()`, the `Bound` chain and the fixed order `BoundFloat::apply` runs its stages in, the envelopes that are the waveform vocabulary, and the wiggle field |
+| **[PHYSICS.md](PHYSICS.md)** | `Points`, `Force`, `Constraint` and `Verlet`: the one feature here that is stepped rather than read |
+| **[SCHEDULE.md](SCHEDULE.md)** | `Spread`, `cascadeOrder()` and `Cascade`: how N units share one progress, from a master float and nothing else |
 
 ## Comparing two descriptions
 
@@ -483,59 +67,6 @@ The last rule is the load-bearing one: a live binding stays connected for
 the whole life of the value it drives, so comparing the sampled number
 would let a moving value prune into a still one.
 
-## Gotchas
-
-`Ticker` is not thread-safe. Use one per animation domain and touch it
-only from that domain's thread.
-
-`FrameClock::tick` returns `0.0` on its first call and while paused, but
-it still advances its internal timestamp. That is deliberate: unpausing
-produces no catch-up spike, because the paused span was consumed as it
-went. A single tick reports at most `FrameClockOptions::maxDelta` (0.25 s
-by default), so a suspended app or a debugger break yields a clamped step
-rather than a giant one.
-
-A binding carries ONE envelope. `pingPong`, `cosine`, `trapezoid`,
-`square` and `wave` write the same slot, so naming a second replaces the
-first exactly as a second `map()` replaces the first curve — there is no
-raised cosine of a trapezoid. `trapezoid`'s four corners are held
-non-decreasing, so a zero-length shoulder is an instant cut rather than a
-division by zero and corners given out of order collapse onto the one
-before them.
-
-`wave`'s function is part of the binding's identity, compared the way
-`map()`'s curve is: a consumer that prunes on equality can compare a plain
-function pointer, while a capturing lambda compares unequal to everything
-and re-patches on every describe. Name the shape as a free function where
-that cost matters.
-
-`Ticker::elapsed()` accumulates the deltas handed to `tick()`. It is not
-wall time — a paused or time-scaled clock changes it accordingly.
-
-`derive()` allows exactly one level. Self-derivation, deriving from
-another derivation's destination, and two derivations writing the same
-cell are all refused: the call returns `false` and writes a message to
-stderr. The chain is also applied once at registration, so the destination
-holds a correct value before the first tick.
-
-`addFixed` *discards* simulated time when the backlog exceeds
-`maxCatchUp` — running slow for one frame instead of spiralling. When
-that happens the frame's `FixedStatus::clamped` is the only signal, and
-anything measured on that frame (a residual, a convergence rate) is
-meaningless.
-
-`active()` stays true while any steppable is registered, and a steppable
-is only dropped when it returns `false`. A steppable that always returns
-`true` pins the host awake forever. Derivations never contribute to
-`active()` — they are pure in their source, so if nothing else moves,
-neither can they.
-
-`Transition` is an aggregate, so `{360ms, {}, 220ms}` value-initialises
-`ease` to an *empty* `std::function`, which compiles and then throws
-`bad_function_call` when called. Read the curve through
-`Transition::easing()`, which substitutes the default; never read `ease`
-directly.
-
 ## Boundary
 
 Every feature but physics links `choreograph::choreograph` publicly. The
@@ -544,8 +75,9 @@ under SigilCore that depend on the standard library and nothing else:
 `SigilCoreComparable` for `kFieldCount`, the pin each comparator above
 sits under — so that a `static_assert` about `BoundFloat`'s field count
 lives in the same file as `BoundFloat` — and `SigilCoreCompute` for the
-seeded mixer the scattered ordering ranks with, so that a `From::Random`
-permutation is the same permutation wherever in the tree it is dealt,
+seeded mixer the scattered ordering ranks with, so that a
+`Spread::From::Random` permutation is the same permutation wherever in
+the tree it is dealt,
 for the noise field a wind reads, so that a flow a simulation drifts
 along and the same flow drawn as a picture are the same field, and for
 the SHAPED CURVE itself: `core::curve::Curve` and every house shape are
@@ -555,8 +87,8 @@ animation runtime. `ease::` here is the animation's word for those, and
 nothing more — a curve gets its arithmetic and its equality from the
 leaf, and reads the same wherever it is held.
 Both carry no kernel, no device and nothing that draws. Boost is
-private, in one place: the scheduler's own table (`Boost::unordered` on
-`SigilMotionSchedule`), which no public header names.
+private, in one place: the scheduler's own table — a Boost unordered map
+on `SigilMotionSchedule` — which no public header names.
 
 `SigilMotionSchedule` links neither the clock nor the values. A cascade
 is a pure function of a master float in [0, 1] and two integer counts,
@@ -600,10 +132,10 @@ for the stepper's cases, `-R '^Cascade\.'` for the schedule's:
 
 | directory | suites | what they prove | what the feature must not be able to link |
 |---|---|---|---|
-| `bind/test/` | `Bind`, `Stages`, `StagePairs`, `Envelopes`, `PeriodicEnvelopes`, `BindNoise` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, and the wiggle field | anything above the leaf — the record that carries a curve is the lowest thing here |
+| `bind/test/` | `Bind`, `Stages`, `StagePairs`, `Envelopes`, `PeriodicEnvelopes`, `BindNoise` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, the wiggle field, and the two comparators field by field | anything above the leaf — the record that carries a curve is the lowest thing here |
 | `clock/test/` | `FrameClock`, `Ticker` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
 | `values/test/` | `Values`, `Forms`, `Animated`, `Lanes`, `Oscillator`, `Sequence`, `Spring` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, the two signals read from a time alone, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
-| `physics/test/` | `Physics` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, and the same run reproduced from the same `dt` | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
+| `physics/test/` | `Physics` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, the same run reproduced from the same `dt`, and the degenerate settings a caller can hand in | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
 | `schedule/test/` | `Spread`, `Order`, `Cascade`, `CascadeOrdering` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
 
 No binary needs a GPU, a font, an asset or a network, so none of them
@@ -624,7 +156,10 @@ either way round, the envelopes that stay inside [0,1] and the ones that
 repeat every period, the four forms an `Animatable<float>` holds, and the
 orderings a cascade deals its ranks in.
 
-One file per subject, named for what it asserts: `bind/test/BindTest.cpp`;
+One file per subject, named for what it asserts. In `bind/test/`,
+`BindTest` (the chain builder), `BoundFloatTest` (the evaluation, the
+envelopes and the wrap), `WiggleNoiseTest` (the noise stage and the field
+under it) and `CurveComparatorTest` (the two comparators); then
 `clock/test/ClockTest.cpp`; `physics/test/PhysicsTest.cpp`;
 `schedule/test/ScheduleTest.cpp`; and, in `values/test/`, `ValuesTest`
 (the values themselves), `AnimatedTest` (the held motion), `LanesTest`
