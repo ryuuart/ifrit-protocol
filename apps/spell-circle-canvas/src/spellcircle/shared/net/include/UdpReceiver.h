@@ -47,7 +47,20 @@ class UdpReceiver {
    *  occur after stop() returns. Safe to call when not listening. */
   void stop();
 
+  /** Whether a binding is live: true between a successful start() and the
+   *  next stop(), and false once the receive loop has given up on a broken
+   *  socket. */
   bool listening() const;
+
+  /**
+   * Why the receive loop gave up, empty while it has not. A failure that
+   * concerns one datagram — an ICMP rejection reflected onto the next
+   * receive, a datagram too large for the buffer — leaves the socket bound
+   * and the loop running. A failure of the socket itself ends the loop
+   * instead of re-arming on an error that cannot clear, and its message is
+   * held here for a status display until the next start() or stop().
+   */
+  std::string failure() const;
 
  private:
   struct Session;
