@@ -16,6 +16,7 @@
 #include <include/core/SkRRect.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTypes.h>  // SkASSERT, SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilimage/asset/ImageAsset.h>
@@ -366,8 +367,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // still paints the children.
   const std::optional<SkMatrix> ownPlane = curOwnPlane;
   const bool ownVisible = !curOwnHidden;
+  // ONE SAVE, AND THE CLIP'S SAVE NESTS INSIDE IT. A node that hosts a
+  // shared space is the only one with a plane of its own to enter, and a
+  // node that clips its content hosts no space — so the two saves are
+  // never interleaved and each is restored in its own order.
   const auto enterOwn = [&] {
     if (ownPlane) {
+      SkASSERT(!node.clipContent);
       canvas.save();
       canvas.concat(*ownPlane);
     }
