@@ -161,6 +161,25 @@ TEST(Substance, RendersEveryOutputAtTheResolutionItWasSet) {
   EXPECT_EQ(again->width(), 64);
 }
 
+TEST(Substance, CookingAgainWithNothingChangedStandsAsItStood) {
+  SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
+  std::unique_ptr<substance::Package> package = leaves();
+  ASSERT_TRUE(package);
+  substance::Graph& graph = package->graph(0);
+  ASSERT_TRUE(graph.setResolution(6, 6));
+  ASSERT_TRUE(graph.render());
+  const sk_sp<SkImage> first = baseColorOf(graph);
+  ASSERT_TRUE(first);
+  // Nothing was set between the two cooks, so the engine may have
+  // nothing to compute. That is not a failure, and what the graph
+  // already stands with is not thrown away by asking.
+  EXPECT_TRUE(graph.render());
+  const sk_sp<SkImage> again = baseColorOf(graph);
+  ASSERT_TRUE(again);
+  EXPECT_EQ(again->width(), first->width());
+  EXPECT_EQ(again->height(), first->height());
+}
+
 TEST(Substance, TheNormalFormatInputSelectsTheGreenConventionItReportsBack) {
   SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
   std::unique_ptr<substance::Package> package = leaves();

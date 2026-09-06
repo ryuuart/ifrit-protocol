@@ -67,7 +67,9 @@ class Graph {
 
   /** Cook. Synchronous; every enabled image output is (re)rendered and
    *  can be read with output(). Returns false when the engine reports a
-   *  failure. */
+   *  failure — not when a cook produced no image, which is what a graph
+   *  of numeric outputs does, and not when a graph asked to cook again
+   *  with nothing changed computed nothing and stands as it stood. */
   bool render();
 
   /** An output image by identifier or by usage (identifier first);

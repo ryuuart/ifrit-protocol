@@ -60,7 +60,13 @@ sk_sp<SkImage> imageFrom(const SubstanceTexture& tex) {
 bool Graph::render() {
   Impl& impl = *m_impl;
   impl.renderer->push(*impl.instance);
-  impl.renderer->run();
+  // WHAT THE ENGINE ANSWERS is the job it ran, and zero when it had
+  // nothing to compute — which is what a graph asked to cook again with
+  // nothing changed says, and what a graph the engine could not push
+  // says too. The pictures are not the answer: a graph whose outputs
+  // are all numeric cooks perfectly well and produces none.
+  const unsigned job = impl.renderer->run();
+  if (job == 0) return !impl.byIdentifier.empty();
   impl.byIdentifier.clear();
   impl.byUsage.clear();
   const std::vector<Output> described = outputs();
@@ -75,7 +81,7 @@ bool Graph::render() {
     impl.byIdentifier[d.identifier] = image;
     impl.byUsage[d.usage.empty() ? d.identifier : d.usage] = image;
   }
-  return !impl.byIdentifier.empty();
+  return true;
 }
 
 sk_sp<SkImage> Graph::output(std::string_view name) const {

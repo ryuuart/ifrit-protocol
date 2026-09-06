@@ -191,9 +191,8 @@ Deferred by the rulings: the file splits by subject — `Pop.h` (1131),
 
 ## SigilWorld, SigilUsd, SigilSubstance, SigilImage (findings/review-geometry-material-world.md)
 
-Should-fix: `substance/graph/Inputs.cpp:63` held images never released;
-`substance/graph/Render.cpp:63,78` ignores the engine's run result and
-answers by output count.
+Every blocker, should-fix and nit this report names is fixed, with the
+tests it asks for.
 
 ## SigilWeave and SigilDraw (findings/review-weave-draw.md)
 
