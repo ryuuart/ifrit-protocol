@@ -221,6 +221,8 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -794,15 +796,16 @@ struct SigillumAemeth : sketch::Sketch {
     g.child(
         box()
             .inset(0)
-            .shape([](SkSize) {
-              SkPathBuilder b;
-              for (int i = 0; i < 40; ++i) {
-                const float th = (float)i * 9.0f - 4.5f;
-                b.moveTo(P(th, rBandIn));
-                b.lineTo(P(th, rGreat));
-              }
-              return b.detach();
-            })
+            .shape(keyedShape(std::string_view("band-dividers"),
+                              [](SkSize) {
+                                SkPathBuilder b;
+                                for (int i = 0; i < 40; ++i) {
+                                  const float th = (float)i * 9.0f - 4.5f;
+                                  b.moveTo(P(th, rBandIn));
+                                  b.lineTo(P(th, rGreat));
+                                }
+                                return b.detach();
+                              }))
             .fill(Fill::none())
             .stroke(PathFormat{.width = 1.9f,
                                .strokeFill = Fill::color(hex(0x2c1c06, 1.0f)),
@@ -880,25 +883,27 @@ struct SigillumAemeth : sketch::Sketch {
     Element crossTile = box()
                             .width(13)
                             .height(13)
-                            .shape([](SkSize s) {
-                              SkPathBuilder b;
-                              const float w = s.width(), h = s.height();
-                              const float t = w * 0.20f;
-                              b.moveTo(w * 0.5f - t, 0);
-                              b.lineTo(w * 0.5f + t, 0);
-                              b.lineTo(w * 0.5f + t, h * 0.5f - t);
-                              b.lineTo(w, h * 0.5f - t);
-                              b.lineTo(w, h * 0.5f + t);
-                              b.lineTo(w * 0.5f + t, h * 0.5f + t);
-                              b.lineTo(w * 0.5f + t, h);
-                              b.lineTo(w * 0.5f - t, h);
-                              b.lineTo(w * 0.5f - t, h * 0.5f + t);
-                              b.lineTo(0, h * 0.5f + t);
-                              b.lineTo(0, h * 0.5f - t);
-                              b.lineTo(w * 0.5f - t, h * 0.5f - t);
-                              b.close();
-                              return b.detach();
-                            })
+                            .shape(keyedShape(
+                                std::string_view("cross-tile"),
+                                [](SkSize s) {
+                                  SkPathBuilder b;
+                                  const float w = s.width(), h = s.height();
+                                  const float t = w * 0.20f;
+                                  b.moveTo(w * 0.5f - t, 0);
+                                  b.lineTo(w * 0.5f + t, 0);
+                                  b.lineTo(w * 0.5f + t, h * 0.5f - t);
+                                  b.lineTo(w, h * 0.5f - t);
+                                  b.lineTo(w, h * 0.5f + t);
+                                  b.lineTo(w * 0.5f + t, h * 0.5f + t);
+                                  b.lineTo(w * 0.5f + t, h);
+                                  b.lineTo(w * 0.5f - t, h);
+                                  b.lineTo(w * 0.5f - t, h * 0.5f + t);
+                                  b.lineTo(0, h * 0.5f + t);
+                                  b.lineTo(0, h * 0.5f - t);
+                                  b.lineTo(w * 0.5f - t, h * 0.5f - t);
+                                  b.close();
+                                  return b.detach();
+                                }))
                             .fill(Fill::color(hex(0x402c10, 0.92f)));
     Element sideTile = box().width(20).height(3).fill(Fill::none());
 
@@ -1135,7 +1140,9 @@ struct SigillumAemeth : sketch::Sketch {
     // the deepest recesses — crosshatched wax between the star's limbs
     g.child(box()
                 .inset(0)
-                .shape([](SkSize) {
+                .shape(keyedShape(
+                    std::string_view("heptagram"),
+                    [](SkSize) {
                   SkPathBuilder b;
                   b.setFillType(SkPathFillType::kEvenOdd);
                   for (int k = 0; k < 7; ++k) {
@@ -1150,7 +1157,7 @@ struct SigillumAemeth : sketch::Sketch {
                   }
                   b.close();
                   return b.detach();
-                })
+                    }))
                 .fill(Fill::color(hex(0x7d5f2c, 0.10f)))
                 .foreground(lines::presets::crosshatch(Fill::color(hex(0x5a4218, 0.16f)),
                                               8.0f, 0.8f, 22.0f))
@@ -1350,7 +1357,9 @@ struct SigillumAemeth : sketch::Sketch {
             .width(Dim(2.4f * arm))
             .height(Dim(2.4f * arm))
             .centerAt({kHc, kHc})
-            .shape([](SkSize s) {
+            .shape(keyedShape(
+                std::string_view("crux"),
+                [](SkSize s) {
               SkPathBuilder b;
               const float w = s.width(), h = s.height();
               const float t = w * 0.085f;
@@ -1369,7 +1378,7 @@ struct SigillumAemeth : sketch::Sketch {
               b.lineTo(w * 0.5f - t, h * 0.34f - t);
               b.close();
               return b.detach();
-            })
+                }))
             .fill(Fill::color(hex(0xe9d4a4, 0.34f)))
             .stroke(PathFormat{.width = 2.4f,
                                .strokeFill = Fill::color(hex(0x3f2c12, 0.92f))})
@@ -1450,14 +1459,14 @@ struct SigillumAemeth : sketch::Sketch {
       };
       g.child(box()
                   .inset(0)
-                  .shape([from, to, ctrl](SkSize) {
+                  .shape(heldPath([&] {
                     SkPathBuilder b;
                     for (size_t i = 0; i < from.size(); ++i) {
                       b.moveTo(from[i]);
                       b.quadTo(ctrl[i], to[i]);
                     }
                     return b.detach();
-                  })
+                  }()))
                   .fill(Fill::none())
                   .stroke(spans::upTo(reveal(760.0f)),
                           lines::Line{.width = 2.6f,
@@ -1468,12 +1477,12 @@ struct SigillumAemeth : sketch::Sketch {
                   .key("hops" + std::to_string(n)));
       g.child(box()
                   .inset(0)
-                  .shape([land](SkSize) {
+                  .shape(heldPath([&] {
                     SkPathBuilder b;
                     for (const SkPoint& q : land)
                       b.addCircle(q.fX, q.fY, 0.030f * kR);
                     return b.detach();
-                  })
+                  }()))
                   .fill(Fill::none())
                   .stroke(spans::upTo(reveal(820.0f)),
                           PathFormat{
@@ -1512,12 +1521,13 @@ struct SigillumAemeth : sketch::Sketch {
         box()
             .rect(SkRect::MakeXYWH(0, 114, w, 2))
             .fill(Fill::none())
-            .shape([w](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(0, 1);
-              b.lineTo(w, 1);
-              return b.detach();
-            })
+            .shape(keyedShape(w,
+                              [w](SkSize) {
+                                SkPathBuilder b;
+                                b.moveTo(0, 1);
+                                b.lineTo(w, 1);
+                                return b.detach();
+                              }))
             .stroke(lines::rails({{.across = 0.0f,
                                    .width = 2.4f,
                                    .fill = Fill::color(hex(0xc7ab74, 0.75f))},
@@ -1532,14 +1542,15 @@ struct SigillumAemeth : sketch::Sketch {
                 .at({0, 136}));
     g.child(box()
                 .rect(SkRect::MakeXYWH(0, 158, w, 324))
-                .shape([w](SkSize) {
-                  SkPathBuilder b;
-                  for (int n = 0; n <= 7; ++n) {
-                    b.moveTo(0, 4 + (float)n * 46);
-                    b.lineTo(w, 4 + (float)n * 46);
-                  }
-                  return b.detach();
-                })
+                .shape(keyedShape(w,
+                                  [w](SkSize) {
+                                    SkPathBuilder b;
+                                    for (int n = 0; n <= 7; ++n) {
+                                      b.moveTo(0, 4 + (float)n * 46);
+                                      b.lineTo(w, 4 + (float)n * 46);
+                                    }
+                                    return b.detach();
+                                  }))
                 .fill(Fill::none())
                 .stroke(PathFormat{
                     .width = 0.8f,
@@ -1623,21 +1634,24 @@ struct SigillumAemeth : sketch::Sketch {
     // the seven arcs the rows sit on — ruled first, as on a prepared sheet
     g.child(box()
                 .rect(SkRect::MakeXYWH(0, 560, w, 300))
-                .shape([&](SkSize) {
-                  SkPathBuilder b;
-                  for (int r = 0; r <= 7; ++r) {
-                    const float rr = fanR0 - (float)r * fanDR + fanDR * 0.5f;
-                    for (int i = 0; i <= 24; ++i) {
-                      const float a = (-fanSpan * 0.54f +
-                                       fanSpan * 1.08f * (float)i / 24.0f) *
-                                      kD;
-                      const SkPoint q{fanCx + rr * std::sin(a),
-                                      fanCy - 560.0f - rr * std::cos(a)};
-                      i == 0 ? b.moveTo(q) : b.lineTo(q);
-                    }
-                  }
-                  return b.detach();
-                })
+                .shape(keyedShape(
+                    std::tuple{fanCx, fanCy, fanR0, fanDR, fanSpan},
+                    [fanCx, fanCy, fanR0, fanDR, fanSpan](SkSize) {
+                      SkPathBuilder b;
+                      for (int r = 0; r <= 7; ++r) {
+                        const float rr =
+                            fanR0 - (float)r * fanDR + fanDR * 0.5f;
+                        for (int i = 0; i <= 24; ++i) {
+                          const float a = (-fanSpan * 0.54f +
+                                           fanSpan * 1.08f * (float)i / 24.0f) *
+                                          kD;
+                          const SkPoint q{fanCx + rr * std::sin(a),
+                                          fanCy - 560.0f - rr * std::cos(a)};
+                          i == 0 ? b.moveTo(q) : b.lineTo(q);
+                        }
+                      }
+                      return b.detach();
+                    }))
                 .fill(Fill::none())
                 .stroke(PathFormat{
                     .width = 0.8f,
@@ -1651,12 +1665,13 @@ struct SigillumAemeth : sketch::Sketch {
       const SkPoint nameAt{452.0f, 612.0f + (float)c * 33.0f};
       g.child(box()
                   .inset(0)
-                  .shape([a0, a1](SkSize) {
-                    SkPathBuilder b;
-                    b.moveTo(a0);
-                    b.lineTo(a1);
-                    return b.detach();
-                  })
+                  .shape(keyedShape(std::tuple{a0.fX, a0.fY, a1.fX, a1.fY},
+                                    [a0, a1](SkSize) {
+                                      SkPathBuilder b;
+                                      b.moveTo(a0);
+                                      b.lineTo(a1);
+                                      return b.detach();
+                                    }))
                   .fill(Fill::none())
                   .stroke(lines::rails(
                       {{.across = 19.0f,
@@ -1669,13 +1684,15 @@ struct SigillumAemeth : sketch::Sketch {
       g.child(
           box()
               .inset(0)
-              .shape([a1, nameAt](SkSize) {
-                SkPathBuilder b;
-                b.moveTo(a1);
-                b.quadTo({(a1.fX + nameAt.fX) * 0.5f, a1.fY - 6.0f},
-                         {nameAt.fX - 8.0f, nameAt.fY + 12.0f});
-                return b.detach();
-              })
+              .shape(keyedShape(
+                  std::tuple{a1.fX, a1.fY, nameAt.fX, nameAt.fY},
+                  [a1, nameAt](SkSize) {
+                    SkPathBuilder b;
+                    b.moveTo(a1);
+                    b.quadTo({(a1.fX + nameAt.fX) * 0.5f, a1.fY - 6.0f},
+                             {nameAt.fX - 8.0f, nameAt.fY + 12.0f});
+                    return b.detach();
+                  }))
               .fill(Fill::none())
               .stroke(spans::upTo(
                           animate(from(0.0f).to(1.0f), ramp(delay + 120, 420))),
@@ -1791,12 +1808,13 @@ struct SigillumAemeth : sketch::Sketch {
     g.child(
         box()
             .rect(SkRect::MakeXYWH(0, 0, 690, 2))
-            .shape([](SkSize) {
-              SkPathBuilder b;
-              b.moveTo(0, 1);
-              b.lineTo(690, 1);
-              return b.detach();
-            })
+            .shape(keyedShape(std::string_view("colophon-rule"),
+                              [](SkSize) {
+                                SkPathBuilder b;
+                                b.moveTo(0, 1);
+                                b.lineTo(690, 1);
+                                return b.detach();
+                              }))
             .fill(Fill::none())
             .stroke(lines::rails({{.across = 0.0f,
                                    .width = 1.8f,
