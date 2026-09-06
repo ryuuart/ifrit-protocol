@@ -1626,21 +1626,25 @@ struct ChevreulCircle : sketch::Sketch {
             .mask(by::edge(
                 90.0f, bind(&demo).window(0.50f, 0.64f).map(upHoldAwayBack())));
     for (int i = 0; i < 12; ++i) {
-      const int col = i % 4, row = i / 4;
-      lattice.child(at((float)col * cw, (float)row * chh, cw - 3, chh - 3)
+      const SkRect patch = arrange::cellRect(arrange::cellAt((size_t)i, 4),
+                                             {cw - 3, chh - 3}, {3, 3});
+      lattice.child(at(patch.fLeft, patch.fTop, patch.width(), patch.height())
                         .fill(Fill::color(corrected[(size_t)i * 6])));
     }
     g.child(std::move(lattice));
     for (int i = 0; i < 12; ++i) {
-      const int col = i % 4, row = i / 4;
-      g.child(at(gx + (float)col * cw + (cw - 3 - 30) * 0.5f,
-                 gy + (float)row * chh + (chh - 3 - 30) * 0.5f, 30, 30)
+      const SkRect patch =
+          arrange::cellRect(arrange::cellAt((size_t)i, 4), {cw - 3, chh - 3},
+                            {3, 3}, {gx, gy});
+      g.child(at(patch.fLeft + (cw - 3 - 30) * 0.5f,
+                 patch.fTop + (chh - 3 - 30) * 0.5f, 30, 30)
                   .fill(Fill::color(gamme[14])));  // Chevreul's grey tone 15
     }
     const float ry = gy + 3 * chh + 6;
     for (int i = 0; i < 12; ++i)
-      g.child(
-          at(gx + (float)i * 27.0f, ry, 24, 24).fill(Fill::color(gamme[14])));
+      g.child(at(arrange::cellRect({i, 0}, {24, 24}, {3, 0}, {gx, ry}).fLeft,
+                 ry, 24, 24)
+                  .fill(Fill::color(gamme[14])));
     g.child(label(
         kit::formatted("all twelve patches are %s — Chevreul's grey, tone 15",
                        hexOf(gamme[14]).c_str()),

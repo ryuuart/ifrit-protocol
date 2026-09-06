@@ -985,6 +985,9 @@ struct StrokeAtlasSketch : sketch::Sketch {
 
       const float pitch = 212.0f;
       const size_t perRow = 7;
+      // Not arrange::cellAt: the first seven stand in a row and EVERY
+      // other frame continues along the second, which keeps counting past
+      // the row's width instead of wrapping again.
       for (size_t i = 0; i < frames.size(); ++i) {
         const bool second = i >= perRow;
         const size_t col = second ? i - perRow : i;

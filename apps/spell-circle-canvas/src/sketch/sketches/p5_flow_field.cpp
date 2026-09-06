@@ -10,11 +10,13 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <cmath>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace mskia = sigil::material::skia;
@@ -89,13 +91,15 @@ struct P5FlowField final : sketch::DrawSketch {
     pen.strokeWeight(3.8f);
     pen.noFill();
 
+    const SkSize module =
+        arrange::moduleSize({pen.width, pen.height}, kAcross, kDown, {0, 0});
     for (int row = 0; row < kDown; ++row) {
       for (int column = 0; column < kAcross; ++column) {
         const int id = row * kAcross + column;
-        float x =
-            (column + 0.5f + (hash01(id) - 0.5f) * 0.62f) * pen.width / kAcross;
+        float x = (column + 0.5f + (hash01(id) - 0.5f) * 0.62f) *
+                  module.width();
         float y = (row + 0.5f + (hash01(id + 701) - 0.5f) * 0.62f) *
-                  pen.height / kDown;
+                  module.height();
         x += 13.0f * std::sin(clock * 0.31f + id * 0.73f);
         y += 10.0f * std::cos(clock * 0.27f + id * 0.51f);
 

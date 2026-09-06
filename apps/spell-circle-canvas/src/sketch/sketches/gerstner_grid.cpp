@@ -44,6 +44,7 @@
 
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
@@ -59,6 +60,7 @@
 #include <string>
 #include <utility>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 
 namespace field = sigil::material::field;
@@ -127,7 +129,9 @@ inline constexpr int kConfigCount =
 
 /** Left edge of column `i`, in units. */
 inline float columnUnit(const Config& c, int i) {
-  return (float)(i * (c.width + c.gutter));
+  return arrange::cellRect({i, 0}, {(float)c.width, 0},
+                           {(float)c.gutter, 0})
+      .fLeft;
 }
 
 /** The copy the programme reflows. Gerstner's own argument, in our words:

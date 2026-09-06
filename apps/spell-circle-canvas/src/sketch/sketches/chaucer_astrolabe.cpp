@@ -2042,8 +2042,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
         {"AZIMVTES", "coaxal, zenith \xe2\x88\xa7 nadir"},
         {"HOVRES INEQVALES", "3-point circles, err 0.00374 R"}};
     for (int i = 0; i < 4; ++i) {
-      const float cx = px + 116 + (float)(i % 2) * 218;
-      const int row = i / 2;
+      const arrange::Cell at = arrange::cellAt((size_t)i, 2);
+      const float cx = px + 116 + arrange::cellRect(at, {218, 0}).fLeft;
+      const int row = at.row;
       const float cy = py + 126 + (float)row * 158;
       const float r = 54;
       auto d = kit::disc(SkPoint{cx, cy}, r)

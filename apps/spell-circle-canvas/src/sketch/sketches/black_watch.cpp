@@ -79,6 +79,7 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
@@ -109,6 +110,7 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 
 namespace field = sigil::material::field;
@@ -1111,20 +1113,24 @@ struct BlackWatch : sketch::Sketch {
     g.child(label("THE THIRD COLOURS  ·  WARP ACROSS, WEFT DOWN",
                   mn(9, kInk, 0.5f), kColX, 556, kColW));
     static const char* kName[3] = {"K", "B", "G"};
+    const SkSize module{cell, cell};
+    const SkSize gaps{gap, gap};
     for (int i = 0; i < 3; ++i) {
-      g.child(centred(kName[i], mn(9, kInk2, 0.8f),
-                      gx + (float)i * (cell + gap), y0 - 14, cell));
+      const SkRect head = arrange::cellRect({i, i}, module, gaps, {gx, y0});
+      g.child(centred(kName[i], mn(9, kInk2, 0.8f), head.fLeft, y0 - 14, cell));
       g.child(centred(kName[i], mn(9, kInk2, 0.8f), kColX,
-                      y0 + (float)i * (cell + gap) + cell / 2 - 7, 16));
+                      head.fTop + cell / 2 - 7, 16));
     }
     for (int wf = 0; wf < 3; ++wf)
-      for (int wp = 0; wp < 3; ++wp)
-        g.child(at(gx + (float)wp * (cell + gap), y0 + (float)wf * (cell + gap),
-                   cell, cell)
+      for (int wp = 0; wp < 3; ++wp) {
+        const SkRect box = arrange::cellRect({wp, wf}, module, gaps, {gx, y0});
+        g.child(at(box.fLeft, box.fTop, cell, cell)
                     .fill(blendMat[(size_t)wf * 3 + (size_t)wp])
                     .foreground(stroke(1, Fill::color(wp == wf ? kRule : kInk),
                                        PathFormat::Align::Outer)));
-    const float tx = gx + 3 * (cell + gap) + 12;
+      }
+    const float tx =
+        arrange::cellRect({3, 0}, module, gaps, {gx, y0}).fLeft + 12;
     g.child(label("EACH CELL IS 6 × 6 THREADS AT 8 PX.", mn(8, kInk2, 0.3f), tx,
                   y0 - 2, 200));
     g.child(label("THE BLENDS ARE WOVEN, NOT MIXED.", mn(8, kInk2, 0.3f), tx,
@@ -1195,7 +1201,8 @@ struct BlackWatch : sketch::Sketch {
               "LABELS",
               mn(9, kInk, 0.5f), kClothX, 1030, 700));
     for (int i = 0; i < 4; ++i) {
-      const float x = kClothX + (float)i * (sw + gap);
+      const float x =
+          arrange::cellRect({i, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft;
       // the SAME crop of the SAME cloth, four times over
       g.child(
           at(x, y0, sw, sh)
@@ -1224,7 +1231,8 @@ struct BlackWatch : sketch::Sketch {
               ty(serif(), 10.5f, kInk2), kClothX, y0 + sh + 43, 800));
 
     // ...and the cloth that carries one of those names honestly
-    const float ax = kClothX + 4 * (sw + gap) + 12;
+    const float ax =
+        arrange::cellRect({4, 0}, {sw, sh}, {gap, 0}, {kClothX, 0}).fLeft + 12;
     g.child(at(ax, y0, sw, sh)
                 .clip(true)
                 .background(styles::dropShadow(hex(0x3E3A33, 0.45f), {2, 3}, 7))

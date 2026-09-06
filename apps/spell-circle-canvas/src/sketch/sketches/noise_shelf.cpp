@@ -35,6 +35,7 @@
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcore/compute/Hash.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -44,6 +45,7 @@
 #include <string>
 #include <utility>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace noise = sigil::core::noise;
 namespace core = sigil::core;
@@ -91,9 +93,8 @@ Element field(const char* key, Field sample) {
                     for (int x = 0; x < columns; ++x) {
                       const float v = sample(x, y);
                       paint.setColor4f({ink.fR * v, ink.fG * v, ink.fB * v, 1});
-                      canvas.drawRect({x * kBlock, y * kBlock, (x + 1) * kBlock,
-                                       (y + 1) * kBlock},
-                                      paint);
+                      canvas.drawRect(
+                          arrange::cellRect({x, y}, {kBlock, kBlock}), paint);
                     }
                 })
       .absolute()

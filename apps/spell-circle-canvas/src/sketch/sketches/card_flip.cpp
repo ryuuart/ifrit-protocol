@@ -211,7 +211,9 @@ struct CardFlip final : sketch::Sketch {
 
   Element describe() const {
     constexpr float gap = 20, top = 40, ph = 440;
-    constexpr float pw = (kCanvas.fWidth - 4 * gap) / 3;
+    // Not arrange::moduleSize: this measure takes the outer margins out
+  // of the width as well, and a module's gaps sit only between.
+  constexpr float pw = (kCanvas.fWidth - 4 * gap) / 3;
     return stack()
         .fill(Fill::color(kGround))
         .child(text(toU8("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE"),

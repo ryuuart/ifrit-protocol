@@ -13,6 +13,7 @@
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/video/Video.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilio/IO.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -27,6 +28,7 @@
 #include <string>
 #include <string_view>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace io = sigil::io;
 namespace vid = sigil::video;
@@ -133,17 +135,19 @@ struct VideoCompose final : sketch::Sketch {
     }
 
     Element stage = stack().width(kWidth).height(kHeight);
-    const float cellWidth = kWidth / kColumns;
-    const float cellHeight = kHeight / kRows;
+    const SkSize module =
+        arrange::moduleSize({kWidth, kHeight}, kColumns, kRows, {0, 0});
     const auto addLeaf = [&](int source, int cell, bool overlay) {
       const VideoOptions options = optionsFor(source, cell, overlay);
       Element leaf =
           playback ? video(clips[source], playback, handles[source], options)
                    : video(clips[source], options);
-      const int column = cell % kColumns;
-      const int row = cell / kColumns;
-      leaf.rect(SkRect::MakeXYWH(column * cellWidth, row * cellHeight,
-                                 cellWidth + 0.5f, cellHeight + 0.5f));
+      // Half a pixel of bleed on the far edges, so two neighbouring
+      // leaves never leave a seam between them.
+      const SkRect at =
+          arrange::cellRect(arrange::cellAt((size_t)cell, kColumns), module);
+      leaf.rect(SkRect::MakeXYWH(at.fLeft, at.fTop, at.width() + 0.5f,
+                                 at.height() + 0.5f));
       stage.child(std::move(leaf));
     };
 

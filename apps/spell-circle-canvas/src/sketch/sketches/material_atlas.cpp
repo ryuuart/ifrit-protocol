@@ -32,6 +32,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Atlas.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -42,6 +43,7 @@
 #include <optional>
 #include <string>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
 
@@ -79,8 +81,9 @@ material::Texture buildSheet() {
         SkCanvas* canvas = surface->getCanvas();
         canvas->clear(SkColor4f{0.10f, 0.12f, 0.16f, 1}.toSkColor());
         for (int i = 0; i < kCols * kRows; ++i) {
-          const float x = (float)(i % kCols) * kCellSide;
-          const float y = (float)(i / kCols) * kCellSide;
+          const SkRect cell = arrange::cellRect(
+              arrange::cellAt((size_t)i, kCols), {kCellSide, kCellSide});
+          const float x = cell.fLeft, y = cell.fTop;
           SkPaint back;
           back.setColor4f({0.14f + 0.02f * (float)i, 0.16f, 0.22f, 1});
           canvas->drawRect(

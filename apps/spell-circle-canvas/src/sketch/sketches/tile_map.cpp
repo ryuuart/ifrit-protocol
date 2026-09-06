@@ -34,6 +34,7 @@
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -46,6 +47,7 @@
 #include <string>
 #include <utility>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace motion = sigil::motion;
@@ -180,9 +182,10 @@ Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
       const int cell = y * kChunkCols + x;
       const int id =
           cell == chunk.edit.cell ? chunk.edit.id : tileAt(chunk.index, x, y);
+      const SkRect at = arrange::cellRect({x, y}, {kTile, kTile});
       tiles.child(image(tileset)
                       .region(SkRect::MakeXYWH((float)id * 16, 0, 16, 16))
-                      .inset((float)x * kTile, (float)y * kTile, 0, 0)
+                      .inset(at.fLeft, at.fTop, 0, 0)
                       .width(Dim(kTile))
                       .height(Dim(kTile)));
     }
@@ -300,7 +303,8 @@ struct TileMap final : sketch::Sketch {
     const int cell = (int)(h % (uint32_t)kCellsPerChunk);
     // A region the map's own rule would not have put there, so an edit
     // is always visible.
-    const int rule = tileAt(chunk, cell % kChunkCols, cell / kChunkCols);
+    const arrange::Cell where = arrange::cellAt((size_t)cell, kChunkCols);
+    const int rule = tileAt(chunk, where.column, where.row);
     edits[(size_t)chunk] = Edit{cell, (rule + 1 + (int)(h % 3u)) % 4};
     ++revisions[(size_t)chunk];
     editedAt[(size_t)chunk] = clock;

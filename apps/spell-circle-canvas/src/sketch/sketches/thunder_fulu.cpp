@@ -1845,9 +1845,9 @@ struct ThunderFulu : sketch::Sketch {
         {{6, 8}, {96, 5}, {106, 16}, {100, 52}},  // TURN
     };
     for (int c = 0; c < CLSN; ++c) {
-      const float cx = (c % 2 == 0) ? 0.0f : 148.0f;
-      const int row = c / 2;
-      const float y = ky + 28 + (float)row * 62;
+      const arrange::Cell at = arrange::cellAt((size_t)c, 2);
+      const float cx = (at.column == 0) ? 0.0f : 148.0f;
+      const float y = ky + 28 + arrange::cellRect(at, {0, 62}).fTop;
       const float w0 = w0ForClass(c) * 128.0f;
       g.child(box()
                   .left(cx + 4)

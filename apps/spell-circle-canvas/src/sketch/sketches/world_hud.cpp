@@ -506,7 +506,10 @@ struct WorldHud final : sketch::Set {
     slotPool = std::make_shared<instancing::Pool>();
     for (int i = 0; i < wh::kSlotCount; ++i)
       slotPool->add(
-          {i * (wh::kSlotFrame + wh::kSlotGap) + wh::kSlotFrame * 0.5f,
+          {arrange::cellRect({i, 0}, {wh::kSlotFrame, wh::kSlotFrame},
+                             {wh::kSlotGap, 0})
+                   .fLeft +
+               wh::kSlotFrame * 0.5f,
            wh::kSlotFrame * 0.5f});
     retained = hud();
   }
@@ -713,7 +716,10 @@ struct WorldHud final : sketch::Set {
                        .height(Dim(wh::kSlotFrame));
     rail.child(instances(slotAtlas, slotPool));
     for (int i = 0; i < wh::kSlotCount; ++i) {
-      const float x = i * (wh::kSlotFrame + wh::kSlotGap);
+      const float x = arrange::cellRect({i, 0},
+                                       {wh::kSlotFrame, wh::kSlotFrame},
+                                       {wh::kSlotGap, 0})
+                          .fLeft;
       if (kSlots[i].filled)
         rail.child(
             box()
