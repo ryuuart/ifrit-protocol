@@ -189,12 +189,22 @@ then up to three convergence rounds of custom `layout()` schemes,
 `centerAt` pins, and the derive phase, each of which may re-run Yoga.
 Recordings whose baked geometry moved are invalidated. Derive resolves text
 exclusions and connector/rail routing over flat edge lists, cycle-guarded.
-`Element::flowAround` subtracts the target's SILHOUETTE when it declares one
-— a `shape()`, a routed connector or rail — so text runs into a star's
-notches and through an annulus, and its BOX when it declares none. A round
-silhouette is subtracted analytically. The margin means the same standoff in
-every case, and so does the writing mode: a column a target crosses is cut
-into a head and a foot exactly as a line is shortened beside it.
+`Element::flowAround` subtracts WHAT THE TARGET SAYS ITS EDGE IS, which is
+the one property the target already carries for its own decorations:
+`Element::boundary`. Its glyph outlines under `Boundary::Glyphs`, so text
+flows around a word; the silhouette of what it DREW under
+`Boundary::Coverage`, at the tolerance `Element::threshold` set, so text
+flows around a photograph's alpha, a clipped subtree or a masked node; its
+`shape()`, routed connector or rail otherwise, so text runs into a star's
+notches and through an annulus; and its BOX when it declares none. One
+reading serves both, so a node cannot be dressed along one outline and
+flowed around along another. A round silhouette is subtracted analytically.
+
+The margin is a DISC — the set of points within that distance of the edge —
+so a diagonal stands the text off by exactly what was asked and a corner
+comes out round; it means the same in every case, and so does the writing
+mode: a column a target crosses is cut into a head and a foot exactly as a
+line is shortened beside it.
 
 Every derivation DECLARES WHAT IT READS, in the same statement that stores
 the key: `flowAround`, `spans::fit`, `strand::from`, `band` around a key,
@@ -277,6 +287,8 @@ anything else whose visible silhouette is neither a shape nor a glyph run.
 
 ```cpp
 image(logo).boundary(Boundary::Coverage).style(kit::y2kChrome());
+image(photo).key("fig").boundary(Boundary::Coverage).threshold(0.35f);
+text(body, bodyStyle).flowAround("fig", 12);
 ```
 
 Tracing a raster has three consequences and all three show:
@@ -290,9 +302,14 @@ Tracing a raster has three consequences and all three show:
   shape — and a node that moves to a denser display is traced again. A
   ceiling on the raster's longer side bounds what a very large node asks
   for: past it the raster is scaled down to fit and the steps grow.
-- **Paint below half coverage is not a silhouette.** A pixel joins the
-  boundary when the node's paint covered at least half of it, so a 30%
-  wash traces to nothing and its decorations have nothing to dress.
+- **How much paint counts as ink is a dial.** A pixel joins the boundary
+  when the node's paint reached `Element::threshold` of it, a fraction of
+  full opacity. The default is half — the rule an unantialiased rasteriser
+  uses, which puts the traced edge where the drawn edge is — so a 30% wash
+  traces to nothing and its decorations have nothing to dress. Lower it and
+  the wash becomes silhouette; raise it and only the solid core does. It is
+  what a soft-edged photograph needs, and text flowing around that node
+  reads the same number.
 
 The node's OWN marks are not in the trace — they are what dresses it, and
 a mark that dressed itself would have no fixed point — while its fill, its

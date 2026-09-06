@@ -57,17 +57,23 @@ builder.addText(u8"Glyphs flow ")
     .addText(u8" obstacles… 日本語も 한국어도 中文也");
 Paragraph paragraph = builder.build();
 
-// A rectangle with shapes punched out of it. Shapes are cheap to move:
-// geometry is re-queried on every layout pass.
+// A rectangle with silhouettes punched out of it. They are cheap to move:
+// geometry is re-queried on every layout pass, and an offset costs a
+// silhouette nothing.
 ExclusionFlow flow(SkRect::MakeWH(900, 700));
-flow.shapes().push_back(ExclusionFlow::Shape::fromCircle(circleBounds, 8));
-flow.shapes().push_back(ExclusionFlow::Shape::fromPath(anyPath, 8));
+flow.exclusions().push_back({silhouette::circle(circleBounds), 8});
+flow.exclusions().push_back({silhouette::path(anyPath), 8});
+flow.exclusions().push_back({silhouette::coverage(photo, photoBox, 0.35f), 8});
 
 ParagraphLayoutOptions options;
 options.alignment = TextAlignment::kJustify;
 options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
 options.overflow.maxLines = 4;      // CSS line-clamp, over any geometry
 options.overflow.ellipsis = u"…";
+
+ParagraphStyle opening;
+opening.initial = {.lines = 3, .margin = 6};   // the versal, sized by rule
+options.blocks = {opening};
 
 ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow, options);
 layout.drawBatched(canvas, paragraph);
@@ -125,6 +131,57 @@ Ready-made geometries cover the common cases: `BlockFlow`,
 each one is, what a `LineRequest` carries, what a contour interval means,
 and what a column costs `ExclusionFlow` are in `FEATURES.md` under the
 flow geometries.
+
+### Silhouettes
+
+`ExclusionFlow` subtracts `Exclusion` values — a `Silhouette`, a margin,
+and an offset — and the silhouette is one virtual with one question:
+which stretches of a band, along the flow axis, does this shape occupy.
+There is no kind to switch on, so `silhouette::rectangle`,
+`silhouette::circle`, `silhouette::ellipse`, `silhouette::path`,
+`silhouette::coverage` and one a caller writes are peers. A rectangle and
+a circle are answered analytically; a path is read off its own flattened
+outline, fill rule honoured, so holes and concavities stay open to text;
+coverage is read off an image's alpha wherever it exceeds a threshold,
+which is the answer for a photograph, a video frame or a rendered node.
+
+**The margin is a disc.** It asks for the set of points within that
+distance of the shape, which is what makes a diagonal edge stand the text
+off by exactly the margin and a corner come out round. A silhouette that
+cannot answer that analytically measures an exact Euclidean distance
+field over its own coverage and reads the answer off it —
+`image::distanceField`, in SigilImage, because a distance transform is a
+question about pixels and belongs where image meaning lives.
+
+**Motion is the offset.** `Exclusion::offset` is rigid motion: the band
+arrives moved back by it and the spans come out moved forward by it, so
+nothing the silhouette measured is thrown away. A shape that is rebuilt —
+a morphing path, a new video frame — re-measures, which is the honest
+per-frame cost of text reflowing around live pixels.
+
+### The initial letter
+
+A block's opening set large is a property of the block —
+`ParagraphStyle::initial` — and not a second element someone places. The
+size is DERIVED: the initial's top reference point aligns with the first
+line's, and its baseline with the baseline of the line it sinks to, so
+its reference metric must span `(lines - 1) · pitch + the first line's
+own`, and `initialLetterSize` answers what font size gives the face that
+span. A letter chosen by eye is wrong per typeface; a letter sized by the
+rule is right in every face.
+
+The notch the following lines wrap is cut by WRAPPING THE GEOMETRY, the
+way `OverflowOptions::maxLines` is imposed: an initial is stated in pen
+travel taken off the head of a band, which is the one thing every
+geometry answers in. So a block minus exclusions, a column and a line
+riding a contour all wrap an initial with nothing written for any of
+them. `InitialLetter::wrap` reads the notch off the letter's own contours
+instead of its box, so a line tucks under the diagonal of an A;
+`InitialLetter::sink` drops the baseline further, or lifts it above the
+first line; `InitialLetter::align` picks the reference metric — the cap
+height, the em box, or the ascent a script hangs from. The initial's
+glyphs are runs of the layout and draw with the rest;
+`ParagraphLayout::initial` reports where they landed.
 
 ## The seams
 
@@ -211,9 +268,9 @@ paragraph, then layout, with decoration, paint, choreograph, query and
 cache each resting on the one they need — so a consumer of one tier links
 that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia
 and SigilGeometryPath are PUBLIC dependencies — the path a line of text
-follows is a geometry contour, and `ExclusionFlow` flattens its shapes
-through the same library; the Unicode leaf, HarfBuzz, ICU and Boost are
-PRIVATE and appear in no public header. Pimpls hide the hash maps, and
+follows is a geometry contour, and a path silhouette flattens through the
+same library; the Unicode leaf, SigilImageField, HarfBuzz, ICU and Boost
+are PRIVATE and appear in no public header. Pimpls hide the hash maps, and
 `Word::segments()` hands out a `std::span` over storage whose container
 type only the paragraph feature sees, so the one Boost container inside
 a value type never reaches a consumer. The engine is Qt-free and carries

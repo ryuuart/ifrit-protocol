@@ -10,8 +10,10 @@ the same column) with layer and channel selection on the way in, and EXR
 on the way out with those channels' names kept, and Skia's SVG module
 for rasterizing vector sources. For sources
 carrying more than plain RGBA, the raw float channel planes are exposed
-directly. No Qt, no windowing, no filesystem abstraction — the library
-sees bytes.
+directly. And, once pixels are in hand, the two image-domain measurements
+a silhouette question needs: which pixels a picture covers, and how far
+every other pixel is from them. No Qt, no windowing, no filesystem
+abstraction — the library sees bytes.
 
 Namespace `sigil::image`. One feature library per directory, linked by
 what a consumer uses; every public header lives under
@@ -22,11 +24,44 @@ what a consumer uses; every public header lives under
 | `SigilImageAsset`  | `asset/ImageAsset.h` | `ImageProbe`, `Frame` and `ImageAsset` — the decoded document and the Skia codec path; Skia only |
 | `SigilImageDecode` | `decode/Decode.h`, `decode/ChannelData.h` | `DecodeOptions`, `decodeImage()`, `probeImage()` and `decodeChannels()` — the routing surface, carrying the optional backends — and `ChannelData`, the raw channel planes |
 | `SigilImageEncode` | `encode/Encode.h` | `Format`, `EncodeOptions`, `encodeImage()` — the routing surface the other way, over a pixmap, an image or named channel planes — and `formatForPath()`/`extensionFor()` |
+| `SigilImageField`  | `field/DistanceField.h` | `Mask` and `coverageMask()` — an alpha thresholded into coverage — and `DistanceField` and `distanceField()`, the exact Euclidean distance from every pixel to the nearest covered one |
 
-`SigilImage` is the umbrella target over all three. `SigilImageEncode`
+`SigilImage` is the umbrella target over all four. `SigilImageEncode`
 stands beside `SigilImageDecode` rather than under it: a consumer that
 only writes pictures links the encoder and pulls in no codec it will not
-call.
+call, and `SigilImageField` stands beside both — it asks nothing about
+formats, only about pixels somebody already has.
+
+## The distance field
+
+```cpp
+#include <sigilimage/field/DistanceField.h>
+
+// Which pixels the picture covers: alpha GREATER than the tolerance. Half
+// is the rule an unantialiased rasteriser uses, so the mask's edge is
+// where the drawn edge is; zero admits any paint at all.
+const sigil::image::Mask ink = sigil::image::coverageMask(alpha, 0.5f);
+
+// How far every pixel is from the nearest covered one, in pixels.
+const sigil::image::DistanceField field = sigil::image::distanceField(ink);
+
+// "Everything within 8 px of the shape" — a DISC offset, corners rounded,
+// a diagonal edge standing off by 8 and not by 8·root-two.
+const bool insideTheDilation = field.at(x, y) <= 8.0f;
+```
+
+It is EXACT, not an approximation: two separable passes — a lower
+parabola envelope down each row, then down each column — answer the true
+squared distance for every pixel in time proportional to the raster,
+where a chamfer pass would answer an integer approximation of it.
+
+It lives here because it is a question about pixels, and because it is
+image *meaning* rather than image *access*. An analytic distance function
+for a parameterised shape is a different thing living somewhere else: it
+evaluates per pixel on the GPU for the handful of shapes it is written
+for, and cannot answer for an arbitrary raster at all. SigilWeave reads
+this one to give an exclusion's margin its meaning, and anything that
+outlines, spreads or chokes a raster wants the same answer.
 
 ## Using it
 
@@ -194,8 +229,8 @@ codec, which parses AVIF containers and then silently decodes no frames.
 
 ## Boundary
 
-Dependencies: `SigilImageAsset` links `unofficial::skia::skia` publicly
-and nothing else. `SigilImageDecode` links `SigilImageAsset` publicly and
+Dependencies: `SigilImageAsset` and `SigilImageField` link
+`unofficial::skia::skia` publicly and nothing else. `SigilImageDecode` links `SigilImageAsset` publicly and
 OpenImageIO and Skia's SVG module privately and optionally, each behind a
 `find_package` or target check that degrades to "that format fails to
 decode" with a configure-time warning. `SigilImageEncode` links

@@ -37,19 +37,29 @@ The layout reads position and tangent through it, so "distance along" and
 that walks a path.
 
 Ready-made geometries cover the common cases: `BlockFlow` (a rectangle),
-`ExclusionFlow` (a rectangle minus moving circles, rects, or arbitrary
-`SkPath`s with their fill rule honored), `VerticalBlockFlow` (top-to-bottom
-columns advancing right to left), `LineSetFlow` (explicit intervals — any
-origin, direction, and count per line), and `PathFlow` (each contour of a
-path becomes a line).
+`ExclusionFlow` (a rectangle minus moving `Silhouette`s), `VerticalBlockFlow`
+(top-to-bottom columns advancing right to left), `LineSetFlow` (explicit
+intervals — any origin, direction, and count per line), and `PathFlow` (each
+contour of a path becomes a line).
+
+A `Silhouette` is the second virtual, and it has one question too: which
+stretches of a band, along the flow axis, does this shape occupy. The stock
+ones — `silhouette::rectangle`, `circle`, `ellipse`, `path` (fill rule
+honoured, so holes stay open to text) and `coverage` (an image's alpha above
+a threshold) — are peers of one a caller writes, and there is no kind to
+switch on. `Exclusion` pairs a silhouette with a margin and an offset: the
+margin is a DISC, the set of points within that distance of the shape, so a
+diagonal edge stands the text off by exactly what was asked and a corner
+comes out round; the offset is rigid motion and costs the silhouette
+nothing.
 
 `ExclusionFlow` takes a `FlowAxis`, and that is the whole of what a column
 costs it: `FlowAxis::kColumns` makes each band a top-to-bottom column
 advancing right to left from the bounds' right edge, and reads every
-shape's extent DOWN the column instead of across the line. A column is a
-line turned a quarter turn — a shape shortens one, or splits it in two,
+silhouette's extent DOWN the column instead of across the line. A column is
+a line turned a quarter turn — a shape shortens one, or splits it in two,
 exactly as it shortens or splits the other — so the band scan, the fill
-rule, the flattening cache and the sliver threshold are one implementation
+rule, the distance field and the sliver threshold are one implementation
 read through two coordinates. Pair `kColumns` with
 `Paragraph::setWritingMode(WritingMode::kVerticalRL)`, exactly as
 `VerticalBlockFlow` is paired.
@@ -580,7 +590,9 @@ and the ones that name nothing say so.
 | Frame: auto-size | exists | compose measure | a leaf given no width measures its own content |
 | Threading (in and out ports) | done | `Story`; `layoutParagraph`'s resume word; the chain also states the next frame's measure through `ParagraphLayoutOptions::nextMeasure` | `weave::Story`, `frame`, `Element::key` and `Element::thread` |
 | Story-wide addressing | done — a story's words, characters, sentences and named runs are the story's already, and the LINE is what a frame chain renumbers | `sel::line` | `weave::sel::line` addresses the story, compose's `sel::inFrame` is the frame-local address beside it, and a cascade's beats span the chain on one master progress |
-| Text wrap: bounding box, object shape, offsets | exists | `ExclusionFlow`, compose `flowAround` | `Element::flowAround` |
+| Text wrap: bounding box, object shape, offsets | done — one `Silhouette` seam with a rectangle, a circle, an ellipse, any filled path, an image's alpha and a caller's own as peers | `Silhouette`, `Exclusion`, `silhouette::` | `Element::flowAround`, over the target's own `Element::boundary` |
+| Text wrap: the standoff | done — `Exclusion::margin` is a DISC, so a diagonal edge stands off by exactly the margin and a corner rounds; measured off an exact Euclidean distance field where no analytic answer exists | `Exclusion::margin`, `image::distanceField` | the margin argument of `Element::flowAround` |
+| Text wrap: an image's own alpha, at a tolerance | done — inside where the alpha exceeds the threshold, so a soft edge admits words as the dial rises | `silhouette::coverage` | `Element::boundary(Boundary::Coverage)` with `Element::threshold` |
 | Text wrap: jump object, wrap to one side | **not started** | — | — |
 | Anchored objects: inline | exists | `Placeholder`, `RichText::slot` | `weave::rich().slot(name, size)` with a child keyed for that name |
 | Anchored objects: above line | done, for a READING — a band reserved above the line and filled with set text | compose `Element::annotate` | `Element::annotate` |

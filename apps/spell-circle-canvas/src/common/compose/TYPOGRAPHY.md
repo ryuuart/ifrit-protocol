@@ -1065,12 +1065,15 @@ baseline, across the column. A glyph's pivot moves too: an upright glyph
 turns and scales about the point on the COLUMN AXIS its pen reached, not
 about a point half a column pitch to its right.
 
-**`flowAround` and `ellipsis` follow the type down the page.** An exclusion
-cuts a COLUMN exactly as it cuts a line: the column a target crosses hands
-back a head above it and a foot below it, and the same silhouette is
-subtracted — a `shape()` outline, an analytic circle, or the box a target
-that declared none stands in — with the margin the same standoff in all
-three. And a clamped column ends in its marker, at the column's FOOT,
+**`flowAround`, the initial letter and `ellipsis` follow the type down the
+page.** An exclusion cuts a COLUMN exactly as it cuts a line: the column a
+target crosses hands back a head above it and a foot below it, and the same
+silhouette is subtracted — a `shape()` outline, an analytic circle, the
+target's traced coverage, or the box a target that declared none stands in —
+with the margin the same disc standoff in all of them. An initial letter cuts
+its notch out of the head of the columns it stands in, for the same reason
+and by the same means: the notch is pen travel taken off a band, and a column
+is a band. And a clamped column ends in its marker, at the column's FOOT,
 measured against the column's length so the cut moves up to make room for
 it. The marker stands for the text it cut and is set the way that text was
 set: upright after upright glyphs, in the face's own vertical form when it
