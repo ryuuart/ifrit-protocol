@@ -323,11 +323,19 @@ Should-fix:
 
 ## SigilCore, SigilData, SigilMeasure, SigilMotion, SigilIO, SigilVideo, the product, the build (findings/review-core-io-build.md)
 
-Should-fix (correctness): none left in this group.
+Every blocker, should-fix and nit this report names is fixed, with the
+tests it asks for, except one: `cmake/Sigil.cmake:313-316` still names
+`SigilSkia` for `sigil_bench(GPU)`, because taking the link as an
+argument means passing it at the two call sites that use it, and both
+are in `src/common/compose/`. The edit: add `GPU_LIBRARIES SigilSkia`
+beside `GPU` in `compose/core/CMakeLists.txt` and
+`compose/typography/CMakeLists.txt`, then make the helper's GPU arm link
+`${ARG_GPU_LIBRARIES}`.
 
-Tests missing: the hub under retained leases
-and concurrent fetches; physics at `dt == 0`, large `dt`, `stiffness >
-1`, attract near zero; video `finish()` twice and zero frames.
+One consumer outside the libraries is left for the sketch pass:
+`src/sketch/sketches/gif_frames.cpp` reads `ResourceInfo::Kind` and
+`info->image`, which are gone — it asks
+`hub.probe<sigil::image::ImageProbe>(uri)` now.
 
 ## Ring and grid placement is respelled where geometry already has it
 
