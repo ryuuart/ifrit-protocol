@@ -31,7 +31,9 @@ void gather(benchmark::State& state, Catalogue catalogue) {
   }
 }
 
-void GatherField(benchmark::State& state) { gather(state, &field::everyRecipe); }
+void GatherField(benchmark::State& state) {
+  gather(state, &field::everyRecipe);
+}
 BENCHMARK(GatherField);
 void GatherSdf(benchmark::State& state) { gather(state, &sdf::everyRecipe); }
 BENCHMARK(GatherSdf);

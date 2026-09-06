@@ -75,7 +75,8 @@ void warnMarkSelectsNothing(const std::string& key) {
 
 void detail::resolveTextMarks(Composer::Impl& impl, Instance& inst) {
   inst.textMarkRects.clear();
-  if (!inst.description || !inst.description->textData || !inst.paragraph) return;
+  if (!inst.description || !inst.description->textData || !inst.paragraph)
+    return;
   const detail::TextData& textData = *inst.description->textData;
   const std::vector<detail::MarkAnchor>& marks = textData.marks;
   if (marks.empty()) return;

@@ -62,7 +62,8 @@ std::vector<ZipEntry> readZip(std::span<const std::byte> archive) {
     mz_zip_file* info = nullptr;
     if (mz_zip_reader_entry_get_info(reader.handle, &info) == MZ_OK && info &&
         info->filename && mz_zip_reader_entry_is_dir(reader.handle) != MZ_OK) {
-      const int32_t size = mz_zip_reader_entry_save_buffer_length(reader.handle);
+      const int32_t size =
+          mz_zip_reader_entry_save_buffer_length(reader.handle);
       ZipEntry entry{.name = info->filename};
       if (size > 0) {
         entry.bytes.resize((size_t)size);

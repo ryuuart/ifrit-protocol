@@ -134,8 +134,7 @@ inline constexpr float kPi = 3.14159265358979323846f;
  *
  *  The four control numbers ARE the identity: two curves compare equal
  *  when they were asked for at the same numbers. */
-[[nodiscard]] inline Curve cubicBezier(float x1, float y1, float x2,
-                                       float y2) {
+[[nodiscard]] inline Curve cubicBezier(float x1, float y1, float x2, float y2) {
   return {[](float t, const float* p) {
             if (t <= 0.0f) return 0.0f;
             if (t >= 1.0f) return 1.0f;
@@ -165,10 +164,9 @@ inline constexpr float kPi = 3.14159265358979323846f;
 
 /** The same cubic read in: it pulls back before it goes. */
 [[nodiscard]] inline Curve inBack(float s = 1.70158f) {
-  return {[](float t, const float* p) {
-            return t * t * ((p[0] + 1) * t - p[0]);
-          },
-          {s}};
+  return {
+      [](float t, const float* p) { return t * t * ((p[0] + 1) * t - p[0]); },
+      {s}};
 }
 
 /** Pull back, go, overshoot, settle — the two halves joined, each at a

@@ -27,7 +27,8 @@
 // of clock: the load callback says the document and everything it pulled
 // in are here, and the frame callback says a repaint carrying that
 // document has been handed over. A machine that runs the engine slowly
-// reaches both later and draws this same picture. See <sigilsketch/scry/SettledPage.h>.
+// reaches both later and draws this same picture. See
+// <sigilsketch/scry/SettledPage.h>.
 //
 // EDIT THESE FIRST
 //   kPage                     — the document. It is the subject.

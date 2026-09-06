@@ -180,8 +180,8 @@ struct Scale {
    *  form of a colour scale, and the reason this file needs no colour
    *  type. */
   template <std::invocable<double> F>
-  [[nodiscard]] std::invoke_result_t<F&, double> through(double value,
-                                                         F&& interpolate) const {
+  [[nodiscard]] std::invoke_result_t<F&, double> through(
+      double value, F&& interpolate) const {
     return interpolate(position(value));
   }
 

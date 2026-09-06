@@ -2,18 +2,18 @@
  * Parallel marks clipped to a polygon.
  */
 
-#include "HatchLines.h"
-#include "PolygonMath.h"
-
-#include <sigilgeometry/path/Lattice.h>
-#include <sigilgeometry/path/Skia.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Hatch.h>
+#include <sigilgeometry/path/Lattice.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <algorithm>
 #include <array>
 #include <utility>
+
+#include "HatchLines.h"
+#include "PolygonMath.h"
 
 namespace sigil::draw::brush {
 

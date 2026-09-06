@@ -2,9 +2,8 @@
 // it is halving until nothing is left to halve — so it is asked without
 // one, and the backends are held to it where a device exists.
 
-#include <sigilcore/hardware/GpuDevice.h>
-
 #include <gtest/gtest.h>
+#include <sigilcore/hardware/GpuDevice.h>
 
 using namespace sigil::core::hardware;
 

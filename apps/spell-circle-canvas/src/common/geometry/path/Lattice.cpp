@@ -63,9 +63,9 @@ std::vector<LatticeMark> lattice(std::span<const Polyline> rings,
   // that ladder to reach the rings.
   float scan = lowest + options.spacing * 0.5f;
   if (options.origin) {
-    const float from =
-        options.origin->x * sine + options.origin->y * cosine;
-    scan = from + std::ceil((lowest - from) / options.spacing) * options.spacing;
+    const float from = options.origin->x * sine + options.origin->y * cosine;
+    scan =
+        from + std::ceil((lowest - from) / options.spacing) * options.spacing;
   }
   float gap = options.spacing;
   int lines = 0;
@@ -84,8 +84,9 @@ std::vector<LatticeMark> lattice(std::span<const Polyline> rings,
     for (size_t i = 0; i + 1 < crossings.size(); i += 2) {
       const float from = crossings[i];
       const float to = crossings[i + 1];
-      marks.push_back({{from * cosine + scan * sine, -from * sine + scan * cosine},
-                       {to * cosine + scan * sine, -to * sine + scan * cosine}});
+      marks.push_back(
+          {{from * cosine + scan * sine, -from * sine + scan * cosine},
+           {to * cosine + scan * sine, -to * sine + scan * cosine}});
     }
     scan += gap;
     gap = std::max(0.125f, gap * options.taper);

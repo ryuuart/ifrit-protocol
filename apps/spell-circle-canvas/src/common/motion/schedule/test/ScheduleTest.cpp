@@ -50,11 +50,10 @@ TEST_P(CascadeOrdering, DealsTheRanksItsNameReads) {
 
 INSTANTIATE_TEST_SUITE_P(
     Orderings, CascadeOrdering,
-    testing::Values(
-        Ordering{"FromStart", Spread::From::Start, {0, 1, 2, 3}},
-        Ordering{"FromEnd", Spread::From::End, {3, 2, 1, 0}},
-        Ordering{"FromCenter", Spread::From::Center, {3, 1, 1, 3}},
-        Ordering{"FromEdges", Spread::From::Edges, {0, 2, 2, 0}}),
+    testing::Values(Ordering{"FromStart", Spread::From::Start, {0, 1, 2, 3}},
+                    Ordering{"FromEnd", Spread::From::End, {3, 2, 1, 0}},
+                    Ordering{"FromCenter", Spread::From::Center, {3, 1, 1, 3}},
+                    Ordering{"FromEdges", Spread::From::Edges, {0, 2, 2, 0}}),
     orderingName);
 
 TEST(Order, OneUnitNeverSpreads) {
@@ -213,8 +212,8 @@ void perturb(std::shared_ptr<const Spread>& v) {
 
 TEST(Spread, EveryFieldParticipatesInEquality) {
   static const char* const kNames[] = {
-      "eachMs",     "amountMs", "cueMs",        "rankBy", "durationMs",
-      "loopMs",     "from",     "seed",         "distribution", "inner"};
+      "eachMs", "amountMs", "cueMs", "rankBy",       "durationMs",
+      "loopMs", "from",     "seed",  "distribution", "inner"};
   static_assert(sigil::core::kFieldCount<Spread> == std::size(kNames),
                 "name a new field here as well as in operator==");
   const Spread base;
@@ -237,7 +236,7 @@ TEST(Cascade, RankByDealsTheLadderInTheOrderTheCallerStates) {
                .rankBy = {30.0f, 10.0f, 20.0f, 40.0f},
                .durationMs = 200},
               4, 1);
-  EXPECT_FLOAT_EQ(dealt.startMs(1, 0), 0.0f);    // nearest opens first
+  EXPECT_FLOAT_EQ(dealt.startMs(1, 0), 0.0f);  // nearest opens first
   EXPECT_FLOAT_EQ(dealt.startMs(2, 0), 100.0f);
   EXPECT_FLOAT_EQ(dealt.startMs(0, 0), 200.0f);
   EXPECT_FLOAT_EQ(dealt.startMs(3, 0), 300.0f);
@@ -245,10 +244,9 @@ TEST(Cascade, RankByDealsTheLadderInTheOrderTheCallerStates) {
   // TIES OPEN TOGETHER, and the slot after them is the next one up: a
   // ring of equal radii is one beat, not a dealt-out run.
   Cascade tied;
-  tied.build({.eachMs = 100,
-              .rankBy = {5.0f, 5.0f, 9.0f, 5.0f},
-              .durationMs = 200},
-             4, 1);
+  tied.build(
+      {.eachMs = 100, .rankBy = {5.0f, 5.0f, 9.0f, 5.0f}, .durationMs = 200}, 4,
+      1);
   EXPECT_FLOAT_EQ(tied.startMs(0, 0), 0.0f);
   EXPECT_FLOAT_EQ(tied.startMs(1, 0), 0.0f);
   EXPECT_FLOAT_EQ(tied.startMs(3, 0), 0.0f);

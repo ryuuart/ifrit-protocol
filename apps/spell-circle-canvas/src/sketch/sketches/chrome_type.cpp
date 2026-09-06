@@ -71,9 +71,9 @@ const SkColor4f kFaint{0.796f, 0.816f, 0.847f, 0.42f};
 
 weave::TextStyle wordmark(SkColor4f colour = {0.7f, 0.73f, 0.78f, 1}) {
   return weave::textStyle(
-      {.face = weave::ports::face({"Helvetica Neue", "Inter", "Arial Black",
-                                   "Helvetica"},
-                                  SkFontStyle::Bold()),
+      {.face = weave::ports::face(
+           {"Helvetica Neue", "Inter", "Arial Black", "Helvetica"},
+           SkFontStyle::Bold()),
        .size = kDisplay,
        .color = colour,
        .track = 1.5f,
@@ -122,11 +122,8 @@ struct ChromeType final : sketch::Sketch {
     // the word sits inside it.
     Element onBox = sketch::kit::caption(
         0, toU8("Boundary::Auto"), toU8("the node's rectangle"),
-        box()
-            .padding(18)
-            .corners({6})
-            .style(style)
-            .child(text(toU8(c::kWordmark), c::wordmark(letterInk))));
+        box().padding(18).corners({6}).style(style).child(
+            text(toU8(c::kWordmark), c::wordmark(letterInk))));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
         0, toU8("Boundary::Glyphs"),
@@ -173,13 +170,14 @@ struct ChromeType final : sketch::Sketch {
          .footer = u8"no new preset and no second code path: the style is "
                    u8"handed a different outline, and every style already "
                    u8"written follows",
-         .ground = linearGradient({0, 0}, {0, c::kH},
-                                  {c::kGroundLift, c::kGround})},
+         .ground =
+             linearGradient({0, 0}, {0, c::kH}, {c::kGroundLift, c::kGround})},
         kit::cells({.cells = std::move(rows), .column = true, .gap = 30}));
   }
 };
 
 }  // namespace
 
-SIGIL_SKETCH_AS(ChromeType, "chrome_type", "Catalog \xc2\xb7 Type",
-                "layer styles dressing glyph outlines, beside the same on a box")
+SIGIL_SKETCH_AS(
+    ChromeType, "chrome_type", "Catalog \xc2\xb7 Type",
+    "layer styles dressing glyph outlines, beside the same on a box")

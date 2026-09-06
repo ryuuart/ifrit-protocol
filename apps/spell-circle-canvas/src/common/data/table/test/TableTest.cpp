@@ -93,9 +93,8 @@ TEST(DataTable, SelectKeepsTheNamedColumnsInTheOrderNamed) {
 TEST(DataTable, FilterKeepsTheRowsItAnswersTrueFor) {
   const Table table = months();
   const std::span<const double> deaths = table.column<double>("deaths");
-  const Table heavy = table.filter([&](size_t row) {
-    return deaths[row] > 1000.0;
-  });
+  const Table heavy =
+      table.filter([&](size_t row) { return deaths[row] > 1000.0; });
   EXPECT_EQ(3u, heavy.size());
   EXPECT_EQ(3u, heavy.columns().size());
   EXPECT_EQ("Mar", heavy.column<std::string>("month")[2]);

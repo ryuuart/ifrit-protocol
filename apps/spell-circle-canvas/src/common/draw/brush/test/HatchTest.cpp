@@ -21,8 +21,8 @@ namespace {
 
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
-using sigil::draw::brush::testing::Recording;
 using sigil::draw::brush::testing::recorder;
+using sigil::draw::brush::testing::Recording;
 using sigil::draw::testing::Paper;
 
 TEST(Hatch, StaysInsideItsPolygon) {
@@ -64,7 +64,8 @@ TEST(Hatch, ArraysUseInnerPolygonsAsEvenOddHoles) {
   tool.bristles = 1;
   tool.scatter = 0.0f;
   tool.pressure = {1, 1, 1};
-  brush::hatchArray(paper.pen, tool, polygons, {.spacing = 5.0f, .angle = 0.0f});
+  brush::hatchArray(paper.pen, tool, polygons,
+                    {.spacing = 5.0f, .angle = 0.0f});
   paper.end();
 
   SkBitmap pixels = paper.pixels();
@@ -88,7 +89,8 @@ TEST(Hatch, ArraysUseInnerPolygonsAsEvenOddHoles) {
   paper.surface->getCanvas()->clear(SK_ColorWHITE);
   paper.begin();
   paper.pen.randomSeed(22);
-  brush::hatchArray(paper.pen, tool, islands, {.spacing = 3.0f, .angle = HALF_PI});
+  brush::hatchArray(paper.pen, tool, islands,
+                    {.spacing = 3.0f, .angle = HALF_PI});
   paper.end();
   pixels = paper.pixels();
   bool secondIslandPainted = false;

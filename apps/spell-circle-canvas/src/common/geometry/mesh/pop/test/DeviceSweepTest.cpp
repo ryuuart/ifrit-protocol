@@ -11,8 +11,6 @@
 
 #include <gtest/gtest.h>
 #include <sigilgeometry/device/Device.h>
-
-#include "OnDevice.h"
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
@@ -25,6 +23,8 @@
 #include <string>
 #include <vector>
 
+#include "OnDevice.h"
+
 using namespace sigil;
 namespace gm = sigil::geometry::mesh;
 namespace curve = sigil::geometry::mesh::curve;
@@ -32,7 +32,6 @@ namespace pop = sigil::geometry::mesh::pop;
 namespace sections = sigil::geometry::sections;
 
 namespace {
-
 
 /** A closed loop that turns in all three axes, so no ring's frame is
  *  axis-aligned and every component of the arithmetic is exercised. */
@@ -123,8 +122,7 @@ TEST(DeviceSweep, EveryNormalRuleIsBitIdenticalToTheHost) {
     for (bool closed : {true, false}) {
       const curve::Spline3 spline = closed ? loop() : arc();
       const std::vector<curve::Frame3> rail = curve::frames(spline, 64);
-      for (const auto& contour :
-           {sections::circle(12), sections::line()}) {
+      for (const auto& contour : {sections::circle(12), sections::line()}) {
         pop::SweepOptions options;
         options.normals = rule;
         options.scale = 14.0f;

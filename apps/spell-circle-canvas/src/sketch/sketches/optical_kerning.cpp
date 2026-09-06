@@ -100,9 +100,10 @@ struct OpticalKerning final : sketch::Sketch {
     for (int i = 0; i < 6; ++i)
       rows[i] =
           kit::formatted("%-3s %+6.2f px", kPairs[i],
-                      advance(kPairs[i], true) - advance(kPairs[i], false));
-    rows[6] = kit::formatted("%-3s %+6.2f px", "the line",
-                          advance(kHeadline, true) - advance(kHeadline, false));
+                         advance(kPairs[i], true) - advance(kPairs[i], false));
+    rows[6] =
+        kit::formatted("%-3s %+6.2f px", "the line",
+                       advance(kHeadline, true) - advance(kHeadline, false));
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("OPTICAL KERNING \xc2\xb7 "

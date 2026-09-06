@@ -188,7 +188,7 @@ TEST(Grid, TheMathFrameCountsYUpward) {
   // off the page rather than negating every one of them at the call site.
   const Grid math{.scale = 4.0f, .yScale = -1.0f, .origin = {100, 200}};
   EXPECT_FLOAT_EQ(math.x(10), 140);
-  EXPECT_FLOAT_EQ(math.y(10), 160);   // ten units UP the page
+  EXPECT_FLOAT_EQ(math.y(10), 160);  // ten units UP the page
   EXPECT_FLOAT_EQ(math.y(-10), 240);
   EXPECT_FLOAT_EQ(math.s(10), 40);    // an x length is unsigned
   EXPECT_FLOAT_EQ(math.sy(10), -40);  // a y length up the page is negative

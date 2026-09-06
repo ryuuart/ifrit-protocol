@@ -32,7 +32,6 @@ namespace sigil::sketch::kit {
  *  a broken checkout rather than a condition to render around: a page
  *  set in nothing is unmistakable, where a page set in a stand-in is a
  *  plate that quietly stopped being the picture its header describes. */
-[[nodiscard]] std::u8string passage(SketchContext& ctx,
-                                    std::string_view name);
+[[nodiscard]] std::u8string passage(SketchContext& ctx, std::string_view name);
 
 }  // namespace sigil::sketch::kit

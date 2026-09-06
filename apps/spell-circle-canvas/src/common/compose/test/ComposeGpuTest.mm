@@ -7,10 +7,10 @@
 // foreground) that must land identically on both backends.
 
 #include <sigilcompose/Compose.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/kit/Kinetic.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
@@ -185,10 +185,11 @@ TEST_P(DirectImageDraw, ItsPixelsArriveOnGraphite) {
 INSTANTIATE_TEST_SUITE_P(
     ComposeGpu, DirectImageDraw,
     testing::Values(
-        DirectDraw{"AnImageRect",
-                   [] { return box().child(image(whiteTile(32)).absolute().inset(50, 50, 50, 50)); },
-                   {{100, 100}},
-                   {}},
+        DirectDraw{
+            "AnImageRect",
+            [] { return box().child(image(whiteTile(32)).absolute().inset(50, 50, 50, 50)); },
+            {{100, 100}},
+            {}},
         DirectDraw{"ANineSliceLattice",
                    [] {
                      Decoration slice = Slice{whiteTile(48), {16, 32}, {16, 32}};
@@ -302,7 +303,6 @@ TEST(ComposeGpu, BatchedBlurredUnderlayStaysBeneathForeground) {
   EXPECT_GT(gpuStroke, cpuStroke / 2)
       << "foreground stroke lost its colour on Graphite: the blurred "
          "underlay composited over it";
-
 }
 
 // The same guarantee through the fx track path: a text node whose style

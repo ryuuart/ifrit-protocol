@@ -79,13 +79,13 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
@@ -478,9 +478,9 @@ sk_sp<SkImage> bakeBlend(SkColor4f a, SkColor4f b, int threads) {
 }
 
 inline Paint imageMat(const sk_sp<SkImage>& img, float px,
-                         SkTileMode tile = SkTileMode::kRepeat) {
+                      SkTileMode tile = SkTileMode::kRepeat) {
   return Paint::image(img, tile, tile, SkMatrix::Scale(px, px),
-                         SkSamplingOptions(SkFilterMode::kNearest));
+                      SkSamplingOptions(SkFilterMode::kNearest));
 }
 
 // ---------------------------------------------------------------------------
@@ -514,13 +514,16 @@ inline sk_sp<SkTypeface> serifIt() {
 // the paragraph registers that name their own face at the call.
 inline weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
                            SkColor4f color, float track = 0) {
-  return weave::textStyle({.face = tf, .size = size, .color = color, .track = track});
+  return weave::textStyle(
+      {.face = tf, .size = size, .color = color, .track = track});
 }
 inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle({.face = mono(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle(
+      {.face = mono(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle sb(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle({.face = sansB(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle(
+      {.face = sansB(), .size = sz, .color = c, .track = tr});
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }
@@ -606,7 +609,7 @@ struct BlackWatch : sketch::Sketch {
   std::array<Pattern, 12> pickPattern;  // (colour, twill phase)
   Pattern threadGrid;                   // the interlacement grooves
   Paint warpMat, gridMat, boardMat, yarnGrain, drawGrid, swatchMat;
-  std::vector<Paint> pickMat;   // 12, resolved once
+  std::vector<Paint> pickMat;  // 12, resolved once
   std::shared_ptr<instancing::Atlas> pickAtlas;
   std::shared_ptr<instancing::Pool> pickPool;
   std::vector<Paint> clothMat;  // 5 palettes, whole cloth
@@ -745,10 +748,9 @@ struct BlackWatch : sketch::Sketch {
         c.drawRect(SkRect::MakeXYWH((float)i * kPx, 0, 1, 4 * kPx), p);
     });
     gridMat = threadGrid.material();
-    drawGrid =
-        Pattern(patterns::gridLines(kDrawCell, 0.7f,
-                                skia::toColor(hex(0x8A8478, 0.6f))))
-            .material();
+    drawGrid = Pattern(patterns::gridLines(kDrawCell, 0.7f,
+                                           skia::toColor(hex(0x8A8478, 0.6f))))
+                   .material();
 
     // 4. WHOLE-CLOTH BAKES — one per palette family, 252 x 252 at one pixel
     //    per thread, magnified x2 with kNearest. Same 252 threads, same
@@ -1334,13 +1336,12 @@ struct BlackWatch : sketch::Sketch {
     for (size_t i = 0; i < rows; ++i) {
       const measure::Check& c = verdict.rows[i];
       const float w0 = kWeaveEnd + (float)i * 0.0092f;
-      g.child(at(x0, y0 + (float)i * lh, 450, 13)
-                  .opacity(bind(&loom).source(w0, w0 + 0.011f).clamp(0.0f,
-                                                                    1.0f))
-                  .child(text(U(c.line(40, 7)),
-                              mn(9.5f, !c.judged() ? kInk2
-                                                   : (c.pass ? kInk : kRed),
-                                 0.1f))));
+      g.child(
+          at(x0, y0 + (float)i * lh, 450, 13)
+              .opacity(bind(&loom).source(w0, w0 + 0.011f).clamp(0.0f, 1.0f))
+              .child(text(U(c.line(40, 7)),
+                          mn(9.5f, !c.judged() ? kInk2 : (c.pass ? kInk : kRed),
+                             0.1f))));
     }
     return g;
   }

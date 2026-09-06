@@ -88,9 +88,8 @@ compose::Element gauge(const Gauge& dial) {
                    .inset(0)
                    .alignItems(Align::Center)
                    .justify(compose::Justify::Center)
-                   .child(text(dial.reading,
-                               look.style(look.type.captionLabel,
-                                          look.palette.figure))));
+                   .child(text(dial.reading, look.style(look.type.captionLabel,
+                                                        look.palette.figure))));
   return face;
 }
 

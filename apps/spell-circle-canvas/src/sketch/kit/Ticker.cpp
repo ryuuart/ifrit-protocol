@@ -38,8 +38,7 @@ weave::TextStyle wordInk(const Theme& look, const Fill& ink) {
     case Fill::Kind::Color:
       return look.style(look.type.eyebrow, ink.colorValue);
     case Fill::Kind::Shader: {
-      weave::TextStyle word =
-          look.style(look.type.eyebrow, SkColors::kWhite);
+      weave::TextStyle word = look.style(look.type.eyebrow, SkColors::kWhite);
       word.paint.foreground.setShader(ink.shaderValue);
       return word;
     }
@@ -64,12 +63,13 @@ compose::Element timeline(const Timeline& scale) {
   if (scale.width.unit != Dim::Unit::Auto) rail.width(scale.width);
   for (const Timeline::Mark& mark : scale.marks) {
     const float reach = mark.major ? scale.tick : scale.tick * 0.5f;
-    Element tick = box()
-                       .absolute()
-                       .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
-                       .width(Dim(1))
-                       .height(Dim(reach))
-                       .fill(inkFill);
+    Element tick =
+        box()
+            .absolute()
+            .left(compose::pct(std::clamp(mark.at, 0.0f, 1.0f) * 100))
+            .width(Dim(1))
+            .height(Dim(reach))
+            .fill(inkFill);
     if (scale.below)
       tick.top(Dim(thickness));
     else

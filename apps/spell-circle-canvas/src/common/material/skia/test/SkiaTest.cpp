@@ -459,12 +459,12 @@ TEST(SkiaEffect, AParameterBlurReachesItsOwnBoxAndNotTheClip) {
   blur.uniform("maxSigma", &sigma);
   const sk_sp<SkImageFilter> filter = blur.resolvedImageFilter(&frame);
   ASSERT_NE(filter, nullptr);
-  const SkIRect small = filter->filterBounds(
-      SkIRect::MakeWH(300, 300), SkMatrix::I(),
-      SkImageFilter::kForward_MapDirection, nullptr);
-  const SkIRect large = filter->filterBounds(
-      SkIRect::MakeWH(1200, 1200), SkMatrix::I(),
-      SkImageFilter::kForward_MapDirection, nullptr);
+  const SkIRect small =
+      filter->filterBounds(SkIRect::MakeWH(300, 300), SkMatrix::I(),
+                           SkImageFilter::kForward_MapDirection, nullptr);
+  const SkIRect large =
+      filter->filterBounds(SkIRect::MakeWH(1200, 1200), SkMatrix::I(),
+                           SkImageFilter::kForward_MapDirection, nullptr);
   EXPECT_EQ(small, large) << "the reach depends on the clip";
   EXPECT_NE(large, SkIRect::MakeWH(1200, 1200)) << "the reach is the clip";
   const SkIRect declared =
@@ -638,9 +638,8 @@ TEST(SkiaEffect, PhosphorBloomIsThePlainFalloffWithinTheResample) {
   // into a halo pass and a composite pass changes nothing at all: every
   // float of the picture is the plain program's own.
   {
-    const std::vector<float> want =
-        bloomThrough(plainPhosphor(plain, 6.0f).resolvedImageFilter(nullptr),
-                     amber);
+    const std::vector<float> want = bloomThrough(
+        plainPhosphor(plain, 6.0f).resolvedImageFilter(nullptr), amber);
     const std::vector<float> got =
         bloomThrough(skia::Effect::phosphorBloom(6.0f, 0.52f, 0.46f, 0.80f)
                          .resolvedImageFilter(nullptr),
@@ -657,9 +656,8 @@ TEST(SkiaEffect, PhosphorBloomIsThePlainFalloffWithinTheResample) {
   // steep edge of the falloff and almost nowhere else: the mean error
   // over the whole picture stays an order of magnitude under the worst
   // texel's.
-  const std::vector<float> want =
-      bloomThrough(plainPhosphor(plain, 9.0f).resolvedImageFilter(nullptr),
-                   amber);
+  const std::vector<float> want = bloomThrough(
+      plainPhosphor(plain, 9.0f).resolvedImageFilter(nullptr), amber);
   const std::vector<float> got = bloomThrough(
       skia::Effect::phosphorBloom().resolvedImageFilter(nullptr), amber);
   ASSERT_EQ(want.size(), got.size());
@@ -890,18 +888,18 @@ TEST(SkiaPaint, AFittedImageIsMappedOntoTheBoxItIsPainting) {
   // Contain keeps the aspect and leaves the margin: a 2:1 source in a
   // square box is half the height of it, centred, and the box's own top
   // is not the image.
-  const SkBitmap inside =
-      render(fitted(skia::Fit::Contain).shaderFor(skia::PaintFrame{.size = {40, 40}}),
-             40, 40);
+  const SkBitmap inside = render(
+      fitted(skia::Fit::Contain).shaderFor(skia::PaintFrame{.size = {40, 40}}),
+      40, 40);
   EXPECT_EQ(SkColorGetA(inside.getColor(5, 5)), 0u);
   EXPECT_EQ(inside.getColor(5, 20), SK_ColorRED);
   EXPECT_EQ(inside.getColor(35, 20), SK_ColorBLUE);
 
   // Cover keeps the aspect the other way: nothing of the box is left, and
   // what does not fit is off the edges.
-  const SkBitmap over =
-      render(fitted(skia::Fit::Cover).shaderFor(skia::PaintFrame{.size = {40, 40}}),
-             40, 40);
+  const SkBitmap over = render(
+      fitted(skia::Fit::Cover).shaderFor(skia::PaintFrame{.size = {40, 40}}),
+      40, 40);
   EXPECT_EQ(over.getColor(5, 2), SK_ColorRED);
   EXPECT_EQ(over.getColor(5, 38), SK_ColorRED);
   EXPECT_EQ(over.getColor(35, 20), SK_ColorBLUE);
@@ -947,4 +945,3 @@ TEST(SkiaPaint, APaletteCrossesToAShaderAsATableSampledNearest) {
     EXPECT_EQ(SkColorGetB(got), (uint32_t)std::lround(want.b * 255.0f)) << i;
   }
 }
-

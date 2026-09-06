@@ -42,8 +42,8 @@ class Json {
  public:
   using Array = std::vector<Json>;
   using Object = std::vector<std::pair<std::string, Json>>;
-  using Held = std::variant<std::nullptr_t, bool, double, std::string, Array,
-                            Object>;
+  using Held =
+      std::variant<std::nullptr_t, bool, double, std::string, Array, Object>;
 
   /** What a value is. The order is the order of `Held`. */
   enum class Kind { Null, Boolean, Number, Text, List, Record };

@@ -19,8 +19,8 @@ namespace {
 
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
-using sigil::draw::brush::testing::Recording;
 using sigil::draw::brush::testing::recorder;
+using sigil::draw::brush::testing::Recording;
 using sigil::draw::testing::Paper;
 
 TEST(Engine, OwnsSelectionAndRelativeStrokeState) {
@@ -107,9 +107,8 @@ TEST(Engine, TheClipConfinesEveryInteriorAndTheOutline) {
   brush::Engine flat;
   flat.noStroke();
   flat.wash(SkColors::kBlue, 1.0f);
-  rightHalfIsClean(flat, [&](brush::Engine& engine, Pen& pen) {
-    engine.wash(pen, square);
-  });
+  rightHalfIsClean(
+      flat, [&](brush::Engine& engine, Pen& pen) { engine.wash(pen, square); });
 
   brush::Engine pigment;
   pigment.noStroke();
@@ -244,8 +243,8 @@ TEST(Engine, ReadsTheFieldAtThePensClock) {
   auto recording = std::make_shared<Recording>();
   ASSERT_NE(engine.add("recorder", recorder(recording, 2.0f)), nullptr);
   ASSERT_NE(engine.set("recorder", SkColors::kBlack), nullptr);
-  ASSERT_TRUE(engine.addField(
-      "clock", [](SkPoint, float seconds) { return seconds; }));
+  ASSERT_TRUE(
+      engine.addField("clock", [](SkPoint, float seconds) { return seconds; }));
   ASSERT_TRUE(engine.field("clock"));
 
   Paper paper(80, 80);
@@ -270,7 +269,8 @@ TEST(Engine, ShapeBuilderUsesTheSameSurfacePipeline) {
   engine.vertex(15, 15);
   engine.vertex(65, 20);
   engine.vertex(40, 65);
-  const std::optional<brush::PlacedPlot> shape = engine.endShape(paper.pen, true);
+  const std::optional<brush::PlacedPlot> shape =
+      engine.endShape(paper.pen, true);
   ASSERT_TRUE(shape);
   EXPECT_EQ(shape->origin, SkPoint::Make(15, 15));
   engine.rect(paper.pen, 5, 5, 20, 15, 4);
@@ -326,8 +326,8 @@ TEST(Engine, ReturnsRelativePlotsPlacedWhereTheyWereDrawn) {
   Paper paper(120, 100, SK_ColorWHITE);
   paper.begin();
 
-  const brush::Polygon polygon =
-      engine.polygon(paper.pen, std::array<SkPoint, 3>{{{5, 5}, {20, 5}, {5, 20}}});
+  const brush::Polygon polygon = engine.polygon(
+      paper.pen, std::array<SkPoint, 3>{{{5, 5}, {20, 5}, {5, 20}}});
   EXPECT_FALSE(polygon.empty());
   const brush::PlacedPlot circle = engine.circle(paper.pen, 70, 50, 20);
   EXPECT_FALSE(circle.empty());

@@ -36,8 +36,8 @@ struct Moments {
 };
 
 Moments momentsOf(const std::vector<double>& values) {
-  const double mean =
-      std::accumulate(values.begin(), values.end(), 0.0) / (double)values.size();
+  const double mean = std::accumulate(values.begin(), values.end(), 0.0) /
+                      (double)values.size();
   double sum = 0;
   for (double v : values) sum += (v - mean) * (v - mean);
   return {mean, sum / (double)values.size()};
@@ -47,7 +47,8 @@ template <typename Shape>
 Moments drawMoments(Stream stream, const Shape& shape, int count) {
   std::vector<double> values;
   values.reserve((size_t)count);
-  for (int i = 0; i < count; ++i) values.push_back((double)stream.sample(shape));
+  for (int i = 0; i < count; ++i)
+    values.push_back((double)stream.sample(shape));
   return momentsOf(values);
 }
 
@@ -120,17 +121,16 @@ TEST(Sequences, TheRadicalInverseIsTheDigitsMirroredAboutThePoint) {
   Stream sobol = Stream::sobol();
   // Halton in base two and the first Sobol dimension are the same
   // numbers reached two ways: a division, and the index's bits reversed.
-  const std::array<uint32_t, 5> halves = {0x00000000u, 0x80000000u,
-                                          0x40000000u, 0xc0000000u,
-                                          0x20000000u};
+  const std::array<uint32_t, 5> halves = {0x00000000u, 0x80000000u, 0x40000000u,
+                                          0xc0000000u, 0x20000000u};
   for (size_t i = 0; i < halves.size(); ++i) {
     EXPECT_EQ(sobol.bits(), halves[i]) << "term " << i;
     EXPECT_EQ(base2.bits(), halves[i]) << "term " << i;
   }
 
   Stream base3 = Stream::halton(3);
-  const std::array<uint32_t, 4> thirds = {0x00000000u, 0x55555555u,
-                                          0xaaaaaaaau, 0x1c71c71cu};
+  const std::array<uint32_t, 4> thirds = {0x00000000u, 0x55555555u, 0xaaaaaaaau,
+                                          0x1c71c71cu};
   for (size_t i = 0; i < thirds.size(); ++i)
     EXPECT_EQ(base3.bits(), thirds[i]) << "term " << i;
 }
@@ -276,8 +276,7 @@ TEST(Shuffle, IsAPermutationAndEveryPlaceIsReachedAboutEquallyOften) {
     }
   }
   for (const auto& places : landed)
-    for (int hits : places)
-      EXPECT_NEAR((double)hits / count, 1.0 / 6.0, 0.01);
+    for (int hits : places) EXPECT_NEAR((double)hits / count, 1.0 / 6.0, 0.01);
 }
 
 TEST(Reservoir, HoldsEveryItemWhileTheRunIsShorterThanItIs) {
@@ -343,10 +342,10 @@ TEST(Chance, CarriesTheSourceSoALookIsChosenOnceAndComparesExactly) {
 
   // Every member is a plain number, so the token compares exactly and a
   // memo keyed on it can be skipped.
-  EXPECT_EQ(halton, (chance::Chance{.seed = 5,
-                                    .source = chance::Source::Halton,
-                                    .parameter = 3}));
-  EXPECT_NE(halton, (chance::Chance{.seed = 5,
-                                    .source = chance::Source::Halton,
-                                    .parameter = 2}));
+  EXPECT_EQ(halton,
+            (chance::Chance{
+                .seed = 5, .source = chance::Source::Halton, .parameter = 3}));
+  EXPECT_NE(halton,
+            (chance::Chance{
+                .seed = 5, .source = chance::Source::Halton, .parameter = 2}));
 }

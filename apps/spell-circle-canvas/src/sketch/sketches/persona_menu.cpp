@@ -76,8 +76,8 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -211,8 +211,8 @@ inline sigil::weave::TextStyle menuType(float size, SkColor4f fill, float ringW,
   s.paint.foreground.setColor(fill.toSkColor());
   s.paint.foreground.setAntiAlias(true);
   if (ringW > 0)
-    s.paint.addUnderlay(sigil::weave::kit::outline(
-        kRing.toSkColor(), ringW, SkPaint::kRound_Join));
+    s.paint.addUnderlay(sigil::weave::kit::outline(kRing.toSkColor(), ringW,
+                                                   SkPaint::kRound_Join));
   return s;
 }
 
@@ -359,16 +359,16 @@ struct PersonaMenu final : sketch::Sketch {
     namespace nn = persona_menu;
     // 5-stop posterized band structure: HARD stops at the LUT positions.
     Paint bands = Paint::linear({0, 0}, {0, nn::kH},
-                                      {{0.000f, nn::kLut0},
-                                       {0.309f, nn::kLut0},
-                                       {0.309f, nn::kLut1},
-                                       {0.480f, nn::kLut1},
-                                       {0.480f, nn::kLut2},
-                                       {0.768f, nn::kLut2},
-                                       {0.768f, nn::kLut3},
-                                       {0.813f, nn::kLut3},
-                                       {0.813f, nn::kLut4},
-                                       {1.000f, nn::kLut4}});
+                                {{0.000f, nn::kLut0},
+                                 {0.309f, nn::kLut0},
+                                 {0.309f, nn::kLut1},
+                                 {0.480f, nn::kLut1},
+                                 {0.480f, nn::kLut2},
+                                 {0.768f, nn::kLut2},
+                                 {0.768f, nn::kLut3},
+                                 {0.813f, nn::kLut3},
+                                 {0.813f, nn::kLut4},
+                                 {1.000f, nn::kLut4}});
 
     // Three Z-planes so steady-state recomposition is BLITS, not
     // re-raster: everything below the sea is one static texture, the sea
@@ -415,10 +415,10 @@ struct PersonaMenu final : sketch::Sketch {
                        0.88f}}})))
                 .child(box().inset(0).fill(
                     Paint::linear({0, 0}, {0, nn::kH * 0.42f},
-                                     {{0.0f, nn::kTopCyan},
-                                      {1.0f,
-                                       {nn::kTopCyan.fR, nn::kTopCyan.fG,
-                                        nn::kTopCyan.fB, 0}}}))));
+                                  {{0.0f, nn::kTopCyan},
+                                   {1.0f,
+                                    {nn::kTopCyan.fR, nn::kTopCyan.fG,
+                                     nn::kTopCyan.fB, 0}}}))));
   }
 
   /** Unselected sticker: one of the three cyans, soft black under-glow +
@@ -442,8 +442,10 @@ struct PersonaMenu final : sketch::Sketch {
         .padding(14)
         .rotate(r.rot)
         .zIndex(r.z)
-        .translateY(animate(motion::from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
-        .opacity(animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
+        .translateY(
+            animate(motion::from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
+        .opacity(
+            animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
         .cache(Cache::Texture)
         .child(text(toU8(r.label), nn::menuType(41, r.color, 1.8f))
                    .effect(styles::textGlow({0, 0, 0, 0.5f}, 3.5f)));
@@ -464,18 +466,18 @@ struct PersonaMenu final : sketch::Sketch {
     const float lx = 20, ly = -2;  // label, row-local
     const float wW = 250, wH = 68;
 
-    Element row =
-        box()
-            .key(r.label)
-            .left(nn::kBaseX + r.dx)
-            .top(r.y - 12)
-            .width(264)
-            .height(78)
-            .rotate(r.rot)
-            .zIndex(r.z)
-            .translateY(
-                animate(motion::from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
-            .opacity(animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}));
+    Element row = box()
+                      .key(r.label)
+                      .left(nn::kBaseX + r.dx)
+                      .top(r.y - 12)
+                      .width(264)
+                      .height(78)
+                      .rotate(r.rot)
+                      .zIndex(r.z)
+                      .translateY(animate(motion::from(-30.0f).to(0.0f),
+                                          {400ms, &ch::easeOutQuint}))
+                      .opacity(animate(motion::from(0.0f).to(1.0f),
+                                       {400ms, &ch::easeOutQuad}));
     // pink back-wedge, misregistered under the white one
     row.child(box()
                   .left(10)
@@ -529,7 +531,8 @@ struct PersonaMenu final : sketch::Sketch {
         .rotate(-16)
         .translateX(&curDx)
         .translateY(&curDy)
-        .opacity(animate(motion::from(0.0f).to(1.0f), {60ms, &ch::easeOutQuad, 400ms}))
+        .opacity(animate(motion::from(0.0f).to(1.0f),
+                         {60ms, &ch::easeOutQuad, 400ms}))
         // The original draws this additively. At this size over the navy
         // sea, kPlus washes the red rim out completely, so it stays a plain
         // red fill.
@@ -572,7 +575,8 @@ struct PersonaMenu final : sketch::Sketch {
         .top(34)
         .column()
         .zIndex(8)
-        .translateX(animate(motion::from(-30.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
+        .translateX(
+            animate(motion::from(-30.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
         .opacity(animate(motion::from(0.0f).to(1.0f), {340ms}))
         .child(
             box()
@@ -667,13 +671,13 @@ struct PersonaMenu final : sketch::Sketch {
               .width(246)
               .height(52)
               .rotate(-4)
-              .translateX(
-                  animate(motion::from(46.0f).to(0.0f), {440ms, &ch::easeOutQuint}))
+              .translateX(animate(motion::from(46.0f).to(0.0f),
+                                  {440ms, &ch::easeOutQuint}))
               .opacity(animate(motion::from(0.0f).to(1.0f), {360ms}))
               .shape(shapes::parallelogram(9))
               .fill(Paint::linear({0, 0}, {246, 0},
-                                     {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
-                                      {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
+                                  {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
+                                   {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
               .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
               .column()
               .padding(17, 7)

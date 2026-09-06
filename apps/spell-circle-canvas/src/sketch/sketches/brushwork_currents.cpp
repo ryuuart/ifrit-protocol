@@ -52,9 +52,9 @@ struct BrushworkCurrents final : sketch::DrawSketch {
     }
 
     brush::Wave current{.direction = 0.0f,
-                                .amplitude = 0.48f,
-                                .wavelength = 118.0f,
-                                .speed = 0.0f};
+                        .amplitude = 0.48f,
+                        .wavelength = 118.0f,
+                        .speed = 0.0f};
     for (int stream = 0; stream < kStreams; ++stream) {
       brush::Tool wet = brush::watercolor(
           kPalette[(size_t)stream % kPalette.size()], pen.random(15, 29));
@@ -67,10 +67,9 @@ struct BrushworkCurrents final : sketch::DrawSketch {
                       current);
     }
 
-    const brush::Vortex orbit{
-        .center = {pen.width * 0.58f, pen.height * 0.52f},
-        .direction = -1.0f,
-        .pull = 0.12f};
+    const brush::Vortex orbit{.center = {pen.width * 0.58f, pen.height * 0.52f},
+                              .direction = -1.0f,
+                              .pull = 0.12f};
     for (int mark = 0; mark < kOrbitMarks; ++mark) {
       brush::Tool dry = brush::charcoal(
           kPalette[(size_t)(mark + 2) % kPalette.size()], pen.random(6, 13));

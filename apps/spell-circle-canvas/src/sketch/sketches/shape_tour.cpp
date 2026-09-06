@@ -97,28 +97,28 @@ Element cell(Shape shape, const char* call, const char* note,
       kCell, toU8(call), toU8(note),
       // The call IS the identity: it spells the generator and every number
       // handed to it, which is the whole of what the program closes over.
-      custom(call, [shape, closed](SkCanvas& canvas,
-                                   const PaintContext& paint) {
-        SkPaint fill;
-        fill.setAntiAlias(true);
-        fill.setColor4f(closed ? kBody : SkColor4f{0, 0, 0, 0});
-        SkPaint line;
-        line.setAntiAlias(true);
-        line.setStyle(SkPaint::kStroke_Style);
-        line.setStrokeWidth(1.4f);
-        line.setColor4f(kLine);
+      custom(call,
+             [shape, closed](SkCanvas& canvas, const PaintContext& paint) {
+               SkPaint fill;
+               fill.setAntiAlias(true);
+               fill.setColor4f(closed ? kBody : SkColor4f{0, 0, 0, 0});
+               SkPaint line;
+               line.setAntiAlias(true);
+               line.setStyle(SkPaint::kStroke_Style);
+               line.setStrokeWidth(1.4f);
+               line.setColor4f(kLine);
 
-        const float baseline = paint.size.height() - 8;
-        const auto draw = [&](float side, float left) {
-          const SkPath path =
-              shape.path({side, side})
-                  .makeTransform(SkMatrix::Translate(left, baseline - side));
-          if (closed) canvas.drawPath(path, fill);
-          canvas.drawPath(path, line);
-        };
-        draw(kLarge, 8);
-        draw(kSmall, kLarge + 22);
-      })
+               const float baseline = paint.size.height() - 8;
+               const auto draw = [&](float side, float left) {
+                 const SkPath path = shape.path({side, side})
+                                         .makeTransform(SkMatrix::Translate(
+                                             left, baseline - side));
+                 if (closed) canvas.drawPath(path, fill);
+                 canvas.drawPath(path, line);
+               };
+               draw(kLarge, 8);
+               draw(kSmall, kLarge + 22);
+             })
           .width(kCell)
           .height(kBed)
           .fill(Fill::color(kBedTone)));

@@ -41,11 +41,11 @@ unsigned number(std::string_view text, size_t at, size_t count) {
 }
 
 std::string_view trimmed(std::string_view text) {
-  while (!text.empty() && (text.front() == ' ' || text.front() == '\t' ||
-                           text.front() == '\r'))
+  while (!text.empty() &&
+         (text.front() == ' ' || text.front() == '\t' || text.front() == '\r'))
     text.remove_prefix(1);
-  while (!text.empty() && (text.back() == ' ' || text.back() == '\t' ||
-                           text.back() == '\r'))
+  while (!text.empty() &&
+         (text.back() == ' ' || text.back() == '\t' || text.back() == '\r'))
     text.remove_suffix(1);
   return text;
 }
@@ -96,8 +96,8 @@ std::optional<double> asNumber(std::string_view field) {
 std::optional<Flag> asFlag(std::string_view text) {
   std::string word;
   for (char c : text)
-    word.push_back(static_cast<char>(
-        std::tolower(static_cast<unsigned char>(c))));
+    word.push_back(
+        static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
   if (word == "true" || word == "yes") return Flag(true);
   if (word == "false" || word == "no") return Flag(false);
   return std::nullopt;
@@ -115,8 +115,10 @@ char inferredDelimiter(std::string_view line) {
     bool quoted = false;
     for (size_t i = 0; i < line.size(); ++i) {
       if (line[i] == '"') {
-        if (quoted && i + 1 < line.size() && line[i + 1] == '"') ++i;
-        else quoted = !quoted;
+        if (quoted && i + 1 < line.size() && line[i + 1] == '"')
+          ++i;
+        else
+          quoted = !quoted;
       } else if (!quoted && line[i] == candidate) {
         ++fields;
       }
@@ -203,17 +205,17 @@ std::vector<std::vector<std::string>> rowsOf(std::string_view text,
 
 /** One column built from the cells at @p index of every row, typed by
  *  what every non-empty cell of it turns out to be. */
-Column columnOf(const std::vector<std::vector<std::string>>& rows,
-                size_t index, std::string name) {
+Column columnOf(const std::vector<std::vector<std::string>>& rows, size_t index,
+                std::string name) {
   const size_t count = rows.size();
   bool everyNumber = true, everyFlag = true, everyInstant = true;
   bool anyValue = false;
   std::vector<bool> absent(count, false);
 
   for (size_t row = 0; row < count; ++row) {
-    const std::string_view cell =
-        index < rows[row].size() ? std::string_view(rows[row][index])
-                                 : std::string_view{};
+    const std::string_view cell = index < rows[row].size()
+                                      ? std::string_view(rows[row][index])
+                                      : std::string_view{};
     if (cell.empty()) {
       absent[row] = true;
       continue;
@@ -274,7 +276,8 @@ std::optional<Instant> decodeInstant(std::string_view text) {
   const unsigned month = number(stamp, 5, 2);
   const unsigned day = number(stamp, 8, 2);
   if (month < 1 || month > 12 || day < 1 || day > 31) return std::nullopt;
-  double seconds = static_cast<double>(daysFromCivil(year, month, day)) * 86400.0;
+  double seconds =
+      static_cast<double>(daysFromCivil(year, month, day)) * 86400.0;
   if (stamp.size() == 10) return Instant{seconds};
 
   if (stamp[10] != 'T' && stamp[10] != ' ') return std::nullopt;
@@ -316,9 +319,12 @@ std::optional<Table> decodeCsv(std::string_view text, const CsvOptions& options,
 
   char delimiter = options.delimiter;
   if (delimiter == '\0') {
-    if (endsWith(name, ".tsv") || endsWith(name, ".tab")) delimiter = '\t';
-    else if (endsWith(name, ".csv")) delimiter = ',';
-    else delimiter = inferredDelimiter(text.substr(0, text.find('\n')));
+    if (endsWith(name, ".tsv") || endsWith(name, ".tab"))
+      delimiter = '\t';
+    else if (endsWith(name, ".csv"))
+      delimiter = ',';
+    else
+      delimiter = inferredDelimiter(text.substr(0, text.find('\n')));
   }
 
   std::vector<std::vector<std::string>> rows =

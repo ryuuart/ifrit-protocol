@@ -108,9 +108,9 @@ TEST(VideoEncode, CpuDecodeReadsBackTheColourItWasGiven) {
 
   sigil::video::DecodeOptions decodeOptions;
   decodeOptions.hardware = sigil::video::HardwarePreference::Disabled;
-  std::shared_ptr<sigil::video::Video> video = sigil::video::decodeVideo(
-      static_cast<const std::byte*>(mp4->data()), mp4->size(), decodeOptions,
-      "colour.mp4");
+  std::shared_ptr<sigil::video::Video> video =
+      sigil::video::decodeVideo(static_cast<const std::byte*>(mp4->data()),
+                                mp4->size(), decodeOptions, "colour.mp4");
   ASSERT_NE(video, nullptr);
   const SkColor read = centerColor(video->frameAt(0.0).image);
   EXPECT_TRUE(nearChannel(SkColorGetR(read), SkColorGetR(given)))

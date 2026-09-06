@@ -3,21 +3,21 @@
  * around a pivot outside it.
  */
 
-#include "HatchLines.h"
-#include "PolygonMath.h"
-
-#include <sigilgeometry/path/Polyline.h>
-#include <sigilgeometry/path/Skia.h>
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Mass.h>
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <optional>
 #include <utility>
+
+#include "HatchLines.h"
+#include "PolygonMath.h"
 
 namespace sigil::draw::brush {
 
@@ -51,8 +51,10 @@ std::optional<std::pair<float, float>> massArc(
   float start = std::atan2(from.fY - center.fY, from.fX - center.fX);
   float stop = std::atan2(to.fY - center.fY, to.fX - center.fX);
   if (positiveSweep(start, stop) > PI) std::swap(start, stop);
-  if (arcFits(rings, center, radius, start, stop)) return std::pair{start, stop};
-  if (arcFits(rings, center, radius, stop, start)) return std::pair{stop, start};
+  if (arcFits(rings, center, radius, start, stop))
+    return std::pair{start, stop};
+  if (arcFits(rings, center, radius, stop, start))
+    return std::pair{stop, start};
   return std::nullopt;
 }
 

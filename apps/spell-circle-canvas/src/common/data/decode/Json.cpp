@@ -1,8 +1,6 @@
-#include <sigildata/decode/Json.h>
-
-#include <simdjson.h>
-
 #include <sigildata/decode/Csv.h>
+#include <sigildata/decode/Json.h>
+#include <simdjson.h>
 
 #include <algorithm>
 #include <cmath>
@@ -102,8 +100,7 @@ Column columnOf(std::string name, const std::vector<const Json*>& cells) {
         // A number standing in a text column keeps the digits it was
         // written with as far as a round trip through a double can.
         std::string printed = std::to_string(cell.number());
-        while (printed.size() > 1 && printed.back() == '0')
-          printed.pop_back();
+        while (printed.size() > 1 && printed.back() == '0') printed.pop_back();
         if (!printed.empty() && printed.back() == '.') printed.pop_back();
         values[row] = std::move(printed);
       }

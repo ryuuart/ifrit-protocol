@@ -42,8 +42,8 @@ void applyAttract(Points& points, const Force& force) {
     // snapping things at its edge.
     float falloff = 1.0f / distance;
     if (reach > 0.0f) falloff *= 1.0f - distance / reach;
-    points.force[i] += toward.normalized() * (force.strength * falloff *
-                                              points.mass[i]);
+    points.force[i] +=
+        toward.normalized() * (force.strength * falloff * points.mass[i]);
   }
 }
 
@@ -53,8 +53,8 @@ void applyWind(Points& points, const Force& force) {
     if (!points.movable(i)) continue;
     const float angle =
         force.field.at(points.position[i].x, points.position[i].y) * kTurn;
-    points.force[i] +=
-        Vec2{std::cos(angle), std::sin(angle)} * (force.strength * points.mass[i]);
+    points.force[i] += Vec2{std::cos(angle), std::sin(angle)} *
+                       (force.strength * points.mass[i]);
   }
 }
 

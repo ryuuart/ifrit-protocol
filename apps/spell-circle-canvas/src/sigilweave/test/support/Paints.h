@@ -16,8 +16,8 @@ namespace sigil::weave::test {
 
 /// A gradient running along x from `left` to `right`, clamped past both
 /// ends. Give it the extent of the text and both stops land on glyphs.
-inline sk_sp<SkShader> horizontalGradient(float left, float right,
-                                          SkColor from, SkColor to) {
+inline sk_sp<SkShader> horizontalGradient(float left, float right, SkColor from,
+                                          SkColor to) {
   const SkPoint ends[2] = {{left, 0}, {right, 0}};
   const SkColor4f colors[2] = {SkColor4f::FromColor(from),
                                SkColor4f::FromColor(to)};

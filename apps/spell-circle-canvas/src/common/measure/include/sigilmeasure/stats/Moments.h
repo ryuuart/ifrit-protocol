@@ -74,8 +74,7 @@ class Moments {
     const double third = m_third + other.m_third +
                          delta * delta * delta * a * b * (a - b) / (n * n) +
                          3.0 * delta * (a * other.m_second - b * m_second) / n;
-    const double second =
-        m_second + other.m_second + delta * delta * a * b / n;
+    const double second = m_second + other.m_second + delta * delta * a * b / n;
     m_mean += delta * b / n;
     m_second = second;
     m_third = third;

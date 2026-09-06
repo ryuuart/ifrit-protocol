@@ -193,10 +193,10 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/reconcile/Env.h>
-#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Patterns.h>
@@ -723,11 +723,11 @@ constexpr float kTrack = 0.95f;
  *  cannot approximate. */
 inline sigil::weave::TextStyle type(SkColor4f c, float size = kType) {
   return weave::textStyle({.face = uiFace(),
-                               .size = size,
-                               .color = c,
-                               .track = kTrack,
-                               .aliased = true,
-                               .antiAlias = false});
+                           .size = size,
+                           .color = c,
+                           .track = kTrack,
+                           .aliased = true,
+                           .antiAlias = false});
 }
 
 /** One run of UI type, with Motif's mnemonic underline on exactly one
@@ -1134,7 +1134,8 @@ struct CdeMotifSketch : sketch::Sketch {
     // shadow comes out DARKER than the background on every one — which is
     // the branch a reimplementation gets backwards.
     const cde::Derived lite = cde::calculate(cde::from8(0xFFF7E9));
-    t.add(measure::check("#FFF7E9 takes LITE", lite.branch == cde::Branch::Lite));
+    t.add(
+        measure::check("#FFF7E9 takes LITE", lite.branch == cde::Branch::Lite));
     t.add(measure::check("LITE ts darker than bg", lite.ts.r < lite.bg.r));
     return t;
   }
@@ -1283,13 +1284,12 @@ struct CdeMotifSketch : sketch::Sketch {
                          .shape(shapes::polygon(3, up ? 0.0f : 180.0f))
                          .fill(c3.fg));
         };
-        scrollbar = sketch::kit::scrollbar(
-                        {.leading = stepper(true),
-                         .trailing = stepper(false),
-                         .thumb = box().fill(c3.bg).overlay(
-                             cde::bevel(2, false, false)),
-                         .thumbLength = Dim(150),
-                         .track = Fill::none()})
+        scrollbar = sketch::kit::scrollbar({.leading = stepper(true),
+                                            .trailing = stepper(false),
+                                            .thumb = box().fill(c3.bg).overlay(
+                                                cde::bevel(2, false, false)),
+                                            .thumbLength = Dim(150),
+                                            .track = Fill::none()})
                         .width(Dim(19))
                         .padding(2)
                         .gap(2)
@@ -1383,11 +1383,10 @@ struct CdeMotifSketch : sketch::Sketch {
     // XmScrollBar: a sunken trough in the workspace set with a raised
     // slider, 15 px of trough plus 2 px of shadow either side [MEAS].
     auto scrollBar = [&](const Set& t, float sliderFrac) {
-      return sketch::kit::scrollbar(
-                 {.thumb =
-                      box().fill(t.bg).overlay(cde::bevel(2, false, false)),
-                  .thumbLength = pct(sliderFrac),
-                  .track = Fill::none()})
+      return sketch::kit::scrollbar({.thumb = box().fill(t.bg).overlay(
+                                         cde::bevel(2, false, false)),
+                                     .thumbLength = pct(sliderFrac),
+                                     .track = Fill::none()})
           .width(Dim(19))
           .fill(t.bg)
           .overlay(cde::bevel(2, true, false))
@@ -1584,11 +1583,8 @@ struct CdeMotifSketch : sketch::Sketch {
         .width(Dim(18))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(box()
-                   .width(Dim(18))
-                   .height(Dim(31))
-                   .fill(s.bs)
-                   .overlay(styles::Scanlines{s.ts, 2, 1, 1}));
+        .child(box().width(Dim(18)).height(Dim(31)).fill(s.bs).overlay(
+            styles::Scanlines{s.ts, 2, 1, 1}));
   }
 
   Element panelSeparator() {
@@ -1644,8 +1640,8 @@ struct CdeMotifSketch : sketch::Sketch {
     // that respells it with its own sin and cos rounds differently.
     for (int i = 0; i < 12; ++i) {
       const SkPoint c = arrange::onRing(
-          (size_t)i, 12, {24.0f, 24.0f}, {18.0f, 18.0f},
-          -(float)M_PI * 0.5f, 2.0f * (float)M_PI, arrange::Turn::Closed);
+          (size_t)i, 12, {24.0f, 24.0f}, {18.0f, 18.0f}, -(float)M_PI * 0.5f,
+          2.0f * (float)M_PI, arrange::Turn::Closed);
       const float cx = c.fX, cy = c.fY;
       const float sz = (i % 3 == 0) ? 4.0f : 2.0f;
       face.child(box()
@@ -1657,14 +1653,15 @@ struct CdeMotifSketch : sketch::Sketch {
     }
     // Hour hand, ~60% radius; minute hand, full radius. Both quantised to
     // the minute: 61 levels across [0,1] is a 6-degree step.
-    face.child(box()
-                   .left(Dim(23))
-                   .top(Dim(13))
-                   .width(Dim(3))
-                   .height(Dim(11))
-                   .fill(cde::C(cde::kIconColor[0]))
-                   .transformOrigin(0.5f, 1.0f)
-                   .rotate(motion::bind(&clockT).quantize(61).scale(30).offset(300)));
+    face.child(
+        box()
+            .left(Dim(23))
+            .top(Dim(13))
+            .width(Dim(3))
+            .height(Dim(11))
+            .fill(cde::C(cde::kIconColor[0]))
+            .transformOrigin(0.5f, 1.0f)
+            .rotate(motion::bind(&clockT).quantize(61).scale(30).offset(300)));
     face.child(box()
                    .left(Dim(23))
                    .top(Dim(6))

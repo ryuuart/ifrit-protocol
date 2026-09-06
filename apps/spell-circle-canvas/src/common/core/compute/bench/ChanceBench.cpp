@@ -37,7 +37,9 @@ void streamUnit(benchmark::State& state, Stream stream) {
   state.counters["draws/s"] = perCall();
 }
 
-void BM_StreamPcg(benchmark::State& state) { streamUnit(state, Stream::pcg(1)); }
+void BM_StreamPcg(benchmark::State& state) {
+  streamUnit(state, Stream::pcg(1));
+}
 BENCHMARK(BM_StreamPcg);
 
 void BM_StreamMix64(benchmark::State& state) {
@@ -58,7 +60,9 @@ void BM_StreamHalton(benchmark::State& state) {
 }
 BENCHMARK(BM_StreamHalton);
 
-void BM_StreamSobol(benchmark::State& state) { streamUnit(state, Stream::sobol()); }
+void BM_StreamSobol(benchmark::State& state) {
+  streamUnit(state, Stream::sobol());
+}
 BENCHMARK(BM_StreamSobol);
 
 void BM_StreamGolden(benchmark::State& state) {
@@ -111,7 +115,8 @@ BENCHMARK(BM_ShapeExponential);
  *  distribution and not the draw. */
 void BM_ShapeWeighted(benchmark::State& state) {
   std::vector<float> weights((size_t)state.range(0));
-  for (size_t i = 0; i < weights.size(); ++i) weights[i] = (float)(i % 7) + 1.0f;
+  for (size_t i = 0; i < weights.size(); ++i)
+    weights[i] = (float)(i % 7) + 1.0f;
   Stream stream = Stream::pcg(1);
   size_t sink = 0;
   for ([[maybe_unused]] auto iteration : state) {

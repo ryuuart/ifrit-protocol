@@ -267,7 +267,8 @@ constexpr Color mixToward(Color c, Color target, float t, float a) {
  *  reports. Say which one the drawing means. */
 inline Color mixLinear(const Color& a, const Color& b, float t) {
   auto channel = [t](float x, float y) {
-    return linearToSrgb(srgbToLinear(x) + (srgbToLinear(y) - srgbToLinear(x)) * t);
+    return linearToSrgb(srgbToLinear(x) +
+                        (srgbToLinear(y) - srgbToLinear(x)) * t);
   };
   return {channel(a.r, b.r), channel(a.g, b.g), channel(a.b, b.b),
           a.a + (b.a - a.a) * t};
@@ -309,9 +310,8 @@ inline Lab toLab(const Color& c) {
   // down: the cube root's slope runs away at zero, and a difference read
   // through it there would be a difference in the arithmetic.
   auto f = [](float t) {
-    return t > 216.0f / 24389.0f
-               ? std::cbrt(t)
-               : (24389.0f / 27.0f * t + 16.0f) / 116.0f;
+    return t > 216.0f / 24389.0f ? std::cbrt(t)
+                                 : (24389.0f / 27.0f * t + 16.0f) / 116.0f;
   };
   const float fx = f(x / 0.95047f), fy = f(y), fz = f(z / 1.08883f);
   return {116.0f * fy - 16.0f, 500.0f * (fx - fy), 200.0f * (fy - fz), c.a};

@@ -48,7 +48,7 @@ struct FakeDescription {
 
 /** One description, keyed or not, with children. */
 inline Description description(std::string key, int value = 0,
-                 std::vector<Description> children = {}) {
+                               std::vector<Description> children = {}) {
   auto d = std::make_shared<FakeDescription>();
   d->key = std::move(key);
   d->value = value;
@@ -125,7 +125,9 @@ struct FakeHost {
   // vector, which outlives the reconciler pass; a temporary never reaches
   // here.
   // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
-  static const Description& descriptionOf(const Description& child) { return child; }
+  static const Description& descriptionOf(const Description& child) {
+    return child;
+  }
   static const Memo<Description>* memoOf(const Description& d) {
     return d->memo ? &*d->memo : nullptr;
   }
@@ -139,7 +141,8 @@ struct FakeHost {
     auto node = std::make_unique<FakeNode>();
     node->id = nextId++;
     node->parent = parent;
-    node->positionedMode = parent && parent->description && parent->description->positioned;
+    node->positionedMode =
+        parent && parent->description && parent->description->positioned;
     log.push_back({.op = Op::Create,
                    .key = d->key,
                    .id = node->id,
@@ -148,31 +151,33 @@ struct FakeHost {
     reconciler.patch(*node, d);
     return node;
   }
-  void onPatched(FakeNode& node, const FakeDescription* prev, const FakeDescription& next) {
+  void onPatched(FakeNode& node, const FakeDescription* prev,
+                 const FakeDescription& next) {
     log.push_back({.op = Op::Patch, .key = next.key, .mount = prev == nullptr});
     // An identity change rebuilds what the kind decides and keeps the rest.
     node.kind = next.kind;
   }
   void reorder(FakeNode& parent, bool structureChanged) {
-    log.push_back({.op = Op::Reorder,
-                   .key = parent.description ? parent.description->key
-                                             : std::string{},
-                   .structureChanged = structureChanged});
+    log.push_back(
+        {.op = Op::Reorder,
+         .key = parent.description ? parent.description->key : std::string{},
+         .structureChanged = structureChanged});
   }
   bool remountRequired(const FakeNode& match, const FakeNode& parent) const {
-    return match.positionedMode != (parent.description && parent.description->positioned);
+    return match.positionedMode !=
+           (parent.description && parent.description->positioned);
   }
   void invalidate(FakeNode& node) {
-    log.push_back({.op = Op::Invalidate,
-                   .key = node.description ? node.description->key
-                                           : std::string{}});
+    log.push_back(
+        {.op = Op::Invalidate,
+         .key = node.description ? node.description->key : std::string{}});
   }
   void destroy(std::unique_ptr<FakeNode> node, uint64_t frame) {
     retired.emplace_back(node->id, frame);
-    log.push_back({.op = Op::Destroy,
-                   .key = node->description ? node->description->key
-                                            : std::string{},
-                   .id = node->id});
+    log.push_back(
+        {.op = Op::Destroy,
+         .key = node->description ? node->description->key : std::string{},
+         .id = node->id});
   }
 
   // ---- conveniences ----

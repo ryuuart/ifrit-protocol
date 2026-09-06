@@ -167,8 +167,7 @@ PhaseMark::PhaseMark(Phase phase) : m_previous((Phase)(int)g_phase) {
 PhaseMark::~PhaseMark() { g_phase = (int)m_previous; }
 
 void noteSketch(std::string_view name) {
-  const size_t length =
-      name.size() < kNameMax - 1 ? name.size() : kNameMax - 1;
+  const size_t length = name.size() < kNameMax - 1 ? name.size() : kNameMax - 1;
   // The terminator FIRST: a handler landing mid-copy then reads a name
   // that is stale rather than one that runs off the end of the buffer.
   g_sketchName[length] = '\0';

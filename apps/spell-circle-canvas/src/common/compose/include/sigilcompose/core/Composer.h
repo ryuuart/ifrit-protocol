@@ -34,7 +34,7 @@ class FontContext;
 // <sigilweave/paragraph/Unit.h>.
 class Selector;
 enum class Unit : uint8_t;
-}
+}  // namespace sigil::weave
 
 namespace sigil::compose {
 

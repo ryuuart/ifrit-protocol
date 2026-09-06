@@ -20,8 +20,8 @@ namespace {
 
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
-using sigil::draw::brush::testing::Recording;
 using sigil::draw::brush::testing::recorder;
+using sigil::draw::brush::testing::Recording;
 using sigil::draw::testing::Paper;
 
 TEST(Dynamics, ACurveRampsBetweenItsTwoEndsAndBendsInBetween) {
@@ -58,8 +58,7 @@ TEST(Dynamics, EachDriveReadsItsOwnPartOfTheDab) {
 
   const brush::Response byPressure{.drive = brush::Drive::Pressure,
                                    .curve = identity};
-  const brush::Response byTilt{.drive = brush::Drive::Tilt,
-                               .curve = identity};
+  const brush::Response byTilt{.drive = brush::Drive::Tilt, .curve = identity};
   const brush::Response bySpeed{.drive = brush::Drive::Velocity,
                                 .curve = identity};
 
@@ -86,8 +85,8 @@ std::vector<float> stampSizes(Pen& pen, const brush::Tool& source,
   tool.customTip = [sizes](Pen& tip, const brush::Dab&) {
     sizes->push_back(tip.canvas()->getLocalToDevice().asM33().getScaleX());
   };
-  const std::array<brush::Dab, 1> dabs{{{.position = {40, 20},
-                                         .pressure = pressure}}};
+  const std::array<brush::Dab, 1> dabs{
+      {{.position = {40, 20}, .pressure = pressure}}};
   brush::deposit(pen, tool, dabs);
   return *sizes;
 }

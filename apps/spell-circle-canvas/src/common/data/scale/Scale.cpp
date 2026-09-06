@@ -24,8 +24,8 @@ constexpr double kToTen = 7.0710678118654755;   // sqrt(50)
  *  in binary and five additions of it do not land on a half. Dividing
  *  the index instead puts every tick on the value a reader wrote. */
 struct Step {
-  double value = 0.0;      // the step itself, always positive
-  double divisor = 0.0;    // non-zero when the step is 1 / divisor
+  double value = 0.0;    // the step itself, always positive
+  double divisor = 0.0;  // non-zero when the step is 1 / divisor
   bool valid = false;
 };
 
@@ -61,8 +61,7 @@ std::vector<double> multiples(double low, double high, const Step& step) {
   const double last = std::floor(high / step.value);
   if (!(last >= first)) return values;
   values.reserve(static_cast<size_t>(last - first) + 1);
-  for (double i = first; i <= last; i += 1.0)
-    values.push_back(i * step.value);
+  for (double i = first; i <= last; i += 1.0) values.push_back(i * step.value);
   return values;
 }
 
@@ -71,8 +70,8 @@ std::vector<double> multiples(double low, double high, const Step& step) {
  *  Past a fortnight there is no such unit left and the ordinary
  *  power-of-ten rule takes over. */
 constexpr std::array<double, 16> kTimeSteps = {
-    1,     2,     5,     15,    30,     60,     300,    900,
-    1800,  3600,  10800, 21600, 43200,  86400,  172800, 604800};
+    1,    2,    5,     15,    30,    60,    300,    900,
+    1800, 3600, 10800, 21600, 43200, 86400, 172800, 604800};
 
 /** The readable time step for a span, in seconds. Past the last clock
  *  unit the span is measured in days and the power-of-ten rule decides,
@@ -99,8 +98,7 @@ bool discrete(Transform transform) {
 }
 
 bool banded(Transform transform) {
-  return transform == Transform::Quantize ||
-         transform == Transform::Threshold;
+  return transform == Transform::Quantize || transform == Transform::Threshold;
 }
 
 /** The domain value carried onto the axis the position is proportional
@@ -182,10 +180,11 @@ Bands bands(const Scale& scale) {
   if (n <= 0) return {scale.range.low, 0.0, 0.0};
   if (scale.transform == Transform::Ordinal)
     return {scale.range.low, n > 1 ? space / (n - 1) : 0.0, 0.0};
-  const double inner =
-      scale.transform == Transform::Band ? std::clamp(scale.padding, 0.0, 1.0)
-                                         : 1.0;
-  const double denominator = std::max(1.0, n - inner + 2.0 * scale.outerPadding);
+  const double inner = scale.transform == Transform::Band
+                           ? std::clamp(scale.padding, 0.0, 1.0)
+                           : 1.0;
+  const double denominator =
+      std::max(1.0, n - inner + 2.0 * scale.outerPadding);
   const double step = space / denominator;
   const double start = scale.range.low + (space - step * (n - inner)) * 0.5;
   return {start, step, step * (1.0 - inner)};
@@ -259,7 +258,8 @@ long Scale::slot(double value) const {
     if (domain.degenerate()) return 0;
     const double unit = (value - domain.low) / domain.extent();
     const double index = std::floor(unit * n);
-    return static_cast<long>(std::clamp(index, 0.0, static_cast<double>(n - 1)));
+    return static_cast<long>(
+        std::clamp(index, 0.0, static_cast<double>(n - 1)));
   }
   if (discrete(transform))
     return static_cast<long>(

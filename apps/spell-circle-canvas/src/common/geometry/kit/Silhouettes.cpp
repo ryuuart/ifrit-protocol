@@ -3,6 +3,8 @@
  * the corner shapes.
  */
 
+#include "sigilgeometry/kit/Silhouettes.h"
+
 #include <include/core/SkMatrix.h>
 #include <include/utils/SkParsePath.h>
 #include <sigilcore/compute/Noise.h>
@@ -10,8 +12,6 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
-
-#include "sigilgeometry/kit/Silhouettes.h"
 
 namespace sigil::geometry::shapes {
 

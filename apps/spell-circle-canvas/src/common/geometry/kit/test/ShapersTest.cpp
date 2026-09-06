@@ -38,14 +38,12 @@ TEST(Shapers, EachOneActuallyMovesTheMarkItIsGiven) {
   const SkPath run = b.detach();
   // A wave and a zigzag swing the run off its own axis.
   EXPECT_GT(shapers::wave(8, 40).shape(run).getBounds().height(), 8.0f);
-  EXPECT_GT(shapers::zigzag(8, 40).shape(run).getBounds().height(),
-            8.0f);
-  EXPECT_GT(shapers::square(8, 40).shape(run).getBounds().height(),
-            8.0f);
+  EXPECT_GT(shapers::zigzag(8, 40).shape(run).getBounds().height(), 8.0f);
+  EXPECT_GT(shapers::square(8, 40).shape(run).getBounds().height(), 8.0f);
   // An offset moves it bodily, LEFT of travel, which on a west-to-east
   // run is upward on screen.
-  EXPECT_NEAR(shapers::offset(10).shape(run).getBounds().centerY(),
-              40.0f, 1.5f);
+  EXPECT_NEAR(shapers::offset(10).shape(run).getBounds().centerY(), 40.0f,
+              1.5f);
   // A corner treatment over a straight run has no corner to treat.
   EXPECT_EQ(shapers::rounded(6).shape(run).getBounds(), run.getBounds());
 }

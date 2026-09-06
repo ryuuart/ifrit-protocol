@@ -13,8 +13,8 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
-#include <include/core/SkSurface.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
@@ -37,14 +37,14 @@ using sigil::core::hardware::FenceHandle;
 using sigil::core::hardware::FenceValue;
 using sigil::core::hardware::FenceWait;
 using sigil::core::hardware::GpuDevice;
-using sigil::skia::GraphiteContext;
 using sigil::core::hardware::kFenceInitialValue;
 using sigil::core::hardware::NativeDevice;
-using sigil::skia::OffscreenSurface;
-using sigil::skia::test::readGraphiteSurface;
 using sigil::core::hardware::TextureDesc;
 using sigil::core::hardware::TextureFormat;
 using sigil::core::hardware::TextureHandle;
+using sigil::skia::GraphiteContext;
+using sigil::skia::OffscreenSurface;
+using sigil::skia::test::readGraphiteSurface;
 
 namespace {
 
@@ -68,8 +68,8 @@ GraphiteContext *graphite() {
  *  asks, so a case there reports that it was not run rather than
  *  reporting that the library is broken. The binary carries the `gpu`
  *  label for the same reason. */
-#define SKIP_WITHOUT_METAL()                                       \
-  do {                                                             \
+#define SKIP_WITHOUT_METAL()                                      \
+  do {                                                            \
     if (graphite() == nullptr) GTEST_SKIP() << "no Metal device"; \
   } while (0)
 
@@ -114,7 +114,6 @@ std::vector<uint8_t> readMetalBytes(GpuDevice &dev, TextureHandle handle, int si
         mipmapLevel:0];
   return bytes;
 }
-
 
 }  // namespace
 
@@ -301,8 +300,6 @@ TEST(SigilSkiaGraphite, StaleHandleWrapsNothing) {
   // A fence handle that names nothing signals nothing, and says so.
   EXPECT_EQ(surface.submit(*dev, FenceHandle{}), kFenceInitialValue);
 }
-
-
 
 TEST(SigilSkiaGraphite, StandsOnADeviceAdoptedFromTheHost) {
   // The factory that reads a device rather than raw handles: the one

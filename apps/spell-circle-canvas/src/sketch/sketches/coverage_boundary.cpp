@@ -158,39 +158,41 @@ struct CoverageBoundary final : sketch::Sketch {
                         "\xe2\x80\x94 a mark that dressed itself would "
                         "have no fixed point")},
         kit::cells(
-            {.cells =
-                 {cell("image(cutOut)",
-                       "the source \xc2\xb7 an opaque star with a hole "
-                       "punched through it, and a rectangle of nothing "
-                       "around both",
-                       art(cut)),
-                  cell("\xe2\x80\xa6"
-                       ".style(halo)",
-                       "Boundary::Auto is the node's own shape \xc2\xb7 "
-                       "the halo hugs the BOX, which is what the "
-                       "picture is not",
-                       art(cut).style(halo())),
-                  cell("\xe2\x80\xa6"
-                       ".boundary(Coverage).style(halo)",
-                       "the same style on the traced silhouette \xc2\xb7 "
-                       "a staircase of whole pixels, which is what "
-                       "reading a raster gives",
-                       art(cut).boundary(Boundary::Coverage).style(halo())),
-                  cell("the same cut-out at 30% alpha",
-                       "under half a pixel covered is not a silhouette "
-                       "\xc2\xb7 the trace comes back EMPTY, and an "
-                       "empty trace keeps the node's own shape",
-                       art(cut, kWash).boundary(Boundary::Coverage).style(halo())),
-                  cell("children only \xc2\xb7 boundary(Coverage)",
-                       "the content and the CHILDREN are in the trace "
-                       "\xc2\xb7 three discs, one outline, and no "
-                       "shape() that could have said it",
-                       box()
-                           .boundary(Boundary::Coverage)
-                           .style(halo())
-                           .child(disc(6, 22, 62))
-                           .child(disc(44, 4, 70))
-                           .child(disc(30, 60, 76)))},
+            {.cells = {cell("image(cutOut)",
+                            "the source \xc2\xb7 an opaque star with a hole "
+                            "punched through it, and a rectangle of nothing "
+                            "around both",
+                            art(cut)),
+                       cell("\xe2\x80\xa6"
+                            ".style(halo)",
+                            "Boundary::Auto is the node's own shape \xc2\xb7 "
+                            "the halo hugs the BOX, which is what the "
+                            "picture is not",
+                            art(cut).style(halo())),
+                       cell(
+                           "\xe2\x80\xa6"
+                           ".boundary(Coverage).style(halo)",
+                           "the same style on the traced silhouette \xc2\xb7 "
+                           "a staircase of whole pixels, which is what "
+                           "reading a raster gives",
+                           art(cut).boundary(Boundary::Coverage).style(halo())),
+                       cell("the same cut-out at 30% alpha",
+                            "under half a pixel covered is not a silhouette "
+                            "\xc2\xb7 the trace comes back EMPTY, and an "
+                            "empty trace keeps the node's own shape",
+                            art(cut, kWash)
+                                .boundary(Boundary::Coverage)
+                                .style(halo())),
+                       cell("children only \xc2\xb7 boundary(Coverage)",
+                            "the content and the CHILDREN are in the trace "
+                            "\xc2\xb7 three discs, one outline, and no "
+                            "shape() that could have said it",
+                            box()
+                                .boundary(Boundary::Coverage)
+                                .style(halo())
+                                .child(disc(6, 22, 62))
+                                .child(disc(44, 4, 70))
+                                .child(disc(30, 60, 76)))},
              .gap = 12})));
   }
 };

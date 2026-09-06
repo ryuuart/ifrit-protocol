@@ -401,16 +401,16 @@ struct ShippingForecast : sketch::Sketch {
       // from where the ellipse's own angle starts.
       const float rad =
           kAreaRing[i].bearingDeg * 3.14159265f / 180.0f - 1.5707963f;
-      panel.child(box()
-                      .key("tick" + std::to_string(i))
-                      .width(1.0f)
-                      .height(9.0f)
-                      .rotate(kAreaRing[i].bearingDeg)
-                      .centerAt(arrange::onEllipse(
-                          {kEye.x(), kEye.y()},
-                          {kRingR + 28.0f, kRingR + 28.0f}, rad))
-                      .fill(Fill::color(kSlateDim))
-                      .opacity(beat(0.10f, 1.20f)));
+      panel.child(
+          box()
+              .key("tick" + std::to_string(i))
+              .width(1.0f)
+              .height(9.0f)
+              .rotate(kAreaRing[i].bearingDeg)
+              .centerAt(arrange::onEllipse(
+                  {kEye.x(), kEye.y()}, {kRingR + 28.0f, kRingR + 28.0f}, rad))
+              .fill(Fill::color(kSlateDim))
+              .opacity(beat(0.10f, 1.20f)));
     }
     const char* kCardinals[4] = {"N", "E", "S", "W"};
     for (int q = 0; q < 4; ++q) {

@@ -146,8 +146,9 @@ TEST(Color, MixingInLinearLightIsADifferentAnswerFromMixingTheCodeValues) {
 
 TEST(Color, CielabMeasuresWhereOklabInterpolates) {
   // The round trip is the colour it started from.
-  for (const Color& c : {Color{0.2f, 0.6f, 0.9f, 1}, Color{0.9f, 0.1f, 0.3f, 0.5f},
-                         Color{0, 0, 0, 1}, Color{1, 1, 1, 1}}) {
+  for (const Color& c :
+       {Color{0.2f, 0.6f, 0.9f, 1}, Color{0.9f, 0.1f, 0.3f, 0.5f},
+        Color{0, 0, 0, 1}, Color{1, 1, 1, 1}}) {
     const Color back = fromLab(toLab(c));
     EXPECT_NEAR(back.r, c.r, 2e-3f);
     EXPECT_NEAR(back.g, c.g, 2e-3f);

@@ -82,21 +82,20 @@ world::Element row(const std::string& key, float z, motion::Spread spread,
   parent.key(key).staggerChildren(spread);
   for (int i = 0; i < kCount; ++i) {
     const float x = ((float)i - (float)(kCount - 1) * 0.5f) * kPitch;
-    parent.child(
-        world::Element()
-            .key(key + std::to_string(i))
-            .at({x, 30, z})
-            .mesh(gm::superellipsoid({22, 30, 22}, 3.0f, 18, 12))
-            .fill(skin)
-            .tag("body")
-            // THE ENTRANCE, and the only thing the cascade delays: the
-            // path plays once, when the node first appears.
-            .translateY(motion::animate(
-                motion::from(kRise).to(0.0f),
-                {std::chrono::milliseconds((int)kDuration)}))
-            .scale(motion::animate(
-                motion::from(0.35f).to(1.0f),
-                {std::chrono::milliseconds((int)kDuration)})));
+    parent.child(world::Element()
+                     .key(key + std::to_string(i))
+                     .at({x, 30, z})
+                     .mesh(gm::superellipsoid({22, 30, 22}, 3.0f, 18, 12))
+                     .fill(skin)
+                     .tag("body")
+                     // THE ENTRANCE, and the only thing the cascade delays: the
+                     // path plays once, when the node first appears.
+                     .translateY(motion::animate(
+                         motion::from(kRise).to(0.0f),
+                         {std::chrono::milliseconds((int)kDuration)}))
+                     .scale(motion::animate(
+                         motion::from(0.35f).to(1.0f),
+                         {std::chrono::milliseconds((int)kDuration)})));
   }
   return parent;
 }

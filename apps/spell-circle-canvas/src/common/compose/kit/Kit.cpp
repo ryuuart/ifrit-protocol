@@ -9,11 +9,11 @@
  * that reached for the kernel's internals would fail to compile here.
  */
 
-#include <sigilgeometry/kit/Divisions.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kit.h>
 #include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/kit/PixelType.h>
+#include <sigilgeometry/kit/Divisions.h>
 
 #include <concepts>
 

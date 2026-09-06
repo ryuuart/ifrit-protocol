@@ -55,9 +55,8 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint glow;
     glow.setAntiAlias(true);
     glow.setBlendMode(SkBlendMode::kScreen);
-    glow.setShader(
-        material::skia::verticalRamp(H * 0.55f, H,
-                                     material::kit::aquaGlowRamp(t, opts.bottomGlow)));
+    glow.setShader(material::skia::verticalRamp(
+        H * 0.55f, H, material::kit::aquaGlowRamp(t, opts.bottomGlow)));
     c.save();
     c.clipPath(ctx.outline, true);
     c.drawRect(SkRect::MakeLTRB(0, H * 0.5f, ctx.size.width(), H), glow);

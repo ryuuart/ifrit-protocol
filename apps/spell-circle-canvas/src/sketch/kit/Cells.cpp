@@ -36,12 +36,10 @@ compose::Element well(const Well& spec, compose::Element surface) {
   return plate;
 }
 
-compose::Element well(const Well& spec) {
-  return well(spec, compose::box());
-}
+compose::Element well(const Well& spec) { return well(spec, compose::box()); }
 
-compose::Element caption(float measure, std::u8string label,
-                         std::u8string note, compose::Element body) {
+compose::Element caption(float measure, std::u8string label, std::u8string note,
+                         compose::Element body) {
   return compose::kit::cell(theme().voice(measure), std::move(label),
                             std::move(note), std::move(body));
 }
@@ -93,8 +91,9 @@ compose::Element arrangement(std::vector<compose::Element> children,
  *  alignment is: a rule that stopped at the tallest cell's top would read
  *  as a tick. */
 compose::Element hairline(compose::Fill rule, bool column) {
-  compose::Element hair = column ? compose::box().height(compose::Dim(kRuleWidth))
-                                 : compose::box().width(compose::Dim(kRuleWidth));
+  compose::Element hair = column
+                              ? compose::box().height(compose::Dim(kRuleWidth))
+                              : compose::box().width(compose::Dim(kRuleWidth));
   return hair.fill(rule).cellAlign(
       column ? compose::Align::Stretch : compose::Align::Start,
       column ? compose::Align::Start : compose::Align::Stretch);

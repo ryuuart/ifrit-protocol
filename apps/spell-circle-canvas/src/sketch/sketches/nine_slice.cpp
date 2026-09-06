@@ -122,30 +122,34 @@ Element nativeLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
       .child(custom("lattice.native",
                     [asset = std::move(asset)](SkCanvas& canvas,
                                                const PaintContext& ctx) {
-        const sk_sp<SkImage> image =
-            asset ? asset->frameAt(0).image : nullptr;
-        if (!image) return;
-        const int side = image->width();
-        const int xs[] = {side / 3, side * 2 / 3};
-        const int ys[] = {side / 3, side * 2 / 3};
-        const SkIRect bounds = SkIRect::MakeWH(side, image->height());
-        // EVERY FIELD NAMED, because Lattice is a plain aggregate with no
-        // default member initializers: a declaration followed by the four
-        // assignments this call needs leaves the per-rectangle fill
-        // arrays holding whatever was on the stack, and the recorder
-        // dereferences them whenever they are not null.
-        const SkCanvas::Lattice lattice{.fXDivs = xs,
-                                        .fYDivs = ys,
-                                        .fRectTypes = nullptr,
-                                        .fXCount = (int)std::size(xs),
-                                        .fYCount = (int)std::size(ys),
-                                        .fBounds = &bounds,
-                                        .fColors = nullptr};
-        canvas.drawImageLattice(
-            image.get(), lattice,
-            SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
-            SkFilterMode::kLinear);
-      }).absolute()
+                      const sk_sp<SkImage> image =
+                          asset ? asset->frameAt(0).image : nullptr;
+                      if (!image) return;
+                      const int side = image->width();
+                      const int xs[] = {side / 3, side * 2 / 3};
+                      const int ys[] = {side / 3, side * 2 / 3};
+                      const SkIRect bounds =
+                          SkIRect::MakeWH(side, image->height());
+                      // EVERY FIELD NAMED, because Lattice is a plain aggregate
+                      // with no default member initializers: a declaration
+                      // followed by the four assignments this call needs leaves
+                      // the per-rectangle fill arrays holding whatever was on
+                      // the stack, and the recorder dereferences them whenever
+                      // they are not null.
+                      const SkCanvas::Lattice lattice{
+                          .fXDivs = xs,
+                          .fYDivs = ys,
+                          .fRectTypes = nullptr,
+                          .fXCount = (int)std::size(xs),
+                          .fYCount = (int)std::size(ys),
+                          .fBounds = &bounds,
+                          .fColors = nullptr};
+                      canvas.drawImageLattice(
+                          image.get(), lattice,
+                          SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+                          SkFilterMode::kLinear);
+                    })
+                 .absolute()
                  .inset(0))
       .child(text(u8"NATIVE", label(17, kQuest)));
 }
@@ -174,42 +178,46 @@ struct NineSlice final : sketch::Sketch {
     const float breathH = kPanelH + 26 * stretch;
 
     Element density = kit::cells(
-        {.cells =
-             {sketch::kit::caption(kPanelW, u8"Slice::density = 2",
-                        u8"192 px at its design width \xe2\x80\x94 a 16-unit "
-                        u8"band",
-                        panel(carvedFrameSlice(oak, kFrameDensity),
-                              u8"BEGIN QUEST", kQuest)),
-              sketch::kit::caption(kPanelW, u8"Slice::density = 1",
-                        u8"the same image at face value \xe2\x80\x94 twice "
-                        u8"as heavy",
-                        panel(carvedFrameSlice(oak, 1.0f), u8"BEGIN QUEST",
-                              kQuest))},
+        {.cells = {sketch::kit::caption(
+                       kPanelW, u8"Slice::density = 2",
+                       u8"192 px at its design width \xe2\x80\x94 a 16-unit "
+                       u8"band",
+                       panel(carvedFrameSlice(oak, kFrameDensity),
+                             u8"BEGIN QUEST", kQuest)),
+                   sketch::kit::caption(
+                       kPanelW, u8"Slice::density = 1",
+                       u8"the same image at face value \xe2\x80\x94 twice "
+                       u8"as heavy",
+                       panel(carvedFrameSlice(oak, 1.0f), u8"BEGIN QUEST",
+                             kQuest))},
          .gap = 34,
          .divider = Fill::color(kRule)});
 
     Element trap = kit::cells(
-        {.cells =
-             {sketch::kit::caption(kPanelW, u8"Slice",
-                        u8"decomposed into rects \xe2\x80\x94 every backend",
-                        panel(carvedFrameSlice(azurePlain, 1.0f),
-                              u8"DECOMPOSED", kQuest)),
-              sketch::kit::caption(kPanelW, u8"canvas.drawImageLattice",
-                        u8"the native op \xe2\x80\x94 blank on a device",
-                        nativeLattice(azurePlain))},
+        {.cells = {sketch::kit::caption(
+                       kPanelW, u8"Slice",
+                       u8"decomposed into rects \xe2\x80\x94 every backend",
+                       panel(carvedFrameSlice(azurePlain, 1.0f), u8"DECOMPOSED",
+                             kQuest)),
+                   sketch::kit::caption(
+                       kPanelW, u8"canvas.drawImageLattice",
+                       u8"the native op \xe2\x80\x94 blank on a device",
+                       nativeLattice(azurePlain))},
          .gap = 34,
          .divider = Fill::color(kRule)});
 
     Element source = kit::cells(
-        {.cells = {sketch::kit::caption(kPanelW, u8"the source",
-                             u8"drawn once, offscreen, at 2\xc3\x97",
-                             image(oak).width(Dim(96)).height(Dim(96))),
-                   sketch::kit::caption(kPanelW, u8"re-laid out every frame",
-                             u8"the box changes, the corners do not",
-                             panel(carvedFrameSlice(crimson, kFrameDensity),
-                                   u8"stretch me", kQuest)
-                                 .width(Dim(breathW))
-                                 .height(Dim(breathH)))},
+        {.cells = {sketch::kit::caption(
+                       kPanelW, u8"the source",
+                       u8"drawn once, offscreen, at 2\xc3\x97",
+                       image(oak).width(Dim(96)).height(Dim(96))),
+                   sketch::kit::caption(
+                       kPanelW, u8"re-laid out every frame",
+                       u8"the box changes, the corners do not",
+                       panel(carvedFrameSlice(crimson, kFrameDensity),
+                             u8"stretch me", kQuest)
+                           .width(Dim(breathW))
+                           .height(Dim(breathH)))},
          .gap = 34,
          .divider = Fill::color(kRule),
          .align = Align::Center});
@@ -220,10 +228,10 @@ struct NineSlice final : sketch::Sketch {
                      u8"the density it declares, and the native op it does "
                      u8"not use",
          .footer = u8"Sketchbook \xc2\xb7 nine_slice"},
-        kit::cells({.cells = {std::move(density), std::move(trap),
-                              std::move(source)},
-                    .column = true,
-                    .gap = 22}));
+        kit::cells(
+            {.cells = {std::move(density), std::move(trap), std::move(source)},
+             .column = true,
+             .gap = 22}));
   }
 
   void setup(sketch::SketchContext& ctx) override {

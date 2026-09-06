@@ -161,9 +161,8 @@ TEST(Encode, NamedChannelsGoOutAsLayersAndComeBackByName) {
   channels.width = kSize;
   channels.height = kSize;
   channels.floatingPoint = true;
-  channels.names = {"diffuse.R", "diffuse.G", "diffuse.B",
-                    "glow.R",    "glow.G",    "glow.B",
-                    "depth.Z"};
+  channels.names = {"diffuse.R", "diffuse.G", "diffuse.B", "glow.R",
+                    "glow.G",    "glow.B",    "depth.Z"};
   channels.data.assign((size_t)kSize * kSize * channels.names.size(), 0.0f);
   for (int y = 0; y < kSize; ++y)
     for (int x = 0; x < kSize; ++x) {
@@ -202,9 +201,8 @@ TEST(Encode, NamedChannelsGoOutAsLayersAndComeBackByName) {
   const sk_sp<SkImage> flat = back->makeImage("diffuse");
   ASSERT_TRUE(flat);
   SkBitmap read;
-  ASSERT_TRUE(read.tryAllocPixels(
-      SkImageInfo::Make(kSize, kSize, kRGBA_F32_SkColorType,
-                        kPremul_SkAlphaType)));
+  ASSERT_TRUE(read.tryAllocPixels(SkImageInfo::Make(
+      kSize, kSize, kRGBA_F32_SkColorType, kPremul_SkAlphaType)));
   ASSERT_TRUE(lit->readPixels(nullptr, read.pixmap(), 0, 0));
   const float* pixel = (const float*)read.getAddr(4, 4);
   EXPECT_NEAR(pixel[0], 4.0f, 0.01f);

@@ -217,8 +217,8 @@ struct MagiVoteLayout {
 };
 
 inline sk_sp<SkTypeface> groteskBold() {
-  return sigil::weave::ports::face(
-      {"Helvetica", "Arial"}, SkFontStyle::kBold_Weight);
+  return sigil::weave::ports::face({"Helvetica", "Arial"},
+                                   SkFontStyle::kBold_Weight);
 }
 
 inline sk_sp<SkTypeface> condensedBold() {

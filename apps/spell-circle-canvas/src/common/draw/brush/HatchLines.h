@@ -7,8 +7,8 @@
  */
 
 #include <include/core/SkPoint.h>
-#include <sigilgeometry/path/Polyline.h>
 #include <sigildraw/brush/Hatch.h>
+#include <sigilgeometry/path/Polyline.h>
 
 #include <span>
 #include <vector>

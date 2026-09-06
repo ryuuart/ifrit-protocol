@@ -3,8 +3,8 @@
 /** @file
  * The encode surface of SigilImage: Format, EncodeOptions, and
  * encodeImage(), which routes pixels — or named channel planes — to the
- * encoder for a format and hands back the encoded bytes. Skia's own encoders cover PNG, JPEG and
- * WebP; the OpenImageIO backend, when built in
+ * encoder for a format and hands back the encoded bytes. Skia's own encoders
+ * cover PNG, JPEG and WebP; the OpenImageIO backend, when built in
  * (SIGILIMAGE_HAS_OIIO_ENCODE), adds EXR. A format with no encoder in
  * the build simply fails to encode, the same way a format with no
  * decoder fails to decode.

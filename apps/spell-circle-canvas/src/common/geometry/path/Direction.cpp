@@ -80,7 +80,8 @@ SkPath direction(const SkPath& path, const DirectionOptions& options) {
 
   std::vector<Polyline> rings;
   rings.reserve(contours.size());
-  for (const SegmentContour& contour : contours) rings.push_back(ringOf(contour));
+  for (const SegmentContour& contour : contours)
+    rings.push_back(ringOf(contour));
   const std::vector<Nesting> where = nesting(rings);
 
   for (size_t i = 0; i < contours.size(); ++i) {
@@ -103,7 +104,8 @@ SkPath direction(const SkPath& path, const DirectionOptions& options) {
     });
     std::vector<SegmentContour> sorted;
     sorted.reserve(contours.size());
-    for (const size_t index : order) sorted.push_back(std::move(contours[index]));
+    for (const size_t index : order)
+      sorted.push_back(std::move(contours[index]));
     contours = std::move(sorted);
   }
   return toPath(contours, path.getFillType());

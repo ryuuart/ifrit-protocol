@@ -170,8 +170,8 @@ float worstError(const SkPath& path, const std::vector<glm::vec2>& points) {
     float nearest = 1e9f;
     for (const Polyline& line : flat)
       for (size_t i = 0; i + 1 < line.points.size(); ++i)
-        nearest = std::min(nearest,
-                           offSegment(point, line.points[i], line.points[i + 1]));
+        nearest = std::min(
+            nearest, offSegment(point, line.points[i], line.points[i + 1]));
     worst = std::max(worst, nearest);
   }
   return worst;
@@ -236,8 +236,8 @@ TEST(PathInterpolate, APairThatDoesNotPairAnswersNothing) {
   triangle.lineTo(10, 0);
   triangle.lineTo(5, 10);
   triangle.close();
-  EXPECT_FALSE(interpolate(rect(0, 0, 10, 10), triangle.detach(), 0.5f)
-                   .has_value());
+  EXPECT_FALSE(
+      interpolate(rect(0, 0, 10, 10), triangle.detach(), 0.5f).has_value());
 }
 
 }  // namespace

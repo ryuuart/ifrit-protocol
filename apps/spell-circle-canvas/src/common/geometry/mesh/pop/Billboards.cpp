@@ -126,8 +126,7 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
     // a neighbouring cell's texels and bleeds one sprite into the next.
     const float w = (float)sprite->width(), h = (float)sprite->height();
     const SkRect src = SkRect::MakeXYWH(splat.window.x * w, splat.window.y * h,
-                                        splat.window.z * w,
-                                        splat.window.w * h);
+                                        splat.window.z * w, splat.window.w * h);
     canvas.drawImageRect(sprite, src, dst, sampling, &paint,
                          SkCanvas::kStrict_SrcRectConstraint);
   }

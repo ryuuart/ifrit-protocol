@@ -104,7 +104,8 @@ struct Sequence {
     const size_t next = index + 1 < steps.size() ? index + 1 : index;
     const Step& from = steps[index];
     const Step& to = steps[next];
-    if (interpolation == Interpolation::Hold || next == index) return from.value;
+    if (interpolation == Interpolation::Hold || next == index)
+      return from.value;
 
     const float segment = to.at - from.at;
     // Two keys at one time are a CUT: the later one wins, which is how a
@@ -138,8 +139,8 @@ struct Sequence {
     const size_t count = steps.size();
     const size_t beforeIndex =
         index > 0 ? index - 1 : (loop && count > 2 ? count - 2 : index);
-    const size_t afterIndex = next + 1 < count ? next + 1
-                              : (loop && count > 2 ? 1 : next);
+    const size_t afterIndex =
+        next + 1 < count ? next + 1 : (loop && count > 2 ? 1 : next);
     const float p0 = steps[beforeIndex].value;
     const float p1 = steps[index].value;
     const float p2 = steps[next].value;

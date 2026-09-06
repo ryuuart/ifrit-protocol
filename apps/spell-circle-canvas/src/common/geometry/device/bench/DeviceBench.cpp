@@ -40,7 +40,7 @@ namespace {
  *  adopted device and Graphite context standing on it. Making a second
  *  Vulkan device costs the driver more the more it has already made, and
  *  every arm below wants the same one anyway. */
-Device *sharedDevice(std::string *why) {
+Device* sharedDevice(std::string* why) {
   static std::string error;
   static std::unique_ptr<Device> device = [] {
     const DeviceConfig config;
@@ -50,20 +50,20 @@ Device *sharedDevice(std::string *why) {
   return device.get();
 }
 
-core::hardware::GpuDevice *adoptedDevice(std::string *why) {
-  Device *made = sharedDevice(why);
+core::hardware::GpuDevice* adoptedDevice(std::string* why) {
+  Device* made = sharedDevice(why);
   if (!made) return nullptr;
   if (!made->gpu() && why) *why = "the device was created but not adopted";
   return made->gpu();
 }
 
-skia::GraphiteContext *adoptedGraphite() {
-  Device *made = sharedDevice(nullptr);
+skia::GraphiteContext* adoptedGraphite() {
+  Device* made = sharedDevice(nullptr);
   return made ? made->graphite() : nullptr;
 }
 
 /** One render target of the size a frame actually wraps. */
-core::hardware::TextureHandle target(core::hardware::GpuDevice &dev) {
+core::hardware::TextureHandle target(core::hardware::GpuDevice& dev) {
   core::hardware::TextureDesc desc;
   desc.width = 1024;
   desc.height = 1024;
@@ -97,8 +97,8 @@ void BM_DeviceAdopt(benchmark::State& state) {
   state.counters["bringup_ms"] = bringUpMs;
 
   for ([[maybe_unused]] auto iteration : state) {
-    std::unique_ptr<core::hardware::GpuDevice> gpu = adoptVulkanDevice(device->renderDevice(),
-                                                      device->context(), &error);
+    std::unique_ptr<core::hardware::GpuDevice> gpu =
+        adoptVulkanDevice(device->renderDevice(), device->context(), &error);
     std::unique_ptr<skia::GraphiteContext> graphite;
     if (gpu) graphite = skia::GraphiteContext::create(*gpu);
     benchmark::DoNotOptimize(graphite);
@@ -112,11 +112,11 @@ void BM_DeviceAdopt(benchmark::State& state) {
 }
 BENCHMARK(BM_DeviceAdopt)->Unit(benchmark::kMillisecond);
 
-/** On the adopted device: create a small image with its memory and destroy it, with the
- *  frame advance that actually releases it. */
-void BM_Adopted_CreateDestroyTexture(benchmark::State &state) {
+/** On the adopted device: create a small image with its memory and destroy it,
+ * with the frame advance that actually releases it. */
+void BM_Adopted_CreateDestroyTexture(benchmark::State& state) {
   std::string why;
-  core::hardware::GpuDevice *dev = adoptedDevice(&why);
+  core::hardware::GpuDevice* dev = adoptedDevice(&why);
   if (!dev) {
     state.SkipWithMessage("no adopted device: " + why);
     return;
@@ -133,10 +133,11 @@ void BM_Adopted_CreateDestroyTexture(benchmark::State &state) {
 }
 BENCHMARK(BM_Adopted_CreateDestroyTexture);
 
-/** On the adopted device: import a VkImage borrowed, export it, destroy and retire. */
-void BM_Adopted_ImportExportRetire(benchmark::State &state) {
+/** On the adopted device: import a VkImage borrowed, export it, destroy and
+ * retire. */
+void BM_Adopted_ImportExportRetire(benchmark::State& state) {
   std::string why;
-  core::hardware::GpuDevice *dev = adoptedDevice(&why);
+  core::hardware::GpuDevice* dev = adoptedDevice(&why);
   if (!dev) {
     state.SkipWithMessage("no adopted device: " + why);
     return;
@@ -157,11 +158,11 @@ void BM_Adopted_ImportExportRetire(benchmark::State &state) {
 }
 BENCHMARK(BM_Adopted_ImportExportRetire);
 
-/** On the adopted device: signal a timeline semaphore from the queue and wait on the
- *  CPU. */
-void BM_Adopted_FenceRoundTrip(benchmark::State &state) {
+/** On the adopted device: signal a timeline semaphore from the queue and wait
+ * on the CPU. */
+void BM_Adopted_FenceRoundTrip(benchmark::State& state) {
   std::string why;
-  core::hardware::GpuDevice *dev = adoptedDevice(&why);
+  core::hardware::GpuDevice* dev = adoptedDevice(&why);
   if (!dev) {
     state.SkipWithMessage("no adopted device: " + why);
     return;
@@ -179,10 +180,10 @@ void BM_Adopted_FenceRoundTrip(benchmark::State &state) {
 }
 BENCHMARK(BM_Adopted_FenceRoundTrip);
 
-void BM_Adopted_Wrap_Handle(benchmark::State &state) {
+void BM_Adopted_Wrap_Handle(benchmark::State& state) {
   std::string why;
-  core::hardware::GpuDevice *dev = adoptedDevice(&why);
-  skia::GraphiteContext *ctx = adoptedGraphite();
+  core::hardware::GpuDevice* dev = adoptedDevice(&why);
+  skia::GraphiteContext* ctx = adoptedGraphite();
   if (!dev || !ctx) {
     state.SkipWithMessage("no Graphite on the adopted device: " + why);
     return;

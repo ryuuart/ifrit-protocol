@@ -8,13 +8,12 @@
 
 #include "sigilweave/paragraph/Paragraph.h"
 
-#include <atomic>
-
 #include <include/core/SkFont.h>
 #include <include/core/SkFontMetrics.h>
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cassert>
 #include <memory>
 
@@ -560,9 +559,9 @@ void Paragraph::openPatternBreaks(std::vector<unicode::LineBreak>& boundaries,
     if (contentEnd > segmentStart && m_text[contentEnd - 1] == 0x00AD)
       --contentEnd;
     const auto length = static_cast<int32_t>(contentEnd - segmentStart);
-    const bool longEnough = length >= limits.minimumWordLength &&
-                            length > limits.minimumLettersBefore +
-                                         limits.minimumLettersAfter;
+    const bool longEnough =
+        length >= limits.minimumWordLength &&
+        length > limits.minimumLettersBefore + limits.minimumLettersAfter;
     if (longEnough) {
       while (spanCursor + 1 < m_spans.size() &&
              m_spans[spanCursor].end <= static_cast<uint32_t>(segmentStart))
@@ -574,9 +573,9 @@ void Paragraph::openPatternBreaks(std::vector<unicode::LineBreak>& boundaries,
           unicode::isUpperCase(unicode::decodeAt(word, firstOffset));
       if (limits.capitalizedWords || !capitalised) {
         points.clear();
-        const std::string& tag = m_spans.empty()
-                                     ? std::string()
-                                     : m_spans[spanCursor].style.shaping.languageTag;
+        const std::string& tag =
+            m_spans.empty() ? std::string()
+                            : m_spans[spanCursor].style.shaping.languageTag;
         m_hyphenator->breakPoints(word, tag, points);
         for (const uint32_t offset : points) {
           const auto inside = static_cast<int32_t>(offset);

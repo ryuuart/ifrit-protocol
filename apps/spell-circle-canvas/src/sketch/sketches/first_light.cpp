@@ -59,17 +59,17 @@ struct FirstLight final : sketch::Set {
 
     const gm::Mesh tube =
         gm::pop::sweep(loop, sections::circle(16),
-                         {.segments = 220,
-                          .scale = 9.0f,
-                          .normals = gm::pop::SweepOptions::Normals::Radial});
+                       {.segments = 220,
+                        .scale = 9.0f,
+                        .normals = gm::pop::SweepOptions::Normals::Radial});
 
     const std::vector<glm::vec3> path = loop.sampleArcLength(96);
     const float head = motion::phase(seconds, 1.0 / 0.35);
     // Where the lens stands: the turntable's node carries it, so the
     // pose the rail puts that node in at the distance it has travelled
     // IS the eye, and the comet is turned onto the same point.
-    const float travelled = motion::phase(seconds, kTable.period)
-                            * track.length();
+    const float travelled =
+        motion::phase(seconds, kTable.period) * track.length();
     const glm::vec3 eye = gm::curve::poseAlong(track, travelled).position;
     // What stands at every point of the comet is a FLAKE, and a flat
     // body reads as the bead it draws only while it faces the viewer —
@@ -91,8 +91,8 @@ struct FirstLight final : sketch::Set {
         .child(world::Element()
                    .key("lamp")
                    .at({180, 150, 220})
-                   .light(world::light::point({0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f},
-                                       0.9f, 900.0f)))
+                   .light(world::light::point(
+                       {0, 0, 0}, {0.45f, 0.6f, 1.0f, 1.0f}, 0.9f, 900.0f)))
         .child(world::kit::turntable(kTable, seconds))
         .child(world::Element()
                    .key("plate")

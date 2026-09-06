@@ -605,13 +605,13 @@ struct AstralTome : sketch::Sketch {
             .inset(0, 0, 0, at::kBandH)
             .key("leather")
             .cache(Cache::Texture)
-            .fill(Paint::blend(
-                {{Paint::radialUnit({0.5f, 0.5f}, 0.95f,
-                                       {{0.0f, at::kLeatherWarm},
-                                        {0.55f, at::kLeatherMid},
-                                        {1.0f, at::kLeatherDark}}),
-                  SkBlendMode::kSrcOver},
-                 {Paint::recipe(field::grain(2.6f, 4, 21.0f)), SkBlendMode::kOverlay}}));
+            .fill(Paint::blend({{Paint::radialUnit({0.5f, 0.5f}, 0.95f,
+                                                   {{0.0f, at::kLeatherWarm},
+                                                    {0.55f, at::kLeatherMid},
+                                                    {1.0f, at::kLeatherDark}}),
+                                 SkBlendMode::kSrcOver},
+                                {Paint::recipe(field::grain(2.6f, 4, 21.0f)),
+                                 SkBlendMode::kOverlay}}));
     return e;
   }
 
@@ -632,13 +632,13 @@ struct AstralTome : sketch::Sketch {
             .fill(Paint::blend(
                 {{Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
                  {Paint::radialUnit({0.42f, 0.38f}, 0.85f,
-                                       {{0.0f, at::scaleRgb(at::kNebula, 2.2f)},
-                                        {0.5f, at::kNebula},
-                                        {1.0f, {0, 0, 0, 1}}}),
+                                    {{0.0f, at::scaleRgb(at::kNebula, 2.2f)},
+                                     {0.5f, at::kNebula},
+                                     {1.0f, {0, 0, 0, 1}}}),
                   SkBlendMode::kPlus},
                  {Paint::radialUnit({0.78f, 0.74f}, 0.55f,
-                                       {{0.0f, at::scaleRgb(at::kNebula, 1.6f)},
-                                        {1.0f, {0, 0, 0, 0}}}),
+                                    {{0.0f, at::scaleRgb(at::kNebula, 1.6f)},
+                                     {1.0f, {0, 0, 0, 0}}}),
                   SkBlendMode::kPlus}}));
     // The field. Six scatter runs on lissajous routes with a wide normal
     // jitter — a brush, seeded, not a table of hand-placed dots. The measured
@@ -804,10 +804,10 @@ struct AstralTome : sketch::Sketch {
     // further and holds more of the light than the glyph does.
     grp.child(box().inset(0).fill(
         Paint::glowUnit({0.5f, 0.5f}, 0.62f,
-                           {{0.0f, at::scaleRgb(col, 1.0f, 0.60f)},
-                            {0.22f, at::scaleRgb(col, 1.0f, 0.30f)},
-                            {0.55f, at::scaleRgb(col, 1.0f, 0.09f)},
-                            {1.0f, at::scaleRgb(col, 1.0f, 0.0f)}})));
+                        {{0.0f, at::scaleRgb(col, 1.0f, 0.60f)},
+                         {0.22f, at::scaleRgb(col, 1.0f, 0.30f)},
+                         {0.55f, at::scaleRgb(col, 1.0f, 0.09f)},
+                         {1.0f, at::scaleRgb(col, 1.0f, 0.0f)}})));
     // the glyph
     grp.child(
         box()
@@ -875,18 +875,18 @@ struct AstralTome : sketch::Sketch {
     band.child(text(toU8("ASTRAL SORCERY \xc2\xb7 "
                          "GuiJournalConstellationCluster, PAGE 1 OF 4"),
                     weave::textStyle({.face = mono,
-                                          .size = 13.0f,
-                                          .color = {0.72f, 0.66f, 0.50f, 1.0f},
-                                          .track = 2.6f})));
+                                      .size = 13.0f,
+                                      .color = {0.72f, 0.66f, 0.50f, 1.0f},
+                                      .track = 2.6f})));
     band.child(text(
         toU8("Four charts on one page at the mod's own numbers: a 95x95 "
              "SQUARE render box hung on an 80x110 hit cell, the offsetMap's "
              "zig-zag placing them, and every star's twinkle on its own "
              "divisor between 12 and 21."),
         weave::textStyle({.face = mono,
-                              .size = 11.0f,
-                              .color = {0.50f, 0.46f, 0.38f, 1.0f},
-                              .track = 0.4f})));
+                          .size = 11.0f,
+                          .color = {0.50f, 0.46f, 0.38f, 1.0f},
+                          .track = 0.4f})));
     return band;
   }
 
@@ -898,23 +898,23 @@ struct AstralTome : sketch::Sketch {
       const bool sel = i == 1;  // bookmarkIndex 20 = Constellations
       const float w = 67.0f + (sel ? 0.0f : 5.0f);
       const float y = 20.0f + 18.0f * (float)i;
-      rail.child(
-          box()
-              .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f), at::gy(y),
-                                     at::g(w), at::g(15)))
-              .key(std::string("bmk") + std::to_string(i))
-              .shape(shapes::notched(
-                  at::g(9.0f), at::g(4.0f),
-                  shapes::Corner::TopRight | shapes::Corner::BottomRight))
-              .fill(Paint::linearUnit(
-                  {0, 0}, {1, 0},
-                  {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
-                   {0.6f, at::scaleRgb(at::kLeatherMid, 0.8f)},
-                   {1.0f, at::kLeatherDark}}))
-              .foreground(decorations::border(
-                  1.2f,
-                  Fill::color(at::scaleRgb(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
-                  1.0f)));
+      rail.child(box()
+                     .rect(SkRect::MakeXYWH(at::gx(at::kGuiW - 17.25f),
+                                            at::gy(y), at::g(w), at::g(15)))
+                     .key(std::string("bmk") + std::to_string(i))
+                     .shape(shapes::notched(at::g(9.0f), at::g(4.0f),
+                                            shapes::Corner::TopRight |
+                                                shapes::Corner::BottomRight))
+                     .fill(Paint::linearUnit(
+                         {0, 0}, {1, 0},
+                         {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
+                          {0.6f, at::scaleRgb(at::kLeatherMid, 0.8f)},
+                          {1.0f, at::kLeatherDark}}))
+                     .foreground(decorations::border(
+                         1.2f,
+                         Fill::color(
+                             at::scaleRgb(at::kGilt, 1.25f, sel ? 1.0f : 0.6f)),
+                         1.0f)));
       (void)kNames;  // the label rides 15 GUI px into a tab that starts
                      // 2.75 px from the tome's right edge: at 3x it is
                      // entirely off-canvas, so the tab bleeds and the name

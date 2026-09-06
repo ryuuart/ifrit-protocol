@@ -1,14 +1,14 @@
 // Scene: infinite loop marquee on a closed figure-eight.
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 #include <numbers>
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 

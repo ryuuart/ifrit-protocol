@@ -9,7 +9,6 @@
 #include <include/core/SkPathBuilder.h>
 
 #include <cstdint>
-
 #include <functional>
 
 #include "sigilgeometry/path/Polyline.h"

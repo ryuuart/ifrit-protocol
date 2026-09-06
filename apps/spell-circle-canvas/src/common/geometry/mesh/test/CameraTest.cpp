@@ -89,7 +89,6 @@ TEST(Camera, AnEyeOnTopOfItsAnchorStillFacesSomewhere) {
   EXPECT_NEAR(glm::length(glm::vec3(same[2])), 1.0f, 1e-5f);
 }
 
-
 // The orbit and the camera it stands for are exact inverses, which is
 // what lets a control take hold of a camera rather than replace it:
 // reading a camera's orbit and moving it by nothing gives that camera
@@ -139,10 +138,10 @@ TEST(Camera, ProjectsToClipSpaceWithoutTheViewportStep) {
   const glm::vec4 point{30, 20, 0, 1};
   const glm::vec4 inClip = clip * point;
   const glm::vec4 inPixels = cam.viewProjection({800, 600}) * point;
-  EXPECT_NEAR(inClip.x / inClip.w * 400.0f + 400.0f,
-              inPixels.x / inPixels.w, 1e-2f);
-  EXPECT_NEAR(inClip.y / inClip.w * -300.0f + 300.0f,
-              inPixels.y / inPixels.w, 1e-2f);
+  EXPECT_NEAR(inClip.x / inClip.w * 400.0f + 400.0f, inPixels.x / inPixels.w,
+              1e-2f);
+  EXPECT_NEAR(inClip.y / inClip.w * -300.0f + 300.0f, inPixels.y / inPixels.w,
+              1e-2f);
 }
 
 // DEPTH IS THE DEVICE'S WAY ROUND: the projection runs z from one at the

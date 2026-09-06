@@ -117,7 +117,6 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
   EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
 }
 
-
 TEST(ComposeText, OnPathFillsEveryContourNotJustTheFirst) {
   // A path clipped to a frame commonly comes back as SEVERAL contours, so a
   // baseline that takes only the first one drops the rest of the run with no
@@ -322,7 +321,6 @@ TEST(ComposeBindings, AFillCanBeBoundLive) {
   EXPECT_LT(SkColorGetR(host.pixel(100, 100)), 80);
   EXPECT_GT(SkColorGetG(host.pixel(100, 100)), 180);
 }
-
 
 TEST(ComposeContent, SamplingReachesTheImageLeaf) {
   // Every blessed image path hardcoded kLinear, so pixel art, tilemaps
@@ -906,9 +904,9 @@ TEST(ComposeText, FittingARunToAWidthSolvesPastTheTrackingThatDoesNotScale) {
   // A run that already fits is left exactly as it was: the fit is a
   // ceiling, not a resize onto the width.
   const sigil::weave::TextStyle small = whiteStyle(10);
-  EXPECT_EQ(fitRun(u8"CONDENSED TO FIT", small, 4000.0f, fonts())
-                .shaping.fontSize,
-            10.0f);
+  EXPECT_EQ(
+      fitRun(u8"CONDENSED TO FIT", small, 4000.0f, fonts()).shaping.fontSize,
+      10.0f);
 
   // TRACKING IS PX, so it does not shrink with the size and one division
   // overshoots by exactly it. A heavily tracked run is where a fit
@@ -945,9 +943,8 @@ TEST(ComposeText, TheCondenseClosesOnlyWhatTheSizeFloorLeftOver) {
   // Neither floor is a promise to fit: a run that cannot reach the width
   // comes back at the floors, over-wide, rather than at a size nothing
   // could read.
-  const sigil::weave::TextStyle refused =
-      fitRun(u8"CONDENSED TO FIT", whiteStyle(64), 10.0f, fonts(),
-             {.minSize = 48.0f});
+  const sigil::weave::TextStyle refused = fitRun(
+      u8"CONDENSED TO FIT", whiteStyle(64), 10.0f, fonts(), {.minSize = 48.0f});
   EXPECT_FLOAT_EQ(refused.shaping.fontSize, 48.0f);
   EXPECT_GT(widthOf(refused), 10.0f);
 }

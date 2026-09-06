@@ -21,7 +21,9 @@ std::vector<RampStop> aquaGlowRamp(Color tint, float strength) {
           {1.0f, mixToward(tint, {1, 1, 1, 1}, 0.80f, strength)}};
 }
 
-Color aquaHalo(Color tint) { return mixToward(tint, {1, 1, 1, 1}, 0.30f, 0.5f); }
+Color aquaHalo(Color tint) {
+  return mixToward(tint, {1, 1, 1, 1}, 0.30f, 0.5f);
+}
 Color aquaTopBand(Color tint) { return scale(tint, 0.36f, 0.45f); }
 Color aquaHairline(Color tint) { return scale(tint, 0.45f, 0.6f); }
 

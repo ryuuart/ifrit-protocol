@@ -465,11 +465,11 @@ inline float blit(SkCanvas& canvas, const PixFont& f, SkPoint at,
   const float y = detail::snapTo(at.fY, b.snap);
   return detail::walkRun(f, s, b, [&](const Cell& cell, float x) {
     if (cell.mask)
-      canvas.drawImageRect(cell.mask,
-                           SkRect::MakeXYWH(x0 + x + (float)cell.inkX,
-                                            y + (float)cell.inkY,
-                                            (float)cell.w, (float)cell.h),
-                           nearest, &p);
+      canvas.drawImageRect(
+          cell.mask,
+          SkRect::MakeXYWH(x0 + x + (float)cell.inkX, y + (float)cell.inkY,
+                           (float)cell.w, (float)cell.h),
+          nearest, &p);
   });
 }
 

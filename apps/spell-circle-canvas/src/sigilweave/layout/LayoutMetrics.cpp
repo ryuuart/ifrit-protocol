@@ -9,9 +9,8 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 
-#include <optional>
-
 #include <algorithm>
+#include <optional>
 #include <vector>
 
 #include "sigilweave/fonts/Shaper.h"

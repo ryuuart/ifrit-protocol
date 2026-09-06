@@ -71,8 +71,7 @@ constexpr int kMeridians = 64;
 constexpr int kParallels = 40;
 
 /** One sphere at @p x, wearing @p surface. */
-world::Element ball(std::string_view key, float x,
-                    material::Material surface) {
+world::Element ball(std::string_view key, float x, material::Material surface) {
   return world::Element()
       .key(key)
       .at({x, 0.0f, 0.0f})
@@ -93,18 +92,19 @@ world::Element balls() {
       // The row runs across the turntable's parked station rather than
       // along it, so all four are seen face on.
       .rotateY(90.0f)
-      .child(ball("chrome", left,
-                  material::kit::surface(material::kit::SurfaceParams::chrome())))
+      .child(
+          ball("chrome", left,
+               material::kit::surface(material::kit::SurfaceParams::chrome())))
       .child(ball("rough", left + kGap,
                   material::kit::surface(material::kit::SurfaceParams::metal(
                       {0.85f, 0.86f, 0.88f, 1}, 0.35f))))
-      .child(ball(
-          "dielectric", left + 2.0f * kGap,
-          material::kit::surface(material::kit::SurfaceParams::dielectric(
-              {0.14f, 0.30f, 0.42f, 1}, 0.15f))))
-      .child(ball("glass", left + 3.0f * kGap,
-                  material::kit::surface(
-                      material::kit::SurfaceParams::glass())));
+      .child(
+          ball("dielectric", left + 2.0f * kGap,
+               material::kit::surface(material::kit::SurfaceParams::dielectric(
+                   {0.14f, 0.30f, 0.42f, 1}, 0.15f))))
+      .child(
+          ball("glass", left + 3.0f * kGap,
+               material::kit::surface(material::kit::SurfaceParams::glass())));
 }
 
 }  // namespace
@@ -145,23 +145,23 @@ struct ReflectionLab final : sketch::Set {
     sky.map = studio;
     sky.next = sunset;
     world::Element dome = world::Element()
-                       .key("sky")
-                       .environmentMap(sky)
-                       .rotateY(seconds * 26.0f)
-                       // HELD, not ramping. Both maps are sampled and
-                       // mixed at this value, which is what the dial
-                       // does; moving it with the time would photograph
-                       // at two different values on two lanes that
-                       // reach their capture by different routes, and
-                       // the tiers would stop being comparable pictures
-                       // of one description. The SKY'S TURN is what
-                       // moves here, and it is a transform.
-                       .crossfade(0.45f)
-                       // The backdrop is shown, softly, so the row is
-                       // read against the sky it is reflecting rather
-                       // than against a flat ground.
-                       .backdrop(0.85f)
-                       .backdropBlur(0.35f);
+                              .key("sky")
+                              .environmentMap(sky)
+                              .rotateY(seconds * 26.0f)
+                              // HELD, not ramping. Both maps are sampled and
+                              // mixed at this value, which is what the dial
+                              // does; moving it with the time would photograph
+                              // at two different values on two lanes that
+                              // reach their capture by different routes, and
+                              // the tiers would stop being comparable pictures
+                              // of one description. The SKY'S TURN is what
+                              // moves here, and it is a transform.
+                              .crossfade(0.45f)
+                              // The backdrop is shown, softly, so the row is
+                              // read against the sky it is reflecting rather
+                              // than against a flat ground.
+                              .backdrop(0.85f)
+                              .backdropBlur(0.35f);
 
     world::kit::Set set;
     set.rig.extent = 140.0f;

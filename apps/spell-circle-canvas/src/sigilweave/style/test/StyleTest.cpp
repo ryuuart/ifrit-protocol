@@ -9,11 +9,11 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkPaint.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/style/Style.h>
 
 #include <memory>
 #include <type_traits>
-#include <sigilweave/kit/PaintLayers.h>
 
 using namespace sigil::weave;
 

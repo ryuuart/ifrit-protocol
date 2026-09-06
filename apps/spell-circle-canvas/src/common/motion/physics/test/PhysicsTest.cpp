@@ -34,7 +34,8 @@ TEST(Physics, TheSameStepTwiceIsTheSameRun) {
     points.add({0, 0}, {}, 1.0f, true);
     points.add({30, 0}, {12, -4});
     points.add({-18, 22}, {-3, 9}, 2.0f);
-    for (int frame = 0; frame < 200; ++frame) stepper.step(points, forces, sticks);
+    for (int frame = 0; frame < 200; ++frame)
+      stepper.step(points, forces, sticks);
     return points.position;
   };
   EXPECT_EQ(run(), run());

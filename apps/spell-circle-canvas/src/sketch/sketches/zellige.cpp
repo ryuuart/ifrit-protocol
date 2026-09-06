@@ -132,8 +132,8 @@ struct Zellige final : sketch::Sketch {
                                        zellige_wall::kContact[1]);
   Pattern right = zellige_wall::girih(22, zellige_wall::fesOchre(),
                                       zellige_wall::kContact[2]);
-  Pattern grain = mpattern::speckle(96, 60, 0.4f, 1.1f,
-                                    {{0.35f, 0.30f, 0.24f, 0.25f}});
+  Pattern grain =
+      mpattern::speckle(96, 60, 0.4f, 1.1f, {{0.35f, 0.30f, 0.24f, 0.25f}});
   std::string captions[3];
   double nextSwap = 0.0;
   int phase = 0;
@@ -180,10 +180,10 @@ struct Zellige final : sketch::Sketch {
                    .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk)))
                    .child(box().inset(0).fill(
                        Paint::linear({0, 0}, {180, 260},
-                                        {{0.00f, {1, 1, 1, 0.20f}},
-                                         {0.42f, {1, 1, 1, 0.05f}},
-                                         {0.58f, {0, 0, 0, 0.03f}},
-                                         {1.00f, {0, 0, 0, 0.10f}}}))))
+                                     {{0.00f, {1, 1, 1, 0.20f}},
+                                      {0.42f, {1, 1, 1, 0.05f}},
+                                      {0.58f, {0, 0, 0, 0.03f}},
+                                      {1.00f, {0, 0, 0, 0.10f}}}))))
         .child(text(toU8(label), zw::type(13, zw::kInk, 1.2f)));
   }
 
@@ -206,7 +206,8 @@ struct Zellige final : sketch::Sketch {
                         .gap(14)
                         .child(text(toU8("ZELLIJE"), zw::type(34, zw::kInk, 3)))
                         .child(text(toU8("Hankin PIC \xc2\xb7 4.8.8 \xc2\xb7 "
-                                         "\xce\xb8 swept 30\xe2\x80\x93" "60\xc2\xb0"),
+                                         "\xce\xb8 swept 30\xe2\x80\x93"
+                                         "60\xc2\xb0"),
                                     zw::type(14, zw::kSub, 1))))
                 .child(box()
                            .row()
@@ -232,12 +233,12 @@ struct Zellige final : sketch::Sketch {
     // Each panel keeps its own contact angle across every re-roll: the
     // sweep is what the wall is FOR, and only the edge and the palette
     // are re-rolled under it.
-    left = zw::girih(edges[0],
-                     swapPalettes ? zw::fesTurquoise() : zw::fesCobalt(),
-                     zw::kContact[0]);
-    middle = zw::girih(edges[1],
-                       swapPalettes ? zw::fesCobalt() : zw::fesTurquoise(),
-                       zw::kContact[1]);
+    left =
+        zw::girih(edges[0], swapPalettes ? zw::fesTurquoise() : zw::fesCobalt(),
+                  zw::kContact[0]);
+    middle =
+        zw::girih(edges[1], swapPalettes ? zw::fesCobalt() : zw::fesTurquoise(),
+                  zw::kContact[1]);
     right = zw::girih(edges[2], zw::fesOchre(), zw::kContact[2]);
     const bool rotated = (phase % 8) != 0;
     right.rotate((float)(phase % 8) * 22.5f);

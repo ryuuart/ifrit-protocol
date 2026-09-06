@@ -9,9 +9,9 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPoint.h>
+#include <sigildraw/brush/Stroke.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Skia.h>
-#include <sigildraw/brush/Stroke.h>
 
 #include <span>
 #include <vector>

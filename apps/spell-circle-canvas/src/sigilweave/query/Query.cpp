@@ -6,12 +6,12 @@
 
 #include "sigilweave/query/Query.h"
 
-#include "sigilweave/unicode/Unicode.h"
-
 #include <unicode/uregex.h>
 #include <unicode/ustring.h>
 
 #include <algorithm>
+
+#include "sigilweave/unicode/Unicode.h"
 
 namespace sigil::weave {
 
@@ -67,8 +67,8 @@ std::vector<CharRange> findAllOccurrences(const Paragraph& paragraph,
 std::vector<CharRange> findAllOccurrences(const Paragraph& paragraph,
                                           std::u8string_view utf8Needle,
                                           CharRange scope) {
-  return findAllOccurrences(paragraph, std::u16string_view(unicode::toUtf16(utf8Needle)),
-                            scope);
+  return findAllOccurrences(
+      paragraph, std::u16string_view(unicode::toUtf16(utf8Needle)), scope);
 }
 
 std::vector<CharRange> findAllOccurrences(const Paragraph& paragraph,

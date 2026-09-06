@@ -125,7 +125,7 @@ struct Ramp {
  *  The way back from `palette()`, and not its inverse: a palette says
  *  there is nothing between its entries and this says what lies between
  *  them, which is a decision the caller is making by asking. */
-[[nodiscard]] Ramp ramp(const Palette& palette, RampSpace space =
-                                                    RampSpace::Oklab);
+[[nodiscard]] Ramp ramp(const Palette& palette,
+                        RampSpace space = RampSpace::Oklab);
 
 }  // namespace sigil::material

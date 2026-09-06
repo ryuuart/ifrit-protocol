@@ -19,8 +19,7 @@ using compose::text;
 compose::Element backdrop(const Backdrop& ground) {
   const Theme& look = theme();
   Element surface = box().absolute().inset(0);
-  ground.ground.value_or(Fill::color(look.palette.ground))
-      .paint(surface);
+  ground.ground.value_or(Fill::color(look.palette.ground)).paint(surface);
   if (!ground.key.empty()) surface.key(ground.key);
   if (ground.grain > 0) {
     // The grain is a fill of its own laid over the ground rather than a
@@ -41,27 +40,24 @@ compose::Element backdrop(const Backdrop& ground) {
 compose::Element frame(const Frame& chrome, compose::Element screen) {
   const Theme& look = theme();
   Element opening = compose::box().column().grow(1);
-  chrome.screen.value_or(Fill::color(look.palette.ground))
-      .paint(opening);
+  chrome.screen.value_or(Fill::color(look.palette.ground)).paint(opening);
   opening.clip().child(std::move(screen));
   if (chrome.screenCorners > 0) opening.corners(Corners{chrome.screenCorners});
   const Fill rule = chrome.keyline.value_or(Fill::color(look.palette.rule));
   if (rule.kind != Fill::Kind::None)
-    opening.stroke(
-        compose::stroke(1, rule, compose::PathFormat::Align::Inner));
+    opening.stroke(compose::stroke(1, rule, compose::PathFormat::Align::Inner));
 
   Element shell = compose::box().column().padding(chrome.bezel);
-  chrome.shell.value_or(Fill::color(look.palette.cellGround))
-      .paint(shell);
+  chrome.shell.value_or(Fill::color(look.palette.cellGround)).paint(shell);
   if (chrome.width.unit != Dim::Unit::Auto) shell.width(chrome.width);
   if (chrome.height.unit != Dim::Unit::Auto) shell.height(chrome.height);
   if (chrome.corners > 0) shell.corners(Corners{chrome.corners});
   shell.child(std::move(opening));
   if (!chrome.plate.empty())
-    shell.child(text(chrome.plate,
-                     look.style(look.type.eyebrow, look.palette.ash))
-                    .margin(0, chrome.bezel * 0.5f, 0, 0)
-                    .alignSelf(Align::Center));
+    shell.child(
+        text(chrome.plate, look.style(look.type.eyebrow, look.palette.ash))
+            .margin(0, chrome.bezel * 0.5f, 0, 0)
+            .alignSelf(Align::Center));
   return shell;
 }
 

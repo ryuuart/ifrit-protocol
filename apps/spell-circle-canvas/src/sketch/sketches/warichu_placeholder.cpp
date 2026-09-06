@@ -104,8 +104,7 @@ struct WarichuPlaceholder final : sketch::Sketch {
     // The note as a paragraph of its own, which is what the split is asked
     // about: its size, its face and its language are the note's, and the
     // base has no say in any of them.
-    weave::Paragraph note =
-        weave::ParagraphBuilder(serif(kNoteSize, figure))
+    weave::Paragraph note = weave::ParagraphBuilder(serif(kNoteSize, figure))
                                 .addText(toU8(kNote))
                                 .build();
     split = weave::warichuSplit(*ctx.fonts, note);
@@ -120,9 +119,9 @@ struct WarichuPlaceholder final : sketch::Sketch {
     oneLine = ctx.measure(box().child(text_(kNote))).width();
     report[0] = kit::formatted("one line \xc2\xb7 advance %.1f px", oneLine);
     report[1] = kit::formatted("split \xc2\xb7 advance %.1f \xc2\xb7 band %.1f",
-                            split.advance, split.band);
+                               split.advance, split.band);
     report[2] = kit::formatted("cut at word %u \xc2\xb7 \"%s\"", split.cutWord,
-                            reinterpret_cast<const char*>(second.c_str()));
+                               reinterpret_cast<const char*>(second.c_str()));
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("WARICHU \xc2\xb7 weave::warichuSplit into a "

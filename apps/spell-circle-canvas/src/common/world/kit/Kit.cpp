@@ -115,7 +115,8 @@ geometry::mesh::curve::Spline3 winding(const Winding& winding) {
     spline.points.emplace_back(
         winding.at.x + winding.shell.x * std::cos(latitude) * std::cos(azimuth),
         winding.at.y + winding.shell.y * std::sin(latitude),
-        winding.at.z + winding.shell.z * std::cos(latitude) * std::sin(azimuth));
+        winding.at.z +
+            winding.shell.z * std::cos(latitude) * std::sin(azimuth));
   }
   spline.closed = true;
   return spline;

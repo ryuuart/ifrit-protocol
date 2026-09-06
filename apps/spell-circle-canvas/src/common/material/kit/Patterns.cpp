@@ -201,10 +201,10 @@ pattern::Tile girih8(float edge, GirihPalette pal, float strapWidth,
   // rays at 45°, and drawing them as squares is what the panel has always
   // been.
   if (std::abs(theta - 45.0f) < 1e-3f)
-    return pattern::Tile::of({s, s}, [a, s, w, pal](SkCanvas& c, SkSize,
-                                                    uint32_t) {
-      classic(c, a, s, w, pal);
-    });
+    return pattern::Tile::of({s, s},
+                             [a, s, w, pal](SkCanvas& c, SkSize, uint32_t) {
+                               classic(c, a, s, w, pal);
+                             });
   const float radians = theta * kPi / 180.0f;
   return pattern::Tile::of(
       {s, s}, [a, s, w, radians, pal](SkCanvas& c, SkSize, uint32_t) {

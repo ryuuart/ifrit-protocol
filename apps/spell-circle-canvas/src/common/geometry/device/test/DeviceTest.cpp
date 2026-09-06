@@ -15,6 +15,7 @@
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -23,8 +24,6 @@
 #include <cstring>
 #include <memory>
 #include <string>
-
-#include <sigilgeometry/device/Device.h>
 
 #include "GraphiteReadback.h"
 #include "OnDevice.h"
@@ -132,7 +131,6 @@ TEST(Device, DiligentSideStandsOnItsOwn) {
   EXPECT_TRUE(clearThroughDiligent(*d));
 }
 
-
 // ---------------------------------------------------------------------------
 // The device the whole process shares, adopted from the one Diligent made.
 // A Vulkan device is never created here — Diligent owns the API and makes
@@ -155,7 +153,6 @@ using core::hardware::TextureFormat;
 using core::hardware::TextureHandle;
 using core::hardware::VulkanHandles;
 
-
 TextureDesc smallTexture() {
   TextureDesc desc;
   desc.width = 8;
@@ -168,10 +165,10 @@ TextureDesc smallTexture() {
 
 TEST(AdoptedDevice, CarriesEveryVulkanHandle) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  GpuDevice *device = on->gpu();
+  GpuDevice* device = on->gpu();
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   EXPECT_EQ(device->backend(), Backend::Vulkan);
-  const VulkanHandles &handles = device->native().vulkan;
+  const VulkanHandles& handles = device->native().vulkan;
   EXPECT_NE(handles.instance, nullptr);
   EXPECT_NE(handles.physicalDevice, nullptr);
   EXPECT_NE(handles.device, nullptr);
@@ -182,7 +179,7 @@ TEST(AdoptedDevice, CarriesEveryVulkanHandle) {
 
 TEST(AdoptedDevice, AdoptsItsOwnHandlesAgain) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  GpuDevice *owned = on->gpu();
+  GpuDevice* owned = on->gpu();
   if (!owned) GTEST_SKIP() << "the device was created but not adopted";
   // The adopted device's handles, adopted again by a second device
   // object that also frees none of them: both name textures on the one
@@ -203,16 +200,16 @@ TEST(AdoptedDevice, AdoptsItsOwnHandlesAgain) {
   EXPECT_NE(owned->native().vulkan.device, nullptr);
 }
 
-
 TEST(AdoptedDevice, TextureFormatsMapAndRetire) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  GpuDevice *device = on->gpu();
+  GpuDevice* device = on->gpu();
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   // Every case in this binary stands on the one device, so what a destroy
   // adds to the retirement queue is a DELTA — an absolute count would be
   // reading whatever ran before.
   const size_t pendingBefore = device->pendingDestroys();
-  const TextureFormat formats[] = {TextureFormat::RGBA8Unorm, TextureFormat::BGRA8Unorm,
+  const TextureFormat formats[] = {TextureFormat::RGBA8Unorm,
+                                   TextureFormat::BGRA8Unorm,
                                    TextureFormat::RGBA16Float};
   const uint32_t expected[] = {37 /*R8G8B8A8_UNORM*/, 44 /*B8G8R8A8_UNORM*/,
                                97 /*R16G16B16A16_SFLOAT*/};
@@ -255,7 +252,7 @@ TEST(AdoptedDevice, TextureFormatsMapAndRetire) {
 
 TEST(AdoptedDevice, ImportExportRoundTrip) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  GpuDevice *device = on->gpu();
+  GpuDevice* device = on->gpu();
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   // A device-made image stands in for the host's: exported, imported
   // borrowed under a second name, exported again unchanged.
@@ -282,7 +279,7 @@ TEST(AdoptedDevice, ImportExportRoundTrip) {
 
 TEST(AdoptedDevice, TimelineFenceSignalsAndWaits) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  GpuDevice *device = on->gpu();
+  GpuDevice* device = on->gpu();
   if (!device) GTEST_SKIP() << "the device was created but not adopted";
   const FenceHandle fence = device->createFence();
   ASSERT_TRUE(device->isValid(fence));
@@ -293,7 +290,8 @@ TEST(AdoptedDevice, TimelineFenceSignalsAndWaits) {
   EXPECT_EQ(first, 1u);
   EXPECT_EQ(device->waitCpu(fence, first), FenceWait::Reached);
   EXPECT_GE(device->completedValue(fence), first);
-  EXPECT_EQ(device->waitCpu(fence, first + 1, std::chrono::milliseconds(20)), FenceWait::TimedOut);
+  EXPECT_EQ(device->waitCpu(fence, first + 1, std::chrono::milliseconds(20)),
+            FenceWait::TimedOut);
 
   // A wait on the queue for a value already reached holds nothing; the
   // signal queued after it is reached in turn.
@@ -310,9 +308,9 @@ TEST(AdoptedDevice, TimelineFenceSignalsAndWaits) {
 
 TEST(AdoptedGraphite, WrapsATextureNamedByHandle) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  GpuDevice *dev = on->gpu();
+  GpuDevice* dev = on->gpu();
   if (!dev) GTEST_SKIP() << "the device was created but not adopted";
-  skia::GraphiteContext *ctx = on->graphite();
+  skia::GraphiteContext* ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
   TextureDesc desc = smallTexture();
@@ -325,7 +323,8 @@ TEST(AdoptedGraphite, WrapsATextureNamedByHandle) {
   ASSERT_NE(surface.canvas(), nullptr);
   surface.canvas()->clear(SkColorSetARGB(255, 0, 255, 0));
 
-  const SkBitmap pixels = skia::test::readGraphiteSurface(*ctx, surface.surface());
+  const SkBitmap pixels =
+      skia::test::readGraphiteSurface(*ctx, surface.surface());
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(0, 0), SkColorSetARGB(255, 0, 255, 0));
   EXPECT_EQ(pixels.getColor(7, 7), SkColorSetARGB(255, 0, 255, 0));
@@ -334,9 +333,9 @@ TEST(AdoptedGraphite, WrapsATextureNamedByHandle) {
 
 TEST(AdoptedGraphite, SubmitSignalsAFence) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  GpuDevice *dev = on->gpu();
+  GpuDevice* dev = on->gpu();
   if (!dev) GTEST_SKIP() << "the device was created but not adopted";
-  skia::GraphiteContext *ctx = on->graphite();
+  skia::GraphiteContext* ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
   TextureDesc desc = smallTexture();
@@ -357,9 +356,9 @@ TEST(AdoptedGraphite, SubmitSignalsAFence) {
 
 TEST(AdoptedGraphite, RenderTargetClearsAndReadsBack) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
-  GpuDevice *dev = on->gpu();
+  GpuDevice* dev = on->gpu();
   if (!dev) GTEST_SKIP() << "the device was created but not adopted";
-  skia::GraphiteContext *ctx = on->graphite();
+  skia::GraphiteContext* ctx = on->graphite();
   if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
 
   // A Graphite-owned target: the context alone, no wrap. The surface

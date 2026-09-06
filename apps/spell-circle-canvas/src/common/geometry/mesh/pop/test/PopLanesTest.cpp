@@ -7,6 +7,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/kit/Sections.h>
 
 #include <algorithm>
 #include <cmath>
@@ -17,12 +18,10 @@
 #include "sigilgeometry/mesh/pop/Points.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/Loops.h"
-#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
 using sigil::geometry::mesh::pop::test::flatRing;
-
 
 TEST(Pop, NamedAttributesFlowAndExport) {
   // Any NAME is an attribute: an operator that takes a lane takes a custom
@@ -119,8 +118,10 @@ TEST(Pop, TheSeededMixerIsReproducibleAndSeedSensitive) {
   // it is made against the host rather than against a written-down number.
   const std::vector<glm::vec3> loop = flatRing(8, 100.0f);
   const auto jittered = [&](uint32_t seed) {
-    const Cloud cooked = pop::cook(
-        pop::on(loop).count(6).fill("h", {0, 0, 0, 0}).op(pop::Jitter{"h", 0.5f, seed}));
+    const Cloud cooked = pop::cook(pop::on(loop)
+                                       .count(6)
+                                       .fill("h", {0, 0, 0, 0})
+                                       .op(pop::Jitter{"h", 0.5f, seed}));
     const std::vector<glm::vec4>* h = cooked.colorIf("h");
     std::vector<float> out;
     if (h)

@@ -9,7 +9,6 @@
 #include <include/core/SkPathBuilder.h>
 
 #include <cstdint>
-
 #include <string>
 
 #include "sigilgeometry/kit/Generators.h"

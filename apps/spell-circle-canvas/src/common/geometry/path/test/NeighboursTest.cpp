@@ -117,8 +117,7 @@ TEST(Neighbours, NearestKReachesAQueryFarOutsideThePoints) {
   const Neighbours index(points);
   // A query nowhere near the points still has a nearest one, and the
   // growing search must reach it rather than give up at the grid's edge.
-  const std::vector<uint32_t> found =
-      index.nearest(glm::vec3{100000, 0, 0}, 1);
+  const std::vector<uint32_t> found = index.nearest(glm::vec3{100000, 0, 0}, 1);
   ASSERT_EQ(found.size(), 1u);
   EXPECT_EQ(found[0], 1u);
 }
@@ -172,8 +171,7 @@ TEST(Neighbours, ARequestedCellIsCoarsenedRatherThanBlowingTheTable) {
   // Ten points across a huge extent at a cell of one would want a table of
   // 10^12 cells; the grid coarsens until it fits and says what it used.
   std::vector<glm::vec3> points;
-  for (int i = 0; i < 10; ++i)
-    points.push_back({(float)i * 100000.0f, 0, 0});
+  for (int i = 0; i < 10; ++i) points.push_back({(float)i * 100000.0f, 0, 0});
   const Neighbours index(points, 1.0f);
   EXPECT_GT(index.cell(), 1.0f);
   EXPECT_EQ(index.within(points[4], 1.0f).size(), 1u);
@@ -185,7 +183,6 @@ TEST(Neighbours, ForEachWithinVisitsWhatWithinReturns) {
   const Neighbours index(points);
   const glm::vec3 query{40, 40, 40};
   std::vector<uint32_t> visited;
-  index.forEachWithin(query, 15.0f,
-                      [&](uint32_t i) { visited.push_back(i); });
+  index.forEachWithin(query, 15.0f, [&](uint32_t i) { visited.push_back(i); });
   EXPECT_EQ(sorted(visited), sorted(index.within(query, 15.0f)));
 }

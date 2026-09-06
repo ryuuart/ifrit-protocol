@@ -211,10 +211,10 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmeasure/stats/Fit.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/stats/Fit.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -361,7 +361,7 @@ sk_sp<SkTypeface> monoBoldFace() {
 }
 
 weave::TextStyle faced(sk_sp<SkTypeface> tf, float size, SkColor4f color,
-                             float track = 0.0f) {
+                       float track = 0.0f) {
   return weave::textStyle(
       {.face = std::move(tf), .size = size, .color = color, .track = track});
 }
@@ -387,7 +387,6 @@ weave::TextStyle quo(float s, SkColor4f c) {
 Element t(const std::string& s, weave::TextStyle st) {
   return text(toU8(s), std::move(st));
 }
-
 
 Element rule(float w, SkColor4f c, float h = 1.0f) {
   return box().width(Dim(w)).height(Dim(h)).shrink(0).fill(c);
@@ -498,7 +497,7 @@ Element artOpArt() {
                 .height(340)
                 .shape(shapes::circle())
                 .foreground(lines::presets::concentric(Fill::color(kWhite),
-                                              9 + (i % 5) * 4, 6.0f)));
+                                                       9 + (i % 5) * 4, 6.0f)));
   }
   return g;
 }
@@ -1117,20 +1116,19 @@ struct SlitScan2001 : sketch::Sketch {
             // scene more than the two exposures do.
             .cache(Cache::Texture)
             .fill(Paint::glowUnit({0.5f, 0.5f}, 0.5f,
-                                     {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
-                                      {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
-                                      {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
-                                      {1.00f, {0.6f, 0.5f, 0.4f, 0.0f}}}))
+                                  {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
+                                   {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
+                                   {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
+                                   {1.00f, {0.6f, 0.5f, 0.4f, 0.0f}}}))
             .blend(SkBlendMode::kPlus);
     // HALATION. Film's own bloom: light scattering back off the base. The
     // SAME two pools read a second time, tone-curved softer, blurred and
     // added -- so it is still the accumulation, not a painted glow.
     Element halation =
         raw()
-            .effect(
-                Effect::shader(transfer, {{"k", transferK() * 0.55f}})
-                    .then(Effect::filter(
-                        SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
+            .effect(Effect::shader(transfer, {{"k", transferK() * 0.55f}})
+                        .then(Effect::filter(
+                            SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
             .blend(SkBlendMode::kPlus)
             .opacity(0.55f);
 
@@ -1424,19 +1422,19 @@ struct SlitScan2001 : sketch::Sketch {
       row.child(pl(rowName[r], mono(7.0f, kType2)).width(80));
       for (int k = 0; k < 3; ++k) {
         const int idx = r * 3 + k;
-        row.child(box()
-                      .width(98)
-                      .height(18)
-                      .shrink(0)
-                      .fill(kBlack)
-                      .clip()
-                      .key(kit::formatted("s4_%d", idx))
-                      .scaleX(animate(from(0.0f).to(1.0f),
-                                      {220ms, ease::outBack()}))
-                      .transformOrigin(0.0f, 0.5f)
-                      .child(instancing::instances(flatAtlas, s4[(size_t)idx],
-                                                   instancing::Mode::Data,
-                                                   SkBlendMode::kPlus)));
+        row.child(
+            box()
+                .width(98)
+                .height(18)
+                .shrink(0)
+                .fill(kBlack)
+                .clip()
+                .key(kit::formatted("s4_%d", idx))
+                .scaleX(animate(from(0.0f).to(1.0f), {220ms, ease::outBack()}))
+                .transformOrigin(0.0f, 0.5f)
+                .child(instancing::instances(flatAtlas, s4[(size_t)idx],
+                                             instancing::Mode::Data,
+                                             SkBlendMode::kPlus)));
       }
       p.child(row.shrink(0));
     }
@@ -1887,8 +1885,9 @@ void SlitScan2001::drawArtworkPanel(SkCanvas& c, const PaintContext& ctx) {
   lb.moveTo(sx, top + ph + 8);
   lb.lineTo(sx, top + ph + 16);
   lb.lineTo(-38, top + ph + 16);
-  decorations::paintOn(c, ctx, lb.detach(),
-                       lines::presets::cased(1.2f, Fill::color(al(kCold, 0.5f)), 3.0f));
+  decorations::paintOn(
+      c, ctx, lb.detach(),
+      lines::presets::cased(1.2f, Fill::color(al(kCold, 0.5f)), 3.0f));
 
   SkFont f76(monoFace(), 7.6f);
   SkPaint tp;

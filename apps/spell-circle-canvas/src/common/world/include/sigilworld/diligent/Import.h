@@ -5,8 +5,8 @@
  * material vocabulary through the device's handle table.
  */
 
-#include <sigilmaterial/texture/Texture.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmaterial/texture/Texture.h>
 
 namespace sigil::geometry::device {
 class Device;

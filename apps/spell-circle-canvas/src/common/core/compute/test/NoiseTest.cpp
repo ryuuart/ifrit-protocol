@@ -84,31 +84,32 @@ TEST_P(Draws, LandInTheRangeTheHeaderStatesForThem) {
 
 INSTANTIATE_TEST_SUITE_P(
     Ranges, Draws,
-    testing::Values(
-        Draw{"TheStatelessHash",
-             [](uint32_t i) { return noise::hash(11u, i); }, -1.0f, 1.0f, true},
-        Draw{"ThePcgUnit", [](uint32_t i) { return noise::pcgUnit(i); }, 0.0f,
-             1.0f, false},
-        Draw{"TheXorshiftUnit",
-             [state = uint32_t{1}](uint32_t) mutable {
-               return noise::xorshiftUnitNext(state);
-             },
-             0.0f, 1.0f, false},
-        Draw{"TheMix64StreamsUnit",
-             [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
-               return stream.unit();
-             },
-             0.0f, 1.0f, false},
-        Draw{"TheMix64StreamsSignedUnit",
-             [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
-               return stream.signedUnit();
-             },
-             -1.0f, 1.0f, false},
-        Draw{"TheMix64StreamsNamedRange",
-             [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
-               return stream.range(-3.0f, 5.0f);
-             },
-             -3.0f, 5.0f, false}),
+    testing::Values(Draw{"TheStatelessHash",
+                         [](uint32_t i) { return noise::hash(11u, i); }, -1.0f,
+                         1.0f, true},
+                    Draw{"ThePcgUnit",
+                         [](uint32_t i) { return noise::pcgUnit(i); }, 0.0f,
+                         1.0f, false},
+                    Draw{"TheXorshiftUnit",
+                         [state = uint32_t{1}](uint32_t) mutable {
+                           return noise::xorshiftUnitNext(state);
+                         },
+                         0.0f, 1.0f, false},
+                    Draw{"TheMix64StreamsUnit",
+                         [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
+                           return stream.unit();
+                         },
+                         0.0f, 1.0f, false},
+                    Draw{"TheMix64StreamsSignedUnit",
+                         [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
+                           return stream.signedUnit();
+                         },
+                         -1.0f, 1.0f, false},
+                    Draw{"TheMix64StreamsNamedRange",
+                         [stream = noise::Mix64Stream(1u)](uint32_t) mutable {
+                           return stream.range(-3.0f, 5.0f);
+                         },
+                         -3.0f, 5.0f, false}),
     drawName);
 
 TEST(Noise, EachPcgStepIsTheSameWordsInEveryImplementation) {

@@ -160,8 +160,9 @@ struct SlangPortable final : sketch::Sketch {
         built.vertex.size(), built.fragment.size(), built.uniformBytes,
         built.textures.empty() ? "none" : built.textures.front().c_str());
     for (const auto& [name, slot] : built.uniforms)
-      layout += kit::formatted("%-13s %6zu %6zu %6zu %7zu\n", name.c_str(),
-                            slot.offset, slot.bytes, slot.count, slot.stride);
+      layout +=
+          kit::formatted("%-13s %6zu %6zu %6zu %7zu\n", name.c_str(),
+                         slot.offset, slot.bytes, slot.count, slot.stride);
 
     // ONE DRAW'S BYTES, written at those offsets and read straight back
     // out of the buffer.
@@ -181,7 +182,7 @@ struct SlangPortable final : sketch::Sketch {
       float v[4] = {0, 0, 0, 0};
       std::memcpy(v, values.bytes().data() + slot->offset + extra, sizeof v);
       return kit::formatted("%.2f %.2f %.2f %.2f", (double)v[0], (double)v[1],
-                         (double)v[2], (double)v[3]);
+                            (double)v[2], (double)v[3]);
     };
     const slang::UniformSlot* stops = built.uniform("uStops");
     bytes = kit::formatted(
@@ -212,9 +213,9 @@ struct SlangPortable final : sketch::Sketch {
           recipe->source(material::Target::Slang) + kScaffold;
       const bool made = slang::compileModule(source, "vsCover", "fsCover", kLit,
                                              &surface, &why);
-      surfaces += kit::formatted("%-9s %11zu %9zu  %s\n", recipe->name().c_str(),
-                              surface.uniformBytes, surface.uniforms.size(),
-                              made ? "compiled" : "FAILED");
+      surfaces += kit::formatted(
+          "%-9s %11zu %9zu  %s\n", recipe->name().c_str(), surface.uniformBytes,
+          surface.uniforms.size(), made ? "compiled" : "FAILED");
     }
 
     slang::Compiled missing;

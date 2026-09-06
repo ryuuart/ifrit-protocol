@@ -58,8 +58,7 @@ struct Well {
  *  in a new box: hand it `custom(key, draw)` where the drawing wants the
  *  well's resolved size, and `box().child(body)` where the well holds a
  *  laid-out body. Omitted, it is an empty box ready for children. */
-[[nodiscard]] compose::Element well(const Well& spec,
-                                    compose::Element surface);
+[[nodiscard]] compose::Element well(const Well& spec, compose::Element surface);
 [[nodiscard]] compose::Element well(const Well& spec);
 
 /** ONE CAPTIONED SPECIMEN: @p body with @p label over it and @p note

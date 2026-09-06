@@ -25,8 +25,8 @@ TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
                       .absolute()
                       .inset(20)
                       .shape(geometry::shapes::circle())
-                      .background(lines::presets::radialHatch(Fill::color({1, 1, 1, 1}),
-                                                     32, 1.5f))));
+                      .background(lines::presets::radialHatch(
+                          Fill::color({1, 1, 1, 1}), 32, 1.5f))));
   fan.frame();
   // Ink everywhere around the rim…
   EXPECT_GT(lit(fan, 20, 20, 180, 180), 800);
@@ -37,12 +37,13 @@ TEST(ComposeDecorations, RadialHatchFansOutOfAPointAndRingsRoundIt) {
   EXPECT_EQ(lit(fan, 20, 20, 32, 32), 0);
 
   Host rings(200, 200);
-  rings.composer.render(box().child(
-      box()
-          .absolute()
-          .inset(20)
-          .shape(geometry::shapes::circle())
-          .background(lines::presets::concentric(Fill::color({1, 1, 1, 1}), 8, 1.5f))));
+  rings.composer.render(
+      box().child(box()
+                      .absolute()
+                      .inset(20)
+                      .shape(geometry::shapes::circle())
+                      .background(lines::presets::concentric(
+                          Fill::color({1, 1, 1, 1}), 8, 1.5f))));
   rings.frame();
   EXPECT_GT(lit(rings, 20, 20, 180, 180), 800);
   EXPECT_EQ(lit(rings, 20, 20, 32, 32), 0);
@@ -129,7 +130,8 @@ TEST(ComposeDecorations, OverlayPaintsOverTheFillAndUnderTheContent) {
   // a texture applied to a button greys out its own label — hazard stripes
   // over the surface but under the digit is the case that needs it.
   auto build = [](bool useForeground) {
-    auto bars = lines::presets::hatch(Fill::color({0, 0, 0, 1}), 6.0f, 4.0f, 0.0f);
+    auto bars =
+        lines::presets::hatch(Fill::color({0, 0, 0, 1}), 6.0f, 4.0f, 0.0f);
     Element cell =
         box()
             .absolute()

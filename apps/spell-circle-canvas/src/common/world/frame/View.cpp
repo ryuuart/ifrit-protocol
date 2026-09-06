@@ -3,9 +3,8 @@
  * and the environment as a mesh painter takes it.
  */
 
-#include <sigilworld/frame/View.h>
-
 #include <sigilmaterial/core/Recipe.h>
+#include <sigilworld/frame/View.h>
 
 namespace sigil::world {
 
@@ -39,7 +38,6 @@ Sampling samplingOf(const material::Texture& texture) {
 Subject subjectOf(const Draw& draw) {
   return Subject{draw.key, draw.tags, draw.ancestors, draw.material};
 }
-
 
 SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   SurfaceTerms terms;

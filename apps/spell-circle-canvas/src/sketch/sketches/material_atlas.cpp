@@ -76,29 +76,28 @@ sketch::kit::Theme sheetTheme() {
  *  static outlives this dylib, which a reload unloads. */
 material::Texture buildSheet() {
   return material::Texture::produce("material_atlas.sheet", [] {
-        sk_sp<SkSurface> surface = SkSurfaces::Raster(
-            SkImageInfo::MakeN32Premul(kCols * kCellSide, kRows * kCellSide));
-        SkCanvas* canvas = surface->getCanvas();
-        canvas->clear(SkColor4f{0.10f, 0.12f, 0.16f, 1}.toSkColor());
-        for (int i = 0; i < kCols * kRows; ++i) {
-          const SkRect cell = arrange::cellRect(
-              arrange::cellAt((size_t)i, kCols), {kCellSide, kCellSide});
-          const float x = cell.fLeft, y = cell.fTop;
-          SkPaint back;
-          back.setColor4f({0.14f + 0.02f * (float)i, 0.16f, 0.22f, 1});
-          canvas->drawRect(
-              SkRect::MakeXYWH(x + 2, y + 2, kCellSide - 4, kCellSide - 4),
-              back);
-          SkPaint wedge;
-          wedge.setAntiAlias(true);
-          wedge.setColor4f(
-              {0.98f, 0.72f - 0.05f * (float)i, 0.30f + 0.07f * (float)i, 1});
-          canvas->drawArc(
-              SkRect::MakeXYWH(x + 10, y + 10, kCellSide - 20, kCellSide - 20),
-              -90, 45.0f * (float)(i + 1), true, wedge);
-        }
-        return surface->makeImageSnapshot();
-      });
+    sk_sp<SkSurface> surface = SkSurfaces::Raster(
+        SkImageInfo::MakeN32Premul(kCols * kCellSide, kRows * kCellSide));
+    SkCanvas* canvas = surface->getCanvas();
+    canvas->clear(SkColor4f{0.10f, 0.12f, 0.16f, 1}.toSkColor());
+    for (int i = 0; i < kCols * kRows; ++i) {
+      const SkRect cell = arrange::cellRect(arrange::cellAt((size_t)i, kCols),
+                                            {kCellSide, kCellSide});
+      const float x = cell.fLeft, y = cell.fTop;
+      SkPaint back;
+      back.setColor4f({0.14f + 0.02f * (float)i, 0.16f, 0.22f, 1});
+      canvas->drawRect(
+          SkRect::MakeXYWH(x + 2, y + 2, kCellSide - 4, kCellSide - 4), back);
+      SkPaint wedge;
+      wedge.setAntiAlias(true);
+      wedge.setColor4f(
+          {0.98f, 0.72f - 0.05f * (float)i, 0.30f + 0.07f * (float)i, 1});
+      canvas->drawArc(
+          SkRect::MakeXYWH(x + 10, y + 10, kCellSide - 20, kCellSide - 20), -90,
+          45.0f * (float)(i + 1), true, wedge);
+    }
+    return surface->makeImageSnapshot();
+  });
 }
 
 /** TexturePacker's hash form, with two name stems so two sequences fall

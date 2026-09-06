@@ -652,15 +652,13 @@ struct Ribbon {
     // would clip the one corner the caller asked to be sharp.
     return join == SkPaint::kMiter_Join ? w * std::max(miterLimit, 1.0f) : w;
   }
-  bool isAnimated() const {
-    return fillMaterial && fillMaterial->isAnimated();
-  }
+  bool isAnimated() const { return fillMaterial && fillMaterial->isAnimated(); }
   bool operator==(const Ribbon& o) const {
     return fill == o.fill && fillMaterial == o.fillMaterial &&
-           widthStart == o.widthStart &&
-           widthEnd == o.widthEnd && nibAngleDeg == o.nibAngleDeg &&
-           nibContrast == o.nibContrast && step == o.step && width == o.width &&
-           join == o.join && miterLimit == o.miterLimit;
+           widthStart == o.widthStart && widthEnd == o.widthEnd &&
+           nibAngleDeg == o.nibAngleDeg && nibContrast == o.nibContrast &&
+           step == o.step && width == o.width && join == o.join &&
+           miterLimit == o.miterLimit;
   }
 
   /** THE BAND THIS RIBBON FILLS over @p spine — the same geometry `paint`

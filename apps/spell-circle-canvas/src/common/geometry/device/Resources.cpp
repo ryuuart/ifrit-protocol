@@ -8,12 +8,12 @@
 
 #include <Graphics/GraphicsEngine/interface/DeviceContext.h>
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
+#include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
+#include <Graphics/GraphicsTools/interface/GraphicsUtilities.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
 
 #include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
-#include <Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
-#include <Graphics/GraphicsTools/interface/GraphicsUtilities.h>
 #include <algorithm>
 #include <cstdint>
 

@@ -736,8 +736,8 @@ bool Effect::operator==(const Effect& o) const {
     return m_dirBlur == o.m_dirBlur;  // re-described equal one prunes
   if (m_effect || o.m_effect)
     return m_effect == o.m_effect && m_gatheredHalo == o.m_gatheredHalo &&
-           m_uniforms == o.m_uniforms &&
-           m_uniforms2 == o.m_uniforms2 && m_uniforms4 == o.m_uniforms4 &&
+           m_uniforms == o.m_uniforms && m_uniforms2 == o.m_uniforms2 &&
+           m_uniforms4 == o.m_uniforms4 &&
            m_uniformArrays == o.m_uniformArrays &&
            childrenEqual(m_children, o.m_children);
   // filter(): pointer identity, as ever, on both lanes — an already-built

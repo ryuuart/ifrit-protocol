@@ -34,8 +34,8 @@ TEST(Stroke, ZeroCurvatureIsTheChord) {
       {{0, 0}, 1.0f}, {{10, 10}, 1.0f}, {{20, 0}, 1.0f}};
   const brush::Stroke straight = brush::spline(controls, 5.0f, 0.0f);
   for (const brush::Sample& sample : straight)
-    EXPECT_NEAR(sample.position.fY, 10.0f - std::abs(sample.position.fX - 10.0f),
-                1e-4f);
+    EXPECT_NEAR(sample.position.fY,
+                10.0f - std::abs(sample.position.fX - 10.0f), 1e-4f);
 }
 
 }  // namespace

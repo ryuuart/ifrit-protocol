@@ -2,13 +2,13 @@
  * The engine's strokes: stored, relative and live.
  */
 
-#include "PenUnits.h"
-
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Engine.h>
 
 #include <algorithm>
 #include <cmath>
+
+#include "PenUnits.h"
 
 namespace sigil::draw::brush {
 
@@ -70,8 +70,9 @@ void Engine::depositInput(Pen& pen, std::span<const Dab> sampled, bool last) {
         const float influence =
             (*field)(shapedDab->position, seconds) * m_fieldAmount;
         dab.direction = base + influence;
-        dab.position = {shapedDab->position.fX + std::cos(dab.direction) * length,
-                        shapedDab->position.fY + std::sin(dab.direction) * length};
+        dab.position = {
+            shapedDab->position.fX + std::cos(dab.direction) * length,
+            shapedDab->position.fY + std::sin(dab.direction) * length};
       }
       source = unshaped;
       shapedDab = dab;
@@ -148,8 +149,8 @@ Stroke Engine::endStroke(Pen& pen, float angle, float pressure) {
     // The end angle turns the last step of the curve.
     const SkPoint before = result[result.size() - 2].position;
     const SkPoint end = result.back().position;
-    const float tail = std::min(
-        std::hypot(end.fX - before.fX, end.fY - before.fY), spacing);
+    const float tail =
+        std::min(std::hypot(end.fX - before.fX, end.fY - before.fY), spacing);
     result.back().position = {before.fX + std::cos(angle) * tail,
                               before.fY + std::sin(angle) * tail};
   }

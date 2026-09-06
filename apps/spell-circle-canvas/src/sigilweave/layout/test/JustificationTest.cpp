@@ -53,10 +53,9 @@ LaidOut justified(const JustificationOptions& spec, std::u8string_view body,
 /// metrics rather than off the shaped advances, because two of the three
 /// passes spend their fit INSIDE the runs — a pen reading would be short
 /// by exactly what the letter and glyph passes took.
-std::vector<float> edgesUnder(const JustificationOptions& spec,
-                              std::u8string_view body, float measure,
-                              LineBreakStrategy strategy =
-                                  LineBreakStrategy::kGreedy) {
+std::vector<float> edgesUnder(
+    const JustificationOptions& spec, std::u8string_view body, float measure,
+    LineBreakStrategy strategy = LineBreakStrategy::kGreedy) {
   const LaidOut set = justified(spec, body, measure, strategy);
   std::vector<float> edges;
   for (const LineMetrics& line : set.layout.lineMetrics(set.paragraph))
@@ -79,7 +78,8 @@ std::vector<float> runStartsUnder(const JustificationOptions& spec,
 /// True when `spec` places the runs anywhere the stock settings did not.
 bool movesTheRuns(const JustificationOptions& spec) {
   const std::vector<float> stock = runStartsUnder({}, kTightPassage, kMeasure);
-  const std::vector<float> under = runStartsUnder(spec, kTightPassage, kMeasure);
+  const std::vector<float> under =
+      runStartsUnder(spec, kTightPassage, kMeasure);
   if (under.size() != stock.size()) return true;
   for (size_t index = 0; index < under.size(); ++index)
     if (std::abs(under[index] - stock[index]) > 0.5f) return true;
@@ -155,8 +155,8 @@ TEST(Justification, TheWidthAGapIsAimedAtIsWhatABreakIsWeighedAgainst) {
   wider.wordSpacing = 2.0f;
   const std::vector<float> stock =
       edgesUnder({}, kTightPassage, kMeasure, LineBreakStrategy::kKnuthPlass);
-  const std::vector<float> aimed =
-      edgesUnder(wider, kTightPassage, kMeasure, LineBreakStrategy::kKnuthPlass);
+  const std::vector<float> aimed = edgesUnder(wider, kTightPassage, kMeasure,
+                                              LineBreakStrategy::kKnuthPlass);
   bool differs = aimed.size() != stock.size();
   for (size_t index = 0; !differs && index < aimed.size(); ++index)
     differs = std::abs(aimed[index] - stock[index]) > 0.5f;
@@ -172,7 +172,8 @@ TEST(Justification, TheLetterPassTakesWhatTheGapsMayNotStretchTo) {
   JustificationOptions tightGaps;
   tightGaps.spaceStretch = 0.02f;
   tightGaps.letterSpacingMaximum = 0.3f;
-  const std::vector<float> edges = edgesUnder(tightGaps, kTightPassage, kMeasure);
+  const std::vector<float> edges =
+      edgesUnder(tightGaps, kTightPassage, kMeasure);
   ASSERT_GE(edges.size(), 2u);
   EXPECT_NEAR(edges.front(), kMeasure, 1.0f) << "the line did not fill";
   const std::vector<float> tight =

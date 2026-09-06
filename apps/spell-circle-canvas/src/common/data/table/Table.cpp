@@ -13,8 +13,10 @@ namespace {
  *  because the source said so. */
 template <typename T>
 bool unusable(const T& cell) {
-  if constexpr (std::same_as<T, double>) return std::isnan(cell);
-  else return false;
+  if constexpr (std::same_as<T, double>)
+    return std::isnan(cell);
+  else
+    return false;
 }
 
 }  // namespace
@@ -124,7 +126,8 @@ Table Table::take(std::span<const size_t> rows) const {
 
   Table picked;
   picked.m_columns.reserve(m_columns.size());
-  for (const Column& held : m_columns) picked.m_columns.push_back(held.take(inside));
+  for (const Column& held : m_columns)
+    picked.m_columns.push_back(held.take(inside));
   return picked;
 }
 

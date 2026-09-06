@@ -481,11 +481,10 @@ struct Transfer {
 };
 /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
  *  a compute PSO. New ops are APPENDED, never inserted. */
-using Op =
-    std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math, Smooth,
-                 MeshScatter, Fill, Atlas, Promote, Lookup, Sort, Select,
-                 Affine, Peak, Deform, Mix, PointSet, Delete, Normal, Relax,
-                 Cluster, Transfer>;
+using Op = std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math,
+                        Smooth, MeshScatter, Fill, Atlas, Promote, Lookup, Sort,
+                        Select, Affine, Peak, Deform, Mix, PointSet, Delete,
+                        Normal, Relax, Cluster, Transfer>;
 using Chain = std::vector<Op>;
 
 /** The operator's own name — "Jitter", "Select", "PointSet" — for a

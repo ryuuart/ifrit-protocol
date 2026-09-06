@@ -26,7 +26,8 @@ namespace {
 
 /** The one writer this file opens, and where its bytes land. The name
  *  selects the plugin and nothing else. */
-std::unique_ptr<OIIO::ImageOutput> exrWriter(OIIO::Filesystem::IOVecOutput& sink) {
+std::unique_ptr<OIIO::ImageOutput> exrWriter(
+    OIIO::Filesystem::IOVecOutput& sink) {
   auto output = OIIO::ImageOutput::create("resource.exr", &sink);
   if (!output) (void)OIIO::geterror();  // consume: "no EXR writer" is an answer
   return output;

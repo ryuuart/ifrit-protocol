@@ -2,9 +2,6 @@
  * The shape tip and the custom tip: one stamp per dab through the canvas.
  */
 
-#include "DabStyle.h"
-#include "Executors.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkImage.h>
@@ -17,6 +14,9 @@
 
 #include <algorithm>
 #include <utility>
+
+#include "DabStyle.h"
+#include "Executors.h"
 
 namespace sigil::draw::brush {
 
@@ -39,8 +39,8 @@ sk_sp<SkColorFilter> shapeCoverage(ImageMask mask) {
 SkMatrix stampPlacement(const SkImage& image, const DabStyle& style) {
   const float width = std::max(0.01f, style.size);
   const float height = std::max(0.01f, style.size * style.aspect);
-  SkMatrix placement = SkMatrix::Translate(style.position.fX,
-                                           style.position.fY);
+  SkMatrix placement =
+      SkMatrix::Translate(style.position.fX, style.position.fY);
   placement.preRotate(degrees(style.angle));
   placement.preTranslate(-width * 0.5f, -height * 0.5f);
   placement.preScale(width / (float)std::max(1, image.width()),
@@ -77,16 +77,16 @@ void depositShape(Pen& pen, const Tool& tool, const SkPaint& base,
   if (sk_sp<SkColorFilter> mask = shapeCoverage(tool.shape->mask))
     shape = shape->makeWithColorFilter(std::move(mask));
 
-  sk_sp<SkShader> mark = SkShaders::Blend(
-      SkBlendMode::kDstIn,
-      SkShaders::Color(pigment(tool, style.opacity), nullptr),
-      std::move(shape));
+  sk_sp<SkShader> mark =
+      SkShaders::Blend(SkBlendMode::kDstIn,
+                       SkShaders::Color(pigment(tool, style.opacity), nullptr),
+                       std::move(shape));
   if (tool.grain && tool.grain->space == GrainSpace::Dab) {
     // The grain travels and turns with the stamp but keeps its size in
     // the pen's space, so one scale means the same thing whichever space
     // the grain stands in.
-    SkMatrix carried = SkMatrix::Translate(style.position.fX,
-                                           style.position.fY);
+    SkMatrix carried =
+        SkMatrix::Translate(style.position.fX, style.position.fY);
     carried.preRotate(degrees(style.angle));
     mark = throughGrain(std::move(mark), *tool.grain, carried);
   }

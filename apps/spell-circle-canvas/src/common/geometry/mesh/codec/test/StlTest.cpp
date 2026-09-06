@@ -19,7 +19,6 @@ using namespace sigil::geometry::mesh;
 using codec::decode::Model;
 using codec::decode::Part;
 
-
 namespace {
 
 /** @p value's own bytes, appended — the way a binary container lays a

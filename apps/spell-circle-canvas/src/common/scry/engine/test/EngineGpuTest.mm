@@ -36,8 +36,8 @@
 #include <string>
 #include <vector>
 
-#include "GraphiteReadback.h"
 #include "EngineContract.h"
+#include "GraphiteReadback.h"
 #include "Wait.h"
 
 using namespace sigil::scry;
@@ -251,6 +251,4 @@ TEST(WebViewGpuTest, WrapsOnePublishedTextureOncePerVersion) {
 // device. A view's teardown crosses to the web thread and the publish
 // pass runs there too, so an engine that publishes through a page it has
 // already torn down faults here rather than once in a few hundred runs.
-TEST(WebViewGpuTest, PagesComeAndGoUnderTheRenderLoop) {
-  expectPagesComeAndGo(gpuEngine());
-}
+TEST(WebViewGpuTest, PagesComeAndGoUnderTheRenderLoop) { expectPagesComeAndGo(gpuEngine()); }

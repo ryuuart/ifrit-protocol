@@ -4,8 +4,8 @@
  * Device input resampled at a spacing, whatever rate the device reports at.
  */
 
-#include <sigilgeometry/path/Stride.h>
 #include <sigildraw/brush/Dab.h>
+#include <sigilgeometry/path/Stride.h>
 
 #include <span>
 #include <vector>
@@ -54,7 +54,8 @@ class Sampler {
 
 /** Resamples a complete device path and assigns each dab its unit
  *  progress along it. */
-[[nodiscard]] std::vector<Dab> dabs(std::span<const Input> input, float spacing,
-                                    float speedFilterSeconds = kSpeedFilterSeconds);
+[[nodiscard]] std::vector<Dab> dabs(
+    std::span<const Input> input, float spacing,
+    float speedFilterSeconds = kSpeedFilterSeconds);
 
 }  // namespace sigil::draw::brush

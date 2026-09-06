@@ -5,9 +5,9 @@
  * set that colours their rows. Both are plain composition over the public
  * API: `plate` is a padded, bordered box with hairline dividers, `tinted` a
  * `sigil::weave::StyleSet` of one face and one size whose entries differ
- * only in colour, which is the shape `feed::height` measures exactly. `console` is
- * `plate` over `feed::feed`, the verification plate every study prints
- * its checks into.
+ * only in colour, which is the shape `feed::height` measures exactly. `console`
+ * is `plate` over `feed::feed`, the verification plate every study prints its
+ * checks into.
  */
 
 #include <include/core/SkColor.h>

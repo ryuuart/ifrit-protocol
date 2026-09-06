@@ -19,7 +19,6 @@ using namespace sigil::geometry::mesh;
 using codec::decode::Model;
 using codec::decode::Part;
 
-
 TEST(ReadGeo, PolygonsUnweldWithTheirVertexAndPrimitiveClasses) {
   // A quad and a triangle over five points, written the way Houdini
   // saves ASCII .geo: alternating key/value arrays, paged attribute

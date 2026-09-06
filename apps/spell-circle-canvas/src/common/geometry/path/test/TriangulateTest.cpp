@@ -22,8 +22,7 @@ namespace {
 
 /** The four corners of a unit square, which two triangles cover and no
  *  other pair of triangles can. */
-const std::vector<glm::vec2> kSquare = {{0, 0}, {100, 0}, {100, 100},
-                                        {0, 100}};
+const std::vector<glm::vec2> kSquare = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
 
 std::set<std::pair<float, float>> pointSet(const Polyline& ring) {
   std::set<std::pair<float, float>> found;
@@ -78,8 +77,8 @@ TEST(Delaunay, NoPointFallsInsideAnyCircumcircle) {
 }
 
 TEST(Delaunay, TheCircumcentreOfARightTriangleIsItsHypotenuseMidpoint) {
-  const Triangulation mesh = delaunay(std::vector<glm::vec2>{
-      {0, 0}, {100, 0}, {0, 100}});
+  const Triangulation mesh =
+      delaunay(std::vector<glm::vec2>{{0, 0}, {100, 0}, {0, 100}});
   ASSERT_EQ(mesh.triangles.size(), 1u);
   const glm::vec2 centre = mesh.circumcentre(0);
   EXPECT_NEAR(centre.x, 50.0f, 1e-2f);
@@ -125,8 +124,10 @@ TEST(Voronoi, TwoPointsSplitTheBoundsDownTheBisector) {
   ASSERT_EQ(cells.size(), 2u);
   EXPECT_NEAR(cells[0].signedArea(), 20000.0f, 1.0f);
   EXPECT_NEAR(cells[1].signedArea(), 20000.0f, 1.0f);
-  for (const glm::vec2 point : cells[0].points) EXPECT_LE(point.x, 0.0f + 1e-3f);
-  for (const glm::vec2 point : cells[1].points) EXPECT_GE(point.x, 0.0f - 1e-3f);
+  for (const glm::vec2 point : cells[0].points)
+    EXPECT_LE(point.x, 0.0f + 1e-3f);
+  for (const glm::vec2 point : cells[1].points)
+    EXPECT_GE(point.x, 0.0f - 1e-3f);
 }
 
 TEST(Voronoi, EveryCellHoldsItsOwnPointAndTheCellsCoverTheBounds) {
@@ -174,9 +175,8 @@ TEST(Hull, AtNoBoundItIsTheConvexHull) {
   ASSERT_EQ(rings.size(), 1u);
   EXPECT_TRUE(rings[0].closed);
   EXPECT_EQ(rings[0].points.size(), 4u);
-  EXPECT_EQ(pointSet(rings[0]),
-            (std::set<std::pair<float, float>>{
-                {0, 0}, {100, 0}, {100, 100}, {0, 100}}));
+  EXPECT_EQ(pointSet(rings[0]), (std::set<std::pair<float, float>>{
+                                    {0, 0}, {100, 0}, {100, 100}, {0, 100}}));
   EXPECT_NEAR(std::abs(rings[0].signedArea()), 10000.0f, 1e-2f);
 }
 

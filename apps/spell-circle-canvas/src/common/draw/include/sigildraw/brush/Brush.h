@@ -5,6 +5,7 @@
  * stored geometry and the engine that holds a selection of them.
  */
 
+#include <sigildraw/Pen.h>
 #include <sigildraw/brush/Catalogue.h>
 #include <sigildraw/brush/Choice.h>
 #include <sigildraw/brush/Dab.h>
@@ -25,4 +26,3 @@
 #include <sigildraw/brush/Stroke.h>
 #include <sigildraw/brush/Tool.h>
 #include <sigildraw/brush/Wash.h>
-#include <sigildraw/Pen.h>

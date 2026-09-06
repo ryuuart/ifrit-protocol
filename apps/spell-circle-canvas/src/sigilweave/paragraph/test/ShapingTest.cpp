@@ -312,7 +312,8 @@ TEST(EmojiClusters, AZwjFamilyIsOneCluster) {
 
 TEST(EmojiClusters, AModifierAndAFlagEachStayWithTheirBase) {
   FontContext& fontContext = sigil::test::fonts();
-  Paragraph paragraph = machineParagraph(u8"👍🏽 🇺🇸");  // skin tone; regional pair
+  Paragraph paragraph =
+      machineParagraph(u8"👍🏽 🇺🇸");  // skin tone; regional pair
   paragraph.ensureShaped(fontContext);
   ASSERT_EQ(paragraph.words().size(), 2u);
   for (const Word& word : paragraph.words()) {

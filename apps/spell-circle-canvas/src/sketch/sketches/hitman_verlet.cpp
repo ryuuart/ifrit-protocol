@@ -407,10 +407,10 @@ Element panel(float height, const char* heading, int order) {
       .fill(kPanel)
       .clip(true)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(animate(from(0.0f).to(1.0f),
-                       {.duration = 300ms, .delay = delay}))
-      .translateX(animate(from(14.0f).to(0.0f),
-                          {.duration = 300ms, .delay = delay}))
+      .opacity(
+          animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = delay}))
+      .translateX(
+          animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order))
       .child(t(heading, ui(9.5f, kSteel, 1.9f)).height(Dim(12)).shrink(0));
 }
@@ -1105,10 +1105,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
     // a LAYER OF THE PAINT — Paint::blend soft-lights it onto the solid in
     // one fill, rather than costing a second pass over the same band.
     const float floorTop = kStage - kCapsule * kUnit;
-    const Paint floor = Paint::blend(
-        {{Paint::solid(fadeTo(kSolid, a)), SkBlendMode::kSrc},
-         {Paint::recipe(field::grain(0.035f, 3, 11.0f, 0.5f)),
-          SkBlendMode::kSoftLight}});
+    const Paint floor =
+        Paint::blend({{Paint::solid(fadeTo(kSolid, a)), SkBlendMode::kSrc},
+                      {Paint::recipe(field::grain(0.035f, 3, 11.0f, 0.5f)),
+                       SkBlendMode::kSoftLight}});
     pen.noStroke();
     pen.fill(floor);
     pen.rect(0, floorTop, kStage, kStage - floorTop);
@@ -1198,7 +1198,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.strokeWeight(1.0f);
     pen.stroke(hex(0x8A8F9C, 0.45f * f));
     for (const Stick& s : cloth.sticks) {
-      const SkPoint a = drawn(cloth, (size_t)s.a), b = drawn(cloth, (size_t)s.b);
+      const SkPoint a = drawn(cloth, (size_t)s.a),
+                    b = drawn(cloth, (size_t)s.b);
       pen.line(a.fX, a.fY, b.fX, b.fY);
     }
     pen.strokeWeight(2.0f);
@@ -1300,8 +1301,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
    *  with nothing gathered in between. Off entirely once the phase is
    *  spent, which is most of the loop. */
   void blastGlow(Pen& pen) {
-    const float a =
-        std::clamp(ch::easeOutQuad(blastPhase.value()), 0.0f, 1.0f);
+    const float a = std::clamp(ch::easeOutQuad(blastPhase.value()), 0.0f, 1.0f);
     if (a <= 0.0f) return;
     const SkPoint c = toStage(kBlast);
     pen.push();
@@ -1325,35 +1325,41 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.text("(0, 0)", 7, kStage - 13);
     pen.text("(1000, 1000)", kStage - 62, 5);
     penUi(pen, 7.5f, kBone, 0.5f);
-    pen.text("\xc2\xa7"
-             "9 \xc2\xb7 THE CORPSE \xc2\xb7 16 PARTICLES, 24 STICKS, "
-             "4 ITERATIONS \xc2\xb7 EVERY STICK COLOURED BY ITS LIVE "
-             "CONSTRAINT ERROR",
-             16, 548, 214, 60);
+    pen.text(
+        "\xc2\xa7"
+        "9 \xc2\xb7 THE CORPSE \xc2\xb7 16 PARTICLES, 24 STICKS, "
+        "4 ITERATIONS \xc2\xb7 EVERY STICK COLOURED BY ITS LIVE "
+        "CONSTRAINT ERROR",
+        16, 548, 214, 60);
     penUi(pen, 7.0f, kTick, 0.5f);
     pen.textAlign(draw::RIGHT, draw::TOP);
-    pen.text("\xc2\xa7"
-             "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE PINNED "
-             "\xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE ITERATION "
-             "COUNT",
-             452, 412, 268, 40);
-    pen.text("\xc2\xa7"
-             "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 ONE "
-             "ITERATION \xc2\xb7 BASE ROW PINNED",
-             452, 596, 268, 40);
+    pen.text(
+        "\xc2\xa7"
+        "4 \xc2\xb7 TRIANGULAR MESH \xc2\xb7 ONE PARTICLE PINNED "
+        "\xc2\xb7 ONE ITERATION \xc2\xb7 THE SAG IS THE ITERATION "
+        "COUNT",
+        452, 412, 268, 40);
+    pen.text(
+        "\xc2\xa7"
+        "4 \xc2\xb7 PLANTS = CLOTH + SUPPORT STICKS \xc2\xb7 ONE "
+        "ITERATION \xc2\xb7 BASE ROW PINNED",
+        452, 596, 268, 40);
     pen.textAlign(draw::LEFT, draw::TOP);
-    pen.text("736 \xc3\x97 736 px = THE PAPER'S CUBE "
-             "(0,0,0)\xe2\x80\x93(1000,1000,1000) IN THE PLANE.",
-             240, 18, 262, 24);
-    pen.text("1 UNIT = 0.736 px = 3.60 mm \xc2\xb7 THE STAGE IS SQUARE "
-             "BECAUSE THE WORLD IS A CUBE.",
-             240, 40, 262, 24);
+    pen.text(
+        "736 \xc3\x97 736 px = THE PAPER'S CUBE "
+        "(0,0,0)\xe2\x80\x93(1000,1000,1000) IN THE PLANE.",
+        240, 18, 262, 24);
+    pen.text(
+        "1 UNIT = 0.736 px = 3.60 mm \xc2\xb7 THE STAGE IS SQUARE "
+        "BECAUSE THE WORLD IS A CUBE.",
+        240, 40, 262, 24);
     penUi(pen, 7.0f, hex(0xC8402F, 0.8f), 0.4f);
-    pen.text("\xc2\xa7"
-             "7 BOMB \xe2\x8a\x95 \xc2\xb7 |\xce\x94x| = K / |x\xe2\x88\x92"
-             "c|\xc2\xb2 \xc2\xb7 EVERY PARTICLE, ONCE \xc2\xb7 THE "
-             "INTEGRATOR MAKES IT VELOCITY",
-             240, 68, 262, 24);
+    pen.text(
+        "\xc2\xa7"
+        "7 BOMB \xe2\x8a\x95 \xc2\xb7 |\xce\x94x| = K / |x\xe2\x88\x92"
+        "c|\xc2\xb2 \xc2\xb7 EVERY PARTICLE, ONCE \xc2\xb7 THE "
+        "INTEGRATOR MAKES IT VELOCITY",
+        240, 68, 262, 24);
 
     // The phase strip, and the live stage readout under the error legend.
     const char* names[5] = {"SPAWN", "HIT", "BOMB", "SETTLE", "DRAG"};
@@ -1371,9 +1377,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
   void figPenetration(Pen& pen, float x0, float y0, float a) {
     inset(pen, x0, y0, 208, 148, a);
     penUi(pen, 7.5f, fadeTo(kSteel, a), 1.2f);
-    pen.text("FIG. 4b/5b \xc2\xb7 \xc2\xa7"
-             "5 PENETRATION",
-             x0 + 8, y0 + 8);
+    pen.text(
+        "FIG. 4b/5b \xc2\xb7 \xc2\xa7"
+        "5 PENETRATION",
+        x0 + 8, y0 + 8);
     pen.push();
     pen.translate(x0 + 8, y0 + 21);
     // the obstacle
@@ -1408,12 +1415,13 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.pop();
     float y = y0 + 21 + 64 + 3;
     penMono(pen, 7.0f, fadeTo(kBlue, a), 0.1f);
-    pen.text("p = c1\xc2\xb7x1 + c2\xc2\xb7x2,  c1 = 0.75, c2 = 0.25",
-             x0 + 8, y);
+    pen.text("p = c1\xc2\xb7x1 + c2\xc2\xb7x2,  c1 = 0.75, c2 = 0.25", x0 + 8,
+             y);
     y += 11;
-    pen.text("\xce\xbb = (q\xe2\x88\x92p)\xc2\xb7\xce\x94 / "
-             "((c1\xc2\xb2+c2\xc2\xb2)\xc2\xb7\xce\x94\xc2\xb2)",
-             x0 + 8, y);
+    pen.text(
+        "\xce\xbb = (q\xe2\x88\x92p)\xc2\xb7\xce\x94 / "
+        "((c1\xc2\xb2+c2\xc2\xb2)\xc2\xb7\xce\x94\xc2\xb2)",
+        x0 + 8, y);
     y += 11;
     pen.text("x1' = x1 + c1\xce\xbb\xce\x94    x2' = x2 + c2\xce\xbb\xce\x94",
              x0 + 8, y);
@@ -1425,9 +1433,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
   void figFriction(Pen& pen, float x0, float y0, float a) {
     inset(pen, x0, y0, 208, 148, a);
     penUi(pen, 7.5f, fadeTo(kSteel, a), 1.2f);
-    pen.text("FIG. 10 \xc2\xb7 \xc2\xa7"
-             "7 FRICTION",
-             x0 + 8, y0 + 8);
+    pen.text(
+        "FIG. 10 \xc2\xb7 \xc2\xa7"
+        "7 FRICTION",
+        x0 + 8, y0 + 8);
     pen.push();
     pen.translate(x0 + 8, y0 + 21);
     pen.noStroke();
@@ -1459,9 +1468,10 @@ struct HitmanVerlet final : sketch::DrawSketch {
     penMono(pen, 7.0f, fadeTo(kBlue, a), 0.1f);
     pen.text("d_p MEASURED BEFORE THE PROJECTION,", x0 + 8, y);
     y += 11;
-    pen.text("v_t REDUCED BY k\xc2\xb7"
-             "d_p BY MOVING x*.",
-             x0 + 8, y);
+    pen.text(
+        "v_t REDUCED BY k\xc2\xb7"
+        "d_p BY MOVING x*.",
+        x0 + 8, y);
     y += 11;
     pen.text("NEVER LET v_t REVERSE \xe2\x80\x94 CLAMP TO ZERO.", x0 + 8, y);
     y += 12;
@@ -1492,8 +1502,8 @@ struct HitmanVerlet final : sketch::DrawSketch {
     constexpr float w = 330, h = 108;
     inset(pen, x0, y0, w, h, a);
     penUi(pen, 7.5f, fadeTo(kSteel, a), 0.9f);
-    pen.text("SAME 24 STICKS \xc2\xb7 instances()+sizes() vs the pen",
-             x0 + 7, y0 + 7);
+    pen.text("SAME 24 STICKS \xc2\xb7 instances()+sizes() vs the pen", x0 + 7,
+             y0 + 7);
     pen.element(barsEl, SkRect::MakeXYWH(x0 + 7, y0 + 19, 150, 76));
     {
       float sc = 1;
@@ -1562,8 +1572,9 @@ struct HitmanVerlet final : sketch::DrawSketch {
   }
 
   Element panelA1() {
-    return panel(kPanelAH[0], "A1 \xc2\xb7 VERLET \xe2\x80\x94 NO VELOCITY "
-                              "VARIABLE",
+    return panel(kPanelAH[0],
+                 "A1 \xc2\xb7 VERLET \xe2\x80\x94 NO VELOCITY "
+                 "VARIABLE",
                  1)
         .gap(4)
         .child(t("x' = 2x \xe2\x88\x92 x* + a\xc2\xb7\xce\x94t\xc2\xb2      x* "
@@ -1586,8 +1597,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
   }
 
   Element panelA2() {
-    return panel(kPanelAH[1], "A2 \xc2\xb7 THE STICK CONSTRAINT, AND A SIGN",
-                 2)
+    return panel(kPanelAH[1], "A2 \xc2\xb7 THE STICK CONSTRAINT, AND A SIGN", 2)
         .child(codeLine("delta = x2-x1;", kBlue))
         .child(codeLine("deltalength = sqrt(delta*delta);", kBlue))
         .child(codeLine("diff = (deltalength-restlength)/deltalength;", kBlue))
@@ -1658,15 +1668,15 @@ struct HitmanVerlet final : sketch::DrawSketch {
           .shrink(0)
           .alignItems(Align::Center)
           .child(box().grow(1))
-          .child(box()
-                     .width(Dim(30))
-                     .height(Dim(h))
-                     .fill(i == 4 ? kBlue : hex(0x6FA8DC, 0.42f))
-                     .scaleY(animate(from(0.0f).to(1.0f),
-                                     {.duration = 220ms,
-                                      .ease = ease::outBack(),
-                                      .delay = 1600ms}))
-                     .transformOrigin(0.5f, 1.0f))
+          .child(
+              box()
+                  .width(Dim(30))
+                  .height(Dim(h))
+                  .fill(i == 4 ? kBlue : hex(0x6FA8DC, 0.42f))
+                  .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
+                                                        .ease = ease::outBack(),
+                                                        .delay = 1600ms}))
+                  .transformOrigin(0.5f, 1.0f))
           .child(t(label, mono(7.0f, kSteel)));
     };
     return panel(kPanelAH[2], "A3 \xc2\xb7 THE SQUARE-ROOT APPROXIMATION", 3)
@@ -1784,16 +1794,16 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.text("WAIST", p[RWA].fX + 7, p[RWA].fY);
     pen.text("HIP", p[RHI].fX + 7, p[RHI].fY);
     penMono(pen, 7.0f, kRed);
-    pen.text("|LK\xe2\x88\x92RK| \xe2\x89\xa5 100", p[LKN].fX - 66,
-             p[LKN].fY);
+    pen.text("|LK\xe2\x88\x92RK| \xe2\x89\xa5 100", p[LKN].fX - 66, p[LKN].fY);
     pen.textAlign(draw::LEFT, draw::TOP);
   }
 
   /** B2's tree leaves a 156 px hole for the three chains and 34 px for
    *  their live numbers; both are the solver's, so both are the pen's. */
   Element panelB2() {
-    return panel(kPanelBH[1], "B2 \xc2\xb7 RELAXATION: 1 \xc2\xb7 4 \xc2\xb7 "
-                              "10",
+    return panel(kPanelBH[1],
+                 "B2 \xc2\xb7 RELAXATION: 1 \xc2\xb7 4 \xc2\xb7 "
+                 "10",
                  5)
         .gap(4)
         .child(box().height(Dim(156)).shrink(0))
@@ -1981,7 +1991,12 @@ struct HitmanVerlet final : sketch::DrawSketch {
     // state IS the pair (x*, x), so lerp(x*, x, alpha) is the integrator's
     // own interpolant, and drawing through it costs nothing extra.
     ctx.ticker.addFixed(
-        kSimHz, [this] { stepPhysics(); return true; }, 8, &alpha);
+        kSimHz,
+        [this] {
+          stepPhysics();
+          return true;
+        },
+        8, &alpha);
 
     headerEl = header();
     overlayEl = stageOverlay();

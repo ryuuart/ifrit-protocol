@@ -89,9 +89,9 @@ TEST(SketchRegistry, RecordsEveryEntry) {
 TEST(SketchRegistry, OrdersByCategoryThenName) {
   // Not registration order, which is link order and depends on nothing a
   // reader can see.
-  EXPECT_EQ(ours(), (std::vector<std::string_view>{"alpha_wave", "beta_decay",
-                                                   "zebra_stripe",
-                                                   "gated_thing"}));
+  EXPECT_EQ(ours(),
+            (std::vector<std::string_view>{"alpha_wave", "beta_decay",
+                                           "zebra_stripe", "gated_thing"}));
 }
 
 TEST(SketchRegistry, FilesUnderItsStemUnlessToldOtherwise) {

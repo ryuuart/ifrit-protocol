@@ -95,14 +95,14 @@ sketch::kit::Theme sheetTheme() {
  *  helper function here is a crash, not a style choice. */
 sk_sp<SkRuntimeEffect> paletteEffect() {
   auto [effect, error] = SkRuntimeEffect::MakeForShader(
-        SkString("uniform shader uIndex;"
-                 "uniform shader uPalette;"
-                 "uniform float uShade;"
-                 "half4 main(float2 xy) {"
-                 "  float i = floor(uIndex.eval(xy).r * 255.0 + 0.5);"
-                 "  i = min(i + uShade, 15.0);"
-                 "  return uPalette.eval(float2(i + 0.5, 0.5));"
-                 "}"));
+      SkString("uniform shader uIndex;"
+               "uniform shader uPalette;"
+               "uniform float uShade;"
+               "half4 main(float2 xy) {"
+               "  float i = floor(uIndex.eval(xy).r * 255.0 + 0.5);"
+               "  i = min(i + uShade, 15.0);"
+               "  return uPalette.eval(float2(i + 0.5, 0.5));"
+               "}"));
   return effect;
 }
 
@@ -284,9 +284,11 @@ struct MaterialChild final : sketch::Sketch {
     const sketch::kit::Provide look(sheetTheme());
     Element slots = kit::cells(
         {.cells = {panel(tables, "child(\"uPalette\", grey)",
-                         "the indices themselves: a 0..15 staircase", tables.greyTable, 0.0f, "grey"),
+                         "the indices themselves: a 0..15 staircase",
+                         tables.greyTable, 0.0f, "grey"),
                    panel(tables, "child(\"uPalette\", fire)",
-                         "the SAME index texture, another table", tables.fireTable, 0.0f, "fire"),
+                         "the SAME index texture, another table",
+                         tables.fireTable, 0.0f, "fire"),
                    panel(tables, "child(\"uPalette\", ice)",
                          "\xe2\x80\xa6"
                          "and another",

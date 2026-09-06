@@ -111,8 +111,7 @@ std::string geo(const Cloud& cloud) {
   if (const std::vector<glm::vec3>* normal = cloud.vectorIf("normal");
       normal && normal->size() == n) {
     out += ',';
-    attribute(out, "N", 3, n,
-              [&](size_t i, int c) { return (*normal)[i][c]; });
+    attribute(out, "N", 3, n, [&](size_t i, int c) { return (*normal)[i][c]; });
   }
   if (const std::vector<glm::vec4>* uv = cloud.colorIf("uv");
       uv && uv->size() == n) {

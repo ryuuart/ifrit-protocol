@@ -85,7 +85,8 @@ FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
   if (access.policy != NetworkPolicy::Refresh)
     if (FetchResult hit = fromCache(); hit.blob) return hit;
   if (access.policy == NetworkPolicy::Offline) return {};
-  auto body = access.transport ? access.transport(url) : CurlTransport::get(url);
+  auto body =
+      access.transport ? access.transport(url) : CurlTransport::get(url);
   if (!body) return fromCache();  // Refresh degrades to the cached copy
   // Persisting is best-effort, and never half done: the bytes land in a
   // sibling file through writeBytes and take the cache name only once

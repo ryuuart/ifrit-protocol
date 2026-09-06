@@ -68,7 +68,6 @@ void CrossingRule::prepare(std::span<const Crossing> all) const {
   }
 }
 
-
 namespace {
 
 struct Flat {

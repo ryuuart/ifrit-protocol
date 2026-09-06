@@ -285,7 +285,8 @@ TEST(WebViewTest, APageReleasedFromAFrameCallbackStopsPublishing) {
     state->changed.notify_all();
   });
 
-  state->held->loadHTML("<html><body style='background:#ff0000'></body></html>");
+  state->held->loadHTML(
+      "<html><body style='background:#ff0000'></body></html>");
   driver->loadHTML("<html><body style='background:#0000ff'></body></html>");
   ASSERT_TRUE(waitForCallback(*state));
 

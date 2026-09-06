@@ -321,8 +321,8 @@ struct VolatilityCost final : sketch::Sketch {
     // sheet is outlined in its tier's colour, not filled with it.
     std::vector<sketch::kit::LegendEntry> entries;
     for (const auto& [state, what] : tiers)
-      entries.push_back({Fill::color(tierColor(state)),
-                         toU8(tierName(state)), toU8(what)});
+      entries.push_back(
+          {Fill::color(tierColor(state)), toU8(tierName(state)), toU8(what)});
     return sketch::kit::legend({.entries = std::move(entries),
                                 .column = false,
                                 .swatch = 11,

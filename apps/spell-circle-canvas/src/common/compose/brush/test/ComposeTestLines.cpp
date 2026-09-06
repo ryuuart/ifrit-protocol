@@ -30,11 +30,11 @@ TEST(ComposeLayout, DimInsetsAcceptPercent) {
 
 TEST(ComposeMeasure, MeasureReportsIntrinsicSize) {
   const SkSize size = intrinsicSize(box()
-                                  .row()
-                                  .gap(10)
-                                  .child(box().width(40).height(30))
-                                  .child(box().width(40).height(20)),
-                              fonts());
+                                        .row()
+                                        .gap(10)
+                                        .child(box().width(40).height(30))
+                                        .child(box().width(40).height(20)),
+                                    fonts());
   EXPECT_EQ(size, SkSize::Make(90, 30));
 }
 
@@ -447,7 +447,8 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
 
 TEST(ComposeLines, TripleRailStrokesThreeBands) {
   Host host;
-  host.composer.render(straightRun(lines::presets::triple(2, green(), 8, 1.0f)));
+  host.composer.render(
+      straightRun(lines::presets::triple(2, green(), 8, 1.0f)));
   host.frame();
   EXPECT_EQ(verticalRuns(host, 100, 70, 130, SK_ColorGREEN), 3);
   // And the pair variant gives exactly two.
@@ -476,7 +477,8 @@ TEST(ComposeLines, ArrowheadFillsBeyondTheBodyWidth) {
 
 TEST(ComposeLines, RailwayTiesCrossTheLine) {
   Host host;
-  host.composer.render(straightRun(lines::presets::railway(2, green(), 20, 12)));
+  host.composer.render(
+      straightRun(lines::presets::railway(2, green(), 20, 12)));
   host.frame();
   // A tie arm ~5px above the rail at the first sample (x = 20+10)…
   EXPECT_EQ(host.pixel(30, 95), SK_ColorGREEN);
@@ -546,8 +548,7 @@ TEST(ComposeLines, ParallelJoinControlKeepsACornerSharp) {
   const auto inkNearTheCorner = [](Host& host) {
     int n = 0;
     for (int y = 138; y <= 152; ++y)
-      for (int x = 138; x <= 152; ++x)
-        n += host.pixel(x, y) != SK_ColorBLACK;
+      for (int x = 138; x <= 152; ++x) n += host.pixel(x, y) != SK_ColorBLACK;
     return n;
   };
   const int mitered = inkNearTheCorner(miter);
@@ -571,10 +572,11 @@ TEST(ComposeLines, ConcentricPlacesARingAtAStatedRadius) {
                            .stroke(std::move(hatch)));
   };
   Host stated, spaced;
-  stated.composer.render(
-      ringNode(lines::presets::concentric(green(), std::vector<float>{60.0f}, 2.0f)));
-  spaced.composer.render(ringNode(lines::presets::concentric(green(), /*rings=*/1,
-                                                    /*width=*/2.0f)));
+  stated.composer.render(ringNode(
+      lines::presets::concentric(green(), std::vector<float>{60.0f}, 2.0f)));
+  spaced.composer.render(
+      ringNode(lines::presets::concentric(green(), /*rings=*/1,
+                                          /*width=*/2.0f)));
   stated.frame();
   spaced.frame();
   // The stated ring: radius 60 from the box centre (100, 100).
@@ -797,8 +799,8 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
 TEST(ComposeLines, DashedParallelsOnLineActuallyDash) {
   // `Line`'s dashed-parallel branch must not build its dash geometry with a
   // FILL stroke rec: Skia's dash effect refuses one outright, and the
-  // failure mode is silent: `lines::presets::cased(...)` with a dash pattern paints
-  // two SOLID rails, which reads as a design choice rather than as a
+  // failure mode is silent: `lines::presets::cased(...)` with a dash pattern
+  // paints two SOLID rails, which reads as a design choice rather than as a
   // dropped dash.
   Host host;
   lines::Line pair = lines::presets::cased(3, green(), 10);
@@ -855,7 +857,8 @@ TEST(ComposeLines, RailsCountIsArbitrary) {
 
 TEST(ComposeLines, DottedCoreKeepsTheCasingContinuous) {
   Host host;
-  host.composer.render(straightRun(brush::presets::dottedCore(3, 2, green(), 8, 6)));
+  host.composer.render(
+      straightRun(brush::presets::dottedCore(3, 2, green(), 8, 6)));
   host.frame();
   // Casing: solid the whole way along, both sides.
   for (int x = 40; x < 160; x += 10) {

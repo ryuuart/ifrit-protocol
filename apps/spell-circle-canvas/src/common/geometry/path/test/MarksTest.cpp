@@ -110,10 +110,12 @@ TEST(Lattice, TheAngleTurnsTheLinesAndTheTaperOpensTheGaps) {
   EXPECT_LT(opening.size(), even.size());
 
   // The cap is a bound and not a preference.
-  EXPECT_LE((int)lattice(rings, {.spacing = 0.01f, .angle = 0.0f,
-                                 .taper = 1.0f, .maxLines = 12})
-                .size(),
-            12);
+  EXPECT_LE(
+      (int)lattice(
+          rings,
+          {.spacing = 0.01f, .angle = 0.0f, .taper = 1.0f, .maxLines = 12})
+          .size(),
+      12);
   // No rings with an area, no marks.
   Polyline thin;
   thin.points = {{0, 0}, {10, 0}};
@@ -124,7 +126,8 @@ TEST(Lattice, TheAngleTurnsTheLinesAndTheTaperOpensTheGaps) {
 // Edges
 
 TEST(Edges, InsetPolygonShrinksASquareByTheDistanceWhicheverWayItWinds) {
-  const std::vector<glm::vec2> square = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
+  const std::vector<glm::vec2> square = {
+      {0, 0}, {100, 0}, {100, 100}, {0, 100}};
   const std::vector<glm::vec2> in = insetPolygon(square, 10);
   ASSERT_EQ(in.size(), 4u);
   const glm::vec2 expected[] = {{10, 10}, {90, 10}, {90, 90}, {10, 90}};
@@ -183,7 +186,8 @@ TEST(Edges, InsetPolygonMitresASharpCornerUntilTheLimitBluntsIt) {
   EXPECT_NEAR(capped[1].y, mitred[1].y, 1e-4f);
 }
 
-TEST(Edges, InsetPolygonMovesAReflexCornerTheWayItsEdgesSayAndLeavesTooFewAlone) {
+TEST(Edges,
+     InsetPolygonMovesAReflexCornerTheWayItsEdgesSayAndLeavesTooFewAlone) {
   // An L. Its reflex corner is where the bar meets the column, and the
   // inset L's reflex corner is the meeting of the two moved edges — back
   // toward the outer corner, not toward the interior of either arm.

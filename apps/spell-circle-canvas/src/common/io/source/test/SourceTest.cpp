@@ -163,7 +163,8 @@ TEST(Places, TheExecutableIsThisTestBinary) {
 }
 
 TEST(Places, AScratchDirectoryIsNamedForThisProcessAndIsNotMade) {
-  const std::filesystem::path scratch = sigil::io::scratchDirectory("io_places");
+  const std::filesystem::path scratch =
+      sigil::io::scratchDirectory("io_places");
   ASSERT_FALSE(scratch.empty());
   EXPECT_TRUE(std::filesystem::equivalent(
       scratch.parent_path(), std::filesystem::temp_directory_path()));

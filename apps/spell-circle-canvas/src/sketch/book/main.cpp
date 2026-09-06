@@ -63,9 +63,9 @@
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Compare.h>
-#include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
+#include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/set/Set.h>
 #ifdef SIGILSKETCH_BOOK_SCRY
 #include <sigilsketch/scry/SharedEngine.h>
@@ -86,6 +86,7 @@
 // Generated with the QML module: registers every QML_ELEMENT it compiled.
 void qml_register_types_Sigil_Sketchbook();
 #include <QtQml/qqml.h>
+
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
 
@@ -483,7 +484,8 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
       path.stem().string().c_str(), width, height, (int)frames.size(),
       options.jitterDt > 0.0 ? "jittered" : "fixed", p50, p95, p99,
       mean(frames), sorted.empty() ? 0.0 : sorted.back(),
-      p50 > 0 ? 1000.0 / p50 : 0.0, plateOnly ? "PLATE" : (pass ? "PASS" : "FAIL"));
+      p50 > 0 ? 1000.0 / p50 : 0.0,
+      plateOnly ? "PLATE" : (pass ? "PASS" : "FAIL"));
   std::printf("  phases (mean ms): update %.2f · draw %.2f", mean(updates),
               mean(draws));
   for (size_t l = 0; l < lanes.size(); ++l)
@@ -714,8 +716,7 @@ std::vector<int> windowBenchSelection(int only, const std::string& kind) {
  *  alone: no ledger and no sweep writes into it. */
 std::filesystem::path thumbnailStoreDir(const std::string& override) {
   if (!override.empty()) return override;
-  if (const char* env = std::getenv("SIGIL_SKETCHBOOK_THUMBNAILS");
-      env && *env)
+  if (const char* env = std::getenv("SIGIL_SKETCHBOOK_THUMBNAILS"); env && *env)
     return env;
   const QString cache =
       QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
@@ -756,7 +757,8 @@ int runThumbnails(int only, const std::string& kind,
     const std::filesystem::path source =
         sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
     const std::string key = sketch::thumbnailKey(source);
-    if (!sketch::freshThumbnail(dir, entry.name, key).empty()) continue;  // fresh
+    if (!sketch::freshThumbnail(dir, entry.name, key).empty())
+      continue;  // fresh
     if (!sketch::thumbnailNote(dir, entry.name, key).empty()) {
       ++noted;
       continue;  // asked and answered
@@ -1012,9 +1014,10 @@ int main(int argc, char* argv[]) {
     if (!sketchFile.empty()) SketchCatalog::externals = {sketchFile};
     const SketchCatalog rows;
     for (const QVariant& row : rows.sketches())
-      std::printf("%s\n", QJsonDocument(QJsonObject::fromVariantMap(row.toMap()))
-                             .toJson(QJsonDocument::Compact)
-                             .constData());
+      std::printf("%s\n",
+                  QJsonDocument(QJsonObject::fromVariantMap(row.toMap()))
+                      .toJson(QJsonDocument::Compact)
+                      .constData());
     return 0;
   }
 
@@ -1244,7 +1247,6 @@ int main(int argc, char* argv[]) {
         view = child;
         break;
       }
-
 
   if (windowBench.seconds > 0.0) {
     if (!window || !view) {

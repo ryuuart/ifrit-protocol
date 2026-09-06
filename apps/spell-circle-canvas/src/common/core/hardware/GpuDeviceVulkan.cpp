@@ -62,7 +62,7 @@ struct Api {
   field = instanceProc<decltype(field)>(gipa, instance, name)
     SIGIL_VK_INSTANCE(getDeviceProcAddr, "vkGetDeviceProcAddr");
     SIGIL_VK_INSTANCE(getMemoryProperties,
-                          "vkGetPhysicalDeviceMemoryProperties");
+                      "vkGetPhysicalDeviceMemoryProperties");
 #undef SIGIL_VK_INSTANCE
     return getDeviceProcAddr && getMemoryProperties;
   }
@@ -73,8 +73,7 @@ struct Api {
     SIGIL_VK_DEVICE(queueSubmit, "vkQueueSubmit");
     SIGIL_VK_DEVICE(createImage, "vkCreateImage");
     SIGIL_VK_DEVICE(destroyImage, "vkDestroyImage");
-    SIGIL_VK_DEVICE(getImageMemoryRequirements,
-                        "vkGetImageMemoryRequirements");
+    SIGIL_VK_DEVICE(getImageMemoryRequirements, "vkGetImageMemoryRequirements");
     SIGIL_VK_DEVICE(allocateMemory, "vkAllocateMemory");
     SIGIL_VK_DEVICE(freeMemory, "vkFreeMemory");
     SIGIL_VK_DEVICE(bindImageMemory, "vkBindImageMemory");
@@ -135,8 +134,7 @@ T fromHandle(uint64_t value) {
 
 class VulkanBackend final : public GpuDevice::Backend_ {
  public:
-  VulkanBackend(Api api, NativeDevice native)
-      : m_api(api), m_native(native) {
+  VulkanBackend(Api api, NativeDevice native) : m_api(api), m_native(native) {
     m_api.getMemoryProperties(physicalDevice(), &m_memory);
   }
 
@@ -157,8 +155,7 @@ class VulkanBackend final : public GpuDevice::Backend_ {
     info.format = toVulkan(desc.format);
     info.extent = {static_cast<uint32_t>(desc.width),
                    static_cast<uint32_t>(desc.height), 1};
-    info.mipLevels =
-        static_cast<uint32_t>(clampedMipLevels(desc));
+    info.mipLevels = static_cast<uint32_t>(clampedMipLevels(desc));
     info.arrayLayers = 1;
     info.samples = VK_SAMPLE_COUNT_1_BIT;
     info.tiling = VK_IMAGE_TILING_OPTIMAL;

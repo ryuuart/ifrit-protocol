@@ -340,9 +340,8 @@ TEST(SketchHostBuildDir, TwoHostsInOneProcessNeverLinkOverEachOther) {
     // One edit, seen by both: the same source at the same generation is
     // the collision this is about.
     std::filesystem::last_write_time(
-        file.path,
-        std::filesystem::file_time_type::clock::now() +
-            std::chrono::seconds(build));
+        file.path, std::filesystem::file_time_type::clock::now() +
+                       std::chrono::seconds(build));
     ASSERT_TRUE(buildOnce(square)) << "the square's build never finished";
     ASSERT_TRUE(buildOnce(wide)) << "the wide sketch's build never finished";
   }

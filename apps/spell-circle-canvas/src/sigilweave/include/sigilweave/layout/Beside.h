@@ -55,8 +55,8 @@ struct Beside {
  *  on the reading's type and on nothing about the base — which is the
  *  whole reason a reservation costs no round of convergence.
  */
-[[nodiscard]] float bandBeside(FontContext& fontContext,
-                               const TextStyle& style, float gap);
+[[nodiscard]] float bandBeside(FontContext& fontContext, const TextStyle& style,
+                               float gap);
 
 /** Lays `reading` out beside `beside.base` and returns where it landed.
  *
@@ -111,8 +111,7 @@ struct WarichuSplit {
  *  advance sets the note anyway: the note is the caller's to size.
  */
 [[nodiscard]] ParagraphLayout layoutWarichu(FontContext& fontContext,
-                                            Paragraph& note,
-                                            const SkRect& slot,
+                                            Paragraph& note, const SkRect& slot,
                                             WritingMode writingMode);
 
 }  // namespace sigil::weave

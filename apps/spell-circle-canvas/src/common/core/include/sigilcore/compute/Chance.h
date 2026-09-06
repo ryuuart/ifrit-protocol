@@ -164,8 +164,8 @@ class Stream {
         return word;
       }
       case Source::Halton:
-        return fixed(radicalInverse(m_state++, m_parameter < 2u ? 2u
-                                                                : m_parameter));
+        return fixed(
+            radicalInverse(m_state++, m_parameter < 2u ? 2u : m_parameter));
       case Source::Sobol:
         return reversed((uint32_t)m_state++);
       case Source::Golden:
@@ -386,8 +386,7 @@ template <typename T>
 void shuffle(Stream& stream, std::span<T> items) {
   for (size_t remaining = items.size(); remaining > 1; --remaining) {
     const size_t chosen = stream.below(remaining);
-    if (chosen != remaining - 1)
-      std::swap(items[chosen], items[remaining - 1]);
+    if (chosen != remaining - 1) std::swap(items[chosen], items[remaining - 1]);
   }
 }
 

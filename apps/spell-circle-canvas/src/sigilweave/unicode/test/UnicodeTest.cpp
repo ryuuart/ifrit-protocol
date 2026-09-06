@@ -321,8 +321,7 @@ TEST(Segmentation, ATailoringIsWhereAScriptsOwnProhibitionsComeFrom) {
 TEST(Segmentation, GraphemeClustersAreWhatAReaderCallsCharacters) {
   // A base and its combining mark, and a regional-indicator pair, are each
   // one cluster however many code units they take.
-  EXPECT_EQ(graphemeBoundaries(u"e\u0301x"),
-            (std::vector<uint32_t>{0, 2, 3}));
+  EXPECT_EQ(graphemeBoundaries(u"e\u0301x"), (std::vector<uint32_t>{0, 2, 3}));
   EXPECT_EQ(graphemeBoundaries(u"\U0001F1EF\U0001F1F5"),
             (std::vector<uint32_t>{0, 4}));
   EXPECT_EQ(graphemeBoundaries(u""), (std::vector<uint32_t>{0}));

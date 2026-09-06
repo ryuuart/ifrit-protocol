@@ -169,9 +169,8 @@ Element cell(const char* call, const std::string& note, material::Material m,
       kCell, toU8(call), toU8(note),
       sketch::kit::well(
           {.width = kCell, .height = kPicture},
-          custom(call, [m = std::move(m), contentScale, world,
-                        face = whole()](SkCanvas& canvas,
-                                        const PaintContext& pc) {
+          custom(call, [m = std::move(m), contentScale, world, face = whole()](
+                           SkCanvas& canvas, const PaintContext& pc) {
             material::skia::fill(
                 canvas, face, m,
                 {.resolution = {pc.size.width(), pc.size.height()},
@@ -229,54 +228,66 @@ struct FrameInputs final : sketch::Sketch {
                         "recipe and every field the compiler dropped "
                         "once per target")},
         kit::cells(
-            {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {cell("bind(\"uBars\", block) \xc2\xb7 "
-                                 "contentScale 1",
-                                 kit::formatted("twelve floats read LIVE at every "
-                                             "resolve \xc2\xb7 the hairlines "
-                                             "are 1 / uContentScale wide, so "
-                                             "here they are 1 px"),
-                                 bars, 1.0f),
-                            cell("\xe2\x80\xa6"
-                                 " contentScale 3",
-                                 "the same material and the same block "
-                                 "\xc2\xb7 only the frame value moved, "
-                                 "and the hairlines thinned to a third",
-                                 bars, 3.0f),
-                            cell("a second block, a second tint",
-                                 "the block compares by IDENTITY, so "
-                                 "this is a different binding \xc2\xb7 "
-                                 "its values never enter the prune "
-                                 "comparison",
-                                 ramped, 1.0f)},
-                       .gap = 14}),
-                  kit::cells(
-                      {.cells =
-                           {cell("frame(WorldTransform) \xc2\xb7 uWorld "
-                                 "translated",
-                                 "the body reads column 2 of uWorld as "
-                                 "its phase \xc2\xb7 identity outside a "
-                                 "composite, so it degrades to the "
-                                 "node's own space",
-                                 bars,
-                                 1.0f,
-                                 glm::mat3(1, 0, 0, 0, 1, 0, 142, 0, 1)),
-                            cell("withRecipe(dotsRecipe())",
-                                 "THE SAME INSTANCE over a second "
-                                 "definition of one params layout "
-                                 "\xc2\xb7 the values, the binding and "
-                                 "the tint all carried over",
-                                 bars.withRecipe(dotsRecipe()), 1.0f),
-                            cell("withRecipe(flatRecipe())",
-                                 "a body that reads neither uBars nor "
-                                 "uGain \xc2\xb7 the third definition "
-                                 "of one ABI, and the table it is still "
-                                 "bound to reaches nothing",
-                                 bars.withRecipe(flatRecipe()), 1.0f)},
-                       .gap =
-                           14})},
+            {.cells = {kit::cells(
+                           {.cells = {cell("bind(\"uBars\", block) \xc2\xb7 "
+                                           "contentScale 1",
+                                           kit::formatted(
+                                               "twelve floats read LIVE at "
+                                               "every "
+                                               "resolve \xc2\xb7 the hairlines "
+                                               "are 1 / uContentScale wide, so "
+                                               "here they are 1 px"),
+                                           bars, 1.0f),
+                                      cell("\xe2\x80\xa6"
+                                           " contentScale 3",
+                                           "the same material and the same "
+                                           "block "
+                                           "\xc2\xb7 only the frame value "
+                                           "moved, "
+                                           "and the hairlines thinned to a "
+                                           "third",
+                                           bars, 3.0f),
+                                      cell("a second block, a second tint",
+                                           "the block compares by IDENTITY, so "
+                                           "this is a different binding "
+                                           "\xc2\xb7 "
+                                           "its values never enter the prune "
+                                           "comparison",
+                                           ramped, 1.0f)},
+                            .gap = 14}),
+                       kit::cells({.cells = {cell(
+                                                 "frame(WorldTransform) "
+                                                 "\xc2\xb7 uWorld "
+                                                 "translated",
+                                                 "the body reads column 2 of "
+                                                 "uWorld as "
+                                                 "its phase \xc2\xb7 identity "
+                                                 "outside a "
+                                                 "composite, so it degrades to "
+                                                 "the "
+                                                 "node's own space",
+                                                 bars, 1.0f, glm::mat3(1, 0, 0, 0, 1, 0, 142, 0, 1)),
+                                             cell("withRecipe(dotsRecipe())",
+                                                  "THE SAME INSTANCE over a "
+                                                  "second "
+                                                  "definition of one params "
+                                                  "layout "
+                                                  "\xc2\xb7 the values, the "
+                                                  "binding and "
+                                                  "the tint all carried over",
+                                                  bars.withRecipe(dotsRecipe()),
+                                                  1.0f),
+                                             cell("withRecipe(flatRecipe())",
+                                                  "a body that reads neither "
+                                                  "uBars nor "
+                                                  "uGain \xc2\xb7 the third "
+                                                  "definition "
+                                                  "of one ABI, and the table "
+                                                  "it is still "
+                                                  "bound to reaches nothing",
+                                                  bars.withRecipe(flatRecipe()),
+                                                  1.0f)},
+                                   .gap = 14})},
              .column = true,
              .gap = 18})));
   }

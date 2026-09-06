@@ -239,8 +239,8 @@ class Engine {
                                       bool applyField) const;
   void paintStroke(Pen& pen, const Tool& tool, std::span<const Sample> path,
                    bool applyField) const;
-  void paintBoundary(Pen& pen, std::span<const Sample> corners,
-                     bool applyField, bool paintOutline) const;
+  void paintBoundary(Pen& pen, std::span<const Sample> corners, bool applyField,
+                     bool paintOutline) const;
   void paintPolygon(Pen& pen, std::span<const SkPoint> points,
                     bool applyField) const;
   [[nodiscard]] Polygon bent(const Pen& pen,

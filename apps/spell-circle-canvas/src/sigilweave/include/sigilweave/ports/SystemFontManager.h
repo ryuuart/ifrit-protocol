@@ -85,10 +85,9 @@ sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
 
 /** `face` spelled with a weight and a slant, matching the `pickTypeface`
  *  overload above. */
-inline sk_sp<SkTypeface> face(std::initializer_list<const char*> families,
-                              int weight,
-                              SkFontStyle::Slant slant =
-                                  SkFontStyle::kUpright_Slant) {
+inline sk_sp<SkTypeface> face(
+    std::initializer_list<const char*> families, int weight,
+    SkFontStyle::Slant slant = SkFontStyle::kUpright_Slant) {
   return face(families, SkFontStyle(weight, SkFontStyle::kNormal_Width, slant));
 }
 

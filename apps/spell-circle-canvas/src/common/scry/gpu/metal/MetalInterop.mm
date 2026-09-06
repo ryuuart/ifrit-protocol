@@ -152,8 +152,8 @@ bool MetalDriver::paintTexture(sigil::core::hardware::TextureHandle handle, int 
   return true;
 }
 
-void MetalDriver::uploadToTexture(sigil::core::hardware::TextureHandle handle, const void *pixels, int width,
-                                  int height, size_t rowBytes) {
+void MetalDriver::uploadToTexture(sigil::core::hardware::TextureHandle handle, const void *pixels,
+                                  int width, int height, size_t rowBytes) {
   id<MTLTexture> texture = m_state->texture(handle);
   if (!texture) return;
   [texture replaceRegion:MTLRegionMake2D(0, 0, width, height)
@@ -162,8 +162,9 @@ void MetalDriver::uploadToTexture(sigil::core::hardware::TextureHandle handle, c
              bytesPerRow:rowBytes];
 }
 
-bool MetalDriver::copyDeviceTexture(sigil::core::hardware::TextureHandle src, sigil::core::hardware::TextureHandle dst,
-                                    int width, int height) {
+bool MetalDriver::copyDeviceTexture(sigil::core::hardware::TextureHandle src,
+                                    sigil::core::hardware::TextureHandle dst, int width,
+                                    int height) {
   id<MTLTexture> srcTexture = m_state->texture(src);
   id<MTLTexture> dstTexture = m_state->texture(dst);
   if (!srcTexture || !dstTexture) return false;
@@ -171,8 +172,8 @@ bool MetalDriver::copyDeviceTexture(sigil::core::hardware::TextureHandle src, si
   return true;
 }
 
-void MetalDriver::copyTexture(uint32_t srcTextureId, sigil::core::hardware::TextureHandle dst, int width,
-                              int height) {
+void MetalDriver::copyTexture(uint32_t srcTextureId, sigil::core::hardware::TextureHandle dst,
+                              int width, int height) {
   auto it = m_state->textures.find(srcTextureId);
   id<MTLTexture> dstTexture = m_state->texture(dst);
   if (it == m_state->textures.end() || !dstTexture) return;
@@ -180,13 +181,14 @@ void MetalDriver::copyTexture(uint32_t srcTextureId, sigil::core::hardware::Text
 }
 
 sk_sp<SkImage> MetalDriver::wrapTexture(skgpu::graphite::Recorder *recorder,
-                                        sigil::core::hardware::TextureHandle handle, int width, int height) {
+                                        sigil::core::hardware::TextureHandle handle, int width,
+                                        int height) {
   id<MTLTexture> texture = m_state->texture(handle);
   if (!recorder || !texture) return nullptr;
   // The wrap retains the texture for the image's life, so an image
   // outliving the view that owned its texture still samples pixels.
-  return skia::wrapImage(*recorder, (__bridge void *)texture, width, height,
-                         kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
+  return skia::wrapImage(*recorder, (__bridge void *)texture, width, height, kPremul_SkAlphaType,
+                         SkColorSpace::MakeSRGB());
 }
 
 }  // namespace sigil::scry

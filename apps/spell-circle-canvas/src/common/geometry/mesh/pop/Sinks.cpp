@@ -21,9 +21,7 @@ namespace sigil::geometry::mesh {
 using curve::Spline3;
 using path::Polyline;
 
-namespace {
-
-}  // namespace
+namespace {}  // namespace
 
 Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
                    const pop::Runtime& runtime) {
@@ -119,8 +117,7 @@ std::vector<glm::uvec2> pop::connectAdjacent(const Cloud& cloud,
     // a pair only one end kept — which `maxPerPoint` makes possible — is
     // still one edge rather than none.
     for (const uint32_t other : keep)
-      pairs.push_back(i < other ? glm::uvec2{i, other}
-                                : glm::uvec2{other, i});
+      pairs.push_back(i < other ? glm::uvec2{i, other} : glm::uvec2{other, i});
   }
   std::sort(pairs.begin(), pairs.end(), [](glm::uvec2 a, glm::uvec2 b) {
     return a.x != b.x ? a.x < b.x : a.y < b.y;

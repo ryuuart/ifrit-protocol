@@ -22,7 +22,6 @@
 #include <cstdint>
 #include <utility>
 
-
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
  *  opaque parameters are the group range and the global bindings, whose
  *  layouts are mirrored below. */
@@ -99,9 +98,7 @@ void run(const SweepDispatch& dispatch, glm::vec4* positions,
       });
 }
 
-std::span<const uint32_t> sweepSpirv() {
-  return slangmodule::Sweep::kSpirv;
-}
+std::span<const uint32_t> sweepSpirv() { return slangmodule::Sweep::kSpirv; }
 
 }  // namespace sigil::geometry::mesh::kernel
 

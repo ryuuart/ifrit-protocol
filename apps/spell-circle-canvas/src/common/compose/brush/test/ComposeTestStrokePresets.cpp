@@ -426,8 +426,7 @@ TEST(ComposeKitStrokes, TheGrooveIsDarkOnTheInnerWallAndLitOnTheOuter) {
                      .fill(Fill::none())
                      .stroke(kit::groove(30, 8, dark, lite));
   const sk_sp<SkPicture> picture = snapshot(
-      box().width(100).height(100).child(std::move(disc)), fonts(),
-      {100, 100});
+      box().width(100).height(100).child(std::move(disc)), fonts(), {100, 100});
   ASSERT_TRUE(picture);
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(100, 100));
@@ -467,5 +466,6 @@ TEST(ComposeKitStrokes, TheGrooveIsDarkOnTheInnerWallAndLitOnTheOuter) {
   // A comparable value: the same cut twice is one stroke, so a plate of
   // seventy grooves prunes.
   EXPECT_EQ(kit::groove(30, 8, dark, lite), kit::groove(30, 8, dark, lite));
-  EXPECT_FALSE(kit::groove(30, 8, dark, lite) == kit::groove(31, 8, dark, lite));
+  EXPECT_FALSE(kit::groove(30, 8, dark, lite) ==
+               kit::groove(31, 8, dark, lite));
 }

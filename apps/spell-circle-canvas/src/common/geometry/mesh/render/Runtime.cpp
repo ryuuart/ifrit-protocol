@@ -130,9 +130,8 @@ struct CpuExecutor : Executor {
         default: {
           const SkV4 vp4 = viewModel * SkV4{p.x, p.y, p.z, 1};
           const glm::vec3 posView = {vp4.x, vp4.y, vp4.z};
-          const glm::vec3 N = hasNormals
-                                  ? normalized(normalM * mesh.normals[i])
-                                  : glm::vec3{0, 0, 1};
+          const glm::vec3 N = hasNormals ? normalized(normalM * mesh.normals[i])
+                                         : glm::vec3{0, 0, 1};
           const glm::vec3 V = normalized(posView * -1.0f);
           glm::vec3 base = {style.baseColor.fR, style.baseColor.fG,
                             style.baseColor.fB};
@@ -155,7 +154,8 @@ struct CpuExecutor : Executor {
           // that was already here, term for term.
           const glm::vec3 albedo = base * (1.0f - metal);
           const glm::vec3 f0 = specularColor(base, metal);
-          const glm::vec3 highlight = glm::vec3(1.0f) + (base - glm::vec3(1.0f)) * metal;
+          const glm::vec3 highlight =
+              glm::vec3(1.0f) + (base - glm::vec3(1.0f)) * metal;
           // THE AMBIENT TERM IS THE ENVIRONMENT where there is one: what
           // actually falls on a surface facing this way from every
           // direction, rather than one constant for the whole set.
@@ -165,8 +165,7 @@ struct CpuExecutor : Executor {
                               style.ambient.fB};
           glm::vec3 accum = albedo * ambient;
           for (const Light& light : style.lights) {
-            const glm::vec3 L =
-                normalized(lightM * (light.direction * -1.0f));
+            const glm::vec3 L = normalized(lightM * (light.direction * -1.0f));
             const float diff = std::max(glm::dot(N, L), 0.0f);
             const glm::vec3 lc = {light.color.fR * light.intensity,
                                   light.color.fG * light.intensity,
@@ -186,8 +185,8 @@ struct CpuExecutor : Executor {
             const float nDotV = std::max(glm::dot(N, V), 0.0f);
             const glm::vec3 R = N * (2.0f * nDotV) - V;
             accum += environmentSpecular(
-                environmentRadiance(environment, worldM * R, rough), f0,
-                rough, nDotV);
+                environmentRadiance(environment, worldM * R, rough), f0, rough,
+                nDotV);
           }
           if (style.rim > 0) {
             const float rim =

@@ -168,7 +168,7 @@ struct Flourish final : sketch::Sketch {
         .foreground(sigil::compose::stroke(2.6f, Fill::color(st.gold)))
         .foreground(flourishVine(st, 17.0f, 24.0f, 17.0f))
         .foreground(onEdges(path::Edge::Top | path::Edge::Bottom,
-                                    Decoration(crestWalk)))
+                            Decoration(crestWalk)))
         .cache(Cache::Texture)
         .child(box()
                    .inset(13)
@@ -335,7 +335,8 @@ struct Flourish final : sketch::Sketch {
                    .key(bloom ? "titleBloom" : "title")
                    .opacity(&titleFade);
       if (bloom)
-        t.effect(sigil::material::skia::Effect::filter(SkImageFilters::Blur(6, 6, nullptr)))
+        t.effect(sigil::material::skia::Effect::filter(
+                     SkImageFilters::Blur(6, 6, nullptr)))
             .blend(SkBlendMode::kPlus);
       else
         t.translateY(&titleDrop);
@@ -353,7 +354,8 @@ struct Flourish final : sketch::Sketch {
         .corners({16})
         .zIndex(3)
         .clip()
-        .backdrop(sigil::material::skia::Effect::filter(SkImageFilters::Blur(8, 8, nullptr)))
+        .backdrop(sigil::material::skia::Effect::filter(
+            SkImageFilters::Blur(8, 8, nullptr)))
         .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
         .fill(flourishParchment(st))
         .background(hatchDeco)
@@ -376,18 +378,18 @@ struct Flourish final : sketch::Sketch {
                 .foreground(sigil::compose::stroke(1.3f, Fill::color(st.gold)))
                 .child(titleLayer(st.goldBright, true))
                 .child(titleLayer({0.34f, 0.20f, 0.09f, 1}, false)))
-        .child(
-            box()
-                .key("seal")
-                .width(42)
-                .height(42)
-                .transformOrigin(0.5f, 0.5f)
-                .scale(&sealBreathe)
-                .shape(shapes::star(12, 0.66f))
-                .fill(animate(motion::to(Fill::color(accent ? st.rubric : st.bronze)),
-                              {600ms}))
-                .foreground(
-                    sigil::compose::stroke(1.4f, Fill::color(st.goldBright))))
+        .child(box()
+                   .key("seal")
+                   .width(42)
+                   .height(42)
+                   .transformOrigin(0.5f, 0.5f)
+                   .scale(&sealBreathe)
+                   .shape(shapes::star(12, 0.66f))
+                   .fill(animate(
+                       motion::to(Fill::color(accent ? st.rubric : st.bronze)),
+                       {600ms}))
+                   .foreground(sigil::compose::stroke(
+                       1.4f, Fill::color(st.goldBright))))
         .child(text(u8"Framed by a vine that draws itself on, corner by "
                     u8"corner, while the medallions turn and the rules hold "
                     u8"their three weights of gold — every ornament a "

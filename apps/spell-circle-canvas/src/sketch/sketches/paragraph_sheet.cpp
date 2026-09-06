@@ -110,8 +110,7 @@ weave::TextStyle figures(float size = 12.0f) {
 /// page's own generous margin.
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look;
-  look.palette = {
-      .ground = kPaper, .ink = kInk, .ash = kFaint, .rule = kFaint};
+  look.palette = {.ground = kPaper, .ink = kInk, .ash = kFaint, .rule = kFaint};
   look.type.sans = grotesque();
   look.type.title = {.size = 11, .track = 4.0f};
   look.type.subtitle = {.size = 10, .track = 0.4f};
@@ -419,9 +418,9 @@ struct ParagraphSheet final : sketch::Sketch {
                    u8"own alignment, justification, hyphenation and tab "
                    u8"stops \u2014 which is what every text that never "
                    u8"mentions a block gets"},
-        kit::cells({.cells = {panels(std::move(left)),
-                              panels(std::move(right))},
-                    .gap = 40}));
+        kit::cells(
+            {.cells = {panels(std::move(left)), panels(std::move(right))},
+             .gap = 40}));
   }
 };
 

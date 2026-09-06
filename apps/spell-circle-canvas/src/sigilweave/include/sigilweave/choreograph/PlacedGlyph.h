@@ -172,11 +172,10 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
         placed.tangent = {1, 0};
         placed.rest =
             run.origin +
-            SkVector{placed.shaped->positions[glyphIndex].x() *
-                             run.fit.glyphScale +
-                         run.fit.letterSpacing *
-                             static_cast<float>(glyphIndex),
-                     placed.shaped->positions[glyphIndex].y()};
+            SkVector{
+                placed.shaped->positions[glyphIndex].x() * run.fit.glyphScale +
+                    run.fit.letterSpacing * static_cast<float>(glyphIndex),
+                placed.shaped->positions[glyphIndex].y()};
       }
       penLocal += placed.advance;
       placed.glyphIndex = static_cast<uint32_t>(glyphIndex);

@@ -35,9 +35,9 @@
 #include <include/core/SkPaint.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcore/compute/Hash.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 

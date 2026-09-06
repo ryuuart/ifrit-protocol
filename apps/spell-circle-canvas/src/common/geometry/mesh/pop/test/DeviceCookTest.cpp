@@ -12,11 +12,9 @@
 
 #include <Primitives/interface/DebugOutput.h>
 #include <gtest/gtest.h>
+#include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/pop/Kernel.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilgeometry/device/Device.h>
-
-#include "OnDevice.h"
 
 #include <bit>
 #include <cstdint>
@@ -25,12 +23,13 @@
 #include <string>
 #include <vector>
 
+#include "OnDevice.h"
+
 using namespace sigil;
 using sigil::geometry::mesh::Cloud;
 namespace pop = sigil::geometry::mesh::pop;
 
 namespace {
-
 
 /** The closed loop every chain below is scattered along. */
 std::vector<glm::vec3> loop() {
@@ -156,9 +155,10 @@ std::vector<Case> everySupportedChain() {
                   0.0f, pop::Select::Combine::Replace, true)
           .move({0, 40, 0})
           .masked("slab"));
-  add("Normal, unit and outward",
-      pop::on(loop()).count(n).fill(pop::Lane::Dir, {3, 0, 0, 0}).normal(
-          1.0f, {0, 0, 0}));
+  add("Normal, unit and outward", pop::on(loop())
+                                      .count(n)
+                                      .fill(pop::Lane::Dir, {3, 0, 0, 0})
+                                      .normal(1.0f, {0, 0, 0}));
   add("Affine, as a placement", pop::on(loop()).count(n).affine(place));
   add("Affine, as a direction", pop::on(loop()).count(n).orient(place));
   add("Peak", pop::on(loop()).count(n).peak(18.0f));
@@ -231,13 +231,14 @@ TEST(DevicePop, ACookThatReadsBackAndCooksAgainDrawsNoComplaint) {
   // them a copy source, and the second cook re-uploads the seeded ones,
   // which leaves those a copy destination. A barrier naming one state
   // for all three is right for one of them.
-  const pop::Chain chain = pop::on(loop())
-                               .count(2048)
-                               .spread(11.0f)
-                               .select("core", {20, 0, 0}, 90.0f, 0.35f)
-                               .jitter(16.0f)
-                               .masked("core")
-                               .fade({1, 0.9f, 0.4f, 1}, {0.1f, 0.2f, 0.8f, 0.4f});
+  const pop::Chain chain =
+      pop::on(loop())
+          .count(2048)
+          .spread(11.0f)
+          .select("core", {20, 0, 0}, 90.0f, 0.35f)
+          .jitter(16.0f)
+          .masked("core")
+          .fade({1, 0.9f, 0.4f, 1}, {0.1f, 0.2f, 0.8f, 0.4f});
 
   complaints().clear();
   const Diligent::DebugMessageCallbackType before =
@@ -250,7 +251,8 @@ TEST(DevicePop, ACookThatReadsBackAndCooksAgainDrawsNoComplaint) {
   ASSERT_FALSE(once.positions.empty());
   EXPECT_EQ(once.positions.size(), twice.positions.size());
   EXPECT_TRUE(complaints().empty())
-      << complaints().size() << " complaint(s), first: " << complaints().front();
+      << complaints().size()
+      << " complaint(s), first: " << complaints().front();
   // …and the second cook is still the answer, so nothing was fixed by
   // barriering the lanes into silence.
   EXPECT_EQ(compare(pop::cook(chain, pop::Runtime::cpu()), twice).differing,

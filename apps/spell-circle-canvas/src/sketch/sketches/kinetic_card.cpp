@@ -126,8 +126,7 @@ weave::TextStyle specimen(SkColor4f colour, sk_sp<SkTypeface> face) {
  *  specimen, what it deviates under it. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look;
-  look.palette = {
-      .ground = kGround, .ink = kBone, .ash = kAsh, .rule = kFaint};
+  look.palette = {.ground = kGround, .ink = kBone, .ash = kAsh, .rule = kFaint};
   look.type.title = {.size = 13, .track = 3.6f};
   look.type.subtitle = {.size = 10.5f, .track = 0.3f};
   look.type.footer = {.size = 10, .track = 0.2f};
@@ -149,8 +148,7 @@ struct KineticCard final : sketch::Sketch {
   choreograph::Output<float> phase{0};
 
   void setup(sketch::SketchContext& ctx) override {
-    sketch::kit::stage(ctx,
-                       {.size = kSceneSize, .captureAt = kPeriod * 0.5});
+    sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = kPeriod * 0.5});
     // MID-CASCADE. The master maps onto each track's OWN span, so one
     // fraction of the period is the same fraction of every schedule
     // however many letters a word has. At half way the head of every word
@@ -266,19 +264,17 @@ struct KineticCard final : sketch::Sketch {
       shelves.push_back(kit::cells({.cells = std::move(run), .gap = kGutter}));
     }
 
-    Element sheet =
-        sketch::kit::page(
-            {.title = u8"THE STOCK TEXT EFFECTS",
-             .subtitle = u8"nine presets, one cascade, one wrapping "
-                         u8"phase \xe2\x80\x94 and each one's own "
-                         u8"schedule drawn under it",
-             .footer = u8"rise \xc2\xb7 slide \xc2\xb7 pop \xc2\xb7 "
-                       u8"spinIn \xc2\xb7 scatter move their glyphs; "
-                       u8"typeOn \xc2\xb7 variableAxisSweep \xc2\xb7 "
-                       u8"tint touch coverage, an outline and colour "
-                       u8"and leave every pen position alone"},
-            kit::cells(
-                {.cells = std::move(shelves), .column = true, .gap = 34}));
+    Element sheet = sketch::kit::page(
+        {.title = u8"THE STOCK TEXT EFFECTS",
+         .subtitle = u8"nine presets, one cascade, one wrapping "
+                     u8"phase \xe2\x80\x94 and each one's own "
+                     u8"schedule drawn under it",
+         .footer = u8"rise \xc2\xb7 slide \xc2\xb7 pop \xc2\xb7 "
+                   u8"spinIn \xc2\xb7 scatter move their glyphs; "
+                   u8"typeOn \xc2\xb7 variableAxisSweep \xc2\xb7 "
+                   u8"tint touch coverage, an outline and colour "
+                   u8"and leave every pen position alone"},
+        kit::cells({.cells = std::move(shelves), .column = true, .gap = 34}));
 
     Element root = stack().fill(Fill::color(kGround)).child(std::move(sheet));
     // One meter per cell, over the whole composition: the rects are in the

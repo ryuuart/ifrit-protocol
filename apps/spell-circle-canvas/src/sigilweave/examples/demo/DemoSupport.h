@@ -8,14 +8,14 @@
 // (<sigilmeasure/stats/Samples.h>) when a scene wants them.
 
 #include <include/core/SkSurface.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/SigilWeave.h>
 #include <sigilweave/kit/SigilWeaveKit.h>
 
-#include "Palette.h"
-
 #include <chrono>
 #include <filesystem>
-#include <sigilmeasure/time/Stopwatch.h>
+
+#include "Palette.h"
 
 using Clock = std::chrono::steady_clock;
 

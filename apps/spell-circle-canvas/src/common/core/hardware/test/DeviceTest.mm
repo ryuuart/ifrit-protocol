@@ -33,8 +33,8 @@ TextureDesc smallTexture() {
 
 /** Name a device, or skip: a machine with no GPU has nothing to say about
  *  any claim below, and reporting that is not the same as failing it. */
-#define DEVICE_OR_SKIP(name)                                     \
-  std::unique_ptr<GpuDevice> name = GpuDevice::createOwned();    \
+#define DEVICE_OR_SKIP(name)                                  \
+  std::unique_ptr<GpuDevice> name = GpuDevice::createOwned(); \
   if (!name) GTEST_SKIP() << "no GPU device on this machine"
 
 TEST(HardwareDevice, AnOwnedDeviceComesUpWithItsOwnCommandQueue) {
@@ -170,8 +170,7 @@ TEST(HardwareDevice, ACpuWaitReachesASignalledValueAndTimesOutOnAnyLaterOne) {
   const FenceValue first = device->signal(fence);
   EXPECT_EQ(device->waitCpu(fence, first), FenceWait::Reached);
   EXPECT_GE(device->completedValue(fence), first);
-  EXPECT_EQ(device->waitCpu(fence, first + 1, std::chrono::milliseconds(20)),
-            FenceWait::TimedOut);
+  EXPECT_EQ(device->waitCpu(fence, first + 1, std::chrono::milliseconds(20)), FenceWait::TimedOut);
   device->destroyFence(fence);
 }
 

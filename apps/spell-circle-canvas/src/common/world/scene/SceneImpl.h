@@ -221,13 +221,19 @@ struct Scene::Impl {
   core::Bake<BakeTarget> bake;
 
   // ---- the reconciler's host (Host.cpp) ----
-  static const std::string& keyOf(const Description& description) { return description->key; }
-  static bool equal(const Description& a, const Description& b) { return propsEqual(*a, *b); }
+  static const std::string& keyOf(const Description& description) {
+    return description->key;
+  }
+  static bool equal(const Description& a, const Description& b) {
+    return propsEqual(*a, *b);
+  }
   static bool reconcilesChildren(const Description&) { return true; }
   static const std::vector<Element>& children(const Description& description) {
     return description->children;
   }
-  static const Description& descriptionOf(const Element& child) { return child.node(); }
+  static const Description& descriptionOf(const Element& child) {
+    return child.node();
+  }
   static const Memo* memoOf(const Description& description) {
     return description->memo ? &*description->memo : nullptr;
   }
@@ -235,8 +241,9 @@ struct Scene::Impl {
     return memo.invoke(memo.props).node();
   }
 
-  std::unique_ptr<Instance> create(const Description& description, Instance* parent,
-                                   size_t ordinal, size_t count);
+  std::unique_ptr<Instance> create(const Description& description,
+                                   Instance* parent, size_t ordinal,
+                                   size_t count);
   /** The entrance delay this subtree's mount inherits, in seconds: the
    *  sum of every ancestor cascade's start time for the branch being
    *  walked. Live only for the depth of one create(); zero elsewhere. */

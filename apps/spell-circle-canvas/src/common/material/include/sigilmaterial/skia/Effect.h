@@ -337,8 +337,8 @@ class Effect {
   // Their presence makes the effect isAnimated(), like a bound scalar.
   std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>
       m_blocks;
-  std::optional<DirectionalBlur> m_dirBlur;  // directionalBlur()'s recipe
-  std::optional<ParamBlur> m_paramBlur;      // blur()'s recipe
+  std::optional<DirectionalBlur> m_dirBlur;        // directionalBlur()'s recipe
+  std::optional<ParamBlur> m_paramBlur;            // blur()'s recipe
   std::shared_ptr<const BlurLevels> m_blurLevels;  // …and its held passes
   // phosphorBloom(): the shader recipe above is the HALO program alone,
   // and this says the node is that program gathered over a reduced layer
@@ -381,24 +381,24 @@ class Effect {
     auto& [filter, colorFilter, effect, uniforms, uniforms2, uniforms4,
            uniformArrays, bound, blocks, dirBlur, paramBlur, blurLevels,
            gatheredHalo, children, chainA, chainB] = v;
-    static_assert(std::tuple_size_v<decltype(std::tie(
-                          filter, colorFilter, effect, uniforms, uniforms2,
-                          uniforms4, uniformArrays, bound, blocks, dirBlur,
-                          paramBlur, blurLevels, gatheredHalo, children,
-                          chainA, chainB))> == 16,
-                  "Effect gained or lost a member — rule on it in "
-                  "Effect::operator== (Effect.cpp), then bump this count. "
-                  "(m_colorFilter compares by pointer, like m_filter, an "
-                  "already-built SkColorFilter carrying no recipe either; "
-                  "m_filter is EXCLUDED on the shader, directionalBlur and "
-                  "blur paths because it is derived from m_effect + the "
-                  "constant lanes / m_dirBlur / m_paramBlur + m_children, "
-                  "and m_blurLevels is derived from m_paramBlur alone, "
-                  "while m_gatheredHalo is derived from nothing and is "
-                  "compared beside the shader recipe; "
-                  "m_bound and m_blocks make the effect isAnimated(), which "
-                  "operator== already refuses; m_chainA/B only exist on a "
-                  "live chain, ditto.)");
+    static_assert(
+        std::tuple_size_v<decltype(std::tie(
+                filter, colorFilter, effect, uniforms, uniforms2, uniforms4,
+                uniformArrays, bound, blocks, dirBlur, paramBlur, blurLevels,
+                gatheredHalo, children, chainA, chainB))> == 16,
+        "Effect gained or lost a member — rule on it in "
+        "Effect::operator== (Effect.cpp), then bump this count. "
+        "(m_colorFilter compares by pointer, like m_filter, an "
+        "already-built SkColorFilter carrying no recipe either; "
+        "m_filter is EXCLUDED on the shader, directionalBlur and "
+        "blur paths because it is derived from m_effect + the "
+        "constant lanes / m_dirBlur / m_paramBlur + m_children, "
+        "and m_blurLevels is derived from m_paramBlur alone, "
+        "while m_gatheredHalo is derived from nothing and is "
+        "compared beside the shader recipe; "
+        "m_bound and m_blocks make the effect isAnimated(), which "
+        "operator== already refuses; m_chainA/B only exist on a "
+        "live chain, ditto.)");
   }
 };
 

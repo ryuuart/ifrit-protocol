@@ -161,11 +161,11 @@ struct PopStamps final : sketch::Sketch {
     const std::vector<glm::vec3> ring = ringPoints();
     const glm::vec3 eye = {0, 260, 980};
 
-    tube = pop::on(ring)
-               .count(220)
-               .noise(26, 0.004f)
-               .sweep(sections::circle(14), true,
-                      {.segments = 160, .scale = 11});
+    tube =
+        pop::on(ring)
+            .count(220)
+            .noise(26, 0.004f)
+            .sweep(sections::circle(14), true, {.segments = 160, .scale = 11});
 
     plates = pop::on(ring)
                  .count(900)

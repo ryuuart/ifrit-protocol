@@ -401,7 +401,8 @@ TEST(ComposeShapeValues, KeyedParametricIsAValueUnkeyedIsNot) {
                Shape(geometry::shapes::spiral(4.0f)));
 }
 
-TEST(ComposeShapeValues, AGeneratedSilhouetteReDescribedEveryFrameKeepsItsBake) {
+TEST(ComposeShapeValues,
+     AGeneratedSilhouetteReDescribedEveryFrameKeepsItsBake) {
   // The steady state the prune exists for: a texture-cached node whose shape
   // is a generator, re-described every frame. If the shape does not compare,
   // the node patches, the patch drops the bake, and the node re-rasterizes
@@ -780,18 +781,14 @@ TEST(ComposeLayouts, TableFlowsWhatNoChildClaimedAndAlignsInsideTheCell) {
   // scheme that counts its flow from zero.
   Host host;
   Table table{.columns = 2, .width = 200};
-  host.composer.render(
-      box().child(layout(table)
-                      .width(200)
-                      .height(100)
-                      .child(box().key("pinned").width(20).height(20).cells(1, 0))
-                      .child(box().key("flowed").width(20).height(20))
-                      .child(box()
-                                 .key("right")
-                                 .width(20)
-                                 .height(20)
-                                 .cells(1, 1)
-                                 .cellAlign(Align::End, Align::Start))));
+  host.composer.render(box().child(
+      layout(table)
+          .width(200)
+          .height(100)
+          .child(box().key("pinned").width(20).height(20).cells(1, 0))
+          .child(box().key("flowed").width(20).height(20))
+          .child(box().key("right").width(20).height(20).cells(1, 1).cellAlign(
+              Align::End, Align::Start))));
   host.frame();
   const auto pinned = host.composer.bounds("pinned");
   const auto flowed = host.composer.bounds("flowed");

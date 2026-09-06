@@ -3,19 +3,18 @@
  * sniff that sends any other bytes to the importer that knows them.
  */
 
-#include "Images.h"
-#include "Zip.h"
-
 #include <sigildraw/brush/format/Load.h>
 #include <sigildraw/brush/format/Photoshop.h>
 #include <sigildraw/brush/format/Procreate.h>
-
 #include <simdjson.h>
 
 #include <algorithm>
 #include <cstdio>
 #include <string>
 #include <utility>
+
+#include "Images.h"
+#include "Zip.h"
 
 namespace sigil::draw::brush::format {
 
@@ -33,8 +32,7 @@ constexpr std::string_view kTipNames[] = {"dust",    "fibres", "nib",
 constexpr std::string_view kDriveNames[] = {"pressure", "velocity", "tilt"};
 
 template <typename Enumeration, size_t Count>
-Enumeration named(std::string_view word,
-                  const std::string_view (&names)[Count],
+Enumeration named(std::string_view word, const std::string_view (&names)[Count],
                   Enumeration fallback) {
   for (size_t index = 0; index < Count; ++index)
     if (names[index] == word) return (Enumeration)index;
@@ -235,8 +233,7 @@ std::optional<Tool> decodeBrush(const io::Bytes& bytes, std::string_view hint) {
 
   // A bare description, with no images beside it: a brush whose whole
   // definition is its numbers.
-  if (all.front() == std::byte{'{'})
-    return assembleBrush(all, {}, {});
+  if (all.front() == std::byte{'{'}) return assembleBrush(all, {}, {});
 
   (void)hint;
   return std::nullopt;

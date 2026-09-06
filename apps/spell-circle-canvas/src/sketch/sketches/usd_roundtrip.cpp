@@ -85,7 +85,6 @@ constexpr int kNu = 44, kNv = 22;  // how finely it is tessellated
 constexpr int kMotes = 900;        // points the instancer carries
 constexpr double kMetersPerUnit = 0.01;
 
-
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
@@ -189,10 +188,10 @@ struct UsdRoundtrip final : sketch::Sketch {
     shelf.cells.push_back(cell(
         "source", "the set, as values",
         kit::formatted("%zu vertices \xc2\xb7 %zu triangles \xc2\xb7 no colour "
-                    "lane\n%s light \xc2\xb7 fovY %.1f\xc2\xb0 \xc2\xb7 "
-                    "%zu instancer points",
-                    source.positions.size(), source.indices.size() / 3,
-                    kindName(sun.kind), (double)lens.fovYDeg, motes.size()),
+                       "lane\n%s light \xc2\xb7 fovY %.1f\xc2\xb0 \xc2\xb7 "
+                       "%zu instancer points",
+                       source.positions.size(), source.indices.size() / 3,
+                       kindName(sun.kind), (double)lens.fovYDeg, motes.size()),
         source, lens));
 
     std::string names;

@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/kit/Sections.h>
 
 #include <memory>
 #include <string>
@@ -16,7 +17,6 @@
 #include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Sweep.h"
 #include "support/RuntimeSeam.h"
-#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;

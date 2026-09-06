@@ -219,47 +219,45 @@ struct Plot {
 [[nodiscard]] inline Element curvePlot(std::string_view key,
                                        std::vector<Trace> traces,
                                        Plot plot = {}) {
-  return custom(key,
-                [traces = std::move(traces), plot](SkCanvas& canvas,
-                                                   const PaintContext& pc) {
-                  SkPaint paint;
-                  paint.setAntiAlias(true);
-                  paint.setColor4f(plot.rule);
-                  const float half = std::max(0.0f, plot.ruleWidth) * 0.5f;
-                  for (float t : plot.rulesT) {
-                    const SkPoint a = plot.at(t, plot.fromY, pc.size);
-                    const SkPoint b = plot.at(t, plot.toY, pc.size);
-                    canvas.drawRect({a.fX - half, b.fY, a.fX + half, a.fY},
-                                    paint);
-                  }
-                  for (float y : plot.rulesY) {
-                    const SkPoint a = plot.at(plot.fromT, y, pc.size);
-                    const SkPoint b = plot.at(plot.toT, y, pc.size);
-                    canvas.drawRect({a.fX, a.fY - half, b.fX, a.fY + half},
-                                    paint);
-                  }
-                  const int steps = std::max(1, plot.samples);
-                  for (const Trace& trace : traces) {
-                    if (!trace.f) continue;
-                    SkPathBuilder path;
-                    for (int i = 0; i <= steps; ++i) {
-                      const float t =
-                          plot.fromT + (plot.toT - plot.fromT) *
-                                           ((float)i / (float)steps);
-                      const SkPoint p = plot.at(t, trace.f(t), pc.size);
-                      i == 0 ? path.moveTo(p) : path.lineTo(p);
-                    }
-                    paint.setColor4f(trace.colour);
-                    paint.setStyle(SkPaint::kStroke_Style);
-                    paint.setStrokeWidth(trace.width);
-                    canvas.drawPath(path.detach(), paint);
-                    paint.setStyle(SkPaint::kFill_Style);
-                    if (plot.markRadius > 0)
-                      for (float t : plot.marks)
-                        canvas.drawCircle(plot.at(t, trace.f(t), pc.size),
-                                          plot.markRadius, paint);
-                  }
-                })
+  return custom(
+             key,
+             [traces = std::move(traces), plot](SkCanvas& canvas,
+                                                const PaintContext& pc) {
+               SkPaint paint;
+               paint.setAntiAlias(true);
+               paint.setColor4f(plot.rule);
+               const float half = std::max(0.0f, plot.ruleWidth) * 0.5f;
+               for (float t : plot.rulesT) {
+                 const SkPoint a = plot.at(t, plot.fromY, pc.size);
+                 const SkPoint b = plot.at(t, plot.toY, pc.size);
+                 canvas.drawRect({a.fX - half, b.fY, a.fX + half, a.fY}, paint);
+               }
+               for (float y : plot.rulesY) {
+                 const SkPoint a = plot.at(plot.fromT, y, pc.size);
+                 const SkPoint b = plot.at(plot.toT, y, pc.size);
+                 canvas.drawRect({a.fX, a.fY - half, b.fX, a.fY + half}, paint);
+               }
+               const int steps = std::max(1, plot.samples);
+               for (const Trace& trace : traces) {
+                 if (!trace.f) continue;
+                 SkPathBuilder path;
+                 for (int i = 0; i <= steps; ++i) {
+                   const float t = plot.fromT + (plot.toT - plot.fromT) *
+                                                    ((float)i / (float)steps);
+                   const SkPoint p = plot.at(t, trace.f(t), pc.size);
+                   i == 0 ? path.moveTo(p) : path.lineTo(p);
+                 }
+                 paint.setColor4f(trace.colour);
+                 paint.setStyle(SkPaint::kStroke_Style);
+                 paint.setStrokeWidth(trace.width);
+                 canvas.drawPath(path.detach(), paint);
+                 paint.setStyle(SkPaint::kFill_Style);
+                 if (plot.markRadius > 0)
+                   for (float t : plot.marks)
+                     canvas.drawCircle(plot.at(t, trace.f(t), pc.size),
+                                       plot.markRadius, paint);
+               }
+             })
       .absolute()
       .inset(0);
 }

@@ -50,9 +50,8 @@ Catalogue Catalogue::stock() {
                         0.085f / 3.0f, bell(0.40f, 0.05f, 0.93f, 1.09f)));
   catalogue.add("crayon", dryTool(0.33f, 1.90f, 0.75f, 2.00f, 159.0f / 255.0f,
                                   0.07f, Pressure{1.10f, 1.00f, 0.90f}));
-  catalogue.add("charcoal",
-                dryTool(0.35f, 1.50f, 0.68f, 2.00f, 120.0f / 255.0f, 0.03f,
-                        bell(0.15f, 0.40f, 0.95f, 1.10f)));
+  catalogue.add("charcoal", dryTool(0.35f, 1.50f, 0.68f, 2.00f, 120.0f / 255.0f,
+                                    0.03f, bell(0.15f, 0.40f, 0.95f, 1.10f)));
 
   Tool aerosol = spray(SkColors::kBlack, 50.0f);
   aerosol.width = 0.20f;

@@ -125,4 +125,3 @@ BENCHMARK(BM_Torus)
     ->Complexity(benchmark::oN);
 
 }  // namespace
-

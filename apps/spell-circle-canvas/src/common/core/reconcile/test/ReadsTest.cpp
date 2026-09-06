@@ -8,7 +8,6 @@
 #include <sigilcore/reconcile/Reads.h>
 
 #include <algorithm>
-
 #include <string>
 #include <vector>
 
@@ -29,16 +28,14 @@ TEST(Reads, ReadersThatReadNothingKeepTheOrderTheyWereGiven) {
   // The property the whole thing rests on: a host whose readers are
   // independent runs them in exactly the order it ran them in before, so
   // adopting this moves nothing.
-  const std::vector<uint32_t> got =
-      order({"a", "b", "c"}, {{}, {}, {}});
+  const std::vector<uint32_t> got = order({"a", "b", "c"}, {{}, {}, {}});
   EXPECT_EQ(got, (std::vector<uint32_t>{0, 1, 2}));
 }
 
 TEST(Reads, AReaderComesAfterWhatItReads) {
   // Declared first, resolved last: "a" reads "c", so it waits for it.
   const std::vector<uint32_t> got =
-      order({"a", "b", "c"},
-            {{Read{"c", Facet::Bounds}}, {}, {}});
+      order({"a", "b", "c"}, {{Read{"c", Facet::Bounds}}, {}, {}});
   ASSERT_EQ(got.size(), 3u);
   const auto place = [&](uint32_t index) {
     return std::find(got.begin(), got.end(), index) - got.begin();

@@ -56,7 +56,9 @@ struct Recorder : pop::Executor {
 struct CookSeam {
   using Seam = pop::Runtime;
   static Seam builtIn() { return pop::Runtime::cpu(); }
-  static Seam holding(const char* label) { return pop::Runtime{Recorder{label}}; }
+  static Seam holding(const char* label) {
+    return pop::Runtime{Recorder{label}};
+  }
 };
 
 }  // namespace

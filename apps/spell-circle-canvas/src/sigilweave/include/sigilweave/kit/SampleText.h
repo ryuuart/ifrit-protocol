@@ -22,7 +22,6 @@ namespace sigil::weave::kit {
  *  passes its own. */
 [[nodiscard]] sigil::weave::Paragraph mixedScriptFiller(
     int wordCount, float fontSize,
-    std::array<SkColor, 3> chunkColors = {0xFF23252B, 0xFF2B5AA7,
-                                          0xFFC63D2F});
+    std::array<SkColor, 3> chunkColors = {0xFF23252B, 0xFF2B5AA7, 0xFFC63D2F});
 
 }  // namespace sigil::weave::kit

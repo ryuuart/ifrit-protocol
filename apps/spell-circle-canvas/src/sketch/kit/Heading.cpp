@@ -73,8 +73,7 @@ compose::Element titleCard(const TitleCard& card) {
     const Line& note = card.notes[i];
     ranged.child(spoken(
         note,
-        look.style(look.type.captionNote,
-                   note.ink.value_or(look.palette.ash)),
+        look.style(look.type.captionNote, note.ink.value_or(look.palette.ash)),
         card.key.empty() ? std::string()
                          : card.key + "-note" + std::to_string(i)));
   }
@@ -87,8 +86,8 @@ compose::Element titleCard(const TitleCard& card) {
 
 compose::Element sectionHeader(const SectionHeader& header) {
   const Theme& look = theme();
-  Element row = box().row().alignItems(Align::Center).gap(
-      look.spacing.labelGap);
+  Element row =
+      box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (!header.label.empty())
     row.child(
         text(header.label, look.style(look.type.section, look.palette.ink)));
@@ -98,8 +97,8 @@ compose::Element sectionHeader(const SectionHeader& header) {
   if (header.ruled) between.fill(Fill::color(look.palette.rule));
   row.child(std::move(between));
   if (!header.note.empty())
-    row.child(text(header.note,
-                   look.style(look.type.captionNote, look.palette.ash)));
+    row.child(
+        text(header.note, look.style(look.type.captionNote, look.palette.ash)));
   return row;
 }
 

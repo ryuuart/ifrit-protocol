@@ -55,7 +55,8 @@ TEST(Oscillator, TheFoldSurvivesANegativeTimeAndAThousandCycles) {
 }
 
 TEST(Oscillator, TheFourNumbersMeanTheSameThingWhicheverWaveItIs) {
-  for (Wave shape : {Wave::Sine, Wave::Triangle, Wave::Sawtooth, Wave::Square}) {
+  for (Wave shape :
+       {Wave::Sine, Wave::Triangle, Wave::Sawtooth, Wave::Square}) {
     const Oscillator wave{
         .wave = shape, .hertz = 2.0f, .amplitude = 30.0f, .centre = 100.0f};
     for (int i = 0; i < 64; ++i) {
@@ -68,8 +69,8 @@ TEST(Oscillator, TheFourNumbersMeanTheSameThingWhicheverWaveItIs) {
 
 TEST(Oscillator, PhaseMovesTheCycleAndNoRateHoldsItStill) {
   const Oscillator plain{.wave = Wave::Sine, .hertz = 1.0f};
-  const Oscillator quarterTurnIn{.wave = Wave::Sine, .hertz = 1.0f,
-                                 .phase = 0.25f};
+  const Oscillator quarterTurnIn{
+      .wave = Wave::Sine, .hertz = 1.0f, .phase = 0.25f};
   EXPECT_NEAR(quarterTurnIn.at(0.0), plain.at(0.25), 1e-6f);
   // A phase past a whole turn wraps, so an offset per index needs no
   // fold at the call site.
@@ -84,8 +85,8 @@ TEST(Oscillator, PhaseMovesTheCycleAndNoRateHoldsItStill) {
 
 TEST(Oscillator, ItIsAValueACallerCanCarryAndCall) {
   const Oscillator flicker{.wave = Wave::Square, .hertz = 12.0f, .duty = 0.3f};
-  EXPECT_EQ(flicker, (Oscillator{.wave = Wave::Square, .hertz = 12.0f,
-                                 .duty = 0.3f}));
+  EXPECT_EQ(flicker,
+            (Oscillator{.wave = Wave::Square, .hertz = 12.0f, .duty = 0.3f}));
   EXPECT_NE(flicker, Oscillator{});
   // Callable, so anything that hands a number to an interpolator takes
   // one — including the wave stage of a shaped binding, which is handed

@@ -53,8 +53,8 @@ VectorField flow(const core::noise::Field& field, Flow kind, float turns,
   switch (kind) {
     case Flow::Angle:
       return [field, turns](glm::vec2 p) {
-        const float angle = field.at(p.x, p.y) * turns *
-                            std::numbers::pi_v<float>;
+        const float angle =
+            field.at(p.x, p.y) * turns * std::numbers::pi_v<float>;
         return glm::vec2{std::cos(angle), std::sin(angle)};
       };
     case Flow::Gradient:
@@ -64,10 +64,8 @@ VectorField flow(const core::noise::Field& field, Flow kind, float turns,
       return [field, span, turned](glm::vec2 p) {
         // A central difference: the two samples straddle the point, so
         // the slope is the one AT it rather than the one just past it.
-        const float dx =
-            field.at(p.x + span, p.y) - field.at(p.x - span, p.y);
-        const float dy =
-            field.at(p.x, p.y + span) - field.at(p.x, p.y - span);
+        const float dx = field.at(p.x + span, p.y) - field.at(p.x - span, p.y);
+        const float dy = field.at(p.x, p.y + span) - field.at(p.x, p.y - span);
         const glm::vec2 gradient{dx, dy};
         const float slope = glm::length(gradient);
         if (!(slope > 0)) return glm::vec2{0, 0};

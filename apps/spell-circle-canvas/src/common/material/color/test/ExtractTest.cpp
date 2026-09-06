@@ -27,9 +27,9 @@ float hueApart(float a, float b) {
 }  // namespace
 
 TEST(Harmony, ThePolarFormRoundTripsAndAGreyHasNoDirection) {
-  for (const Color& c : {Color{0.9f, 0.1f, 0.2f, 1.0f},
-                         Color{0.1f, 0.3f, 0.8f, 0.5f},
-                         Color{0.42f, 0.42f, 0.42f, 1.0f}}) {
+  for (const Color& c :
+       {Color{0.9f, 0.1f, 0.2f, 1.0f}, Color{0.1f, 0.3f, 0.8f, 0.5f},
+        Color{0.42f, 0.42f, 0.42f, 1.0f}}) {
     const Color back = fromOklch(toOklch(c));
     EXPECT_NEAR(back.r, c.r, 1e-4f);
     EXPECT_NEAR(back.g, c.g, 1e-4f);
@@ -200,7 +200,8 @@ TEST(Extract, TheDividedBoxesCoverTheRangeTheyWereGiven) {
   // spread over the range rather than the colours it dwells on.
   std::vector<Color> ramp;
   for (int i = 0; i < 256; ++i)
-    ramp.push_back({(float)i / 255.0f, (float)i / 255.0f, (float)i / 255.0f, 1});
+    ramp.push_back(
+        {(float)i / 255.0f, (float)i / 255.0f, (float)i / 255.0f, 1});
   const Palette table =
       palette(ramp, {.entries = 4, .method = PaletteMethod::MedianCut});
   ASSERT_EQ(table.size(), 4u);

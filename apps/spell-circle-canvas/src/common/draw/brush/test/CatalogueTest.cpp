@@ -36,7 +36,8 @@ TEST(Catalogue, OwnsTheFullStockNameSetAndScalesSpatialValues) {
 TEST(Catalogue, AddAnswersTheToolAndRejectsAnEmptyName) {
   brush::Catalogue catalogue;
   EXPECT_EQ(catalogue.add("", brush::pencil(SkColors::kBlack)), nullptr);
-  const brush::Tool* added = catalogue.add("lead", brush::pencil(SkColors::kBlack, 3.0f));
+  const brush::Tool* added =
+      catalogue.add("lead", brush::pencil(SkColors::kBlack, 3.0f));
   ASSERT_NE(added, nullptr);
   EXPECT_FLOAT_EQ(added->width, 3.0f);
   const std::string_view name = "lead";

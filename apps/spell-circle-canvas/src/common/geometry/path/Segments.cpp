@@ -25,7 +25,8 @@ Segment piece(SegmentKind kind, const SkPoint* points, float weight) {
   Segment out;
   out.kind = kind;
   out.weight = weight;
-  for (int i = 0; i < pointCount(kind); ++i) out.points[(size_t)i] = fromSk(points[i]);
+  for (int i = 0; i < pointCount(kind); ++i)
+    out.points[(size_t)i] = fromSk(points[i]);
   return out;
 }
 
@@ -120,7 +121,8 @@ std::vector<SegmentContour> segments(const SkPath& path) {
   SegmentContour current;
   bool open = false;
   const auto flush = [&] {
-    if (open && !current.segments.empty()) contours.push_back(std::move(current));
+    if (open && !current.segments.empty())
+      contours.push_back(std::move(current));
     current = {};
     open = false;
   };
@@ -197,8 +199,8 @@ SegmentContour startedAt(const SegmentContour& contour, size_t at) {
   if (!contour.closed || contour.segments.size() < 2) return contour;
   Cycle cycle = cycleOf(contour);
   const size_t roll = at % cycle.pieces.size();
-  std::rotate(cycle.pieces.begin(),
-              cycle.pieces.begin() + (std::ptrdiff_t)roll, cycle.pieces.end());
+  std::rotate(cycle.pieces.begin(), cycle.pieces.begin() + (std::ptrdiff_t)roll,
+              cycle.pieces.end());
   return fromCycle(std::move(cycle), true);
 }
 

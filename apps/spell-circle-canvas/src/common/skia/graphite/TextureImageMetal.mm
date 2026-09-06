@@ -40,10 +40,9 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture, 
   return image;
 }
 
-sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder,
-                         std::span<const TexturePlane> planes, const SkYUVAInfo &info,
-                         sk_sp<SkColorSpace> colorSpace, TextureRelease release,
-                         void *releaseContext) {
+sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, std::span<const TexturePlane> planes,
+                         const SkYUVAInfo &info, sk_sp<SkColorSpace> colorSpace,
+                         TextureRelease release, void *releaseContext) {
   // THE RELEASE RUNS ON EVERY PATH OUT: the caller handed its planes over
   // once, and a wrap that never happened must not leave them held.
   const auto refuse = [&]() -> sk_sp<SkImage> {
@@ -64,8 +63,8 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder,
       info, SkSpan<const skgpu::graphite::BackendTexture>(textures.data(), planes.size()));
   if (!yuva.isValid()) return refuse();
 
-  sk_sp<SkImage> image = SkImages::TextureFromYUVATextures(
-      &recorder, yuva, std::move(colorSpace), release, releaseContext);
+  sk_sp<SkImage> image = SkImages::TextureFromYUVATextures(&recorder, yuva, std::move(colorSpace),
+                                                           release, releaseContext);
   if (!image) return refuse();
   return image;
 }

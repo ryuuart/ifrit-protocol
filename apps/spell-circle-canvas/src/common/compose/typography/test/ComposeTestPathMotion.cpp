@@ -255,9 +255,8 @@ class RunInMotion : public testing::TestWithParam<MovingRun> {};
 // neither is a number fitted to this machine.
 TEST_P(RunInMotion, ItsLettersAdvanceWithoutStallingOrTicking) {
   const MotionStats s = motionOf(GetParam().track(GetParam().pixelSize));
-  SCOPED_TRACE(testing::Message()
-               << "meanStep " << s.meanStep << " minStep " << s.minStep
-               << " rmsJerk " << s.rmsJerk);
+  SCOPED_TRACE(testing::Message() << "meanStep " << s.meanStep << " minStep "
+                                  << s.minStep << " rmsJerk " << s.rmsJerk);
   ASSERT_GT(s.meanStep, 0.1) << "the run did not move at all";
   EXPECT_GT(s.minStep, 0.25 * s.meanStep) << "a frame the letter stood still";
   if (GetParam().uniformAdvance)

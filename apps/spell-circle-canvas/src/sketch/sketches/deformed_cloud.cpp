@@ -141,15 +141,15 @@ struct DeformedCloud final : sketch::Set {
     set.table.period = 20.0f;
     set.table.fovYDeg = 42.0f;
 
-    return world::Frame(
-        world::kit::litSet(world::Element()
-                        .key("forged")
-                        .chain(forged)
-                        .stamp(gm::quad(3.1f, 3.1f))
-                        .fill(material::kit::surface(
-                            {.baseColor = {1, 1, 1, 1}, .roughness = 0.6f}))
-                        .tag("cloud"),
-                    set, seconds));
+    return world::Frame(world::kit::litSet(
+        world::Element()
+            .key("forged")
+            .chain(forged)
+            .stamp(gm::quad(3.1f, 3.1f))
+            .fill(material::kit::surface(
+                {.baseColor = {1, 1, 1, 1}, .roughness = 0.6f}))
+            .tag("cloud"),
+        set, seconds));
   }
 };
 

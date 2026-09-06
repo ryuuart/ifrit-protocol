@@ -18,8 +18,8 @@
  *
  * THE READOUT is the composer's own count for the frame that did the
  * work — nodes described, memo hits, instances patched, recordings held,
- * nodes painted live — read at the NEXT edit, once the frame that did the work has
- * been drawn, because a still cannot show the numbers of the frame it is
+ * nodes painted live — read at the NEXT edit, once the frame that did the work
+ * has been drawn, because a still cannot show the numbers of the frame it is
  * itself part of. The counts are a function of the description and are
  * the same on every machine; the milliseconds are a function of the run
  * and are shown only in the window, because a number a sketch measured
@@ -86,8 +86,7 @@ constexpr SkColor4f kFlash{1.0f, 0.58f, 0.20f, 0.55f};
  *  enough to the grid that the chunks keep the width they ask for. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look;
-  look.palette = {
-      .ground = kGround, .ink = kInk, .ash = kAsh, .rule = kRule};
+  look.palette = {.ground = kGround, .ink = kInk, .ash = kAsh, .rule = kRule};
   look.type.title = {.size = 20, .track = 2.6f};
   look.type.subtitle = {.size = 11.5f, .track = 0.4f};
   look.type.footer = {.size = 11, .track = 0.6f};
@@ -211,8 +210,7 @@ struct TileMap final : sketch::Sketch {
   Composer::Stats worked;
 
   void setup(sketch::SketchContext& ctx) override {
-    sketch::kit::stage(
-        ctx, {.size = {kCanvasW, kCanvasH}, .captureAt = 6.0});
+    sketch::kit::stage(ctx, {.size = {kCanvasW, kCanvasH}, .captureAt = 6.0});
     revisions.fill(0);
     edits.fill(Edit{});
     editedAt.fill(-1000.0);

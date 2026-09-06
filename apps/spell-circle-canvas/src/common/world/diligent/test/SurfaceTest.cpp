@@ -41,7 +41,7 @@ constexpr SkISize kExtent{120, 120};
 /** A texture of @p width x @p height, drawn by @p paint. Named by a key
  *  so two identical asks are one texture. */
 material::Texture drawnTexture(const std::string& key, int width, int height,
-                          const std::function<void(SkCanvas&)>& paint) {
+                               const std::function<void(SkCanvas&)>& paint) {
   return material::Texture::produce(key, [width, height, paint] {
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
@@ -54,7 +54,7 @@ material::Texture drawnTexture(const std::string& key, int width, int height,
 /** One flat colour, one texel. */
 material::Texture flat(const std::string& key, SkColor4f colour) {
   return drawnTexture(key, 1, 1,
-                 [colour](SkCanvas& canvas) { canvas.clear(colour); });
+                      [colour](SkCanvas& canvas) { canvas.clear(colour); });
 }
 
 /** One frame, rendered on @p runtime and photographed square on. */
@@ -79,13 +79,14 @@ TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
       material::kit::surface({.baseColor = {0.9f, 0.9f, 0.9f, 1.0f}});
   material::Material occluded = plain;
   // Two texels: the left half black, the right half white.
-  occluded.child(material::kit::kOcclusionSlot,
-                 drawnTexture("world.test.occlusion", 2, 1, [](SkCanvas& canvas) {
-                   canvas.clear(SK_ColorWHITE);
-                   SkPaint paint;
-                   paint.setColor(SK_ColorBLACK);
-                   canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
-                 }));
+  occluded.child(
+      material::kit::kOcclusionSlot,
+      drawnTexture("world.test.occlusion", 2, 1, [](SkCanvas& canvas) {
+        canvas.clear(SK_ColorWHITE);
+        SkPaint paint;
+        paint.setColor(SK_ColorBLACK);
+        canvas.drawRect(SkRect::MakeXYWH(0, 0, 1, 1), paint);
+      }));
 
   const SkBitmap bare = cardOn(plain, on.runtime);
   const SkBitmap dressed = cardOn(occluded, on.runtime);

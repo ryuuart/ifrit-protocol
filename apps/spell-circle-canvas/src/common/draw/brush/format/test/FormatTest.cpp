@@ -64,8 +64,8 @@ struct Table {
   std::map<std::string, std::shared_ptr<const sigil::io::Bytes>> entries;
 
   void put(std::string uri, std::vector<std::byte> bytes) {
-    entries[std::move(uri)] =
-        std::make_shared<const sigil::io::Bytes>(sigil::io::Bytes{std::move(bytes)});
+    entries[std::move(uri)] = std::make_shared<const sigil::io::Bytes>(
+        sigil::io::Bytes{std::move(bytes)});
   }
   std::shared_ptr<const sigil::io::Bytes> fetch(std::string_view uri) {
     const auto found = entries.find(std::string(uri));
@@ -81,16 +81,15 @@ TEST(BrushFormat, ADirectoryOfThreeFilesLoadsThroughAnyByteSource) {
   written.opacity = 0.8f;
   written.color = {0.2f, 0.1f, 0.05f, 1.0f};
   written.rotation = brush::Rotation::Fixed;
-  written.shape = brush::Shape{
-      .mask = brush::ImageMask::Alpha, .spacing = 0.07f, .scatter = 0.3f,
-      .angleJitter = 0.25f};
-  written.grain = brush::Grain{.space = brush::GrainSpace::Dab,
-                               .scale = 1.75f,
-                               .depth = 0.6f};
-  written.dynamics.size =
-      brush::Response{.drive = brush::Drive::Velocity,
-                      .curve = {.minimum = 0.3f, .maximum = 1.0f,
-                                .bend = 2.0f}};
+  written.shape = brush::Shape{.mask = brush::ImageMask::Alpha,
+                               .spacing = 0.07f,
+                               .scatter = 0.3f,
+                               .angleJitter = 0.25f};
+  written.grain = brush::Grain{
+      .space = brush::GrainSpace::Dab, .scale = 1.75f, .depth = 0.6f};
+  written.dynamics.size = brush::Response{
+      .drive = brush::Drive::Velocity,
+      .curve = {.minimum = 0.3f, .maximum = 1.0f, .bend = 2.0f}};
 
   Table table;
   table.put("res://ink.sigilbrush/brush.json",
@@ -175,8 +174,8 @@ class ZipWriter {
     const uint32_t crc = crc32(content);
     header(0x04034b50, name, content.size(), crc);
     append(content);
-    m_directory.push_back({std::move(name), offset, (uint32_t)content.size(),
-                           crc});
+    m_directory.push_back(
+        {std::move(name), offset, (uint32_t)content.size(), crc});
   }
 
   std::vector<std::byte> finish() {
@@ -331,10 +330,10 @@ class AbrWriter {
       for (int shift = 24; shift >= 0; shift -= 8)
         block.push_back((std::byte)((value >> shift) & 0xff));
     };
-    put32be(0);          // top
-    put32be(0);          // left
-    put32be(height);     // bottom
-    put32be(width);      // right
+    put32be(0);       // top
+    put32be(0);       // left
+    put32be(height);  // bottom
+    put32be(width);   // right
     block.push_back(std::byte{0});
     block.push_back(std::byte{8});  // depth
     block.push_back(std::byte{0});  // uncompressed

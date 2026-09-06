@@ -41,8 +41,10 @@ sigil::weave::ReservedBand detail::reservedBandOf(
 
 void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
   inst.textAnnotations.clear();
-  if (!inst.description || !inst.description->textData || !inst.paragraph) return;
-  const std::vector<Annotation>& annotations = inst.description->textData->annotations;
+  if (!inst.description || !inst.description->textData || !inst.paragraph)
+    return;
+  const std::vector<Annotation>& annotations =
+      inst.description->textData->annotations;
   if (annotations.empty()) return;
   const sigil::weave::WritingMode mode = inst.paragraph->writingMode();
 

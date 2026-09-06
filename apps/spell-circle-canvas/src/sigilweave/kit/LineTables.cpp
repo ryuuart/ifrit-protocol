@@ -57,19 +57,27 @@ HangingTable latin() {
   table.entries = {
       // The quotes carry almost no ink below their own height, so they hang
       // nearly whole.
-      {u'“', 0.85f, 0.85f}, {u'”', 0.85f, 0.85f},
-      {u'‘', 0.9f, 0.9f},   {u'’', 0.9f, 0.9f},
-      {u'"', 0.8f, 0.8f},        {u'\'', 0.85f, 0.85f},
+      {u'“', 0.85f, 0.85f},
+      {u'”', 0.85f, 0.85f},
+      {u'‘', 0.9f, 0.9f},
+      {u'’', 0.9f, 0.9f},
+      {u'"', 0.8f, 0.8f},
+      {u'\'', 0.85f, 0.85f},
       // The dashes and the hyphen are all ink and hang about half.
-      {u'—', 0.4f, 0.4f},   {u'–', 0.45f, 0.45f},
+      {u'—', 0.4f, 0.4f},
+      {u'–', 0.45f, 0.45f},
       {u'-', 0.55f, 0.55f},
       // The stops hang least: a full stop pulled far out reads as a gap in
       // the margin rather than as a squared one.
-      {u'.', 0.0f, 0.35f},       {u',', 0.0f, 0.35f},
-      {u';', 0.0f, 0.25f},       {u':', 0.0f, 0.25f},
+      {u'.', 0.0f, 0.35f},
+      {u',', 0.0f, 0.35f},
+      {u';', 0.0f, 0.25f},
+      {u':', 0.0f, 0.25f},
       // A bracket hangs on the side it opens or closes and nowhere else.
-      {u'(', 0.3f, 0.0f},        {u')', 0.0f, 0.3f},
-      {u'[', 0.3f, 0.0f},        {u']', 0.0f, 0.3f},
+      {u'(', 0.3f, 0.0f},
+      {u')', 0.0f, 0.3f},
+      {u'[', 0.3f, 0.0f},
+      {u']', 0.0f, 0.3f},
   };
   return table;
 }
@@ -79,9 +87,8 @@ HangingTable japanese() {
   // Burasagari proper: the sentence marks alone, at the foot of a column
   // or the end of a line, and nothing at the head.
   table.entries = {
-      {u'、', 0.0f, 1.0f}, {u'。', 0.0f, 1.0f},
-      {u'，', 0.0f, 1.0f}, {u'．', 0.0f, 1.0f},
-      {u'｡', 0.0f, 1.0f}, {u'､', 0.0f, 1.0f},
+      {u'、', 0.0f, 1.0f}, {u'。', 0.0f, 1.0f}, {u'，', 0.0f, 1.0f},
+      {u'．', 0.0f, 1.0f}, {u'｡', 0.0f, 1.0f},  {u'､', 0.0f, 1.0f},
   };
   return table;
 }

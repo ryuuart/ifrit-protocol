@@ -870,11 +870,10 @@ inline Shape siteSilhouette() {
 }
 inline Shape pillSilhouette(uint8_t cutMask, float radius = 10.0f,
                             SkVector cut = {26.0f, 26.0f}) {
-  return keyedShape(
-      std::tuple(radius, cut.fX, cut.fY, cutMask), [=](SkSize s) {
-        return evangelion::panel(
-            {.radius = radius, .cut = cut, .cutMask = cutMask})(s);
-      });
+  return keyedShape(std::tuple(radius, cut.fX, cut.fY, cutMask), [=](SkSize s) {
+    return evangelion::panel(
+        {.radius = radius, .cut = cut, .cutMask = cutMask})(s);
+  });
 }
 
 inline float wrap180(float d) {
@@ -1000,17 +999,17 @@ struct EvaMagiDefense : sketch::Sketch {
     const auto& module = tre::kModule;
 
     const SkPoint at = unroll(s.centre) - origin;
-    auto plate = box()
-                     .left(at.fX - module.barWidth * 0.5f)
-                     .top(at.fY - module.totalHeight() * 0.5f)
-                     .width(module.barWidth)
-                     .height(module.totalHeight())
-                     .shape(siteSilhouette())
-                     .rotate(s.rotation)
-                     .fill(Fill::color(plateFill))
-                     .foreground(rimStroke(2.4f, rim))
-                     .key(std::string("site#") + s.name +
-                          (friendly ? "" : "#fallen"));
+    auto plate =
+        box()
+            .left(at.fX - module.barWidth * 0.5f)
+            .top(at.fY - module.totalHeight() * 0.5f)
+            .width(module.barWidth)
+            .height(module.totalHeight())
+            .shape(siteSilhouette())
+            .rotate(s.rotation)
+            .fill(Fill::color(plateFill))
+            .foreground(rimStroke(2.4f, rim))
+            .key(std::string("site#") + s.name + (friendly ? "" : "#fallen"));
 
     // three cells: black, hard orange keyline, and the keyline blooms
     for (int n : {1, 2, 3}) {
@@ -1170,15 +1169,13 @@ struct EvaMagiDefense : sketch::Sketch {
     const auto& module = tre::kModule;
     for (int i = 0; i < kSiteN; ++i) {
       const Site& s = kSites[i];
-      g.child(glowing(unroll(s.centre), module.barWidth, module.totalHeight(),
-                      s.rotation, std::string("glow#") + s.name,
-                      [&, i](SkPoint origin) {
-                        return installation(i, origin, true);
-                      }));
+      g.child(glowing(
+          unroll(s.centre), module.barWidth, module.totalHeight(), s.rotation,
+          std::string("glow#") + s.name,
+          [&, i](SkPoint origin) { return installation(i, origin, true); }));
       if (s.falls)
-        g.child(glowing(unroll(s.centre), module.barWidth,
-                        module.totalHeight(), s.rotation,
-                        std::string("glow#") + s.name + "#fallen",
+        g.child(glowing(unroll(s.centre), module.barWidth, module.totalHeight(),
+                        s.rotation, std::string("glow#") + s.name + "#fallen",
                         [&, i](SkPoint origin) {
                           return installation(i, origin, false);
                         })
@@ -1373,13 +1370,13 @@ struct EvaMagiDefense : sketch::Sketch {
       // The falls: the cascade's own ladder, read one unit at a time. The
       // master is the seconds since the first fall over the span the
       // cascade says it needs, so the ladder and the clock cannot drift.
-      const float master = std::clamp(
-          (float)((t - kFirstFall) * 1000.0 / (double)falls.totalMs), 0.0f,
-          1.0f);
+      const float master =
+          std::clamp((float)((t - kFirstFall) * 1000.0 / (double)falls.totalMs),
+                     0.0f, 1.0f);
       for (int i = 0; i < kFallN; ++i)
-        fallAlpha[i] = kFallRest + (1.0f - kFallRest) *
-                                       ch::easeOutQuad(falls.localTime(
-                                           master, (uint32_t)i, 0));
+        fallAlpha[i] =
+            kFallRest + (1.0f - kFallRest) * ch::easeOutQuad(falls.localTime(
+                                                 master, (uint32_t)i, 0));
       return true;
     });
 

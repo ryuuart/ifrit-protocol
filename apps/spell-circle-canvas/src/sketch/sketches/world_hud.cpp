@@ -60,25 +60,25 @@
  */
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/brush/PixelStyles.h>
-#include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Paint.h>
-#include <sigilcompose/core/Pattern.h>
-#include <sigilmaterial/pattern/Patterns.h>
 #include <sigilcompose/core/Instances.h>
-#include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilweave/style/Type.h>
+#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilmaterial/kit/Surface.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <cmath>
@@ -106,8 +106,8 @@ namespace path = sigil::geometry::path;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -194,8 +194,8 @@ inline Element boneFrame(float w, float h, float radius = 3) {
       .width(Dim(w))
       .height(Dim(h))
       .corners({radius})
-      .fill(Paint::linear(
-          {0, 0}, {0, h}, {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
+      .fill(Paint::linear({0, 0}, {0, h},
+                          {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}))
       // The grain: Veloren's frames are carved, and a ramp with no noise
       // in it is a plastic one. It rides UNDER the bevel, so the carve
       // reads through the highlight rather than over it.
@@ -226,7 +226,7 @@ inline Element bar(float frameW, float frameH, float innerW, float innerH,
                 .width(Dim(innerW * decay))
                 .height(Dim(innerH))
                 .fill(Paint::solid({kQualityEpic.fR, kQualityEpic.fG,
-                                       kQualityEpic.fB, 0.55f})));
+                                    kQualityEpic.fB, 0.55f})));
   e.child(
       box()
           .left(padX)
@@ -486,8 +486,8 @@ struct WorldHud final : sketch::Set {
     ctx.canvas((int)kSceneSize.fWidth, (int)kSceneSize.fHeight);
     ctx.captureAt(6.0);
     ctx.background({0.086f, 0.118f, 0.165f, 1.0f});
-    overlay = ctx.textureScene({(int)kSceneSize.fWidth,
-                                (int)kSceneSize.fHeight});
+    overlay =
+        ctx.textureScene({(int)kSceneSize.fWidth, (int)kSceneSize.fHeight});
 
     lens.eye = wh::kEye;
     lens.target = wh::kLook;
@@ -505,12 +505,11 @@ struct WorldHud final : sketch::Set {
         {wh::kSlotFrame, wh::kSlotFrame});
     slotPool = std::make_shared<instancing::Pool>();
     for (int i = 0; i < wh::kSlotCount; ++i)
-      slotPool->add(
-          {arrange::cellRect({i, 0}, {wh::kSlotFrame, wh::kSlotFrame},
-                             {wh::kSlotGap, 0})
-                   .fLeft +
-               wh::kSlotFrame * 0.5f,
-           wh::kSlotFrame * 0.5f});
+      slotPool->add({arrange::cellRect({i, 0}, {wh::kSlotFrame, wh::kSlotFrame},
+                                       {wh::kSlotGap, 0})
+                             .fLeft +
+                         wh::kSlotFrame * 0.5f,
+                     wh::kSlotFrame * 0.5f});
     retained = hud();
   }
 
@@ -626,9 +625,9 @@ struct WorldHud final : sketch::Set {
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&hp)
                       .fill(Paint::linear({0, 0}, {0, wh::kHealthInnerH},
-                                             {{0.0f, hex(0x7FE000)},
-                                              {0.5f, wh::kHp},
-                                              {1.0f, hex(0x2F5C00)}})));
+                                          {{0.0f, hex(0x7FE000)},
+                                           {0.5f, wh::kHp},
+                                           {1.0f, hex(0x2F5C00)}})));
     stackEl.child(box()
                       .left(wh::kBarX)
                       .top(wh::kBarY)
@@ -636,7 +635,7 @@ struct WorldHud final : sketch::Set {
                       .height(Dim(wh::kHealthH))
                       .corners({2})
                       .fill(Paint::solid({wh::kCritHp.fR, wh::kCritHp.fG,
-                                             wh::kCritHp.fB, 0.55f}))
+                                          wh::kCritHp.fB, 0.55f}))
                       .opacity(&lowPulse)
                       .blend(SkBlendMode::kPlus));
     stackEl.child(text(toU8("640 / 1030"), wh::type(11, wh::kInk, 0.8f))
@@ -716,10 +715,10 @@ struct WorldHud final : sketch::Set {
                        .height(Dim(wh::kSlotFrame));
     rail.child(instances(slotAtlas, slotPool));
     for (int i = 0; i < wh::kSlotCount; ++i) {
-      const float x = arrange::cellRect({i, 0},
-                                       {wh::kSlotFrame, wh::kSlotFrame},
-                                       {wh::kSlotGap, 0})
-                          .fLeft;
+      const float x =
+          arrange::cellRect({i, 0}, {wh::kSlotFrame, wh::kSlotFrame},
+                            {wh::kSlotGap, 0})
+              .fLeft;
       if (kSlots[i].filled)
         rail.child(
             box()
@@ -728,8 +727,8 @@ struct WorldHud final : sketch::Set {
                 .width(Dim(24.0f))
                 .height(Dim(24.0f))
                 .shape(wh::glyphPath(kSlots[i].glyph))
-                .fill(Paint::linear(
-                    {0, 0}, {0, 24}, {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
+                .fill(Paint::linear({0, 0}, {0, 24},
+                                    {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
                 // several glyphs are line-only (frost, dash, bow):
                 // a fill alone leaves them invisible
                 .stroke(stroke(2.2f, Fill::color(wh::kBoneHi)))
@@ -738,17 +737,17 @@ struct WorldHud final : sketch::Set {
       // four of them are cooling down: the sweep Veloren draws as a dark
       // wipe over the icon
       if (i >= 1 && i <= 4)
-        rail.child(box()
-                       .left(x + 3)
-                       .top(3)
-                       .width(Dim(wh::kSlot - 4))
-                       .height(Dim(wh::kSlot - 4))
-                       .transformOrigin(0.5f, 0.0f)
-                       .scaleY(&cooldown[(size_t)i - 1])
-                       .fill(Paint::linear(
-                           {0, 0}, {0, wh::kSlot - 4},
-                           {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
-                            {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
+        rail.child(
+            box()
+                .left(x + 3)
+                .top(3)
+                .width(Dim(wh::kSlot - 4))
+                .height(Dim(wh::kSlot - 4))
+                .transformOrigin(0.5f, 0.0f)
+                .scaleY(&cooldown[(size_t)i - 1])
+                .fill(Paint::linear({0, 0}, {0, wh::kSlot - 4},
+                                    {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
+                                     {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}})));
       rail.child(text(toU8(kSlots[i].key), wh::type(9, wh::kInkDim, 0.6f))
                      .left(x + 4)
                      .top(wh::kSlotFrame - 13));
@@ -819,40 +818,39 @@ struct WorldHud final : sketch::Set {
                            .blend(SkBlendMode::kMultiply))
                 .child(box().inset(0).fill(
                     Paint::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
-                                     {{0.0f, {0, 0, 0, 0}},
-                                      {0.72f, {0, 0, 0, 0.25f}},
-                                      {1.0f, {0, 0, 0, 0.75f}}})))
+                                  {{0.0f, {0, 0, 0, 0}},
+                                   {0.72f, {0, 0, 0, 0.25f}},
+                                   {1.0f, {0, 0, 0, 0.75f}}})))
                 // the rivers Veloren's world always has
-                .child(box()
-                           .inset(0)
-                           .fill(Pattern(mpattern::stripes(
-                                             2, 47,
-                                             mskia::toColor(
-                                                 hex(0x2F6FA8, 0.30f))))
-                                     .material())
-                           .rotate(24.0f)
-                           .opacity(0.7f)))
+                .child(
+                    box()
+                        .inset(0)
+                        .fill(Pattern(mpattern::stripes(
+                                          2, 47,
+                                          mskia::toColor(hex(0x2F6FA8, 0.30f))))
+                                  .material())
+                        .rotate(24.0f)
+                        .opacity(0.7f)))
         // THE COMPASS ROSE, turning under the frame. It is a rose and not
         // a cross: small, at the middle, eight points, with the four
         // cardinal arms longer than the four between them.
-        .child(box()
-                   .left(d * 0.5f - 23)
-                   .top(d * 0.5f - 23)
-                   .width(Dim(46.0f))
-                   .height(Dim(46.0f))
-                   .rotate(&compass)
-                   .child(box()
-                              .inset(0)
-                              .shape(shapes::star(8, 0.34f))
-                              .fill(Paint::solid({wh::kBoneHi.fR,
-                                                     wh::kBoneHi.fG,
-                                                     wh::kBoneHi.fB, 0.30f})))
-                   .child(box()
-                              .inset(9)
-                              .shape(shapes::star(4, 0.22f))
-                              .fill(Paint::solid({wh::kBoneHi.fR,
-                                                     wh::kBoneHi.fG,
-                                                     wh::kBoneHi.fB, 0.62f}))))
+        .child(
+            box()
+                .left(d * 0.5f - 23)
+                .top(d * 0.5f - 23)
+                .width(Dim(46.0f))
+                .height(Dim(46.0f))
+                .rotate(&compass)
+                .child(box()
+                           .inset(0)
+                           .shape(shapes::star(8, 0.34f))
+                           .fill(Paint::solid({wh::kBoneHi.fR, wh::kBoneHi.fG,
+                                               wh::kBoneHi.fB, 0.30f})))
+                .child(box()
+                           .inset(9)
+                           .shape(shapes::star(4, 0.22f))
+                           .fill(Paint::solid({wh::kBoneHi.fR, wh::kBoneHi.fG,
+                                               wh::kBoneHi.fB, 0.62f}))))
         .child(box()
                    .left(d * 0.5f - 4)
                    .top(d * 0.5f - 4)
@@ -937,9 +935,9 @@ struct WorldHud final : sketch::Set {
               .corners({4})
               .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
               .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
-              .fill(Paint::linear(
-                  {0, 0}, {0, 30},
-                  {{0.0f, hex(0x2A2118)}, {1.0f, hex(0x120C08)}}))
+              .fill(
+                  Paint::linear({0, 0}, {0, 30},
+                                {{0.0f, hex(0x2A2118)}, {1.0f, hex(0x120C08)}}))
               .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
                                                     p.color.fB, 0.28f})))
               // THE DRAIN RING: the same outline stroked again, trimmed
@@ -986,21 +984,22 @@ struct WorldHud final : sketch::Set {
                        .zIndex(6)
                        .staggerChildren(90ms);
     for (const Line& l : kLines)
-      feed.child(box()
-                     .row()
-                     .alignItems(Align::Center)
-                     .gap(7)
-                     .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
-                     .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
-                     .child(box()
-                                .width(Dim(16.0f))
-                                .height(Dim(16.0f))
-                                .corners({2})
-                                .fill(Paint::solid({l.color.fR * 0.28f,
-                                                       l.color.fG * 0.28f,
-                                                       l.color.fB * 0.28f, 1}))
-                                .foreground(stroke(1.0f, Fill::color(l.color))))
-                     .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
+      feed.child(
+          box()
+              .row()
+              .alignItems(Align::Center)
+              .gap(7)
+              .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
+              .translateX(animate(motion::from(-24.0f).to(0.0f), {480ms}))
+              .child(box()
+                         .width(Dim(16.0f))
+                         .height(Dim(16.0f))
+                         .corners({2})
+                         .fill(Paint::solid({l.color.fR * 0.28f,
+                                             l.color.fG * 0.28f,
+                                             l.color.fB * 0.28f, 1}))
+                         .foreground(stroke(1.0f, Fill::color(l.color))))
+              .child(text(toU8(l.text), wh::type(11, l.color, 0.4f))));
     return feed;
   }
 

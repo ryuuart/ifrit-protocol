@@ -206,7 +206,6 @@
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Ops.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
@@ -662,14 +661,14 @@ SkPath crescentRing(float rOut, float rIn, int count, float spanDeg,
   const SkRect ovalIn = SkRect::MakeLTRB(kEye.x() - ri, kEye.y() - ri,
                                          kEye.x() + ri, kEye.y() + ri);
   for (int k = 0; k < count; ++k) {
-    const float mid = arrange::along(fromDeg, 360.0f, (size_t)k,
-                                     (size_t)count, arrange::Turn::Closed);
+    const float mid = arrange::along(fromDeg, 360.0f, (size_t)k, (size_t)count,
+                                     arrange::Turn::Closed);
     const float lo = mid - spanDeg * 0.5f;
     b.addArc(ovalOut, lo - 90.0f, spanDeg);
     b.addArc(ovalIn, lo - 90.0f, spanDeg);
     for (int r = 0; r <= rungs; ++r) {
-      const float th = arrange::along(lo, spanDeg, (size_t)r,
-                                      (size_t)rungs + 1, arrange::Turn::Open);
+      const float th = arrange::along(lo, spanDeg, (size_t)r, (size_t)rungs + 1,
+                                      arrange::Turn::Open);
       // The two ends are full ties; the rungs between them are stubs off
       // the inner arc, so the mark reads as a bracket and not as a grid.
       const bool end = r == 0 || r == rungs;
@@ -1869,8 +1868,8 @@ struct RotaConvocationis : sketch::Sketch {
             .absolute()
             .inset(0)
             .hitTestable(false)
-            .backdrop(mskia::Effect::shader(fringeFx, {{"uCx", kEye.x()},
-                                                             {"uCy", kEye.y()}})
+            .backdrop(mskia::Effect::shader(
+                          fringeFx, {{"uCx", kEye.x()}, {"uCy", kEye.y()}})
                           .uniform("uSpread", &fringeK))
             .opacity(&fringeA));
 

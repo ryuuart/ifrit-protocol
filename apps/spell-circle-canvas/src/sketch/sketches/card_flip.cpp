@@ -75,8 +75,9 @@ constexpr SkColor4f kEdge{1, 1, 1, 0.22f};
 
 /** The six faces' colours, front first and back last. */
 constexpr SkColor4f kFaces[6] = {
-    {0.88f, 0.34f, 0.24f, 1}, {0.95f, 0.72f, 0.20f, 1}, {0.30f, 0.70f, 0.45f, 1},
-    {0.16f, 0.42f, 0.78f, 1}, {0.62f, 0.36f, 0.78f, 1}, {0.85f, 0.85f, 0.80f, 1},
+    {0.88f, 0.34f, 0.24f, 1}, {0.95f, 0.72f, 0.20f, 1},
+    {0.30f, 0.70f, 0.45f, 1}, {0.16f, 0.42f, 0.78f, 1},
+    {0.62f, 0.36f, 0.78f, 1}, {0.85f, 0.85f, 0.80f, 1},
 };
 constexpr const char* kFaceNames[6] = {"F", "R", "T", "L", "B", "K"};
 
@@ -131,8 +132,8 @@ struct CardFlip final : sketch::Sketch {
    *  hides its back, so whichever faces the viewer is the one drawn. */
   Element card() const {
     constexpr float w = 220, h = 320;
-    const auto face = [&](const char* title, const char* line,
-                          SkColor4f fill, float turn) {
+    const auto face = [&](const char* title, const char* line, SkColor4f fill,
+                          float turn) {
       return box()
           .absolute()
           .rect(SkRect::MakeXYWH(0, 0, w, h))
@@ -212,8 +213,8 @@ struct CardFlip final : sketch::Sketch {
   Element describe() const {
     constexpr float gap = 20, top = 40, ph = 440;
     // Not arrange::moduleSize: this measure takes the outer margins out
-  // of the width as well, and a module's gaps sit only between.
-  constexpr float pw = (kCanvas.fWidth - 4 * gap) / 3;
+    // of the width as well, and a module's gaps sit only between.
+    constexpr float pw = (kCanvas.fWidth - 4 * gap) / 3;
     return stack()
         .fill(Fill::color(kGround))
         .child(text(toU8("THE DEPTH LANES \xe2\x80\x94 A NODE IS A PLANE"),

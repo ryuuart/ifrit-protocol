@@ -15,16 +15,15 @@
  */
 
 #include <sigilcompose/typography/TextEffect.h>
+#include <sigilcore/compute/Intervals.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/query/Query.h>
-
-#include <sigilcore/compute/Intervals.h>
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <numeric>
 #include <utility>
@@ -354,8 +353,8 @@ using Ranges = std::vector<sigil::weave::CharRange>;
  *  in. A code-unit index is exact, so the interval algebra runs with no
  *  epsilon and no clamp beyond the paragraph's own length. */
 Ranges normalize(Ranges ranges, uint32_t length = UINT32_MAX) {
-  return core::normalizeIntervals<sigil::weave::CharRange>(std::move(ranges), 0u,
-                                                           length);
+  return core::normalizeIntervals<sigil::weave::CharRange>(std::move(ranges),
+                                                           0u, length);
 }
 
 Ranges intersectRanges(const Ranges& a, const Ranges& b) {

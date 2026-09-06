@@ -70,9 +70,8 @@ SkBitmap colourRamp() {
   SkBitmap ramp;
   ramp.allocPixels(SkImageInfo::MakeN32Premul(256, 1));
   for (int i = 0; i < 256; ++i)
-    *ramp.getAddr32(i, 0) = SkPreMultiplyColor(
-        SkColorSetARGB(255, (uint32_t)i, (uint32_t)(255 - i),
-                       (uint32_t)((i * 7) % 256)));
+    *ramp.getAddr32(i, 0) = SkPreMultiplyColor(SkColorSetARGB(
+        255, (uint32_t)i, (uint32_t)(255 - i), (uint32_t)((i * 7) % 256)));
   ramp.setImmutable();
   return ramp;
 }

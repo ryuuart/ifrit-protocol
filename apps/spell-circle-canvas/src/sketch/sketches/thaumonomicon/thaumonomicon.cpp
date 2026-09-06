@@ -137,8 +137,6 @@
 // a wider dark line rather than a blur.
 // =============================================================================
 
-#include "ResearchWeb.h"
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMgr.h>
@@ -172,6 +170,8 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+
+#include "ResearchWeb.h"
 
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
@@ -403,10 +403,9 @@ inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
                       float bow = 0.0f) {
   Brush br;
   if (bow > 0)
-    br.shaped(
-        shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
-  br.shaped(shapers::Jitter{
-      .segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
+    br.shaped(shapers::Wave{.amplitude = g(bow), .wavelength = g(30)});
+  br.shaped(
+      shapers::Jitter{.segLength = g(4.5f), .deviation = g(0.45f), .seed = 21});
   // The bed: a crisp dark outline a GUI px wider than the body, and NO blur.
   // brush::Pattern and brush::Scatter bake their art with snapshot(), which
   // records DRAW CALLS, so an SkMaskFilter inside a tile is re-run on every
@@ -419,9 +418,10 @@ inline Brush penBrush(SkColor4f tint, float k, const Element& spatter,
   // the body: one rule — state moves VALUE, never width
   br.layer(lines::Line{.width = g(1.3f) * k, .fill = Fill::color(tint)});
   // the dry edge: a hairline offset to one side, where the nib lifted
-  br.layer(lines::Line{.width = g(0.45f) * k,
-                       .fill = Fill::color(scaleRgb(tint, 1.35f, 0.85f * tint.fA))},
-           {shapers::Offset{.px = g(0.85f), .step = g(2)}});
+  br.layer(
+      lines::Line{.width = g(0.45f) * k,
+                  .fill = Fill::color(scaleRgb(tint, 1.35f, 0.85f * tint.fA))},
+      {shapers::Offset{.px = g(0.85f), .step = g(2)}});
   br.layer(brush::Scatter{.art = spatter,
                           .spacing = g(13),
                           .seed = 9,
@@ -476,9 +476,9 @@ inline Element knotCell(SkColor4f tint) {
                   .height(g(3.2f))
                   .shape(shapes::polygon(4, 0))
                   .fill(Fill::color(scaleRgb(tint, 1.12f)));
-  e.stroke(
-      PathFormat{.width = g(1.1f),
-                 .strokeFill = Fill::color(scaleRgb(kInkDeep, 1, 0.9f * tint.fA))});
+  e.stroke(PathFormat{
+      .width = g(1.1f),
+      .strokeFill = Fill::color(scaleRgb(kInkDeep, 1, 0.9f * tint.fA))});
   return e;
 }
 
@@ -606,22 +606,23 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
   const SkColor4f face = hidden ? scaleRgb(kPaper, 0.80f) : kPaper;
   const SkColor4f lit = hidden ? scaleRgb(kPaperLit, 0.80f) : kPaperLit;
 
-  Element e = box()
-                  .width(g(32))
-                  .height(g(32))
-                  .shape(shape)
-                  .fill(Paint::radialUnit(
-                      {0.38f, 0.32f}, 1.05f,
-                      {{0.0f, lit}, {0.55f, face}, {1.0f, scaleRgb(face, 0.42f)}}))
-                  .overlay(lines::Hatch{
-                      .strokeFill = Fill::color(scaleRgb(kPaperDark, 1, 0.13f)),
-                      .spacing = g(3.2f),
-                      .width = g(0.6f),
-                      .angleDeg = 32});
+  Element e =
+      box()
+          .width(g(32))
+          .height(g(32))
+          .shape(shape)
+          .fill(Paint::radialUnit(
+              {0.38f, 0.32f}, 1.05f,
+              {{0.0f, lit}, {0.55f, face}, {1.0f, scaleRgb(face, 0.42f)}}))
+          .overlay(lines::Hatch{
+              .strokeFill = Fill::color(scaleRgb(kPaperDark, 1, 0.13f)),
+              .spacing = g(3.2f),
+              .width = g(0.6f),
+              .angleDeg = 32});
   // A doubled rule: a solid outer and a dotted inner that stops short.
   Brush rule;
-  rule.shaped(shapers::Jitter{
-      .segLength = g(5), .deviation = g(0.7f), .seed = seed});
+  rule.shaped(
+      shapers::Jitter{.segLength = g(5), .deviation = g(0.7f), .seed = seed});
   lines::Line outer;
   outer.width = g(1.6f);
   outer.fill = Fill::color(scaleRgb(kInkDeep, 1.0f, hidden ? 0.55f : 0.9f));
@@ -630,8 +631,7 @@ inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
   inner.width = g(0.8f);
   inner.fill = Fill::color(scaleRgb(kBrassLit, hidden ? 0.35f : 0.75f));
   inner.dashIntervals = {g(2.0f), g(hidden ? 4.0f : 2.5f)};
-  rule.layer(inner,
-             {shapers::Offset{.px = -g(2.4f), .step = g(2)}});
+  rule.layer(inner, {shapers::Offset{.px = -g(2.4f), .step = g(2)}});
   e.stroke(rule);
   return e;
 }
@@ -645,8 +645,8 @@ inline Element spikyOverlay(uint32_t seed) {
                   .shape(shapes::star(8, 0.74f, 0.35f))
                   .fill(Fill::color(scaleRgb(kBrass, 1.0f, 0.30f)));
   Brush br;
-  br.shaped(shapers::Jitter{
-      .segLength = g(4), .deviation = g(0.6f), .seed = seed});
+  br.shaped(
+      shapers::Jitter{.segLength = g(4), .deviation = g(0.6f), .seed = seed});
   lines::Line l;
   l.width = g(1.1f);
   l.fill = Fill::color(scaleRgb(kBrassLit, 0.9f, 0.85f));
@@ -699,7 +699,7 @@ inline void drawGlyph(SkCanvas& canvas, int glyph, float alpha) {
       const SkColor4f c = a(aspect::kAlkimia);
       for (int i = 0; i < 6; ++i) {
         const float ang = arrange::along(0.0f, 6.2831853f, (size_t)i, 6,
-                                        arrange::Turn::Closed);
+                                         arrange::Turn::Closed);
         k.px(8 + 5 * std::cos(ang) - 0.5f, 8 + 5 * std::sin(ang) - 0.5f, c);
       }
       k.r(6, 4, 4, 1, c);
@@ -888,20 +888,19 @@ inline Element pageBadge() {
   Element e = box()
                   .width(g(11))
                   .height(g(13))
-                  .shape(keyedShape(
-                      std::string_view("page-badge"),
-                      [](SkSize s) {
-                        SkPathBuilder p;
-                        const float w = s.width(), h = s.height(),
-                                    c = w * 0.42f;
-                        p.moveTo(0, 0);
-                        p.lineTo(w - c, 0);
-                        p.lineTo(w, c);
-                        p.lineTo(w, h);
-                        p.lineTo(0, h);
-                        p.close();
-                        return p.detach();
-                      }))
+                  .shape(keyedShape(std::string_view("page-badge"),
+                                    [](SkSize s) {
+                                      SkPathBuilder p;
+                                      const float w = s.width(), h = s.height(),
+                                                  c = w * 0.42f;
+                                      p.moveTo(0, 0);
+                                      p.lineTo(w - c, 0);
+                                      p.lineTo(w, c);
+                                      p.lineTo(w, h);
+                                      p.lineTo(0, h);
+                                      p.close();
+                                      return p.detach();
+                                    }))
                   .fill(Fill::color(hex(0xD9E8C6)));
   e.stroke(PathFormat{.width = g(1), .strokeFill = Fill::color(hex(0x2A3A1E))});
   e.overlay(lines::Hatch{.strokeFill = Fill::color(hex(0x5A7A46, 0.75f)),
@@ -929,9 +928,9 @@ inline Element warpSwirl(const ch::Output<float>* spin, int strength) {
                   .height(g(44))
                   .shape(shapes::star(6, 0.50f, 0.62f))
                   .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                             {{0.0f, hex(0xC060FF, a)},
-                                              {0.45f, hex(0x7A0BA8, a * 0.8f)},
-                                              {1.0f, hex(0x2A0038, 0)}}))
+                                          {{0.0f, hex(0xC060FF, a)},
+                                           {0.45f, hex(0x7A0BA8, a * 0.8f)},
+                                           {1.0f, hex(0x2A0038, 0)}}))
                   .blend(SkBlendMode::kPlus)
                   .rotate(bind(spin).scale(360.0f));
   return e;
@@ -1133,11 +1132,11 @@ struct Thaumonomicon : sketch::Sketch {
         // ground — a 2.0 : 1.5 depth ratio only reads when the two planes
         // hold structure the eye can follow.
         Paint::radialUnit({0.44f, 0.38f}, 1.20f,
-                             {{0.00f, hex(0x6E2A72)},
-                              {0.22f, hex(0x4A1A56)},
-                              {0.46f, hex(0x2A1036)},
-                              {0.74f, hex(0x140A1C)},
-                              {1.00f, hex(0x060309)}}));
+                          {{0.00f, hex(0x6E2A72)},
+                           {0.22f, hex(0x4A1A56)},
+                           {0.46f, hex(0x2A1036)},
+                           {0.74f, hex(0x140A1C)},
+                           {1.00f, hex(0x060309)}}));
     // The painted plate under it: an alchemical wheel, a ruled margin, and
     // washes — the structure a photographed grimoire page carries and a noise
     // field never will.
@@ -1228,13 +1227,13 @@ struct Thaumonomicon : sketch::Sketch {
         .height(h)
         .blend(SkBlendMode::kScreen)
         .opacity(0.34f)
-        .fill(Paint::blend(
-            {{Paint::recipe(field::grain(0.0075f, 4, 11.0f)), SkBlendMode::kSrc},
-             {Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                   {{0.0f, hex(0xFFFFFF)},
-                                    {0.7f, hex(0x808080)},
-                                    {1.0f, hex(0x000000)}}),
-              SkBlendMode::kMultiply}}));
+        .fill(Paint::blend({{Paint::recipe(field::grain(0.0075f, 4, 11.0f)),
+                             SkBlendMode::kSrc},
+                            {Paint::radialUnit({0.5f, 0.5f}, 1.0f,
+                                               {{0.0f, hex(0xFFFFFF)},
+                                                {0.7f, hex(0x808080)},
+                                                {1.0f, hex(0x000000)}}),
+                             SkBlendMode::kMultiply}}));
   }
 
   // -------------------------------------------------------------------------
@@ -1399,8 +1398,8 @@ struct Thaumonomicon : sketch::Sketch {
    *  doubled rule whose inner line is dotted. Not a rounded rect anywhere. */
   static Element innerRule() {
     const float m = g(22), cut = g(26);
-    Element e = box().inset(0).shape(keyedShape(
-        std::tuple{m, cut}, [m, cut](SkSize s) {
+    Element e =
+        box().inset(0).shape(keyedShape(std::tuple{m, cut}, [m, cut](SkSize s) {
           const float l = m, t = m, r = s.width() - m, b = s.height() - m;
           SkPathBuilder p;
           p.moveTo(l + cut, t);
@@ -1422,8 +1421,7 @@ struct Thaumonomicon : sketch::Sketch {
     dotted.width = g(0.8f);
     dotted.fill = Fill::color(scaleRgb(kBrassLit, 0.85f, 0.65f));
     dotted.dashIntervals = {g(1.2f), g(3.0f)};
-    br.layer(dotted,
-             {shapers::Offset{.px = -g(2.5f), .step = g(3)}});
+    br.layer(dotted, {shapers::Offset{.px = -g(2.5f), .step = g(3)}});
     e.stroke(br);
     return e;
   }

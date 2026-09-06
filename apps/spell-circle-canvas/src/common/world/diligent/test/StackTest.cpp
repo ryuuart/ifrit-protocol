@@ -13,8 +13,8 @@
 #include <gtest/gtest.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilworld/diligent/Runtime.h>
 
 #include "DeviceSeams.h"
@@ -70,8 +70,7 @@ TEST(Stack, ShadesAsNeitherOperandWhereTheMaskIsHalf) {
   const SkColor4f base = centreOfCard(red(), on.runtime);
   const SkColor4f top = centreOfCard(blue(), on.runtime);
   const SkColor4f mixed = centreOfCard(
-      material::over(red(), blue(), material::maskConstant(0.5f)),
-      on.runtime);
+      material::over(red(), blue(), material::maskConstant(0.5f)), on.runtime);
 
   // Half of each, which is neither of them: the stack has to have run
   // both operands' bodies and mixed what they returned.
@@ -83,11 +82,9 @@ TEST(Stack, ShadesAsNeitherOperandWhereTheMaskIsHalf) {
 
   // …and at the ends of the mask it IS each of them.
   const SkColor4f none = centreOfCard(
-      material::over(red(), blue(), material::maskConstant(0.0f)),
-      on.runtime);
+      material::over(red(), blue(), material::maskConstant(0.0f)), on.runtime);
   const SkColor4f all = centreOfCard(
-      material::over(red(), blue(), material::maskConstant(1.0f)),
-      on.runtime);
+      material::over(red(), blue(), material::maskConstant(1.0f)), on.runtime);
   EXPECT_NEAR(none.fR, base.fR, 0.02f);
   EXPECT_NEAR(all.fB, top.fB, 0.02f);
 }

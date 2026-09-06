@@ -218,12 +218,11 @@ struct Tether {
    *  Both rects are in ONE space and the answer is in that space; which
    *  space that is belongs to the caller. */
   SkRect place(const SkRect& anchor, SkSize size) const {
-    return SkRect::MakeXYWH(
-        anchor.left() + anchor.width() * on.x() + offset.x() -
-            size.width() * at.x(),
-        anchor.top() + anchor.height() * on.y() + offset.y() -
-            size.height() * at.y(),
-        size.width(), size.height());
+    return SkRect::MakeXYWH(anchor.left() + anchor.width() * on.x() +
+                                offset.x() - size.width() * at.x(),
+                            anchor.top() + anchor.height() * on.y() +
+                                offset.y() - size.height() * at.y(),
+                            size.width(), size.height());
   }
 };
 
@@ -232,11 +231,10 @@ struct Tether {
  *  `RouteScheme` states. Equal values must route identical paths through
  *  every anchor run. */
 template <typename R>
-concept RailScheme =
-    std::equality_comparable<R> &&
-    requires(const R& r, std::span<const SkPoint> anchors) {
-      { r.route(anchors) } -> std::convertible_to<SkPath>;
-    };
+concept RailScheme = std::equality_comparable<R> &&
+                     requires(const R& r, std::span<const SkPoint> anchors) {
+                       { r.route(anchors) } -> std::convertible_to<SkPath>;
+                     };
 
 /** THE PATH THROUGH AN ORDERED RUN OF ANCHORS, type-erased: what
  *  `rail()` holds. Stock values in <sigilcompose/kit/Routers.h>

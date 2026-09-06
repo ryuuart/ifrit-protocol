@@ -52,9 +52,9 @@ TEST(Intervals, ABackwardsRunIsEitherTurnedRoundOrDropped) {
       {{0.7f, 0.2f}}, 0.0f, 1.0f, 1e-6f, Inverted::Swap);
   ASSERT_EQ(swapped.size(), 1u);
   EXPECT_EQ(swapped[0], (Arc{0.2f, 0.7f}));
-  EXPECT_TRUE(normalizeIntervals<Arc>({{0.7f, 0.2f}}, 0.0f, 1.0f, 1e-6f,
-                                      Inverted::Drop)
-                  .empty());
+  EXPECT_TRUE(
+      normalizeIntervals<Arc>({{0.7f, 0.2f}}, 0.0f, 1.0f, 1e-6f, Inverted::Drop)
+          .empty());
 }
 
 TEST(Intervals, TheComplementIsWhatTheSetLeavesInsideTheBounds) {
@@ -65,8 +65,8 @@ TEST(Intervals, TheComplementIsWhatTheSetLeavesInsideTheBounds) {
   EXPECT_EQ(gaps[1], (Arc{0.5f, 0.7f}));
   EXPECT_EQ(gaps[2], (Arc{0.9f, 1.0f}));
   // A set that covers everything leaves nothing.
-  EXPECT_TRUE(complementIntervals<Arc>({{0.0f, 1.0f}}, 0.0f, 1.0f, 1e-6f)
-                  .empty());
+  EXPECT_TRUE(
+      complementIntervals<Arc>({{0.0f, 1.0f}}, 0.0f, 1.0f, 1e-6f).empty());
 }
 
 TEST(Intervals, TheIntersectionIsOneSweepAndTouchingIsNotSharing) {
@@ -91,14 +91,13 @@ TEST(Intervals, TheOverlapReportReadsByItsOwnThreshold) {
 }
 
 TEST(Intervals, AnIntegerEndpointNeedsNoEpsilonAndItsOwnNames) {
-  const std::vector<Range> normal = normalizeIntervals<Range>(
-      {{10, 20}, {3, 3}, {0, 5}, {5, 8}}, 0u, 100u);
+  const std::vector<Range> normal =
+      normalizeIntervals<Range>({{10, 20}, {3, 3}, {0, 5}, {5, 8}}, 0u, 100u);
   ASSERT_EQ(normal.size(), 2u);
   // 0..5 and 5..8 are adjacent half-open runs, so they merge.
   EXPECT_EQ(normal[0], (Range{0, 8}));
   EXPECT_EQ(normal[1], (Range{10, 20}));
-  const std::vector<Range> gaps =
-      complementIntervals<Range>(normal, 0u, 100u);
+  const std::vector<Range> gaps = complementIntervals<Range>(normal, 0u, 100u);
   ASSERT_EQ(gaps.size(), 2u);
   EXPECT_EQ(gaps[0], (Range{8, 10}));
   EXPECT_EQ(gaps[1], (Range{20, 100}));

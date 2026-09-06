@@ -138,21 +138,22 @@ sk_sp<SkTypeface> romanBoldFace() {
 Element call(const char* words, float size = 9.5f, SkColor4f c = kInk) {
   return text(
       toU8(words),
-      weave::textStyle({.face = monoFace(), .size = size, .color = c, .track = 0.1f}));
+      weave::textStyle(
+          {.face = monoFace(), .size = size, .color = c, .track = 0.1f}));
 }
 Element roman(const char* words, float size, SkColor4f c = kInk,
               float tracking = 0) {
-  return text(toU8(words), weave::textStyle({.face = romanFace(),
-                                 .size = size,
-                                 .color = c,
-                                 .track = tracking}));
+  return text(
+      toU8(words),
+      weave::textStyle(
+          {.face = romanFace(), .size = size, .color = c, .track = tracking}));
 }
 Element romanBold(const char* words, float size, SkColor4f c = kInk,
                   float tracking = 0) {
   return text(toU8(words), weave::textStyle({.face = romanBoldFace(),
-                                 .size = size,
-                                 .color = c,
-                                 .track = tracking}));
+                                             .size = size,
+                                             .color = c,
+                                             .track = tracking}));
 }
 
 // ---------------------------------------------------------------------------
@@ -347,14 +348,16 @@ std::vector<Style> railStyles() {
 
   return {
       {"lines::Line{.width=2}", lines::Line{.width = 2, .fill = ink()}},
-      {"lines::presets::cased(2, ink, 6)", lines::presets::cased(2.0f, ink(), 6.0f)},
+      {"lines::presets::cased(2, ink, 6)",
+       lines::presets::cased(2.0f, ink(), 6.0f)},
       {"lines::presets::triple(1.6, ink, 5, 1.8)",
        lines::presets::triple(1.6f, ink(), 5.0f, 1.8f)},
       {"{.parallels=4, .gap=4}", quad},
       {"triple(1, ink, 5, coreFactor=4)  heavy/hair/heavy", heavyHair},
       {"cased(2,red,7) + dash{9,7}  rails stay in phase", dashedPair},
       {"{.across=-7}  positive across is LEFT of travel", offsetLine},
-      {"lines::presets::quad(1.4, ink, 5)", lines::presets::quad(1.4f, ink(), 5.0f)},
+      {"lines::presets::quad(1.4, ink, 5)",
+       lines::presets::quad(1.4f, ink(), 5.0f)},
       {"brush::presets::heavyHairHeavy(3, 0.6, ink, 6)",
        brush::presets::heavyHairHeavy(3.0f, 0.6f, ink(), 6.0f)},
       {"brush::presets::dottedCore(2, 1.4, ink, 7, 6)",
@@ -371,7 +374,9 @@ std::vector<Style> displacedStyles() {
   zig.zigzag = true;
 
   Brush square;
-  square.shaped(sigil::geometry::shapers::Square{.amplitude = 5, .wavelength = 26})
+  square
+      .shaped(
+          sigil::geometry::shapers::Square{.amplitude = 5, .wavelength = 26})
       .layer(lines::Line{.width = 1.6f, .fill = ink()});
 
   Brush sketch2;
@@ -385,13 +390,16 @@ std::vector<Style> displacedStyles() {
 
   Brush waveOnCased;
   waveOnCased
-      .shaped(sigil::geometry::shapers::Wave{.amplitude = 3.5f, .wavelength = 30})
+      .shaped(
+          sigil::geometry::shapers::Wave{.amplitude = 3.5f, .wavelength = 30})
       .layer(lines::presets::cased(1.6f, red(), 5.0f));
 
   return {
-      {"lines::presets::wavy(1.8, ink, 4, 18)", lines::presets::wavy(1.8f, ink(), 4.0f, 18.0f)},
+      {"lines::presets::wavy(1.8, ink, 4, 18)",
+       lines::presets::wavy(1.8f, ink(), 4.0f, 18.0f)},
       {"wavy(...) then .zigzag = true", zig},
-      {"Brush{}.shaped(sigil::geometry::shapers::Square{5,26})  battlement", square},
+      {"Brush{}.shaped(sigil::geometry::shapers::Square{5,26})  battlement",
+       square},
       {"two shapers::Jitter layers, seeds 7 + 41  (rough.js)", sketch2},
       {"shaped(shapers::Wave{3.5,30}).layer(cased(1.6,red,5))", waveOnCased},
   };
@@ -429,7 +437,8 @@ std::vector<Style> furnishedStyles() {
   return {
       {"lines::presets::railway(1.6, ink, 12, 10)",
        lines::presets::railway(1.6f, ink(), 12.0f, 10.0f)},
-      {"lines::presets::arrow(1.8, ink, 12)", lines::presets::arrow(1.8f, ink(), 12.0f)},
+      {"lines::presets::arrow(1.8, ink, 12)",
+       lines::presets::arrow(1.8f, ink(), 12.0f)},
       {"{.midCap=Arrow, .midSpacing=26}", chevrons},
       {"{.startCap=Dot, .endCap=Bar, .capSize=11}", terminals},
       {"{.alongStops={red, gold, blue}}  arc gradient", gradient},
@@ -445,19 +454,20 @@ std::vector<Style> stackStyles() {
        brush::presets::circuit({0.208f, 0.478f, 0.424f, 1}, 2)},
       {"brush::presets::filament(...)  4-pass additive glow",
        brush::presets::filament({0.20f, 0.42f, 0.66f, 1},
-                                     {0.10f, 0.12f, 0.16f, 1}, 0.55f)},
+                                {0.10f, 0.12f, 0.16f, 1}, 0.55f)},
       {"brush::presets::rope(state=2, scale=0.5)",
        brush::presets::rope(2, 0.5f)},
       {"brush::presets::pulse(...)  trim a window and march it",
        brush::presets::pulse({0.66f, 0.16f, 0.13f, 0.45f},
-                                  {0.15f, 0.13f, 0.11f, 0.9f}, 0.6f)},
+                             {0.15f, 0.13f, 0.11f, 0.9f}, 0.6f)},
   };
 }
 
 /** THE BANDS — a filled band whose width varies along the run. */
 std::vector<Style> bandStyles() {
   return {
-      {"brush::presets::taper(9, 0.6, ink)", brush::presets::taper(9.0f, 0.6f, ink())},
+      {"brush::presets::taper(9, 0.6, ink)",
+       brush::presets::taper(9.0f, 0.6f, ink())},
       {"brush::presets::calligraphic(38, 11, ink, 0.10)",
        brush::presets::calligraphic(38.0f, 11.0f, ink(), 0.10f)},
       {"brush::presets::calligraphic(-15, 9, red, 0.22)",
@@ -549,8 +559,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
                     .left(58)
                     .top(88));
     plate.child(call("PLATE I", 9.0f, kInkSoft).absolute().left(1470).top(88));
-    plate.child(
-        rule(56, 112, 1488, brush::presets::heavyHairHeavy(1.2f, 0.5f, ink(), 3.0f)));
+    plate.child(rule(56, 112, 1488,
+                     brush::presets::heavyHairHeavy(1.2f, 0.5f, ink(), 3.0f)));
 
     // ---- I. THE FAN ------------------------------------------------------
     // Straight is the easy case and a specimen book still starts there: the
@@ -590,8 +600,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
                         .shape(hline())
                         .stroke(fan[(size_t)i].dec));
         const float rad = deg * 0.0174532925f;
-        const SkPoint end = arrange::onEllipse(
-            {originX, originY}, {length + 9, length + 9}, rad);
+        const SkPoint end = arrange::onEllipse({originX, originY},
+                                               {length + 9, length + 9}, rad);
         const float ex = end.fX, ey = end.fY;
         const std::string numeral = kit::formatted("%d", i + 1);
         plate.child(
@@ -692,7 +702,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
       chev.capSize = 8.0f;
       Brush wavyRing;
       wavyRing
-          .shaped(sigil::geometry::shapers::Wave{.amplitude = 4, .wavelength = 26})
+          .shaped(
+              sigil::geometry::shapers::Wave{.amplitude = 4, .wavelength = 26})
           .layer(lines::Line{.width = 1.4f, .fill = red()});
       lines::Rails registered = lines::rails({
           {.across = 5, .width = 1.6f, .fill = ink(), .dash = {10, 8}},
@@ -788,9 +799,10 @@ struct StrokeAtlasSketch : sketch::Sketch {
                            shapes::spiral(3.2f, false, 0.10f),
                            lines::presets::railway(1.2f, red(), 11.0f, 8.0f),
                            "railway(1.2,red,11,8), same spiral"));
-      plate.child(specimen(460, 926, 150, 74, hairpin(),
-                           brush::presets::heavyHairHeavy(2.2f, 0.6f, ink(), 5.0f),
-                           "heavyHairHeavy round a hairpin"));
+      plate.child(
+          specimen(460, 926, 150, 74, hairpin(),
+                   brush::presets::heavyHairHeavy(2.2f, 0.6f, ink(), 5.0f),
+                   "heavyHairHeavy round a hairpin"));
       Brush hairSketch;
       hairSketch.layer(lines::Line{.width = 1.3f, .fill = soft()},
                        {sigil::geometry::shapers::Jitter{
@@ -947,8 +959,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
       {
         Brush scalloped;
         scalloped
-            .shaped(
-                sigil::geometry::shapers::Wave{.amplitude = 3.5f, .wavelength = 22})
+            .shaped(sigil::geometry::shapers::Wave{.amplitude = 3.5f,
+                                                   .wavelength = 22})
             .layer(lines::Line{.width = 1.4f, .fill = ink()});
         add("shaped(shapers::Wave{3.5,22}) on a closed rect", frameRect(8),
             scalloped, 1.4f);
@@ -967,7 +979,7 @@ struct StrokeAtlasSketch : sketch::Sketch {
       add("onEdges(Top|Bottom, stroke(2))", frameRect(8),
           onEdges(sigil::geometry::path::Edge::Top |
                       sigil::geometry::path::Edge::Bottom,
-                          stroke(2.0f, ink())),
+                  stroke(2.0f, ink())),
           -1.2f);
       add("lines::Rails as a border (ink/red/ink)", frameRect(10),
           lines::rails({{.across = 3, .width = 1.6f, .fill = ink()},
@@ -1044,12 +1056,9 @@ struct StrokeAtlasSketch : sketch::Sketch {
             .shape(keyedShape(std::string_view("chevron"),
                               [](SkSize s) {
                                 SkPathBuilder b;
-                                b.moveTo(s.width() * 0.15f,
-                                         s.height() * 0.12f);
-                                b.lineTo(s.width() * 0.88f,
-                                         s.height() * 0.5f);
-                                b.lineTo(s.width() * 0.15f,
-                                         s.height() * 0.88f);
+                                b.moveTo(s.width() * 0.15f, s.height() * 0.12f);
+                                b.lineTo(s.width() * 0.88f, s.height() * 0.5f);
+                                b.lineTo(s.width() * 0.15f, s.height() * 0.88f);
                                 return b.detach();
                               }))
             .stroke(lines::Line{.width = 1.6f, .fill = red()});
@@ -1128,7 +1137,8 @@ struct StrokeAtlasSketch : sketch::Sketch {
     }
 
     // ---- colophon --------------------------------------------------------
-    plate.child(rule(56, 1940, 1488, lines::presets::cased(0.8f, soft(), 3.0f)));
+    plate.child(
+        rule(56, 1940, 1488, lines::presets::cased(0.8f, soft(), 3.0f)));
     plate.child(
         call("SigilCompose \xc2\xb7 stroke_atlas.cpp \xc2\xb7 render it "
              "yourself: Sketchbook stroke_atlas.cpp --frame out.png",

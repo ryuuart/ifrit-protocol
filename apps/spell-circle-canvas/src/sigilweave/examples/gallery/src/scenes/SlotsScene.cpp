@@ -3,13 +3,13 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 

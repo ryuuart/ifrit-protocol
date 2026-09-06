@@ -896,6 +896,5 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   EXPECT_GT(inked, 50) << "the reported checks drew nothing";
 }
 
-
 // ---------------------------------------------------------------------------
 // The stroke grammar: shape(), spans, band().

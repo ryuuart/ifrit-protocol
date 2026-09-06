@@ -58,7 +58,7 @@ inline constexpr Beats Text = Beats::Text;
  *  static leaf. */
 struct Track {
   sigil::weave::Selector where;  ///< default: every glyph
-  TextEffect effect; /**< what it does */
+  TextEffect effect;             /**< what it does */
   /** THE PER-UNIT TIME REMAP (the GSAP stagger model), which is
    *  SigilMotion's and says nothing about text: the master progress
    *  [0,1] spans `durationMs + eachMs·(N−1)` of virtual time, where N is

@@ -118,8 +118,7 @@ TEST(Scatter, EveryPointLandsInsideTheRegionAndNoneInTheHole) {
     const std::vector<glm::vec2> points = sample(region, distribution);
     EXPECT_FALSE(points.empty());
     for (const glm::vec2 point : points) {
-      EXPECT_TRUE(region.contains(point))
-          << point.x << ", " << point.y;
+      EXPECT_TRUE(region.contains(point)) << point.x << ", " << point.y;
       EXPECT_FALSE(point.x > 75 && point.x < 125 && point.y > 75 &&
                    point.y < 125);
     }

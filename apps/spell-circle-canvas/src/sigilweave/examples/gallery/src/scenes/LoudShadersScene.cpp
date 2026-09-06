@@ -1,7 +1,9 @@
 // Scene: extreme, "seen from across the room" SkSL shaders as glyph
 // foregrounds, alongside the brighter, twinkling sparkle overlay.
 #include <include/core/SkBlendMode.h>
+#include <sigilcore/cache/Rebuild.h>
 #include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <algorithm>
@@ -10,8 +12,6 @@
 
 #include "EffectsParts.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 
@@ -121,7 +121,8 @@ class LoudShadersPart final : public Scene {
   std::array<ParagraphLayout, 4> m_layouts;
   std::array<PaintStyle, 4> m_paints;
   std::array<uint32_t, 4> m_textLengths{};
-  sigil::core::RebuildGuard<QString, const SkTypeface*, float, SkISize> m_rebuild;
+  sigil::core::RebuildGuard<QString, const SkTypeface*, float, SkISize>
+      m_rebuild;
   sk_sp<SkTypeface> m_serif;
 };
 

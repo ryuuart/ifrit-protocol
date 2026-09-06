@@ -121,7 +121,8 @@ TEST(Profile, StepsHoldOneWidthPerSpanAndDoNotInterpolate) {
   EXPECT_FLOAT_EQ(profile::spans({0.5f}, {2.0f}).across(0.9f), 2.0f);
   EXPECT_FLOAT_EQ(profile::spans({}, {}).across(0.5f), 0.0f);
   EXPECT_TRUE(profile::spans({0.5f}, {1, 2}) == profile::spans({0.5f}, {1, 2}));
-  EXPECT_FALSE(profile::spans({0.5f}, {1, 2}) == profile::spans({0.6f}, {1, 2}));
+  EXPECT_FALSE(profile::spans({0.5f}, {1, 2}) ==
+               profile::spans({0.6f}, {1, 2}));
 }
 
 TEST(Profile, APxKeyedLawIsConvertedOnceByTheSeam) {

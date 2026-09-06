@@ -5,8 +5,9 @@
  * decode backends.
  *
  * A Hub maps URI prefixes onto directories, so application code asks
- * for "res://ui/logo.png" and never touches the filesystem again. Resources are cached, hot-reloadable (poll()
- * re-checks everything previously loaded), and typed:
+ * for "res://ui/logo.png" and never touches the filesystem again. Resources are
+ * cached, hot-reloadable (poll() re-checks everything previously loaded), and
+ * typed:
  *
  *   hub.mount("res://", assetsDir);
  *   auto bytes = hub.blob("res://data/table.bin");

@@ -4,9 +4,9 @@
 // support builds on this one too, for the path baselines and upright
 // columns exercised on `geometry::shapes::` silhouettes.
 
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 

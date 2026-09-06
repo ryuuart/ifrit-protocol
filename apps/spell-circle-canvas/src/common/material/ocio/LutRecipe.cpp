@@ -16,8 +16,7 @@ const std::shared_ptr<const Recipe>& lutRecipe() {
       Recipe::of<LutParams>("color.lut3d")
           .child("content")
           .child("lut")
-          .body(Target::SkSL,
-                std::string(shaderSource("Lut3d.sksl"))));
+          .body(Target::SkSL, std::string(shaderSource("Lut3d.sksl"))));
   return recipe;
 }
 
@@ -27,8 +26,7 @@ const std::shared_ptr<const Recipe>& responseRecipe() {
           .child("content")
           .child("lut")
           .channelwise("lut")
-          .body(Target::SkSL,
-                std::string(shaderSource("Response1d.sksl"))));
+          .body(Target::SkSL, std::string(shaderSource("Response1d.sksl"))));
   return recipe;
 }
 

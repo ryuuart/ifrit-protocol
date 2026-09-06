@@ -155,11 +155,10 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
   std::vector<std::pair<float, sigil::material::Color>> runs;
   for (char term : word) {
     const float cell = term == 'A' ? unit * 1.618f : unit;
-    runs.push_back({cell - 3.0f, term == 'A'
-                                     ? sigil::material::Color{0.251f, 0.863f,
-                                                              1.0f, 1}
-                                     : sigil::material::Color{1.0f, 0.471f,
-                                                              0.863f, 1}});
+    runs.push_back(
+        {cell - 3.0f, term == 'A'
+                          ? sigil::material::Color{0.251f, 0.863f, 1.0f, 1}
+                          : sigil::material::Color{1.0f, 0.471f, 0.863f, 1}});
     runs.push_back({3.0f, {0.039f, 0.047f, 0.094f, 1}});
   }
   // The shelf lays its runs along +x and the band reads its texture down
@@ -196,28 +195,28 @@ struct ShapeworksLab : sketch::Sketch {
     // the frame's, and a live paint here would re-run one shader over
     // every pixel of the badge for a picture that never changes.
     Element outlineLab =
-        custom("lab.outline", [this](SkCanvas& canvas,
-                                     const PaintContext& paint) {
-          canvas.save();
-          canvas.translate(paint.size.width() * 0.5f,
-                           paint.size.height() * 0.5f);
-          if (cooked) material::skia::fill(canvas, cookedPath, *cooked);
-          canvas.restore();
-        })
+        custom("lab.outline",
+               [this](SkCanvas& canvas, const PaintContext& paint) {
+                 canvas.save();
+                 canvas.translate(paint.size.width() * 0.5f,
+                                  paint.size.height() * 0.5f);
+                 if (cooked) material::skia::fill(canvas, cookedPath, *cooked);
+                 canvas.restore();
+               })
             .inset(30, 50, 690, 350)
             .cache(Cache::Texture);
 
     // SURFACES — the literal recipes (materials prebuilt in setup), and
     // static for the same reason, so the same bake is asked for.
     Element materialLab =
-        custom("lab.materials", [this](SkCanvas& canvas,
-                                       const PaintContext& paint) {
-          (void)paint;
-          if (backdrop) canvas.drawImage(backdrop, 0, 0);
-          if (gold) material::skia::fill(canvas, goldPath, *gold);
-          if (chrome) material::skia::fill(canvas, chromePath, *chrome);
-          if (glass) material::skia::fill(canvas, glassPath, *glass);
-        })
+        custom("lab.materials",
+               [this](SkCanvas& canvas, const PaintContext& paint) {
+                 (void)paint;
+                 if (backdrop) canvas.drawImage(backdrop, 0, 0);
+                 if (gold) material::skia::fill(canvas, goldPath, *gold);
+                 if (chrome) material::skia::fill(canvas, chromePath, *chrome);
+                 if (glass) material::skia::fill(canvas, glassPath, *glass);
+               })
             .inset(30, 440, 710, 40)
             .cache(Cache::Texture);
 
@@ -242,7 +241,7 @@ struct ShapeworksLab : sketch::Sketch {
           steel.specular = 0.9f;
           mesh::render::drawMesh(canvas,
                                  pop::sweep(rail, sections::circle(),
-                                              {.segments = 180, .scale = 7}),
+                                            {.segments = 180, .scale = 7}),
                                  glm::mat4(1.0f), camera, viewport, steel);
           SkPaint wire;
           wire.setAntiAlias(true);
@@ -263,11 +262,10 @@ struct ShapeworksLab : sketch::Sketch {
           band.uvTransform = SkMatrix::Translate(0, t * 0.11f);
           mesh::render::drawMesh(
               canvas,
-              pop::sweep(closedLoop(loopAt(t, 265, 96)),
-                           sections::line(),
-                           {.segments = 220,
-                            .scale = 30,
-                            .normals = pop::SweepOptions::Normals::Frame}),
+              pop::sweep(closedLoop(loopAt(t, 265, 96)), sections::line(),
+                         {.segments = 220,
+                          .scale = 30,
+                          .normals = pop::SweepOptions::Normals::Frame}),
               glm::mat4(1.0f), camera, viewport, band);
 
           // Sparks: a point CHAIN on the same loop — the scatter, the

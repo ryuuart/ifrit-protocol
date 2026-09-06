@@ -5,12 +5,11 @@
 namespace sigil::sketch::kit {
 
 weave::TextStyle Theme::style(const Register& line, SkColor4f color) const {
-  return weave::textStyle({.face = line.face ? line.face
-                                              : (line.mono ? type.mono
-                                                           : type.sans),
-                           .size = line.size,
-                           .color = color,
-                           .track = line.track});
+  return weave::textStyle(
+      {.face = line.face ? line.face : (line.mono ? type.mono : type.sans),
+       .size = line.size,
+       .color = color,
+       .track = line.track});
 }
 
 weave::TextStyle Theme::sans(float size, SkColor4f color, float track) const {

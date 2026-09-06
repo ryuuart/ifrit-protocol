@@ -1096,11 +1096,8 @@ struct ChaucerAstrolabe : sketch::Sketch {
       const SkPath capDisc = cb.detach(), horDisc = hb.detach();
       SkPath region;
       Op(capDisc, horDisc, kDifference_SkPathOp, &region);
-      auto night = box()
-                       .inset(0)
-                       .key("night")
-                       .shape(heldPath(region))
-                       .clip(true);
+      auto night =
+          box().inset(0).key("night").shape(heldPath(region)).clip(true);
       for (int k = 1; k <= 11; ++k) {
         const Circ c = seasonalLine(k);
         const float delay = tHours * 1000 + (float)std::abs(k - 6) * 105.0f;
@@ -1252,16 +1249,17 @@ struct ChaucerAstrolabe : sketch::Sketch {
           box()
               .rect(SkRect::MakeXYWH(c.fX - ro, c.fY - ro, 2 * ro, 2 * ro))
               .key("shband")
-              .shape(keyedShape(std::tuple(ro, ri, c.fX, c.fY, ci.fX, ci.fY),
-                                [ro, ri, c, ci](SkSize) {
-                SkPathBuilder b;
-                b.setFillType(SkPathFillType::kEvenOdd);
-                b.addOval(SkRect::MakeWH(2 * ro, 2 * ro));
-                b.addOval(SkRect::MakeLTRB(
-                    ci.fX - c.fX + ro - ri, ci.fY - c.fY + ro - ri,
-                    ci.fX - c.fX + ro + ri, ci.fY - c.fY + ro + ri));
-                return b.detach();
-              }))
+              .shape(keyedShape(
+                  std::tuple(ro, ri, c.fX, c.fY, ci.fX, ci.fY),
+                  [ro, ri, c, ci](SkSize) {
+                    SkPathBuilder b;
+                    b.setFillType(SkPathFillType::kEvenOdd);
+                    b.addOval(SkRect::MakeWH(2 * ro, 2 * ro));
+                    b.addOval(SkRect::MakeLTRB(
+                        ci.fX - c.fX + ro - ri, ci.fY - c.fY + ro - ri,
+                        ci.fX - c.fX + ro + ri, ci.fY - c.fY + ro + ri));
+                    return b.detach();
+                  }))
               .fill(dark));
     }
     return box()
@@ -1300,16 +1298,17 @@ struct ChaucerAstrolabe : sketch::Sketch {
           box()
               .rect(SkRect::MakeXYWH(c.fX - ro, c.fY - ro, 2 * ro, 2 * ro))
               .key("band")
-              .shape(keyedShape(std::tuple(ro, ri, c.fX, c.fY, ci.fX, ci.fY),
-                                [ro, ri, c, ci](SkSize) {
-                SkPathBuilder b;
-                b.setFillType(SkPathFillType::kEvenOdd);
-                b.addOval(SkRect::MakeWH(2 * ro, 2 * ro));
-                b.addOval(SkRect::MakeLTRB(
-                    ci.fX - c.fX + ro - ri, ci.fY - c.fY + ro - ri,
-                    ci.fX - c.fX + ro + ri, ci.fY - c.fY + ro + ri));
-                return b.detach();
-              }))
+              .shape(keyedShape(
+                  std::tuple(ro, ri, c.fX, c.fY, ci.fX, ci.fY),
+                  [ro, ri, c, ci](SkSize) {
+                    SkPathBuilder b;
+                    b.setFillType(SkPathFillType::kEvenOdd);
+                    b.addOval(SkRect::MakeWH(2 * ro, 2 * ro));
+                    b.addOval(SkRect::MakeLTRB(
+                        ci.fX - c.fX + ro - ri, ci.fY - c.fY + ro - ri,
+                        ci.fX - c.fX + ro + ri, ci.fY - c.fY + ro + ri));
+                    return b.detach();
+                  }))
               .fill(bandMat)
               .foreground(styles::BevelEmboss{.depth = 2,
                                               .size = 3,
@@ -1418,10 +1417,11 @@ struct ChaucerAstrolabe : sketch::Sketch {
           // a Gothic thorn: springs tangentially off its host and tapers to a
           // point. THE TIP IS THE STAR'S POSITION — the thorn is drawn so its
           // point lands on the computed (r, α), not so its centroid does.
-          node.foreground(brush::presets::taper(0.032f * kR + 2.0f, 2.4f,
-                                       Fill::color(hex(0x3d2b0c, 0.85f))))
-              .foreground(
-                  brush::presets::taper(0.032f * kR, 1.0f, brassStroke(bb, 0.66f)))
+          node
+              .foreground(brush::presets::taper(
+                  0.032f * kR + 2.0f, 2.4f, Fill::color(hex(0x3d2b0c, 0.85f))))
+              .foreground(brush::presets::taper(0.032f * kR, 1.0f,
+                                                brassStroke(bb, 0.66f)))
               .opacity(animate(from(0.0f).to(1.0f),
                                ramp(delay, 420, ease::outBack())));
         } else {
@@ -1543,10 +1543,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
       const float d = rad * 0.52f;
       SkPath u;
       for (int i = 0; i < lobes; ++i) {
-        const SkPoint on =
-            arrange::onRing((size_t)i, (size_t)lobes, {rad, rad}, {d, d},
-                            -SK_FloatPI / 2, 2 * SK_FloatPI,
-                            arrange::Turn::Closed);
+        const SkPoint on = arrange::onRing(
+            (size_t)i, (size_t)lobes, {rad, rad}, {d, d}, -SK_FloatPI / 2,
+            2 * SK_FloatPI, arrange::Turn::Closed);
         SkPathBuilder cbb;
         cbb.addCircle(on.fX, on.fY, rad * 0.50f);
         const SkPath c = cbb.detach();
@@ -1981,11 +1980,11 @@ struct ChaucerAstrolabe : sketch::Sketch {
         .column()
         .gap(4)
         .child(row(kit::formatted("\xce\xb4 = %+7.3f\xc2\xb0", dec), kInk, 14))
-        .child(
-            row(kit::formatted("r = R_eq\xc2\xb7tan((90\xe2\x88\x92\xce\xb4)/2) = "
-                            "%.6f R",
-                            rOfDec(dec)),
-                kInk, 14))
+        .child(row(
+            kit::formatted("r = R_eq\xc2\xb7tan((90\xe2\x88\x92\xce\xb4)/2) = "
+                           "%.6f R",
+                           rOfDec(dec)),
+            kInk, 14))
         .child(row("R_can 0.424423  R_eq 0.651477  R_cap 1.000000",
                    hex(0x7b6a54), 12))
         .child(row("a circle through the EYE projects to a LINE \xe2\x80\x94 "
@@ -2174,15 +2173,15 @@ struct ChaucerAstrolabe : sketch::Sketch {
         const float am = (a0 + a1) * 0.5f;
         g.child(
             text(toU8(kMonths[m]), type(faceLimb, 9.5f, hex(0x33240c, 0.85f)))
-                .centerAt(arrange::onEllipse(
-                    c, {r * 0.817f, r * 0.817f}, am * kD)));
+                .centerAt(
+                    arrange::onEllipse(c, {r * 0.817f, r * 0.817f}, am * kD)));
         const float az = arrange::along(-90.0f, 360.0f, (size_t)m, 12,
                                         arrange::Turn::Closed);
         const float azm = az + 15.0f;
         g.child(text(toU8(std::string(kSigns[(m + 9) % 12]).substr(0, 3)),
                      type(faceLimb, 9.0f, hex(0x33240c, 0.7f)))
-                    .centerAt(arrange::onEllipse(
-                        c, {r * 0.74f, r * 0.74f}, azm * kD)));
+                    .centerAt(arrange::onEllipse(c, {r * 0.74f, r * 0.74f},
+                                                 azm * kD)));
       }
     }
     // the shadow square: umbra recta and umbra versa, 12 divisions each (I.12)
@@ -2329,7 +2328,7 @@ struct ChaucerAstrolabe : sketch::Sketch {
           text(toU8(kStars[i].modern), type(faceItalic, 12.5f, hex(0x6b5a44)))
               .at({px + 168, y}));
       g.child(text(toU8(kit::formatted("%8.3f  %+8.3f   %.5f", kStars[i].ra1326,
-                                    kStars[i].dec1326, r)),
+                                       kStars[i].dec1326, r)),
                    type(faceMono, 11.5f, kInk))
                   .at({px + 276, y + 1}));
       // where the star lands between Cancer and Capricorn
@@ -2429,10 +2428,11 @@ struct ChaucerAstrolabe : sketch::Sketch {
       float ly = by - h - 9;
       if (h < 84.0f * 30.0f / maxSpan && ly - 5.0f < y30r)
         ly = 0.5f * ((by - h) + y30r);
-      g.child(text(toU8(kit::formatted("%.1f", span)), type(faceMono, 9.5f, kInk))
-                  .width(w)
-                  .textAlign(sigil::weave::TextAlignment::kCenter)
-                  .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, ly}));
+      g.child(
+          text(toU8(kit::formatted("%.1f", span)), type(faceMono, 9.5f, kInk))
+              .width(w)
+              .textAlign(sigil::weave::TextAlignment::kCenter)
+              .centerAt({bx + (bw / 12.0f) * (float)i + w * 0.5f, ly}));
     }
     // the 30° reference — a 5-on/4-off STRIPE tile filling a 1 px band, not
     // a dashed stroke around the perimeter of a 1 px box. The perimeter walk
@@ -2525,10 +2525,12 @@ struct ChaucerAstrolabe : sketch::Sketch {
     };
     g.child(cell("LOCAL APPARENT TIME", kit::formatted("%02d:%04.1f", hh, mm),
                  hex(0xffdc8b)));
-    g.child(cell("HOVR ANGLE", kit::formatted("%+8.3f\xc2\xb0", hourAngle.value()),
+    g.child(cell("HOVR ANGLE",
+                 kit::formatted("%+8.3f\xc2\xb0", hourAngle.value()),
                  hex(0xd8c79c)));
     g.child(cell("SONNE ALTITVDE",
-                 kit::formatted("%+7.3f\xc2\xb0", sunAlt.value()), hex(0xd8c79c)));
+                 kit::formatted("%+7.3f\xc2\xb0", sunAlt.value()),
+                 hex(0xd8c79c)));
     g.child(cell("SONNE IN",
                  kit::formatted("\xce\xbb %6.2f\xc2\xb0", sunLam.value()),
                  hex(0xd8c79c)));

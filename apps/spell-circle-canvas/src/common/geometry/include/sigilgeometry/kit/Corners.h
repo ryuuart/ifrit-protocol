@@ -8,9 +8,8 @@
 
 #include <include/core/SkPathBuilder.h>
 
-#include <cstdint>
-
 #include <concepts>
+#include <cstdint>
 #include <utility>
 
 #include "sigilgeometry/path/Ops.h"

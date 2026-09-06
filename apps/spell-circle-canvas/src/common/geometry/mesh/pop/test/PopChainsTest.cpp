@@ -7,6 +7,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/kit/Sections.h>
 
 #include <cmath>
 #include <string>
@@ -18,7 +19,6 @@
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/GeometrySupport.h"
 #include "support/Loops.h"
-#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -88,12 +88,11 @@ TEST(Pop, ChainsComposeIntoEachOther) {
   }
   EXPECT_GT(yMax - yMin, 12.0f);
   // And any sink still applies to the composition.
-  EXPECT_GT(
-      pop::on(spine)
-          .count(80)
-          .sweep(sections::circle(8), true, {.segments = 160, .scale = 6})
-          .triangleCount(),
-      500u);
+  EXPECT_GT(pop::on(spine)
+                .count(80)
+                .sweep(sections::circle(8), true, {.segments = 160, .scale = 6})
+                .triangleCount(),
+            500u);
 }
 
 TEST(Pop, ChainsSeedFromFormedModels) {

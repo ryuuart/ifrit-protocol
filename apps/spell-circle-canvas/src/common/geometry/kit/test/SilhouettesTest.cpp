@@ -65,16 +65,14 @@ TEST_P(SilhouetteGenerator, StaysInsideTheBoxItIsGiven) {
 
 INSTANTIATE_TEST_SUITE_P(
     Silhouettes, SilhouetteGenerator,
-    ::testing::Values(Generator{"Polygon", polygon(6)},
-                      Generator{"Star", star(5)}, Generator{"Circle", circle()},
-                      Generator{"Annulus", annulus()},
-                      Generator{"Squircle", squircle()},
-                      Generator{"Blob", blob(7)},
-                      Generator{"Sector", sector(0, 90)},
-                      Generator{"Parallelogram", parallelogram(12)},
-                      Generator{"Arrow", arrow()},
-                      Generator{"Chamfered", chamfered(8)},
-                      Generator{"Notched", notched(10, 6)}),
+    ::testing::Values(
+        Generator{"Polygon", polygon(6)}, Generator{"Star", star(5)},
+        Generator{"Circle", circle()}, Generator{"Annulus", annulus()},
+        Generator{"Squircle", squircle()}, Generator{"Blob", blob(7)},
+        Generator{"Sector", sector(0, 90)},
+        Generator{"Parallelogram", parallelogram(12)},
+        Generator{"Arrow", arrow()}, Generator{"Chamfered", chamfered(8)},
+        Generator{"Notched", notched(10, 6)}),
     [](const ::testing::TestParamInfo<Generator>& info) {
       return std::string(info.param.name);
     });
@@ -100,7 +98,8 @@ INSTANTIATE_TEST_SUITE_P(
     Silhouettes, CurveFamily,
     ::testing::Values(Generator{"Lissajous", lissajous(3, 2)},
                       Generator{"Harmonograph", harmonograph(3, 2)},
-                      Generator{"Rose", rose(5)}, Generator{"Spiral", spiral(4)},
+                      Generator{"Rose", rose(5)},
+                      Generator{"Spiral", spiral(4)},
                       Generator{"Trochoid", trochoid(5, 3, 2)}),
     [](const ::testing::TestParamInfo<Generator>& info) {
       return std::string(info.param.name);
@@ -168,7 +167,8 @@ TEST(Silhouettes, StarArmsCanBeWaisted) {
   const SkPath waisted = star(6, 0.35f, 0.22f)(box);
   const SkPath bulged = star(6, 0.35f, -0.22f)(box);
   // The tips are unmoved — the waist pinches the EDGES, not the points.
-  EXPECT_NEAR(straight.getBounds().height(), waisted.getBounds().height(), 1.0f);
+  EXPECT_NEAR(straight.getBounds().height(), waisted.getBounds().height(),
+              1.0f);
   // The figure loses ink, because every edge bows toward the centre…
   EXPECT_LT(covered(waisted), covered(straight));
   // …and a negative waist bulges instead, which is the compass-rose
@@ -283,12 +283,21 @@ bool passesThrough(const SkPath& path, SkPoint at) {
        verb = iter.next(pts)) {
     int last = -1;
     switch (verb) {
-      case SkPath::kMove_Verb: last = 0; break;
-      case SkPath::kLine_Verb: last = 1; break;
+      case SkPath::kMove_Verb:
+        last = 0;
+        break;
+      case SkPath::kLine_Verb:
+        last = 1;
+        break;
       case SkPath::kQuad_Verb:
-      case SkPath::kConic_Verb: last = 2; break;
-      case SkPath::kCubic_Verb: last = 3; break;
-      default: break;
+      case SkPath::kConic_Verb:
+        last = 2;
+        break;
+      case SkPath::kCubic_Verb:
+        last = 3;
+        break;
+      default:
+        break;
     }
     if (last >= 0 && std::abs(pts[last].fX - at.fX) < 1.0f &&
         std::abs(pts[last].fY - at.fY) < 1.0f)
@@ -306,10 +315,11 @@ TEST(Silhouettes, TheChamferCutsWhereItIsMaskedAndRoundsWhereItIsNot) {
   const Chamfered panel{
       .cut = 20, .radius = 12, .mask = Corner::TopLeft | Corner::BottomRight};
   const SkPath p = panel(kBox);
-  EXPECT_TRUE(passesThrough(p, {20, 0}));                 // the cut runs
-  EXPECT_TRUE(passesThrough(p, {0, 20}));                 // …to here
-  EXPECT_FALSE(passesThrough(p, {kBox.width(), 0}));      // this one rounded
-  EXPECT_TRUE(passesThrough(p, {kBox.width() - 12, 0}));  // where the arc starts
+  EXPECT_TRUE(passesThrough(p, {20, 0}));             // the cut runs
+  EXPECT_TRUE(passesThrough(p, {0, 20}));             // …to here
+  EXPECT_FALSE(passesThrough(p, {kBox.width(), 0}));  // this one rounded
+  EXPECT_TRUE(
+      passesThrough(p, {kBox.width() - 12, 0}));  // where the arc starts
   const SkRect bounds = p.getBounds();
   EXPECT_NEAR(bounds.width(), kBox.width(), 0.5f);
   EXPECT_NEAR(bounds.height(), kBox.height(), 0.5f);

@@ -108,8 +108,8 @@ material::EnvironmentMap::Faces faces() {
 /** The same six laid into one 6:1 row — the layout `fromCubeMap` names
  *  by aspect ratio, in the same +x -x +y -y +z -z order. */
 sk_sp<SkImage> row(const material::EnvironmentMap::Faces& six) {
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(
-      SkImageInfo::MakeN32Premul(kFaceSide * 6, kFaceSide));
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kFaceSide * 6, kFaceSide));
   for (int i = 0; i < 6; ++i)
     surface->getCanvas()->drawImage(six[(size_t)i], (float)(i * kFaceSide), 0);
   return surface->makeImageSnapshot();
@@ -159,12 +159,12 @@ Element reflector(const char* call, const std::string& note,
   params.contrast = 1.5f;
   // The face is captured BY VALUE: this program is invoked at paint time,
   // long after the frame that described it.
-  return cell(call, note,
-              [paint = material::kit::chrome(shoulder(), env, params),
-               face = disc()](SkCanvas& canvas,
-                              const material::FrameData& frame) {
-                material::skia::fill(canvas, face, paint, frame);
-              });
+  return cell(
+      call, note,
+      [paint = material::kit::chrome(shoulder(), env, params), face = disc()](
+          SkCanvas& canvas, const material::FrameData& frame) {
+        material::skia::fill(canvas, face, paint, frame);
+      });
 }
 
 }  // namespace
@@ -205,75 +205,60 @@ struct EnvFaces final : sketch::Sketch {
                         "rather than at each lookup")},
         kit::cells(
             {.cells =
-                 {kit::cells(
-                      {.cells =
-                           {panorama("kit::studioEnvironment(384)",
-                                     "baked with no assets \xc2\xb7 a "
-                                     "graded sky, a floor bounce and "
-                                     "three softboxes",
-                                     studio),
-                            panorama(
-                                "fromFaces(six)",
-                                kit::formatted(
-                                    "six cube faces resampled into "
-                                    "one equirect \xc2\xb7 average "
-                                    "(%.2f %.2f %.2f)",
-                                    (
-                                        double)mean.fR,
-                                    (
-                                        double)mean.fG,
-                                    (
-                                        double)mean.fB),
-                                resampled),
-                            panorama(
-                                "fromCubeMap(6:1 row)",
-                                "the SAME six as one sheet, "
-                                "unpacked by aspect ratio \xc2\xb7 "
-                                "the layout is read, never "
-                                "declared",
-                                unpacked),
-                            panorama(
-                                "resampled.withGround(warm)",
-                                "everything below the horizon "
-                                "replaced IN the panorama, so the "
-                                "blurs and the irradiance see it "
-                                "too",
-                                grounded)},
-                       .gap =
-                           14}),
-                  kit::cells(
-                      {.cells =
-                           {reflector(
-                                "kit::chrome(bevel, studio)",
-                                "the two textures a reflective "
-                                "surface is shaded from: a normal "
-                                "map at the outline's bounds and "
-                                "a panorama",
-                                studio),
-                            reflector(
-                                "kit::chrome(bevel, fromFaces)",
-                                "the same disc, the same "
-                                "normals \xc2\xb7 the six faces "
-                                "are legible in the rim because "
-                                "the rim looks sideways",
-                                resampled),
-                            reflector(
-                                "\xe2\x80\xa6"
-                                " at roughness 0.45",
-                                "image(roughness) is one of nine "
-                                "wrap-aware blurs, picked by how "
-                                "rough the surface says it is",
-                                resampled,
-                                0.45f),
-                            reflector(
-                                "kit::chrome(bevel, withGround)",
-                                "the same reflection over a "
-                                "panorama whose lower half is one "
-                                "colour \xc2\xb7 which is what a "
-                                "car park is replaced with",
-                                grounded)},
-                       .gap =
-                           14})},
+                 {kit::cells({.cells =
+                                  {panorama("kit::studioEnvironment(384)",
+                                            "baked with no assets \xc2\xb7 a "
+                                            "graded sky, a floor bounce and "
+                                            "three softboxes",
+                                            studio),
+                                   panorama("fromFaces(six)",
+                                            kit::formatted(
+                                                "six cube faces resampled into "
+                                                "one equirect \xc2\xb7 average "
+                                                "(%.2f %.2f %.2f)",
+                                                (double)mean.fR,
+                                                (double)mean.fG,
+                                                (double)mean.fB),
+                                            resampled),
+                                   panorama("fromCubeMap(6:1 row)",
+                                            "the SAME six as one sheet, "
+                                            "unpacked by aspect ratio \xc2\xb7 "
+                                            "the layout is read, never "
+                                            "declared",
+                                            unpacked),
+                                   panorama("resampled.withGround(warm)",
+                                            "everything below the horizon "
+                                            "replaced IN the panorama, so the "
+                                            "blurs and the irradiance see it "
+                                            "too",
+                                            grounded)},
+                              .gap = 14}),
+                  kit::cells({.cells =
+                                  {reflector("kit::chrome(bevel, studio)",
+                                             "the two textures a reflective "
+                                             "surface is shaded from: a normal "
+                                             "map at the outline's bounds and "
+                                             "a panorama",
+                                             studio),
+                                   reflector("kit::chrome(bevel, fromFaces)",
+                                             "the same disc, the same "
+                                             "normals \xc2\xb7 the six faces "
+                                             "are legible in the rim because "
+                                             "the rim looks sideways",
+                                             resampled),
+                                   reflector("\xe2\x80\xa6"
+                                             " at roughness 0.45",
+                                             "image(roughness) is one of nine "
+                                             "wrap-aware blurs, picked by how "
+                                             "rough the surface says it is",
+                                             resampled, 0.45f),
+                                   reflector("kit::chrome(bevel, withGround)",
+                                             "the same reflection over a "
+                                             "panorama whose lower half is one "
+                                             "colour \xc2\xb7 which is what a "
+                                             "car park is replaced with",
+                                             grounded)},
+                              .gap = 14})},
              .column = true,
              .gap = 18})));
   }

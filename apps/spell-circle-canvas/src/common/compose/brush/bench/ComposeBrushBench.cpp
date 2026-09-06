@@ -8,12 +8,12 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Compose.h>
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
-#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
@@ -432,14 +432,15 @@ BENCHMARK(BM_Draw_ArtWarp_Live);
 /** Sk2D lattice hatch filling a 400x400 blob per frame. */
 static void BM_Draw_Hatch_Live(benchmark::State& state) {
   Host host(900, 640);
-  host.composer.render(box().child(
-      box()
-          .width(400)
-          .height(400)
-          .centerAt({450, 320})
-          .shape(geometry::shapes::blob(5, 0.2f))
-          .background(lines::presets::hatch(Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
-          .cache(Cache::None)));
+  host.composer.render(
+      box().child(box()
+                      .width(400)
+                      .height(400)
+                      .centerAt({450, 320})
+                      .shape(geometry::shapes::blob(5, 0.2f))
+                      .background(lines::presets::hatch(
+                          Fill::color({1, 1, 1, 0.5f}), 7, 1.2f))
+                      .cache(Cache::None)));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }
@@ -643,8 +644,8 @@ static void BM_Band_Construct(benchmark::State& state) {
   };
   Host host(1400, 1400);
   for ([[maybe_unused]] auto iteration : state) {
-    host.composer.render(
-        stack().child(band(ring, across(14)).inset(0).fill(Fill::color({1, 0, 0, 1}))));
+    host.composer.render(stack().child(
+        band(ring, across(14)).inset(0).fill(Fill::color({1, 0, 0, 1}))));
     host.draw();
   }
   state.SetItemsProcessed(state.iterations());

@@ -16,8 +16,8 @@
  */
 
 #include <sigilgeometry/kit/Solids.h>
-#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
@@ -95,15 +95,14 @@ world::Element set(float seconds) {
     const float angle =
         arrange::along(0.0f, kTwoPi, (size_t)i, kPosts, arrange::Turn::Closed);
     const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, angle);
-    posts.child(
-        world::Element()
-            .key("post" + std::to_string(i))
-            .at({on.fX, -84.0f, on.fY})
-            .rotateY(angle * 57.2957795f)
-            .mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
-            .fill(material::kit::surface(
-                {.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
-            .tag("lit"));
+    posts.child(world::Element()
+                    .key("post" + std::to_string(i))
+                    .at({on.fX, -84.0f, on.fY})
+                    .rotateY(angle * 57.2957795f)
+                    .mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
+                    .fill(material::kit::surface(
+                        {.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
+                    .tag("lit"));
   }
   root.child(std::move(posts));
 
@@ -151,10 +150,8 @@ struct GlowTrail final : sketch::Set {
         .pass(world::geometryPass("emitters")
                   .only(world::sel::tag("glow"))
                   .writes("spark"))
-        .pass(world::postPass("bloom")
-                  .reads("spark")
-                  .writes("bloom")
-                  .blur(11.0f))
+        .pass(
+            world::postPass("bloom").reads("spark").writes("bloom").blur(11.0f))
         // …at a strength a tail can be built out of: what accumulates
         // over many frames must be dim in any one of them.
         .pass(world::postPass("ember").reads("bloom").writes("ember").levels(

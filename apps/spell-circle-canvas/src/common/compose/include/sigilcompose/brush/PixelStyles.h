@@ -155,10 +155,9 @@ struct TickRail {
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
 
-inline TickRail tickRail(SkColor4f color, float pitch = 8.0f,
-                         float minor = 4.0f, float major = 9.0f,
-                         int majorEvery = 4,
-                         geometry::path::Edge edge = geometry::path::Edge::Top) {
+inline TickRail tickRail(
+    SkColor4f color, float pitch = 8.0f, float minor = 4.0f, float major = 9.0f,
+    int majorEvery = 4, geometry::path::Edge edge = geometry::path::Edge::Top) {
   return TickRail{color, pitch, minor, major, 1.0f, majorEvery, 0.5f, edge};
 }
 

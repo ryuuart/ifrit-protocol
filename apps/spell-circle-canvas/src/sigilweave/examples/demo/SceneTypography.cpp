@@ -7,13 +7,13 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilweave/kit/PaintLayers.h>
 
 #include <cstdio>
 
 #include "DemoScenes.h"
 #include "DemoSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilweave/kit/PaintLayers.h>
 
 using namespace sigil::weave;
 
@@ -91,7 +91,8 @@ void sceneTypography(FontContext& fontContext,
   {
     Paragraph paragraph;
     TextStyle title = style(40, SK_ColorWHITE);
-    title.paint.addUnderlay(sigil::weave::kit::dropShadow(0x99000000, {3, 4}, 3.0f));
+    title.paint.addUnderlay(
+        sigil::weave::kit::dropShadow(0x99000000, {3, 4}, 3.0f));
     paragraph.appendText(u8"Shadowed ", title);
 
     TextStyle gradient = style(40);

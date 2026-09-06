@@ -145,9 +145,7 @@ INSTANTIATE_TEST_SUITE_P(
     Asks, HeldFace,
     ::testing::Values(
         Ask{"NoFamiliesAtAll",
-            [](bool held) {
-              return held ? face({}) : pickTypeface({});
-            }},
+            [](bool held) { return held ? face({}) : pickTypeface({}); }},
         Ask{"OneFamily",
             [](bool held) {
               return held ? face({kAbsent}) : pickTypeface({kAbsent});

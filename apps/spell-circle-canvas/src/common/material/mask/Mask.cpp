@@ -47,8 +47,9 @@ const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
       std::make_shared<const Recipe>(
           Recipe::of<MaskParams>("mask.sampled")
               .child(std::string(kMaskSourceSlot))
-              .body(Target::SkSL, std::string(mask::shaderSource("MaskFit.sksl"))
-                                      .append(mask::shaderSource("MaskSampled.sksl")))
+              .body(Target::SkSL,
+                    std::string(mask::shaderSource("MaskFit.sksl"))
+                        .append(mask::shaderSource("MaskSampled.sksl")))
               .body(Target::Slang,
                     std::string(mask::shaderSource("MaskFit.slang"))
                         .append(mask::shaderSource("MaskSampled.slang"))));

@@ -2,18 +2,18 @@
  * The stored polygon and the gestures through a collection of them.
  */
 
-#include "PolygonMath.h"
-
-#include <sigilgeometry/path/Polyline.h>
-#include <sigilgeometry/path/Skia.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Engine.h>
 #include <sigildraw/brush/Hatch.h>
 #include <sigildraw/brush/Mass.h>
 #include <sigildraw/brush/Polygon.h>
 #include <sigildraw/brush/Wash.h>
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <algorithm>
+
+#include "PolygonMath.h"
 
 namespace sigil::draw::brush {
 
@@ -23,8 +23,7 @@ std::vector<SkPoint> Polygon::intersect(const Line& line) const {
       geometry::path::fromSk(line.to));
   std::vector<SkPoint> result;
   result.reserve(hits.size());
-  for (const glm::vec2 hit : hits)
-    result.push_back(geometry::path::toSk(hit));
+  for (const glm::vec2 hit : hits) result.push_back(geometry::path::toSk(hit));
   return result;
 }
 

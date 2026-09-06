@@ -75,12 +75,11 @@ TEST(VideoDevice, VideoToolboxFrameWrapsAsGraphiteYuvaImage) {
   // Both decoded frames are drawn, each scaled and offset, because a
   // device plane that only composites at its own size and origin would
   // still pass a single one-to-one blit.
-  surface->getCanvas()->drawImageRect(
-      first.image, SkRect::MakeXYWH(0, 0, kWidth * 3, kHeight * 2),
-      SkSamplingOptions());
-  surface->getCanvas()->drawImageRect(
-      second.image, SkRect::MakeXYWH(kWidth, kHeight, kWidth * 2, kHeight * 3),
-      SkSamplingOptions());
+  surface->getCanvas()->drawImageRect(first.image, SkRect::MakeXYWH(0, 0, kWidth * 3, kHeight * 2),
+                                      SkSamplingOptions());
+  surface->getCanvas()->drawImageRect(second.image,
+                                      SkRect::MakeXYWH(kWidth, kHeight, kWidth * 2, kHeight * 3),
+                                      SkSamplingOptions());
   std::unique_ptr<skgpu::graphite::Recording> recording = graphite->recorder()->snap();
   ASSERT_NE(recording, nullptr);
   skgpu::graphite::InsertRecordingInfo insert;

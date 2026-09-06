@@ -122,8 +122,8 @@ struct LiveSettling final : sketch::Sketch {
       step(endAt);
       const TextSettling settled = probe.settling("para");
       return kit::formatted("live %s \xc2\xb7 reused %d \xc2\xb7 degraded %d",
-                         settled.live ? "true" : "false", settled.reused,
-                         settled.degraded);
+                            settled.live ? "true" : "false", settled.reused,
+                            settled.degraded);
     };
 
     reports[0] = sweep(true, kBudget, kNarrow);
@@ -179,8 +179,7 @@ struct LiveSettling final : sketch::Sketch {
             .column()
             .gap(10)
             .child(passage(measure, live, budget))
-            .child(
-                text(toU8(report), sheet.mono(10, sheet.palette.figure))));
+            .child(text(toU8(report), sheet.mono(10, sheet.palette.figure))));
   }
 };
 

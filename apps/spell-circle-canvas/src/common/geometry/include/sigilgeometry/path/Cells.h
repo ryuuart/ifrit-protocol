@@ -49,8 +49,7 @@ class Cells {
   Cells(int width, int height, T fill = {})
       : m_width(std::max(width, 0)),
         m_height(std::max(height, 0)),
-        m_front((size_t)std::max(width, 0) * (size_t)std::max(height, 0),
-                fill),
+        m_front((size_t)std::max(width, 0) * (size_t)std::max(height, 0), fill),
         m_back(m_front.size(), fill),
         m_outside(fill) {}
 

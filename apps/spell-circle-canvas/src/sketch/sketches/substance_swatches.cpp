@@ -112,7 +112,8 @@ Element notice(std::u8string heading, const std::string& detail) {
       .foreground(stroke(1.0f, Fill::color(hex(0xffb46b, 0.24f))))
       .column()
       .gap(10)
-      .child(text(std::move(heading), weave::textStyle({.size = 22, .color = kInk})))
+      .child(text(std::move(heading),
+                  weave::textStyle({.size = 22, .color = kInk})))
       .child(text(toU8(detail), weave::textStyle({.size = 13, .color = kDim})));
 }
 

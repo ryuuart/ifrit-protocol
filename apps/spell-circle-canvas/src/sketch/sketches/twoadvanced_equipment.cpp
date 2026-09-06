@@ -365,13 +365,11 @@ struct TwoAdvancedEquipment : sketch::Sketch {
         sketch::kit::scrollbar(
             {.leading = sbButton(true),
              .trailing = sbButton(false),
-             .thumb = box().fill(kSbFace).foreground(
-                 onEdges(path::Edge::Top | path::Edge::Left,
-                         stroke(1, Fill::color(kWhite),
-                                PathFormat::Align::Inner))),
+             .thumb = box().fill(kSbFace).foreground(onEdges(
+                 path::Edge::Top | path::Edge::Left,
+                 stroke(1, Fill::color(kWhite), PathFormat::Align::Inner))),
              .scrolled = frame,
-             .position =
-                 scrollEnvelope().target(0.0f, frame.thumb().travel),
+             .position = scrollEnvelope().target(0.0f, frame.thumb().travel),
              .track = Fill::color(kSbTrack)})
             .width(Dim(kSbW));
 

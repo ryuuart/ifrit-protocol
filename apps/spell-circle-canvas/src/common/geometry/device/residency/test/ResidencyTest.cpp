@@ -5,9 +5,8 @@
  * letting go that keeps a scene from holding everything it ever cooked.
  */
 
-#include <gtest/gtest.h>
-
 #include <Graphics/GraphicsEngine/interface/Buffer.h>
+#include <gtest/gtest.h>
 
 #include "Meshes.h"
 #include "OnDevice.h"

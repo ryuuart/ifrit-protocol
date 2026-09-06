@@ -179,13 +179,13 @@ struct TickerLanes final : sketch::Sketch {
       timelineLane.push_back(ramped);
     }
 
-    readouts[0] = kit::formatted("add \xc2\xb7 %d ticks \xc2\xb7 active %s", steps,
-                              stillActive ? "true" : "false");
+    readouts[0] = kit::formatted("add \xc2\xb7 %d ticks \xc2\xb7 active %s",
+                                 steps, stillActive ? "true" : "false");
     readouts[1] = kit::formatted("addFixed %.0f Hz \xc2\xb7 %d steps in %.0f s",
-                              kFixedHz, fixedSteps, kSpan);
+                                 kFixedHz, fixedSteps, kSpan);
     readouts[2] =
         kit::formatted("derive \xc2\xb7 quantize(%d) \xc2\xb7 registered %s",
-                    kLevels, derived_ok ? "true" : "false");
+                       kLevels, derived_ok ? "true" : "false");
     readouts[3] = kit::formatted("timeline \xc2\xb7 RampTo over %.1f s", kRamp);
 
     ctx.composer.render(sketch::kit::page(
@@ -202,35 +202,33 @@ struct TickerLanes final : sketch::Sketch {
                         "exactly what a hand-rolled shadow copy cannot "
                         "promise")},
         kit::cells(
-            {.cells = {cell("ticker.add([](double dt) { … return true; })",
-                            "the free steppable, handed the frame's delta "
-                            "\xc2\xb7 it answers true forever here, which is "
-                            "what keeps active() true forever",
-                            plot("free", {{freeLane, look.palette.figure}}),
-                            readouts[0]),
-                       cell("ticker.addFixed(5, fn, 8, &alpha)",
-                            "the count of fixed steps against the render "
-                            "interpolant \xc2\xb7 the count comes from total "
-                            "elapsed time, so it is exact at any draw rate",
-                            plot("fixed",
-                                 {{fixedLane, look.palette.figure},
-                                  {alphaLane, kSecond}}),
-                            readouts[1]),
-                       cell("derive(&d, bind(&source).quantize(6))",
-                            "the source under the derivation \xc2\xb7 the "
-                            "bind() vocabulary reaching an Output instead of "
-                            "a property slot",
-                            plot("derive",
-                                 {{sourceLane, look.palette.ash},
-                                  {derivedLane, look.palette.figure}}),
-                            readouts[2]),
-                       cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
-                            "the master timeline \xc2\xb7 a finished motion "
-                            "is removed, which is what would let active() "
-                            "settle if the steppable above ever retired",
-                            plot("timeline",
-                                 {{timelineLane, look.palette.figure}}),
-                            readouts[3])},
+            {.cells =
+                 {cell("ticker.add([](double dt) { … return true; })",
+                       "the free steppable, handed the frame's delta "
+                       "\xc2\xb7 it answers true forever here, which is "
+                       "what keeps active() true forever",
+                       plot("free", {{freeLane, look.palette.figure}}),
+                       readouts[0]),
+                  cell("ticker.addFixed(5, fn, 8, &alpha)",
+                       "the count of fixed steps against the render "
+                       "interpolant \xc2\xb7 the count comes from total "
+                       "elapsed time, so it is exact at any draw rate",
+                       plot("fixed", {{fixedLane, look.palette.figure},
+                                      {alphaLane, kSecond}}),
+                       readouts[1]),
+                  cell("derive(&d, bind(&source).quantize(6))",
+                       "the source under the derivation \xc2\xb7 the "
+                       "bind() vocabulary reaching an Output instead of "
+                       "a property slot",
+                       plot("derive", {{sourceLane, look.palette.ash},
+                                       {derivedLane, look.palette.figure}}),
+                       readouts[2]),
+                  cell("timeline().apply(&v).then<RampTo>(1, 1.4)",
+                       "the master timeline \xc2\xb7 a finished motion "
+                       "is removed, which is what would let active() "
+                       "settle if the steppable above ever retired",
+                       plot("timeline", {{timelineLane, look.palette.figure}}),
+                       readouts[3])},
              .gap = 14})));
   }
 };

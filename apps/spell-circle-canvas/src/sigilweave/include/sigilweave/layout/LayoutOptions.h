@@ -230,10 +230,10 @@ struct OverflowOptions {
  */
 struct TabStop {
   enum class Align : uint8_t { kStart, kCenter, kEnd, kCharacter };
-  float position = 0;                 ///< px from the interval's start
-  Align align = Align::kStart;        ///< what the stop pins there
-  char16_t alignOn = u'.';            ///< kCharacter: the character pinned
-  std::u16string leader;              ///< repeated across the gap; may be empty
+  float position = 0;           ///< px from the interval's start
+  Align align = Align::kStart;  ///< what the stop pins there
+  char16_t alignOn = u'.';      ///< kCharacter: the character pinned
+  std::u16string leader;        ///< repeated across the gap; may be empty
   bool operator==(const TabStop&) const = default;
 };
 

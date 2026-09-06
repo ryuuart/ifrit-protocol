@@ -196,25 +196,27 @@ TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
   // One feed per column: the plate is one row tall.
   const float one =
       intrinsicSize(box().child(kit::console(
-                  {.feeds = {&a, &b}, .style = voice, .plate = chrome})),
-              fonts())
+                        {.feeds = {&a, &b}, .style = voice, .plate = chrome})),
+                    fonts())
           .height();
   EXPECT_NEAR(one, row, 1.0f);
   // Two per column: two rows and the stack gap.
-  const float two = intrinsicSize(box().child(kit::console({.feeds = {&a, &b, &c, &d},
-                                                      .style = voice,
-                                                      .stacked = 2,
-                                                      .stackGap = 6,
-                                                      .plate = chrome})),
-                            fonts())
-                        .height();
+  const float two =
+      intrinsicSize(box().child(kit::console({.feeds = {&a, &b, &c, &d},
+                                              .style = voice,
+                                              .stacked = 2,
+                                              .stackGap = 6,
+                                              .plate = chrome})),
+                    fonts())
+          .height();
   EXPECT_NEAR(two, 2 * row + 6, 1.5f);
   // A null feed is skipped rather than dereferenced.
-  const float gap = intrinsicSize(box().child(kit::console({.feeds = {&a, nullptr},
-                                                      .style = voice,
-                                                      .plate = chrome})),
-                            fonts())
-                        .height();
+  const float gap =
+      intrinsicSize(
+          box().child(kit::console(
+              {.feeds = {&a, nullptr}, .style = voice, .plate = chrome})),
+          fonts())
+          .height();
   EXPECT_NEAR(gap, row, 1.0f);
 }
 
@@ -269,12 +271,12 @@ TEST(ComposeInstruments, ACurvePlotDrawsTheFunctionThroughItsOwnMapping) {
   // …and the curve is drawn through it: a constant at the top of the
   // range paints there and nowhere near the bottom.
   Host host(120, 60);
-  host.composer.render(box().child(
-      kit::curvePlot("plot",
-                     {{.f = [](float) { return 1.0f; },
-                       .colour = {1, 0, 0, 1},
-                       .width = 3.0f}},
-                     plot)));
+  host.composer.render(
+      box().child(kit::curvePlot("plot",
+                                 {{.f = [](float) { return 1.0f; },
+                                   .colour = {1, 0, 0, 1},
+                                   .width = 3.0f}},
+                                 plot)));
   host.frame();
   EXPECT_EQ(host.pixel(60, 10), SK_ColorRED);
   EXPECT_EQ(host.pixel(60, 50), SK_ColorBLACK);

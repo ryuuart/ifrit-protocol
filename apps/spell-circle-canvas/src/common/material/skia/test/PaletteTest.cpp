@@ -27,8 +27,8 @@ sk_sp<SkImage> bands(std::initializer_list<SkColor> colors, int side = 64) {
   for (SkColor color : colors) {
     SkPaint paint;
     paint.setColor(color);
-    canvas.drawRect(SkRect::MakeXYWH((float)index * width, 0, width, (float)side),
-                    paint);
+    canvas.drawRect(
+        SkRect::MakeXYWH((float)index * width, 0, width, (float)side), paint);
     ++index;
   }
   bitmap.setImmutable();
@@ -51,8 +51,7 @@ TEST(SkiaPalette, ThePicturesOwnColoursComeBack) {
 }
 
 TEST(SkiaPalette, APictureLargerThanTheReadSizeIsScaledIntoIt) {
-  const sk_sp<SkImage> image =
-      bands({SK_ColorBLACK, SK_ColorWHITE}, 512);
+  const sk_sp<SkImage> image = bands({SK_ColorBLACK, SK_ColorWHITE}, 512);
   // Scaled rather than sampled: the filtered reduction averages the
   // pixels it drops, so both bands are still in the table at a read size
   // a stride could have stepped over one of them at.

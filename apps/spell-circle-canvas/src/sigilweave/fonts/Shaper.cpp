@@ -7,11 +7,10 @@
 
 #include "sigilweave/fonts/Shaper.h"
 
-#include <algorithm>
-
 #include <include/core/SkFont.h>
 #include <include/core/SkTextBlob.h>
 
+#include <algorithm>
 #include <cstring>
 
 #include "FontContextImpl.h"
@@ -48,11 +47,11 @@ const detail::GlyphProfile& profileOf(FontContext::Impl& implementation,
       glyph;
   auto entry = implementation.glyphProfiles.find(key);
   if (entry == implementation.glyphProfiles.end())
-    entry = implementation.glyphProfiles
-                .emplace(key, typeface ? detail::measureProfile(*typeface,
-                                                                glyph)
-                                       : detail::GlyphProfile{})
-                .first;
+    entry =
+        implementation.glyphProfiles
+            .emplace(key, typeface ? detail::measureProfile(*typeface, glyph)
+                                   : detail::GlyphProfile{})
+            .first;
   return entry->second;
 }
 
@@ -73,8 +72,8 @@ float referenceGap(FontContext::Impl& implementation,
     typeface->unicharsToGlyphs(SkSpan<const SkUnichar>(&reference, 1),
                                SkSpan<SkGlyphID>(&glyph, 1));
     if (glyph != 0) {
-      const detail::GlyphProfile& profile = profileOf(implementation, typeface,
-                                                      glyph);
+      const detail::GlyphProfile& profile =
+          profileOf(implementation, typeface, glyph);
       gap = detail::gapBetween(profile, profile);
     }
   }

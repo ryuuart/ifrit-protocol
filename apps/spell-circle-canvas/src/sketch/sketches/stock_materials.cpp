@@ -236,12 +236,12 @@ struct StockMaterialsSheet final : sketch::Sketch {
          .footer = toU8("each caption is the recipe's own name; running "
                         "the effect is what crosses the split-Skia "
                         "image boundary, so every cell is PAINTED")},
-        sketch::kit::cells({.cells = {std::move(fields), std::move(patterns),
-                                      std::move(grained),
-                                      std::move(shapesAndRamps),
-                                      std::move(textPaints)},
-                            .column = true,
-                            .gap = 20})));
+        sketch::kit::cells(
+            {.cells = {std::move(fields), std::move(patterns),
+                       std::move(grained), std::move(shapesAndRamps),
+                       std::move(textPaints)},
+             .column = true,
+             .gap = 20})));
   }
 };
 

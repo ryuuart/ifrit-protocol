@@ -94,10 +94,17 @@ struct Texel {
 std::optional<Texel> texelOfGl(uint32_t glType, uint32_t glFormat) {
   Texel t;
   switch (glType) {
-    case 0x1401: t.type = Texel::Type::Unorm8; break;  // GL_UNSIGNED_BYTE
-    case 0x140B: t.type = Texel::Type::Half; break;    // GL_HALF_FLOAT
-    case 0x1406: t.type = Texel::Type::Float; break;   // GL_FLOAT
-    default: return std::nullopt;  // a packed or compressed type
+    case 0x1401:
+      t.type = Texel::Type::Unorm8;
+      break;  // GL_UNSIGNED_BYTE
+    case 0x140B:
+      t.type = Texel::Type::Half;
+      break;  // GL_HALF_FLOAT
+    case 0x1406:
+      t.type = Texel::Type::Float;
+      break;  // GL_FLOAT
+    default:
+      return std::nullopt;  // a packed or compressed type
   }
   switch (glFormat) {
     case 0x1903:  // GL_RED
@@ -105,12 +112,25 @@ std::optional<Texel> texelOfGl(uint32_t glType, uint32_t glFormat) {
     case 0x1906:  // GL_ALPHA
       t.channels = 1;
       break;
-    case 0x8227: t.channels = 2; break;  // GL_RG
-    case 0x1907: t.channels = 3; break;  // GL_RGB
-    case 0x1908: t.channels = 4; break;  // GL_RGBA
-    case 0x80E0: t.channels = 3; t.bgr = true; break;  // GL_BGR
-    case 0x80E1: t.channels = 4; t.bgr = true; break;  // GL_BGRA
-    default: return std::nullopt;
+    case 0x8227:
+      t.channels = 2;
+      break;  // GL_RG
+    case 0x1907:
+      t.channels = 3;
+      break;  // GL_RGB
+    case 0x1908:
+      t.channels = 4;
+      break;  // GL_RGBA
+    case 0x80E0:
+      t.channels = 3;
+      t.bgr = true;
+      break;  // GL_BGR
+    case 0x80E1:
+      t.channels = 4;
+      t.bgr = true;
+      break;  // GL_BGRA
+    default:
+      return std::nullopt;
   }
   return t;
 }
@@ -122,26 +142,26 @@ std::optional<Texel> texelOfVk(uint32_t vkFormat) {
     Texel texel;
   };
   static constexpr Entry kTable[] = {
-      {9, {Texel::Type::Unorm8, 1, false}},     // R8_UNORM
-      {15, {Texel::Type::Unorm8, 1, false}},    // R8_SRGB
-      {16, {Texel::Type::Unorm8, 2, false}},    // R8G8_UNORM
-      {22, {Texel::Type::Unorm8, 2, false}},    // R8G8_SRGB
-      {23, {Texel::Type::Unorm8, 3, false}},    // R8G8B8_UNORM
-      {29, {Texel::Type::Unorm8, 3, false}},    // R8G8B8_SRGB
-      {30, {Texel::Type::Unorm8, 3, true}},     // B8G8R8_UNORM
-      {36, {Texel::Type::Unorm8, 3, true}},     // B8G8R8_SRGB
-      {37, {Texel::Type::Unorm8, 4, false}},    // R8G8B8A8_UNORM
-      {43, {Texel::Type::Unorm8, 4, false}},    // R8G8B8A8_SRGB
-      {44, {Texel::Type::Unorm8, 4, true}},     // B8G8R8A8_UNORM
-      {50, {Texel::Type::Unorm8, 4, true}},     // B8G8R8A8_SRGB
-      {76, {Texel::Type::Half, 1, false}},      // R16_SFLOAT
-      {83, {Texel::Type::Half, 2, false}},      // R16G16_SFLOAT
-      {90, {Texel::Type::Half, 3, false}},      // R16G16B16_SFLOAT
-      {97, {Texel::Type::Half, 4, false}},      // R16G16B16A16_SFLOAT
-      {100, {Texel::Type::Float, 1, false}},    // R32_SFLOAT
-      {103, {Texel::Type::Float, 2, false}},    // R32G32_SFLOAT
-      {106, {Texel::Type::Float, 3, false}},    // R32G32B32_SFLOAT
-      {109, {Texel::Type::Float, 4, false}},    // R32G32B32A32_SFLOAT
+      {9, {Texel::Type::Unorm8, 1, false}},   // R8_UNORM
+      {15, {Texel::Type::Unorm8, 1, false}},  // R8_SRGB
+      {16, {Texel::Type::Unorm8, 2, false}},  // R8G8_UNORM
+      {22, {Texel::Type::Unorm8, 2, false}},  // R8G8_SRGB
+      {23, {Texel::Type::Unorm8, 3, false}},  // R8G8B8_UNORM
+      {29, {Texel::Type::Unorm8, 3, false}},  // R8G8B8_SRGB
+      {30, {Texel::Type::Unorm8, 3, true}},   // B8G8R8_UNORM
+      {36, {Texel::Type::Unorm8, 3, true}},   // B8G8R8_SRGB
+      {37, {Texel::Type::Unorm8, 4, false}},  // R8G8B8A8_UNORM
+      {43, {Texel::Type::Unorm8, 4, false}},  // R8G8B8A8_SRGB
+      {44, {Texel::Type::Unorm8, 4, true}},   // B8G8R8A8_UNORM
+      {50, {Texel::Type::Unorm8, 4, true}},   // B8G8R8A8_SRGB
+      {76, {Texel::Type::Half, 1, false}},    // R16_SFLOAT
+      {83, {Texel::Type::Half, 2, false}},    // R16G16_SFLOAT
+      {90, {Texel::Type::Half, 3, false}},    // R16G16B16_SFLOAT
+      {97, {Texel::Type::Half, 4, false}},    // R16G16B16A16_SFLOAT
+      {100, {Texel::Type::Float, 1, false}},  // R32_SFLOAT
+      {103, {Texel::Type::Float, 2, false}},  // R32G32_SFLOAT
+      {106, {Texel::Type::Float, 3, false}},  // R32G32B32_SFLOAT
+      {109, {Texel::Type::Float, 4, false}},  // R32G32B32A32_SFLOAT
   };
   for (const Entry& entry : kTable)
     if (entry.format == vkFormat) return entry.texel;
@@ -202,8 +222,8 @@ ChannelData channelsOf(const Level& level) {
   float* dst = out.data.data();
   for (int face = 0; face < level.faces; ++face) {
     for (int y = 0; y < level.height; ++y) {
-      const std::byte* row =
-          level.data + (size_t)face * level.faceBytes + (size_t)y * level.rowBytes;
+      const std::byte* row = level.data + (size_t)face * level.faceBytes +
+                             (size_t)y * level.rowBytes;
       for (int x = 0; x < level.width; ++x) {
         const std::byte* px = row + (size_t)x * level.texel.bytes();
         float value[4] = {0, 0, 0, 1};
@@ -301,7 +321,8 @@ std::optional<Level> ktx2BaseLevel(const std::byte* bytes, size_t size) {
   // The index: dfd, kvd and sgd offsets and lengths, then the level table
   // whose first entry is the base level.
   in.seek(in.position() + 4 * 4 + 2 * 8);
-  (void)levels;  // 0 means one level and no chain; the base is entry 0 either way
+  (void)
+      levels;  // 0 means one level and no chain; the base is entry 0 either way
   const uint64_t byteOffset = in.u64();
   const uint64_t byteLength = in.u64();
   (void)in.u64();  // uncompressedByteLength
@@ -322,8 +343,10 @@ std::optional<Level> ktx2BaseLevel(const std::byte* bytes, size_t size) {
 }
 
 std::optional<Level> baseLevel(const std::byte* bytes, size_t size) {
-  if (startsWith(bytes, size, kKtx1Identifier)) return ktx1BaseLevel(bytes, size);
-  if (startsWith(bytes, size, kKtx2Identifier)) return ktx2BaseLevel(bytes, size);
+  if (startsWith(bytes, size, kKtx1Identifier))
+    return ktx1BaseLevel(bytes, size);
+  if (startsWith(bytes, size, kKtx2Identifier))
+    return ktx2BaseLevel(bytes, size);
   return std::nullopt;
 }
 

@@ -12,9 +12,9 @@
 #include <include/core/SkM44.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPixmap.h>
-#include <include/core/SkTypes.h>
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTypes.h>
 #include <include/effects/SkImageFilters.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -147,9 +147,9 @@ half4 main(float2 p) {
 }
 
 void BM_Layer_BrightPass(benchmark::State& state) {
-  through(state, skia::Effect::shader(brightPass())
-                     .then(skia::Effect::filter(
-                         SkImageFilters::Blur(4, 4, nullptr))));
+  through(state,
+          skia::Effect::shader(brightPass())
+              .then(skia::Effect::filter(SkImageFilters::Blur(4, 4, nullptr))));
 }
 BENCHMARK(BM_Layer_BrightPass);
 
@@ -159,8 +159,8 @@ void BM_Layer_PhosphorBloom(benchmark::State& state) {
 BENCHMARK(BM_Layer_PhosphorBloom);
 
 void BM_Layer_PhosphorBloom_Drifted(benchmark::State& state) {
-  through(state, skia::Effect::phosphorBloom(9.0f, 0.52f, 0.46f, 0.80f, -40.0f,
-                                             0.5f));
+  through(state,
+          skia::Effect::phosphorBloom(9.0f, 0.52f, 0.46f, 0.80f, -40.0f, 0.5f));
 }
 BENCHMARK(BM_Layer_PhosphorBloom_Drifted);
 
@@ -171,7 +171,6 @@ void BM_Layer_PhosphorBloom_Wide(benchmark::State& state) {
   through(state, skia::Effect::phosphorBloom(24.0f));
 }
 BENCHMARK(BM_Layer_PhosphorBloom_Wide);
-
 
 }  // namespace
 

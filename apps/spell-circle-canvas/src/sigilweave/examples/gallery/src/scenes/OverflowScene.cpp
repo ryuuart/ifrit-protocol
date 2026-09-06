@@ -1,12 +1,12 @@
 // Scene: overflow & ellipsis — CSS text-overflow semantics.
 #include <include/core/SkPaint.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <cmath>
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 

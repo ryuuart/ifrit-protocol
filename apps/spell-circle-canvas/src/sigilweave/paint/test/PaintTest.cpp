@@ -17,6 +17,7 @@
 #include <include/effects/SkGradient.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/paint/Paint.h>
 
 #include <memory>
@@ -24,13 +25,10 @@
 #include <vector>
 
 #include "support/Faces.h"
-
-#include "support/Faces.h"
 #include "support/Layouts.h"
 #include "support/Paints.h"
 #include "support/Paragraphs.h"
 #include "support/Pixels.h"
-#include <sigilweave/kit/PaintLayers.h>
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 
@@ -187,11 +185,10 @@ TEST_P(TextPaintPresets, EachResolvesToAShaderOverTheBoundsItIsGiven) {
 
 INSTANTIATE_TEST_SUITE_P(
     Presets, TextPaintPresets,
-    ::testing::Values(TextPaintPreset{"Water", sigil::material::kit::water},
-                      TextPaintPreset{"MeshGradient",
-                                      sigil::material::kit::meshGradient},
-                      TextPaintPreset{"Sparkle",
-                                      sigil::material::kit::sparkle}),
+    ::testing::Values(
+        TextPaintPreset{"Water", sigil::material::kit::water},
+        TextPaintPreset{"MeshGradient", sigil::material::kit::meshGradient},
+        TextPaintPreset{"Sparkle", sigil::material::kit::sparkle}),
     [](const ::testing::TestParamInfo<TextPaintPreset>& info) {
       return std::string(info.param.name);
     });

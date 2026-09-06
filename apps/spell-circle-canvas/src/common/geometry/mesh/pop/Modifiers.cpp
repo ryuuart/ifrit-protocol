@@ -32,16 +32,16 @@ void jitter(Cloud& cloud, float amplitude, uint32_t seed) {
   const size_t n = cloud.size();
   if (n == 0) return;
   mesh::kernel::OpDispatch work;
-  if (!mesh::kernel::describe(pop::Op{pop::Jitter{pop::Lane::P, amplitude, seed}}, n,
-                        &work))
+  if (!mesh::kernel::describe(
+          pop::Op{pop::Jitter{pop::Lane::P, amplitude, seed}}, n, &work))
     return;
   // The kernel reads and writes one four-wide lane; the positions are
   // poured across it and back, which is the whole of what reaching the
   // operator without a chain costs.
   std::vector<glm::vec4> lane(n);
   for (size_t i = 0; i < n; ++i)
-    lane[i] = {cloud.positions[i].x, cloud.positions[i].y,
-               cloud.positions[i].z, 0};
+    lane[i] = {cloud.positions[i].x, cloud.positions[i].y, cloud.positions[i].z,
+               0};
   glm::vec4* const values = lane.data();
   mesh::kernel::run(work, values, values, values, values, values);
   for (size_t i = 0; i < n; ++i)

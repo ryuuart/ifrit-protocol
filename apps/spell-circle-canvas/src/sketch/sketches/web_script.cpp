@@ -285,8 +285,8 @@ struct WebScript final : sketch::Sketch {
     return sketch::kit::caption(
         (float)kViewW, toU8(call), toU8(note),
         custom(std::move(key),
-               [view, still = std::move(still),
-                where](SkCanvas& canvas, const PaintContext&) {
+               [view, still = std::move(still), where](SkCanvas& canvas,
+                                                       const PaintContext&) {
                  if (still.image)
                    canvas.drawImageRect(
                        still.image, where,
@@ -312,10 +312,9 @@ struct WebScript final : sketch::Sketch {
         .column()
         .gap(10)
         .padding(40)
-        .child(text(toU8("no web engine here"),
-                    label(20, sheet.palette.ink)))
-        .child(text(toU8(why), label(12, sheet.palette.ash))
-                   .width(Dim(620.0f)));
+        .child(text(toU8("no web engine here"), label(20, sheet.palette.ink)))
+        .child(
+            text(toU8(why), label(12, sheet.palette.ash)).width(Dim(620.0f)));
   }
 };
 

@@ -180,9 +180,9 @@ struct WidthStation {
 /** What a width-along audit found. A band that is the width it claims has
  *  `maxError` under whatever the caller's ink can show. */
 struct WidthAlong {
-  int samples = 0;        ///< stations measured
-  float maxError = 0;     ///< the worst |measured − intended|, px
-  float rmsError = 0;     ///< the same error over the whole run
+  int samples = 0;     ///< stations measured
+  float maxError = 0;  ///< the worst |measured − intended|, px
+  float rmsError = 0;  ///< the same error over the whole run
   /** The worst stations, most wrong first, so a caller can print or draw
    *  WHERE the band went wrong instead of only how far. */
   std::vector<WidthStation> worst;
@@ -299,7 +299,8 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
   // Where the ray through `p` along `u` meets the named edges, sorted
   // along the ray and read the way the rasterizer reads it: every
   // crossing kept, with the sense it was crossed in.
-  const auto meet = [&](SkPoint p, SkVector u, std::span<const uint32_t> which) {
+  const auto meet = [&](SkPoint p, SkVector u,
+                        std::span<const uint32_t> which) {
     crossings.clear();
     for (uint32_t e : which) {
       const SkPoint a = edges[(size_t)e * 2], b = edges[(size_t)e * 2 + 1];

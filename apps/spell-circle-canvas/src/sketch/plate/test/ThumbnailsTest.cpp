@@ -93,8 +93,7 @@ struct Plate : Sketch {
 
 template <class SketchType>
 Entry entryOf(const char* name) {
-  return Entry{name, name, "Test", "a thumbnail fixture",
-               &kindOf<SketchType>};
+  return Entry{name, name, "Test", "a thumbnail fixture", &kindOf<SketchType>};
 }
 
 ThumbnailRun runInto(const std::filesystem::path& out) {

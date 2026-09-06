@@ -15,6 +15,7 @@
 #include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
 #include <sigilgeometry/device/Device.h>
+#include <sigilgeometry/mesh/pop/Sweep.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <cstring>
@@ -23,8 +24,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <sigilgeometry/mesh/pop/Sweep.h>
 
 namespace sigil::geometry::mesh::pop {
 

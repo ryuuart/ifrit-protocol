@@ -38,10 +38,9 @@ ParagraphLayout layoutBeside(FontContext& fontContext, Paragraph& reading,
     // A column reads its furniture on the RIGHT, and the reading runs down
     // beside it on the column's own axis.
     const float centre = (beside.base.top() + beside.base.bottom()) * 0.5f;
-    const float across =
-        beside.side == Beside::Side::Before
-            ? beside.base.right() + beside.gap + depth * 0.5f
-            : beside.base.left() - beside.gap - depth * 0.5f;
+    const float across = beside.side == Beside::Side::Before
+                             ? beside.base.right() + beside.gap + depth * 0.5f
+                             : beside.base.left() - beside.gap - depth * 0.5f;
     interval.origin = {across, centre - extent * 0.5f};
     interval.direction = {0, 1};
   } else {

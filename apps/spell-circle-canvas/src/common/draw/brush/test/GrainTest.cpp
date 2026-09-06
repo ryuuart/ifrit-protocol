@@ -52,7 +52,8 @@ brush::Tool stamper() {
   tool.sizeJitter = 0.0f;
   tool.opacityJitter = 0.0f;
   tool.rotation = brush::Rotation::Fixed;
-  tool.shape = brush::Shape{.image = block(16), .mask = brush::ImageMask::Alpha};
+  tool.shape =
+      brush::Shape{.image = block(16), .mask = brush::ImageMask::Alpha};
   return tool;
 }
 
@@ -68,9 +69,8 @@ TEST(Grain, StrokeSpaceStandsStillInThePensSpace) {
   Paper paper(120, 80, SK_ColorWHITE);
   paper.begin();
   brush::Tool tool = stamper();
-  tool.grain = brush::Grain{.image = stripes(),
-                            .space = brush::GrainSpace::Stroke,
-                            .scale = 2.0f};
+  tool.grain = brush::Grain{
+      .image = stripes(), .space = brush::GrainSpace::Stroke, .scale = 2.0f};
   brush::deposit(paper.pen, tool, kPair);
   paper.end();
 
@@ -89,9 +89,8 @@ TEST(Grain, DabSpaceRidesTheStamp) {
   Paper paper(120, 80, SK_ColorWHITE);
   paper.begin();
   brush::Tool tool = stamper();
-  tool.grain = brush::Grain{.image = stripes(),
-                            .space = brush::GrainSpace::Dab,
-                            .scale = 2.0f};
+  tool.grain = brush::Grain{
+      .image = stripes(), .space = brush::GrainSpace::Dab, .scale = 2.0f};
   brush::deposit(paper.pen, tool, kPair);
   paper.end();
 
@@ -139,9 +138,8 @@ TEST(Grain, AProceduralTipTakesItsGrainStandingStill) {
   tool.opacityJitter = 0.0f;
   tool.spacingJitter = 0.0f;
   tool.noise = 0.0f;
-  tool.grain = brush::Grain{.image = stripes(),
-                            .space = brush::GrainSpace::Dab,
-                            .scale = 2.0f};
+  tool.grain = brush::Grain{
+      .image = stripes(), .space = brush::GrainSpace::Dab, .scale = 2.0f};
   brush::line(paper.pen, tool, {20, 40}, {180, 40});
   paper.end();
 

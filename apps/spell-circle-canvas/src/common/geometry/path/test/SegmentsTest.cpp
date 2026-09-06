@@ -112,9 +112,9 @@ TEST(PathSegments, ReversalKeepsTheCurvesAndFlipsTheWinding) {
     if (segment.kind != SegmentKind::Line) ++curves;
   EXPECT_EQ(curves, 3);
   EXPECT_EQ(read[0].start(), glm::vec2(0, 0));
-  EXPECT_LT(flatten(back).front().signedArea() *
-                flatten(source).front().signedArea(),
-            0);
+  EXPECT_LT(
+      flatten(back).front().signedArea() * flatten(source).front().signedArea(),
+      0);
 }
 
 TEST(PathSegments, RestartingAContourMovesTheFirstNodeAndNothingElse) {
@@ -132,8 +132,10 @@ TEST(PathSegments, RestartingAContourMovesTheFirstNodeAndNothingElse) {
 // pair of outlines both stand on.
 
 TEST(PathCompatibility, TwoRoundedRectsOfDifferentRadiiPair) {
-  const SkPath a = SkPath::RRect(SkRRect::MakeRectXY(SkRect::MakeWH(80, 40), 6, 6));
-  const SkPath b = SkPath::RRect(SkRRect::MakeRectXY(SkRect::MakeWH(80, 40), 14, 14));
+  const SkPath a =
+      SkPath::RRect(SkRRect::MakeRectXY(SkRect::MakeWH(80, 40), 6, 6));
+  const SkPath b =
+      SkPath::RRect(SkRRect::MakeRectXY(SkRect::MakeWH(80, 40), 14, 14));
   EXPECT_EQ(compatible(a, b), Compatible::Yes);
 }
 
@@ -156,10 +158,12 @@ TEST(PathCompatibility, NamesTheCoarsestReasonAPairDoesNot) {
 // the same kinds in a different order — the one incompatibility a caller
 // can repair without redrawing anything, and `startAt` repairs it.
 TEST(PathCompatibility, TellsAMovedStartPointFromADifferentDrawing) {
-  const SkPath a = SkPath::RRect(SkRRect::MakeRectXY(SkRect::MakeWH(80, 40), 6, 6));
+  const SkPath a =
+      SkPath::RRect(SkRRect::MakeRectXY(SkRect::MakeWH(80, 40), 6, 6));
   const SkPath rolled = startAt(a, 0, 1);
   EXPECT_EQ(compatible(a, rolled), Compatible::StartPoint);
-  EXPECT_EQ(compatible(a, startAt(rolled, 0, segments(rolled)[0].segments.size() - 1)),
+  EXPECT_EQ(compatible(
+                a, startAt(rolled, 0, segments(rolled)[0].segments.size() - 1)),
             Compatible::Yes);
 }
 
@@ -168,8 +172,8 @@ TEST(PathCompatibility, TellsAMovedStartPointFromADifferentDrawing) {
 
 /** A ring of `radius` about the origin, drawn the way `clockwise` says. */
 SkPath ring(float radius, bool clockwise) {
-  return SkPath::Circle(0, 0, radius,
-                        clockwise ? SkPathDirection::kCW : SkPathDirection::kCCW);
+  return SkPath::Circle(
+      0, 0, radius, clockwise ? SkPathDirection::kCW : SkPathDirection::kCCW);
 }
 
 TEST(PathDirection, NestingAnswersDepthAndTheTightestEnclosingRing) {

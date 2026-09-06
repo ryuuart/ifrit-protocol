@@ -81,19 +81,21 @@ Ramp cubehelix(const CubehelixOptions& options) {
   for (int i = 0; i < samples; ++i) {
     const float position = (float)i / (float)(samples - 1);
     const float lightness = std::pow(position, options.gamma);
-    const float angle = 2.0f * 3.14159265358979323846f *
-                        (options.start / 3.0f + 1.0f + options.rotations * position);
+    const float angle =
+        2.0f * 3.14159265358979323846f *
+        (options.start / 3.0f + 1.0f + options.rotations * position);
     // The amplitude closes to zero at both ends of the lightness ramp,
     // which is what keeps the helix inside the cube where there is no
     // room left for chroma.
-    const float amplitude =
-        options.hue * lightness * (1.0f - lightness) * 0.5f;
+    const float amplitude = options.hue * lightness * (1.0f - lightness) * 0.5f;
     const float cosine = std::cos(angle), sine = std::sin(angle);
     const Color color{
-        std::clamp(lightness + amplitude * (-0.14861f * cosine + 1.78277f * sine),
-                   0.0f, 1.0f),
-        std::clamp(lightness + amplitude * (-0.29227f * cosine - 0.90649f * sine),
-                   0.0f, 1.0f),
+        std::clamp(
+            lightness + amplitude * (-0.14861f * cosine + 1.78277f * sine),
+            0.0f, 1.0f),
+        std::clamp(
+            lightness + amplitude * (-0.29227f * cosine - 0.90649f * sine),
+            0.0f, 1.0f),
         std::clamp(lightness + amplitude * (1.97294f * cosine), 0.0f, 1.0f),
         1.0f};
     ramp.stops.push_back({position, color});

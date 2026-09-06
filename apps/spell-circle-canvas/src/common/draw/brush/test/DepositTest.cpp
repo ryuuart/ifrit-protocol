@@ -21,8 +21,8 @@ namespace {
 
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
-using sigil::draw::brush::testing::Recording;
 using sigil::draw::brush::testing::recorder;
+using sigil::draw::brush::testing::Recording;
 using sigil::draw::testing::Paper;
 
 TEST(Deposit, TiltCanDriveTipPositionSizeAspectAndDirection) {
@@ -98,7 +98,8 @@ TEST(Deposit, ShapeTipUsesDarkArtworkAsTheDefaultMask) {
   tool.opacityJitter = 0.0f;
   tool.spacingJitter = 0.0f;
   tool.markerTip = false;
-  const std::array<brush::Dab, 1> dabs{{{.position = {40, 40}, .pressure = 1.0f}}};
+  const std::array<brush::Dab, 1> dabs{
+      {{.position = {40, 40}, .pressure = 1.0f}}};
   brush::deposit(paper.pen, tool, dabs);
 
   SkBitmap alphaMask;
@@ -177,7 +178,8 @@ TEST(Deposit, AStoredPathCarriesNoSpeedSoSpeedDynamicsLeaveItAlone) {
   paper.end();
 
   ASSERT_GT(recording->dabs.size(), 2u);
-  for (const brush::Dab& dab : recording->dabs) EXPECT_FLOAT_EQ(dab.speed, 0.0f);
+  for (const brush::Dab& dab : recording->dabs)
+    EXPECT_FLOAT_EQ(dab.speed, 0.0f);
   // Every dab reached the tip: a third of the size would still be a mark,
   // but a speed of zero is what the executor is handed.
   EXPECT_EQ(recording->dabs.size(), recording->fills.size());

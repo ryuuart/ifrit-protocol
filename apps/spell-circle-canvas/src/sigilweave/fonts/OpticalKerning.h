@@ -43,8 +43,8 @@ struct GlyphProfile {
   static constexpr float kNoInk = 1e9f;
   std::array<float, kProfileBands> left{};   ///< ink's near edge, ems
   std::array<float, kProfileBands> right{};  ///< ink's far edge, ems
-  float top = 0;     ///< ink box top, ems above the baseline (positive up)
-  float bottom = 0;  ///< ink box bottom, ems
+  float top = 0;      ///< ink box top, ems above the baseline (positive up)
+  float bottom = 0;   ///< ink box bottom, ems
   float advance = 0;  ///< the glyph's own advance, ems
   bool inked = false;
 };

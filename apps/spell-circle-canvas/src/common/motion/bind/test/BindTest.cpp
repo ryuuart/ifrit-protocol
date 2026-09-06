@@ -72,38 +72,43 @@ INSTANTIATE_TEST_SUITE_P(
               {0.0f, 0.004f, 0.008f, 0.31f, 0.7431f, 0.999f, 1.0f},
               {}},
         // The affine chain in call order: scale, then offset.
-        Stage{"ScaleThenOffset", unshaped().scale(1.12f).offset(-0.12f).value(),
+        Stage{"ScaleThenOffset",
+              unshaped().scale(1.12f).offset(-0.12f).value(),
               [](float u) { return -0.12f + u * 1.12f; },
               {-1.0f, 0.0f, 0.31f, 0.5f, 0.99f, 1.0f, 2.5f},
               {}},
         // The looping phase, `fmod(t * k, 1)`: for a positive schedule
         // both are exact operations on the same product.
-        Stage{"ScaleThenWrap", unshaped().scale(0.5f).wrap(1.0f).value(),
+        Stage{"ScaleThenWrap",
+              unshaped().scale(0.5f).wrap(1.0f).value(),
               [](float t) { return std::fmod(t * 0.5f, 1.0f); },
               {0.0f, 0.7f, 1.9f, 2.0f, 13.37f, 400.25f},
               {}},
         // The inverted sawtooth: invert() IS 1 − v.
-        Stage{"Invert", unshaped().invert().value(),
+        Stage{"Invert",
+              unshaped().invert().value(),
               [](float v) { return 1.0f - v; },
               {0.0f, 0.25f, 0.61f, 1.0f},
               {}},
         // Five levels across [0,1], nearest — so four steps.
-        Stage{"Quantize", unshaped().quantize(5).value(),
+        Stage{"Quantize",
+              unshaped().quantize(5).value(),
               [](float v) { return std::round(v * 4.0f) / 4.0f; },
               sixtyFourths(0, 64),
               {}},
-        Stage{"Clamp", unshaped().clamp(0.f, 1.f).value(),
+        Stage{"Clamp",
+              unshaped().clamp(0.f, 1.f).value(),
               [](float v) { return std::clamp(v, 0.0f, 1.0f); },
               {-4.0f, 0.0f, 0.5f, 1.0f, 4.0f},
               {}},
         // `window(a, b)` is the `clamp((t−a)/(b−a), 0, 1)` idiom, stored
         // as one multiply-add.
-        Stage{"Window", unshaped().window(0.25f, 0.75f).value(),
-              [](float t) {
-                return std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f);
-              },
-              sixtyFourths(-8, 72),
-              {0.311f, 0.5002f, 0.7309f}}),
+        Stage{
+            "Window",
+            unshaped().window(0.25f, 0.75f).value(),
+            [](float t) { return std::clamp((t - 0.25f) / 0.5f, 0.0f, 1.0f); },
+            sixtyFourths(-8, 72),
+            {0.311f, 0.5002f, 0.7309f}}),
     stageName);
 
 TEST(Bind, TargetIsTheScaleAndOffsetThatLandTheRangeWhereItIsNamed) {

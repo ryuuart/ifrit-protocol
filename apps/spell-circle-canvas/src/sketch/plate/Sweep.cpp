@@ -9,6 +9,11 @@
 #include <include/core/SkData.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
+#include <include/gpu/GpuTypes.h>  // skgpu::GpuStatsFlags
+#include <include/gpu/graphite/Context.h>
+#include <include/gpu/graphite/Recorder.h>
+#include <include/gpu/graphite/Recording.h>
+#include <include/gpu/graphite/Surface.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmeasure/time/Stopwatch.h>
@@ -18,12 +23,6 @@
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/plate/FrameStats.h>
 #include <sigilsketch/plate/Graphite.h>
-
-#include <include/gpu/GpuTypes.h>  // skgpu::GpuStatsFlags
-#include <include/gpu/graphite/Context.h>
-#include <include/gpu/graphite/Recorder.h>
-#include <include/gpu/graphite/Recording.h>
-#include <include/gpu/graphite/Surface.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include <algorithm>

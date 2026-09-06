@@ -126,10 +126,9 @@ struct BrushCustom final : sketch::DrawSketch {
                                 .space = brush::GrainSpace::Dab,
                                 .scale = 0.7f,
                                 .depth = 0.9f};
-    loaded.dynamics.size =
-        brush::Response{.drive = brush::Drive::Pressure,
-                        .curve = {.minimum = 0.22f, .maximum = 1.0f,
-                                  .bend = 1.6f}};
+    loaded.dynamics.size = brush::Response{
+        .drive = brush::Drive::Pressure,
+        .curve = {.minimum = 0.22f, .maximum = 1.0f, .bend = 1.6f}};
     brush::paint(pen, loaded, sweep(610));
 
     pen.noLoop();

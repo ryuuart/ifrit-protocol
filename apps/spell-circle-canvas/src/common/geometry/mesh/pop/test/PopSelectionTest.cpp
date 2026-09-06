@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/kit/Sections.h>
 
 #include <algorithm>
 #include <cmath>
@@ -14,12 +15,10 @@
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "support/Loops.h"
-#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
 using sigil::geometry::mesh::pop::test::flatRing;
-
 
 TEST(Pop, GroupWritesASelectionAndMasksTheNextFilter) {
   // A ring in the xz plane; a sphere selector around +x picks the points

@@ -15,7 +15,8 @@ PaintLayer dropShadow(SkColor color, SkVector offset, float blurSigma,
   paint.setAntiAlias(true);
   paint.setColor(color);
   if (intensity != 1.0f) {
-    const float alpha = std::clamp(SkColorGetA(color) * intensity, 0.0f, 255.0f);
+    const float alpha =
+        std::clamp(SkColorGetA(color) * intensity, 0.0f, 255.0f);
     paint.setAlphaf(alpha / 255.0f);
   }
   if (spread > 0) {

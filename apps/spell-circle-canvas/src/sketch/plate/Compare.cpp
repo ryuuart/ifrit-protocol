@@ -40,9 +40,9 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
   const std::vector<char> encoded((std::istreambuf_iterator<char>(file)),
                                   std::istreambuf_iterator<char>());
   if (encoded.empty()) return std::nullopt;
-  const auto decoded = image::decodeImage(
-      reinterpret_cast<const std::byte*>(encoded.data()), encoded.size(), {},
-      path);
+  const auto decoded =
+      image::decodeImage(reinterpret_cast<const std::byte*>(encoded.data()),
+                         encoded.size(), {}, path);
   if (!decoded) return std::nullopt;
   const sk_sp<SkImage> image = decoded->frameAt(0).image;
   if (!image) return std::nullopt;
@@ -53,9 +53,8 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
   // Unpremultiplied, which is what a PNG holds: a plate is opaque, so
   // this is the identity, and asking for it keeps a plate that is not
   // from being compared through a rounding neither renderer performed.
-  const SkImageInfo info = SkImageInfo::Make(plate.width, plate.height,
-                                             kRGBA_8888_SkColorType,
-                                             kUnpremul_SkAlphaType);
+  const SkImageInfo info = SkImageInfo::Make(
+      plate.width, plate.height, kRGBA_8888_SkColorType, kUnpremul_SkAlphaType);
   plate.pixels.resize((size_t)plate.width * plate.height * 4);
   const SkPixmap pixels(info, plate.pixels.data(), (size_t)plate.width * 4);
   if (!image->readPixels(nullptr, pixels, 0, 0)) return std::nullopt;

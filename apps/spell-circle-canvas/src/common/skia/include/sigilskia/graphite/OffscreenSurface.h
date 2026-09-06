@@ -97,7 +97,7 @@ class OffscreenSurface {
    *  the CPU: a wait queued on this same queue ahead of the signal sits
    *  behind it and never passes. Defined by the device feature. */
   core::hardware::FenceValue submit(core::hardware::GpuDevice& device,
-                                   core::hardware::FenceHandle fence);
+                                    core::hardware::FenceHandle fence);
 
  private:
   GraphiteContext* m_context;

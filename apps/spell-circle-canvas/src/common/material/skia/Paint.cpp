@@ -1112,9 +1112,7 @@ sk_sp<SkShader> Paint::pannedImageShader() const {
                           m_recipe->sampling, &local);
 }
 
-bool Paint::hasFit() const {
-  return m_recipe && m_recipe->fit != Fit::Native;
-}
+bool Paint::hasFit() const { return m_recipe && m_recipe->fit != Fit::Native; }
 
 Paint& Paint::fit(Fit how) {
   if (!m_recipe || (m_recipe->kind != Recipe::Kind::Image &&
@@ -1159,8 +1157,8 @@ sk_sp<SkShader> Paint::fittedImageShader(const PaintFrame& frame) const {
       // between covering the box and sitting inside it. Centred either
       // way, so the crop takes the same from both edges and the margin
       // leaves the same at both.
-      const float k = m_recipe->fit == Fit::Cover ? std::max(sx, sy)
-                                                  : std::min(sx, sy);
+      const float k =
+          m_recipe->fit == Fit::Cover ? std::max(sx, sy) : std::min(sx, sy);
       local = SkMatrix::Scale(k, k);
       local.postTranslate((bw - iw * k) * 0.5f, (bh - ih * k) * 0.5f);
       break;

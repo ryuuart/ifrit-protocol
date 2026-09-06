@@ -34,8 +34,7 @@ sk_sp<SkImage> softTip(int side) {
           centre;
       const float coverage = std::clamp(1.0f - distance, 0.0f, 1.0f);
       const uint32_t alpha = (uint32_t)(coverage * coverage * 255.0f);
-      *bitmap.getAddr32(x, y) =
-          SkPreMultiplyARGB(alpha, 255, 255, 255);
+      *bitmap.getAddr32(x, y) = SkPreMultiplyARGB(alpha, 255, 255, 255);
     }
   bitmap.setImmutable();
   return SkImages::RasterFromBitmap(bitmap);
@@ -50,8 +49,7 @@ sk_sp<SkImage> noiseTile(int side) {
     for (int x = 0; x < side; ++x) {
       state = state * 1664525u + 1013904223u;
       const uint32_t level = 96u + (state >> 24) % 160u;
-      *bitmap.getAddr32(x, y) =
-          SkPreMultiplyARGB(255, level, level, level);
+      *bitmap.getAddr32(x, y) = SkPreMultiplyARGB(255, level, level, level);
     }
   bitmap.setImmutable();
   return SkImages::RasterFromBitmap(bitmap);
@@ -64,7 +62,8 @@ void BrushStroke(benchmark::State& state) {
   Frame frame;
   frame.width = 640;
   frame.height = 480;
-  const brush::Tool tool = brush::watercolor({0.12f, 0.36f, 0.72f, 1.0f}, 22.0f);
+  const brush::Tool tool =
+      brush::watercolor({0.12f, 0.36f, 0.72f, 1.0f}, 22.0f);
   const brush::Curl field(91);
   const brush::Stroke stroke =
       brush::trace(SkPoint::Make(30, 240), 560, tool.spacing, 0, field);
@@ -114,13 +113,13 @@ void ShapeStroke(benchmark::State& state) {
                             .scatter = 0.08f,
                             .angleJitter = 0.4f};
   if (state.range(0) != 0)
-    tool.grain = brush::Grain{
-        .image = noiseTile(128),
-        .space = state.range(0) == 1 ? brush::GrainSpace::Stroke
-                                     : brush::GrainSpace::Dab,
-        .scale = 1.5f};
-  const brush::Stroke stroke = brush::segment({30, 240}, {610, 300},
-                                              brush::spacingOf(tool));
+    tool.grain =
+        brush::Grain{.image = noiseTile(128),
+                     .space = state.range(0) == 1 ? brush::GrainSpace::Stroke
+                                                  : brush::GrainSpace::Dab,
+                     .scale = 1.5f};
+  const brush::Stroke stroke =
+      brush::segment({30, 240}, {610, 300}, brush::spacingOf(tool));
   int count = 0;
   for (auto _ : state) {
     frame.frameCount = ++count;

@@ -175,14 +175,14 @@ struct HitSlots final : sketch::Sketch {
     // a constant one would name two marks in two places.
     return custom(kit::formatted("probe %.2f %.2f", p.x(), p.y()),
                   [p](SkCanvas& c, const PaintContext&) {
-             SkPaint paint;
-             paint.setAntiAlias(true);
-             paint.setColor(0xffffffff);
-             c.drawCircle(p.x(), p.y(), 5, paint);
-             paint.setStyle(SkPaint::kStroke_Style);
-             paint.setStrokeWidth(1.5f);
-             c.drawCircle(p.x(), p.y(), 10, paint);
-           })
+                    SkPaint paint;
+                    paint.setAntiAlias(true);
+                    paint.setColor(0xffffffff);
+                    c.drawCircle(p.x(), p.y(), 5, paint);
+                    paint.setStyle(SkPaint::kStroke_Style);
+                    paint.setStrokeWidth(1.5f);
+                    c.drawCircle(p.x(), p.y(), 10, paint);
+                  })
         .inset(0)
         .hitTestable(false)
         .cache(Cache::None);
@@ -199,13 +199,14 @@ struct HitSlots final : sketch::Sketch {
       root.child(custom(kit::formatted("hit %.2f %.2f %.2f %.2f", rect.fLeft,
                                        rect.fTop, rect.fRight, rect.fBottom),
                         [rect](SkCanvas& canvas, const PaintContext&) {
-                   SkPaint ring;
-                   ring.setAntiAlias(true);
-                   ring.setStyle(SkPaint::kStroke_Style);
-                   ring.setStrokeWidth(2.5f);
-                   ring.setColor4f(kLit);
-                   canvas.drawRoundRect(rect.makeOutset(10, 10), 16, 16, ring);
-                 })
+                          SkPaint ring;
+                          ring.setAntiAlias(true);
+                          ring.setStyle(SkPaint::kStroke_Style);
+                          ring.setStrokeWidth(2.5f);
+                          ring.setColor4f(kLit);
+                          canvas.drawRoundRect(rect.makeOutset(10, 10), 16, 16,
+                                               ring);
+                        })
                      .inset(0)
                      .hitTestable(false));
     }
@@ -243,12 +244,12 @@ struct HitSlots final : sketch::Sketch {
             .hitTestable(false)
             .child(text(toU8("hitTest(probe) \xe2\x86\x92 " + hitLabel),
                         label(16, kInk)))
-            .child(text(toU8("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " +
-                             rect),
-                        label(12.5f, kDim)))
-            .child(text(toU8("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " +
-                             routes),
-                        label(12.5f, kDim))));
+            .child(
+                text(toU8("bounds(\"" + hitLabel + "\") \xe2\x86\x92 " + rect),
+                     label(12.5f, kDim)))
+            .child(text(
+                toU8("routesAt(\"" + hitLabel + "\") \xe2\x86\x92 " + routes),
+                label(12.5f, kDim))));
   }
 
   void setup(sketch::SketchContext& ctx) override {

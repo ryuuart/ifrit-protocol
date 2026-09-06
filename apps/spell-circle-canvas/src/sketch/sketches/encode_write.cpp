@@ -70,7 +70,6 @@ constexpr int kLossy = 24;  // the quality the lossy cells ask for
 constexpr int kSide = 176;  // the source image's side, px
 const char* kMount = "out://";
 
-
 /** The source: a smooth ramp under hard edges and fine text-sized
  *  detail, which is the pair of things the lossy codecs disagree about. */
 sk_sp<SkImage> source() {
@@ -158,8 +157,8 @@ struct EncodeWrite final : sketch::Sketch {
         wrote ? hub.image(uri) : nullptr;
     const std::string written =
         kit::formatted("write %s\nread back %s \xc2\xb7 %d\xc3\x97%d",
-                    wrote ? "true" : "false", read ? "true" : "false",
-                    read ? read->width() : 0, read ? read->height() : 0);
+                       wrote ? "true" : "false", read ? "true" : "false",
+                       read ? read->width() : 0, read ? read->height() : 0);
 
     ctx.composer.render(sketch::kit::page(
         {.title = toU8("ENCODE, THEN WRITE \xc2\xb7 image::encodeImage, "
@@ -181,18 +180,19 @@ struct EncodeWrite final : sketch::Sketch {
                        "disagree about",
                        art,
                        kit::formatted("N32 premul \xc2\xb7 %d\xc3\x97%d", kSide,
-                                   kSide)),
+                                      kSide)),
                   cell("encodeImage(art, Png)",
                        "lossless at every setting, and the quality is "
                        "ignored \xc2\xb7 the bytes decode back to the "
                        "pixels that went in",
                        png, kit::formatted("png \xc2\xb7 %zu bytes", pngBytes)),
-                  cell("Webp, quality 100",
-                       "100 selects the LOSSLESS codec rather than lossy "
-                       "at maximum \xc2\xb7 two codecs in one container, "
-                       "and this is the one that keeps everything",
-                       webpLossless,
-                       kit::formatted("webp \xc2\xb7 %zu bytes", losslessBytes)),
+                  cell(
+                      "Webp, quality 100",
+                      "100 selects the LOSSLESS codec rather than lossy "
+                      "at maximum \xc2\xb7 two codecs in one container, "
+                      "and this is the one that keeps everything",
+                      webpLossless,
+                      kit::formatted("webp \xc2\xb7 %zu bytes", losslessBytes)),
                   cell("Webp, quality 24",
                        "the same container, the other codec \xc2\xb7 the "
                        "ramp survives and the fine rules go soft",
@@ -202,7 +202,8 @@ struct EncodeWrite final : sketch::Sketch {
                        "the quantisation quality \xc2\xb7 the blocks are "
                        "the codec's own, and they land where the edges "
                        "are",
-                       jpeg, kit::formatted("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
+                       jpeg,
+                       kit::formatted("jpeg \xc2\xb7 %zu bytes", jpegBytes)),
                   cell("hub.write(uri, bytes)",
                        "the bytes out through the mount table, then "
                        "asked back for as an image \xc2\xb7 the write "

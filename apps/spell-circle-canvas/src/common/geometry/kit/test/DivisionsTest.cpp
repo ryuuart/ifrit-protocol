@@ -219,7 +219,8 @@ TEST(Divisions, TheOutlineFormTakesHalfTheShorterSideOfANonSquareBox) {
 
 TEST(Divisions, ZeroLengthMarksAreSkippedRatherThanEmittedEmpty) {
   const path::Frame f{.centre = {0, 0}, .radius = 10};
-  EXPECT_TRUE(shapes::ticks(f, {.divisions = 6, .mark = {1.0f, 1.0f}}).isEmpty());
+  EXPECT_TRUE(
+      shapes::ticks(f, {.divisions = 6, .mark = {1.0f, 1.0f}}).isEmpty());
 }
 
 TEST(Divisions, ATickLadderIsAComparableSilhouette) {
@@ -229,8 +230,8 @@ TEST(Divisions, ATickLadderIsAComparableSilhouette) {
               shapes::ticks(shapes::Ticks{.divisions = 12}));
   EXPECT_FALSE(shapes::ticks(shapes::Ticks{.divisions = 12}) ==
                shapes::ticks(shapes::Ticks{.divisions = 13}));
-  EXPECT_FALSE(shapes::ticks(shapes::Ticks{.divisions = 12})({200, 200})
-                   .isEmpty());
+  EXPECT_FALSE(
+      shapes::ticks(shapes::Ticks{.divisions = 12})({200, 200}).isEmpty());
 }
 
 // ---------------------------------------------------------------------------
@@ -278,10 +279,9 @@ TEST(Divisions, AChordInsetShortensBothEndsAndDropsDegenerateSides) {
 TEST(Divisions, StepMakesStarPolygonsAndTheCommonFactorDecidesTheRingCount) {
   const path::Frame f{.centre = {0, 0}, .radius = 100};
   // {7/2}: coprime, so one closed traversal of all seven vertices.
-  EXPECT_EQ(
-      walk(shapes::chords(f, {.sides = 7, .step = 2, .closed = true}))
-          .pieces.size(),
-      1u);
+  EXPECT_EQ(walk(shapes::chords(f, {.sides = 7, .step = 2, .closed = true}))
+                .pieces.size(),
+            1u);
   // {6/2}: two in common, so the hexagram really is TWO separate
   // triangles. Emitting one contour here would be wrong geometry, not a
   // simplification.
@@ -345,7 +345,8 @@ TEST(Divisions, ArcSegmentsFollowTheRingWhereANodeStandsAcrossIt) {
   const float outerArc = 100.0f * 30.0f * 3.14159265f / 180.0f;
   const float innerArc = 80.0f * 30.0f * 3.14159265f / 180.0f;
   EXPECT_NEAR(c.lengths[0], outerArc + innerArc + 2.0f * 20.0f, 0.5f);
-  EXPECT_TRUE(f.box().makeOutset(0.05f, 0.05f).contains(p.computeTightBounds()));
+  EXPECT_TRUE(
+      f.box().makeOutset(0.05f, 0.05f).contains(p.computeTightBounds()));
 
   // It is dealt round the frame the way ticks() deals marks: the first
   // segment is CENTRED on `from`, so its middle sits where a tick would.
@@ -356,7 +357,8 @@ TEST(Divisions, ArcSegmentsFollowTheRingWhereANodeStandsAcrossIt) {
 
   // Nothing to enclose is nothing drawn, rather than a degenerate contour
   // that fills as nothing and strokes as a doubled arc.
-  EXPECT_TRUE(shapes::arcs(f, {.divisions = 8, .mark = {0.9f, 0.9f}}).isEmpty());
+  EXPECT_TRUE(
+      shapes::arcs(f, {.divisions = 8, .mark = {0.9f, 0.9f}}).isEmpty());
   EXPECT_TRUE(shapes::arcs(f, {.divisions = 0}).isEmpty());
 
   // The shape form takes half the shorter side, like its two neighbours.

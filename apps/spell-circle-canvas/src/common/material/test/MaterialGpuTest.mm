@@ -24,11 +24,11 @@
 
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/kit/Surface.h>
-#include <sigilmaterial/core/Terms.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -66,8 +66,7 @@ struct NoParams {
  *  what turns the report into a verdict. */
 class ErrorSink final : public skgpu::ShaderErrorHandler {
  public:
-  void compileError(const char* /*shader*/, const char* errors,
-                    bool /*shaderWasCached*/) override {
+  void compileError(const char* /*shader*/, const char* errors, bool /*shaderWasCached*/) override {
     // The errors quote the generated line they are about, which is what
     // names the parameter the body collided with; the whole shader beside
     // them would bury it.
@@ -113,8 +112,7 @@ constexpr int kField = 64;
 void drawOnGpu(sk_sp<SkShader> shader) {
   sigil::skia::GraphiteContext* context = graphite();
   const SkImageInfo info = SkImageInfo::MakeN32Premul(kField, kField);
-  sk_sp<SkSurface> surface =
-      SkSurfaces::RenderTarget(context->recorder(), info);
+  sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(context->recorder(), info);
   ASSERT_TRUE(surface);
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorBLACK);
@@ -153,9 +151,7 @@ std::string shadeOnGpu(const Material& material) {
  *  the compiler is free to drop the call that would have failed. */
 Material termsMaterial() {
   static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<NoParams>("terms.everyTerm")
-          .body(Target::SkSL,
-                termsSource(Target::SkSL) + R"(
+      Recipe::of<NoParams>("terms.everyTerm").body(Target::SkSL, termsSource(Target::SkSL) + R"(
       half4 main(float2 xy) {
         float3 n = normalize(float3(0.2, 0.3, 1.0));
         float3 l = normalize(float3(xy.x + 0.5, xy.y + 0.5, 1.0));
@@ -205,8 +201,7 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
   kit::SurfaceParams blue;
   blue.baseColor = {0.1f, 0.3f, 1, 1};
   for (const Blend blend : {Blend::Mix, Blend::Add, Blend::Multiply})
-    add({over(kit::unlit(red), kit::unlit(blue), maskConstant(0.5f),
-              blend)});
+    add({over(kit::unlit(red), kit::unlit(blue), maskConstant(0.5f), blend)});
 
   if (ocio::available()) add({ocio::exponent(2.2f)});
   return all;

@@ -140,52 +140,52 @@ struct SdfStar final : sketch::Sketch {
                                        "recipe per KIND, not per parameter",
                                        sdf::star(12, 3), plain())},
                         .gap = 14}),
-                   kit::cells({.cells =
-                                   {cell("\xe2\x80\xa6"
-                                         ".glowRadius = 14",
-                                         kit::formatted("exp(\xe2\x88\x92"
+                   kit::cells(
+                       {.cells = {cell(
+                                      "\xe2\x80\xa6"
+                                      ".glowRadius = 14",
+                                      kit::formatted("exp(\xe2\x88\x92"
                                                      "d / radius), "
                                                      "not a blurred copy "
                                                      "\xc2\xb7 pad "
                                                      "%.0f px",
                                                      (double)sdf::pad(glowing)),
-                                         sdf::star(kPoints, kPointiness),
-                                         glowing),
-                                    cell("\xe2\x80\xa6"
-                                         ".glowRadius = 22",
-                                         kit::formatted("the falloff is the "
-                                                     "radius and "
-                                                     "nothing else \xc2\xb7 "
-                                                     "pad %.0f "
-                                                     "px, so in a fixed box "
-                                                     "the "
-                                                     "silhouette shrinks; "
-                                                     "minBoxFor("
-                                                     "style, 120) is %.0f",
-                                                     (double)sdf::pad(wide),
-                                                     (double)sdf::minBoxFor(wide, 120)),
-                                         sdf::star(kPoints, kPointiness), wide),
-                                    cell("\xe2\x80\xa6"
-                                         ".shadowOffset, "
-                                         ".shadowBlur",
-                                         kit::formatted("the layer BEHIND the "
+                                      sdf::star(kPoints, kPointiness), glowing),
+                                  cell("\xe2\x80\xa6"
+                                       ".glowRadius = 22",
+                                       kit::formatted(
+                                           "the falloff is the "
+                                           "radius and "
+                                           "nothing else \xc2\xb7 "
+                                           "pad %.0f "
+                                           "px, so in a fixed box "
+                                           "the "
+                                           "silhouette shrinks; "
+                                           "minBoxFor("
+                                           "style, 120) is %.0f",
+                                           (double)sdf::pad(wide),
+                                           (double)sdf::minBoxFor(wide, 120)),
+                                       sdf::star(kPoints, kPointiness), wide),
+                                  cell(
+                                      "\xe2\x80\xa6"
+                                      ".shadowOffset, "
+                                      ".shadowBlur",
+                                      kit::formatted("the layer BEHIND the "
                                                      "fill "
                                                      "\xc2\xb7 pad %.0f px, "
                                                      "which is "
                                                      "the offset and the blur "
                                                      "together",
                                                      (double)sdf::pad(dropped)),
-                                         sdf::star(kPoints, kPointiness),
-                                         dropped),
-                                    cell("\xe2\x80\xa6"
-                                         ".borderWidth = 9",
-                                         "the border is CENTRED on the edge, "
-                                         "so "
-                                         "half of it is the pad and half eats "
-                                         "the fill",
-                                         sdf::star(kPoints, kPointiness),
-                                         heavy)},
-                               .gap = 14})},
+                                      sdf::star(kPoints, kPointiness), dropped),
+                                  cell("\xe2\x80\xa6"
+                                       ".borderWidth = 9",
+                                       "the border is CENTRED on the edge, "
+                                       "so "
+                                       "half of it is the pad and half eats "
+                                       "the fill",
+                                       sdf::star(kPoints, kPointiness), heavy)},
+                        .gap = 14})},
          .column = true,
          .gap = 18});
     ctx.composer.render(sketch::kit::page(

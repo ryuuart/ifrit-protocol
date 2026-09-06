@@ -106,9 +106,7 @@ void run(const StampDispatch& dispatch, glm::vec4* positions,
       });
 }
 
-std::span<const uint32_t> stampSpirv() {
-  return slangmodule::Stamp::kSpirv;
-}
+std::span<const uint32_t> stampSpirv() { return slangmodule::Stamp::kSpirv; }
 
 }  // namespace sigil::geometry::mesh::kernel
 

@@ -69,8 +69,8 @@ bool sameDrawing(Element left, Element right) {
   SkBitmap a = Host(std::move(left)).pixels();
   SkBitmap b = Host(std::move(right)).pixels();
   for (int y = 0; y < kTall; ++y)
-    if (std::memcmp(a.getAddr32(0, y), b.getAddr32(0, y),
-                    (size_t)kWide * 4) != 0)
+    if (std::memcmp(a.getAddr32(0, y), b.getAddr32(0, y), (size_t)kWide * 4) !=
+        0)
       return false;
   return true;
 }
@@ -78,8 +78,10 @@ bool sameDrawing(Element left, Element right) {
 /** A subject with nothing of the theme in it, so a difference between two
  *  drawings is a difference in what the kit put around it. */
 Element subject() {
-  return compose::box().width(compose::Dim(60)).height(compose::Dim(40)).fill(
-      Fill::color({0.9f, 0.3f, 0.4f, 1}));
+  return compose::box()
+      .width(compose::Dim(60))
+      .height(compose::Dim(40))
+      .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +100,8 @@ TEST(SketchKitTheme, TheHouseSheetIsTheHouseColours) {
  *  would compare unequal, and every memo under the theme would miss
  *  forever. */
 TEST(SketchKitTheme, TheMonoFaceIsOneFace) {
-  EXPECT_EQ(kit::houseTheme().type.mono.get(), kit::houseTheme().type.mono.get());
+  EXPECT_EQ(kit::houseTheme().type.mono.get(),
+            kit::houseTheme().type.mono.get());
   EXPECT_NE(kit::houseTheme().type.mono.get(), nullptr);
 }
 
@@ -205,27 +208,25 @@ TEST(SketchKitPage, DrawsTheHandSpelledSheet) {
     return sigil::weave::textStyle(
         {.size = size, .color = color, .track = track});
   };
-  Element byHand =
-      compose::kit::sheet({.title = u8"THE RULE AND THE STRANDS",
-                           .subtitle = u8"dials · the width and the inset",
-                           .footer = u8"a crossing is discovered",
-                           .titleStyle = label(14, house.palette.ink, 2.4f),
-                           .subtitleStyle = label(11.5f, house.palette.ash,
-                                                  0.8f),
-                           .footerStyle = label(11, house.palette.ash, 0.4f),
-                           .marginX = 24,
-                           .marginTop = 20,
-                           .marginBottom = 16,
-                           .ground = Fill::color(house.palette.ground),
-                           .rule = Fill::color(house.palette.rule)},
-                          subject())
-          .absolute()
-          .inset(0);
-  Element byKit =
-      kit::page({.title = u8"THE RULE AND THE STRANDS",
-                 .subtitle = u8"dials · the width and the inset",
-                 .footer = u8"a crossing is discovered"},
-                subject());
+  Element byHand = compose::kit::sheet(
+                       {.title = u8"THE RULE AND THE STRANDS",
+                        .subtitle = u8"dials · the width and the inset",
+                        .footer = u8"a crossing is discovered",
+                        .titleStyle = label(14, house.palette.ink, 2.4f),
+                        .subtitleStyle = label(11.5f, house.palette.ash, 0.8f),
+                        .footerStyle = label(11, house.palette.ash, 0.4f),
+                        .marginX = 24,
+                        .marginTop = 20,
+                        .marginBottom = 16,
+                        .ground = Fill::color(house.palette.ground),
+                        .rule = Fill::color(house.palette.rule)},
+                       subject())
+                       .absolute()
+                       .inset(0);
+  Element byKit = kit::page({.title = u8"THE RULE AND THE STRANDS",
+                             .subtitle = u8"dials · the width and the inset",
+                             .footer = u8"a crossing is discovered"},
+                            subject());
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
 }
 
@@ -245,21 +246,17 @@ TEST(SketchKitPage, ReadsTheThemeInScope) {
 }
 
 TEST(SketchKitPage, UnruledRulesNeither) {
-  EXPECT_FALSE(sameDrawing(kit::page({.title = u8"T", .footer = u8"F"},
-                                     subject()),
-                           kit::page({.title = u8"T",
-                                      .footer = u8"F",
-                                      .ruled = false},
-                                     subject())));
+  EXPECT_FALSE(sameDrawing(
+      kit::page({.title = u8"T", .footer = u8"F"}, subject()),
+      kit::page({.title = u8"T", .footer = u8"F", .ruled = false}, subject())));
 }
 
 TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   const kit::Theme& house = kit::houseTheme();
   const compose::kit::Caption voice{
       .where = compose::kit::Caption::Where::Split,
-      .label = sigil::weave::textStyle({.face = house.type.mono,
-                                        .size = 10.5f,
-                                        .color = house.palette.ink}),
+      .label = sigil::weave::textStyle(
+          {.face = house.type.mono, .size = 10.5f, .color = house.palette.ink}),
       .note = sigil::weave::textStyle(
           {.size = 10, .color = house.palette.ash, .track = 0.2f}),
       .gap = 7,
@@ -289,43 +286,42 @@ TEST(SketchKitCells, WellTakesTheThemesCellGround) {
 TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
   const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
   const Fill edge = Fill::color({0.42f, 0.38f, 0.22f, 1});
-  EXPECT_TRUE(sameDrawing(
-      compose::box()
-          .width(compose::Dim(163))
-          .height(compose::Dim(176))
-          .corners(compose::Corners{8})
-          .padding(16)
-          .clip()
-          .fill(ground)
-          .stroke(compose::stroke(1.0f, edge,
-                                  compose::PathFormat::Align::Inner))
-          .child(subject()),
-      kit::well({.width = compose::Dim(163),
-                 .height = compose::Dim(176),
-                 .ground = ground,
-                 .padding = 16,
-                 .corners = 8,
-                 .keyline = edge},
-                compose::box().child(subject()))));
+  EXPECT_TRUE(
+      sameDrawing(compose::box()
+                      .width(compose::Dim(163))
+                      .height(compose::Dim(176))
+                      .corners(compose::Corners{8})
+                      .padding(16)
+                      .clip()
+                      .fill(ground)
+                      .stroke(compose::stroke(
+                          1.0f, edge, compose::PathFormat::Align::Inner))
+                      .child(subject()),
+                  kit::well({.width = compose::Dim(163),
+                             .height = compose::Dim(176),
+                             .ground = ground,
+                             .padding = 16,
+                             .corners = 8,
+                             .keyline = edge},
+                            compose::box().child(subject()))));
 }
 
 /** A plate set tighter down than across, which one distance cannot say. */
 TEST(SketchKitCells, APaddingDownOfItsOwn) {
   const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
-  EXPECT_TRUE(sameDrawing(
-      compose::box()
-          .width(compose::Dim(163))
-          .height(compose::Dim(176))
-          .padding(13, 10)
-          .clip()
-          .fill(ground)
-          .child(subject()),
-      kit::well({.width = compose::Dim(163),
-                 .height = compose::Dim(176),
-                 .ground = ground,
-                 .padding = 13,
-                 .paddingY = 10},
-                compose::box().child(subject()))));
+  EXPECT_TRUE(sameDrawing(compose::box()
+                              .width(compose::Dim(163))
+                              .height(compose::Dim(176))
+                              .padding(13, 10)
+                              .clip()
+                              .fill(ground)
+                              .child(subject()),
+                          kit::well({.width = compose::Dim(163),
+                                     .height = compose::Dim(176),
+                                     .ground = ground,
+                                     .padding = 13,
+                                     .paddingY = 10},
+                                    compose::box().child(subject()))));
 }
 
 /** THE GROUND'S OTHER FORM: a well grounded in a material draws what the
@@ -336,17 +332,17 @@ TEST(SketchKitCells, APaddingDownOfItsOwn) {
 TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
   const sigil::material::Material quarry = sigil::material::kit::stone(
       {.hi = {0.47f, 0.29f, 0.29f, 1}, .lo = {0.30f, 0.19f, 0.19f, 1}});
-  EXPECT_TRUE(sameDrawing(
-      compose::box()
-          .width(compose::Dim(163))
-          .height(compose::Dim(176))
-          .clip()
-          .fill(sigil::material::skia::Paint::recipe(quarry))
-          .child(subject()),
-      kit::well({.width = compose::Dim(163),
-                 .height = compose::Dim(176),
-                 .ground = quarry},
-                compose::box().child(subject()))));
+  EXPECT_TRUE(
+      sameDrawing(compose::box()
+                      .width(compose::Dim(163))
+                      .height(compose::Dim(176))
+                      .clip()
+                      .fill(sigil::material::skia::Paint::recipe(quarry))
+                      .child(subject()),
+                  kit::well({.width = compose::Dim(163),
+                             .height = compose::Dim(176),
+                             .ground = quarry},
+                            compose::box().child(subject()))));
 }
 
 /** A well carrying neither draws exactly what it always did. */
@@ -407,14 +403,13 @@ struct Beside {
   sigil::motion::Ticker ticker;
   compose::Composer composer{ticker, fonts()};
   sigil::sketch::CanvasSpec spec;
-  sigil::sketch::SketchContext ctx{composer, ticker, store, {0, 0}, &spec,
-                                   &fonts()};
+  sigil::sketch::SketchContext ctx{composer, ticker, store,
+                                   {0, 0},   &spec,  &fonts()};
 
   explicit Beside(std::string_view text) {
     std::filesystem::remove_all(root);
     std::filesystem::create_directories(root / "passages");
-    std::ofstream(root / "passages" / "one.txt", std::ios::binary)
-        << text;
+    std::ofstream(root / "passages" / "one.txt", std::ios::binary) << text;
   }
   ~Beside() { std::filesystem::remove_all(root); }
 };
@@ -474,10 +469,9 @@ TEST(SketchKitHeading, AMissingLineSpendsNoGap) {
           .child(compose::text(
               u8"T", kit::houseTheme().style(kit::houseTheme().type.title,
                                              kit::houseTheme().palette.ink)))
-          .child(compose::text(
-                     u8"S",
-                     kit::houseTheme().style(kit::houseTheme().type.subtitle,
-                                             kit::houseTheme().palette.ash))
+          .child(compose::text(u8"S", kit::houseTheme().style(
+                                          kit::houseTheme().type.subtitle,
+                                          kit::houseTheme().palette.ash))
                      .margin(0, kit::houseTheme().spacing.subtitleGap, 0, 0))));
 }
 
@@ -493,27 +487,27 @@ TEST(SketchKitHeading, ACardWithNotesIsTheHandSpelledRow) {
       compose::box()
           .row()
           .alignItems(compose::Align::End)
-          .child(compose::box()
-                     .column()
-                     .alignItems(compose::Align::Stretch)
-                     .child(compose::text(u8"MET OFFICE",
-                                          line(house.type.eyebrow,
-                                               house.palette.ash)))
-                     .child(compose::text(u8"THE SHIPPING FORECAST",
-                                          line(house.type.title,
-                                               house.palette.ink))
-                                .margin(0, house.spacing.subtitleGap, 0, 0))
-                     .grow(1))
+          .child(
+              compose::box()
+                  .column()
+                  .alignItems(compose::Align::Stretch)
+                  .child(compose::text(u8"MET OFFICE", line(house.type.eyebrow,
+                                                            house.palette.ash)))
+                  .child(
+                      compose::text(u8"THE SHIPPING FORECAST",
+                                    line(house.type.title, house.palette.ink))
+                          .margin(0, house.spacing.subtitleGap, 0, 0))
+                  .grow(1))
           .child(compose::box()
                      .column()
                      .gap(house.spacing.rowGap)
                      .alignItems(compose::Align::End)
-                     .child(compose::text(u8"ISSUED 0015 UTC",
-                                          line(house.type.captionNote,
-                                               house.palette.ash)))
-                     .child(compose::text(u8"VALID TO 0600 UTC",
-                                          line(house.type.captionNote,
-                                               house.palette.ash))));
+                     .child(compose::text(
+                         u8"ISSUED 0015 UTC",
+                         line(house.type.captionNote, house.palette.ash)))
+                     .child(compose::text(
+                         u8"VALID TO 0600 UTC",
+                         line(house.type.captionNote, house.palette.ash))));
   EXPECT_TRUE(sameDrawing(
       std::move(byHand),
       kit::titleCard({.eyebrow = {u8"MET OFFICE"},
@@ -527,9 +521,9 @@ TEST(SketchKitHeading, ACardWithNotesIsTheHandSpelledRow) {
 TEST(SketchKitHeading, ALineSetsItsOwnInk) {
   EXPECT_FALSE(sameDrawing(
       kit::titleCard({.title = {u8"T"}, .notes = {{u8"n"}}}),
-      kit::titleCard({.title = {u8"T"},
-                      .notes = {{.words = u8"n",
-                                 .ink = SkColor4f{1, 0.3f, 0.1f, 1}}}})));
+      kit::titleCard(
+          {.title = {u8"T"},
+           .notes = {{.words = u8"n", .ink = SkColor4f{1, 0.3f, 0.1f, 1}}}})));
 }
 
 /** A register names the face its own line is set in, for the line neither
@@ -558,9 +552,8 @@ TEST(SketchKitHeading, TheSectionRuleFillsWhatTheTwoLinesLeave) {
   EXPECT_FALSE(sameDrawing(
       kit::sectionHeader({.label = u8"DYNAMICS", .note = u8"6 presets"})
           .width(compose::Dim(360)),
-      kit::sectionHeader({.label = u8"DYNAMICS",
-                          .note = u8"6 presets",
-                          .ruled = false})
+      kit::sectionHeader(
+          {.label = u8"DYNAMICS", .note = u8"6 presets", .ruled = false})
           .width(compose::Dim(360))));
 }
 
@@ -578,13 +571,11 @@ TEST(SketchKitRows, ALabelRowRangesItsFigureToTheMeasure) {
           .child(compose::text(u8"nodes", house.style(house.type.captionNote,
                                                       house.palette.ash)))
           .child(compose::box().grow(1))
-          .child(compose::text(u8"1 248",
-                               house.style(house.type.captionLabel,
-                                           house.palette.figure)));
-  EXPECT_TRUE(sameDrawing(
-      std::move(byHand),
-      kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
-                    {.measure = 220})));
+          .child(compose::text(u8"1 248", house.style(house.type.captionLabel,
+                                                      house.palette.figure)));
+  EXPECT_TRUE(sameDrawing(std::move(byHand),
+                          kit::labelRow({.name = u8"nodes", .value = u8"1 248"},
+                                        {.measure = 220})));
 }
 
 /** The table is the rows stacked at the theme's row gap — which is what
@@ -611,8 +602,7 @@ TEST(SketchKitRows, AReadoutStacksItsRowsAtTheThemesGap) {
 TEST(SketchKitRows, ASwatchStandsBeforeTheName) {
   const Fill tier = Fill::color({0.4f, 0.9f, 0.55f, 1});
   EXPECT_FALSE(sameDrawing(
-      kit::labelRow({.name = u8"Promoted", .value = u8"18"},
-                    {.measure = 200}),
+      kit::labelRow({.name = u8"Promoted", .value = u8"18"}, {.measure = 200}),
       kit::labelRow({.name = u8"Promoted", .value = u8"18", .swatch = tier},
                     {.measure = 200})));
 }
@@ -621,8 +611,8 @@ TEST(SketchKitRows, ASwatchStandsBeforeTheName) {
  *  names differ in length still start their figures on one line. */
 TEST(SketchKitRows, ANameMeasureRangesTheFiguresOfUnequalNames) {
   const kit::Readout table{.measure = 240, .nameMeasure = 120};
-  Element wide = kit::labelRow({.name = u8"describedNodes", .value = u8"7"},
-                               table);
+  Element wide =
+      kit::labelRow({.name = u8"describedNodes", .value = u8"7"}, table);
   Element narrow = kit::labelRow({.name = u8"memoHits", .value = u8"7"}, table);
   SkBitmap a = Host(std::move(wide)).pixels();
   SkBitmap b = Host(std::move(narrow)).pixels();
@@ -660,9 +650,9 @@ TEST(SketchKitMeter, ABoundLevelFillsTheRailAsAFractionDoes) {
  *  with filled patches. */
 TEST(SketchKitLegend, AnOutlinedSwatchIsNotAFilledOne) {
   const Fill mark = Fill::color({0.4f, 0.9f, 0.55f, 1});
-  EXPECT_FALSE(sameDrawing(kit::legend({.entries = {{mark, u8"live"}}}),
-                           kit::legend({.entries = {{mark, u8"live"}},
-                                        .strokeWidth = 1.4f})));
+  EXPECT_FALSE(sameDrawing(
+      kit::legend({.entries = {{mark, u8"live"}}}),
+      kit::legend({.entries = {{mark, u8"live"}}, .strokeWidth = 1.4f})));
 }
 
 /** The four-column reading a name-and-figure pair cannot hold: each
@@ -677,27 +667,30 @@ TEST(SketchKitRows, ATableDrawsTheHandSpelledColumns) {
     return house.style(house.type.captionNote, house.palette.ash);
   };
   Element byHand =
-      compose::box().column().gap(house.spacing.rowGap).child(
       compose::box()
-          .row()
-          .alignItems(compose::Align::Center)
-          .gap(8)
-          .child(compose::box()
-                     .width(compose::Dim(9))
-                     .height(compose::Dim(9))
-                     .fill(tier)
-                     .shrink(0))
-          .child(compose::text(u8"cellPanel", figure())
-                     .width(compose::Dim(126)))
-          .child(compose::text(u8"0.00", figure()).width(compose::Dim(46)))
-          .child(compose::text(u8"Promoted", quiet()).width(compose::Dim(66)))
-          .child(compose::text(u8"baked by the library", quiet())));
+          .column()
+          .gap(house.spacing.rowGap)
+          .child(
+              compose::box()
+                  .row()
+                  .alignItems(compose::Align::Center)
+                  .gap(8)
+                  .child(compose::box()
+                             .width(compose::Dim(9))
+                             .height(compose::Dim(9))
+                             .fill(tier)
+                             .shrink(0))
+                  .child(compose::text(u8"cellPanel", figure())
+                             .width(compose::Dim(126)))
+                  .child(
+                      compose::text(u8"0.00", figure()).width(compose::Dim(46)))
+                  .child(compose::text(u8"Promoted", quiet())
+                             .width(compose::Dim(66)))
+                  .child(compose::text(u8"baked by the library", quiet())));
   Element byKit = kit::table(
       {{{u8"cellPanel", u8"0.00", u8"Promoted", u8"baked by the library"},
         tier}},
-      {.columns = {{126, true}, {46, true}, {66}, {}},
-       .gap = 8,
-       .swatch = 9});
+      {.columns = {{126, true}, {46, true}, {66}, {}}, .gap = 8, .swatch = 9});
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
 }
 
@@ -707,25 +700,26 @@ TEST(SketchKitRows, ATableDrawsTheHandSpelledColumns) {
 TEST(SketchKitRows, ASurplusWordTakesTheLastColumnsRegister) {
   const kit::Theme& house = kit::houseTheme();
   Element byHand =
-      compose::box().column().gap(house.spacing.rowGap).child(
-          compose::box()
-              .row()
-              .alignItems(compose::Align::Center)
-              .gap(house.spacing.labelGap)
-              .child(compose::text(u8"key",
-                                   house.style(house.type.captionNote,
-                                               house.palette.ash))
-                         .width(compose::Dim(60)))
-              .child(compose::text(u8"0.00",
-                                   house.style(house.type.captionLabel,
-                                               house.palette.figure)))
-              .child(compose::text(u8"12",
-                                   house.style(house.type.captionLabel,
-                                               house.palette.figure))));
-  EXPECT_TRUE(sameDrawing(
-      std::move(byHand),
-      kit::table({{{u8"key", u8"0.00", u8"12"}}},
-                 {.columns = {{60}, {0, true}}})));
+      compose::box()
+          .column()
+          .gap(house.spacing.rowGap)
+          .child(compose::box()
+                     .row()
+                     .alignItems(compose::Align::Center)
+                     .gap(house.spacing.labelGap)
+                     .child(compose::text(u8"key",
+                                          house.style(house.type.captionNote,
+                                                      house.palette.ash))
+                                .width(compose::Dim(60)))
+                     .child(compose::text(u8"0.00",
+                                          house.style(house.type.captionLabel,
+                                                      house.palette.figure)))
+                     .child(compose::text(u8"12",
+                                          house.style(house.type.captionLabel,
+                                                      house.palette.figure))));
+  EXPECT_TRUE(sameDrawing(std::move(byHand),
+                          kit::table({{{u8"key", u8"0.00", u8"12"}}},
+                                     {.columns = {{60}, {0, true}}})));
 }
 
 // ---------------------------------------------------------------------------
@@ -763,8 +757,8 @@ TEST(SketchKitLegend, AnEntryIsASwatchAndItsWords) {
 TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
   const kit::Theme& house = kit::houseTheme();
   const SkColor4f rare{0.98f, 0.86f, 0.32f, 1};
-  const Fill body = Fill::color({rare.fR * 0.35f, rare.fG * 0.35f,
-                                 rare.fB * 0.35f, 1});
+  const Fill body =
+      Fill::color({rare.fR * 0.35f, rare.fG * 0.35f, rare.fB * 0.35f, 1});
   Element byHand =
       compose::box()
           .column()
@@ -780,16 +774,15 @@ TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
                                 .fill(body)
                                 .shrink(0)
                                 .corners(compose::Corners{1.5f})
-                                .foreground(compose::stroke(
-                                    1.0f, Fill::color(rare))))
+                                .foreground(
+                                    compose::stroke(1.0f, Fill::color(rare))))
                      .child(compose::text(
-                         u8"rare",
-                         house.style(house.type.captionNote, rare))));
-  Element byKit = kit::legend({.entries = {{body, u8"rare", {},
-                                            Fill::color(rare), rare}},
-                               .swatch = 9,
-                               .corners = 1.5f,
-                               .labelGap = 6});
+                         u8"rare", house.style(house.type.captionNote, rare))));
+  Element byKit =
+      kit::legend({.entries = {{body, u8"rare", {}, Fill::color(rare), rare}},
+                   .swatch = 9,
+                   .corners = 1.5f,
+                   .labelGap = 6});
   EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
 }
 
@@ -800,12 +793,12 @@ TEST(SketchKitLegend, AnEntryWithoutThemDrawsWhatItAlwaysDid) {
   const Fill warm = Fill::color({0.9f, 0.6f, 0.3f, 1});
   EXPECT_TRUE(sameDrawing(
       kit::legend({.entries = {{warm, u8"lit"}}}),
-      kit::legend({.entries = {{warm, u8"lit", {}, std::nullopt,
-                                std::nullopt}}})));
+      kit::legend(
+          {.entries = {{warm, u8"lit", {}, std::nullopt, std::nullopt}}})));
   EXPECT_FALSE(sameDrawing(
       kit::legend({.entries = {{warm, u8"lit"}}}),
-      kit::legend({.entries = {{warm, u8"lit", {},
-                                Fill::color({1, 1, 1, 1})}}})));
+      kit::legend(
+          {.entries = {{warm, u8"lit", {}, Fill::color({1, 1, 1, 1})}}})));
 }
 
 /** A KEY'S MARK IS WHATEVER THE CALLER DREW: a quarried sample at its own
@@ -813,13 +806,12 @@ TEST(SketchKitLegend, AnEntryWithoutThemDrawsWhatItAlwaysDid) {
  *  none of the swatch's dressing is read for it. */
 TEST(SketchKitLegend, AnEntrysMarkIsWhateverTheCallerDrew) {
   const kit::Theme& house = kit::houseTheme();
-  Element sample =
-      compose::box()
-          .width(compose::Dim(20))
-          .height(compose::Dim(13))
-          .fill(Fill::color({0.45f, 0.29f, 0.29f, 1}))
-          .foreground(compose::stroke(1.0f,
-                                      Fill::color({0.87f, 0.84f, 0.77f, 0.55f})));
+  Element sample = compose::box()
+                       .width(compose::Dim(20))
+                       .height(compose::Dim(13))
+                       .fill(Fill::color({0.45f, 0.29f, 0.29f, 1}))
+                       .foreground(compose::stroke(
+                           1.0f, Fill::color({0.87f, 0.84f, 0.77f, 0.55f})));
   Element byHand =
       compose::box()
           .column()
@@ -844,16 +836,15 @@ TEST(SketchKitLegend, AStripNamesTheStepsItHasWordsFor) {
   std::vector<kit::Ground> steps;
   for (int i = 0; i < 4; ++i)
     steps.push_back(Fill::color({0.2f * (float)i, 0.3f, 0.4f, 1}));
-  EXPECT_FALSE(sameDrawing(
-      kit::swatchStrip({.swatches = steps,
-                        .width = compose::Dim(28),
-                        .height = compose::Dim(14),
-                        .gap = 0}),
-      kit::swatchStrip({.swatches = steps,
-                        .labels = {u8"0", {}, {}, u8"1"},
-                        .width = compose::Dim(28),
-                        .height = compose::Dim(14),
-                        .gap = 0})));
+  EXPECT_FALSE(sameDrawing(kit::swatchStrip({.swatches = steps,
+                                             .width = compose::Dim(28),
+                                             .height = compose::Dim(14),
+                                             .gap = 0}),
+                           kit::swatchStrip({.swatches = steps,
+                                             .labels = {u8"0", {}, {}, u8"1"},
+                                             .width = compose::Dim(28),
+                                             .height = compose::Dim(14),
+                                             .gap = 0})));
 }
 
 TEST(SketchKitLegend, AChipIsItsWordOnTheThemesFigureGround) {
@@ -863,9 +854,8 @@ TEST(SketchKitLegend, AChipIsItsWordOnTheThemesFigureGround) {
           .padding(house.spacing.chipPaddingX, house.spacing.chipPaddingY)
           .fill(Fill::color(house.palette.figure))
           .corners(compose::Corners{2})
-          .child(compose::text(u8"PINNED",
-                               house.style(house.type.eyebrow,
-                                           house.palette.ground)));
+          .child(compose::text(u8"PINNED", house.style(house.type.eyebrow,
+                                                       house.palette.ground)));
   EXPECT_TRUE(sameDrawing(std::move(byHand), kit::chip({.label = u8"PINNED"})));
 }
 
@@ -874,30 +864,29 @@ TEST(SketchKitLegend, AChipIsItsWordOnTheThemesFigureGround) {
 
 TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
   const kit::Theme& house = kit::houseTheme();
-  Element byHand =
-      compose::box()
-          .width(compose::Dim(220))
-          .height(compose::Dim(house.spacing.barHeight))
-          .fill(Fill::color(house.palette.cellGround))
-          .clip()
-          .child(compose::box()
-                     .width(compose::pct(40))
-                     .fill(Fill::color(house.palette.figure))
-                     .alignSelf(compose::Align::Stretch));
-  EXPECT_TRUE(sameDrawing(std::move(byHand),
-                          kit::meter({.fraction = 0.4f,
-                                      .width = compose::Dim(220)})));
+  Element byHand = compose::box()
+                       .width(compose::Dim(220))
+                       .height(compose::Dim(house.spacing.barHeight))
+                       .fill(Fill::color(house.palette.cellGround))
+                       .clip()
+                       .child(compose::box()
+                                  .width(compose::pct(40))
+                                  .fill(Fill::color(house.palette.figure))
+                                  .alignSelf(compose::Align::Stretch));
+  EXPECT_TRUE(
+      sameDrawing(std::move(byHand),
+                  kit::meter({.fraction = 0.4f, .width = compose::Dim(220)})));
 }
 
 /** A fraction outside 0..1 is clamped: a bar past its own end is a
  *  drawing error rather than a reading. */
 TEST(SketchKitMeter, AFractionOutsideTheTrackIsClamped) {
-  EXPECT_TRUE(sameDrawing(
-      kit::meter({.fraction = 3.0f, .width = compose::Dim(220)}),
-      kit::meter({.fraction = 1.0f, .width = compose::Dim(220)})));
-  EXPECT_TRUE(sameDrawing(
-      kit::meter({.fraction = -1.0f, .width = compose::Dim(220)}),
-      kit::meter({.fraction = 0.0f, .width = compose::Dim(220)})));
+  EXPECT_TRUE(
+      sameDrawing(kit::meter({.fraction = 3.0f, .width = compose::Dim(220)}),
+                  kit::meter({.fraction = 1.0f, .width = compose::Dim(220)})));
+  EXPECT_TRUE(
+      sameDrawing(kit::meter({.fraction = -1.0f, .width = compose::Dim(220)}),
+                  kit::meter({.fraction = 0.0f, .width = compose::Dim(220)})));
 }
 
 TEST(SketchKitMeter, TheDialSweepsWithItsFraction) {
@@ -943,11 +932,11 @@ Element barByHand(float top, float length) {
 }
 
 Element bar(float at) {
-  return kit::scrollbar({.leading = stepper(),
-                         .trailing = stepper(),
-                         .scrolled = {.view = 100, .content = 400,
-                                      .track = 200},
-                         .at = at})
+  return kit::scrollbar(
+             {.leading = stepper(),
+              .trailing = stepper(),
+              .scrolled = {.view = 100, .content = 400, .track = 200},
+              .at = at})
       .width(compose::Dim(16))
       .height(compose::Dim(232));
 }
@@ -984,9 +973,9 @@ TEST(SketchKitScrollbar, EverythingShowingFillsTheTrack) {
  *  travel with it: a thumb held longer than its share has less track left
  *  to run along. */
 TEST(SketchKitScrollbar, AShortThumbIsHeldAtItsMinimum) {
-  const kit::Thumb held = kit::Scrolled{.view = 10, .content = 4000,
-                                        .track = 200, .minLength = 24}
-                              .thumb();
+  const kit::Thumb held =
+      kit::Scrolled{.view = 10, .content = 4000, .track = 200, .minLength = 24}
+          .thumb();
   EXPECT_FLOAT_EQ(held.length, 24);
   EXPECT_FLOAT_EQ(held.travel, 176);
 }
@@ -994,12 +983,12 @@ TEST(SketchKitScrollbar, AShortThumbIsHeldAtItsMinimum) {
 /** A measured thumb is stated rather than read off a ratio — which is
  *  what a reconstruction of a bar someone else drew has. */
 TEST(SketchKitScrollbar, AStatedLengthReplacesTheShare) {
-  EXPECT_TRUE(sameDrawing(
-      barByHand(0, 90),
-      kit::scrollbar({.leading = stepper(), .trailing = stepper(),
-                      .thumbLength = compose::Dim(90)})
-          .width(compose::Dim(16))
-          .height(compose::Dim(232))));
+  EXPECT_TRUE(sameDrawing(barByHand(0, 90),
+                          kit::scrollbar({.leading = stepper(),
+                                          .trailing = stepper(),
+                                          .thumbLength = compose::Dim(90)})
+                              .width(compose::Dim(16))
+                              .height(compose::Dim(232))));
 }
 
 // ---------------------------------------------------------------------------
@@ -1057,15 +1046,14 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
                      .fill(Fill::color(house.palette.ground))
                      .clip()
                      .corners(compose::Corners{2})
-                     .stroke(compose::stroke(
-                         1, Fill::color(house.palette.rule),
-                         compose::PathFormat::Align::Inner))
+                     .stroke(compose::stroke(1, Fill::color(house.palette.rule),
+                                             compose::PathFormat::Align::Inner))
                      .child(subject()));
-  EXPECT_TRUE(sameDrawing(std::move(byHand),
-                          kit::frame({.width = compose::Dim(200),
-                                      .height = compose::Dim(120),
-                                      .bezel = 8},
-                                     subject())));
+  EXPECT_TRUE(sameDrawing(
+      std::move(byHand),
+      kit::frame(
+          {.width = compose::Dim(200), .height = compose::Dim(120), .bezel = 8},
+          subject())));
 }
 
 /** A shell quarried rather than coloured: the frame's two grounds each
@@ -1074,9 +1062,10 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
 TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
   const sigil::material::Material purbeck = sigil::material::kit::stone(
       {.hi = {0.47f, 0.46f, 0.42f, 1}, .lo = {0.31f, 0.31f, 0.28f, 1}});
-  const sigil::material::Material mortar = sigil::material::kit::stone(
-      {.hi = {0.42f, 0.41f, 0.37f, 1}, .lo = {0.28f, 0.27f, 0.25f, 1},
-       .bedAngle = 60.0f});
+  const sigil::material::Material mortar =
+      sigil::material::kit::stone({.hi = {0.42f, 0.41f, 0.37f, 1},
+                                   .lo = {0.28f, 0.27f, 0.25f, 1},
+                                   .bedAngle = 60.0f});
   const kit::Theme& house = kit::houseTheme();
   Element byHand =
       compose::box()
@@ -1092,17 +1081,16 @@ TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
                      .fill(sigil::material::skia::Paint::recipe(mortar))
                      .clip()
                      .corners(compose::Corners{2})
-                     .stroke(compose::stroke(
-                         1, Fill::color(house.palette.rule),
-                         compose::PathFormat::Align::Inner))
+                     .stroke(compose::stroke(1, Fill::color(house.palette.rule),
+                                             compose::PathFormat::Align::Inner))
                      .child(subject()));
-  EXPECT_TRUE(sameDrawing(std::move(byHand),
-                          kit::frame({.width = compose::Dim(200),
-                                      .height = compose::Dim(120),
-                                      .shell = purbeck,
-                                      .bezel = 8,
-                                      .screen = mortar},
-                                     subject())));
+  EXPECT_TRUE(
+      sameDrawing(std::move(byHand), kit::frame({.width = compose::Dim(200),
+                                                 .height = compose::Dim(120),
+                                                 .shell = purbeck,
+                                                 .bezel = 8,
+                                                 .screen = mortar},
+                                                subject())));
 }
 
 // ---------------------------------------------------------------------------
@@ -1199,10 +1187,14 @@ TEST(SketchKitCells, ARunIsTheHandSpelledRunAtTheThemesGutter) {
  *  come out the same width, which is what a run of fixed widths cannot
  *  do because it does not know how wide the page is. */
 TEST(SketchKitCells, ColumnsTakeEqualShares) {
-  Element wide = compose::box().width(compose::Dim(300)).height(
-      compose::Dim(20)).fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
-  Element narrow = compose::box().width(compose::Dim(10)).height(
-      compose::Dim(20)).fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
+  Element wide = compose::box()
+                     .width(compose::Dim(300))
+                     .height(compose::Dim(20))
+                     .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
+  Element narrow = compose::box()
+                       .width(compose::Dim(10))
+                       .height(compose::Dim(20))
+                       .fill(Fill::color({0.9f, 0.3f, 0.4f, 1}));
   SkBitmap shared = Host(kit::columns({.cells = {wide, narrow}})).pixels();
   const int gutter = (int)kit::houseTheme().spacing.cellGap;
   const int share = (kWide - gutter) / 2;
@@ -1218,12 +1210,12 @@ TEST(SketchKitCells, AShortGridRowKeepsItsShare) {
   EXPECT_TRUE(sameDrawing(
       kit::panelGrid({.cells = {subject(), subject(), subject(), subject()},
                       .columns = 3}),
-      kit::cells({.cells = {kit::columns({.cells = {subject(), subject(),
-                                                    subject()}}),
-                            kit::columns({.cells = {subject(), compose::box(),
-                                                    compose::box()}})},
-                  .column = true,
-                  .align = compose::Align::Stretch})));
+      kit::cells(
+          {.cells = {kit::columns({.cells = {subject(), subject(), subject()}}),
+                     kit::columns({.cells = {subject(), compose::box(),
+                                             compose::box()}})},
+           .column = true,
+           .align = compose::Align::Stretch})));
 }
 
 }  // namespace

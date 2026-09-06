@@ -12,6 +12,8 @@
  * below cover the lot.
  */
 
+#include <include/core/SkRect.h>
+#include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 
 #include <algorithm>
@@ -22,9 +24,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
 
 namespace sigil::compose::layouts {
 
@@ -145,8 +144,9 @@ inline AreaPicture readAreas(const std::vector<std::string>& rows) {
       if (start == at) break;
       const std::string token = line.substr(start, at - start);
       if (token != ".") {
-        auto found = std::find_if(seen.begin(), seen.end(),
-                                  [&](const auto& e) { return e.first == token; });
+        auto found = std::find_if(seen.begin(), seen.end(), [&](const auto& e) {
+          return e.first == token;
+        });
         if (found == seen.end()) {
           seen.push_back({token, Extent{column, (int)r, column, (int)r, 1}});
         } else {
@@ -443,8 +443,8 @@ struct Grid {
     std::vector<Track> tracks(n);
     for (size_t i = 0; i < n; ++i) {
       tracks[i] = trackAt(list, fallback, (int)i);
-      base[i] = tracks[i].minKind == Track::Kind::Fixed ? tracks[i].minValue
-                                                        : 0.0f;
+      base[i] =
+          tracks[i].minKind == Track::Kind::Fixed ? tracks[i].minValue : 0.0f;
       // A Fraction ceiling is the floor here: a share is dealt out in the
       // expansion step and must not be pre-spent by the maximize step.
       limit[i] = tracks[i].maxKind == Track::Kind::Fixed ? tracks[i].maxValue
@@ -480,8 +480,8 @@ struct Grid {
       for (int j = 0; j < k; ++j) {
         const size_t at = (size_t)(first + j);
         if (!wantsContent(tracks[at])) continue;
-        values[at] += pool > 0 ? deficit * values[at] / pool
-                               : deficit / (float)accepted;
+        values[at] +=
+            pool > 0 ? deficit * values[at] / pool : deficit / (float)accepted;
       }
     };
     const auto flooredByContent = [](const Track& t) {
@@ -530,7 +530,8 @@ struct Grid {
     std::vector<char> flexible(n, 0);
     bool anyFlexible = false;
     for (size_t i = 0; i < n; ++i)
-      if (tracks[i].maxKind == Track::Kind::Fraction && tracks[i].maxValue > 0) {
+      if (tracks[i].maxKind == Track::Kind::Fraction &&
+          tracks[i].maxValue > 0) {
         flexible[i] = 1;
         anyFlexible = true;
       }

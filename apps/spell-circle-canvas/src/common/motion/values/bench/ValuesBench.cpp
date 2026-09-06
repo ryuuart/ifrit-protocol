@@ -135,12 +135,13 @@ BENCHMARK(BM_Construct)
     ->DenseRange(kPlain, kMixed)
     ->Unit(benchmark::kMicrosecond);
 
-
 /** The repeating signal read at a time, per wave: the fold plus one
  *  shape, which is what a value driven off a clock costs per frame. */
 void OscillatorAt(benchmark::State& state) {
-  const Oscillator wave{.wave = (Wave)state.range(0), .hertz = 3.0f,
-                        .amplitude = 40.0f, .centre = 100.0f};
+  const Oscillator wave{.wave = (Wave)state.range(0),
+                        .hertz = 3.0f,
+                        .amplitude = 40.0f,
+                        .centre = 100.0f};
   double seconds = 0.0;
   for ([[maybe_unused]] auto iteration : state) {
     seconds += 1.0 / 60.0;

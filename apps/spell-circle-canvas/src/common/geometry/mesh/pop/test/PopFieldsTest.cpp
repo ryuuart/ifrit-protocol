@@ -13,7 +13,6 @@
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
 
-
 TEST(Pop, FieldsAreAddressableByName) {
   // The dial door: any operator's numeric field by its own name, vector
   // components dotted, enums and bools as numbers; a name the operator

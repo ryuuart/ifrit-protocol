@@ -75,7 +75,7 @@ TEST(DataScale, LogIsProportionalToTheLogarithmInItsBase) {
 TEST(DataScale, SqrtIsPowAtAHalfAndIsWhatAnAreaReadsAs) {
   const Scale radius{
       .domain = {0, 1200}, .range = {0, 90}, .transform = Transform::Sqrt};
-  EXPECT_DOUBLE_EQ(45.0, radius(300.0));   // a quarter of the area
+  EXPECT_DOUBLE_EQ(45.0, radius(300.0));  // a quarter of the area
   EXPECT_DOUBLE_EQ(90.0, radius(1200.0));
   EXPECT_NEAR(300.0, radius.invert(45.0), 1e-9);
 
@@ -150,8 +150,8 @@ TEST(DataScale, OrdinalIsTheIthOfNAndPointIsItWithOuterPadding) {
 }
 
 TEST(DataScale, ASingleEntryStandsAtTheStartOfItsRange) {
-  const Scale one{.range = {0, 100}, .transform = Transform::Ordinal,
-                  .steps = 1};
+  const Scale one{
+      .range = {0, 100}, .transform = Transform::Ordinal, .steps = 1};
   EXPECT_DOUBLE_EQ(0.0, one(0.0));
   EXPECT_DOUBLE_EQ(0.0, one.invert(50.0));
 }
@@ -207,8 +207,7 @@ TEST(DataScale, TicksAreTheMultiplesOfAReadableStepInsideTheDomain) {
   EXPECT_DOUBLE_EQ(1.0, ten.tickStep(10));
 
   const Scale unit{.domain = {0, 1}};
-  EXPECT_EQ(std::vector<double>({0.0, 0.2, 0.4, 0.6, 0.8, 1.0}),
-            unit.ticks(5));
+  EXPECT_EQ(std::vector<double>({0.0, 0.2, 0.4, 0.6, 0.8, 1.0}), unit.ticks(5));
 
   // A request is a request: the readable step of 20 over [0, 100] gives
   // six ticks for a count of four, which is the point of asking for a
@@ -259,8 +258,7 @@ TEST(DataScale, NiceOnALogScaleRoundsToWholePowers) {
 }
 
 TEST(DataScale, NiceLeavesADiscreteScaleAlone) {
-  const Scale band{
-      .range = {0, 100}, .transform = Transform::Band, .steps = 7};
+  const Scale band{.range = {0, 100}, .transform = Transform::Band, .steps = 7};
   EXPECT_EQ(band, band.nice());
 }
 

@@ -17,8 +17,7 @@ path::Polyline circle(int sides) {
   // The seam point is emitted twice, at 0 and at a full turn, so the
   // swept ring's u reaches 1 rather than folding back to vertex zero.
   for (int s = 0; s <= sides; ++s) {
-    const float a =
-        (float)s / (float)sides * 2.0f * std::numbers::pi_v<float>;
+    const float a = (float)s / (float)sides * 2.0f * std::numbers::pi_v<float>;
     // y-down: -cos puts the first point on the frame's normal.
     out.points.emplace_back(std::sin(a), -std::cos(a));
   }

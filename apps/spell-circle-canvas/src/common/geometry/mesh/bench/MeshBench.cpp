@@ -40,8 +40,7 @@ BENCHMARK(BM_Grid)
     ->Complexity(benchmark::oN);
 
 Mesh sheet(int n) {
-  return grid(n, n,
-              [](float u, float v) { return glm::vec3{u, v, 0.0f}; });
+  return grid(n, n, [](float u, float v) { return glm::vec3{u, v, 0.0f}; });
 }
 
 /** Appending is how every consumer builds one mesh out of many, so its

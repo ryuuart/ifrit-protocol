@@ -260,32 +260,31 @@ TEST_P(StripTile, EachTilesMarkLandsWhereItsFlowAndFacingPutIt) {
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ComposeStripTiles, StripTile,
-    testing::Values(
-        TileWindow{"DownForward",
-                   tiles::Flow::Down,
-                   tiles::Facing::Forward,
-                   {kProbe, kProbe},
-                   {{kFarX, kProbe}}},
-        TileWindow{"DownMirrored",
-                   tiles::Flow::Down,
-                   tiles::Facing::Mirrored,
-                   {kFarX, kProbe},
-                   {{kProbe, kProbe}, {kFarX, kFarY}}},
-        TileWindow{"AcrossForward",
-                   tiles::Flow::Across,
-                   tiles::Facing::Forward,
-                   {kProbe, kProbe},
-                   {{kProbe, kFarY}}},
-        TileWindow{"AcrossMirrored",
-                   tiles::Flow::Across,
-                   tiles::Facing::Mirrored,
-                   {kProbe, kFarY},
-                   {{kProbe, kProbe}}}),
-    [](const testing::TestParamInfo<TileWindow>& info) {
-      return info.param.what;
-    });
+INSTANTIATE_TEST_SUITE_P(ComposeStripTiles, StripTile,
+                         testing::Values(TileWindow{"DownForward",
+                                                    tiles::Flow::Down,
+                                                    tiles::Facing::Forward,
+                                                    {kProbe, kProbe},
+                                                    {{kFarX, kProbe}}},
+                                         TileWindow{"DownMirrored",
+                                                    tiles::Flow::Down,
+                                                    tiles::Facing::Mirrored,
+                                                    {kFarX, kProbe},
+                                                    {{kProbe, kProbe},
+                                                     {kFarX, kFarY}}},
+                                         TileWindow{"AcrossForward",
+                                                    tiles::Flow::Across,
+                                                    tiles::Facing::Forward,
+                                                    {kProbe, kProbe},
+                                                    {{kProbe, kFarY}}},
+                                         TileWindow{"AcrossMirrored",
+                                                    tiles::Flow::Across,
+                                                    tiles::Facing::Mirrored,
+                                                    {kProbe, kFarY},
+                                                    {{kProbe, kProbe}}}),
+                         [](const testing::TestParamInfo<TileWindow>& info) {
+                           return info.param.what;
+                         });
 
 TEST(ComposeStripTiles, MirroredTileReadsForwardUnderMirroredSampling) {
   // What Facing::Mirrored actually promises: bake mirrored, sample mirrored,

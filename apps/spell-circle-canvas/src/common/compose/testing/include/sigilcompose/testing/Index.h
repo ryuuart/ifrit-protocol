@@ -94,7 +94,8 @@ class RowIndex {
     // is the same cheap `false` here that it is there.
     if (!m_bounds.contains(x, y)) return false;
     if (m_rowAsks[(size_t)row]) return m_path.contains(x, y);
-    const uint32_t lo = m_rowStart[(size_t)row], hi = m_rowStart[(size_t)row + 1];
+    const uint32_t lo = m_rowStart[(size_t)row],
+                   hi = m_rowStart[(size_t)row + 1];
     const float* first = m_crossAt.data() + lo;
     const float* last = m_crossAt.data() + hi;
     const float* at = std::lower_bound(first, last, x);
@@ -102,12 +103,13 @@ class RowIndex {
     // of "on" is the room the two spellings of the same crossing —
     // Skia's cross product and this table's intercept — have to differ
     // in, which is a few of the last bits of the coordinate.
-    const float whisker =
-        16.0f * std::numeric_limits<float>::epsilon() * std::max(1.0f, std::abs(x));
+    const float whisker = 16.0f * std::numeric_limits<float>::epsilon() *
+                          std::max(1.0f, std::abs(x));
     if ((at != last && *at - x <= whisker) ||
         (at != first && x - *(at - 1) <= whisker))
       return m_path.contains(x, y);
-    int winding = at == first ? 0 : m_crossWinding[lo + (size_t)(at - first) - 1];
+    int winding =
+        at == first ? 0 : m_crossWinding[lo + (size_t)(at - first) - 1];
     if (m_evenOdd) winding &= 1;
     return winding != 0;
   }
@@ -223,8 +225,8 @@ class RowIndex {
 
   SkPath m_path;
   SkRect m_bounds{SkRect::MakeEmpty()};
-  std::vector<uint32_t> m_rowStart;  ///< rows + 1 offsets into the crossings
-  std::vector<float> m_crossAt;      ///< where, sorted within each row
+  std::vector<uint32_t> m_rowStart;     ///< rows + 1 offsets into the crossings
+  std::vector<float> m_crossAt;         ///< where, sorted within each row
   std::vector<int32_t> m_crossWinding;  ///< the winding just past each
   /** Rows a horizontal segment lies on, which the path answers whole. */
   std::vector<uint8_t> m_rowAsks;
@@ -252,8 +254,8 @@ class CellIndex {
   explicit CellIndex(std::span<const SkPoint> edges) {
     m_count = (uint32_t)(edges.size() / 2);
     if (m_count == 0) return;
-    SkRect box = SkRect::MakeLTRB(edges[0].fX, edges[0].fY, edges[0].fX,
-                                  edges[0].fY);
+    SkRect box =
+        SkRect::MakeLTRB(edges[0].fX, edges[0].fY, edges[0].fX, edges[0].fY);
     for (const SkPoint& p : edges) {
       if (!std::isfinite(p.fX) || !std::isfinite(p.fY)) return;
       box.fLeft = std::min(box.fLeft, p.fX);
@@ -323,12 +325,14 @@ class CellIndex {
     const float big = std::numeric_limits<float>::infinity();
     float tx = big, ty = big, dtx = big, dty = big;
     if (stepX != 0) {
-      const float edge = m_box.fLeft + (float)(cx + (stepX > 0 ? 1 : 0)) * m_cell;
+      const float edge =
+          m_box.fLeft + (float)(cx + (stepX > 0 ? 1 : 0)) * m_cell;
       tx = (edge - x0) / dx;
       dtx = m_cell / std::abs(dx);
     }
     if (stepY != 0) {
-      const float edge = m_box.fTop + (float)(cy + (stepY > 0 ? 1 : 0)) * m_cell;
+      const float edge =
+          m_box.fTop + (float)(cy + (stepY > 0 ? 1 : 0)) * m_cell;
       ty = (edge - y0) / dy;
       dty = m_cell / std::abs(dy);
     }

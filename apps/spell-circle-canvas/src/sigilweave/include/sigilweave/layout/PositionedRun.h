@@ -62,7 +62,7 @@ struct GlyphFit {
 /// which is the same rule `wordIndex` and `intervalIndex` already carry,
 /// since they index that paragraph's tables and this layout's intervals.
 struct PositionedRun {
-  sk_sp<SkTextBlob> blob;     ///< null for placeholder runs
+  sk_sp<SkTextBlob> blob;  ///< null for placeholder runs
   /// Glyph source (batched drawing, choreography) — BORROWED, see above.
   /// Null on a placeholder run.
   const ShapedWord* shaped = nullptr;

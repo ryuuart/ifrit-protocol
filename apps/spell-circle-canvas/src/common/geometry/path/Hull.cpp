@@ -34,8 +34,7 @@ std::vector<glm::vec2> convexChain(std::vector<glm::vec2> sorted) {
   std::vector<glm::vec2> chain(count * 2);
   size_t at = 0;
   for (size_t i = 0; i < count; ++i) {
-    while (at >= 2 && cross(chain[at - 2], chain[at - 1], sorted[i]) <= 0)
-      --at;
+    while (at >= 2 && cross(chain[at - 2], chain[at - 1], sorted[i]) <= 0) --at;
     chain[at++] = sorted[i];
   }
   for (size_t i = count - 1, lower = at + 1; i-- > 0;) {

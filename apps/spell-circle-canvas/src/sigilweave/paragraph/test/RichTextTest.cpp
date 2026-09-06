@@ -98,8 +98,7 @@ TEST(RichText, EqualityIsTheBaseTheRunsAndTheirResolvedStyles) {
   const TextStyle base = colored(SK_ColorWHITE);
   EXPECT_TRUE(rich(base).add(u8"a") == rich(base).add(u8"a"));
   EXPECT_FALSE(rich(base).add(u8"a") == rich(base).add(u8"b"));
-  EXPECT_FALSE(rich(base).add(u8"a") ==
-               rich(colored(SK_ColorRED)).add(u8"a"));
+  EXPECT_FALSE(rich(base).add(u8"a") == rich(colored(SK_ColorRED)).add(u8"a"));
 
   // The SET is not compared: two values that resolved to the same styles
   // describe the same passage however they got there.

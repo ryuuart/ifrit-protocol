@@ -14,7 +14,8 @@ using namespace sigil::core::test::reconcile;
 
 TEST(Reconciler, MountsTheTreeAndCountsIt) {
   FakeHost host;
-  host.render(description("root", 0, {description("a", 1), description("b", 2)}));
+  host.render(
+      description("root", 0, {description("a", 1), description("b", 2)}));
   ASSERT_TRUE(host.root);
   EXPECT_EQ(host.childKeys(), (std::vector<std::string>{"a", "b"}));
   EXPECT_EQ(host.child(0)->parent, host.root.get());
@@ -37,9 +38,11 @@ TEST(Reconciler, MountsTheTreeAndCountsIt) {
 
 TEST(Reconciler, IdenticalRedescribePrunesEveryNode) {
   FakeHost host;
-  host.render(description("root", 0, {description("a", 1), description("b", 2)}));
+  host.render(
+      description("root", 0, {description("a", 1), description("b", 2)}));
   host.log.clear();
-  host.render(description("root", 0, {description("a", 1), description("b", 2)}));
+  host.render(
+      description("root", 0, {description("a", 1), description("b", 2)}));
   const ReconcileStats& s = host.reconciler.stats();
   EXPECT_EQ(s.describedNodes, 3);
   EXPECT_EQ(s.patchedNodes, 0);
@@ -51,9 +54,11 @@ TEST(Reconciler, IdenticalRedescribePrunesEveryNode) {
 
 TEST(Reconciler, AChangedValuePatchesThatNodeAlone) {
   FakeHost host;
-  host.render(description("root", 0, {description("a", 1), description("b", 2)}));
+  host.render(
+      description("root", 0, {description("a", 1), description("b", 2)}));
   host.log.clear();
-  host.render(description("root", 0, {description("a", 1), description("b", 3)}));
+  host.render(
+      description("root", 0, {description("a", 1), description("b", 3)}));
   EXPECT_EQ(host.reconciler.stats().patchedNodes, 1);
   EXPECT_TRUE(host.asked(Op::Patch, "b"));
   EXPECT_FALSE(host.asked(Op::Patch, "a"));
@@ -61,10 +66,12 @@ TEST(Reconciler, AChangedValuePatchesThatNodeAlone) {
 
 TEST(Reconciler, KeyedReorderKeepsEveryHandle) {
   FakeHost host;
-  host.render(description("root", 0, {description("a"), description("b"), description("c")}));
+  host.render(description(
+      "root", 0, {description("a"), description("b"), description("c")}));
   FakeNode *a = host.child(0), *b = host.child(1), *c = host.child(2);
   host.log.clear();
-  host.render(description("root", 0, {description("c"), description("a"), description("b")}));
+  host.render(description(
+      "root", 0, {description("c"), description("a"), description("b")}));
   EXPECT_EQ(host.child(0), c);
   EXPECT_EQ(host.child(1), a);
   EXPECT_EQ(host.child(2), b);
@@ -76,10 +83,14 @@ TEST(Reconciler, KeyedReorderKeepsEveryHandle) {
 
 TEST(Reconciler, UnkeyedChildrenMatchByPosition) {
   FakeHost host;
-  host.render(description("root", 0, {description("", 1), description("", 2), description("k", 3)}));
+  host.render(description(
+      "root", 0,
+      {description("", 1), description("", 2), description("k", 3)}));
   FakeNode *first = host.child(0), *second = host.child(1),
            *keyed = host.child(2);
-  host.render(description("root", 0, {description("k", 3), description("", 5), description("", 2)}));
+  host.render(description(
+      "root", 0,
+      {description("k", 3), description("", 5), description("", 2)}));
   // The keyed child follows its key; the unkeyed take their positions
   // among the unkeyed, in order.
   EXPECT_EQ(host.child(0), keyed);
@@ -105,7 +116,8 @@ TEST(Reconciler, IdentityChangeKeepsTheHandleAndItsLanes) {
 
 TEST(Reconciler, ARemovedChildRetiresStampedWithThePass) {
   FakeHost host;
-  host.render(description("root", 0, {description("a"), description("b"), description("c")}));
+  host.render(description(
+      "root", 0, {description("a"), description("b"), description("c")}));
   const int idB = host.child(1)->id;
   host.render(description("root", 0, {description("a"), description("c")}));
   EXPECT_EQ(host.reconciler.frame(), 2u);
@@ -261,8 +273,8 @@ TEST(Reconciler, TheKeyIndexAddressesAMemoShellByTheShellsKeyElseThePayloads) {
   unkeyedShell->memo->invoke = [](const std::any& p) {
     return description("payload", std::any_cast<int>(p));
   };
-  host.render(
-      description("root", 0, {description("a"), memoOf("m", 1, &calls), unkeyedShell}));
+  host.render(description(
+      "root", 0, {description("a"), memoOf("m", 1, &calls), unkeyedShell}));
   FakeHost::Reconciler::KeyIndex byKey;
   std::vector<std::string> visited;
   host.reconciler.indexKeys(*host.root, byKey, [&](FakeNode& n) {

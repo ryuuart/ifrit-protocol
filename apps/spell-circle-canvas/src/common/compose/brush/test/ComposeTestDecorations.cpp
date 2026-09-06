@@ -2,10 +2,11 @@
 // shadows under a fill, strokes over one, the mask a decoration is gated
 // by, and rail(), the component that IS a line.
 
+#include <sigilcompose/kit/Strokes.h>
+
 #include <functional>
 
 #include "support/BrushTestSupport.h"
-#include <sigilcompose/kit/Strokes.h>
 
 TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
   Host host;
@@ -553,13 +554,8 @@ TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsNodeTheBake) {
   const auto page = [] {
     return box()
         .cache(Cache::None)
-        .child(box()
-                   .absolute()
-                   .left(0)
-                   .top(0)
-                   .width(200)
-                   .height(200)
-                   .fill(Fill::color({0.55f, 0.4f, 0.2f, 1})))
+        .child(box().absolute().left(0).top(0).width(200).height(200).fill(
+            Fill::color({0.55f, 0.4f, 0.2f, 1})))
         .child(box()
                    .key("washed")
                    .absolute()
@@ -587,8 +583,9 @@ TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsNodeTheBake) {
   for (size_t i = 0; i < live.size(); ++i)
     if (live[i] != eager[i]) ++differing;
   EXPECT_EQ(differing, 0u)
-      << differing << " pixels moved: a node whose wash blends with the page "
-                      "was baked away from the page";
+      << differing
+      << " pixels moved: a node whose wash blends with the page "
+         "was baked away from the page";
 
   Host host;
   host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);

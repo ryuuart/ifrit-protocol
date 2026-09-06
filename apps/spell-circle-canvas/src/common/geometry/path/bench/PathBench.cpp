@@ -15,27 +15,27 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilcore/compute/Chance.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/path/Cells.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Extremes.h>
 #include <sigilgeometry/path/Fit.h>
+#include <sigilgeometry/path/Hull.h>
 #include <sigilgeometry/path/Interpolate.h>
-#include <sigilgeometry/path/Ops.h>
-#include <sigilgeometry/path/Segments.h>
-#include <sigilgeometry/path/Tidy.h>
-#include <sigilcore/compute/Chance.h>
 #include <sigilgeometry/path/Lattice.h>
 #include <sigilgeometry/path/Neighbours.h>
 #include <sigilgeometry/path/Noise.h>
+#include <sigilgeometry/path/Ops.h>
 #include <sigilgeometry/path/Polyline.h>
-#include <sigilgeometry/path/Cells.h>
-#include <sigilgeometry/path/Hull.h>
+#include <sigilgeometry/path/Pose.h>
 #include <sigilgeometry/path/Scatter.h>
+#include <sigilgeometry/path/Segments.h>
+#include <sigilgeometry/path/Stride.h>
 #include <sigilgeometry/path/Symmetry.h>
+#include <sigilgeometry/path/Tidy.h>
 #include <sigilgeometry/path/Trace.h>
 #include <sigilgeometry/path/Triangulate.h>
-#include <sigilgeometry/path/Pose.h>
-#include <sigilgeometry/path/Stride.h>
 
 #include <cmath>
 #include <numbers>
@@ -640,9 +640,8 @@ void BM_CellsStep(benchmark::State& state) {
     });
   }
   const auto cells = (int64_t)edge * (int64_t)edge;
-  state.counters["cells/s"] =
-      benchmark::Counter((double)cells,
-                         benchmark::Counter::kIsIterationInvariantRate);
+  state.counters["cells/s"] = benchmark::Counter(
+      (double)cells, benchmark::Counter::kIsIterationInvariantRate);
   state.SetComplexityN(cells);
 }
 BENCHMARK(BM_CellsStep)
@@ -650,7 +649,6 @@ BENCHMARK(BM_CellsStep)
     ->Range(64, 1024)
     ->Unit(benchmark::kMillisecond)
     ->Complexity(benchmark::oN);
-
 
 /** The segment reader and the way back, by node count: every node once
  *  in each direction, and the floor everything below stands on. */

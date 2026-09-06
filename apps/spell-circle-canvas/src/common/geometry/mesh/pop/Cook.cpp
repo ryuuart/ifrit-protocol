@@ -412,9 +412,8 @@ Cloud cookOnCpu(const pop::Chain& chain, size_t grain) {
             for (size_t i = 0; i < count; ++i)
               positions[i] = {values[i].x, values[i].y, values[i].z};
             const std::vector<glm::vec3> before = positions;
-            path::relax(positions,
-                        path::Relaxation{op.radius, op.iterations,
-                                         op.strength});
+            path::relax(positions, path::Relaxation{op.radius, op.iterations,
+                                                    op.strength});
             for (size_t i = 0; i < count; ++i) {
               float m = 1.0f;
               if (mask) {

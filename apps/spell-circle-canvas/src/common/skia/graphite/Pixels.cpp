@@ -2,11 +2,10 @@
  * Reading an image out at the width a device texture wants it.
  */
 
-#include <sigilskia/graphite/Pixels.h>
-
 #include <include/core/SkColorType.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
+#include <sigilskia/graphite/Pixels.h>
 
 namespace sigil::skia {
 
@@ -21,8 +20,7 @@ std::vector<T> read(const sk_sp<SkImage>& image, SkColorType type,
   const int w = image->width(), h = image->height();
   if (w <= 0 || h <= 0) return {};
   std::vector<T> out((size_t)w * h * valuesPerTexel);
-  const SkImageInfo info =
-      SkImageInfo::Make(w, h, type, kPremul_SkAlphaType);
+  const SkImageInfo info = SkImageInfo::Make(w, h, type, kPremul_SkAlphaType);
   const SkPixmap pixmap(info, out.data(),
                         (size_t)w * valuesPerTexel * sizeof(T));
   if (!image->readPixels(nullptr, pixmap, 0, 0)) return {};

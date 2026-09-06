@@ -211,7 +211,6 @@ BENCHMARK(BM_PopRuntime_Direct)
     ->Arg(1000)
     ->Unit(benchmark::kMicrosecond);
 
-
 /** A closed trefoil: curvature that turns in all three axes, so a rail
  *  read off it has inflections to carry through rather than a planar
  *  arc. */
@@ -236,8 +235,7 @@ void countVertices(benchmark::State& state, const Mesh& m) {
 void BM_Sweep_Circle(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
   const path::Polyline profile = sections::circle((int)state.range(1));
-  const pop::SweepOptions options{.segments = (int)state.range(0),
-                                    .scale = 6};
+  const pop::SweepOptions options{.segments = (int)state.range(0), .scale = 6};
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
     last = pop::sweep(spline, profile, options);
@@ -258,8 +256,7 @@ BENCHMARK(BM_Sweep_Circle)
 void BM_Sweep_Rings(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
   const path::Polyline profile = sections::circle(24);
-  const pop::SweepOptions options{.segments = (int)state.range(0),
-                                    .scale = 6};
+  const pop::SweepOptions options{.segments = (int)state.range(0), .scale = 6};
   const std::vector<curve::Frame3> rail =
       curve::frames(spline, options.segments, options.up);
   mesh::kernel::SweepDispatch work;
@@ -284,10 +281,9 @@ BENCHMARK(BM_Sweep_Rings)
 void BM_Sweep_Line(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
   const path::Polyline profile = sections::line();
-  const pop::SweepOptions options{
-      .segments = (int)state.range(0),
-      .scale = 24,
-      .normals = pop::SweepOptions::Normals::Frame};
+  const pop::SweepOptions options{.segments = (int)state.range(0),
+                                  .scale = 24,
+                                  .normals = pop::SweepOptions::Normals::Frame};
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
     last = pop::sweep(spline, profile, options);
@@ -307,13 +303,13 @@ BENCHMARK(BM_Sweep_Line)
 void BM_Sweep_Hang(benchmark::State& state) {
   const curve::Spline3 spline = knot(9);
   const path::Polyline profile = sections::line();
-  const pop::SweepOptions options{
-      .scale = 24, .normals = pop::SweepOptions::Normals::Frame};
+  const pop::SweepOptions options{.scale = 24,
+                                  .normals = pop::SweepOptions::Normals::Frame};
   const int sections = (int)state.range(0);
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
     last = pop::sweep(curve::hangFrames(spline, sections, 1, 0.4f), profile,
-                        options);
+                      options);
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);
@@ -385,8 +381,9 @@ void BM_Transfer(benchmark::State& state) {
   Cloud source =
       points::scatterBox({0, 0, 0}, {edge, edge, edge}, count / 4 + 1, 9);
   source.scalar("heat", 1.0f);
-  const pop::Chain chain =
-      pop::on(neighbourhoodCloud(count)).transfer(source, "heat", 80.0f).chain();
+  const pop::Chain chain = pop::on(neighbourhoodCloud(count))
+                               .transfer(source, "heat", 80.0f)
+                               .chain();
   for ([[maybe_unused]] auto iteration : state) {
     Cloud out = pop::cook(chain);
     benchmark::DoNotOptimize(out.positions.data());

@@ -219,10 +219,10 @@ struct EmberDecode : sketch::Sketch {
         weave::ports::face({"Helvetica Neue", "Arial", "Inter"}, 700);
     // The letters are set WHITE: the pass reads the layer's coverage and
     // supplies every colour itself, so the type's own colour never lands.
-    const sigil::weave::TextStyle big =
-        weave::textStyle({.face = face, .size = 78, .color = {1, 1, 1, 1}, .track = 5.0f});
-    const sigil::weave::TextStyle small =
-        weave::textStyle({.face = face, .size = 27, .color = {1, 1, 1, 1}, .track = 3.0f});
+    const sigil::weave::TextStyle big = weave::textStyle(
+        {.face = face, .size = 78, .color = {1, 1, 1, 1}, .track = 5.0f});
+    const sigil::weave::TextStyle small = weave::textStyle(
+        {.face = face, .size = 27, .color = {1, 1, 1, 1}, .track = 3.0f});
 
     const mskia::Paint burn = burnMaterial(recipe);
     Element root =

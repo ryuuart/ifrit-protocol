@@ -68,7 +68,8 @@ class Inside {
         if (from.y == to.y) continue;  // horizontal edges cross no ray
         const int lo = row(std::min(from.y, to.y));
         const int hi = row(std::max(from.y, to.y));
-        for (int at = lo; at <= hi; ++at) m_buckets[(size_t)at].push_back({from, to});
+        for (int at = lo; at <= hi; ++at)
+          m_buckets[(size_t)at].push_back({from, to});
       }
     }
   }
@@ -77,8 +78,7 @@ class Inside {
     if (m_buckets.empty()) return m_region->contains(point);
     bool inside = false;
     for (const Edge& edge : m_buckets[(size_t)row(point.y)]) {
-      const bool straddles =
-          (edge.from.y > point.y) != (edge.to.y > point.y);
+      const bool straddles = (edge.from.y > point.y) != (edge.to.y > point.y);
       if (!straddles) continue;
       const float t = (point.y - edge.from.y) / (edge.to.y - edge.from.y);
       if (point.x < edge.from.x + t * (edge.to.x - edge.from.x))
@@ -127,16 +127,16 @@ uint32_t nextBase(uint32_t base) {
  *  even on each axis, and correlated between them. */
 std::pair<Stream, Stream> axes(const Distribution& distribution) {
   if (distribution.source == core::chance::Source::Halton) {
-    const uint32_t base = distribution.parameter < 2 ? 2u
-                                                     : distribution.parameter;
+    const uint32_t base =
+        distribution.parameter < 2 ? 2u : distribution.parameter;
     return {Stream::of(distribution.source, distribution.seed, base),
             Stream::of(distribution.source, distribution.seed, nextBase(base))};
   }
-  return {Stream::of(distribution.source, distribution.seed,
-                     distribution.parameter),
-          Stream::of(distribution.source,
-                     distribution.seed ^ 0x9e3779b97f4a7c15ull,
-                     distribution.parameter)};
+  return {
+      Stream::of(distribution.source, distribution.seed,
+                 distribution.parameter),
+      Stream::of(distribution.source, distribution.seed ^ 0x9e3779b97f4a7c15ull,
+                 distribution.parameter)};
 }
 
 /** The count a distribution asks for, from whichever number it holds
@@ -170,9 +170,8 @@ float wantedSpacing(const Distribution& distribution, float area) {
     case Rate::Spacing:
       return distribution.amount;
     case Rate::Density:
-      return distribution.amount > 0
-                 ? 1.0f / std::sqrt(distribution.amount)
-                 : 0.0f;
+      return distribution.amount > 0 ? 1.0f / std::sqrt(distribution.amount)
+                                     : 0.0f;
     case Rate::Count:
       break;
   }
@@ -190,8 +189,8 @@ std::vector<glm::vec2> randomPoints(const Region& region, const Inside& inside,
   points.reserve((size_t)count);
   auto [streamX, streamY] = axes(distribution);
   const long long budget = (long long)count * kAttemptsPerPoint;
-  for (long long attempt = 0;
-       attempt < budget && (int)points.size() < count; ++attempt) {
+  for (long long attempt = 0; attempt < budget && (int)points.size() < count;
+       ++attempt) {
     const glm::vec2 candidate{streamX.range(box.fLeft, box.fRight),
                               streamY.range(box.fTop, box.fBottom)};
     if (inside(candidate)) points.push_back(candidate);
@@ -199,8 +198,7 @@ std::vector<glm::vec2> randomPoints(const Region& region, const Inside& inside,
   return points;
 }
 
-std::vector<glm::vec2> latticePoints(const Region& region,
-                                     const Inside& inside,
+std::vector<glm::vec2> latticePoints(const Region& region, const Inside& inside,
                                      const Distribution& distribution,
                                      float spacing, int cap) {
   std::vector<glm::vec2> points;
@@ -227,9 +225,8 @@ std::vector<glm::vec2> latticePoints(const Region& region,
   auto [streamX, streamY] = axes(distribution);
   for (int row = 0; row < rows; ++row)
     for (int column = 0; column < columns; ++column) {
-      glm::vec2 candidate{
-          box.fLeft + insetX + ((float)column + 0.5f) * spacing,
-          box.fTop + insetY + ((float)row + 0.5f) * spacing};
+      glm::vec2 candidate{box.fLeft + insetX + ((float)column + 0.5f) * spacing,
+                          box.fTop + insetY + ((float)row + 0.5f) * spacing};
       if (jitter > 0) {
         // Both draws are taken whatever the candidate turns out to be, so
         // the lattice a seed answers does not depend on which cells the
@@ -253,8 +250,7 @@ std::vector<glm::vec2> latticePoints(const Region& region,
  *  in a cell, which makes the separation test a fixed read of twenty-five
  *  cells — and, more to the point, an accepted point must be visible to
  *  the very next test, which a snapshot index is by contract not. */
-std::vector<glm::vec2> poissonPoints(const Region& region,
-                                     const Inside& inside,
+std::vector<glm::vec2> poissonPoints(const Region& region, const Inside& inside,
                                      const Distribution& distribution,
                                      float radius, int cap) {
   std::vector<glm::vec2> points;
@@ -312,12 +308,10 @@ std::vector<glm::vec2> poissonPoints(const Region& region,
     bool grew = false;
     for (int candidateIndex = 0; candidateIndex < kPoissonCandidates;
          ++candidateIndex) {
-      const float angle =
-          stream.range(0.0f, 2.0f * std::numbers::pi_v<float>);
+      const float angle = stream.range(0.0f, 2.0f * std::numbers::pi_v<float>);
       // Uniform over the annulus between one and two radii: the square
       // root is what stops the candidates crowding the inner edge.
-      const float distance =
-          radius * std::sqrt(stream.range(1.0f, 4.0f));
+      const float distance = radius * std::sqrt(stream.range(1.0f, 4.0f));
       const glm::vec2 candidate{from.x + distance * std::cos(angle),
                                 from.y + distance * std::sin(angle)};
       if (!box.contains(candidate.x, candidate.y)) continue;
@@ -441,9 +435,8 @@ std::vector<glm::vec2> sample(const Region& region,
             // overflow onto the boundary, which is the one place a relaxed
             // scatter must not crowd.
             if (inside(flat)) return glm::vec3(flat, 0.0f);
-            return glm::vec3(
-                std::clamp(moved.x, box.fLeft, box.fRight),
-                std::clamp(moved.y, box.fTop, box.fBottom), 0.0f);
+            return glm::vec3(std::clamp(moved.x, box.fLeft, box.fRight),
+                             std::clamp(moved.y, box.fTop, box.fBottom), 0.0f);
           });
     for (size_t i = 0; i < points.size(); ++i) {
       const glm::vec2 moved{lifted[i].x, lifted[i].y};

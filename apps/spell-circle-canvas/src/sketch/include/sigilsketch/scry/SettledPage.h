@@ -122,8 +122,9 @@ class Events {
   [[nodiscard]] bool awaitRepaint(uint64_t since) const {
     const std::shared_ptr<State> state = m_state;
     std::unique_lock<std::mutex> lock(state->mutex);
-    return state->changed.wait_for(
-        lock, kUnresponsive, [&state, since] { return state->repaints > since; });
+    return state->changed.wait_for(lock, kUnresponsive, [&state, since] {
+      return state->repaints > since;
+    });
   }
 
   /** Whether the engine ever said the document arrived. */
@@ -158,9 +159,9 @@ class Events {
     std::mutex mutex;
     std::condition_variable changed;
     bool loaded = false;
-    uint64_t repaints = 0;        // handed over so far
-    uint64_t repaintsAtLoad = 0;  // the count when the document arrived
-    sigil::scry::WebView::Frame latest;    // the newest handed over
+    uint64_t repaints = 0;               // handed over so far
+    uint64_t repaintsAtLoad = 0;         // the count when the document arrived
+    sigil::scry::WebView::Frame latest;  // the newest handed over
     sigil::scry::WebView::Frame accepted;  // the one a settle stopped on
   };
 

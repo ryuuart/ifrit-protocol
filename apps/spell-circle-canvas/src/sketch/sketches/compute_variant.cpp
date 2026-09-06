@@ -96,13 +96,14 @@ world::Element row(const char* key, float z, const char* tag,
   built.key(key);
   for (int i = 0; i < kBlocks; ++i) {
     const float x = ((float)i - (float)(kBlocks - 1) * 0.5f) * kSpacing;
-    built.child(world::Element()
-                    .key(std::string(key) + std::to_string(i))
-                    .at({x, -60.0f, z})
-                    .rotateY((float)i * 9.0f)
-                    .mesh(gm::superellipsoid({30.0f, 44.0f, 30.0f}, 5.0f, 12, 8))
-                    .fill(surface)
-                    .tag(tag));
+    built.child(
+        world::Element()
+            .key(std::string(key) + std::to_string(i))
+            .at({x, -60.0f, z})
+            .rotateY((float)i * 9.0f)
+            .mesh(gm::superellipsoid({30.0f, 44.0f, 30.0f}, 5.0f, 12, 8))
+            .fill(surface)
+            .tag(tag));
   }
   return built;
 }
@@ -171,8 +172,8 @@ struct ComputeVariant final : sketch::Set {
     // from it differs — the host reads its base colour and stands it
     // under the pass's own lights, the device draws the surface it
     // names — so the row reads hot on both and identical on neither.
-    const material::Material hot = material::kit::unlit(
-        {.baseColor = {1.0f, 0.42f, 0.22f, 1.0f}});
+    const material::Material hot =
+        material::kit::unlit({.baseColor = {1.0f, 0.42f, 0.22f, 1.0f}});
 
     world::Frame frame(scene());
     frame

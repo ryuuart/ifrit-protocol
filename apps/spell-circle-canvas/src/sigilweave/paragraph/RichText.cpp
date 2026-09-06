@@ -9,9 +9,7 @@
 
 namespace sigil::weave {
 
-RichText rich(TextStyle base) {
-  return RichText(std::move(base));
-}
+RichText rich(TextStyle base) { return RichText(std::move(base)); }
 
 RichText& RichText::add(std::u8string_view utf8) {
   m_runs.push_back(Run{std::u8string(utf8), m_base, {}});

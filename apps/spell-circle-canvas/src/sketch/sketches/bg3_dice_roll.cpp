@@ -211,8 +211,8 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/mesh/Vec.h>
 #include <sigilmotion/Animation.h>
@@ -572,10 +572,13 @@ struct Bg3DiceRoll : sketch::Sketch {
   Element labelR(const std::string& s, float right, float y, float size,
                  SkColor4f col, bool useMono = false,
                  float parentWidth = bg3::kW) const {
-    return box().right(parentWidth - right).top(y).child(
-        text(bg3::u8(s), weave::textStyle({.face = useMono ? mono : serif,
-                                           .size = size,
-                                           .color = col})));
+    return box()
+        .right(parentWidth - right)
+        .top(y)
+        .child(text(
+            bg3::u8(s),
+            weave::textStyle(
+                {.face = useMono ? mono : serif, .size = size, .color = col})));
   }
 
   /** A bare rule as its own tiny node — a stroke wants a box the size of the
@@ -990,10 +993,10 @@ struct Bg3DiceRoll : sketch::Sketch {
               .translateX(animate(from(18.0f).to(0.0f),
                                   {300ms, choreograph::easeOutQuad}))
               // The leader tick, running back toward the bezel.
-              .child(rule(
-                  0.0f, 20.0f, 84.0f,
-                  brush::presets::heavyHairHeavy(1.4f, 0.5f, bg3::giltDark(0.8f), 2.6f),
-                  1.0f))
+              .child(rule(0.0f, 20.0f, 84.0f,
+                          brush::presets::heavyHairHeavy(
+                              1.4f, 0.5f, bg3::giltDark(0.8f), 2.6f),
+                          1.0f))
               .child(label(b.sourceName, 96.0f, 2.0f, 21.0f, bg3::kInk, 0.8f))
               .child(label(b.description, 96.0f, 26.0f, 9.5f,
                            alpha(bg3::kInk, 0.45f), 0.7f, true))
@@ -1012,9 +1015,10 @@ struct Bg3DiceRoll : sketch::Sketch {
     constexpr float kY = 1024.0f;
     constexpr float kRight = 1076.0f;
     Element g = stack().left(0).top(0).width(bg3::kW).height(bg3::kH);
-    g.child(rule(kX + 96.0f, kY - 12.0f, kRight - kX - 96.0f + 16.0f,
-                 brush::presets::heavyHairHeavy(2.0f, 0.7f, bg3::ink(0.85f), 4.0f),
-                 1.0f));
+    g.child(
+        rule(kX + 96.0f, kY - 12.0f, kRight - kX - 96.0f + 16.0f,
+             brush::presets::heavyHairHeavy(2.0f, 0.7f, bg3::ink(0.85f), 4.0f),
+             1.0f));
     g.child(label("Total", kX + 96.0f, kY + 4.0f, 22.0f, alpha(bg3::kInk, 0.8f),
                   3.0f));
     g.child(label("StatsRollResult.Total", kX + 96.0f, kY + 32.0f, 9.0f,
@@ -1074,8 +1078,10 @@ struct Bg3DiceRoll : sketch::Sketch {
                    .fill(radialGradient({r, r * 0.8f}, r * 1.25f,
                                         {alpha(bg3::kVellum, 1.0f),
                                          alpha(bg3::kGiltDark, 0.55f)}))
-                   .overlay(lines::presets::concentric(bg3::giltDark(0.45f), 4, 0.6f))
-                   .overlay(lines::presets::radialHatch(bg3::giltDark(0.3f), 20, 0.5f))
+                   .overlay(lines::presets::concentric(bg3::giltDark(0.45f), 4,
+                                                       0.6f))
+                   .overlay(lines::presets::radialHatch(bg3::giltDark(0.3f), 20,
+                                                        0.5f))
                    .stroke(spans::corners(10.0f, bg3::kCornerAngle),
                            brush::solid(2.0f, bg3::ink(0.8f))))
         .cache(Cache::Texture);
@@ -1177,9 +1183,10 @@ struct Bg3DiceRoll : sketch::Sketch {
     // modifiers accumulate, so it gets the margin to itself: a leader running
     // out of the bezel to a label and a numeral nothing crosses.
     constexpr float kNx = 962.0f, kNy = 246.0f;
-    g.child(rule(
-        kNx - 74.0f, kNy + 44.0f, 74.0f,
-        brush::presets::dottedCore(1.5f, 2.4f, bg3::giltDark(0.95f), 3.6f, 7.0f), 1.0f));
+    g.child(rule(kNx - 74.0f, kNy + 44.0f, 74.0f,
+                 brush::presets::dottedCore(1.5f, 2.4f, bg3::giltDark(0.95f),
+                                            3.6f, 7.0f),
+                 1.0f));
     g.child(
         label("NaturalRoll", kNx, kNy, 12.0f, alpha(bg3::kInk, 0.62f), 2.6f));
     g.child(label("StatsRollResult", kNx, kNy + 16.0f, 8.0f,
@@ -1187,7 +1194,8 @@ struct Bg3DiceRoll : sketch::Sketch {
     g.child(label(std::to_string(bg3::kNaturalRoll), kNx, kNy + 28.0f, 52.0f,
                   bg3::kInk));
     g.child(rule(kNx, kNy + 92.0f, 118.0f,
-                 brush::presets::heavyHairHeavy(1.8f, 0.6f, bg3::gilt(), 3.4f), 1.0f));
+                 brush::presets::heavyHairHeavy(1.8f, 0.6f, bg3::gilt(), 3.4f),
+                 1.0f));
     g.child(label("before modifiers", kNx, kNy + 98.0f, 8.5f,
                   alpha(bg3::kGiltDark, 0.85f), 1.0f, true));
     return g.cache(Cache::Texture);

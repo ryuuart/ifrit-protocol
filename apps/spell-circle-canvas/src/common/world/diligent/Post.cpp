@@ -35,8 +35,9 @@ constexpr size_t kAsideTarget = 2;
 
 /** Draws @p program over the whole of @p into, reading @p source and
  *  @p coverage. */
-void drawStage(Gpu& gpu, const material::slang::Compiled& program, dg::ITexture* into,
-               SkBlendMode blend, const material::slang::Uniforms& uniforms,
+void drawStage(Gpu& gpu, const material::slang::Compiled& program,
+               dg::ITexture* into, SkBlendMode blend,
+               const material::slang::Uniforms& uniforms,
                const std::vector<dg::ITexture*>& textures, bool clear) {
   if (program.empty() || !into) return;
   const PipelineKey key{&program, blend, false, false, true};
@@ -61,8 +62,9 @@ void drawStage(Gpu& gpu, const material::slang::Compiled& program, dg::ITexture*
 }
 
 /** The texel size and the sigma every stage carries. */
-material::slang::Uniforms baseUniforms(const material::slang::Compiled& program, SkISize extent, float sigma,
-                      float opacity) {
+material::slang::Uniforms baseUniforms(const material::slang::Compiled& program,
+                                       SkISize extent, float sigma,
+                                       float opacity) {
   material::slang::Uniforms uniforms(program);
   uniforms.set("uTexel", extent.width() ? 1.0f / (float)extent.width() : 0.0f,
                extent.height() ? 1.0f / (float)extent.height() : 0.0f, sigma,
@@ -86,20 +88,23 @@ void applyOp(Gpu& gpu, const PostOp& op, dg::ITexture* source,
     across.set("uDirection", 1.0f, 0.0f, 0.0f, 0.0f);
     drawStage(gpu, programs.blur, half, SkBlendMode::kSrc, across, {source},
               true);
-    material::slang::Uniforms down = baseUniforms(programs.blur, gpu.extent, blur->sigma, 1.0f);
+    material::slang::Uniforms down =
+        baseUniforms(programs.blur, gpu.extent, blur->sigma, 1.0f);
     down.set("uDirection", 0.0f, 1.0f, 0.0f, 0.0f);
     drawStage(gpu, programs.blur, into, blend, down, {half}, clear);
     return;
   }
   if (const Levels* levels = std::get_if<Levels>(&op)) {
-    material::slang::Uniforms uniforms = baseUniforms(programs.levels, gpu.extent, 0.0f, 1.0f);
+    material::slang::Uniforms uniforms =
+        baseUniforms(programs.levels, gpu.extent, 0.0f, 1.0f);
     uniforms.set("uGrade", levels->gain, levels->lift, 1.0f, 0.0f);
     uniforms.set("uTint", levels->tint.fR, levels->tint.fG, levels->tint.fB,
                  1.0f);
     drawStage(gpu, programs.levels, into, blend, uniforms, {source}, clear);
     return;
   }
-  material::slang::Uniforms uniforms = baseUniforms(programs.copy, gpu.extent, 0.0f, 1.0f);
+  material::slang::Uniforms uniforms =
+      baseUniforms(programs.copy, gpu.extent, 0.0f, 1.0f);
   drawStage(gpu, programs.copy, into, blend, uniforms, {source}, clear);
 }
 
@@ -148,7 +153,8 @@ void applyPost(Gpu& gpu, const PassWork& work) {
   for (dg::ITexture*& layer : layers) {
     dg::ITexture* aside = gpu.working(kAsideTarget);
     if (layer != into || !aside) continue;
-    material::slang::Uniforms copy = baseUniforms(programs.copy, gpu.extent, 0.0f, 1.0f);
+    material::slang::Uniforms copy =
+        baseUniforms(programs.copy, gpu.extent, 0.0f, 1.0f);
     drawStage(gpu, programs.copy, aside, SkBlendMode::kSrc, copy, {layer},
               true);
     layer = aside;
@@ -168,13 +174,15 @@ void applyPost(Gpu& gpu, const PassWork& work) {
     // Masked: the picture stands everywhere, and the op reaches it only
     // where the coverage does. The op lands in a working target first
     // because the coverage has to multiply the OP, not the picture.
-    material::slang::Uniforms plain = baseUniforms(programs.copy, gpu.extent, 0.0f, 1.0f);
+    material::slang::Uniforms plain =
+        baseUniforms(programs.copy, gpu.extent, 0.0f, 1.0f);
     drawStage(gpu, programs.copy, into, SkBlendMode::kSrc, plain,
               {layers.front()}, true);
     dg::ITexture* lifted = gpu.working(kMaskedTarget);
     if (!lifted) return;
     applyOp(gpu, pass.op(), layers.front(), lifted, SkBlendMode::kSrc, true);
-    material::slang::Uniforms masked = baseUniforms(programs.masked, gpu.extent, 0.0f, 1.0f);
+    material::slang::Uniforms masked =
+        baseUniforms(programs.masked, gpu.extent, 0.0f, 1.0f);
     drawStage(gpu, programs.masked, into, SkBlendMode::kSrcOver, masked,
               {lifted, coverage}, false);
     return;
@@ -186,7 +194,8 @@ void applyPost(Gpu& gpu, const PassWork& work) {
   const float opacity = compositeOpacity(pass.op());
   if (!std::holds_alternative<Composite>(pass.op())) return;
   for (size_t i = 1; i < layers.size(); ++i) {
-    material::slang::Uniforms uniforms = baseUniforms(programs.copy, gpu.extent, 0.0f, opacity);
+    material::slang::Uniforms uniforms =
+        baseUniforms(programs.copy, gpu.extent, 0.0f, opacity);
     drawStage(gpu, programs.copy, into, blend, uniforms, {layers[i]}, false);
   }
 }

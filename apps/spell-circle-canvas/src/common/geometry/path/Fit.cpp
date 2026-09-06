@@ -82,8 +82,8 @@ Cubic fitOne(std::span<const glm::vec2> points, std::span<const float> t,
     c00 += glm::dot(a0, a0);
     c01 += glm::dot(a0, a1);
     c11 += glm::dot(a1, a1);
-    const glm::vec2 residual =
-        points[i] - (first * (b0(t[i]) + b1(t[i])) + last * (b2(t[i]) + b3(t[i])));
+    const glm::vec2 residual = points[i] - (first * (b0(t[i]) + b1(t[i])) +
+                                            last * (b2(t[i]) + b3(t[i])));
     x0 += glm::dot(a0, residual);
     x1 += glm::dot(a1, residual);
   }
@@ -110,8 +110,7 @@ float improve(const Cubic& curve, glm::vec2 point, float t) {
   const glm::vec2 offset = evalCubic(curve, t) - point;
   const glm::vec2 first = evalFirst(curve, t);
   const glm::vec2 second = evalSecond(curve, t);
-  const float denominator =
-      glm::dot(first, first) + glm::dot(offset, second);
+  const float denominator = glm::dot(first, first) + glm::dot(offset, second);
   if (!(std::abs(denominator) > 1e-12f)) return t;
   return std::clamp(t - glm::dot(offset, first) / denominator, 0.0f, 1.0f);
 }
@@ -225,8 +224,8 @@ SkPath fitCurve(std::span<const glm::vec2> points, float tolerance) {
 }
 
 SkPath fitCurve(const Polyline& line, float tolerance) {
-  if (!line.closed) return fitCurve(std::span<const glm::vec2>(line.points),
-                                    tolerance);
+  if (!line.closed)
+    return fitCurve(std::span<const glm::vec2>(line.points), tolerance);
   std::vector<glm::vec2> loop = line.points;
   if (!loop.empty()) loop.push_back(loop.front());
   SkPath open = fitCurve(std::span<const glm::vec2>(loop), tolerance);

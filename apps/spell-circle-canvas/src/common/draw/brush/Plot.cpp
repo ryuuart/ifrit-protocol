@@ -65,9 +65,9 @@ float Plot::pressure(float distance) const {
       const float to =
           i + 1 < m_pressures.size() ? m_pressures[i + 1] : m_endPressure;
       if (!(m_segments[i] > 0.0f)) return to;
-      return lerp(from, to,
-                  std::clamp((distance - travelled) / m_segments[i], 0.0f,
-                             1.0f));
+      return lerp(
+          from, to,
+          std::clamp((distance - travelled) / m_segments[i], 0.0f, 1.0f));
     }
     travelled = next;
   }
@@ -77,8 +77,7 @@ float Plot::pressure(float distance) const {
 Stroke Plot::path(SkPoint origin, float spacing, float curvature,
                   float scale) const {
   scale = std::abs(scale);
-  Stroke controls{
-      {origin, m_pressures.empty() ? 1.0f : m_pressures.front()}};
+  Stroke controls{{origin, m_pressures.empty() ? 1.0f : m_pressures.front()}};
   SkPoint position = origin;
   for (size_t i = 0; i < m_segments.size(); ++i) {
     const float direction =
@@ -122,8 +121,8 @@ void Plot::hatch(Pen& pen, const Tool& tool, const Hatch& style, float x,
   polygon(x, y, tool.spacing, 0.5f, scale).hatch(pen, tool, style);
 }
 
-void Plot::mass(Pen& pen, const Tool& tool, const Mass& style, float x,
-                float y, float scale) const {
+void Plot::mass(Pen& pen, const Tool& tool, const Mass& style, float x, float y,
+                float scale) const {
   polygon(x, y, tool.spacing, 0.5f, scale).mass(pen, tool, style);
 }
 

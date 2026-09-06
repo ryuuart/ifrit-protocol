@@ -400,8 +400,9 @@ TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
   EXPECT_GT(inked, 100) << "a band takes a stroke pass like any shape";
 }
 
-#include <type_traits>
 #include <sigilcompose/kit/Strokes.h>
+
+#include <type_traits>
 
 namespace {
 
@@ -2136,8 +2137,8 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   // with no re-describe — the same rule a live stroke material follows.
   const auto paintedPerFrame = [](bool live) {
     Host again;
-    again.composer.render(straightRun(
-        brush::presets::taper(24, 24, material::skia::Paint::sksl(heavyEffect(live)))));
+    again.composer.render(straightRun(brush::presets::taper(
+        24, 24, material::skia::Paint::sksl(heavyEffect(live)))));
     again.frame();
     again.frame();
     return again.composer.stats().nodesPainted;
@@ -2207,8 +2208,8 @@ TEST(ComposeRibbon, TheJoinShapesTheOutsideOfTheCorner) {
   // right of (80,80). The bevel's chord cuts that corner off at 14.1 px;
   // the arc reaches the full 20; the miter carries the two rails to their
   // meeting point at 28.3.
-  const SkPoint onTheArc{92.0f, 68.0f};     // 17 px out — past the chord
-  const SkPoint atThePoint{97.0f, 63.0f};   // 24 px out — past the arc
+  const SkPoint onTheArc{92.0f, 68.0f};    // 17 px out — past the chord
+  const SkPoint atThePoint{97.0f, 63.0f};  // 24 px out — past the arc
   EXPECT_FALSE(bevel.band(elbow()).contains(onTheArc.x(), onTheArc.y()));
   EXPECT_TRUE(round.band(elbow()).contains(onTheArc.x(), onTheArc.y()));
   EXPECT_TRUE(miter.band(elbow()).contains(atThePoint.x(), atThePoint.y()));
@@ -2297,9 +2298,9 @@ TEST(ComposeRibbon, WidthAlongMeasuresATrunkOfHundredsOfOverlappingSteps) {
   // The corner itself is measured across the turn rather than across the
   // band, which is a property of the measurement; every straight station
   // must be the width the law asked for.
-  EXPECT_LT(audit.rmsError, 4.0f) << "worst " << audit.maxError << " px at "
-                                  << audit.worst.front().at.x() << ","
-                                  << audit.worst.front().at.y();
+  EXPECT_LT(audit.rmsError, 4.0f)
+      << "worst " << audit.maxError << " px at " << audit.worst.front().at.x()
+      << "," << audit.worst.front().at.y();
   int badOnAStraightLeg = 0;
   for (const test::WidthStation& st : audit.worst) {
     const bool nearCorner =

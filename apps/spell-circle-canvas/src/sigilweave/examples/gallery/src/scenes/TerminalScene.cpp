@@ -27,6 +27,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <algorithm>
 #include <cmath>
@@ -35,8 +37,6 @@
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 

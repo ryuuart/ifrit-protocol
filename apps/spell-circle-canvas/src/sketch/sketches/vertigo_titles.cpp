@@ -129,13 +129,13 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
@@ -262,23 +262,21 @@ Element figureBox(SkPoint centre, float radius) {
 // ---------------------------------------------------------------------------
 // type
 
-weave::TextStyle faced(sk_sp<SkTypeface> face, float size,
-                             SkColor4f color, float tracking = 0,
-                             float condense = 1.0f) {
+weave::TextStyle faced(sk_sp<SkTypeface> face, float size, SkColor4f color,
+                       float tracking = 0, float condense = 1.0f) {
   return weave::textStyle({.face = std::move(face),
-                               .size = size,
-                               .color = color,
-                               .track = tracking,
-                               .condense = condense});
+                           .size = size,
+                           .color = color,
+                           .track = tracking,
+                           .condense = condense});
 }
 
 /** The OUTLINE register: sigil::weave::kit::outline()'s stroked paint installed
  *  as the node's ENTIRE foreground pass — no fill underneath, so the
  *  spiral is visible straight through the counters. Typotheque: "outline
  *  type through which the image beneath can be seen." */
-weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
-                               SkColor4f color, float width,
-                               float tracking = 0) {
+weave::TextStyle hollow(sk_sp<SkTypeface> face, float size, SkColor4f color,
+                        float width, float tracking = 0) {
   weave::TextStyle s = faced(std::move(face), size, color, tracking);
   s.paint.foreground =
       sigil::weave::kit::outline(color.toSkColor(), width).paint;
@@ -376,7 +374,7 @@ struct VertigoTitles : sketch::Sketch {
             .stroke(spans::range(bind(&growth[i]).offset(-kNib).clamp(0, 1),
                                  &growth[i]),
                     brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
-                                               {1, 1, 1, 0.95f}, 0.7f))
+                                          {1, 1, 1, 0.95f}, 0.7f))
             .rotate(turntable())
             .opacity(&penA[i]));
   }
@@ -444,8 +442,7 @@ struct VertigoTitles : sketch::Sketch {
         // image is seen through.
         halo.setStrokeWidth(4.0f);
         halo.setColor(0x59000000);
-        face.paint.underlays.push_back(
-            weave::PaintLayer::blurred(halo, 2.4f));
+        face.paint.underlays.push_back(weave::PaintLayer::blurred(halo, 2.4f));
       }
       // The entrance ramp covers the cascade's own span, so the last
       // capital lands exactly when the master progress does.
@@ -599,13 +596,13 @@ struct VertigoTitles : sketch::Sketch {
                                .shape(figure(c, 360))
                                .stroke(stroke(0.9f, Fill::color(c.core)))
                                .rotate(turntable())));
-      row.child(
-          box()
-              .column()
-              .grow(1)
-              .gap(2)
-              .child(text(toU8(c.line1), faced(faceGothicBold, 11, kBone, 0.7f)))
-              .child(text(toU8(c.line2), faced(faceGothic, 9, kSteel))));
+      row.child(box()
+                    .column()
+                    .grow(1)
+                    .gap(2)
+                    .child(text(toU8(c.line1),
+                                faced(faceGothicBold, 11, kBone, 0.7f)))
+                    .child(text(toU8(c.line2), faced(faceGothic, 9, kSteel))));
       p.child(std::move(row));
     }
     return p;
@@ -681,7 +678,8 @@ struct VertigoTitles : sketch::Sketch {
       root.child(
           sketch::kit::titleCard(
               {.eyebrow = {.words = toU8("PRECESSING LISSAJOUS FIGURES"),
-                           .opacity = animate(from(0.0f).to(1.0f), ramp(0, 260)),
+                           .opacity =
+                               animate(from(0.0f).to(1.0f), ramp(0, 260)),
                            .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
                .title = {.words = toU8("VERTIGO, 1958"),
                          .fx = Track{.effect = fx::rise(18.0f),
@@ -694,8 +692,8 @@ struct VertigoTitles : sketch::Sketch {
                .subtitle = {.words = toU8("Saul Bass, title design — John "
                                           "Whitney, spirals — Paramount, "
                                           "dir. Alfred Hitchcock"),
-                            .opacity = animate(from(0.0f).to(1.0f),
-                                               ramp(420, 240))},
+                            .opacity =
+                                animate(from(0.0f).to(1.0f), ramp(420, 240))},
                .notes = std::move(sources),
                .align = Align::Stretch,
                .key = "head"})
@@ -768,15 +766,14 @@ struct VertigoTitles : sketch::Sketch {
     }
     irisMat = Paint::blend(
         {{Paint::radial(kEye, 360.0f,
-                           {{0.00f, hex(0x100C09)},  // pupil
-                            {0.11f, hex(0x17110B)},
-                            {0.17f, hex(0x8A6A44)},  // bright inner iris
-                            {0.40f, hex(0x6E5230)},
-                            {0.72f, hex(0x6A5030)},
-                            {1.00f, hex(0x36271A)}}),
+                        {{0.00f, hex(0x100C09)},  // pupil
+                         {0.11f, hex(0x17110B)},
+                         {0.17f, hex(0x8A6A44)},  // bright inner iris
+                         {0.40f, hex(0x6E5230)},
+                         {0.72f, hex(0x6A5030)},
+                         {1.00f, hex(0x36271A)}}),
           SkBlendMode::kSrc},
-         {Paint::sweep(kEye, fibres, 0.0f, 360.0f),
-          SkBlendMode::kSoftLight}});
+         {Paint::sweep(kEye, fibres, 0.0f, 360.0f), SkBlendMode::kSoftLight}});
 
     // LUMINANCE noise — the `contrast` knob is the difference between
     // film grain and concrete.

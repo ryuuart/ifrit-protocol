@@ -49,7 +49,8 @@ TEST(Plot, InterpolatesAnglesAcrossTheWrapAndTurnsWithRotate) {
 }
 
 TEST(Plot, FromStrokeIsRelativeSoTheCallerPlacesAndScalesIt) {
-  const std::array<brush::Sample, 2> absolute{{{{4, 7}, 1.0f}, {{14, 7}, 1.0f}}};
+  const std::array<brush::Sample, 2> absolute{
+      {{{4, 7}, 1.0f}, {{14, 7}, 1.0f}}};
   const brush::Plot placed =
       brush::Plot::fromStroke(absolute, brush::PlotType::Segments);
   EXPECT_FALSE(placed.empty());

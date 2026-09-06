@@ -123,7 +123,6 @@ constexpr float kInspectY = kBodyY + kSpecH + 12;
 // ---------------------------------------------------------------------------
 // Type
 
-
 sk_sp<SkTypeface> monoFace() {
   return weave::ports::face({"Menlo"}, SkFontStyle::Normal());
 }
@@ -157,9 +156,8 @@ SkColor4f fade(SkColor4f c, float a) { return {c.fR, c.fG, c.fB, c.fA * a}; }
  *  a loop, because a loop has the clock in its hand. */
 float cue(double ms, float delayMs, float durationMs,
           const ch::EaseFn& ease = nullptr) {
-  const float u =
-      std::clamp((float)((ms - (double)delayMs) / (double)durationMs), 0.0f,
-                 1.0f);
+  const float u = std::clamp(
+      (float)((ms - (double)delayMs) / (double)durationMs), 0.0f, 1.0f);
   return ease ? ease(u) : u;
 }
 
@@ -170,9 +168,9 @@ float cue(double ms, float delayMs, float durationMs,
 struct PsxDoomFire final : sketch::DrawSketch {
   // --- the automaton's state: one buffer, mutated in place ---
   std::vector<uint8_t> heat;
-  std::array<uint32_t, 37> lut{};  // heat → premultiplied RGBA8888 word
-  SkBitmap bitmap;                 // 320×168, rewritten once per sim tick
-  sk_sp<SkImage> frame;            // what the pen blits every render frame
+  std::array<uint32_t, 37> lut{};       // heat → premultiplied RGBA8888 word
+  SkBitmap bitmap;                      // 320×168, rewritten once per sim tick
+  sk_sp<SkImage> frame;                 // what the pen blits every render frame
   std::array<float, kFireH> rowMean{};  // mean heat per row — the decay curve
   uint32_t rng = 0x9E3779B9u;           // xorshift32 state, reseeded in setup()
 
@@ -274,9 +272,9 @@ struct PsxDoomFire final : sketch::DrawSketch {
         .child(compose::text(compose::toU8("CELLULAR AUTOMATON"),
                              uiStyle(12, kSteel, 2.6f))
                    .opacity(motion::animate(motion::from(0.0f).to(1.0f),
-                                             {.duration = 260ms}))
+                                            {.duration = 260ms}))
                    .translateY(motion::animate(motion::from(8.0f).to(0.0f),
-                                                {.duration = 260ms})))
+                                               {.duration = 260ms})))
         .child(compose::text(compose::toU8(kTitle),
                              weave::textStyle({.face = heavyFace(),
                                                .size = 50,
@@ -285,23 +283,22 @@ struct PsxDoomFire final : sketch::DrawSketch {
                    .key("title")
                    .fx({.effect = compose::fx::rise(24),
                         .stagger = cascade,
-                        .progress = motion::animate(
-                            motion::from(0.0f).to(1.0f),
-                            {.duration = span,
-                             .ease = &ch::easeNone,
-                             .delay = 120ms})}))
-        .child(compose::text(
-                   compose::toU8(
-                       "id Software / Williams \xe2\x80\x94 PlayStation port "
-                       "title screen \xc2\xb7 algorithm reverse-engineered "
-                       "from the Doom 64 disassembly by Samuel Villarreal, "
-                       "documented by Fabien Sanglard "
-                       "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
-                       "\xc2\xb7 DoomFirePSX/flames.html"),
-                   uiStyle(11.5f, kSteel, 0.2f))
-                   .opacity(motion::animate(
-                       motion::from(0.0f).to(1.0f),
-                       {.duration = 320ms, .delay = 200ms})));
+                        .progress = motion::animate(motion::from(0.0f).to(1.0f),
+                                                    {.duration = span,
+                                                     .ease = &ch::easeNone,
+                                                     .delay = 120ms})}))
+        .child(
+            compose::text(
+                compose::toU8(
+                    "id Software / Williams \xe2\x80\x94 PlayStation port "
+                    "title screen \xc2\xb7 algorithm reverse-engineered "
+                    "from the Doom 64 disassembly by Samuel Villarreal, "
+                    "documented by Fabien Sanglard "
+                    "\xc2\xb7 fabiensanglard.net/doom_fire_psx "
+                    "\xc2\xb7 DoomFirePSX/flames.html"),
+                uiStyle(11.5f, kSteel, 0.2f))
+                .opacity(motion::animate(motion::from(0.0f).to(1.0f),
+                                         {.duration = 320ms, .delay = 200ms})));
   }
 
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay
@@ -314,13 +311,13 @@ struct PsxDoomFire final : sketch::DrawSketch {
                                            .size = 186,
                                            .color = hex(0xC23A1C),
                                            .track = 34.0f});
-    s.paint.addUnderlay(sigil::weave::kit::outline(
-        hex(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
+    s.paint.addUnderlay(sigil::weave::kit::outline(hex(0x2A0805).toSkColor(),
+                                                   7.0f, SkPaint::kRound_Join));
     return compose::text(compose::toU8("DOOM"), std::move(s))
         .width(kPanelW)
         .textAlign(weave::TextAlignment::kCenter)
         .opacity(motion::animate(motion::from(0.0f).to(1.0f),
-                                  {.duration = 600ms, .delay = 380ms}));
+                                 {.duration = 600ms, .delay = 380ms}));
   }
 
   // =========================================================================
@@ -496,8 +493,8 @@ struct PsxDoomFire final : sketch::DrawSketch {
     };
     constexpr int kCount = (int)(sizeof(kBoot) / sizeof(kBoot[0]));
     constexpr double kFirst = 0.20, kEach = 0.11;
-    const int shown = std::clamp(
-        (int)std::floor((seconds - kFirst) / kEach) + 1, 0, kCount);
+    const int shown =
+        std::clamp((int)std::floor((seconds - kFirst) / kEach) + 1, 0, kCount);
     pen.textAlign(LEFT, TOP);
     float cursor = y;
     for (int i = 0; i < shown; ++i) {
@@ -509,7 +506,8 @@ struct PsxDoomFire final : sketch::DrawSketch {
       cursor += 11.5f + 4.0f;
     }
     const double done = kFirst + kEach * (kCount - 1);
-    const bool blink = seconds < done || motion::phase(seconds - done, 1.0) < 0.5f;
+    const bool blink =
+        seconds < done || motion::phase(seconds - done, 1.0) < 0.5f;
     if (blink) {
       pen.noStroke();
       pen.fill(kAmber);
@@ -754,8 +752,8 @@ struct PsxDoomFire final : sketch::DrawSketch {
     }
     const double ms = pen.millis();
     pen.background(kInk);
-    pen.element(header(), SkRect::MakeXYWH(kPadX, kPadY, kCanvasW - 2 * kPadX,
-                                           kHeaderH));
+    pen.element(header(),
+                SkRect::MakeXYWH(kPadX, kPadY, kCanvasW - 2 * kPadX, kHeaderH));
     rule(pen, kPadX, kPadY + kHeaderH - 4, kCanvasW - 2 * kPadX - 12,
          cue(ms, 320, 400));
     firePanel(pen, ms);

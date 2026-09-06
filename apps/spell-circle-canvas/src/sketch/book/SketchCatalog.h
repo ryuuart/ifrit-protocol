@@ -225,8 +225,8 @@ class SketchCatalog : public QObject {
   std::mutex m_mutex;
   std::condition_variable m_wake;
   std::deque<int> m_pending;
-  std::set<int> m_queued;   // what is pending or in flight, to dedupe
-  std::set<int> m_failed;   // rendered once and failed — never retried
+  std::set<int> m_queued;  // what is pending or in flight, to dedupe
+  std::set<int> m_failed;  // rendered once and failed — never retried
   int m_inFlight = -1;
   bool m_stop = false;
 

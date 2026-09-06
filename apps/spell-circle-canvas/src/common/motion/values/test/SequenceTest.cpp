@@ -59,9 +59,9 @@ TEST(Sequence, WhatHappensBetweenTwoKeysIsAProp) {
   EXPECT_GT(track.at(0.9f), track.at(0.9f - 1e-3f));
   // A key arrived at with speed and left flat is where the swing shows:
   // the curve carries past the plateau and comes back to it.
-  Sequence plateau{.steps = {{0.0f, 0.0f}, {1.0f, 10.0f}, {2.0f, 10.0f},
-                             {3.0f, 0.0f}},
-                   .interpolation = Interpolation::CatmullRom};
+  Sequence plateau{
+      .steps = {{0.0f, 0.0f}, {1.0f, 10.0f}, {2.0f, 10.0f}, {3.0f, 0.0f}},
+      .interpolation = Interpolation::CatmullRom};
   EXPECT_GT(plateau.at(1.5f), 10.0f);
   EXPECT_FLOAT_EQ(plateau.at(1.0f), 10.0f);
   EXPECT_FLOAT_EQ(plateau.at(2.0f), 10.0f);
@@ -93,10 +93,10 @@ TEST(Sequence, ALoopFoldsAtTheLastKeyAndSplinesAcrossTheSeam) {
   // Across the seam the spline reaches for the keys either side of the
   // join rather than for the key that closes it, so the curve does not
   // flatten at exactly the place a loop exists to hide.
-  Sequence smooth{.steps = {{0.0f, 0.0f}, {1.0f, 4.0f}, {2.0f, 1.0f},
-                            {3.0f, 0.0f}},
-                  .interpolation = Interpolation::CatmullRom,
-                  .loop = true};
+  Sequence smooth{
+      .steps = {{0.0f, 0.0f}, {1.0f, 4.0f}, {2.0f, 1.0f}, {3.0f, 0.0f}},
+      .interpolation = Interpolation::CatmullRom,
+      .loop = true};
   const float justBefore = smooth.at(2.98f);
   const float justAfter = smooth.at(3.02f);
   EXPECT_NEAR(justBefore, justAfter, 0.3f);

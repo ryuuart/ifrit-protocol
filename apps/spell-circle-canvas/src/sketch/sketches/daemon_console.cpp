@@ -89,8 +89,8 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -160,22 +160,22 @@ struct LogRow {
  *  strip holds a whole number of pixels, so its period lands a hair off
  *  the sine's own; the eye reads a 3.7 px scanline either way. */
 constexpr float kScanPeriods = 10.0f;
-constexpr float kScanTileH = 37.0f;  // ten periods of 2pi / 1.7 px, whole
+constexpr float kScanTileH = 37.0f;        // ten periods of 2pi / 1.7 px, whole
 constexpr float kScanCreep = 9.0f / 1.7f;  // px per second, downward
 constexpr SkColor4f kTubeInk{0.55f, 0.85f, 0.95f, 1.0f};
 
 inline Pattern scanlineTile() {
-  return Pattern::tile({4.0f, kScanTileH}, [](SkCanvas& canvas, SkSize size,
-                                                uint32_t) {
-    SkPaint row;
-    for (int y = 0; y < (int)size.height(); ++y) {
-      const float phase =
-          ((float)y + 0.5f) / size.height() * kScanPeriods * 6.2831853f;
-      const float a = 0.028f * (0.5f + 0.5f * std::sin(phase));
-      row.setColor4f({kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, a});
-      canvas.drawRect(SkRect::MakeXYWH(0, (float)y, size.width(), 1), row);
-    }
-  });
+  return Pattern::tile(
+      {4.0f, kScanTileH}, [](SkCanvas& canvas, SkSize size, uint32_t) {
+        SkPaint row;
+        for (int y = 0; y < (int)size.height(); ++y) {
+          const float phase =
+              ((float)y + 0.5f) / size.height() * kScanPeriods * 6.2831853f;
+          const float a = 0.028f * (0.5f + 0.5f * std::sin(phase));
+          row.setColor4f({kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, a});
+          canvas.drawRect(SkRect::MakeXYWH(0, (float)y, size.width(), 1), row);
+        }
+      });
 }
 
 /** The refresh band: a 128 px tent, brightest at its centre, that sweeps
@@ -316,19 +316,26 @@ struct DaemonConsole final : sketch::Sketch {
    *  tabular numerals asked of it where digits must sit in columns. */
   sigil::weave::StyleSet rowStyles() const {
     namespace dc = daemon_console;
-    sigil::weave::StyleSet s(
-        weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kBody}));
-    s.set("ts", weave::textStyle({.face = faceMono, .size = 11, .color = dc::kDim}));
-    s.set("trace", weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kDim}));
+    sigil::weave::StyleSet s(weave::textStyle(
+        {.face = faceMono, .size = 12.5f, .color = dc::kBody}));
+    s.set("ts",
+          weave::textStyle({.face = faceMono, .size = 11, .color = dc::kDim}));
+    s.set("trace", weave::textStyle(
+                       {.face = faceMono, .size = 12.5f, .color = dc::kDim}));
     s.set("seal",
-          weave::textStyle({.face = faceMono, .size = 12.5f, .color = hex(0x8FE5C4)}));
-    s.set("flux", weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kWarn}));
+          weave::textStyle(
+              {.face = faceMono, .size = 12.5f, .color = hex(0x8FE5C4)}));
+    s.set("flux", weave::textStyle(
+                      {.face = faceMono, .size = 12.5f, .color = dc::kWarn}));
     s.set("breach",
-          weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kCritText}));
+          weave::textStyle(
+              {.face = faceMono, .size = 12.5f, .color = dc::kCritText}));
     s.set("cipher",
-          weave::textStyle({.face = faceMono, .size = 12.5f, .color = dc::kAccent}));
+          weave::textStyle(
+              {.face = faceMono, .size = 12.5f, .color = dc::kAccent}));
     auto tag = [&](SkColor4f color) {
-      return weave::textStyle({.face = faceMonoMed, .size = 11, .color = color});
+      return weave::textStyle(
+          {.face = faceMonoMed, .size = 11, .color = color});
     };
     s.set("tag-trace", tag(alpha(dc::kDim, 0.8f)));
     s.set("tag-info", tag(dc::kChrome));
@@ -344,11 +351,10 @@ struct DaemonConsole final : sketch::Sketch {
                                  bool medium = false, bool tabular = false) {
     sigil::weave::TextStyle s =
         weave::textStyle({.face = medium ? faceChromeMed : faceChrome,
-              .size = size,
-              .color = color,
-              .track = track});
-    if (tabular)
-      s.shaping.fontFeatures = {weave::features::tabularNumbers};
+                          .size = size,
+                          .color = color,
+                          .track = track});
+    if (tabular) s.shaping.fontFeatures = {weave::features::tabularNumbers};
     return s;
   }
 
@@ -562,9 +568,8 @@ struct DaemonConsole final : sketch::Sketch {
    *  component's `level` is. The bed, the fill and the register the
    *  channel is named in are this console's, carried down by its theme. */
   Element meterRow(const char* label, choreograph::Output<float>* level) {
-    sketch::kit::Meter bar{.label = toU8(label),
-                           .height = Dim(4),
-                           .corners = 2};
+    sketch::kit::Meter bar{
+        .label = toU8(label), .height = Dim(4), .corners = 2};
     bar.level = level;
     return sketch::kit::meter(bar);
   }
@@ -611,11 +616,12 @@ struct DaemonConsole final : sketch::Sketch {
     // drawn border sits sdf::pad() in from the node edge — the content
     // padding is that reserve plus the designed inset, read off the style
     // rather than restated as a number that drifts.
-    const sdf::Style panelStyle{.fill = mskia::toColor(dc::kPanel),
-                                .borderWidth = 1.0f,
-                                .borderColor = mskia::toColor(hex(0x3B5474, 0.95f)),
-                                .glowRadius = 6,
-                                .glowColor = mskia::toColor(hex(0x3EC2DC, 0.22f))};
+    const sdf::Style panelStyle{
+        .fill = mskia::toColor(dc::kPanel),
+        .borderWidth = 1.0f,
+        .borderColor = mskia::toColor(hex(0x3B5474, 0.95f)),
+        .glowRadius = 6,
+        .glowColor = mskia::toColor(hex(0x3EC2DC, 0.22f))};
     Paint panel = Paint::recipe(sdf::material(sdf::roundBox(12), panelStyle));
     const float padX = sdf::pad(panelStyle) + 17.0f;
     const float padY = sdf::pad(panelStyle) + 12.0f;
@@ -764,7 +770,7 @@ struct DaemonConsole final : sketch::Sketch {
 
     return stack()
         .fill(Paint::linear({0, 0}, {0, dc::kH},
-                               {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
+                            {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
         .child(
             box()
                 .column()

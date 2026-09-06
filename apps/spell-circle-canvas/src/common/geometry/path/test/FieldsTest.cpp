@@ -79,8 +79,8 @@ TEST(Streamline, BoundsStopTheWalkAndTheSeedMustBeInside) {
   EXPECT_LT(line.points.size(), 60u);
   EXPECT_LE(line.points.back().x, 41.0f);
 
-  EXPECT_TRUE(streamline(uniformField({1, 0}), {900, 0}, options)
-                  .points.empty());
+  EXPECT_TRUE(
+      streamline(uniformField({1, 0}), {900, 0}, options).points.empty());
 }
 
 TEST(Streamline, BothWaysPutsTheSeedInTheMiddle) {
@@ -238,9 +238,8 @@ TEST(Cells, ARuleReadsTheSheetAsItWasAndNotAsItIsBecoming) {
   // takes what its neighbour HAD, so one step shifts the sheet by one.
   Cells<int> sheet(5, 1, 0);
   for (int x = 0; x < 5; ++x) sheet.at(x, 0) = x;
-  sheet.step([](const Cells<int>& from, int x, int y) {
-    return from.read(x - 1, y);
-  });
+  sheet.step(
+      [](const Cells<int>& from, int x, int y) { return from.read(x - 1, y); });
   EXPECT_EQ(sheet.at(0, 0), 0);  // clamped: its own value
   EXPECT_EQ(sheet.at(1, 0), 0);
   EXPECT_EQ(sheet.at(2, 0), 1);

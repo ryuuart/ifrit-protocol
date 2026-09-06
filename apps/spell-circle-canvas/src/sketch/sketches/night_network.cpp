@@ -9,7 +9,8 @@
 //   EMBER LINE ...... Brush{ .shaped(shapers::Rounded) } + a cased layer --
 //                     the classic two-rail metro pair (rounding from the
 //                     PIPELINE, the router stays sharp)
-//   STEEL SPUR ...... brush::presets::railwayCarto LayerStyle -- osm-carto's verified
+//   STEEL SPUR ...... brush::presets::railwayCarto LayerStyle -- osm-carto's
+//   verified
 //                     dark line + white 50%-duty dash overlay (NOT ties)
 //   CURRENT LINE .... lines::Line with midCap chevrons + terminal arrow --
 //                     the polylinedecorator repeat pattern
@@ -67,8 +68,8 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -116,9 +117,10 @@ inline Element station(const char* key, float x, float y, float size = 16) {
       .width(size)
       .height(size)
       .centerAt({x, y})
-      .fill(Paint::recipe(sdf::material(
-          sdf::circle(),
-          {.fill = mskia::toColor(kBone), .borderWidth = 2.5f, .borderColor = mskia::toColor(kInk)})))
+      .fill(Paint::recipe(
+          sdf::material(sdf::circle(), {.fill = mskia::toColor(kBone),
+                                        .borderWidth = 2.5f,
+                                        .borderColor = mskia::toColor(kInk)})))
       .zIndex(6);
 }
 
@@ -210,7 +212,8 @@ struct NightNetwork final : sketch::Sketch {
     //    dashes/params share one centerline (Lines.h keeps them in phase).
     Brush emberBrush;
     emberBrush.shaped(shapers::Rounded{12.0f});
-    emberBrush.layer(lines::presets::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
+    emberBrush.layer(
+        lines::presets::cased(2.6f, Fill::color(nn::kEmber), 7.0f));
 
     // -- 3. CURRENT LINE: the decorator pattern -- repeated
     //    mid-path chevrons + terminal arrow, tip AT the endpoint, body
@@ -258,10 +261,11 @@ struct NightNetwork final : sketch::Sketch {
     // -- 6. ORBITAL: line layer + brush::Scatter layer -- real components
     //    INSTANCED along the route (snapshot-baked once, replayed per
     //    slot). dia. 190 circle -> circumference ~597 -> 8 stamps at 74.6.
-    Element ringStamp = box().width(11).height(11).fill(Paint::recipe(sdf::material(
-        sdf::circle(), {.fill = mskia::toColor(nn::kBone),
-                        .borderWidth = 2.0f,
-                        .borderColor = {0.30f, 0.18f, 0.48f, 1}})));
+    Element ringStamp =
+        box().width(11).height(11).fill(Paint::recipe(sdf::material(
+            sdf::circle(), {.fill = mskia::toColor(nn::kBone),
+                            .borderWidth = 2.0f,
+                            .borderColor = {0.30f, 0.18f, 0.48f, 1}})));
     Brush orbital;
     orbital.layer(lines::Line{.width = 3.2f, .fill = Fill::color(nn::kViolet)});
     orbital.layer(brush::Scatter{.art = ringStamp,
@@ -301,8 +305,8 @@ struct NightNetwork final : sketch::Sketch {
     //    (drawn mouth->source, wide->narrow), in the map's own octilinear
     //    grammar per the Thames rule.
     Brush creek;
-    creek.layer(
-        brush::presets::taper(2.2f, 9.0f, Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
+    creek.layer(brush::presets::taper(
+        2.2f, 9.0f, Fill::color({0.13f, 0.27f, 0.40f, 0.9f})));
 
     // -- 10. THE PIPELINE TRIO: three runs over IDENTICAL path points --
     //    only the geometry op differs (squiggly / zigzag / boxy). The
@@ -329,11 +333,13 @@ struct NightNetwork final : sketch::Sketch {
             .width(72)
             .height(72)
             .centerAt({436, 320})
-            .fill(Paint::recipe(sdf::material(sdf::star(8, 3.2f), {.fill = mskia::toColor(nn::kBone),
-                                                     .borderWidth = 2,
-                                                     .borderColor = mskia::toColor(nn::kInk),
-                                                     .glowRadius = 6,
-                                                     .glowColor = mskia::toColor(nn::kEmber)}))
+            .fill(Paint::recipe(
+                      sdf::material(sdf::star(8, 3.2f),
+                                    {.fill = mskia::toColor(nn::kBone),
+                                     .borderWidth = 2,
+                                     .borderColor = mskia::toColor(nn::kInk),
+                                     .glowRadius = 6,
+                                     .glowColor = mskia::toColor(nn::kEmber)}))
                       .uniform("uGlowR", &hubGlow))
             .zIndex(7);
 
@@ -362,8 +368,8 @@ struct NightNetwork final : sketch::Sketch {
                     routers::octilinear(14))
                    .inset(0)
                    .mask(by::spans(spans::upTo(&railReveal)))
-                   .style(brush::presets::railwayCarto(1.6f, nn::kSteel,
-                                              {0.95f, 0.94f, 0.90f, 1}))
+                   .style(brush::presets::railwayCarto(
+                       1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1}))
                    .zIndex(3))
         // ---- the cased metro pair ----
         .child(rail({{"em_w"}, {"em1"}, {"hub"}, {"em2"}, {"em_e"}},
@@ -432,29 +438,27 @@ struct NightNetwork final : sketch::Sketch {
                        Fill::color({0.36f, 0.72f, 0.62f, 0.5f}), 7, 1.1f, -32))
                    .zIndex(1))
         // ---- the pipeline trio: identical points, different ops ----
+        .child(
+            box()
+                .inset(49, 554, nn::kW - 232, nn::kH - 581)
+                .shape(demoPath)
+                .stroke(demoRun(shapers::Wave{.amplitude = 4, .wavelength = 28},
+                                nn::kCyan))
+                .zIndex(3))
         .child(box()
-                   .inset(49, 554, nn::kW - 232, nn::kH - 581)
+                   .inset(49, 580, nn::kW - 232, nn::kH - 607)
                    .shape(demoPath)
-                   .stroke(demoRun(shapers::Wave{.amplitude = 4,
-                                                             .wavelength = 28},
-                                   nn::kCyan))
+                   .stroke(demoRun(
+                       shapers::Zigzag{.amplitude = 4, .wavelength = 28},
+                       nn::kAmber))
                    .zIndex(3))
-        .child(
-            box()
-                .inset(49, 580, nn::kW - 232, nn::kH - 607)
-                .shape(demoPath)
-                .stroke(demoRun(shapers::Zigzag{.amplitude = 4,
-                                                            .wavelength = 28},
-                                nn::kAmber))
-                .zIndex(3))
-        .child(
-            box()
-                .inset(49, 606, nn::kW - 232, nn::kH - 633)
-                .shape(demoPath)
-                .stroke(demoRun(shapers::Square{.amplitude = 4,
-                                                            .wavelength = 28},
-                                nn::kViolet))
-                .zIndex(3))
+        .child(box()
+                   .inset(49, 606, nn::kW - 232, nn::kH - 633)
+                   .shape(demoPath)
+                   .stroke(demoRun(
+                       shapers::Square{.amplitude = 4, .wavelength = 28},
+                       nn::kViolet))
+                   .zIndex(3))
         // ---- waypoint pins (invisible) ----
         .child(nn::pin("rv0", 692, 4))
         .child(nn::pin("rv1", 654, 144))

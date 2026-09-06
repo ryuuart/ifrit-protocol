@@ -17,7 +17,8 @@ TEST(MaterialStock, HoldsEveryFeatureCatalogue) {
                        kit::everyRecipe().size();
   const std::vector<Material> stocked = stock::everyRecipe();
   EXPECT_EQ(stocked.size(), parts);
-  for (const Material& item : stocked) EXPECT_FALSE(item.recipe().name().empty());
+  for (const Material& item : stocked)
+    EXPECT_FALSE(item.recipe().name().empty());
 }
 
 TEST(MaterialStock, WarmsEveryProgramItGathered) {

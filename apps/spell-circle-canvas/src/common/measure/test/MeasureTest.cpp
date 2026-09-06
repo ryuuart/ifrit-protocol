@@ -320,7 +320,8 @@ TEST(Check, AFindingIsPrintedAsAClaimAndNeverCountedAgainstTheRun) {
   const Check legend = finding(check("legend holds", 1.0, 1.126, 0.01));
   EXPECT_FALSE(legend.pass);
   EXPECT_EQ(legend.standing, Standing::Finding);
-  EXPECT_EQ(legend.line(12, 5), "  legend holds 1.126   FAIL want 1 \xc2\xb1 0.01");
+  EXPECT_EQ(legend.line(12, 5),
+            "  legend holds 1.126   FAIL want 1 \xc2\xb1 0.01");
   Table t;
   t.add(check("a", 1, 1)).add(legend);
   EXPECT_EQ(t.failures(), 0);

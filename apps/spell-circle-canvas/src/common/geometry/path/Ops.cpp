@@ -60,7 +60,6 @@ SkPath overSamples(const SkPath& path, float segmentPx, bool smooth,
   return out.detach();
 }
 
-
 SkPaint::Join skJoin(Join join) {
   switch (join) {
     case Join::Round:
@@ -106,7 +105,8 @@ glm::vec2 leavingAlong(const Segment& piece) {
 glm::vec2 arrivingAlong(const Segment& piece) {
   const int last = piece.size() - 1;
   for (int i = last - 1; i >= 0; --i) {
-    const glm::vec2 chord = piece.points[(size_t)last] - piece.points[(size_t)i];
+    const glm::vec2 chord =
+        piece.points[(size_t)last] - piece.points[(size_t)i];
     if (glm::length(chord) > 1e-9f) return chord / glm::length(chord);
   }
   return {1, 0};
@@ -133,11 +133,12 @@ SkPath movedNodes(const SkPath& path, float distance,
     std::vector<glm::vec2> shift(nodes, glm::vec2{0, 0});
     for (size_t j = 0; j < nodes; ++j) {
       const glm::vec2 out =
-          j < pieces ? leavingAlong(contour.segments[j])
-                     : (contour.closed
-                            ? unitOr(contour.start() - contour.segments.back().end(),
-                                     arrivingAlong(contour.segments.back()))
-                            : arrivingAlong(contour.segments.back()));
+          j < pieces
+              ? leavingAlong(contour.segments[j])
+              : (contour.closed
+                     ? unitOr(contour.start() - contour.segments.back().end(),
+                              arrivingAlong(contour.segments.back()))
+                     : arrivingAlong(contour.segments.back()));
       glm::vec2 in;
       if (j > 0) {
         in = arrivingAlong(contour.segments[j - 1]);
@@ -160,8 +161,9 @@ SkPath movedNodes(const SkPath& path, float distance,
       const glm::vec2 end = piece.points[(size_t)last];
       for (int i = 1; i < last; ++i) {
         const glm::vec2 chord =
-            i * 2 <= last ? unitOr(piece.points[(size_t)i] - start, leavingAlong(piece))
-                          : unitOr(end - piece.points[(size_t)i], arrivingAlong(piece));
+            i * 2 <= last
+                ? unitOr(piece.points[(size_t)i] - start, leavingAlong(piece))
+                : unitOr(end - piece.points[(size_t)i], arrivingAlong(piece));
         piece.points[(size_t)i] += leftOf(chord) * distance;
       }
       piece.points[0] += shift[j];
@@ -212,8 +214,7 @@ SkPath selectedCorners(const SkPath& path, float radius,
     // The closing line is a leg like any other, so a rectangle rounds
     // the corner its walk started at as well as the three it passes.
     std::vector<Segment> legs = contour.segments;
-    const bool closure =
-        contour.closed && legs.back().end() != contour.start();
+    const bool closure = contour.closed && legs.back().end() != contour.start();
     if (closure) {
       Segment closing;
       closing.kind = SegmentKind::Line;
@@ -245,9 +246,9 @@ SkPath selectedCorners(const SkPath& path, float radius,
       const bool outward = area == 0 || (cross > 0) == (area > 0);
       if (options.outwardOnly && !outward) continue;
       const float halfAngle = (180.0f - turnDeg) * 0.5f * kDegToRad;
-      float step = options.visual
-                       ? radius * reference / std::max(std::cos(halfAngle), 1e-2f)
-                       : radius;
+      float step = options.visual ? radius * reference /
+                                        std::max(std::cos(halfAngle), 1e-2f)
+                                  : radius;
       step = std::min({step, glm::length(before.end() - before.start()) * 0.5f,
                        glm::length(after.end() - after.start()) * 0.5f});
       if (!(step > 0)) continue;
@@ -325,7 +326,8 @@ SkPath offset(const SkPath& path, float distance,
   const float halfWidth =
       std::abs(distance) * (1.0f - std::abs(1.0f - 2.0f * position));
 
-  const SkPath spine = centre == 0 ? path : parallel(path, centre, options.step);
+  const SkPath spine =
+      centre == 0 ? path : parallel(path, centre, options.step);
   if (halfWidth <= 0) return spine;
 
   SkPaint stroke;

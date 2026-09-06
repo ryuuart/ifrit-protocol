@@ -41,12 +41,12 @@
 
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/style/Type.h>
@@ -95,10 +95,10 @@ compose::Element levels(float seconds, SkColor4f accent) {
                               .gap(8.0f)
                               .padding(16.0f)
                               .fill(compose::hex(0x12171f));
-  root.child(
-      compose::text(u8"LEVELS", weave::textStyle({.size = 22.0f,
-                                               .color = compose::hex(0xbfd4ef),
-                                               .antiAlias = false})));
+  root.child(compose::text(u8"LEVELS",
+                           weave::textStyle({.size = 22.0f,
+                                             .color = compose::hex(0xbfd4ef),
+                                             .antiAlias = false})));
   compose::Element row =
       compose::box().row().gap(7.0f).height(compose::pct(100));
   for (int i = 0; i < 9; ++i) {
@@ -125,10 +125,10 @@ compose::Element trace(float seconds, SkColor4f accent) {
                               .gap(10.0f)
                               .padding(16.0f)
                               .fill(compose::hex(0x0f141c));
-  root.child(
-      compose::text(u8"TRACE", weave::textStyle({.size = 22.0f,
-                                              .color = compose::hex(0xbfd4ef),
-                                              .antiAlias = false})));
+  root.child(compose::text(u8"TRACE",
+                           weave::textStyle({.size = 22.0f,
+                                             .color = compose::hex(0xbfd4ef),
+                                             .antiAlias = false})));
   constexpr int kCells = 14;
   compose::Element row = compose::box().row().gap(5.0f).height(44.0f);
   for (int i = 0; i < kCells; ++i) {
@@ -144,8 +144,8 @@ compose::Element trace(float seconds, SkColor4f accent) {
   root.child(std::move(row));
   root.child(compose::text(u8"one wave, fourteen cells",
                            weave::textStyle({.size = 19.0f,
-                                          .color = compose::hex(0x7e93b4),
-                                          .antiAlias = false})));
+                                             .color = compose::hex(0x7e93b4),
+                                             .antiAlias = false})));
   return root;
 }
 
@@ -162,8 +162,8 @@ compose::Element dial(float seconds, SkColor4f accent) {
                               .fill(compose::hex(0x14121f));
   root.child(
       compose::text(u8"DIAL", weave::textStyle({.size = 22.0f,
-                                             .color = compose::hex(0xbfd4ef),
-                                             .antiAlias = false})));
+                                                .color = compose::hex(0xbfd4ef),
+                                                .antiAlias = false})));
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   compose::Element track = compose::box()
                                .width(compose::pct(100))
@@ -217,14 +217,14 @@ compose::Element tape(float seconds) {
                               .gap(6.0f)
                               .padding(14.0f)
                               .fill(compose::hex(0x1f2430));
-  root.child(
-      compose::text(u8"WOVEN", weave::textStyle({.size = 46.0f,
-                                              .color = compose::hex(0xf2ebdc),
-                                              .antiAlias = false})));
+  root.child(compose::text(u8"WOVEN",
+                           weave::textStyle({.size = 46.0f,
+                                             .color = compose::hex(0xf2ebdc),
+                                             .antiAlias = false})));
   root.child(compose::text(u8"a scene, sampled",
                            weave::textStyle({.size = 20.0f,
-                                          .color = compose::hex(0x9eb8d9),
-                                          .antiAlias = false})));
+                                             .color = compose::hex(0x9eb8d9),
+                                             .antiAlias = false})));
   compose::Element marks =
       compose::box().row().gap(10.0f).height(18.0f).absolute();
   marks.left(16.0f).bottom(14.0f);
@@ -304,11 +304,10 @@ struct SceneSurfaces final : sketch::Set {
     for (Screen& card : cards) card.scene = ctx.textureScene({320, 214});
     strip.scene = ctx.textureScene({1024, 128});
     loop.scene = ctx.textureScene({kTapeWidth, kTapeHeight});
-    rail =
-        gm::pop::sweep(ribbon(), sections::line(),
-                         {.segments = 240,
-                          .scale = 46.0f,
-                          .normals = gm::pop::SweepOptions::Normals::Frame});
+    rail = gm::pop::sweep(ribbon(), sections::line(),
+                          {.segments = 240,
+                           .scale = 46.0f,
+                           .normals = gm::pop::SweepOptions::Normals::Frame});
   }
 
   world::Frame describe(float seconds) override {

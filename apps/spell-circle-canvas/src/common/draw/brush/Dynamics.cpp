@@ -18,8 +18,7 @@ float Curve::at(float input) const {
   return minimum + (maximum - minimum) * shaped;
 }
 
-float Response::at(const Dab& dab, float pressure,
-                   float speedReference) const {
+float Response::at(const Dab& dab, float pressure, float speedReference) const {
   switch (drive) {
     case Drive::Pressure:
       return curve.at(pressure);

@@ -292,10 +292,9 @@ std::vector<Tile> buildField(float module, float padPx) {
           V2 z{0, 0};
           for (int j = 0; j < 5; ++j) {
             const int Kj =
-                (j == r) ? kr
-                : (j == s)
-                    ? ks
-                    : (int)std::ceil(dot(z5[(size_t)j], x) + kOffset);
+                (j == r)   ? kr
+                : (j == s) ? ks
+                           : (int)std::ceil(dot(z5[(size_t)j], x) + kOffset);
             z = z + z5[(size_t)j] * (double)Kj;
           }
 

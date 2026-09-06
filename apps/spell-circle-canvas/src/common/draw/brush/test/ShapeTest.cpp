@@ -12,8 +12,8 @@
 #include <sigildraw/Draw.h>
 #include <sigildraw/brush/Deposit.h>
 
-#include <cmath>
 #include <array>
+#include <cmath>
 #include <memory>
 #include <vector>
 
@@ -24,8 +24,8 @@ namespace {
 
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
-using sigil::draw::brush::testing::Recording;
 using sigil::draw::brush::testing::recorder;
+using sigil::draw::brush::testing::Recording;
 using sigil::draw::testing::Paper;
 
 /** A solid square of coverage, the simplest artwork a tip can be. */
@@ -47,8 +47,7 @@ struct Placements {
   std::vector<float> sizes;
 };
 
-brush::Tool placementRecorder(std::shared_ptr<Placements> placed,
-                              float width) {
+brush::Tool placementRecorder(std::shared_ptr<Placements> placed, float width) {
   brush::Tool tool = recorder(std::make_shared<Recording>());
   tool.width = width;
   tool.opacity = 1.0f;
@@ -56,12 +55,10 @@ brush::Tool placementRecorder(std::shared_ptr<Placements> placed,
   tool.pressureOpacity = 0.0f;
   tool.customTip = [placed](Pen& pen, const brush::Dab&) {
     const SkMatrix matrix = pen.canvas()->getLocalToDevice().asM33();
-    placed->positions.push_back({matrix.getTranslateX(),
-                                 matrix.getTranslateY()});
-    placed->angles.push_back(std::atan2(matrix.getSkewY(),
-                                        matrix.getScaleX()));
-    placed->sizes.push_back(std::hypot(matrix.getScaleX(),
-                                       matrix.getSkewY()));
+    placed->positions.push_back(
+        {matrix.getTranslateX(), matrix.getTranslateY()});
+    placed->angles.push_back(std::atan2(matrix.getSkewY(), matrix.getScaleX()));
+    placed->sizes.push_back(std::hypot(matrix.getScaleX(), matrix.getSkewY()));
   };
   return tool;
 }
@@ -160,7 +157,8 @@ TEST(Shape, TheStampCoversTheWidthItIsGiven) {
   tool.pressure.variation.reset();
   tool.sizeJitter = 0.0f;
   tool.opacityJitter = 0.0f;
-  tool.shape = brush::Shape{.image = block(16), .mask = brush::ImageMask::Alpha};
+  tool.shape =
+      brush::Shape{.image = block(16), .mask = brush::ImageMask::Alpha};
   const std::array<brush::Dab, 1> dabs{{{.position = {60, 60}}}};
   brush::deposit(paper.pen, tool, dabs);
   paper.end();

@@ -36,22 +36,23 @@ struct ReservedWordProbe final : sketch::Sketch {
     ctx.canvas(640, 400);
     ctx.background({0.02f, 0.02f, 0.04f, 1});
     ctx.captureAt(0.1);
-    ctx.composer.render(custom(
-        "reserved_word_probe.leaf",
-        [](SkCanvas& canvas, const PaintContext& pc) {
-          // `pos` is reserved by Graphite: on the device this program
-          // fails to compile, which is the whole point of the probe.
-          static const auto compiled = SkRuntimeEffect::MakeForShader(SkString(
-              "half4 main(float2 fragCoord) {"
-              "  float2 pos = fragCoord / 64.0;"
-              "  return half4(half(fract(pos.x)), half(fract(pos.y)), 0.4, 1.0);"
-              "}"));
-          if (!compiled.effect) return;
-          SkPaint paint;
-          paint.setShader(compiled.effect->makeShader(nullptr, {}));
-          canvas.drawRect(SkRect::MakeWH(pc.size.width(), pc.size.height()),
-                          paint);
-        }));
+    ctx.composer.render(
+        custom("reserved_word_probe.leaf",
+               [](SkCanvas& canvas, const PaintContext& pc) {
+                 // `pos` is reserved by Graphite: on the device this program
+                 // fails to compile, which is the whole point of the probe.
+                 static const auto compiled = SkRuntimeEffect::MakeForShader(
+                     SkString("half4 main(float2 fragCoord) {"
+                              "  float2 pos = fragCoord / 64.0;"
+                              "  return half4(half(fract(pos.x)), "
+                              "half(fract(pos.y)), 0.4, 1.0);"
+                              "}"));
+                 if (!compiled.effect) return;
+                 SkPaint paint;
+                 paint.setShader(compiled.effect->makeShader(nullptr, {}));
+                 canvas.drawRect(
+                     SkRect::MakeWH(pc.size.width(), pc.size.height()), paint);
+               }));
   }
 };
 

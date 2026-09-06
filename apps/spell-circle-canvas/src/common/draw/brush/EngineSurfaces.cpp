@@ -3,15 +3,15 @@
  * interiors over stored geometry, and the cursor.
  */
 
-#include "PenUnits.h"
-#include "PolygonMath.h"
-
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Engine.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+
+#include "PenUnits.h"
+#include "PolygonMath.h"
 
 namespace sigil::draw::brush {
 
@@ -39,7 +39,8 @@ std::vector<SkPoint> positions(std::span<const Sample> samples) {
 
 }  // namespace
 
-// ---- one boundary, every interior --------------------------------------------
+// ---- one boundary, every interior
+// --------------------------------------------
 
 void Engine::paintWash(Pen& pen, std::span<const SkPoint> points) const {
   SkColor4f color = m_washColor;
@@ -210,9 +211,9 @@ std::optional<PlacedPlot> Engine::endShape(Pen& pen, bool close) {
     m_shape.clear();
     return std::nullopt;
   }
-  Stroke shapePath = brush::spline(
-      m_shape, definition() ? spacingOf(*definition()) : 1.0f,
-      m_shapeCurvature);
+  Stroke shapePath =
+      brush::spline(m_shape, definition() ? spacingOf(*definition()) : 1.0f,
+                    m_shapeCurvature);
   PlacedPlot result{Plot::fromStroke(shapePath, PlotType::Segments),
                     shapePath.front().position};
   if (close) {
@@ -269,15 +270,14 @@ void Engine::draw(Pen& pen, const Plot& stored, float x, float y,
                   float scale) const {
   if (!hasStroke() || stored.empty()) return;
   const Tool current = tool();
-  paintStroke(pen, current, stored.path({x, y}, spacingOf(current), 0.5f, scale),
-              true);
+  paintStroke(pen, current,
+              stored.path({x, y}, spacingOf(current), 0.5f, scale), true);
 }
 
 Polygon Engine::bent(const Pen& pen, std::span<const SkPoint> points) const {
   const Stroke boundary = shapedBoundary(pen, closedOutline(points), true);
   if (boundary.empty()) return {};
-  return Polygon(
-      positions(std::span(boundary).first(boundary.size() - 1)));
+  return Polygon(positions(std::span(boundary).first(boundary.size() - 1)));
 }
 
 void Engine::fill(Pen& pen, const Plot& stored, float x, float y,

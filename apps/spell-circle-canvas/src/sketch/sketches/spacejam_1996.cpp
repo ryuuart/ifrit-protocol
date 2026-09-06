@@ -126,10 +126,10 @@
 #include <sigilweave/ports/SystemFontManager.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <string>
-#include <array>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -190,10 +190,12 @@ const SkColor4f kLabelInk = C5(0x080800);
 // twelve pieces of BAKED lettering, approximated with Impact.
 
 inline sk_sp<SkTypeface> display() {
-  return weave::ports::face({"Impact", "Arial Black"}, SkFontStyle::kNormal_Weight);
+  return weave::ports::face({"Impact", "Arial Black"},
+                            SkFontStyle::kNormal_Weight);
 }
 inline sk_sp<SkTypeface> serif() {
-  return weave::ports::face({"Times New Roman", "Times"}, SkFontStyle::kNormal_Weight);
+  return weave::ports::face({"Times New Roman", "Times"},
+                            SkFontStyle::kNormal_Weight);
 }
 
 inline sigil::weave::TextStyle ty(const sk_sp<SkTypeface>& tf, float size,
@@ -295,7 +297,7 @@ half4 main(float2 xy) {
 }
 
 inline mskia::Paint ballMaterial(bool live, SkColor4f hi, SkColor4f lo,
-                             SkColor4f seam, float seamW) {
+                                 SkColor4f seam, float seamW) {
   sk_sp<SkRuntimeEffect> fx = ballEffect(live);
   if (!fx) return mskia::Paint::solid(hi);
   mskia::Paint m = mskia::Paint::sksl(fx, {{"uSeamW", seamW}});
@@ -405,16 +407,16 @@ struct Star {
  *  vector: such a static has a dynamic initialiser and registers its
  *  destructor with the process, and a hot-reloaded sketch's dylib is
  *  unloaded out from under both. */
-inline constexpr auto kStarField = std::to_array<Star>({
-      {96, 64, 253}, {69, 9, 244},  {59, 101, 238},  {44, 43, 235},
-      {9, 104, 233}, {3, 66, 222},  {89, 79, 219},   {40, 105, 209},
-      {14, 48, 205}, {16, 12, 194}, {50, 65, 188},   {52, 30, 161},
-      {15, 85, 153}, {28, 52, 150}, {102, 102, 145}, {73, 87, 143},
-      {38, 24, 140}, {94, 22, 138}, {107, 64, 133},  {43, 13, 130},
-      {11, 32, 129}, {85, 45, 128}, {32, 84, 127},   {61, 36, 125},
-      {13, 5, 120},  {107, 1, 112}, {98, 46, 112},   {22, 70, 110},
-      {86, 21, 109}, {68, 68, 97},  {48, 80, 97},    {40, 0, 72},
-      {107, 110, 68}});
+inline constexpr auto kStarField = std::to_array<Star>(
+    {{96, 64, 253}, {69, 9, 244},  {59, 101, 238},  {44, 43, 235},
+     {9, 104, 233}, {3, 66, 222},  {89, 79, 219},   {40, 105, 209},
+     {14, 48, 205}, {16, 12, 194}, {50, 65, 188},   {52, 30, 161},
+     {15, 85, 153}, {28, 52, 150}, {102, 102, 145}, {73, 87, 143},
+     {38, 24, 140}, {94, 22, 138}, {107, 64, 133},  {43, 13, 130},
+     {11, 32, 129}, {85, 45, 128}, {32, 84, 127},   {61, 36, 125},
+     {13, 5, 120},  {107, 1, 112}, {98, 46, 112},   {22, 70, 110},
+     {86, 21, 109}, {68, 68, 97},  {48, 80, 97},    {40, 0, 72},
+     {107, 110, 68}});
 /** Anisotropy test at r = 7 said these carry axial (+) diffraction spikes. */
 inline bool axialSpike(int x, int y) {
   return (x == 94 && y == 22) || (x == 107 && y == 64) ||
@@ -437,10 +439,10 @@ inline Element starTile() {
   for (auto& g : ring)
     tile.child(kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
                    .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                            {{0.0f, {1, 1, 1, 0.0f}},
-                                             {0.74f, {1, 1, 1, 0.0f}},
-                                             {0.89f, {1, 1, 1, 0.030f}},
-                                             {1.0f, {1, 1, 1, 0.0f}}}))
+                                                {{0.0f, {1, 1, 1, 0.0f}},
+                                                 {0.74f, {1, 1, 1, 0.0f}},
+                                                 {0.89f, {1, 1, 1, 0.030f}},
+                                                 {1.0f, {1, 1, 1, 0.0f}}}))
                    .blend(SkBlendMode::kPlus));
 
   int bright = 0;
@@ -457,11 +459,11 @@ inline Element starTile() {
     const float R = S(2.7f * hr);
     tile.child(kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
                    .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                            {{0.0f, {L, L, L, 1.0f}},
-                                             {0.24f, {L, L, L, 0.66f}},
-                                             {0.44f, {L, L, L, 0.26f}},
-                                             {0.70f, {L, L, L, 0.055f}},
-                                             {1.0f, {L, L, L, 0.0f}}}))
+                                                {{0.0f, {L, L, L, 1.0f}},
+                                                 {0.24f, {L, L, L, 0.66f}},
+                                                 {0.44f, {L, L, L, 0.26f}},
+                                                 {0.70f, {L, L, L, 0.055f}},
+                                                 {1.0f, {L, L, L, 0.0f}}}))
                    .blend(SkBlendMode::kPlus));
 
     // Spikes: thin tapered lobes, and on this tile they are the dominant
@@ -543,11 +545,11 @@ inline Element artSouvenirs(sigil::weave::FontContext& f) {
   return artBox(W, H)
       .child(sphere({S(41.5f), S(47.5f)}, S(35),
                     mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                       {{0.0f, C5(0xEFEFEF)},
-                                        {0.16f, C5(0xDEEFEF)},
-                                        {0.52f, C5(0x29EFEF)},
-                                        {0.80f, C5(0x08C6C6)},
-                                        {1.0f, C5(0x006363)}}))
+                                           {{0.0f, C5(0xEFEFEF)},
+                                            {0.16f, C5(0xDEEFEF)},
+                                            {0.52f, C5(0x29EFEF)},
+                                            {0.80f, C5(0x08C6C6)},
+                                            {1.0f, C5(0x006363)}}))
                  .stroke(stroke(S(1.5f), Fill::color(C5(0x005252)),
                                 PathFormat::Align::Inner)))
       .child(navLabel(f, "STELLAR SOUVENIRS", 0, S(-1), W, S(10), kLabelWhite));
@@ -559,11 +561,11 @@ inline Element artJump(sigil::weave::FontContext& f) {
   return artBox(W, H)
       .child(sphere({S(28.5f), S(30.0f)}, S(21),
                     mskia::Paint::glowUnit({0.46f, 0.60f}, 1.0f,
-                                       {{0.0f, C5(0xFFFFFF)},
-                                        {0.22f, C5(0xADF7A5)},
-                                        {0.52f, C5(0x39D631)},
-                                        {0.86f, C5(0x009400)},
-                                        {1.0f, C5(0x006B00)}}))
+                                           {{0.0f, C5(0xFFFFFF)},
+                                            {0.22f, C5(0xADF7A5)},
+                                            {0.52f, C5(0x39D631)},
+                                            {0.86f, C5(0x009400)},
+                                            {1.0f, C5(0x006B00)}}))
                  .stroke(stroke(S(1.5f), Fill::color(C5(0x005A00)),
                                 PathFormat::Align::Inner)))
       .child(navLabel(f, "JUMP STATION", 0, S(0), W, S(10)));
@@ -589,10 +591,10 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
   const float r = S(26);
   Element globe = sphere(c, r,
                          mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
-                                            {{0.0f, C5(0xA542DE)},
-                                             {0.30f, C5(0x8418CE)},
-                                             {0.62f, C5(0x7B10C6)},
-                                             {1.0f, C5(0x630894)}}))
+                                                {{0.0f, C5(0xA542DE)},
+                                                 {0.30f, C5(0x8418CE)},
+                                                 {0.62f, C5(0x7B10C6)},
+                                                 {1.0f, C5(0x630894)}}))
                       .clip(true)
                       .stroke(stroke(S(1.5f), Fill::color(C5(0x9400DE)),
                                      PathFormat::Align::Inner));
@@ -628,7 +630,8 @@ inline Element gasGiant(SkPoint c, float r, SkColor4f body, SkColor4f limb,
           .clip(true)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
-  d.child(box().inset(0).fill(mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
+  d.child(
+      box().inset(0).fill(mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
                                                  {{0.0f, alpha(hi, 0.42f)},
                                                   {0.34f, alpha(hi, 0.10f)},
                                                   {0.62f, {0, 0, 0, 0}},
@@ -697,19 +700,19 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
   const SkPoint c{S(48), S(46)};
   auto ringMat = [] {
     return mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                {{0.0f, C5(0xF71018)},
-                                 {0.38f, C5(0xF773A5)},
-                                 {0.62f, C5(0xF71818)},
-                                 {1.0f, C5(0xAD0810)}});
+                                    {{0.0f, C5(0xF71018)},
+                                     {0.38f, C5(0xF773A5)},
+                                     {0.62f, C5(0xF71818)},
+                                     {1.0f, C5(0xAD0810)}});
   };
   return artBox(W, H)
       .child(ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0))
       .child(sphere(c, S(30),
                     mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
-                                       {{0.0f, C5(0x0073E7)},
-                                        {0.30f, C5(0x006BD6)},
-                                        {0.66f, C5(0x0052AD)},
-                                        {1.0f, C5(0x00317B)}}))
+                                           {{0.0f, C5(0x0073E7)},
+                                            {0.30f, C5(0x006BD6)},
+                                            {0.66f, C5(0x0052AD)},
+                                            {1.0f, C5(0x00317B)}}))
                  .stroke(stroke(S(1.5f), Fill::color(C5(0x00397B)),
                                 PathFormat::Align::Inner))
                  .zIndex(1))
@@ -728,19 +731,19 @@ inline Element artLineup(sigil::weave::FontContext& f) {
   const SkPoint c{S(33), S(31)};
   auto ringMat = [] {
     return mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                {{0.0f, C5(0x21FFFF)},
-                                 {0.45f, C5(0x9CFFFF)},
-                                 {0.75f, C5(0x21FFFF)},
-                                 {1.0f, C5(0x089494)}});
+                                    {{0.0f, C5(0x21FFFF)},
+                                     {0.45f, C5(0x9CFFFF)},
+                                     {0.75f, C5(0x21FFFF)},
+                                     {1.0f, C5(0x089494)}});
   };
   return artBox(W, H)
       .child(ring(c, S(29), S(15), -22, 0.60f, ringMat()).zIndex(0))
       .child(sphere({S(38), S(32)}, S(17),
                     mskia::Paint::glowUnit({0.34f, 0.30f}, 1.30f,
-                                       {{0.0f, C5(0xFF4A6B)},
-                                        {0.28f, C5(0xFF425A)},
-                                        {0.62f, C5(0xF71818)},
-                                        {1.0f, C5(0xBD0810)}}))
+                                           {{0.0f, C5(0xFF4A6B)},
+                                            {0.28f, C5(0xFF425A)},
+                                            {0.62f, C5(0xF71818)},
+                                            {1.0f, C5(0xBD0810)}}))
                  .stroke(stroke(S(1.4f), Fill::color(C5(0xA50008)),
                                 PathFormat::Align::Inner))
                  .zIndex(1))
@@ -777,12 +780,12 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
   Element vortex = rect(c.fX - S(35), c.fY - S(17), S(70), S(34))
                        .shape(shapes::annulus(0.30f))
                        .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                                {{0.0f, C5(0xFFFF00)},
-                                                 {0.34f, C5(0xFFEF00)},
-                                                 {0.52f, C5(0xFFAD42)},
-                                                 {0.68f, C5(0xFF5A00)},
-                                                 {0.86f, C5(0xF70000)},
-                                                 {1.0f, C5(0x8C0000)}}))
+                                                    {{0.0f, C5(0xFFFF00)},
+                                                     {0.34f, C5(0xFFEF00)},
+                                                     {0.52f, C5(0xFFAD42)},
+                                                     {0.68f, C5(0xFF5A00)},
+                                                     {0.86f, C5(0xF70000)},
+                                                     {1.0f, C5(0x8C0000)}}))
                        .rotate(-33);
   Element out = artBox(W, H).child(std::move(vortex));
   // four darts, outside the vortex on its two axes
@@ -846,10 +849,10 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   ship.child(rect(S(16), S(23), S(100), S(17))
                  .shape(shapes::squircle(2.2f))
                  .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                            {{0.0f, hullHi},
-                                             {0.26f, hull},
-                                             {0.68f, hullLo},
-                                             {1.0f, C5(0x8C0021)}})));
+                                                {{0.0f, hullHi},
+                                                 {0.26f, hull},
+                                                 {0.68f, hullLo},
+                                                 {1.0f, C5(0x8C0021)}})));
   // dorsal ridge highlight
   ship.child(rect(S(28), S(25), S(72), S(3))
                  .shape(shapes::squircle(2.0f))
@@ -884,12 +887,12 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     // radialUnit would put the whole rainbow inside t < 0.71 and the outer
     // band would never draw.
     return mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                              {{0.0f, C5(0x101831)},
-                               {0.44f, C5(0x21103A)},
-                               {0.56f, C5(0xFFEF00)},
-                               {0.70f, C5(0xFFAD42)},
-                               {0.86f, C5(0xF70000)},
-                               {1.0f, C5(0x7310C6)}});
+                                  {{0.0f, C5(0x101831)},
+                                   {0.44f, C5(0x21103A)},
+                                   {0.56f, C5(0xFFEF00)},
+                                   {0.70f, C5(0xFFAD42)},
+                                   {0.86f, C5(0xF70000)},
+                                   {1.0f, C5(0x7310C6)}});
   };
   auto swirl = [&] {
     return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
@@ -917,16 +920,17 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     const float size = capPx / 0.72f;
     Element t = text(U(s), ty(display(), size, C5(0x2FA9A0), 0));
     t.textFill(mskia::Paint::linear({0, 0}, {0, 1},
-                                {{0.0f, C5(0x006BA5)},
-                                 {0.22f, C5(0x007BAD)},
-                                 {0.52f, C5(0x00A584)},
-                                 {0.78f, C5(0x9CCE84)},
-                                 {1.0f, C5(0xCEDE73)}}));
+                                    {{0.0f, C5(0x006BA5)},
+                                     {0.22f, C5(0x007BAD)},
+                                     {0.52f, C5(0x00A584)},
+                                     {0.78f, C5(0x9CCE84)},
+                                     {1.0f, C5(0xCEDE73)}}));
     const float r = S(2.2f);
     const float d[8][2] = {{-1, 0},  {1, 0},  {0, -1}, {0, 1},
                            {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
     for (auto& v : d) t.echo({v[0] * r, v[1] * r}, C5(0x101831));
-    const SkSize m = intrinsicSize(text(U(s), ty(display(), size, kLabel, 0)), fonts);
+    const SkSize m =
+        intrinsicSize(text(U(s), ty(display(), size, kLabel, 0)), fonts);
     const float sx = m.width() > 1 ? targetW / m.width() : 1.0f;
     return t.left(Dim(x))
         .top(Dim(capTopY - 0.20f * size))
@@ -998,13 +1002,22 @@ struct Asset {
 };
 /** THE SIXTEEN REQUESTS AND THEIR BYTE COUNTS, as a constant for the same
  *  reason the star field above is one. */
-inline constexpr auto kManifest = std::to_array<Asset>({
-      {"bg_stars", 8452},    {"fast", 189},        {"fastbreak", 6756},
-      {"break", 229},        {"pressbox", 4422},   {"jamcentral", 1908},
-      {"bball", 1368},       {"lunartunes", 3538}, {"lineup", 1929},
-      {"jamlogo", 15410},    {"jump", 2593},       {"junior", 1253},
-      {"studiostore", 2745}, {"souvenirs", 3594},  {"sitemap", 3401},
-      {"behind", 1902}});
+inline constexpr auto kManifest = std::to_array<Asset>({{"bg_stars", 8452},
+                                                        {"fast", 189},
+                                                        {"fastbreak", 6756},
+                                                        {"break", 229},
+                                                        {"pressbox", 4422},
+                                                        {"jamcentral", 1908},
+                                                        {"bball", 1368},
+                                                        {"lunartunes", 3538},
+                                                        {"lineup", 1929},
+                                                        {"jamlogo", 15410},
+                                                        {"jump", 2593},
+                                                        {"junior", 1253},
+                                                        {"studiostore", 2745},
+                                                        {"souvenirs", 3594},
+                                                        {"sitemap", 3401},
+                                                        {"behind", 1902}});
 enum Ix {
   kStars = 0,
   kFast,
@@ -1142,10 +1155,10 @@ struct SpaceJam1996 : sketch::Sketch {
   // <TABLE WIDTH=500 CELLSPACING=2 CELLPADDING=1>, at this sketch's scale.
   // The columns and rows are the ones the children claim.
   Table table{.columns = 5,
-                       .rows = 5,
-                       .width = sj::S(500),
-                       .spacing = sj::S(2),
-                       .padding = sj::S(1)};
+              .rows = 5,
+              .width = sj::S(500),
+              .spacing = sj::S(2),
+              .padding = sj::S(1)};
 
   // ---- the reveal --------------------------------------------------------
   Element revealed(int i, bool inFlight) const {
@@ -1156,8 +1169,7 @@ struct SpaceJam1996 : sketch::Sketch {
     // own, so the leaf compares equal between describes and the node goes
     // static; the program below exists only for the hard scanline edge of
     // a partial image, which nothing in the picture can express.
-    if (!inFlight)
-      return picture(p, SkSize::Make(artW[i], artH[i]));
+    if (!inFlight) return picture(p, SkSize::Make(artW[i], artH[i]));
     // KEYLESS: the scanline edge is read off the arrival's live fraction.
     Element e = custom([p, h, g](SkCanvas& canvas, const PaintContext& ctx) {
                   const float frac = g->value();
@@ -1349,9 +1361,9 @@ struct SpaceJam1996 : sketch::Sketch {
     in.container = {S(500), S(435)};
     for (const Slot& s : kSlotTable) {
       in.childSizes.push_back(
-          s.asset < 0 ? SkSize{0, 0}
-                      : SkSize{artW[s.asset],
-                               artH[s.asset] + S(18) * (float)s.brs});
+          s.asset < 0
+              ? SkSize{0, 0}
+              : SkSize{artW[s.asset], artH[s.asset] + S(18) * (float)s.brs});
       in.childCells.push_back({.column = s.col,
                                .row = s.row,
                                .columns = s.colspan,
@@ -1414,8 +1426,8 @@ struct SpaceJam1996 : sketch::Sketch {
 
     stars = Pattern::tile({S(111), S(111)}, starTile());
     starsMat = stars.material(*ctx.fonts);
-    fastballMat = ballMaterial(true, C5(0xFF6B29), C5(0xC64210), C5(0x521800),
-                               0.050f);
+    fastballMat =
+        ballMaterial(true, C5(0xFF6B29), C5(0xC64210), C5(0x521800), 0.050f);
 
     // The 216-colour round, over the finished frame. It is a property of
     // the SCREEN, not of the artwork — which is exactly why it lives here
@@ -1504,7 +1516,6 @@ struct SpaceJam1996 : sketch::Sketch {
   }
 };
 
-SIGIL_SKETCH(
-    SpaceJam1996, "Study \xc2\xb7 Screens",
-    "spacejam.com, still live \xe2\x80\x94 the page set by Table, "
-    "each <TD> naming its own cells")
+SIGIL_SKETCH(SpaceJam1996, "Study \xc2\xb7 Screens",
+             "spacejam.com, still live \xe2\x80\x94 the page set by Table, "
+             "each <TD> naming its own cells")

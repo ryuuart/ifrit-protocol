@@ -3,12 +3,11 @@
 // device is created here — a handle table is arithmetic over indices, so
 // the claims stand on any machine.
 
+#include <gtest/gtest.h>
 #include <sigilcore/hardware/Handle.h>
 
 #include <type_traits>
 #include <vector>
-
-#include <gtest/gtest.h>
 
 using namespace sigil::core::hardware;
 

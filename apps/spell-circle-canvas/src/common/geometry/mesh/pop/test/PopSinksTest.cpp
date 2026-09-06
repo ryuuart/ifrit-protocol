@@ -11,6 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
+#include <sigilgeometry/kit/Sections.h>
 
 #include <algorithm>
 #include <cmath>
@@ -22,12 +23,10 @@
 #include "sigilgeometry/mesh/pop/Pop.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "support/Loops.h"
-#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
 using sigil::geometry::mesh::pop::test::flatRing;
-
 
 TEST(Pop, SweptSinksBendWithTheChain) {
   // The chain's cooked POINTS are the path a sweep follows, so any operator

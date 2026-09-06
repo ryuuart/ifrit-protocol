@@ -186,7 +186,7 @@ struct MeshGenerators final : sketch::Sketch {
 
     rail = knot();
     tube = mesh::pop::sweep(rail, sections::circle(12),
-                        {.segments = 220, .scale = 9});
+                            {.segments = 220, .scale = 9});
 
     mesh::Cloud cloud = points::onSpline(rail, 14);
     {
@@ -209,10 +209,10 @@ struct MeshGenerators final : sketch::Sketch {
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
-    ctx.composer.render(
-        custom("mesh.generators", [this](SkCanvas& canvas, const PaintContext&) {
-          draw(canvas);
-        }).inset(0));
+    ctx.composer.render(custom("mesh.generators", [this](SkCanvas& canvas,
+                                                         const PaintContext&) {
+                          draw(canvas);
+                        }).inset(0));
   }
 };
 

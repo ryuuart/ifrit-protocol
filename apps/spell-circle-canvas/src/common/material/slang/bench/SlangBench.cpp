@@ -48,8 +48,8 @@ void BM_Compile(benchmark::State& state) {
   for (auto _ : state) {
     Compiled out;
     std::string error;
-    benchmark::DoNotOptimize(
-        compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &out, &error));
+    benchmark::DoNotOptimize(compileModule(kModule, "vsTest", "fsTest",
+                                           /*lit=*/false, &out, &error));
   }
 }
 BENCHMARK(BM_Compile);

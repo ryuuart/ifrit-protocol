@@ -992,8 +992,8 @@ TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
   choreograph::Output<float> reveal{1.0f};
   choreograph::Output<Fill> tint{Fill::color({1, 0, 0, 1})};  // red
   Host host(200, 200);
-  host.composer.render(
-      box().child(revealBox().fill(&tint).mask(by::spans(spans::upTo(&reveal)))));
+  host.composer.render(box().child(
+      revealBox().fill(&tint).mask(by::spans(spans::upTo(&reveal)))));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);  // let the memo bake and hold
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";

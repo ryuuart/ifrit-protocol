@@ -211,13 +211,13 @@
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilmaterial/skia/Ramp.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Ramp.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -413,9 +413,9 @@ struct Ink {
     if (idx == 0) return;
     SkPaint p;
     p.setAntiAlias(false);
-    p.setColor4f(indexed ? SkColor4f{(float)idx / 255.0f, 0.0f, 0.0f, 1.0f}
-                         : C(idx),
-                 nullptr);
+    p.setColor4f(
+        indexed ? SkColor4f{(float)idx / 255.0f, 0.0f, 0.0f, 1.0f} : C(idx),
+        nullptr);
     c.drawRect(SkRect::MakeXYWH(x * PX, y * PX, w * PX, h * PX), p);
   }
   void px(float x, float y, int idx) const { rect(x, y, 1, 1, idx); }
@@ -440,21 +440,21 @@ struct Ink {
 // block, zero meaning keep the index's own.
 
 inline sk_sp<SkRuntimeEffect> paletteEffect() {
-  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(
-        "uniform shader uIndex;\n"
-        "uniform shader uPalette;\n"
-        "uniform float uShade;\n"
-        "uniform float uBlock1;\n"
-        "half4 main(float2 p) {\n"
-        "  half4 s = uIndex.eval(p);\n"
-        "  if (s.a < 0.5) { return half4(0); }\n"
-        "  float i = floor(float(s.r) * 255.0 + 0.5);\n"
-        "  float ns = mod(i, 16.0) + uShade;\n"
-        "  float base = uBlock1 > 0.0 ? (uBlock1 - 1.0) * 16.0\n"
-        "                             : floor(i / 16.0) * 16.0;\n"
-        "  float dst = ns > 15.0 ? 15.0 : base + ns;\n"
-      "  return uPalette.eval(float2(dst + 0.5, 0.5));\n"
-      "}"));
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(
+      SkString("uniform shader uIndex;\n"
+               "uniform shader uPalette;\n"
+               "uniform float uShade;\n"
+               "uniform float uBlock1;\n"
+               "half4 main(float2 p) {\n"
+               "  half4 s = uIndex.eval(p);\n"
+               "  if (s.a < 0.5) { return half4(0); }\n"
+               "  float i = floor(float(s.r) * 255.0 + 0.5);\n"
+               "  float ns = mod(i, 16.0) + uShade;\n"
+               "  float base = uBlock1 > 0.0 ? (uBlock1 - 1.0) * 16.0\n"
+               "                             : floor(i / 16.0) * 16.0;\n"
+               "  float dst = ns > 15.0 ? 15.0 : base + ns;\n"
+               "  return uPalette.eval(float2(dst + 0.5, 0.5));\n"
+               "}"));
   if (!effect) std::fprintf(stderr, "palette effect: %s\n", error.c_str());
   return effect;
 }
@@ -934,8 +934,8 @@ inline Element pixelTextEl(const PixelText& t, float x, float y) {
       .width((float)t.w * PX)
       .height((float)t.h * PX)
       .fill(Paint::image(t.image, SkTileMode::kDecal, SkTileMode::kDecal,
-                            SkMatrix::Scale(PX, PX),
-                            SkSamplingOptions(SkFilterMode::kNearest)));
+                         SkMatrix::Scale(PX, PX),
+                         SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
 // ---------------------------------------------------------------------------
@@ -1242,22 +1242,31 @@ struct XcomBattlescape : sketch::Sketch {
       for (int f = 0; f < 3; ++f)
         for (int v = 0; v < 2; ++v)
           cellFloor[f][v][shade] =
-              tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxFloor[f][v], shade)), cell);
-      cellObj[kBush][shade] =
-          tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxBush, shade)), cell);
-      cellObj[kTree][shade] =
-          tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxTree, shade)), cell);
-      cellObj[kHullWall][shade] =
-          tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxWall, shade)), cell);
-      cellHullDeck[shade] =
-          tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxDeck, shade)), cell);
+              tiles->cell(box().fill(paletteLut(paletteFx, paletteTable,
+                                                idxFloor[f][v], shade)),
+                          cell);
+      cellObj[kBush][shade] = tiles->cell(
+          box().fill(paletteLut(paletteFx, paletteTable, idxBush, shade)),
+          cell);
+      cellObj[kTree][shade] = tiles->cell(
+          box().fill(paletteLut(paletteFx, paletteTable, idxTree, shade)),
+          cell);
+      cellObj[kHullWall][shade] = tiles->cell(
+          box().fill(paletteLut(paletteFx, paletteTable, idxWall, shade)),
+          cell);
+      cellHullDeck[shade] = tiles->cell(
+          box().fill(paletteLut(paletteFx, paletteTable, idxDeck, shade)),
+          cell);
     }
     const int kBlocks[3] = {4, 10, 3};  // Pathfinding green / yellow / red
     for (int d = 0; d < 2; ++d)
       for (int m = 0; m < 3; ++m)
-        cellArrow[d][m] = tiles->cell(
-            box().fill(paletteLut(paletteFx, paletteTable, idxArrow[d], 0, kBlocks[m])), cell);
-    cellCursor = tiles->cell(box().fill(paletteLut(paletteFx, paletteTable, idxCursor, 0)), cell);
+        cellArrow[d][m] =
+            tiles->cell(box().fill(paletteLut(paletteFx, paletteTable,
+                                              idxArrow[d], 0, kBlocks[m])),
+                        cell);
+    cellCursor = tiles->cell(
+        box().fill(paletteLut(paletteFx, paletteTable, idxCursor, 0)), cell);
     atlasCells = tiles->frameCount();
 
     fontAtlas = std::make_shared<Atlas>(1.0f);
@@ -1559,37 +1568,37 @@ struct XcomBattlescape : sketch::Sketch {
       p.child(at(x + 3, y + 3, 11, 5)
                   .child(custom("reserve glyph",
                                 [](SkCanvas& c, const PaintContext&) {
-                    const Ink ink{c};
-                    ink.rect(0, 0, 2, 5, blk(0, 15));
-                    ink.rect(2, 2, 5, 1, blk(0, 15));
-                    ink.rect(8, 1, 1, 3, blk(0, 15));
-                    ink.rect(10, 0, 1, 5, blk(0, 15));
-                  })));
+                                  const Ink ink{c};
+                                  ink.rect(0, 0, 2, 5, blk(0, 15));
+                                  ink.rect(2, 2, 5, 1, blk(0, 15));
+                                  ink.rect(8, 1, 1, 3, blk(0, 15));
+                                  ink.rect(10, 0, 1, 5, blk(0, 15));
+                                })));
 
     // The rank badge, 26x23 — a gold plate, block 9 over block 10.
-    p.child(at(107, 177, 26, 23)
-                .key("rank")
-                .child(custom("rank badge",
-                              [](SkCanvas& c, const PaintContext&) {
-                  const Ink ink{c};
-                  for (int r = 0; r < 23; ++r)
-                    ink.run(0, (float)r, 26, blk(9, 2 + r / 6));
-                  ink.run(0, 0, 26, blk(9, 0));
-                  ink.run(0, 22, 26, blk(10, 6));
-                  for (int r = 0; r < 23; ++r) {
-                    ink.px(0, (float)r, blk(9, 1));
-                    ink.px(25, (float)r, blk(10, 5));
-                  }
-                  // A chevron — STR_SQUADDIE.
-                  for (int k = 0; k < 7; ++k) {
-                    ink.run((float)(13 - k - 1), (float)(6 + k), 3, blk(10, 8));
-                    ink.run((float)(13 + k - 1), (float)(6 + k), 3, blk(10, 8));
-                  }
-                  for (int k = 0; k < 7; ++k) {
-                    ink.run((float)(13 - k - 1), (float)(5 + k), 3, blk(9, 0));
-                    ink.run((float)(13 + k - 1), (float)(5 + k), 3, blk(9, 0));
-                  }
-                })));
+    p.child(
+        at(107, 177, 26, 23)
+            .key("rank")
+            .child(custom("rank badge", [](SkCanvas& c, const PaintContext&) {
+              const Ink ink{c};
+              for (int r = 0; r < 23; ++r)
+                ink.run(0, (float)r, 26, blk(9, 2 + r / 6));
+              ink.run(0, 0, 26, blk(9, 0));
+              ink.run(0, 22, 26, blk(10, 6));
+              for (int r = 0; r < 23; ++r) {
+                ink.px(0, (float)r, blk(9, 1));
+                ink.px(25, (float)r, blk(10, 5));
+              }
+              // A chevron — STR_SQUADDIE.
+              for (int k = 0; k < 7; ++k) {
+                ink.run((float)(13 - k - 1), (float)(6 + k), 3, blk(10, 8));
+                ink.run((float)(13 + k - 1), (float)(6 + k), 3, blk(10, 8));
+              }
+              for (int k = 0; k < 7; ++k) {
+                ink.run((float)(13 - k - 1), (float)(5 + k), 3, blk(9, 0));
+                ink.run((float)(13 + k - 1), (float)(5 + k), 3, blk(9, 0));
+              }
+            })));
 
     // The stat block sits in a BLACK WELL, not on the metal — measured off the
     // reference, x 132..320, y 175..200. Without it the bars' transparent
@@ -1624,34 +1633,33 @@ struct XcomBattlescape : sketch::Sketch {
     for (const auto& [x, right] :
          {std::pair{8.0f, false}, std::pair{280.0f, true}}) {
       const bool holdsRifle = right;
-      p.child(at(x, 148, 32, 48)
-                  .key(right ? "handR" : "handL")
-                  .child(custom(holdsRifle ? "hand well rifle"
-                                            : "hand well empty",
-                                [holdsRifle](SkCanvas& c,
-                                             const PaintContext&) {
-                    const Ink ink{c};
-                    for (int r = 0; r < 48; ++r)
-                      ink.run(0, (float)r, 32, blk(0, 15));
-                    for (int r = 0; r < 48; ++r) {
-                      ink.px(0, (float)r, blk(14, 8));
-                      ink.px(31, (float)r, blk(14, 11));
-                    }
-                    ink.run(0, 0, 32, blk(14, 8));
-                    ink.run(0, 47, 32, blk(14, 11));
-                    if (!holdsRifle) return;
-                    // STR_RIFLE, a 32x48 BIGOB reconstruction.
-                    ink.rect(14, 5, 4, 26, blk(15, 2));
-                    ink.rect(15, 5, 2, 26, blk(15, 0));
-                    ink.rect(12, 11, 8, 4, blk(5, 8));
-                    ink.rect(13, 12, 6, 2, blk(5, 5));
-                    ink.rect(13, 20, 6, 9, blk(2, 6));
-                    ink.rect(14, 21, 4, 7, blk(2, 3));
-                    ink.rect(11, 30, 10, 4, blk(15, 4));
-                    ink.rect(13, 34, 6, 9, blk(5, 9));
-                    ink.rect(14, 35, 4, 7, blk(5, 6));
-                    ink.rect(12, 43, 8, 2, blk(15, 6));
-                  })));
+      p.child(
+          at(x, 148, 32, 48)
+              .key(right ? "handR" : "handL")
+              .child(custom(holdsRifle ? "hand well rifle" : "hand well empty",
+                            [holdsRifle](SkCanvas& c, const PaintContext&) {
+                              const Ink ink{c};
+                              for (int r = 0; r < 48; ++r)
+                                ink.run(0, (float)r, 32, blk(0, 15));
+                              for (int r = 0; r < 48; ++r) {
+                                ink.px(0, (float)r, blk(14, 8));
+                                ink.px(31, (float)r, blk(14, 11));
+                              }
+                              ink.run(0, 0, 32, blk(14, 8));
+                              ink.run(0, 47, 32, blk(14, 11));
+                              if (!holdsRifle) return;
+                              // STR_RIFLE, a 32x48 BIGOB reconstruction.
+                              ink.rect(14, 5, 4, 26, blk(15, 2));
+                              ink.rect(15, 5, 2, 26, blk(15, 0));
+                              ink.rect(12, 11, 8, 4, blk(5, 8));
+                              ink.rect(13, 12, 6, 2, blk(5, 5));
+                              ink.rect(13, 20, 6, 9, blk(2, 6));
+                              ink.rect(14, 21, 4, 7, blk(2, 3));
+                              ink.rect(11, 30, 10, 4, blk(15, 4));
+                              ink.rect(13, 34, 6, 9, blk(5, 9));
+                              ink.rect(14, 35, 4, 7, blk(5, 6));
+                              ink.rect(12, 43, 8, 2, blk(15, 6));
+                            })));
     }
     return p;
   }

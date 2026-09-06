@@ -32,17 +32,28 @@ TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
     return box()
         .width(300)
         .height(200)
-        .child(box().key("a").absolute().left(Dim(10.0f)).top(Dim(10.0f))
-                   .width(20).height(20).fill(red()))
-        .child(box().key("b").absolute().left(Dim(200.0f)).top(Dim(150.0f))
-                   .width(20).height(20).fill(blue()))
-        .child(connector("a", "b", routers::orthogonal(routers::Bend::VFirst,
-                                                       6.0f))
+        .child(box()
+                   .key("a")
+                   .absolute()
+                   .left(Dim(10.0f))
+                   .top(Dim(10.0f))
+                   .width(20)
+                   .height(20)
+                   .fill(red()))
+        .child(box()
+                   .key("b")
+                   .absolute()
+                   .left(Dim(200.0f))
+                   .top(Dim(150.0f))
+                   .width(20)
+                   .height(20)
+                   .fill(blue()))
+        .child(connector("a", "b",
+                         routers::orthogonal(routers::Bend::VFirst, 6.0f))
                    .key("wire")
                    .absolute()
                    .inset(0)
-                   .foreground(PathFormat{.width = 2,
-                                          .strokeFill = green()}));
+                   .foreground(PathFormat{.width = 2, .strokeFill = green()}));
   };
   Host host;
   host.composer.render(page());
@@ -60,17 +71,29 @@ TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
       box()
           .width(300)
           .height(200)
-          .child(box().key("a").absolute().left(Dim(10.0f)).top(Dim(10.0f))
-                     .width(20).height(20).fill(red()))
-          .child(box().key("b").absolute().left(Dim(200.0f)).top(Dim(150.0f))
-                     .width(20).height(20).fill(blue()))
-          .child(connector("a", "b", routers::orthogonal(routers::Bend::VFirst,
-                                                         18.0f))
-                     .key("wire")
+          .child(box()
+                     .key("a")
                      .absolute()
-                     .inset(0)
-                     .foreground(PathFormat{.width = 2,
-                                            .strokeFill = green()})));
+                     .left(Dim(10.0f))
+                     .top(Dim(10.0f))
+                     .width(20)
+                     .height(20)
+                     .fill(red()))
+          .child(box()
+                     .key("b")
+                     .absolute()
+                     .left(Dim(200.0f))
+                     .top(Dim(150.0f))
+                     .width(20)
+                     .height(20)
+                     .fill(blue()))
+          .child(
+              connector("a", "b",
+                        routers::orthogonal(routers::Bend::VFirst, 18.0f))
+                  .key("wire")
+                  .absolute()
+                  .inset(0)
+                  .foreground(PathFormat{.width = 2, .strokeFill = green()})));
   host.frame();
   EXPECT_GE(host.composer.stats().patchedNodes, 1u)
       << "a router with a different radius pruned";

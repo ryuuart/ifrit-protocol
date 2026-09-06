@@ -2,10 +2,11 @@
 // art, what each of them paints along a run, and how the picture cache
 // treats a subtree one of them dresses.
 
+#include <sigilcompose/kit/Strokes.h>
+
 #include <utility>
 
 #include "support/BrushTestSupport.h"
-#include <sigilcompose/kit/Strokes.h>
 
 namespace {
 
@@ -242,7 +243,8 @@ TEST(ComposeBrushes, RibbonTapersAndNibVariesWithAngle) {
 
   // Calligraphic nib at 0°: a horizontal run lies ALONG the nib → thin.
   Host nib;
-  nib.composer.render(straightRun(brush::presets::calligraphic(0, 16, green(), 0.2f)));
+  nib.composer.render(
+      straightRun(brush::presets::calligraphic(0, 16, green(), 0.2f)));
   nib.frame();
   EXPECT_LT(bandHeight(nib, 100), 6);
 }
@@ -611,13 +613,14 @@ TEST_P(OpenContourWrap, AWrappedWindowOnAnOpenContourStaysTwoPieces) {
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);  // NO chord between them
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    ComposeMask, OpenContourWrap,
-    testing::Values(WrapDoor::NodeGate, WrapDoor::PathFormatTrim),
-    [](const testing::TestParamInfo<WrapDoor>& info) {
-      return info.param == WrapDoor::NodeGate ? "ThroughTheNodeGate"
-                                              : "ThroughPathFormatsTrim";
-    });
+INSTANTIATE_TEST_SUITE_P(ComposeMask, OpenContourWrap,
+                         testing::Values(WrapDoor::NodeGate,
+                                         WrapDoor::PathFormatTrim),
+                         [](const testing::TestParamInfo<WrapDoor>& info) {
+                           return info.param == WrapDoor::NodeGate
+                                      ? "ThroughTheNodeGate"
+                                      : "ThroughPathFormatsTrim";
+                         });
 
 TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
   // The twin of the test above: on a CLOSED contour the two halves of a

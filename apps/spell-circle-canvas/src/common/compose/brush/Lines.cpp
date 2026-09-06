@@ -24,7 +24,6 @@
 
 namespace sigil::compose::lines {
 
-
 SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
                     float phase) {
   if (intervals.empty() || src.isEmpty()) return src;

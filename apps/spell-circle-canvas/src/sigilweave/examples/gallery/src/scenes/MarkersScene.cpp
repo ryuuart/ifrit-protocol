@@ -1,12 +1,12 @@
 // Scene: query layer — regex markers that follow live edits.
 #include <include/core/SkPaint.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/query/Query.h>
 
 #include <cmath>
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 

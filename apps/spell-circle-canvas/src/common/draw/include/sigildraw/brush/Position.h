@@ -38,10 +38,9 @@ class Position {
                               float seconds = 0.0f);
   /** Walks @p length along the plot's headings at the plotted distance,
    *  the plot scaled by @p scale, each heading turned by the field. */
-  [[nodiscard]] Stroke plotTo(const Plot& plot, float length,
-                              float stepLength, float scale = 1.0f);
-  [[nodiscard]] float angle(const Direction& field,
-                            float seconds = 0.0f) const;
+  [[nodiscard]] Stroke plotTo(const Plot& plot, float length, float stepLength,
+                              float scale = 1.0f);
+  [[nodiscard]] float angle(const Direction& field, float seconds = 0.0f) const;
   [[nodiscard]] float angle() const;
   [[nodiscard]] bool isIn() const;
   [[nodiscard]] bool isInCanvas() const;

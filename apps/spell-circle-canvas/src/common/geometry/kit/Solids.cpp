@@ -20,9 +20,9 @@ namespace sigil::geometry::mesh {
 // The outline resampling the extrusion and the lathe stand on lives in
 // the path tier; a parameter here is called `path`, so the names are
 // pulled in rather than spelled through it.
+using glm::cross;
 using path::flatten;
 using path::Polyline;
-using glm::cross;
 using sigil::geometry::mesh::normalized;
 
 namespace {
@@ -186,7 +186,7 @@ Mesh box(glm::vec3 lo, glm::vec3 hi, const BoxOptions& options) {
       glm::vec3{a.x, a.y, a.z}, glm::vec3{b.x, a.y, a.z},
       glm::vec3{b.x, b.y, a.z}, glm::vec3{a.x, b.y, a.z}};
   struct Face {
-    bool BoxOptions::*wanted;
+    bool BoxOptions::* wanted;
     glm::vec3 normal;
     std::array<int, 4> ring;
     bool side;  ///< sideShade applies to the four that look sideways

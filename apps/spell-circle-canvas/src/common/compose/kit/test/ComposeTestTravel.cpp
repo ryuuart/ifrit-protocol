@@ -4,7 +4,6 @@
 
 #include "support/ShapeTestSupport.h"
 
-
 TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
   Host host(120, 60);
   host.composer.render(

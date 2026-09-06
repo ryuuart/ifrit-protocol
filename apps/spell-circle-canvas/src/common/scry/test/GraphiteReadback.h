@@ -92,8 +92,7 @@ inline SkBitmap readback(skia::GraphiteContext& graphite, SkSurface* surface,
   SkBitmap pixels;
   if (!readContext.result) return pixels;
   if (!pixels.tryAllocPixels(info)) return SkBitmap();
-  const auto* source =
-      static_cast<const uint8_t*>(readContext.result->data(0));
+  const auto* source = static_cast<const uint8_t*>(readContext.result->data(0));
   const size_t sourceRow = readContext.result->rowBytes(0);
   const size_t row = (size_t)rect.width() * 4;
   for (int y = 0; y < rect.height(); ++y)

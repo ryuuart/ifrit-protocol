@@ -57,8 +57,9 @@ bool tidyOnce(std::vector<Segment>& pieces, bool closed, float tolerance,
     std::vector<Segment> kept;
     kept.reserve(pieces.size());
     for (const Segment& piece : pieces) {
-      const bool nothing = glm::length(piece.end() - piece.start()) <= tolerance &&
-                           isChord(piece, tolerance);
+      const bool nothing =
+          glm::length(piece.end() - piece.start()) <= tolerance &&
+          isChord(piece, tolerance);
       if (nothing && kept.size() + 1 < pieces.size() && pieces.size() > 2)
         continue;
       kept.push_back(piece);
@@ -102,8 +103,8 @@ bool tidyOnce(std::vector<Segment>& pieces, bool closed, float tolerance,
     // the first one's start; where a closure carries a line between
     // them, those two pieces are not neighbours. A ring of two pieces
     // has no node to spare.
-    const bool ring = closed && kept.size() > 2 &&
-                      kept.back().end() == kept.front().start();
+    const bool ring =
+        closed && kept.size() > 2 && kept.back().end() == kept.front().start();
     if (ring && joins(kept.back(), kept.front())) {
       kept.front() = asLine(kept.back().start(), kept.front().end());
       kept.pop_back();

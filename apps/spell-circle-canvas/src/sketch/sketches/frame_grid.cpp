@@ -305,7 +305,8 @@ struct FrameGrid final : sketch::Sketch {
                                    trace(unit, kCool, 0);
                                    trace(snapped, kWarm, 88);
                                  })},
-                       .gap = 14})},
+                       .gap =
+                           14})},
              .column = true,
              .gap = 18})));
   }

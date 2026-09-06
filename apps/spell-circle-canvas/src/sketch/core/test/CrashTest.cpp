@@ -41,7 +41,7 @@ Faulted faultIn(const std::function<void()>& body) {
     ::dup2(pipes[1], STDERR_FILENO);
     ::close(pipes[0]);
     ::close(pipes[1]);
-    body();  // takes the fault itself, inside whatever scope it set up
+    body();      // takes the fault itself, inside whatever scope it set up
     ::_exit(0);  // unreachable unless the body did not fault
   }
   ::close(pipes[1]);

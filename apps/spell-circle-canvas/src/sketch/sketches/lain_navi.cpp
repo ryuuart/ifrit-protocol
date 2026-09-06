@@ -378,12 +378,12 @@ inline shapes::OutlineFn barOutline(float shear) {
 inline mskia::Paint barBevel(SkColor4f hi, SkColor4f lo, float bias) {
   auto at = [&](float k) { return mix(lo, hi, k); };
   return mskia::Paint::linearUnit({0, 0}, {0, 1},
-                              {{0.00f, scaleRgb(at(0.05f), bias)},
-                               {0.13f, scaleRgb(at(1.00f), bias)},
-                               {0.30f, scaleRgb(at(0.32f), bias)},
-                               {0.62f, scaleRgb(at(0.28f), bias)},
-                               {0.87f, scaleRgb(at(1.00f), bias)},
-                               {1.00f, scaleRgb(at(0.02f), bias)}});
+                                  {{0.00f, scaleRgb(at(0.05f), bias)},
+                                   {0.13f, scaleRgb(at(1.00f), bias)},
+                                   {0.30f, scaleRgb(at(0.32f), bias)},
+                                   {0.62f, scaleRgb(at(0.28f), bias)},
+                                   {0.87f, scaleRgb(at(1.00f), bias)},
+                                   {1.00f, scaleRgb(at(0.02f), bias)}});
 }
 
 // ---------------------------------------------------------------------------
@@ -530,17 +530,17 @@ inline sk_sp<SkTypeface> monoFace() {
   return weave::ports::face(
       {"JetBrainsMono Nerd Font", "JetBrains Mono", "Andale Mono", "Menlo",
        "Courier New"},
-           // LIGHT, not ExtraLight. At 22 px under a mask-filter blur an
-           // ExtraLight stem never reaches full coverage, which reads as
-           // #70BDE8 (blue) where the plate is #72F9F5 (cyan) — the
-           // colour is right and the STEM is too thin to show it.
+      // LIGHT, not ExtraLight. At 22 px under a mask-filter blur an
+      // ExtraLight stem never reaches full coverage, which reads as
+      // #70BDE8 (blue) where the plate is #72F9F5 (cyan) — the
+      // colour is right and the STEM is too thin to show it.
       300);
 }
 inline sk_sp<SkTypeface> minchoFace() {
-  return weave::ports::face({"Hiragino Mincho ProN", "YuMincho",
-                             "Shippori Mincho", "Noto Serif JP",
-                             "Hiragino Sans"},
-                            400);
+  return weave::ports::face(
+      {"Hiragino Mincho ProN", "YuMincho", "Shippori Mincho", "Noto Serif JP",
+       "Hiragino Sans"},
+      400);
 }
 inline sk_sp<SkTypeface> serifFace() {
   return weave::ports::face({"Times New Roman", "Times", "Georgia"}, 400);
@@ -708,22 +708,22 @@ constexpr int kPhraseN = (int)(sizeof(kPhrases) / sizeof(kPhrases[0]));
 
 inline sk_sp<SkRuntimeEffect> crtEffect() {
   auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
-        "uniform float2 uResolution;\n"
-        "half4 main(float2 xy) {\n"
-        // Lottes: a raised-cosine beam profile about the scanline centre.
-        "  float f = fract(xy.y / 4.42) - 0.5;\n"
-        "  float w = exp2(-2.6 * f * f * 4.0);\n"
-        "  float g = fract(xy.y / 9.82) - 0.5;\n"
-        "  float w2 = exp2(-1.4 * g * g * 4.0);\n"
-        "  float dark = (1.0 - w) * 0.032 + (1.0 - w2) * 0.014;\n"
-        // the corner falloff of a curved tube, gentle: this plate is shot
-        // close, so the vignette barely enters frame
-        "  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;\n"
-        "  float vig = smoothstep(1.05, 1.90, length(p / 0.86)) * 0.30;\n"
-        "  float gr = fract(sin(dot(floor(xy), float2(12.9898, 78.233)))\n"
-        "            * 43758.5453) - 0.5;\n"
-        "  dark = clamp(dark + gr * 0.055, 0.0, 1.0);\n"
-        "  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));\n"
+      "uniform float2 uResolution;\n"
+      "half4 main(float2 xy) {\n"
+      // Lottes: a raised-cosine beam profile about the scanline centre.
+      "  float f = fract(xy.y / 4.42) - 0.5;\n"
+      "  float w = exp2(-2.6 * f * f * 4.0);\n"
+      "  float g = fract(xy.y / 9.82) - 0.5;\n"
+      "  float w2 = exp2(-1.4 * g * g * 4.0);\n"
+      "  float dark = (1.0 - w) * 0.032 + (1.0 - w2) * 0.014;\n"
+      // the corner falloff of a curved tube, gentle: this plate is shot
+      // close, so the vignette barely enters frame
+      "  float2 p = (xy / max(uResolution, float2(1.0)) - 0.5) * 2.0;\n"
+      "  float vig = smoothstep(1.05, 1.90, length(p / 0.86)) * 0.30;\n"
+      "  float gr = fract(sin(dot(floor(xy), float2(12.9898, 78.233)))\n"
+      "            * 43758.5453) - 0.5;\n"
+      "  dark = clamp(dark + gr * 0.055, 0.0, 1.0);\n"
+      "  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));\n"
       "}\n"));
   if (!effect) SkDebugf("lain crt shader: %s\n", err.c_str());
   return effect;
@@ -735,26 +735,26 @@ inline sk_sp<SkRuntimeEffect> crtEffect() {
  *  sd 10.8 and every lift is a stratum above it, not a feature in it. */
 inline sk_sp<SkRuntimeEffect> plateEffect() {
   auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
-        "uniform float2 uResolution;\n"
-        "float h(float2 p){return fract(sin(dot(p,float2(12.9898,78.233)))"
-        "*43758.5453);}\n"
-        "float n(float2 p){float2 i=floor(p),f=fract(p);"
-        "f=f*f*(3.0-2.0*f);"
-        "return mix(mix(h(i),h(i+float2(1,0)),f.x),"
-        "mix(h(i+float2(0,1)),h(i+float2(1,1)),f.x),f.y);}\n"
-        "half4 main(float2 xy) {\n"
-        "  float2 u = xy / max(uResolution, float2(1.0));\n"
-        // vertical slabs: the buildings, three octaves, heavily smeared in x
-        "  float b = n(float2(u.x*7.0, u.y*1.6)) * 0.62\n"
-        "          + n(float2(u.x*17.0, u.y*2.4)) * 0.26\n"
-        "          + n(float2(u.x*3.0, u.y*0.7)) * 0.30;\n"
-        "  b = clamp(b - 0.52, 0.0, 1.0);\n"
-        // the right third of the plate carries the bright massing
-        "  b *= 0.13 + 1.55 * smoothstep(0.80, 1.14, u.x);\n"
-        "  b *= 0.34 + 0.80 * smoothstep(1.02, 0.10, u.y);\n"
-        "  half3 c = half3(half(0.0235 + b*0.34), half(0.0275 + b*0.40),\n"
-        "                  half(0.098 + b*0.72));\n"
-        "  return half4(c, 1.0);\n}\n"));
+      "uniform float2 uResolution;\n"
+      "float h(float2 p){return fract(sin(dot(p,float2(12.9898,78.233)))"
+      "*43758.5453);}\n"
+      "float n(float2 p){float2 i=floor(p),f=fract(p);"
+      "f=f*f*(3.0-2.0*f);"
+      "return mix(mix(h(i),h(i+float2(1,0)),f.x),"
+      "mix(h(i+float2(0,1)),h(i+float2(1,1)),f.x),f.y);}\n"
+      "half4 main(float2 xy) {\n"
+      "  float2 u = xy / max(uResolution, float2(1.0));\n"
+      // vertical slabs: the buildings, three octaves, heavily smeared in x
+      "  float b = n(float2(u.x*7.0, u.y*1.6)) * 0.62\n"
+      "          + n(float2(u.x*17.0, u.y*2.4)) * 0.26\n"
+      "          + n(float2(u.x*3.0, u.y*0.7)) * 0.30;\n"
+      "  b = clamp(b - 0.52, 0.0, 1.0);\n"
+      // the right third of the plate carries the bright massing
+      "  b *= 0.13 + 1.55 * smoothstep(0.80, 1.14, u.x);\n"
+      "  b *= 0.34 + 0.80 * smoothstep(1.02, 0.10, u.y);\n"
+      "  half3 c = half3(half(0.0235 + b*0.34), half(0.0275 + b*0.40),\n"
+      "                  half(0.098 + b*0.72));\n"
+      "  return half4(c, 1.0);\n}\n"));
   if (!effect) SkDebugf("lain plate shader: %s\n", err.c_str());
   return effect;
 }
@@ -847,10 +847,8 @@ struct LainNavi : sketch::Sketch {
     // the ruling — straight, and stopping 7% short of both rims
     g.child(box()
                 .inset(0)
-                .shape(keyedShape(phi,
-                                  [phi](SkSize) {
-                                    return generatrices(phi, 7);
-                                  }))
+                .shape(keyedShape(
+                    phi, [phi](SkSize) { return generatrices(phi, 7); }))
                 .foreground(add(1.5f, scaleRgb(kWire, 0.44f), 0.0f))
                 .key("ruling"));
 
@@ -861,11 +859,10 @@ struct LainNavi : sketch::Sketch {
                       float w, float t0, float t1, const char* key) {
       g.child(box()
                   .inset(0)
-                  .shape(keyedShape(
-                      std::tuple{c.fX, c.fY, a, b, tilt, t0, t1},
-                      [c, a, b, tilt, t0, t1](SkSize) {
-                        return ellipsePath(c, a, b, tilt, t0, t1);
-                      }))
+                  .shape(keyedShape(std::tuple{c.fX, c.fY, a, b, tilt, t0, t1},
+                                    [c, a, b, tilt, t0, t1](SkSize) {
+                                      return ellipsePath(c, a, b, tilt, t0, t1);
+                                    }))
                   .foreground(add(w, col, 0.0f, dot))
                   .key(key));
     };
@@ -888,15 +885,14 @@ struct LainNavi : sketch::Sketch {
     // waist centred on 498.
     g.child(box()
                 .inset(0)
-                .shape(keyedShape(std::string_view("wire-axis"),
-                                  [](SkSize) {
-                                    SkPathBuilder b;
-                                    b.moveTo(503 + kWireShift.fX,
-                                             28 + kWireShift.fY);
-                                    b.lineTo(503 + kWireShift.fX,
-                                             524 + kWireShift.fY);
-                                    return b.detach();
-                                  }))
+                .shape(keyedShape(
+                    std::string_view("wire-axis"),
+                    [](SkSize) {
+                      SkPathBuilder b;
+                      b.moveTo(503 + kWireShift.fX, 28 + kWireShift.fY);
+                      b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
+                      return b.detach();
+                    }))
                 .foreground(add(2.4f, scaleRgb(kWire, 0.72f), 0.7f)));
 
     // `make me feel alright?` stands UPRIGHT beside the orbit's lower-left
@@ -937,17 +933,18 @@ struct LainNavi : sketch::Sketch {
       // in-flow sharp CORE sizes the box; the bloom rides over it as an
       // absolute overlay (a stack() measures to nothing here and shoots the
       // run out of its own centre)
-      g.child(box()
-                  .centerAt(p.centre)
-                  .key("ph" + std::to_string(i))
-                  .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, scaleRgb(c, 0.42f), 6.5f))
-                             .inset(0))
-                  .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, scaleRgb(c, 0.55f), 2.2f))
-                             .inset(0))
-                  .child(text(std::u8string(p.text),
-                              type(serifFace(), p.size, c, 0.7f))));
+      g.child(
+          box()
+              .centerAt(p.centre)
+              .key("ph" + std::to_string(i))
+              .child(text(std::u8string(p.text),
+                          type(serifFace(), p.size, scaleRgb(c, 0.42f), 6.5f))
+                         .inset(0))
+              .child(text(std::u8string(p.text),
+                          type(serifFace(), p.size, scaleRgb(c, 0.55f), 2.2f))
+                         .inset(0))
+              .child(text(std::u8string(p.text),
+                          type(serifFace(), p.size, c, 0.7f))));
     }
     return g;
   }
@@ -988,16 +985,17 @@ struct LainNavi : sketch::Sketch {
 
     // S2 — the lightened panel. Measured x 190..470, y 100..380, and it is
     // soft-edged: a radial ramp to nothing rather than a rect with a blur.
-    root.child(box()
-                   .rect(SkRect::MakeXYWH(178, 88, 304, 304))
-                   .fill(mskia::Paint::radialUnit({0.48f, 0.46f}, 0.95f,
-                                              {{0.0f, kPanel},
-                                               {0.55f, scaleRgb(kPanel, 0.86f)},
-                                               {0.86f, scaleRgb(kPanel, 0.30f)},
-                                               {1.0f, scaleRgb(kPanel, 0.0f)}}))
-                   .blend(SkBlendMode::kPlus)
-                   .cache(Cache::Texture)
-                   .key("panel"));
+    root.child(
+        box()
+            .rect(SkRect::MakeXYWH(178, 88, 304, 304))
+            .fill(mskia::Paint::radialUnit({0.48f, 0.46f}, 0.95f,
+                                           {{0.0f, kPanel},
+                                            {0.55f, scaleRgb(kPanel, 0.86f)},
+                                            {0.86f, scaleRgb(kPanel, 0.30f)},
+                                            {1.0f, scaleRgb(kPanel, 0.0f)}}))
+            .blend(SkBlendMode::kPlus)
+            .cache(Cache::Texture)
+            .key("panel"));
 
     // ---- S3, THE CONSOLE WINDOW ---------------------------------------------
 
@@ -1095,8 +1093,8 @@ struct LainNavi : sketch::Sketch {
             .child(text(u8"Copland OS Enterprise",
                         type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)))
             .child(text(u8"Produced By Tachibana Lab",
-                        type(serifItalicFace(), 16, scaleRgb(kWordmark, 0.7f), 1.6f,
-                             0.8f))));
+                        type(serifItalicFace(), 16, scaleRgb(kWordmark, 0.7f),
+                             1.6f, 0.8f))));
 
     // ---- S4..S8, the Layer 07 strata over the window ------------------------
     root.child(slot("wire"));
@@ -1129,16 +1127,16 @@ struct LainNavi : sketch::Sketch {
                                  {640, 574, 190, 0.85f},
                                  {742, 604, 118, 0.48f}};
       for (const auto& b : bands)
-        g.child(
-            box()
-                .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
-                .fill(mskia::Paint::linearUnit({0, 0}, {1, 0},
-                                           {{0.0f, scaleRgb(kMagenta, 0.0f)},
-                                            {0.30f, scaleRgb(kMagenta, b[3])},
-                                            {0.68f, scaleRgb(kMagenta, b[3] * 0.8f)},
-                                            {1.0f, scaleRgb(kMagenta, 0.0f)}}))
-                .blend(SkBlendMode::kPlus)
-                .cache(Cache::Texture));
+        g.child(box()
+                    .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
+                    .fill(mskia::Paint::linearUnit(
+                        {0, 0}, {1, 0},
+                        {{0.0f, scaleRgb(kMagenta, 0.0f)},
+                         {0.30f, scaleRgb(kMagenta, b[3])},
+                         {0.68f, scaleRgb(kMagenta, b[3] * 0.8f)},
+                         {1.0f, scaleRgb(kMagenta, 0.0f)}}))
+                    .blend(SkBlendMode::kPlus)
+                    .cache(Cache::Texture));
       root.child(std::move(g));
     }
 

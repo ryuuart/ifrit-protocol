@@ -115,7 +115,6 @@ struct Table {
  *  of them line up on their figures; a table is N columns each at its
  *  own width, which is what a reading of more than a name and a figure
  *  needs. Neither is the other with a field set. */
-[[nodiscard]] compose::Element table(std::vector<Row> rows,
-                                     const Table& how);
+[[nodiscard]] compose::Element table(std::vector<Row> rows, const Table& how);
 
 }  // namespace sigil::sketch::kit

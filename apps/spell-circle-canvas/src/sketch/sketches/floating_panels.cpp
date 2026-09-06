@@ -202,10 +202,10 @@ struct FloatingPanels final : sketch::Sketch {
 
     // Keyed on the sink's own name: everything `draw` reads is cooked
     // above, in this setup, and nothing after it moves.
-    ctx.composer.render(
-        custom("floating.panels", [this](SkCanvas& canvas, const PaintContext&) {
-          draw(canvas);
-        }).inset(0));
+    ctx.composer.render(custom("floating.panels", [this](SkCanvas& canvas,
+                                                         const PaintContext&) {
+                          draw(canvas);
+                        }).inset(0));
   }
 };
 

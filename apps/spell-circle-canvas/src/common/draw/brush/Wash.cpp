@@ -2,9 +2,6 @@
  * The wet pigment wash.
  */
 
-#include "Executors.h"
-#include "PolygonMath.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
@@ -14,6 +11,9 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+
+#include "Executors.h"
+#include "PolygonMath.h"
 
 namespace sigil::draw::brush {
 
@@ -177,8 +177,8 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
   if (border > 0.0f) {
     pen.noFill();
     for (int edge = 0; edge < 3; ++edge) {
-      pen.stroke(withAlpha(pigment.color,
-                           pigment.opacity * border * pen.random(0.12f, 0.24f)));
+      pen.stroke(withAlpha(
+          pigment.color, pigment.opacity * border * pen.random(0.12f, 0.24f)));
       pen.strokeWeight(scale * pen.random(0.002f, 0.008f));
       pen.shape(wetPath(pen, polygon, pen.random(-1.0f, 1.5f), scale * 0.025f,
                         pen.random(0.0f, 1024.0f)));

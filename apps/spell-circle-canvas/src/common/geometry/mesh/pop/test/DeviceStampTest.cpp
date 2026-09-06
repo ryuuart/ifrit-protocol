@@ -11,8 +11,6 @@
 
 #include <gtest/gtest.h>
 #include <sigilgeometry/device/Device.h>
-
-#include "OnDevice.h"
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/pop/Points.h>
@@ -24,12 +22,13 @@
 #include <string>
 #include <vector>
 
+#include "OnDevice.h"
+
 using namespace sigil;
 namespace gm = sigil::geometry::mesh;
 namespace points = sigil::geometry::mesh::points;
 
 namespace {
-
 
 /** A cloud with every conventional lane written, so no lane of the
  *  dispatch is the filled-in default: a direction that is not axis
@@ -44,15 +43,15 @@ gm::Cloud cloud(int count) {
                   {30, -60, -110}};
   scatter.count = count;
   scatter.radius = 12.0f;
-  return gm::pop::cook(gm::pop::Chain(gm::pop::on(scatter.loop)
-                                          .count(count)
-                                          .spread(12.0f)
-                                          .jitter(9.0f)
-                                          .vary(0.6f, 1.3f)
-                                          .fade({0.9f, 0.2f, 0.1f, 1.0f},
-                                                {0.1f, 0.4f, 1.0f, 0.25f})
-                                          .atlas(3, 5)
-                                          .lookAt({40, 90, -30})));
+  return gm::pop::cook(gm::pop::Chain(
+      gm::pop::on(scatter.loop)
+          .count(count)
+          .spread(12.0f)
+          .jitter(9.0f)
+          .vary(0.6f, 1.3f)
+          .fade({0.9f, 0.2f, 0.1f, 1.0f}, {0.1f, 0.4f, 1.0f, 0.25f})
+          .atlas(3, 5)
+          .lookAt({40, 90, -30})));
 }
 
 /** Bit-for-bit over a mesh's every lane. Compared as the BITS of each

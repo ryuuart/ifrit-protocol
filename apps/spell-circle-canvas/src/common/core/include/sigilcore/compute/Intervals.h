@@ -52,10 +52,11 @@ enum class Inverted : bool {
  *  Every other operation here takes its inputs in this form and answers
  *  in it. */
 template <class Interval, class Ends = IntervalEnds<Interval>>
-std::vector<Interval> normalizeIntervals(
-    std::vector<Interval> intervals, typename Ends::Value low,
-    typename Ends::Value high, typename Ends::Value epsilon = {},
-    Inverted inverted = Inverted::Drop) {
+std::vector<Interval> normalizeIntervals(std::vector<Interval> intervals,
+                                         typename Ends::Value low,
+                                         typename Ends::Value high,
+                                         typename Ends::Value epsilon = {},
+                                         Inverted inverted = Inverted::Drop) {
   using T = typename Ends::Value;
   std::vector<Interval> kept;
   kept.reserve(intervals.size());
@@ -88,10 +89,9 @@ std::vector<Interval> normalizeIntervals(
 /** Everything in [@p low, @p high] that @p intervals (normalised) does
  *  not cover. */
 template <class Interval, class Ends = IntervalEnds<Interval>>
-std::vector<Interval> complementIntervals(const std::vector<Interval>& intervals,
-                                          typename Ends::Value low,
-                                          typename Ends::Value high,
-                                          typename Ends::Value epsilon = {}) {
+std::vector<Interval> complementIntervals(
+    const std::vector<Interval>& intervals, typename Ends::Value low,
+    typename Ends::Value high, typename Ends::Value epsilon = {}) {
   using T = typename Ends::Value;
   std::vector<Interval> out;
   T at = low;

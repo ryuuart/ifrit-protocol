@@ -95,8 +95,7 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     };
     brushes.add("tutorial-watercolor", watercolor);
 
-    brush::Tool whiteCharcoal =
-        brush::charcoal({0.95f, 0.97f, 0.94f, 1}, 1.5f);
+    brush::Tool whiteCharcoal = brush::charcoal({0.95f, 0.97f, 0.94f, 1}, 1.5f);
     whiteCharcoal.scatter = 2.0f;
     whiteCharcoal.opacity = 0.52f;
     whiteCharcoal.blend = SCREEN;
@@ -168,7 +167,7 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
     }};
     for (int ray = 0; ray < 20; ++ray) {
       const float angle = arrange::along(seconds * 30.0f, 360.0f, (size_t)ray,
-                                        20, arrange::Turn::Closed);
+                                         20, arrange::Turn::Closed);
       pen.randomSeed(0x33213u * (uint64_t)(ray + 1));
       const std::string_view name =
           wheelBrushes[(size_t)pen.random((float)wheelBrushes.size())];
@@ -177,8 +176,8 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
       brushes.set(name, color, 1.0f);
       const float radiansValue = radians(-angle);
       brushes.flowLine(
-          pen, arrange::onEllipse({300.0f, 300.0f}, {100.0f, 100.0f},
-                                  radiansValue),
+          pen,
+          arrange::onEllipse({300.0f, 300.0f}, {100.0f, 100.0f}, radiansValue),
           320, angle);
     }
 

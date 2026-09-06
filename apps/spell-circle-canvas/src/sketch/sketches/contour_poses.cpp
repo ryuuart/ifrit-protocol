@@ -205,13 +205,14 @@ struct ContourPoses final : sketch::Sketch {
                                    }
                                  }),
                             cell("Wrap::Clamp vs Wrap::Around",
-                                 kit::formatted("the same 12 distances from "
-                                             "\xe2\x88\x92"
-                                             "0.2 to 1.2 of "
-                                             "totalLength, joined in order "
-                                             "\xc2\xb7 the outer chain parks "
-                                             "at the ends, the inner one comes "
-                                             "round the seam"),
+                                 kit::formatted(
+                                     "the same 12 distances from "
+                                     "\xe2\x88\x92"
+                                     "0.2 to 1.2 of "
+                                     "totalLength, joined in order "
+                                     "\xc2\xb7 the outer chain parks "
+                                     "at the ends, the inner one comes "
+                                     "round the seam"),
                                  [figure, contours, total](SkCanvas& canvas) {
                                    const std::span<const path::Contour> run{
                                        contours};

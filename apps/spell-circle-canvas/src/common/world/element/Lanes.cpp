@@ -42,9 +42,9 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
   out.clear();
   out.reserve(kLaneCount);
   const auto push = [&out](Slot slot, const motion::Animatable<float>* value) {
-    out.push_back(
-        Lane{value, motion::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
-             standingValue(slot)});
+    out.push_back(Lane{
+        value, motion::LaneSlot<LaneFamily>{LaneFamily::Slot, (size_t)slot},
+        standingValue(slot)});
   };
   const Transform& t = node.transform;
   push(kTranslateX, &t.translateX);
@@ -100,7 +100,8 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
   // The environment's own seven, standing where the environment stands.
   const SkyDials* dials = node.sky ? &*node.sky : nullptr;
   const auto pushSky =
-      [&](Slot slot, std::optional<motion::Animatable<float>> SkyDials::*member,
+      [&](Slot slot,
+          std::optional<motion::Animatable<float>> SkyDials::* member,
           float own) {
         const std::optional<motion::Animatable<float>>* value =
             dials ? &(dials->*member) : nullptr;
@@ -113,11 +114,11 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
   pushSky(kEnvironmentSpecular, &SkyDials::specular, sky ? sky->specular : 1);
   pushSky(kEnvironmentRoughness, &SkyDials::roughnessBias,
           sky ? sky->roughnessBias : 0);
-  pushSky(kEnvironmentCrossfade, &SkyDials::crossfade, sky ? sky->crossfade : 0);
+  pushSky(kEnvironmentCrossfade, &SkyDials::crossfade,
+          sky ? sky->crossfade : 0);
   pushSky(kEnvironmentExposure, &SkyDials::exposure, sky ? sky->exposure : 1);
   pushSky(kBackdrop, &SkyDials::backdrop, sky ? sky->backdrop.intensity : 0);
-  pushSky(kBackdropBlur, &SkyDials::backdropBlur,
-          sky ? sky->backdrop.blur : 0);
+  pushSky(kBackdropBlur, &SkyDials::backdropBlur, sky ? sky->backdrop.blur : 0);
 }
 
 }  // namespace sigil::world

@@ -21,7 +21,6 @@ using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
 using sigil::geometry::mesh::pop::test::flatRing;
 
-
 // Smooth must undo what noise did to the local shape of the path, measured
 // as the summed discrete second difference along the points — the quantity
 // that shows up as kinks in anything swept along them. Halving it is a loose

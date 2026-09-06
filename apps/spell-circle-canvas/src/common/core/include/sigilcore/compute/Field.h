@@ -124,8 +124,8 @@ inline void gradient2(uint32_t seed, int x, int y, int period, float& gx,
  *  square root of two — the set every other implementation of this
  *  field uses, so a picture made here and one made elsewhere have the
  *  same character and the same amplitude. */
-inline void gradient3(uint32_t seed, int x, int y, int z, int period,
-                      float& gx, float& gy, float& gz) {
+inline void gradient3(uint32_t seed, int x, int y, int z, int period, float& gx,
+                      float& gy, float& gz) {
   static constexpr float kx[12] = {1, -1, 1, -1, 1, -1, 1, -1, 0, 0, 0, 0};
   static constexpr float ky[12] = {1, 1, -1, -1, 0, 0, 0, 0, 1, -1, 1, -1};
   static constexpr float kz[12] = {0, 0, 0, 0, 1, 1, -1, -1, 1, 1, -1, -1};
@@ -241,8 +241,7 @@ inline void featurePoint(uint32_t seed, int x, int y, int z, int period,
   const float x0 = x - ((float)i - t), y0 = y - ((float)j - t);
   const int i1 = x0 > y0 ? 1 : 0, j1 = x0 > y0 ? 0 : 1;
   const float x1 = x0 - (float)i1 + kUnskew, y1 = y0 - (float)j1 + kUnskew;
-  const float x2 = x0 - 1.0f + 2.0f * kUnskew,
-              y2 = y0 - 1.0f + 2.0f * kUnskew;
+  const float x2 = x0 - 1.0f + 2.0f * kUnskew, y2 = y0 - 1.0f + 2.0f * kUnskew;
   auto contribution = [&](int di, int dj, float dx, float dy) {
     float falloff = 0.5f - dx * dx - dy * dy;
     if (falloff <= 0.0f) return 0.0f;
@@ -271,19 +270,49 @@ inline void featurePoint(uint32_t seed, int x, int y, int z, int period,
   int i1, j1, k1, i2, j2, k2;  // the two corners between the first and last
   if (x0 >= y0) {
     if (y0 >= z0) {
-      i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 1; k2 = 0;
+      i1 = 1;
+      j1 = 0;
+      k1 = 0;
+      i2 = 1;
+      j2 = 1;
+      k2 = 0;
     } else if (x0 >= z0) {
-      i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 0; k2 = 1;
+      i1 = 1;
+      j1 = 0;
+      k1 = 0;
+      i2 = 1;
+      j2 = 0;
+      k2 = 1;
     } else {
-      i1 = 0; j1 = 0; k1 = 1; i2 = 1; j2 = 0; k2 = 1;
+      i1 = 0;
+      j1 = 0;
+      k1 = 1;
+      i2 = 1;
+      j2 = 0;
+      k2 = 1;
     }
   } else {
     if (y0 < z0) {
-      i1 = 0; j1 = 0; k1 = 1; i2 = 0; j2 = 1; k2 = 1;
+      i1 = 0;
+      j1 = 0;
+      k1 = 1;
+      i2 = 0;
+      j2 = 1;
+      k2 = 1;
     } else if (x0 < z0) {
-      i1 = 0; j1 = 1; k1 = 0; i2 = 0; j2 = 1; k2 = 1;
+      i1 = 0;
+      j1 = 1;
+      k1 = 0;
+      i2 = 0;
+      j2 = 1;
+      k2 = 1;
     } else {
-      i1 = 0; j1 = 1; k1 = 0; i2 = 1; j2 = 1; k2 = 0;
+      i1 = 0;
+      j1 = 1;
+      k1 = 0;
+      i2 = 1;
+      j2 = 1;
+      k2 = 0;
     }
   }
   auto contribution = [&](int di, int dj, int dk, float dx, float dy,
@@ -303,8 +332,7 @@ inline void featurePoint(uint32_t seed, int x, int y, int z, int period,
                        y0 - (float)j2 + 2.0f * kUnskew,
                        z0 - (float)k2 + 2.0f * kUnskew) +
           contribution(1, 1, 1, x0 - 1.0f + 3.0f * kUnskew,
-                       y0 - 1.0f + 3.0f * kUnskew,
-                       z0 - 1.0f + 3.0f * kUnskew));
+                       y0 - 1.0f + 3.0f * kUnskew, z0 - 1.0f + 3.0f * kUnskew));
 }
 
 /** CELLULAR NOISE in two dimensions, in [-1, 1]: the distance to the
@@ -432,8 +460,7 @@ struct Field {
       // would otherwise share lattice points and the sum would show the
       // grid they share.
       const uint32_t layerSeed = seed + (uint32_t)octave * 0x9e3779b9u;
-      float value = base(layerSeed, x * step, y * step, z * step,
-                         octavePeriod);
+      float value = base(layerSeed, x * step, y * step, z * step, octavePeriod);
       switch (fold) {
         case Fold::None:
           break;

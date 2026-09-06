@@ -71,8 +71,7 @@ Paint paletteLookup(const Palette& palette) {
   sk_sp<SkImage> table = paletteImage(palette);
   if (!table) return {};
   return Paint::image(std::move(table), SkTileMode::kClamp, SkTileMode::kClamp,
-                      SkMatrix::I(),
-                      SkSamplingOptions(SkFilterMode::kNearest));
+                      SkMatrix::I(), SkSamplingOptions(SkFilterMode::kNearest));
 }
 
 }  // namespace sigil::material::skia

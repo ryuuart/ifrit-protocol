@@ -44,8 +44,8 @@
 
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -129,8 +129,7 @@ inline constexpr int kConfigCount =
 
 /** Left edge of column `i`, in units. */
 inline float columnUnit(const Config& c, int i) {
-  return arrange::cellRect({i, 0}, {(float)c.width, 0},
-                           {(float)c.gutter, 0})
+  return arrange::cellRect({i, 0}, {(float)c.width, 0}, {(float)c.gutter, 0})
       .fLeft;
 }
 

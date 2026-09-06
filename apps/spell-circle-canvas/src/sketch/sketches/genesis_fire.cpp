@@ -134,8 +134,8 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkVertices.h>
-#include <sigilcompose/core/Core.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Frame.h>
@@ -221,9 +221,9 @@ constexpr float kSideW = 448;
 // negotiation.
 constexpr float kPad = 36;
 constexpr float kHeaderH = 102;
-constexpr float kBodyY = kPad + kHeaderH + 24;   // 162
-constexpr float kStageX = kPad;                  // 36
-constexpr float kSideX = kPad + kStageW + 32;    // 956
+constexpr float kBodyY = kPad + kHeaderH + 24;  // 162
+constexpr float kStageX = kPad;                 // 36
+constexpr float kSideX = kPad + kStageW + 32;   // 956
 constexpr float kCaptionY = kBodyY + kStageH + 10;
 constexpr float kPanelGap = 8;
 constexpr float kPanelH[5] = {104, 192, 98, 144, 96};
@@ -364,10 +364,10 @@ Element panel(float height, int order) {
       .corners({5})
       .fill(kPanel)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
-      .opacity(animate(from(0.0f).to(1.0f),
-                       {.duration = 300ms, .delay = delay}))
-      .translateX(animate(from(14.0f).to(0.0f),
-                          {.duration = 300ms, .delay = delay}))
+      .opacity(
+          animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = delay}))
+      .translateX(
+          animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order));
 }
 
@@ -860,21 +860,23 @@ struct GenesisFire final : sketch::DrawSketch {
     g.child(
         box()
             .inset(0)
-            .shape(keyedShape(std::string_view("asterism"), [](SkSize) {
-              SkPathBuilder b;
-              auto P = [](int i) {
-                return SkPoint{bx + kStars[i].u * bw, by + kStars[i].v * bh};
-              };
-              b.moveTo(P(0));
-              b.lineTo(P(1));
-              b.lineTo(P(2));
-              b.lineTo(P(3));
-              b.lineTo(P(4));
-              b.lineTo(P(5));
-              b.lineTo(P(6));
-              b.lineTo(P(3));
-              return b.detach();
-            }))
+            .shape(keyedShape(std::string_view("asterism"),
+                              [](SkSize) {
+                                SkPathBuilder b;
+                                auto P = [](int i) {
+                                  return SkPoint{bx + kStars[i].u * bw,
+                                                 by + kStars[i].v * bh};
+                                };
+                                b.moveTo(P(0));
+                                b.lineTo(P(1));
+                                b.lineTo(P(2));
+                                b.lineTo(P(3));
+                                b.lineTo(P(4));
+                                b.lineTo(P(5));
+                                b.lineTo(P(6));
+                                b.lineTo(P(3));
+                                return b.detach();
+                              }))
             .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
                                         {.duration = 620ms, .delay = 1300ms})),
                     stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.35f))))
@@ -922,19 +924,19 @@ struct GenesisFire final : sketch::DrawSketch {
   Element regolith() {
     // A generated surface, plus the ONE hand-added light in the shot
     // (Tom Duff's), riding the wavefront.
-    Paint ground = Paint::blend(
-        {{Paint::radialUnit({0.5f, 0.723f}, 0.50f,
-                            {{0.0f, hex(0x3B3933)},
-                             {0.42f, hex(0x232119)},
-                             {1.0f, hex(0x0A0A0C)}}),
-          SkBlendMode::kSrc},
-         {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
-          SkBlendMode::kSoftLight},
-         {Pattern(patterns::speckle(
-                      170, 17, 0.9f, 3.4f,
-                      {toColor(hex(0x6A655B)), toColor(hex(0x171512))}))
-              .material(),
-          SkBlendMode::kOverlay}});
+    Paint ground =
+        Paint::blend({{Paint::radialUnit({0.5f, 0.723f}, 0.50f,
+                                         {{0.0f, hex(0x3B3933)},
+                                          {0.42f, hex(0x232119)},
+                                          {1.0f, hex(0x0A0A0C)}}),
+                       SkBlendMode::kSrc},
+                      {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
+                       SkBlendMode::kSoftLight},
+                      {Pattern(patterns::speckle(170, 17, 0.9f, 3.4f,
+                                                 {toColor(hex(0x6A655B)),
+                                                  toColor(hex(0x171512))}))
+                           .material(),
+                       SkBlendMode::kOverlay}});
 
     return box()
         .inset(0)
@@ -1052,9 +1054,9 @@ struct GenesisFire final : sketch::DrawSketch {
         .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
         .opacity(
             animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
-        .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
-                                              .ease = ease::outBack(),
-                                              .delay = 900ms}))
+        .scale(animate(
+            from(0.94f).to(1.0f),
+            {.duration = 340ms, .ease = ease::outBack(), .delay = 900ms}))
         .child(std::move(inner))
         // the impact point itself
         .child(box()
@@ -1122,9 +1124,10 @@ struct GenesisFire final : sketch::DrawSketch {
     pen.textFont(weave::Type{.face = uiFace(), .size = 8.5f, .track = 1.7f});
     pen.fill(hex(0x4FB8D8, a));
     pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
-    pen.text("MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7"
-             "3",
-             x0 + 11, cy);
+    pen.text(
+        "MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7"
+        "3",
+        x0 + 11, cy);
     cy += 14;
 
     // the streak itself: a 3x-magnified quad, one shape, colour ramped
@@ -1173,14 +1176,16 @@ struct GenesisFire final : sketch::DrawSketch {
              x0 + 11, cy);
     cy += 11;
     penMono(pen, 7.5f, fadeTo(kSteel, a), 0.4f);
-    pen.text("STREAK = pos(f) \xe2\x86\x92 pos(f+\xc2\xbd), ANTIALIASED, "
-             "ADDITIVE",
-             x0 + 11, cy);
+    pen.text(
+        "STREAK = pos(f) \xe2\x86\x92 pos(f+\xc2\xbd), ANTIALIASED, "
+        "ADDITIVE",
+        x0 + 11, cy);
     cy += 11;
     penMono(pen, 6.5f, fadeTo(kSteelDim, a), 0.2f);
-    pen.text("FN.4: \"A PARTICLE'S TRAJECTORY IS ACTUALLY PARABOLIC, BUT\n"
-             "THE STRAIGHT-LINE APPROXIMATION HAS SO FAR PROVED SUFFICIENT\"",
-             x0 + 11, cy);
+    pen.text(
+        "FN.4: \"A PARTICLE'S TRAJECTORY IS ACTUALLY PARABOLIC, BUT\n"
+        "THE STRAIGHT-LINE APPROXIMATION HAS SO FAR PROVED SUFFICIENT\"",
+        x0 + 11, cy);
   }
 
   static SkColor4f fadeTo(SkColor4f c, float a) {
@@ -1228,9 +1233,9 @@ struct GenesisFire final : sketch::DrawSketch {
                            .height = Dim(7),
                            .track = Fill::color(hex(0x171B24)),
                            .bar = Fill::color(c)};
-    bar.level = animate(from(0.0f).to(frac), {.duration = 420ms,
-                                              .ease = ease::outBack(1.2f),
-                                              .delay = 1200ms});
+    bar.level = animate(
+        from(0.0f).to(frac),
+        {.duration = 420ms, .ease = ease::outBack(1.2f), .delay = 1200ms});
     if (key) bar.level = bind(&liveFrac).clamp(0.02f, 1.0f);
     Element rail = sketch::kit::meter(bar).shrink(0);
     if (key) rail.key(key);
@@ -1333,16 +1338,16 @@ struct GenesisFire final : sketch::DrawSketch {
     swatches.reserve(14);
     labels.reserve(14);
     for (int n : kRampN) {
-      swatches.push_back(box()
-                             .width(28)
-                             .height(26)
-                             .shrink(0)
-                             .fill(Paint::solid(overlap(n)))
-                             .transformOrigin(0.5f, 1.0f)
-                             .scaleY(animate(from(0.0f).to(1.0f),
-                                             {.duration = 220ms,
-                                              .ease = ease::outBack(),
-                                              .delay = 1500ms})));
+      swatches.push_back(
+          box()
+              .width(28)
+              .height(26)
+              .shrink(0)
+              .fill(Paint::solid(overlap(n)))
+              .transformOrigin(0.5f, 1.0f)
+              .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
+                                                    .ease = ease::outBack(),
+                                                    .delay = 1500ms})));
       const bool key = n == 5 || n == 20 || n == 111;
       labels.push_back(t(std::to_string(n).c_str(),
                          mono(7.0f, key ? kBone : kSteelDim, 0.2f))
@@ -1587,8 +1592,7 @@ struct GenesisFire final : sketch::DrawSketch {
                 SkRect::MakeXYWH(kPad, kPad, kCanvasW - 2 * kPad, kHeaderH));
 
     // --- the stage: two guests with the field drawn between them --------
-    const SkRect stageBox =
-        SkRect::MakeXYWH(kStageX, kBodyY, kStageW, kStageH);
+    const SkRect stageBox = SkRect::MakeXYWH(kStageX, kBodyY, kStageW, kStageH);
     pen.element(belowEl, stageBox);
     {
       const float t = loopU.value() * 10.0f;
@@ -1673,14 +1677,16 @@ struct GenesisFire final : sketch::DrawSketch {
     penMono(pen, 8.5f, fadeTo(hex(0xFFB672, 0.85f), a), 0.5f);
     pen.text(buf, right, kCaptionY);
     penMono(pen, 8.5f, fadeTo(kSteel, a), 0.5f);
-    pen.text("888\xc3\x97"
-             "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO RASTER THE DEMO WAS "
-             "COMPUTED FOR",
-             right, kCaptionY + 12);
+    pen.text(
+        "888\xc3\x97"
+        "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO RASTER THE DEMO WAS "
+        "COMPUTED FOR",
+        right, kCaptionY + 12);
     penMono(pen, 8.5f, fadeTo(hex(0xFF8A3A, 0.75f), a), 0.5f);
-    pen.text("WARM GROUND LIGHT RIDING THE FRONT = TOM DUFF'S LOCAL LIGHT, "
-             "THE ONLY HAND-PLACED LIGHT IN THE SHOT",
-             right, kCaptionY + 24);
+    pen.text(
+        "WARM GROUND LIGHT RIDING THE FRONT = TOM DUFF'S LOCAL LIGHT, "
+        "THE ONLY HAND-PLACED LIGHT IN THE SHOT",
+        right, kCaptionY + 24);
     pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
   }
 

@@ -21,7 +21,6 @@
 #include <variant>
 #include <vector>
 
-
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
  *  opaque parameters are the group range and the global bindings, whose
  *  layouts are mirrored below. */
@@ -232,8 +231,6 @@ void run(const OpDispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
       });
 }
 
-std::span<const uint32_t> opSpirv() {
-  return slangmodule::Pop::kSpirv;
-}
+std::span<const uint32_t> opSpirv() { return slangmodule::Pop::kSpirv; }
 
 }  // namespace sigil::geometry::mesh::kernel

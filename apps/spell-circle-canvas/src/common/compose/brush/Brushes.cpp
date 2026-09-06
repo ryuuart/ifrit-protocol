@@ -670,7 +670,8 @@ SkPath Ribbon::band(const SkPath& spine) const {
     // crosses itself where the spine turns hard.
     std::vector<SkVector> normal(pos.size() - 1);
     for (size_t i = 0; i + 1 < pos.size(); ++i) {
-      const SkVector e{pos[i + 1].x() - pos[i].x(), pos[i + 1].y() - pos[i].y()};
+      const SkVector e{pos[i + 1].x() - pos[i].x(),
+                       pos[i + 1].y() - pos[i].y()};
       const float L = std::hypot(e.x(), e.y());
       if (L < 1e-4f) {
         normal[i] = {0, 0};
@@ -706,8 +707,10 @@ SkPath Ribbon::band(const SkPath& spine) const {
       }
       for (int side = -1; side <= 1; side += 2) {
         const float s = (float)side;
-        const SkPoint a{pos[i].x() + n0.x() * h * s, pos[i].y() + n0.y() * h * s};
-        const SkPoint b{pos[i].x() + n1.x() * h * s, pos[i].y() + n1.y() * h * s};
+        const SkPoint a{pos[i].x() + n0.x() * h * s,
+                        pos[i].y() + n0.y() * h * s};
+        const SkPoint b{pos[i].x() + n1.x() * h * s,
+                        pos[i].y() + n1.y() * h * s};
         if (join == SkPaint::kMiter_Join) {
           // The rails meet where the bisector carries them. `cos` is the
           // half-angle's cosine, and 1/cos is the reach in half-widths —
@@ -742,8 +745,7 @@ void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
   // A material supersedes the fill, and it is resolved through the same
   // body a stroke's does, so a recipe means the same thing on a band as
   // on the outline beside it — unit square, node's box, one clock.
-  const Fill band =
-      fillMaterial ? resolveFill(*fillMaterial, ctx) : fill;
+  const Fill band = fillMaterial ? resolveFill(*fillMaterial, ctx) : fill;
   if (band.kind == Fill::Kind::Color)
     p.setColor4f(band.colorValue, nullptr);
   else if (band.kind == Fill::Kind::Shader)

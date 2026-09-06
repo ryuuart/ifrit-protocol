@@ -34,7 +34,8 @@ Bracket bracket(const std::vector<RampStop>& stops, float position) {
     // Two stops at one position are a hard edge: the upper one wins,
     // and dividing by the zero between them would not have said
     // anything.
-    return {lo.color, hi.color, span > 0.0f ? (position - lo.pos) / span : 1.0f};
+    return {lo.color, hi.color,
+            span > 0.0f ? (position - lo.pos) / span : 1.0f};
   }
   return {stops.back().color, stops.back().color, 0.0f};
 }
@@ -125,8 +126,8 @@ Ramp ramp(const Palette& palette, RampSpace space) {
   const size_t count = palette.entries.size();
   built.stops.reserve(count);
   for (size_t i = 0; i < count; ++i)
-    built.stops.push_back({count > 1 ? (float)i / (float)(count - 1) : 0.0f,
-                           palette.entries[i]});
+    built.stops.push_back(
+        {count > 1 ? (float)i / (float)(count - 1) : 0.0f, palette.entries[i]});
   return built;
 }
 

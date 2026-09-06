@@ -54,12 +54,12 @@ struct SketchContext {
    *  for the session's life. */
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
 
-  SketchContext(compose::Composer& composerIn, sigil::motion::Ticker& tickerIn,
-                Assets& assetsIn, SkSize sizeIn, CanvasSpec* specIn = nullptr,
-                sigil::weave::FontContext* fontsIn = nullptr,
-                bool deterministicIn = false,
-                std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn =
-                    nullptr)
+  SketchContext(
+      compose::Composer& composerIn, sigil::motion::Ticker& tickerIn,
+      Assets& assetsIn, SkSize sizeIn, CanvasSpec* specIn = nullptr,
+      sigil::weave::FontContext* fontsIn = nullptr,
+      bool deterministicIn = false,
+      std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr)
       : composer(composerIn),
         ticker(tickerIn),
         assets(assetsIn),
@@ -130,8 +130,7 @@ struct SketchContext {
    *  not what this is for. */
   [[nodiscard]] sk_sp<SkImage> bakeSet(
       const world::Frame& frame, const geometry::mesh::camera::Camera& camera,
-      SkISize size, SkColor4f background = {0, 0, 0, 0},
-      double seconds = 0.0);
+      SkISize size, SkColor4f background = {0, 0, 0, 0}, double seconds = 0.0);
 
   /** The host is taking a capture that will be DIFFED, so anything the
    *  sketch measured about its own execution must be pinned. See

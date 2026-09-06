@@ -102,8 +102,8 @@ gm::pop::Chain dustOver(const gm::Mesh& subject) {
   subject.bounds(&low, &high);
   return gm::pop::on(subject, kMotes)
       .rampBy(gm::pop::Lane::P, 1,
-              {{0.35f, 0.52f, 0.95f, 1.0f}, {0.97f, 0.70f, 0.40f, 1.0f}},
-              low.y, high.y)
+              {{0.35f, 0.52f, 0.95f, 1.0f}, {0.97f, 0.70f, 0.40f, 1.0f}}, low.y,
+              high.y)
       .vary(0.85f, 0.55f);
 }
 
@@ -140,11 +140,11 @@ struct ScatteredModel final : sketch::Set {
     // silhouette the scatter was taken from rather than a second lit
     // surface competing with it.
     world::Element core = world::Element()
-                       .key("body")
-                       .mesh(subject)
-                       .fill(material::kit::unlit(
-                           {.baseColor = {0.10f, 0.11f, 0.15f, 1.0f}}))
-                       .tag("core");
+                              .key("body")
+                              .mesh(subject)
+                              .fill(material::kit::unlit(
+                                  {.baseColor = {0.10f, 0.11f, 0.15f, 1.0f}}))
+                              .tag("core");
 
     // …and the dust over it: one FLAKE at every point, laid flat against
     // the surface it was scattered from — a stamp is turned by the
@@ -152,21 +152,22 @@ struct ScatteredModel final : sketch::Set {
     // body is the cheapest stamp that still reads as a shell. It turns
     // slowly, so the scatter reads as a skin over the silhouette rather
     // than as a texture on it.
-    world::Element shell = world::Element()
-                        .key("dust")
-                        .rotateY(seconds * 9.0f)
-                        .scale(1.05f)
-                        .chain(dust)
-                        .stamp(gm::quad(2.9f, 2.9f))
-                        .fill(material::kit::surface(
-                            {.baseColor = {1, 1, 1, 1}, .roughness = 0.65f}))
-                        .tag("dust");
+    world::Element shell =
+        world::Element()
+            .key("dust")
+            .rotateY(seconds * 9.0f)
+            .scale(1.05f)
+            .chain(dust)
+            .stamp(gm::quad(2.9f, 2.9f))
+            .fill(material::kit::surface(
+                {.baseColor = {1, 1, 1, 1}, .roughness = 0.65f}))
+            .tag("dust");
 
     return world::Frame(world::kit::litSet(world::Element()
-                                              .key("subject")
-                                              .child(std::move(core))
-                                              .child(std::move(shell)),
-                                          set, seconds));
+                                               .key("subject")
+                                               .child(std::move(core))
+                                               .child(std::move(shell)),
+                                           set, seconds));
   }
 };
 

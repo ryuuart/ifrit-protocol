@@ -112,4 +112,3 @@ void BM_Wrap(benchmark::State &state) {
 BENCHMARK(BM_Wrap);
 
 }  // namespace
-

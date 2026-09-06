@@ -77,8 +77,7 @@ gm::camera::Camera cardCamera(float eyeZ) {
  *  test states the relationship rather than a number someone measured
  *  off a picture. */
 float pixelsPerUnit(const gm::camera::Camera& lens, SkISize size) {
-  const float halfFov =
-      lens.fovYDeg * 0.5f * (float)std::numbers::pi / 180.0f;
+  const float halfFov = lens.fovYDeg * 0.5f * (float)std::numbers::pi / 180.0f;
   return (float)size.height() /
          (2.0f * std::abs(lens.eye.z) * std::tan(halfFov));
 }
@@ -190,7 +189,8 @@ TEST_F(CanvasSession, PaintsWhatTheSketchDescribed) {
   EXPECT_NE(pixels().getColor(300, 190), SK_ColorBLACK);
 }
 
-TEST_F(CanvasSession, AStillTakesOneMoreStepSoAPlateIsTheDeclaredMomentPlusOne) {
+TEST_F(CanvasSession,
+       AStillTakesOneMoreStepSoAPlateIsTheDeclaredMomentPlusOne) {
   // A canvas runtime re-renders for its still — it is resolution
   // independent, so a plate is described again at the capture scale
   // rather than magnified — and describing again is one more step.
@@ -267,8 +267,7 @@ struct Baking : Sketch {
   void setup(SketchContext& ctx) override {
     ctx.canvas(200, 120);
     near = ctx.bakeSet(cardFrame(), cardCamera(kEyeZ), kBakeSize, kGround);
-    far =
-        ctx.bakeSet(cardFrame(), cardCamera(kEyeZ * 2), kBakeSize, kGround);
+    far = ctx.bakeSet(cardFrame(), cardCamera(kEyeZ * 2), kBakeSize, kGround);
     ctx.composer.render(box().width(10).height(10));
   }
 };
@@ -286,13 +285,13 @@ world::Frame enteringFrame() {
         .mesh(gm::quad(kCardW * 0.4f, kCardH))
         .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}));
   };
-  return world::Frame(world::Element()
-                          .key("set")
-                          .staggerChildren(
-                              {.eachMs = (float)kStagger.count(),
-                               .durationMs = (float)kEnter.count()})
-                          .child(card("left", -40.0f))
-                          .child(card("right", 40.0f)));
+  return world::Frame(
+      world::Element()
+          .key("set")
+          .staggerChildren({.eachMs = (float)kStagger.count(),
+                            .durationMs = (float)kEnter.count()})
+          .child(card("left", -40.0f))
+          .child(card("right", 40.0f)));
 }
 
 /** A sketch that bakes the entering card at three moments: before it

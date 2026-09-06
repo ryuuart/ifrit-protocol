@@ -712,4 +712,3 @@ TEST(TextVertical, ASidelineCanTakeTheOtherSideOfTheColumn) {
   EXPECT_NEAR(onTheLeft[1], onTheRight[2], onTheRight[2] * 0.25)
       << "the same band, the other side: it must keep its length";
 }
-

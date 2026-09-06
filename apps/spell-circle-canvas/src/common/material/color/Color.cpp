@@ -21,8 +21,7 @@ Color hsv(float hueDegrees, float saturation, float value, float a) {
   const float sector = h / 60.0f;
   // The ramp across one sixth of the wheel: full at the two primaries
   // that bound the sector, zero at the secondary between them.
-  const float ramp =
-      chroma * (1.0f - std::abs(std::fmod(sector, 2.0f) - 1.0f));
+  const float ramp = chroma * (1.0f - std::abs(std::fmod(sector, 2.0f) - 1.0f));
   const float base = v - chroma;
   float r = 0, g = 0, b = 0;
   switch ((int)sector) {

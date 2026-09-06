@@ -49,8 +49,8 @@ UBreakIterator* targetIterator(BreakIteratorPtr& iterator,
   if (iterator && iteratorLocale != locale) iterator.reset();
   if (!iterator) {
     iteratorLocale.assign(locale);
-    iterator.reset(ubrk_open(type, iteratorLocale.c_str(), units, length,
-                             &status));
+    iterator.reset(
+        ubrk_open(type, iteratorLocale.c_str(), units, length, &status));
   } else {
     ubrk_setText(iterator.get(), units, length, &status);
   }
@@ -175,8 +175,7 @@ bool isWhitespace(char32_t codePoint) {
 }
 
 bool isHardLineBreak(char16_t unit) {
-  switch (u_getIntPropertyValue(static_cast<UChar32>(unit),
-                                UCHAR_LINE_BREAK)) {
+  switch (u_getIntPropertyValue(static_cast<UChar32>(unit), UCHAR_LINE_BREAK)) {
     case U_LB_MANDATORY_BREAK:  // VT, FF, LINE and PARAGRAPH SEPARATOR
     case U_LB_CARRIAGE_RETURN:
     case U_LB_LINE_FEED:
@@ -303,10 +302,10 @@ void itemize(std::u16string_view text, std::vector<ScriptRun>& runs) {
 // ── Line-break classes ─────────────────────────────────────────────────
 
 std::vector<char32_t> lineStartProhibited() {
-  return codePointsInLineBreakClasses(
-      {U_LB_CLOSE_PUNCTUATION, U_LB_CLOSE_PARENTHESIS, U_LB_NONSTARTER,
-       U_LB_CONDITIONAL_JAPANESE_STARTER, U_LB_EXCLAMATION,
-       U_LB_INFIX_NUMERIC});
+  return codePointsInLineBreakClasses({U_LB_CLOSE_PUNCTUATION,
+                                       U_LB_CLOSE_PARENTHESIS, U_LB_NONSTARTER,
+                                       U_LB_CONDITIONAL_JAPANESE_STARTER,
+                                       U_LB_EXCLAMATION, U_LB_INFIX_NUMERIC});
 }
 
 std::vector<char32_t> lineEndProhibited() {
@@ -412,9 +411,8 @@ void graphemeBoundaries(std::u16string_view text,
   boundaries.push_back(0);
   static thread_local BreakIteratorPtr graphemeIterator;
   static thread_local std::string graphemeIteratorLocale;
-  if (UBreakIterator* iterator =
-          targetIterator(graphemeIterator, graphemeIteratorLocale,
-                         UBRK_CHARACTER, text))
+  if (UBreakIterator* iterator = targetIterator(
+          graphemeIterator, graphemeIteratorLocale, UBRK_CHARACTER, text))
     collectBoundaries(iterator, boundaries);
   const uint32_t textLength = static_cast<uint32_t>(text.size());
   if (boundaries.back() != textLength) boundaries.push_back(textLength);
@@ -425,9 +423,8 @@ std::vector<uint32_t> wordBoundaries(std::u16string_view text) {
   boundaries.push_back(0);
   static thread_local BreakIteratorPtr wordIterator;
   static thread_local std::string wordIteratorLocale;
-  if (UBreakIterator* iterator = targetIterator(wordIterator,
-                                                wordIteratorLocale, UBRK_WORD,
-                                                text))
+  if (UBreakIterator* iterator =
+          targetIterator(wordIterator, wordIteratorLocale, UBRK_WORD, text))
     collectBoundaries(iterator, boundaries);
   const uint32_t textLength = static_cast<uint32_t>(text.size());
   if (boundaries.back() != textLength) boundaries.push_back(textLength);

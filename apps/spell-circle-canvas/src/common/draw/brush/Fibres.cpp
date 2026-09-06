@@ -2,13 +2,13 @@
  * The fibre tip: parallel hairs along the stroke, each intermittently dry.
  */
 
-#include "DabStyle.h"
-#include "Executors.h"
-
 #include <sigildraw/Pen.h>
 
 #include <algorithm>
 #include <cmath>
+
+#include "DabStyle.h"
+#include "Executors.h"
 
 namespace sigil::draw::brush {
 

@@ -24,10 +24,9 @@ TEST(Fields, TraceFollowsAnyCallableDirectionValue) {
   EXPECT_NEAR(path.back().position.fY, 3.0f, 1e-5f);
 
   // A quarter turn clockwise on the y-down canvas heads down the page.
-  const brush::Stroke down = brush::trace(
-      SkPoint::Make(0, 0), 10.0f, 5.0f, 0.0f, [](SkPoint, float) {
-        return HALF_PI;
-      });
+  const brush::Stroke down =
+      brush::trace(SkPoint::Make(0, 0), 10.0f, 5.0f, 0.0f,
+                   [](SkPoint, float) { return HALF_PI; });
   EXPECT_NEAR(down.back().position.fY, 10.0f, 1e-5f);
 }
 

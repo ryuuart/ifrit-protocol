@@ -255,8 +255,8 @@ struct Anchored {
     // One tether per axis, because the two axes may be measured from
     // different rects; each answers for its own coordinate. `at` is left
     // at the object's top-left, which is what lands on the point.
-    const Tether hang{.on = anchored.at, .at = {0.0f, 0.0f},
-                      .offset = anchored.offset};
+    const Tether hang{
+        .on = anchored.at, .at = {0.0f, 0.0f}, .offset = anchored.offset};
     const float left = hang.place(across, SkSize::MakeEmpty()).left();
     const float top = hang.place(down, SkSize::MakeEmpty()).top();
     overlay.child(box()

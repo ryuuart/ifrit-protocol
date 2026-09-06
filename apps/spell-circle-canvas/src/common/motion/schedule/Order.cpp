@@ -6,9 +6,8 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilmotion/schedule/Order.h>
 
-#include <boost/unordered/unordered_flat_set.hpp>
-
 #include <algorithm>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <cstdio>
 #include <limits>
@@ -102,10 +101,9 @@ void cascadeRanks(const std::vector<float>& keys, uint32_t count,
     const float k = keys[i];
     return std::isfinite(k) ? k : std::numeric_limits<float>::max();
   };
-  std::stable_sort(indices.begin(), indices.end(),
-                   [&keyOf](uint32_t a, uint32_t b) {
-                     return keyOf(a) < keyOf(b);
-                   });
+  std::stable_sort(
+      indices.begin(), indices.end(),
+      [&keyOf](uint32_t a, uint32_t b) { return keyOf(a) < keyOf(b); });
 
   // DENSE: a slot is how many distinct smaller keys there are, so equal
   // keys open together and the next distinct key is the next slot.

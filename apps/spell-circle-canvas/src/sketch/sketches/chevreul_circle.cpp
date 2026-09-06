@@ -385,16 +385,20 @@ inline sk_sp<SkTypeface> mono() {
 // The plate's four registers, each one library `type()` call: the roman it
 // is set in, its bold, its italic, and the mono the numbers run in.
 inline weave::TextStyle sr(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle({.face = serif(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle(
+      {.face = serif(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle sbd(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle({.face = serifBold(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle(
+      {.face = serifBold(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle it(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle({.face = serifIt(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle(
+      {.face = serifIt(), .size = sz, .color = c, .track = tr});
 }
 inline weave::TextStyle mn(float sz, SkColor4f c, float tr = 0) {
-  return weave::textStyle({.face = mono(), .size = sz, .color = c, .track = tr});
+  return weave::textStyle(
+      {.face = mono(), .size = sz, .color = c, .track = tr});
 }
 
 inline std::u8string U(const std::string& s) { return toU8(s); }
@@ -787,9 +791,9 @@ struct ChevreulCircle : sketch::Sketch {
       // snapshot() needs, draws it at an explicit canvas size and hands the
       // pixels over. N32 rather than the float default, because the claim
       // is about the 8-bit value a viewer's screen is handed.
-      const test::Raster r = test::rasterize(
-          std::move(strip), *ctx.fonts, {(int)(kBandW * kBandN), 32},
-          kN32_SkColorType);
+      const test::Raster r =
+          test::rasterize(std::move(strip), *ctx.fonts,
+                          {(int)(kBandW * kBandN), 32}, kN32_SkColorType);
       if (r.valid()) {
         for (int b = 0; b < kBandN; ++b) {
           const int x0 = (int)(b * kBandW);
@@ -906,13 +910,13 @@ struct ChevreulCircle : sketch::Sketch {
       // and the same one check 10 makes against the staircase. N32 rather
       // than the float default: the claim is about the 8-bit value a
       // viewer's screen is handed.
-      const test::Raster r = test::rasterize(
-          box()
-              .width(Dim(32))
-              .height(Dim(32))
-              .fill(Fill::color(gamme[9]))
-              .effect(Effect::recipe(ocio::exponent(2.2f))),
-          *ctx.fonts, {32, 32}, kN32_SkColorType);
+      const test::Raster r =
+          test::rasterize(box()
+                              .width(Dim(32))
+                              .height(Dim(32))
+                              .fill(Fill::color(gamme[9]))
+                              .effect(Effect::recipe(ocio::exponent(2.2f))),
+                          *ctx.fonts, {32, 32}, kN32_SkColorType);
       if (r.valid()) {
         const SkColor4f got = r.at(16, 16);
         v.ocioSample =
@@ -1127,9 +1131,9 @@ struct ChevreulCircle : sketch::Sketch {
     g.child(kit::disc(kC, rMed + 3)
                 .shape(shapes::circle())
                 .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                         {{0.0f, hex(0x8C8578, 0.0f)},
-                                          {0.72f, hex(0x8C8578, 0.0f)},
-                                          {1.0f, hex(0x8C8578, 0.22f)}})));
+                                      {{0.0f, hex(0x8C8578, 0.0f)},
+                                       {0.72f, hex(0x8C8578, 0.0f)},
+                                       {1.0f, hex(0x8C8578, 0.22f)}})));
     g.child(kit::disc(kC, rMed)
                 .shape(shapes::circle())
                 .fill(Fill::color(kPaper))
@@ -1221,28 +1225,27 @@ struct ChevreulCircle : sketch::Sketch {
       }
       // the cell divider, on the sector boundary
       const float bd = sectorStart(n) * 3.14159265f / 180.0f;
-      g.child(box()
-                  .left(Dim(kC.fX - kRLimbOut))
-                  .top(Dim(kC.fY - kRLimbOut))
-                  .width(Dim(2 * kRLimbOut))
-                  .height(Dim(2 * kRLimbOut))
-                  .key("div" + std::to_string(n))
-                  .fill(Fill::none())
-                  .shape(keyedShape(bd,
-                                    [bd](SkSize s) {
-                                      const float cx = s.width() * 0.5f,
-                                                  cy = s.height() * 0.5f;
-                                      SkPathBuilder p;
-                                      p.moveTo(arrange::onEllipse(
-                                          {cx, cy},
-                                          {kRLimbIn, kRLimbIn}, bd));
-                                      p.lineTo(arrange::onEllipse(
-                                          {cx, cy},
-                                          {kRLimbOut, kRLimbOut}, bd));
-                                      return p.detach();
-                                    }))
-                  .stroke(stroke(0.7f, Fill::color(kRule)))
-                  .opacity(bind(&demo).window(0.18f, 0.21f)));
+      g.child(
+          box()
+              .left(Dim(kC.fX - kRLimbOut))
+              .top(Dim(kC.fY - kRLimbOut))
+              .width(Dim(2 * kRLimbOut))
+              .height(Dim(2 * kRLimbOut))
+              .key("div" + std::to_string(n))
+              .fill(Fill::none())
+              .shape(keyedShape(bd,
+                                [bd](SkSize s) {
+                                  const float cx = s.width() * 0.5f,
+                                              cy = s.height() * 0.5f;
+                                  SkPathBuilder p;
+                                  p.moveTo(arrange::onEllipse(
+                                      {cx, cy}, {kRLimbIn, kRLimbIn}, bd));
+                                  p.lineTo(arrange::onEllipse(
+                                      {cx, cy}, {kRLimbOut, kRLimbOut}, bd));
+                                  return p.detach();
+                                }))
+              .stroke(stroke(0.7f, Fill::color(kRule)))
+              .opacity(bind(&demo).window(0.18f, 0.21f)));
     }
 
     // ---- the index ring: NOT ON THE PLATE ---------------------------
@@ -1542,8 +1545,7 @@ struct ChevreulCircle : sketch::Sketch {
                          .key(kit::formatted("%s%d", keyBase, b))
                          .fill(Fill::color(ramp[(size_t)b]));
       if (graded)
-        band.effect(Effect::recipe(ocio::exponent(2.2f)))
-            .cache(Cache::Texture);
+        band.effect(Effect::recipe(ocio::exponent(2.2f))).cache(Cache::Texture);
       if (withGap)
         band.translateX(bind(&demo)
                             .window(0.30f, 0.50f)
@@ -1638,9 +1640,8 @@ struct ChevreulCircle : sketch::Sketch {
     }
     g.child(std::move(lattice));
     for (int i = 0; i < 12; ++i) {
-      const SkRect patch =
-          arrange::cellRect(arrange::cellAt((size_t)i, 4), {cw - 3, chh - 3},
-                            {3, 3}, {gx, gy});
+      const SkRect patch = arrange::cellRect(
+          arrange::cellAt((size_t)i, 4), {cw - 3, chh - 3}, {3, 3}, {gx, gy});
       g.child(at(patch.fLeft + (cw - 3 - 30) * 0.5f,
                  patch.fTop + (chh - 3 - 30) * 0.5f, 30, 30)
                   .fill(Fill::color(gamme[14])));  // Chevreul's grey tone 15
@@ -1693,18 +1694,17 @@ struct ChevreulCircle : sketch::Sketch {
                   x0, ty0 - 22, W));
     for (size_t i = 0; i < rows; ++i) {
       const measure::Check& c = verdict.rows[i];
-      const SkColor4f ink =
-          !c.judged() ? kInk2 : (c.pass ? kInk : kRed);
+      const SkColor4f ink = !c.judged() ? kInk2 : (c.pass ? kInk : kRed);
       const float lo = 0.30f + 0.034f * (float)i;
       g.child(at(x0, ty0 + (float)i * lh, W - 20, lh)
                   .key("vr" + std::to_string(i))
                   .opacity(bind(&demo).window(lo, lo + 0.012f))
                   .child(text(U(c.line(38, 8)), mn(8.0f, ink, 0.05f))));
     }
-    g.child(label(
-        "§38: “do we know, at the present day, of two coloured "
-        "bodies … Certainly not!”",
-        it(8.5f, kInk2), x0, ty0 + (float)rows * lh + 12, W));
+    g.child(
+        label("§38: “do we know, at the present day, of two coloured "
+              "bodies … Certainly not!”",
+              it(8.5f, kInk2), x0, ty0 + (float)rows * lh + 12, W));
     return g;
   }
 
@@ -1779,8 +1779,8 @@ struct ChevreulCircle : sketch::Sketch {
         stops.push_back({p, C(17 - j)});
       }
       stops.push_back({1.0f, C(18)});
-      sweepRing = Paint::sweep({kRSweepOut, kRSweepOut}, std::move(stops),
-                                  0.0f, 360.0f);
+      sweepRing = Paint::sweep({kRSweepOut, kRSweepOut}, std::move(stops), 0.0f,
+                               360.0f);
     }
 
     verify(ctx);

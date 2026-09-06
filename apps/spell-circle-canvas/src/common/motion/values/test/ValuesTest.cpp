@@ -76,10 +76,10 @@ TEST(Values, AShapedCurveComparesEqualAtTheSameSettings) {
   // back, so two calls at the same argument are the same curve.
   EXPECT_TRUE(easeEqual(ease::outBack(), ease::outBack()));
   EXPECT_FALSE(easeEqual(ease::outBack(1.7f), ease::outBack(2.4f)));
-  EXPECT_TRUE(easeEqual(ease::outElastic(1.0f, 0.3f),
-                        ease::outElastic(1.0f, 0.3f)));
-  EXPECT_FALSE(easeEqual(ease::outElastic(1.0f, 0.3f),
-                         ease::outElastic(1.0f, 0.5f)));
+  EXPECT_TRUE(
+      easeEqual(ease::outElastic(1.0f, 0.3f), ease::outElastic(1.0f, 0.3f)));
+  EXPECT_FALSE(
+      easeEqual(ease::outElastic(1.0f, 0.3f), ease::outElastic(1.0f, 0.5f)));
   // A CSS curve is its four control numbers.
   EXPECT_TRUE(easeEqual(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f),
                         ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)));

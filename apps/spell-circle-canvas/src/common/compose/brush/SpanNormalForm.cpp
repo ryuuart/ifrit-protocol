@@ -15,6 +15,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/pathops/SkPathOps.h>
+#include <sigilcore/compute/Intervals.h>
 
 #include <algorithm>
 #include <cmath>  // std::isfinite — the geometry::path::profileOffset non-finite guard
@@ -24,7 +25,6 @@
 #include "SpanArithmetic.h"
 #include "SpanContours.h"
 #include "sigilgeometry/path/Contour.h"
-#include <sigilcore/compute/Intervals.h>
 
 namespace sigil::compose {
 

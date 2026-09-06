@@ -36,12 +36,13 @@ Palette palette(const sk_sp<SkImage>& image, const PaletteOptions& options,
       SkImageInfo::Make(readWidth, readHeight, kRGBA_F32_SkColorType,
                         kUnpremul_SkAlphaType, SkColorSpace::MakeSRGB());
   std::vector<float> channels((size_t)readWidth * (size_t)readHeight * 4);
-  const SkPixmap pixmap(info, channels.data(), (size_t)readWidth * 4 * sizeof(float));
-  const bool read =
-      readWidth == width && readHeight == height
-          ? image->readPixels(nullptr, pixmap, 0, 0)
-          : image->scalePixels(pixmap, SkSamplingOptions(SkFilterMode::kLinear,
-                                                         SkMipmapMode::kLinear));
+  const SkPixmap pixmap(info, channels.data(),
+                        (size_t)readWidth * 4 * sizeof(float));
+  const bool read = readWidth == width && readHeight == height
+                        ? image->readPixels(nullptr, pixmap, 0, 0)
+                        : image->scalePixels(
+                              pixmap, SkSamplingOptions(SkFilterMode::kLinear,
+                                                        SkMipmapMode::kLinear));
   if (!read) return {};
 
   std::vector<Color> colors((size_t)readWidth * (size_t)readHeight);

@@ -165,11 +165,10 @@ std::array<float, 4> uniform(const Lobe& lobe) {
 mskia::Paint glass(const sk_sp<SkRuntimeEffect>& effect,
                    const mskia::Paint& source,
                    const std::array<Lobe, kLobeCount>& lobes) {
-  mskia::Paint paint =
-      mskia::Paint::sksl(effect,
-                         {{"uThreshold", kThreshold}, {"uStrength", 42.0f}})
-          .child("uSource", source)
-          .quantizeTime(30.0f);
+  mskia::Paint paint = mskia::Paint::sksl(effect, {{"uThreshold", kThreshold},
+                                                   {"uStrength", 42.0f}})
+                           .child("uSource", source)
+                           .quantizeTime(30.0f);
   for (int index = 0; index < kLobeCount; ++index)
     paint =
         paint.uniform("uBall" + std::to_string(index), uniform(lobes[index]));

@@ -2,8 +2,6 @@
  * The grain: a tiled texture turned into the coverage a mark keeps.
  */
 
-#include "Executors.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkMatrix.h>
@@ -13,6 +11,8 @@
 
 #include <algorithm>
 #include <utility>
+
+#include "Executors.h"
 
 namespace sigil::draw::brush {
 
@@ -25,10 +25,26 @@ namespace {
 sk_sp<SkColorFilter> coverage(float depth) {
   const float taken = std::clamp(depth, 0.0f, 1.0f);
   const float matrix[20] = {
-      0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0,
-      0.2126f * taken, 0.7152f * taken, 0.0722f * taken, 0, 1.0f - taken,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.2126f * taken,
+      0.7152f * taken,
+      0.0722f * taken,
+      0,
+      1.0f - taken,
   };
   return SkColorFilters::Matrix(matrix);
 }

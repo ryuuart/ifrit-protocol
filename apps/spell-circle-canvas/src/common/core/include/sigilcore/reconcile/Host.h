@@ -40,14 +40,15 @@ using DescriptionValue =
  *    children, or does the host fill them by another path (a slot)?
  *  - `children(description)` — the child descriptions, as a sized range whose
  *    elements `descriptionOf()` reads a handle off.
- *  - `memoOf(description)` — the description's Memo, or null when it is not one.
+ *  - `memoOf(description)` — the description's Memo, or null when it is not
+ * one.
  *  - `produce(memo)` — run the memo and read the description it made.
  *
  *  Acting on a node:
- *  - `create(description, parent, ordinal, count)` — a fresh node for `description`
- *    under `parent`, patched once through the reconciler. `ordinal` is
- *    the node's order among the children created in the same patch and
- *    `count` the parent's child count, for a host that staggers mounts.
+ *  - `create(description, parent, ordinal, count)` — a fresh node for
+ * `description` under `parent`, patched once through the reconciler. `ordinal`
+ * is the node's order among the children created in the same patch and `count`
+ * the parent's child count, for a host that staggers mounts.
  *  - `onPatched(node, prev, next)` — the description changed: `prev` is
  *    null on the first patch. The node and whatever it retains SURVIVE an
  *    identity change; a kind that cannot carry the old state over
@@ -64,20 +65,25 @@ using DescriptionValue =
  *    `frame`. The host retires it now or queues it; nothing in the
  *    reconciler holds it after this call. */
 template <class H, class Node, class Description>
-concept ReconcileHost = requires(
-    H& host, Node& node, const Node& cnode, Node* parent, const Description& description,
-    std::unique_ptr<Node> owned, size_t n, uint64_t frame) {
-  { host.keyOf(description) } -> std::convertible_to<std::string_view>;
-  { host.equal(description, description) } -> std::convertible_to<bool>;
-  { host.reconcilesChildren(description) } -> std::convertible_to<bool>;
-  { host.children(description).size() } -> std::convertible_to<size_t>;
-  { host.memoOf(description) == nullptr } -> std::convertible_to<bool>;
-  { host.create(description, parent, n, n) } -> std::same_as<std::unique_ptr<Node>>;
-  host.onPatched(node, static_cast<const DescriptionValue<Description>*>(nullptr), *description);
-  host.reorder(node, true);
-  { host.remountRequired(cnode, cnode) } -> std::convertible_to<bool>;
-  host.invalidate(node);
-  host.destroy(std::move(owned), frame);
-};
+concept ReconcileHost =
+    requires(H& host, Node& node, const Node& cnode, Node* parent,
+             const Description& description, std::unique_ptr<Node> owned,
+             size_t n, uint64_t frame) {
+      { host.keyOf(description) } -> std::convertible_to<std::string_view>;
+      { host.equal(description, description) } -> std::convertible_to<bool>;
+      { host.reconcilesChildren(description) } -> std::convertible_to<bool>;
+      { host.children(description).size() } -> std::convertible_to<size_t>;
+      { host.memoOf(description) == nullptr } -> std::convertible_to<bool>;
+      {
+        host.create(description, parent, n, n)
+      } -> std::same_as<std::unique_ptr<Node>>;
+      host.onPatched(node,
+                     static_cast<const DescriptionValue<Description>*>(nullptr),
+                     *description);
+      host.reorder(node, true);
+      { host.remountRequired(cnode, cnode) } -> std::convertible_to<bool>;
+      host.invalidate(node);
+      host.destroy(std::move(owned), frame);
+    };
 
 }  // namespace sigil::core

@@ -89,8 +89,8 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -161,10 +161,10 @@ inline SkColor4f ringColor(data::State s) {
 inline sigil::weave::TextStyle type(float size, SkColor4f color,
                                     float tracking = 0, bool italic = false) {
   return weave::textStyle({.size = size,
-                               .color = color,
-                               .track = tracking,
-                               .slant = italic ? -10.0f : 0.0f,
-                               .color8 = true});
+                           .color = color,
+                           .track = tracking,
+                           .slant = italic ? -10.0f : 0.0f,
+                           .color8 = true});
 }
 
 /** Full-circle outline for orbit guide rings, centered in the node. */
@@ -195,12 +195,12 @@ inline std::function<SkPath(SkSize)> notchRing(int count, float innerFrac,
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
     const float half = s.width() * 0.5f;
     for (int i = 0; i < count; ++i) {
-      const float a = arrange::along(0.0f, 6.2831853f, (size_t)i,
-                                     (size_t)count, arrange::Turn::Closed);
-      const SkPoint inner = arrange::onEllipse(
-          {cx, cy}, {half * innerFrac, half * innerFrac}, a);
-      const SkPoint outer = arrange::onEllipse(
-          {cx, cy}, {half * outerFrac, half * outerFrac}, a);
+      const float a = arrange::along(0.0f, 6.2831853f, (size_t)i, (size_t)count,
+                                     arrange::Turn::Closed);
+      const SkPoint inner =
+          arrange::onEllipse({cx, cy}, {half * innerFrac, half * innerFrac}, a);
+      const SkPoint outer =
+          arrange::onEllipse({cx, cy}, {half * outerFrac, half * outerFrac}, a);
       b.moveTo(inner).lineTo(outer);
     }
     return b.detach();
@@ -346,10 +346,11 @@ struct PassiveTree final : sketch::Sketch {
     }
     parent.child(std::move(frame));
     // the inner ring and the notch rosette that make it read "notable"
-    parent.child(pt::socket(
-        nullptr, at, dia - 11,
-        {.fill = {0, 0, 0, 0}, .borderWidth = 1.6f, .borderColor = mskia::toColor(ring)},
-        nullptr, 4));
+    parent.child(pt::socket(nullptr, at, dia - 11,
+                            {.fill = {0, 0, 0, 0},
+                             .borderWidth = 1.6f,
+                             .borderColor = mskia::toColor(ring)},
+                            nullptr, 4));
     parent.child(
         box()
             .width(Dim(dia + 10))
@@ -416,18 +417,17 @@ struct PassiveTree final : sketch::Sketch {
                     .glowColor = {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB,
                                   alloc ? 0.42f : 0.12f}},
                    nullptr, 2));
-    parent.child(
-        box()
-            .width(Dim(dia))
-            .height(Dim(dia))
-            .centerAt(at)
-            .key(nodeKey(i))
-            .shape(shapes::polygon(8, 22.5f))
-            .fill(Paint::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
-                                   {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
-                                    {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
-            .stroke(stroke(2.8f, Fill::color(ring)))
-            .zIndex(3));
+    parent.child(box()
+                     .width(Dim(dia))
+                     .height(Dim(dia))
+                     .centerAt(at)
+                     .key(nodeKey(i))
+                     .shape(shapes::polygon(8, 22.5f))
+                     .fill(Paint::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
+                                         {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
+                                          {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
+                     .stroke(stroke(2.8f, Fill::color(ring)))
+                     .zIndex(3));
     parent.child(box()
                      .width(Dim(dia - 11))
                      .height(Dim(dia - 11))
@@ -498,10 +498,10 @@ struct PassiveTree final : sketch::Sketch {
               // rosettes then float on flat charcoal and the tree loses
               // the one cue that says which nodes belong together.
               .fill(Paint::radial({discR, discR}, discR,
-                                     {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
-                                      {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
-                                      {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
-                                      {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
+                                  {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
+                                   {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
+                                   {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
+                                   {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
               .zIndex(0));
       // …and its rim, which is what turns a wash into a plate.
       root.child(
@@ -545,17 +545,16 @@ struct PassiveTree final : sketch::Sketch {
         }
     if (best < 0) return;
     const treedata::Group& g = treedata::kGroups[best];
-    root.child(
-        box()
-            .width(Dim(bestR * 2))
-            .height(Dim(bestR * 2))
-            .centerAt({g.x, g.y})
-            .shape(pt::circleOutline())
-            .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
-                    brush::presets::pulse(
-                        {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.22f},
-                        {1, 1, 1, 0.75f}, 0.72f))
-            .zIndex(2));
+    root.child(box()
+                   .width(Dim(bestR * 2))
+                   .height(Dim(bestR * 2))
+                   .centerAt({g.x, g.y})
+                   .shape(pt::circleOutline())
+                   .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
+                           brush::presets::pulse({pt::kHalo.fR, pt::kHalo.fG,
+                                                  pt::kHalo.fB, 0.22f},
+                                                 {1, 1, 1, 0.75f}, 0.72f))
+                   .zIndex(2));
   }
 
   /** Every link is a rail. Same-group/same-orbit pairs get that group's
@@ -639,19 +638,19 @@ struct PassiveTree final : sketch::Sketch {
     for (int n : path) anchors.push_back(Anchor{nodeKey(n)});
     // Straight router: the spine crosses groups, and routers::orbit only
     // curves same-radius pairs anyway — a single focus would be a lie.
-    root.child(rail(anchors)
-                   .inset(0)
-                   .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {900ms})),
-                           brush::presets::rope(2, pt::kRopeScale))
-                   .zIndex(2));
     root.child(
         rail(anchors)
             .inset(0)
-            .stroke(spans::range(&pulseS, &pulseE),
-                    brush::presets::pulse(
-                        {pt::kHalo.fR, pt::kHalo.fG, pt::kHalo.fB, 0.35f},
-                        {1, 1, 1, 0.9f}, 1.25f))
+            .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {900ms})),
+                    brush::presets::rope(2, pt::kRopeScale))
             .zIndex(2));
+    root.child(rail(anchors)
+                   .inset(0)
+                   .stroke(spans::range(&pulseS, &pulseE),
+                           brush::presets::pulse({pt::kHalo.fR, pt::kHalo.fG,
+                                                  pt::kHalo.fB, 0.35f},
+                                                 {1, 1, 1, 0.9f}, 1.25f))
+                   .zIndex(2));
   }
 
   /** Matched nodes get a breathing green ring; the selected node gets a
@@ -712,8 +711,8 @@ struct PassiveTree final : sketch::Sketch {
             .gap(0)
             .corners({3})
             .fill(Paint::linear({0, 0}, {0, 170},
-                                   {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
-                                    {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}}))
+                                {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
+                                 {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}}))
             .background(styles::dropShadow({0, 0, 0, 0.6f}, {0, 6}, 14))
             .foreground(stroke(1.2f, Fill::color({pt::kGold.fR, pt::kGold.fG,
                                                   pt::kGold.fB, 0.45f})))
@@ -747,7 +746,7 @@ struct PassiveTree final : sketch::Sketch {
                          .margin(0, 6, 0, 0)
                          .corners({1.5f})
                          .fill(Paint::solid({pt::kRimLit.fR, pt::kRimLit.fG,
-                                                pt::kRimLit.fB, 0.9f})))
+                                             pt::kRimLit.fB, 0.9f})))
               .child(
                   text(toU8(line), pt::type(12, {0.62f, 0.68f, 0.90f, 1}, 0.2f))
                       .grow(1)));

@@ -162,9 +162,9 @@ TEST(Solids, ABoxTakesColourOnlyWhenItIsAskedFor) {
   // solid on the shelf.
   EXPECT_TRUE(box({0, 0, 0}, {1, 1, 1}).colors.empty());
 
-  const Mesh shaded = box({0, 0, 0}, {1, 1, 1},
-                          {.tint = {1.0f, 0.5f, 0.25f, 1.0f},
-                           .sideShade = 0.5f});
+  const Mesh shaded =
+      box({0, 0, 0}, {1, 1, 1},
+          {.tint = {1.0f, 0.5f, 0.25f, 1.0f}, .sideShade = 0.5f});
   ASSERT_EQ(shaded.colors.size(), shaded.positions.size());
   // The four side faces darken and the two horizontal ones do not, so the
   // top of a block reads as its own colour and the walls fall away.

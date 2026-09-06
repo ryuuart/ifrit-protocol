@@ -52,9 +52,9 @@ glm::mat4 Camera::viewProjection(SkSize viewport) const {
 }
 
 glm::mat4 Camera::clipProjection(SkISize extent) const {
-  const float aspect = extent.height() > 0 ? (float)extent.width() /
-                                                 (float)extent.height()
-                                           : 1.0f;
+  const float aspect = extent.height() > 0
+                           ? (float)extent.width() / (float)extent.height()
+                           : 1.0f;
   glm::mat4 depth(1.0f);
   depth[2][2] = -0.5f;
   depth[3][2] = 0.5f;
@@ -76,8 +76,7 @@ SkSize Camera::extentAt(float distance, float aspect) const {
   return {width, height};
 }
 
-std::optional<SkPoint> Camera::project(glm::vec3 point,
-                                       SkSize viewport) const {
+std::optional<SkPoint> Camera::project(glm::vec3 point, SkSize viewport) const {
   // In front of the eye is negative z in a right-handed view. The
   // perspective divide answers for a little way behind the eye plane as
   // well, and the answer is the point mirrored through the middle of the

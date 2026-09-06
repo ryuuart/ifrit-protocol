@@ -220,8 +220,7 @@ void print(const Report& report) {
  *  has to give the device its sessions back before the next arm asks. */
 class Harness {
  public:
-  Harness(std::string arm, bool asynchronous, int defaultStreams)
-      : m_asynchronous(asynchronous) {
+  Harness(std::string arm, bool asynchronous, int defaultStreams) : m_asynchronous(asynchronous) {
     const Settings& options = settings();
     m_report.arm = std::move(arm);
     m_report.streams = options.streams > 0 ? options.streams : defaultStreams;
@@ -353,8 +352,8 @@ class Harness {
       // Fresh is the frame the clock is inside, so the last frame of the
       // previous loop is stale the moment the clock wraps to its start.
       if (videoFrame && videoFrame.presentationSeconds <= seconds &&
-          seconds <= videoFrame.presentationSeconds + videoFrame.durationSeconds +
-                         1.0 / kSourceRate)
+          seconds <=
+              videoFrame.presentationSeconds + videoFrame.durationSeconds + 1.0 / kSourceRate)
         ++m_report.fresh;
     }
     ++m_clock;
@@ -426,9 +425,7 @@ void BM_RenderThread(benchmark::State& state) {
 }
 BENCHMARK(BM_RenderThread);
 
-void BM_WorkerPool(benchmark::State& state) {
-  run(state, "worker-pool", true, kWorkerPoolStreams);
-}
+void BM_WorkerPool(benchmark::State& state) { run(state, "worker-pool", true, kWorkerPoolStreams); }
 BENCHMARK(BM_WorkerPool)->UseManualTime();
 
 }  // namespace

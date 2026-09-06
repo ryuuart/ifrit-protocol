@@ -174,10 +174,11 @@ struct PopBillboards final : sketch::Sketch {
                       {.cells =
                            {cell("pop::Builder::billboards(canvas, "
                                  "camera, viewport)",
-                                 kit::formatted("%d points \xc2\xb7 size and tint "
-                                             "lanes picked up unnamed \xc2\xb7 "
-                                             "the default soft dot, additive",
-                                             kMotes),
+                                 kit::formatted(
+                                     "%d points \xc2\xb7 size and tint "
+                                     "lanes picked up unnamed \xc2\xb7 "
+                                     "the default soft dot, additive",
+                                     kMotes),
                                  [](SkCanvas& canvas, SkSize size) {
                                    points::BillboardStyle style;
                                    style.size = 2.6f;
@@ -217,41 +218,44 @@ struct PopBillboards final : sketch::Sketch {
                                                       style);
                                  })},
                        .gap = 14}),
-                  kit::cells(
-                      {.cells =
-                           {cell("no Relax",
-                                 kit::formatted("noise(%.0f, 0.075) straight off "
-                                             "the loop scatter \xc2\xb7 "
-                                             "consecutive points jump, so a "
-                                             "frame threaded through them "
-                                             "tears",
-                                             (double)kNoise),
-                                 [](SkCanvas& canvas, SkSize size) {
-                                   kinked().billboards(canvas, stage(), size,
-                                                       strandStyle());
-                                 }),
-                            cell("smooth(0.5, 3)",
-                                 "Relax{.strength = 0.5, .iterations = "
-                                 "3} \xc2\xb7 each point eases toward "
-                                 "its chain-order neighbours' midpoint",
-                                 [](SkCanvas& canvas, SkSize size) {
-                                   kinked().smooth(0.5f, 3).billboards(
-                                       canvas, stage(), size, strandStyle());
-                                 }),
-                            cell("smooth(0.9, 12)",
-                                 kit::formatted("strength 0.9 over %d passes "
-                                             "\xc2\xb7 the run is continuous "
-                                             "again \xe2\x80\x94 the "
-                                             "amplitude survives, only the "
-                                             "kinks go",
-                                             kIterations),
-                                 [](SkCanvas& canvas, SkSize size) {
-                                   kinked()
-                                       .smooth(0.9f, kIterations)
-                                       .billboards(canvas, stage(), size,
-                                                   strandStyle());
-                                 })},
-                       .gap = 14})},
+                  kit::cells({.cells =
+                                  {cell("no Relax",
+                                        kit::formatted(
+                                            "noise(%.0f, 0.075) straight off "
+                                            "the loop scatter \xc2\xb7 "
+                                            "consecutive points jump, so a "
+                                            "frame threaded through them "
+                                            "tears",
+                                            (double)kNoise),
+                                        [](SkCanvas& canvas, SkSize size) {
+                                          kinked().billboards(canvas, stage(),
+                                                              size,
+                                                              strandStyle());
+                                        }),
+                                   cell("smooth(0.5, 3)",
+                                        "Relax{.strength = 0.5, .iterations = "
+                                        "3} \xc2\xb7 each point eases toward "
+                                        "its chain-order neighbours' midpoint",
+                                        [](SkCanvas& canvas, SkSize size) {
+                                          kinked().smooth(0.5f, 3).billboards(
+                                              canvas, stage(), size,
+                                              strandStyle());
+                                        }),
+                                   cell("smooth(0.9, 12)",
+                                        kit::formatted(
+                                            "strength 0.9 over %d passes "
+                                            "\xc2\xb7 the run is continuous "
+                                            "again \xe2\x80\x94 the "
+                                            "amplitude survives, only the "
+                                            "kinks go",
+                                            kIterations),
+                                        [](SkCanvas& canvas, SkSize size) {
+                                          kinked()
+                                              .smooth(0.9f, kIterations)
+                                              .billboards(canvas, stage(), size,
+                                                          strandStyle());
+                                        })},
+                              .gap = 14})},
              .column = true,
              .gap = 18})));
   }

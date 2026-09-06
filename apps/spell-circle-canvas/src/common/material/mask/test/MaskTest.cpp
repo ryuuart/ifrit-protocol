@@ -54,9 +54,8 @@ TEST(Mask, ShapesWhatItReads) {
   EXPECT_FLOAT_EQ(fitted.get<float>("high"), 0.75f);
 
   const Texture map = whiteMap();
-  for (const Material& m :
-       {maskMap(map), maskVertexColor(map, 1), maskSlope(map, {0, 1, 0}),
-        maskHeight(map, 0, 1)})
+  for (const Material& m : {maskMap(map), maskVertexColor(map, 1),
+                            maskSlope(map, {0, 1, 0}), maskHeight(map, 0, 1)})
     EXPECT_TRUE(skia::shader(m, {}));
 }
 

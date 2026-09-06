@@ -127,8 +127,8 @@ TEST(Field, ReadsNearValuesAtNearPointsWhichIsWhatMakesItAField) {
     float largest = 0.0f;
     for (int i = 0; i < 20000; ++i) {
       const float x = (float)i * 0.0173f, y = (float)(i % 331) * 0.0431f;
-      largest = std::max(largest,
-                         std::abs(field.at(x, y) - field.at(x + 0.001f, y)));
+      largest =
+          std::max(largest, std::abs(field.at(x, y) - field.at(x + 0.001f, y)));
     }
     // Cellular noise has creases where two feature points are equally
     // near, so its bound is looser than a smooth field's; both are far
@@ -154,9 +154,8 @@ TEST(Field, EachKindStaysInsideTheRangeItsHeaderStates) {
 
 TEST(Field, AddingOctavesChangesTheDetailAndNeverTheRange) {
   for (int octaves : {1, 2, 4, 8}) {
-    const Reach reach =
-        reachOf({.kind = FieldKind::Gradient, .seed = 3, .octaves = octaves},
-                40000);
+    const Reach reach = reachOf(
+        {.kind = FieldKind::Gradient, .seed = 3, .octaves = octaves}, 40000);
     EXPECT_GE(reach.low, -1.0f) << "octaves " << octaves;
     EXPECT_LE(reach.high, 1.0f) << "octaves " << octaves;
   }

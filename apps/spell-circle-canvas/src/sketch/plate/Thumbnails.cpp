@@ -2,8 +2,6 @@
  * The thumbnail store and the CPU still that fills it.
  */
 
-#include <sigilsketch/plate/Thumbnails.h>
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
@@ -15,14 +13,15 @@
 #include <sigilsketch/core/Kind.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
+#include <sigilsketch/plate/Thumbnails.h>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
-#include <fstream>
 #include <cstdint>
 #include <cstdio>
+#include <fstream>
 #include <memory>
 #include <system_error>
 #include <vector>
@@ -242,10 +241,10 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
       image::encodeImage(bitmap.pixmap(), image::Format::Png);
   if (!png || !io::writeBytes(run.out, png->data(), png->size()))
     return ThumbnailOutcome::Failed;
-  pruneThumbnails(run.out.parent_path(),
-                  run.out.stem().string().substr(
-                      0, run.out.stem().string().find(kKeyMark)),
-                  run.out);
+  pruneThumbnails(
+      run.out.parent_path(),
+      run.out.stem().string().substr(0, run.out.stem().string().find(kKeyMark)),
+      run.out);
   return ThumbnailOutcome::Wrote;
 }
 

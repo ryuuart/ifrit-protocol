@@ -248,8 +248,7 @@ TEST_F(DrawSessionFixedStep, TheSimulationRunsAtItsOwnRateWhateverTheDrawRate) {
   EXPECT_EQ(Stepped::steps, 32);  // one second at 32 Hz, drawn at 64
   Stepped::steps = 0;
   std::unique_ptr<Session> slower = kindOf<Stepped>()->open(fonts(), assets());
-  for (int i = 0; i < 16; ++i)
-    slower->frame(*surface->getCanvas(), 1.0 / 16.0);
+  for (int i = 0; i < 16; ++i) slower->frame(*surface->getCanvas(), 1.0 / 16.0);
   EXPECT_EQ(Stepped::steps, 32);  // the same second, drawn at 16
 }
 

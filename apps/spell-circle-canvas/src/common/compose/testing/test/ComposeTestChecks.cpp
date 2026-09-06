@@ -49,8 +49,7 @@ SkPath straightSpine() {
  *  all in ONE path under the nonzero fill. @p pinch narrows the piece at
  *  that step to a third of the width — a defect the size of one step,
  *  which is what a width audit exists to find. */
-SkPath bandAlong(const SkPath& spine, float width, int steps,
-                 int pinch = -1) {
+SkPath bandAlong(const SkPath& spine, float width, int steps, int pinch = -1) {
   SkPathBuilder b;
   SkContourMeasureIter it(spine, false);
   sk_sp<SkContourMeasure> contour = it.next();
@@ -87,8 +86,7 @@ SkPath bandAlong(const SkPath& spine, float width, int steps,
  *  a different measurement — so this stands as the definition the fast
  *  path is held to. */
 test::Coverage byThePath(std::span<const SkPath> pieces, const SkRect& box,
-                         const SkPath* region, int grid,
-                         size_t witnesses = 8) {
+                         const SkPath* region, int grid, size_t witnesses = 8) {
   test::Coverage out;
   if (box.isEmpty() || grid < 2) return out;
   const float dx = box.width() / (float)grid;
@@ -191,8 +189,7 @@ TEST(ComposeChecks, CoverageInsideARegionAnswersWhatThePathsAnswer) {
 
   for (const SkPath* region : {&polygon, &disc}) {
     const test::Coverage got = test::coverage(pieces, *region, 96);
-    expectSameCoverage(
-        byThePath(pieces, region->getBounds(), region, 96), got);
+    expectSameCoverage(byThePath(pieces, region->getBounds(), region, 96), got);
     EXPECT_GT(got.samples, 0);
     EXPECT_LT(got.samples, 96 * 96);  // the region really did exclude some
   }

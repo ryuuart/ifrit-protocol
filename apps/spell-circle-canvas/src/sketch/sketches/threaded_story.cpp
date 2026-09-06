@@ -201,8 +201,7 @@ struct ThreadedStory final : sketch::Sketch {
                    .width(Dim(measure + 28))
                    .height(Dim(s::kFrameH + 96))
                    .child(kit::columns(article, 2, s::kColumnGutter, measure,
-                                       s::kFrameH + 68, column,
-                                       u8"\u2026")));
+                                       s::kFrameH + 68, column, u8"\u2026")));
   }
 
   Element describe() {

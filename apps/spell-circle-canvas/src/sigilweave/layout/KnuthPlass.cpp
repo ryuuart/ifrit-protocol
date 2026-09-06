@@ -237,9 +237,8 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
 
   // Extra width when the line ends on a discretionary (soft-hyphen) break.
   auto hyphenWidthAt = [&](uint32_t breakIndex) -> float {
-    return hyphenating &&
-                   hyphenTakenAt(words, breakIndex, breakIndex == wordCount,
-                                 options)
+    return hyphenating && hyphenTakenAt(words, breakIndex,
+                                        breakIndex == wordCount, options)
                ? words[breakIndex - 1].hyphenGlyph->advance
                : 0.0f;
   };

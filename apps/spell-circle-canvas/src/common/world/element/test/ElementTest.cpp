@@ -130,7 +130,9 @@ const Field kFields[] = {
      [](Element e) { return e.window(0.5f, 0.4f); }},
     {"AnIntensityDial",
      [](Element e) { return e.light(light::point({0, 0, 0})).intensity(2.0f); },
-     [](Element e) { return e.light(light::point({0, 0, 0})).intensity(1.0f); }},
+     [](Element e) {
+       return e.light(light::point({0, 0, 0})).intensity(1.0f);
+     }},
     {"AnEmissionDial",
      [](Element e) {
        return e.light(light::point({0, 0, 0})).emission(1.0f, 1.0f, 1.0f);
@@ -243,7 +245,8 @@ TEST(WorldElement, AnEmitterLaneStandsWhereTheEmitterStands) {
 
   // An emitter with no dials: each row stands at the emitter's own
   // field, so a dropped dial ramps back to the light rather than to one.
-  const light::Light lamp = light::point({0, 0, 0}, {0.2f, 0.4f, 0.8f, 1.0f}, 0.6f);
+  const light::Light lamp =
+      light::point({0, 0, 0}, {0.2f, 0.4f, 0.8f, 1.0f}, 0.6f);
   lanesOf(*Element().light(lamp).node(), lanes);
   EXPECT_EQ(lanes[kIntensity].value, nullptr);
   EXPECT_FLOAT_EQ(lanes[kIntensity].standing, 0.6f);

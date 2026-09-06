@@ -82,9 +82,8 @@ SkBitmap drawnWith(const geometry::mesh::render::Runtime& runtime,
   style.runtime = runtime;
   SkBitmap bitmap = plate();
   SkCanvas canvas(bitmap);
-  geometry::mesh::render::drawMesh(canvas, body(), glm::mat4(1.0f),
-                                   raisedEye(), kViewport,
-                                   style);
+  geometry::mesh::render::drawMesh(canvas, body(), glm::mat4(1.0f), raisedEye(),
+                                   kViewport, style);
   return bitmap;
 }
 
@@ -156,14 +155,13 @@ TEST(Painter, APanelIsTheSamePixelsOnBothExecutors) {
 
   SkBitmap host = plate();
   SkCanvas hostCanvas(host);
-  geometry::mesh::render::drawPanel(
-      hostCanvas, model, raisedEye(), kViewport, content,
-      geometry::mesh::render::Runtime::cpu());
+  geometry::mesh::render::drawPanel(hostCanvas, model, raisedEye(), kViewport,
+                                    content,
+                                    geometry::mesh::render::Runtime::cpu());
 
   SkBitmap device = plate();
   SkCanvas deviceCanvas(device);
-  geometry::mesh::render::drawPanel(deviceCanvas, model,
-                                    raisedEye(), kViewport,
+  geometry::mesh::render::drawPanel(deviceCanvas, model, raisedEye(), kViewport,
                                     content, runtime);
 
   // NOT a tolerance: a panel's content is Skia's to rasterise on either

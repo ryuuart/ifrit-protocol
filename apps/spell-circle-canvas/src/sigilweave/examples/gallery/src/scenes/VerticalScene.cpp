@@ -1,6 +1,8 @@
 // Scene: vertical CJK with ruby, kenten, tate-chu-yoko.
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/query/Query.h>
 
 #include <algorithm>
@@ -8,8 +10,6 @@
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 

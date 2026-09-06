@@ -28,8 +28,7 @@ float closestPair(const Cloud& cloud) {
   float closest = std::numeric_limits<float>::infinity();
   for (size_t i = 0; i < cloud.size(); ++i) {
     const auto other = index.nearestOther(cloud.positions[i], (uint32_t)i);
-    if (!other)
-      continue;
+    if (!other) continue;
     closest = std::min(
         closest, glm::length(cloud.positions[*other] - cloud.positions[i]));
   }
@@ -51,18 +50,15 @@ Cloud at(std::vector<glm::vec3> positions) {
 
 TEST(Pop, RelaxSeparatesTwoPointsToTheRadiusAndStops) {
   const Cloud pair = at({{0, 0, 0}, {1, 0, 0}});
-  const Cloud spread =
-      pop::cook(pop::on(pair).relax(10.0f, 40, 0.5f).chain());
+  const Cloud spread = pop::cook(pop::on(pair).relax(10.0f, 40, 0.5f).chain());
   ASSERT_EQ(spread.size(), 2u);
-  const float apart =
-      glm::length(spread.positions[1] - spread.positions[0]);
+  const float apart = glm::length(spread.positions[1] - spread.positions[0]);
   // Two points inside each other's radius push each other out of it and
   // then see nothing at all, so the separation settles AT the radius
   // rather than growing without bound.
   EXPECT_NEAR(apart, 10.0f, 0.5f);
 
-  const Cloud again =
-      pop::cook(pop::on(spread).relax(10.0f, 40, 0.5f).chain());
+  const Cloud again = pop::cook(pop::on(spread).relax(10.0f, 40, 0.5f).chain());
   EXPECT_NEAR(glm::length(again.positions[1] - again.positions[0]), apart,
               1e-3f);
 }
@@ -93,8 +89,7 @@ TEST(Pop, RelaxIsMaskedTheWayEveryFilterIs) {
   pop::Chain chain{pop::PointSet{at({{0, 0, 0}, {1, 0, 0}})},
                    pop::Fill{"held", {0, 0, 0, 0}}, op};
   const Cloud held = pop::cook(chain);
-  EXPECT_NEAR(glm::length(held.positions[1] - held.positions[0]), 1.0f,
-              1e-4f);
+  EXPECT_NEAR(glm::length(held.positions[1] - held.positions[0]), 1.0f, 1e-4f);
 }
 
 // ---------------------------------------------------------------------------
@@ -185,10 +180,9 @@ TEST(Pop, TransferFromAOnePointSourceWritesThatValueEverywhere) {
   op.source = source;
   op.lane = "heat";
   op.radius = 1000.0f;
-  const Cloud out = pop::cook(
-      pop::Chain{pop::PointSet{points::scatterBox({-50, -50, -50},
-                                                  {50, 50, 50}, 100)},
-                 op});
+  const Cloud out = pop::cook(pop::Chain{
+      pop::PointSet{points::scatterBox({-50, -50, -50}, {50, 50, 50}, 100)},
+      op});
   const std::vector<glm::vec4>* heat = out.colorIf("heat");
   ASSERT_NE(heat, nullptr);
   for (const glm::vec4 value : *heat) EXPECT_NEAR(value.x, 42.0f, 1e-3f);
@@ -205,8 +199,8 @@ TEST(Pop, TransferAtOneSampleIsAPlainNearestNeighbourLookup) {
   op.lane = "heat";
   op.radius = 1000.0f;
   op.maxSamples = 1;
-  const Cloud out = pop::cook(pop::Chain{
-      pop::PointSet{at({{-90, 0, 0}, {90, 0, 0}, {-1, 0, 0}})}, op});
+  const Cloud out = pop::cook(
+      pop::Chain{pop::PointSet{at({{-90, 0, 0}, {90, 0, 0}, {-1, 0, 0}})}, op});
   const std::vector<glm::vec4>& answer = *out.colorIf("heat");
   EXPECT_NEAR(answer[0].x, 1.0f, 1e-4f);
   EXPECT_NEAR(answer[1].x, 9.0f, 1e-4f);
@@ -263,8 +257,7 @@ TEST(Pop, ConnectAdjacentBridgesPiecesOnly) {
   connect.acrossPiecesOnly = true;
   const std::vector<glm::uvec2> pairs = pop::connectAdjacent(two, connect);
   ASSERT_EQ(pairs.size(), 4u);
-  for (const glm::uvec2 pair : pairs)
-    EXPECT_NE(piece[pair.x], piece[pair.y]);
+  for (const glm::uvec2 pair : pairs) EXPECT_NE(piece[pair.x], piece[pair.y]);
 }
 
 TEST(Pop, ConnectAdjacentWithNoPieceLaneBridgesNothing) {

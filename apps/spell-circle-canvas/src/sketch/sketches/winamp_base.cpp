@@ -188,17 +188,18 @@ inline sk_sp<SkTypeface> monoBold() {
   return weave::ports::face({"Menlo", "Monaco"}, SkFontStyle::kBold_Weight);
 }
 inline sk_sp<SkTypeface> arial() {
-  return weave::ports::face({"Arial", "Helvetica"}, SkFontStyle::kNormal_Weight);
+  return weave::ports::face({"Arial", "Helvetica"},
+                            SkFontStyle::kNormal_Weight);
 }
 
 inline sigil::weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                                     SkColor4f color, float track = 0,
                                     float condense = 1.0f) {
   return weave::textStyle({.face = tf,
-                               .size = size,
-                               .color = color,
-                               .track = track,
-                               .condense = condense});
+                           .size = size,
+                           .color = color,
+                           .track = track,
+                           .condense = condense});
 }
 
 inline Element t(const char* s, sigil::weave::TextStyle st) {
@@ -459,7 +460,7 @@ struct WinampBase : sketch::Sketch {
     // is what makes 275x116 and 400x377 share it.
     steel = mskia::Paint::blend(
         {{mskia::Paint::linearUnit({0, 0}, {0, 1},
-                               {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
+                                   {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
           SkBlendMode::kSrcOver},
          {mskia::Paint::radialUnit(
               {0.34f, 0.42f}, 1.15f,
@@ -469,17 +470,18 @@ struct WinampBase : sketch::Sketch {
           SkBlendMode::kOverlay}});
 
     // The desktop: flat teal plus ONE low-octave dither, baked once.
-    deskMat = mskia::Paint::blend({{mskia::Paint::solid(kDesk), SkBlendMode::kSrcOver},
-                               {mskia::Paint::recipe(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f)),
-                                SkBlendMode::kOverlay}});
+    deskMat = mskia::Paint::blend(
+        {{mskia::Paint::solid(kDesk), SkBlendMode::kSrcOver},
+         {mskia::Paint::recipe(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f)),
+          SkBlendMode::kOverlay}});
 
     // CRT glass: the flat screen colour plus a soft off-centre catch-light.
-    lcdMat =
-        mskia::Paint::blend({{mskia::Paint::solid(kLcd), SkBlendMode::kSrcOver},
-                         {mskia::Paint::radialUnit({0.28f, 0.22f}, 1.25f,
-                                               {{0.0f, hex(0x2A2A46, 0.75f)},
-                                                {1.0f, hex(0x2A2A46, 0.0f)}}),
-                          SkBlendMode::kSrcOver}});
+    lcdMat = mskia::Paint::blend(
+        {{mskia::Paint::solid(kLcd), SkBlendMode::kSrcOver},
+         {mskia::Paint::radialUnit(
+              {0.28f, 0.22f}, 1.25f,
+              {{0.0f, hex(0x2A2A46, 0.75f)}, {1.0f, hex(0x2A2A46, 0.0f)}}),
+          SkBlendMode::kSrcOver}});
 
     // ONE fader-track value shared by all eleven faders (preamp + 10
     // bands), and it is a LADDER rather than a ramp. EQMAIN.BMP carries
@@ -536,17 +538,17 @@ struct WinampBase : sketch::Sketch {
     using namespace wa;
     Element e = at(box(), x, y, w, h);
     e.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                {{0.0f, lighten(kBtnFace, 0.10f)},
-                                 {0.55f, kBtnFace},
-                                 {1.0f, dark(kBtnFace, 0.22f)}}));
+                                    {{0.0f, lighten(kBtnFace, 0.10f)},
+                                     {0.55f, kBtnFace},
+                                     {1.0f, dark(kBtnFace, 0.22f)}}));
     raised(e);
     // The second keyline, one native px in — shapes::inset is literally
     // "the same bevel again, N px further in", which is Winamp's doubled
     // button edge without a second element.
-    e.foreground(inset(
-        n(1), onEdges(path::Edge::Bottom | path::Edge::Right,
-                              stroke(n(1), Fill::color(alpha(kBtnLo, 0.45f)),
-                                     PathFormat::Align::Inner))));
+    e.foreground(
+        inset(n(1), onEdges(path::Edge::Bottom | path::Edge::Right,
+                            stroke(n(1), Fill::color(alpha(kBtnLo, 0.45f)),
+                                   PathFormat::Align::Inner))));
     e.child(std::move(glyph));
     return e;
   }
@@ -595,8 +597,8 @@ struct WinampBase : sketch::Sketch {
     Element mark = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                        .justify(Justify::Center)
                        .alignItems(Align::Center);
-    mark.child(
-        t(label, pix(6.6f, kGold, true, 1.7f)).opacity(motion::bind(&llama).invert()));
+    mark.child(t(label, pix(6.6f, kGold, true, 1.7f))
+                   .opacity(motion::bind(&llama).invert()));
     bar.child(mark);
     Element egg = at(box(), 0, (hN - 8) * 0.5f, wN, 8)
                       .justify(Justify::Center)
@@ -659,8 +661,9 @@ struct WinampBase : sketch::Sketch {
             .fill(hex(0xCFE4FF, 0.55f))
             .blend(SkBlendMode::kPlus)
             .translateY(motion::bind(&glint).target(-n(6), n(43)))
-            .opacity(motion::bind(&glint).offset(-0.5f).scale(2.0f).invert().clamp(
-                0.0f, 0.75f)));
+            .opacity(
+                motion::bind(&glint).offset(-0.5f).scale(2.0f).invert().clamp(
+                    0.0f, 0.75f)));
     w.child(clutter);
 
     // play-status LED (native 26,28,9,9)
@@ -690,7 +693,7 @@ struct WinampBase : sketch::Sketch {
     sunken(titleWell, alpha(hex(0x4A4A70), 0.5f), hex(0x08080E));
     Element title = at(box(), 2, 1, 154, 9).clip();
     title.child(kit::marquee(t(marqueeText(), pix(5, hex(0x00E000))), marqueeW,
-                        &marqueePhase, n(40)));
+                             &marqueePhase, n(40)));
     titleWell.child(title);
     w.child(titleWell);
 
@@ -737,12 +740,12 @@ struct WinampBase : sketch::Sketch {
     w.child(at(box(), 0, 21, 275, 37)
                 .fill(hex(0x090911))
                 .opacity(animate(motion::through({{0ms, 1.0f},
-                                          {300ms, 1.0f},
-                                          {310ms, 0.0f},
-                                          {360ms, 0.0f},
-                                          {370ms, 1.0f},
-                                          {420ms, 1.0f},
-                                          {430ms, 0.0f}}),
+                                                  {300ms, 1.0f},
+                                                  {310ms, 0.0f},
+                                                  {360ms, 0.0f},
+                                                  {370ms, 1.0f},
+                                                  {420ms, 1.0f},
+                                                  {430ms, 0.0f}}),
                                  &ch::easeNone)));
 
     // ---- volume / balance / EQ+PL toggles -------------------------------
@@ -766,9 +769,9 @@ struct WinampBase : sketch::Sketch {
     // … and the thumb, in pixels.
     Element thumb =
         at(box(), 1, 0, 29, 10)
-            .fill(mskia::Paint::linearUnit(
-                {0, 0}, {0, 1},
-                {{0.0f, lighten(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.28f)}}))
+            .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                           {{0.0f, lighten(kBtnFace, 0.12f)},
+                                            {1.0f, dark(kBtnFace, 0.28f)}}))
             .translateX(motion::bind(&playPos).target(0, n(248 - 31)));
     raised(thumb);
     thumb.child(at(box(), 13, 2, 1, 6).fill(alpha(kBtnLo, 0.8f)));
@@ -864,12 +867,13 @@ struct WinampBase : sketch::Sketch {
     r.child(at(box(), 0, 0, 8, 18)
                 .fill(hex(0xE8F4FF, 0.55f))
                 .blend(SkBlendMode::kPlus)
-                .translateX(animate(motion::through({{600ms, n(10)}, {750ms, n(162)}}),
-                                    &ch::easeNone))
+                .translateX(
+                    animate(motion::through({{600ms, n(10)}, {750ms, n(162)}}),
+                            &ch::easeNone))
                 .opacity(animate(motion::through({{590ms, 0.0f},
-                                          {600ms, 1.0f},
-                                          {735ms, 1.0f},
-                                          {750ms, 0.0f}}),
+                                                  {600ms, 1.0f},
+                                                  {735ms, 1.0f},
+                                                  {750ms, 0.0f}}),
                                  &ch::easeNone)));
     return r;
   }
@@ -892,9 +896,9 @@ struct WinampBase : sketch::Sketch {
     track.child(at(box(), 1, 9, 66, 2).fill(dark(volColor, 0.65f)));
     Element vt =
         at(box(), 0, 1, 14, 11)
-            .fill(mskia::Paint::linearUnit(
-                {0, 0}, {0, 1},
-                {{0.0f, lighten(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
+            .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                           {{0.0f, lighten(kBtnFace, 0.12f)},
+                                            {1.0f, dark(kBtnFace, 0.30f)}}))
             .translateX(n((68.0f - 14.0f) * (float)vol / 28.0f));
     raised(vt);
     vt.child(at(box(), 6, 2, 1, 7).fill(alpha(kBtnLo, 0.85f)));
@@ -911,9 +915,9 @@ struct WinampBase : sketch::Sketch {
     btr.child(at(box(), 18, 1, 2, 11).fill(alpha(balColor, 0.9f)));
     Element bt =
         at(box(), 0, 1, 14, 11)
-            .fill(mskia::Paint::linearUnit(
-                {0, 0}, {0, 1},
-                {{0.0f, lighten(kBtnFace, 0.12f)}, {1.0f, dark(kBtnFace, 0.30f)}}))
+            .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+                                           {{0.0f, lighten(kBtnFace, 0.12f)},
+                                            {1.0f, dark(kBtnFace, 0.30f)}}))
             .translateX(n((38.0f - 14.0f) * (float)bal / 28.0f));
     raised(bt);
     bt.child(at(box(), 6, 2, 1, 7).fill(alpha(kBtnLo, 0.85f)));
@@ -1007,8 +1011,8 @@ struct WinampBase : sketch::Sketch {
       Element th =
           at(box(), 1, 0, 12, 11)
               .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
-                                         {{0.0f, lighten(kBtnFace, 0.14f)},
-                                          {1.0f, dark(kBtnFace, 0.32f)}}))
+                                             {{0.0f, lighten(kBtnFace, 0.14f)},
+                                              {1.0f, dark(kBtnFace, 0.32f)}}))
               .translateY(motion::bind(&gain[(size_t)i])
                               .source(-1.0f, 1.0f)
                               .target(n(52), n(0)));
@@ -1273,35 +1277,38 @@ struct WinampBase : sketch::Sketch {
     root.child(box().inset(0).fill(deskMat).cache(Cache::Texture));
 
     // Main — pops in at its final position, scale 0.9 -> 1 on outBack.
-    root.child(mainWindow()
-                   .left(Dim(60))
-                   .top(Dim(60))
-                   .transformOrigin(0.5f, 0.5f)
-                   .scale(animate(motion::from(0.9f).to(1.0f),
-                                  {200ms, motion::ease::outBack(), 100ms}))
-                   .opacity(animate(
-                       motion::through({{0ms, 0.0f}, {99ms, 0.0f}, {100ms, 1.0f}}),
-                       &ch::easeNone)));
+    root.child(
+        mainWindow()
+            .left(Dim(60))
+            .top(Dim(60))
+            .transformOrigin(0.5f, 0.5f)
+            .scale(animate(motion::from(0.9f).to(1.0f),
+                           {200ms, motion::ease::outBack(), 100ms}))
+            .opacity(animate(
+                motion::through({{0ms, 0.0f}, {99ms, 0.0f}, {100ms, 1.0f}}),
+                &ch::easeNone)));
 
     // Equalizer — docking snap from 60 px above, the same outBack value.
-    root.child(eqWindow()
-                   .left(Dim(60))
-                   .top(Dim(408))
-                   .translateY(animate(motion::from(-60.0f).to(0.0f),
-                                       {250ms, motion::ease::outBack(), 900ms}))
-                   .opacity(animate(
-                       motion::through({{0ms, 0.0f}, {899ms, 0.0f}, {900ms, 1.0f}}),
-                       &ch::easeNone)));
+    root.child(
+        eqWindow()
+            .left(Dim(60))
+            .top(Dim(408))
+            .translateY(animate(motion::from(-60.0f).to(0.0f),
+                                {250ms, motion::ease::outBack(), 900ms}))
+            .opacity(animate(
+                motion::through({{0ms, 0.0f}, {899ms, 0.0f}, {900ms, 1.0f}}),
+                &ch::easeNone)));
 
     // Playlist — same snap, 1.25 s later.
-    root.child(playlistWindow()
-                   .left(Dim(60))
-                   .top(Dim(756))
-                   .translateY(animate(motion::from(-60.0f).to(0.0f),
-                                       {250ms, motion::ease::outBack(), 2150ms}))
-                   .opacity(animate(
-                       motion::through({{0ms, 0.0f}, {2149ms, 0.0f}, {2150ms, 1.0f}}),
-                       &ch::easeNone)));
+    root.child(
+        playlistWindow()
+            .left(Dim(60))
+            .top(Dim(756))
+            .translateY(animate(motion::from(-60.0f).to(0.0f),
+                                {250ms, motion::ease::outBack(), 2150ms}))
+            .opacity(animate(
+                motion::through({{0ms, 0.0f}, {2149ms, 0.0f}, {2150ms, 1.0f}}),
+                &ch::easeNone)));
     return root;
   }
 

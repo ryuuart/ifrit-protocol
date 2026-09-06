@@ -9,9 +9,9 @@
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
+#include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>

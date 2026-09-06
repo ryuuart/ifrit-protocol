@@ -170,22 +170,21 @@ struct AnnotatedMargin final : sketch::Sketch {
                                  &ch::easeNone, 200ms})}));
 
     // ── The label under every word of the opening phrase ────────────────
-    page.child(kit::annotate(composer, "passage", weave::sel::words(0, 6),
-                             weave::unit::Word,
-                             {.side = kit::Beside::Side::After, .gap = 5.0f},
-                             [&](const TextUnit& unit) {
-                               // The label says what the unit IS — its range
-                               // and the line it landed on — because a label
-                               // that only repeated the word would be showing
-                               // nothing the word does not already show.
-                               return text(
-                                   toU8(std::to_string(unit.range.start) +
-                                        "\xe2\x80\x93" +
-                                        std::to_string(unit.range.end)),
-                                   m::note(7.5f, m::kMark, 0.2f));
-                             })
-                   .absolute()
-                   .inset(0, 0, 0, 0));
+    page.child(
+        kit::annotate(
+            composer, "passage", weave::sel::words(0, 6), weave::unit::Word,
+            {.side = kit::Beside::Side::After, .gap = 5.0f},
+            [&](const TextUnit& unit) {
+              // The label says what the unit IS — its range
+              // and the line it landed on — because a label
+              // that only repeated the word would be showing
+              // nothing the word does not already show.
+              return text(toU8(std::to_string(unit.range.start) +
+                               "\xe2\x80\x93" + std::to_string(unit.range.end)),
+                          m::note(7.5f, m::kMark, 0.2f));
+            })
+            .absolute()
+            .inset(0, 0, 0, 0));
 
     // ── One note per line, in the gutter, with a leader ──────────────────
     page.child(

@@ -20,7 +20,7 @@ namespace sigil::core {
 template <class Derived, class Description>
 struct Node {
   Derived* parent = nullptr;
-  Description description;       ///< the resolved (post-memo) description
+  Description description;  ///< the resolved (post-memo) description
   Description memoShell;  ///< the memo element this node was described through
   std::vector<std::unique_ptr<Derived>> children;
 

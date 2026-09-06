@@ -6,23 +6,21 @@
  */
 
 #include <gtest/gtest.h>
-#include <include/core/SkPath.h>
-#include <include/core/SkRect.h>
-
-#include <cmath>
-#include <functional>
-#include <string>
-#include <vector>
-
 #include <include/core/SkPaint.h>
+#include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathEffect.h>
 #include <include/core/SkPathUtils.h>
+#include <include/core/SkRect.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <include/pathops/SkPathOps.h>
 
+#include <cmath>
+#include <functional>
 #include <glm/geometric.hpp>
+#include <string>
+#include <vector>
 
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Edges.h"
@@ -61,21 +59,26 @@ TEST_P(PathBoolean, NamesItsRegionOfTwoOverlappingSquares) {
 
 INSTANTIATE_TEST_SUITE_P(
     PathOps, PathBoolean,
-    ::testing::Values(
-        Boolean{"Unite", [](const SkPath& a,
-                            const SkPath& b) { return ops::unite(a, b); },
-                150.0f, true},
-        Boolean{"Subtract", [](const SkPath& a,
-                               const SkPath& b) { return ops::subtract(a, b); },
-                50.0f, false},
-        Boolean{"Intersect",
-                [](const SkPath& a, const SkPath& b) {
-                  return ops::intersect(a, b);
-                },
-                50.0f, true},
-        Boolean{"Exclude", [](const SkPath& a,
-                              const SkPath& b) { return ops::exclude(a, b); },
-                150.0f, false}),
+    ::testing::Values(Boolean{"Unite",
+                              [](const SkPath& a, const SkPath& b) {
+                                return ops::unite(a, b);
+                              },
+                              150.0f, true},
+                      Boolean{"Subtract",
+                              [](const SkPath& a, const SkPath& b) {
+                                return ops::subtract(a, b);
+                              },
+                              50.0f, false},
+                      Boolean{"Intersect",
+                              [](const SkPath& a, const SkPath& b) {
+                                return ops::intersect(a, b);
+                              },
+                              50.0f, true},
+                      Boolean{"Exclude",
+                              [](const SkPath& a, const SkPath& b) {
+                                return ops::exclude(a, b);
+                              },
+                              150.0f, false}),
     [](const ::testing::TestParamInfo<Boolean>& info) {
       return std::string(info.param.name);
     });
@@ -168,12 +171,14 @@ TEST(PathOffset, StraddlingTheSourceIsTheStrokeExpansionItReplaces) {
 // agree, and the robust one of the two is what the operator keeps.
 TEST(PathOffset, TheMitredButtJoinedOffsetIsTheConcentricFrameItReplaces) {
   for (const SkPath& source : {SkPath::Circle(0, 0, 50), star()}) {
-    EXPECT_TRUE(ops::offset(source, -6.0f, {.join = ops::Join::Miter,
-                                            .cap = ops::Cap::Butt}) ==
-                ops::simplify(mitredInset(source, 6.0f)));
-    EXPECT_TRUE(ops::offset(source, 6.0f, {.join = ops::Join::Miter,
-                                           .cap = ops::Cap::Butt}) ==
-                mitredInset(source, -6.0f));
+    EXPECT_TRUE(
+        ops::offset(source, -6.0f,
+                    {.join = ops::Join::Miter, .cap = ops::Cap::Butt}) ==
+        ops::simplify(mitredInset(source, 6.0f)));
+    EXPECT_TRUE(
+        ops::offset(source, 6.0f,
+                    {.join = ops::Join::Miter, .cap = ops::Cap::Butt}) ==
+        mitredInset(source, -6.0f));
   }
 }
 
@@ -272,19 +277,18 @@ TEST(PathCorners, VisualCorrectionHoldsTheArcsStandOffConstant) {
     b.moveTo(-200, 0);
     b.lineTo(0, 0);
     b.lineTo(200 * std::cos(turn), 200 * std::sin(turn));
-    const SkPath corner =
-        ops::roundCorners(b.detach(), 20.0f,
-                          {.minTurnDeg = 1.0f, .visual = visual});
+    const SkPath corner = ops::roundCorners(
+        b.detach(), 20.0f, {.minTurnDeg = 1.0f, .visual = visual});
     // The arc's midpoint stands where the quadratic's middle is; how far
     // that is from the vertex is what the correction holds constant.
     const std::vector<SegmentContour> read = segments(corner);
     if (read.empty()) return 0.0f;
     for (const Segment& piece : read[0].segments)
       if (piece.kind == SegmentKind::Quad)
-        return glm::length((piece.points[0] + piece.points[1] * 2.0f +
-                            piece.points[2]) /
-                               4.0f -
-                           piece.points[1]);
+        return glm::length(
+            (piece.points[0] + piece.points[1] * 2.0f + piece.points[2]) /
+                4.0f -
+            piece.points[1]);
     return 0.0f;
   };
   EXPECT_NEAR(standOff(90.0f, true), standOff(45.0f, true), 1e-2f);
@@ -305,8 +309,7 @@ TEST(PathCorners, ACornerShallowerThanTheThresholdIsLeftAlone) {
 // what a selection with no corners named is asked for.
 TEST(PathCorners, OutwardOnlyLeavesTheReflexCornersAlone) {
   const SkPath source = star();
-  const SkPath rounded =
-      ops::roundCorners(source, 8.0f, {.outwardOnly = true});
+  const SkPath rounded = ops::roundCorners(source, 8.0f, {.outwardOnly = true});
   const std::vector<SegmentContour> read = segments(rounded);
   ASSERT_EQ(read.size(), 1u);
   int curves = 0;
@@ -362,7 +365,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(PathOps, BloatPushesOutwardAndNeverInward) {
   const SkPath base = SkPath::Circle(100, 100, 60);
-  const SkRect bloated = ops::PuckerBloat{0.8f}.apply(base).computeTightBounds();
+  const SkRect bloated =
+      ops::PuckerBloat{0.8f}.apply(base).computeTightBounds();
   EXPECT_GT(bloated.width(), 118);
 }
 

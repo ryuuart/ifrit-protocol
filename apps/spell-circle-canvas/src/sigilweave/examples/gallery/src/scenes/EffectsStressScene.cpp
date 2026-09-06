@@ -1,6 +1,9 @@
 // Scene: a fully placed 2,000-word paragraph with four animated paint passes.
 #include <include/core/SkBlendMode.h>
+#include <sigilcore/cache/Rebuild.h>
 #include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <algorithm>
@@ -10,9 +13,6 @@
 
 #include "EffectsParts.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
-#include <sigilweave/kit/PaintLayers.h>
 
 using namespace sigil::weave;
 
@@ -116,9 +116,9 @@ class StressPart final : public Scene {
                 cappedSpread, m_glowIntensity));
           }
           if (m_effectOutline)
-            m_effect.addUnderlay(
-                sigil::weave::kit::outline(SkColors::kBlue.toSkColor(),
-                                    std::max(0.55f, stressFontSize * 0.03f)));
+            m_effect.addUnderlay(sigil::weave::kit::outline(
+                SkColors::kBlue.toSkColor(),
+                std::max(0.55f, stressFontSize * 0.03f)));
           if (m_effectStars) {
             SkPaint stars;
             stars.setAntiAlias(true);
@@ -167,7 +167,8 @@ class StressPart final : public Scene {
   ParagraphLayout m_layout;
   PaintStyle m_effect;
   sigil::core::RebuildGuard<SkISize, const SkTypeface*, float> m_layoutBuild;
-  sigil::core::RebuildGuard<bool, bool, bool, float, float, float> m_effectBuild;
+  sigil::core::RebuildGuard<bool, bool, bool, float, float, float>
+      m_effectBuild;
   sk_sp<SkTypeface> m_serif;
   uint32_t m_textLength = 0;
   int m_glyphCount = 0;

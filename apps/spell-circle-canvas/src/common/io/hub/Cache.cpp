@@ -8,7 +8,6 @@
 #include <sigilcore/schedule/ConcurrentIo.h>
 
 #include <boost/container/flat_set.hpp>
-
 #include <optional>
 #include <system_error>
 #include <utility>
@@ -357,7 +356,8 @@ bool Hub::poll() {
   const std::lock_guard lock(m_mutex);
   for (Outcome& outcome : outcomes) {
     const auto found = m_entries.find(outcome.reload->key);
-    if (found == m_entries.end() || found->second.mtime != outcome.reload->mtime)
+    if (found == m_entries.end() ||
+        found->second.mtime != outcome.reload->mtime)
       continue;  // replaced or dropped since the snapshot: not ours
     if (outcome.vanished) {
       m_entries.erase(found);  // vanished: next ask sees the truth

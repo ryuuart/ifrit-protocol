@@ -39,14 +39,14 @@ std::vector<float> depths(Host& host, int count) {
 
 TEST(KitColumns, ABalancedRunIsShallowerThanTheDepthItWasGiven) {
   Host host(400, 600);
-  host.composer.render(box().absolute().inset(0).child(
-      kit::columns({.story = article(),
-                    .count = 3,
-                    .gutter = 20,
-                    .width = 360,
-                    .height = 400,
-                    .composer = &host.composer})
-          .child(box())));
+  host.composer.render(
+      box().absolute().inset(0).child(kit::columns({.story = article(),
+                                                    .count = 3,
+                                                    .gutter = 20,
+                                                    .width = 360,
+                                                    .height = 400,
+                                                    .composer = &host.composer})
+                                          .child(box())));
   host.frame();
   // Nothing is balanced without a spanner to balance against: one row is
   // the whole assembly and it keeps the depth it was given.

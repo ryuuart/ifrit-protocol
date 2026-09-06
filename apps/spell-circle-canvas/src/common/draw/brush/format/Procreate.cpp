@@ -2,14 +2,14 @@
  * The Procreate `.brush` reader: the two images out of the archive.
  */
 
-#include "Images.h"
-#include "Zip.h"
-
 #include <sigildraw/brush/format/Procreate.h>
 
 #include <algorithm>
 #include <string>
 #include <utility>
+
+#include "Images.h"
+#include "Zip.h"
 
 namespace sigil::draw::brush::format {
 
@@ -17,10 +17,9 @@ namespace {
 
 std::string lowered(std::string_view text) {
   std::string out(text);
-  std::transform(out.begin(), out.end(), out.begin(),
-                 [](unsigned char letter) {
-                   return (char)std::tolower(letter);
-                 });
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char letter) {
+    return (char)std::tolower(letter);
+  });
   return out;
 }
 

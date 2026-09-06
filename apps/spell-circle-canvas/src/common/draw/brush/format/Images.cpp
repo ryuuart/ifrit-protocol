@@ -25,9 +25,8 @@ sk_sp<SkImage> coverageImage(std::span<const uint8_t> coverage, int width,
   if (width <= 0 || height <= 0) return nullptr;
   if (coverage.size() < (size_t)width * (size_t)height) return nullptr;
   SkBitmap bitmap;
-  if (!bitmap.tryAllocPixels(
-          SkImageInfo::Make(width, height, kAlpha_8_SkColorType,
-                            kPremul_SkAlphaType)))
+  if (!bitmap.tryAllocPixels(SkImageInfo::Make(
+          width, height, kAlpha_8_SkColorType, kPremul_SkAlphaType)))
     return nullptr;
   for (int y = 0; y < height; ++y) {
     uint8_t* row = bitmap.getAddr8(0, y);

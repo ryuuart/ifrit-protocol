@@ -180,7 +180,8 @@ inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
  *  `custom(key, …)` take.
  *
  *      .shape(keyedShape(std::tuple(radius, cut, mask),
- *                        [=](SkSize s) { return panel(radius, cut, mask)(s); }))
+ *                        [=](SkSize s) { return panel(radius, cut, mask)(s);
+ * }))
  *
  *  ONE KEY MUST NAME ONE DRAWING. Anything the callable reads that is not
  *  in the key is invisible to the prune, and a node that prunes replays
@@ -489,10 +490,12 @@ class Decoration {
       s.paint(c, ctx);
     };
   }
-  Decoration(PaintProgram program)  // NOLINT: implicit by design
-      // A callable declares nothing and may draw through any blend mode,
-      // so it is counted as compositing with the canvas — the same reading
-      // a custom() leaf's program gets, and for the same reason.
+  Decoration(
+      PaintProgram program)  // NOLINT: implicit by design
+                             // A callable declares nothing and may draw through
+                             // any blend mode, so it is counted as compositing
+                             // with the canvas — the same reading a custom()
+                             // leaf's program gets, and for the same reason.
       : m_blends(true), m_paint(std::move(program)) {}
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const {

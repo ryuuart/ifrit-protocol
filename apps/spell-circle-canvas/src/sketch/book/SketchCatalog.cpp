@@ -29,7 +29,8 @@ namespace sketch = sigil::sketch;
 fs::path SketchCatalog::sketchDir;
 std::vector<fs::path> SketchCatalog::externals;
 fs::path SketchCatalog::thumbnailDir;
-std::chrono::milliseconds SketchCatalog::thumbnailBudget = sketch::kThumbnailBudget;
+std::chrono::milliseconds SketchCatalog::thumbnailBudget =
+    sketch::kThumbnailBudget;
 bool SketchCatalog::thumbnailHeavy = false;
 int SketchCatalog::opensAt = 0;
 bool SketchCatalog::opensWithoutFill = false;
@@ -256,8 +257,7 @@ SketchCatalog::SketchCatalog(QObject* parent) : QObject(parent) {
     const sketch::Entry& entry = entries[i];
     // The bare file, or the entry of a directory sketch: what the row
     // reads its header and its line count from, and what a click opens.
-    const fs::path file =
-        sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
+    const fs::path file = sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
     QVariantMap row =
         rowFor(i, entry.name, entry.key, QString::fromUtf8(entry.category),
                QString::fromUtf8(entry.blurb), file);
@@ -333,8 +333,7 @@ QVariantMap SketchCatalog::learn(int index, const QString& canvas,
   const bool kindKnown =
       !row.value(QStringLiteral("kind")).toString().isEmpty();
   const bool learnKind = !kindKnown && !runtime.isEmpty();
-  if (!learnKind &&
-      row.value(QStringLiteral("canvas")).toString() == canvas &&
+  if (!learnKind && row.value(QStringLiteral("canvas")).toString() == canvas &&
       row.value(QStringLiteral("moment")).toDouble() == moment &&
       row.value(QStringLiteral("background")).toString() == background)
     return {};
@@ -443,7 +442,8 @@ void SketchCatalog::requestThumbnail(int index) {
   const std::lock_guard lock(m_mutex);
   if (m_failed.count(index) || m_inFlight == index) return;
   const auto at = std::find(m_pending.begin(), m_pending.end(), index);
-  if (at != m_pending.end()) m_pending.erase(at);
+  if (at != m_pending.end())
+    m_pending.erase(at);
   else if (m_queued.count(index))
     return;  // already in flight elsewhere
   m_queued.insert(index);

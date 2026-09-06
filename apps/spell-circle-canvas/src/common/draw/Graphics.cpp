@@ -16,9 +16,8 @@ Graphics::Graphics(float width, float height)
 
 void Graphics::form(Pen& host) {
   const float density = host.contentScale();
-  const SkISize extent{
-      std::max(1, (int)std::lround(m_width * density)),
-      std::max(1, (int)std::lround(m_height * density))};
+  const SkISize extent{std::max(1, (int)std::lround(m_width * density)),
+                       std::max(1, (int)std::lround(m_height * density))};
   if (m_surface && m_extent == extent) return;
   const SkImageInfo info = SkImageInfo::MakeN32Premul(extent);
   // Made through the host's canvas so it lives where the host draws;

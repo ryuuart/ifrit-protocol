@@ -76,7 +76,8 @@ struct LaidOut {
 inline LaidOut laidOut(std::u8string_view utf8, float fontSize,
                        FlowGeometry& flow) {
   Paragraph paragraph = makeParagraph(utf8, fontSize);
-  ParagraphLayout layout = layoutParagraph(sigil::test::fonts(), paragraph, flow);
+  ParagraphLayout layout =
+      layoutParagraph(sigil::test::fonts(), paragraph, flow);
   return {std::move(paragraph), std::move(layout)};
 }
 

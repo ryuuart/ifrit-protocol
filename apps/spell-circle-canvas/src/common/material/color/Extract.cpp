@@ -55,14 +55,16 @@ std::vector<Oklab> farthestFirst(const std::vector<Oklab>& pixels, int count) {
     if (!(best > 0.0f)) break;
     centres.push_back(pixels[farthest]);
     for (size_t i = 0; i < pixels.size(); ++i)
-      nearest[i] = std::min(nearest[i], distanceSquared(pixels[i], centres.back()));
+      nearest[i] =
+          std::min(nearest[i], distanceSquared(pixels[i], centres.back()));
   }
   return centres;
 }
 
 std::vector<Oklab> kmeans(const std::vector<Oklab>& pixels,
                           const PaletteOptions& options) {
-  std::vector<Oklab> centres = farthestFirst(pixels, std::max(options.entries, 1));
+  std::vector<Oklab> centres =
+      farthestFirst(pixels, std::max(options.entries, 1));
   if (centres.empty()) return centres;
   const size_t count = centres.size();
   std::vector<double> sumL(count), sumA(count), sumB(count);
@@ -177,7 +179,8 @@ Palette palette(std::span<const Color> pixels, const PaletteOptions& options) {
               [](const Oklab& a, const Oklab& b) { return a.L < b.L; });
   Palette table;
   table.entries.reserve(centres.size());
-  for (const Oklab& centre : centres) table.entries.push_back(fromOklab(centre));
+  for (const Oklab& centre : centres)
+    table.entries.push_back(fromOklab(centre));
   return table;
 }
 

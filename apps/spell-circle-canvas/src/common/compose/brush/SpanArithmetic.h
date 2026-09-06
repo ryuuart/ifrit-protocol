@@ -10,7 +10,6 @@
 #include <include/core/SkPath.h>
 #include <sigilcompose/core/Mask.h>
 #include <sigilcompose/core/Stroke.h>
-
 #include <sigilcore/compute/Intervals.h>
 
 #include <optional>

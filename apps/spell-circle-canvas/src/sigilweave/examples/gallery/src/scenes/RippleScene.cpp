@@ -1,5 +1,6 @@
 // Scene: ripple pool (click to drop).
 #include <include/core/SkPaint.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +8,6 @@
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 

@@ -93,8 +93,7 @@ struct AquaGloss {
  *  recess: `AquaGelOptions{.topBand = 1.0f}` is the deep cut,
  * where the band under the top edge ends in a line and the lens reads as a
  * second object laid on the pill. */
-LayerStyle aquaGel(SkColor4f tint = hex(0x1E8FFF),
-                   AquaGelOptions opts = {});
+LayerStyle aquaGel(SkColor4f tint = hex(0x1E8FFF), AquaGelOptions opts = {});
 
 /** The sphere-tuned bundle: a domed lens inset further from the edges and
  *  confined to the upper half, over a hotter bottom glow — what reads as

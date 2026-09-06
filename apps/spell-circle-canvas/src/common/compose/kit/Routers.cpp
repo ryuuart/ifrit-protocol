@@ -8,7 +8,6 @@
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <sigilcompose/kit/Routers.h>
-
 #include <sigilgeometry/path/Ops.h>
 
 #include <algorithm>
@@ -18,7 +17,6 @@
 #include <vector>
 
 namespace sigil::compose::routers {
-
 
 namespace {
 
@@ -79,7 +77,8 @@ SkPath manhattanPath(std::span<const SkPoint> anchors, Bend bend,
   b.moveTo(way.front());
   for (size_t i = 1; i < way.size(); ++i) b.lineTo(way[i]);
   SkPath path = b.detach();
-  if (chamferCut > 0) return geometry::path::ops::chamferCorners(path, chamferCut);
+  if (chamferCut > 0)
+    return geometry::path::ops::chamferCorners(path, chamferCut);
   if (cornerRadius <= 0) return path;
   SkPathBuilder rounded;
   SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
@@ -378,9 +377,7 @@ SkPath PairwiseRail::route(std::span<const SkPoint> pts) const {
 
 Router straight() { return StraightRoute{}; }
 
-Router orthogonal(float cornerRadius) {
-  return OrthogonalRoute{cornerRadius};
-}
+Router orthogonal(float cornerRadius) { return OrthogonalRoute{cornerRadius}; }
 
 Router orthogonal(Bend bend, float cornerRadius, float chamferCut) {
   return BentRoute{bend, cornerRadius, chamferCut};

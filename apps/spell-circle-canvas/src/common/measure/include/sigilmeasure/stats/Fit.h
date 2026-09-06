@@ -65,8 +65,7 @@ struct LineFit {
  *  The shorter of the two spans is what is read, so a caller with a
  *  ragged pair does not walk off the end of one of them. */
 template <std::floating_point T>
-[[nodiscard]] LineFit<T> lineFit(std::span<const T> xs,
-                                 std::span<const T> ys) {
+[[nodiscard]] LineFit<T> lineFit(std::span<const T> xs, std::span<const T> ys) {
   LineFit<T> fit;
   const size_t n = xs.size() < ys.size() ? xs.size() : ys.size();
   fit.samples = n;

@@ -1,13 +1,13 @@
 // Scene: Knuth-Plass vs greedy, hyphenation, last-line modes.
 #include <include/core/SkPaint.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <array>
 #include <cmath>
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 

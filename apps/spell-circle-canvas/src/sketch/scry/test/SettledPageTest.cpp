@@ -67,8 +67,7 @@ TEST(SketchSettledPage, TheStillIsTheFrameTheSettleAcceptedAndNotALaterOne) {
   view->loadHTML(kRestless);
   ASSERT_TRUE(events.awaitLoad());
   ASSERT_TRUE(sigil::sketch::scry::awaitAnswer(
-      *view, events, "document.getElementById('head').textContent",
-      "SETTLED"));
+      *view, events, "document.getElementById('head').textContent", "SETTLED"));
 
   const WebView::Frame still = events.accepted();
   ASSERT_TRUE(still.image) << "a CPU engine hands the frame over as an image";

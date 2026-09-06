@@ -22,7 +22,6 @@ using namespace sigil::geometry::mesh;
 using codec::decode::Model;
 using codec::decode::Part;
 
-
 TEST(ReadPly, VertexPropertiesFoldIntoLanesInBothEncodings) {
   // PLY property routing: the conventional names (x/y/z, nx/ny/nz, s/t,
   // red/green/blue) build the mesh, and every other property becomes a lane

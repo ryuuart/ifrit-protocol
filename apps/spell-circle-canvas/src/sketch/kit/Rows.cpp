@@ -17,8 +17,8 @@ using compose::text;
 
 compose::Element labelRow(const Reading& reading, const Readout& how) {
   const Theme& look = theme();
-  Element row = box().row().alignItems(Align::Center).gap(
-      look.spacing.labelGap);
+  Element row =
+      box().row().alignItems(Align::Center).gap(look.spacing.labelGap);
   if (how.measure > 0) row.width(Dim(how.measure));
   if (!reading.swatch.none()) {
     const float side = how.swatch.value_or(look.spacing.swatch);
@@ -41,8 +41,8 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
     row.child(text(reading.value,
                    look.style(look.type.captionLabel, look.palette.figure)));
   if (!reading.note.empty())
-    row.child(
-        text(reading.note, look.style(look.type.captionNote, look.palette.ash)));
+    row.child(text(reading.note,
+                   look.style(look.type.captionNote, look.palette.ash)));
   return row;
 }
 
@@ -78,8 +78,10 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
                        .alignSelf(Align::Stretch)
                        .fill(Fill::color(look.palette.rule)));
     first = false;
-    Element line = box().row().alignItems(Align::Center).gap(
-        how.gap.value_or(look.spacing.labelGap));
+    Element line = box()
+                       .row()
+                       .alignItems(Align::Center)
+                       .gap(how.gap.value_or(look.spacing.labelGap));
     if (!row.key.empty()) line.key(row.key);
     if (!row.swatch.none()) {
       const float side = how.swatch.value_or(look.spacing.swatch);

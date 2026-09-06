@@ -133,27 +133,47 @@ Fit fitOf(SkSize size, float width, float height) {
  *  comparing against the same key it would press to save a file. */
 std::pair<std::string, int> keyAs(int qtKey, const QString& text) {
   switch (qtKey) {
-    case Qt::Key_Left: return {"ArrowLeft", 37};
-    case Qt::Key_Up: return {"ArrowUp", 38};
-    case Qt::Key_Right: return {"ArrowRight", 39};
-    case Qt::Key_Down: return {"ArrowDown", 40};
+    case Qt::Key_Left:
+      return {"ArrowLeft", 37};
+    case Qt::Key_Up:
+      return {"ArrowUp", 38};
+    case Qt::Key_Right:
+      return {"ArrowRight", 39};
+    case Qt::Key_Down:
+      return {"ArrowDown", 40};
     case Qt::Key_Return:
-    case Qt::Key_Enter: return {"Enter", 13};
-    case Qt::Key_Escape: return {"Escape", 27};
-    case Qt::Key_Backspace: return {"Backspace", 8};
-    case Qt::Key_Delete: return {"Delete", 46};
-    case Qt::Key_Tab: return {"Tab", 9};
-    case Qt::Key_Space: return {" ", 32};
-    case Qt::Key_Shift: return {"Shift", 16};
-    case Qt::Key_Control: return {"Control", 17};
-    case Qt::Key_Alt: return {"Alt", 18};
-    case Qt::Key_Meta: return {"Meta", 91};
-    case Qt::Key_Home: return {"Home", 36};
-    case Qt::Key_End: return {"End", 35};
-    case Qt::Key_PageUp: return {"PageUp", 33};
-    case Qt::Key_PageDown: return {"PageDown", 34};
-    case Qt::Key_Insert: return {"Insert", 45};
-    default: break;
+    case Qt::Key_Enter:
+      return {"Enter", 13};
+    case Qt::Key_Escape:
+      return {"Escape", 27};
+    case Qt::Key_Backspace:
+      return {"Backspace", 8};
+    case Qt::Key_Delete:
+      return {"Delete", 46};
+    case Qt::Key_Tab:
+      return {"Tab", 9};
+    case Qt::Key_Space:
+      return {" ", 32};
+    case Qt::Key_Shift:
+      return {"Shift", 16};
+    case Qt::Key_Control:
+      return {"Control", 17};
+    case Qt::Key_Alt:
+      return {"Alt", 18};
+    case Qt::Key_Meta:
+      return {"Meta", 91};
+    case Qt::Key_Home:
+      return {"Home", 36};
+    case Qt::Key_End:
+      return {"End", 35};
+    case Qt::Key_PageUp:
+      return {"PageUp", 33};
+    case Qt::Key_PageDown:
+      return {"PageDown", 34};
+    case Qt::Key_Insert:
+      return {"Insert", 45};
+    default:
+      break;
   }
   if (qtKey >= Qt::Key_F1 && qtKey <= Qt::Key_F12)
     return {"F" + std::to_string(qtKey - Qt::Key_F1 + 1),
@@ -164,8 +184,8 @@ std::pair<std::string, int> keyAs(int qtKey, const QString& text) {
   // pressed in a way it cannot use. Qt's own key is that letter.
   if (!text.isEmpty() && text.at(0).unicode() >= 0x20) {
     const QChar first = text.at(0);
-    const int code = first.isLetter() ? first.toUpper().unicode()
-                                      : (int)first.unicode();
+    const int code =
+        first.isLetter() ? first.toUpper().unicode() : (int)first.unicode();
     return {text.toStdString(), code};
   }
   if (qtKey >= 0x20 && qtKey <= 0x7e) {
@@ -284,8 +304,9 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   m_pendingCaptures += view->m_captureRequests;
   view->m_captureRequests = 0;
   m_logicalSize = QSizeF(view->width(), view->height());
-  m_deviceRatio =
-      view->window() ? (float)view->window()->effectiveDevicePixelRatio() : 1.0f;
+  m_deviceRatio = view->window()
+                      ? (float)view->window()->effectiveDevicePixelRatio()
+                      : 1.0f;
   if (pauseStarted) m_metricsDirty = true;
   if (view->m_orbitDirty) {
     view->m_orbitDirty = false;
@@ -306,8 +327,7 @@ void SketchbookRenderer::openSketch(int index) {
     options.sketchPath =
         sketch::sourceOf(SketchCatalog::sketchDir, entries[index].key);
   } else if (const int external = externalAt(index);
-             external >= 0 &&
-             external < (int)SketchCatalog::externals.size()) {
+             external >= 0 && external < (int)SketchCatalog::externals.size()) {
     // A file this binary does not carry has to be built to be seen, so
     // it opens on the compiler rather than on an entry.
     options.sketchPath = SketchCatalog::externals[external];
@@ -382,8 +402,9 @@ void SketchbookRenderer::publishMetrics() {
   // browser stops reading "not yet compiled" under a sketch that is live.
   if (const std::string_view runtime = SketchbookView::host->kind();
       !runtime.empty())
-    metrics.insert(QStringLiteral("runtime"),
-                   QString::fromUtf8(runtime.data(), (qsizetype)runtime.size()));
+    metrics.insert(
+        QStringLiteral("runtime"),
+        QString::fromUtf8(runtime.data(), (qsizetype)runtime.size()));
   // WHAT THE BODY DECLARED, which is only knowable once it has run: a
   // sketch states its size, its ground and the moment it is worth
   // photographing from inside its own setup. The browser keeps what it
@@ -448,10 +469,9 @@ void SketchbookRenderer::drawSketch(SkCanvas& canvas, QSize pixelSize) {
   // until the resolution settles on it.
   float width = (float)pixelSize.width();
   float height = (float)pixelSize.height();
-  const double itemAspect =
-      m_logicalSize.height() > 0
-          ? m_logicalSize.width() / m_logicalSize.height()
-          : 0.0;
+  const double itemAspect = m_logicalSize.height() > 0
+                                ? m_logicalSize.width() / m_logicalSize.height()
+                                : 0.0;
   const double heldAspect =
       (double)pixelSize.width() / (double)pixelSize.height();
   if (itemAspect > 0 && std::abs(itemAspect - heldAspect) > 0.002 * heldAspect)
@@ -517,20 +537,20 @@ void SketchbookRenderer::refreshThumbnail() {
   const std::filesystem::path source =
       sketch::sourceOf(SketchCatalog::sketchDir, entry.key);
   const std::string key = sketch::thumbnailKey(source);
-  const std::filesystem::path out = sketch::thumbnailFile(
-      SketchCatalog::thumbnailDir, entry.name, key);
+  const std::filesystem::path out =
+      sketch::thumbnailFile(SketchCatalog::thumbnailDir, entry.name, key);
   const SkSize size = spec.size;
   const float longest = std::max(size.width(), size.height());
   if (!(longest > 0)) return;
-  const float scale =
-      std::min(1.0f, (float)sketch::kThumbnailWidth / longest);
+  const float scale = std::min(1.0f, (float)sketch::kThumbnailWidth / longest);
   std::error_code code;
   std::filesystem::create_directories(out.parent_path(), code);
   if (!host->capture(out, scale)) return;
   sketch::pruneThumbnails(SketchCatalog::thumbnailDir, entry.name, out);
   if (m_view)
     QMetaObject::invokeMethod(
-        m_view, [view = m_view, index = m_index] {
+        m_view,
+        [view = m_view, index = m_index] {
           emit view->thumbnailCaptured(index);
         },
         Qt::QueuedConnection);
@@ -809,7 +829,8 @@ void SketchbookView::itemChange(ItemChange change, const ItemChangeData& data) {
 
 void SketchbookView::setSketchIndex(int index) {
   if (index == m_sketchIndex || index < 0 ||
-      index >= (int)(sketch::registry().size() + SketchCatalog::externals.size()))
+      index >=
+          (int)(sketch::registry().size() + SketchCatalog::externals.size()))
     return;
   m_sketchIndex = index;
   emit sketchIndexChanged();

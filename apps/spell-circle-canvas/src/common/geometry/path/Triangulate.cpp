@@ -130,8 +130,7 @@ std::vector<Polyline> voronoi(const Triangulation& triangulation,
   std::vector<std::vector<uint32_t>> adjacency(triangulation.points.size());
   const auto join = [&](uint32_t a, uint32_t b) {
     std::vector<uint32_t>& list = adjacency[a];
-    if (std::find(list.begin(), list.end(), b) == list.end())
-      list.push_back(b);
+    if (std::find(list.begin(), list.end(), b) == list.end()) list.push_back(b);
   };
   if (triangulation.triangles.empty()) {
     // A set with no triangulation still has a diagram: two points split

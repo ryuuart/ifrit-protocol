@@ -3,8 +3,6 @@
  * the shaping every stroke goes through.
  */
 
-#include "PenUnits.h"
-
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <sigildraw/Pen.h>
@@ -14,6 +12,8 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+
+#include "PenUnits.h"
 
 namespace sigil::draw::brush {
 

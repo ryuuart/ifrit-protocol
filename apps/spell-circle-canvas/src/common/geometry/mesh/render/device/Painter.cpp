@@ -15,6 +15,8 @@
 
 #include "sigilgeometry/mesh/render/device/Painter.h"
 
+#include <Graphics/GraphicsEngine/interface/DeviceContext.h>
+#include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkM44.h>
@@ -25,8 +27,6 @@
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/GeometryMeshRenderDevice.h>
 
-#include <Graphics/GraphicsEngine/interface/DeviceContext.h>
-#include <Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <algorithm>
 #include <cmath>
 #include <glm/gtc/matrix_inverse.hpp>
@@ -186,8 +186,8 @@ class PainterExecutor : public Executor {
     // THE PRIMITIVE LANE makes the vertices unshared, so it is read at
     // upload rather than at the draw. Only the lit mode carries one: the
     // normal and uv buffers would be corrupted by a tint.
-    const bool tinted = !style.primColorLane.empty() &&
-                        style.mode == MeshStyle::Mode::Lit;
+    const bool tinted =
+        !style.primColorLane.empty() && style.mode == MeshStyle::Mode::Lit;
     const device::MeshBuffers* buffers = state.meshes.stream(
         mesh, tinted ? style.primColorLane : std::string_view{});
     if (!buffers) {

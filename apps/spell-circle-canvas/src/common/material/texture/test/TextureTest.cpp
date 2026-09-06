@@ -12,6 +12,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilimage/decode/Decode.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/texture/Atlas.h>
@@ -19,11 +20,10 @@
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/texture/TextureSet.h>
-#include <sigilimage/decode/Decode.h>
 
 #include <algorithm>
-#include <cmath>
 #include <boost/container/map.hpp>
+#include <cmath>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -49,8 +49,7 @@ EnvironmentMap bandedSky(int width) {
     const float t = v / kHorizon;
     const float band = 0.5f + 0.5f * std::sin(t * 40.0f);
     const float sun = std::exp(-((u - 0.5f) * (u - 0.5f)) / 0.002f);
-    return {0.05f + t * band + 2.0f * sun, 0.10f + 0.4f * t,
-            0.30f - 0.2f * t};
+    return {0.05f + t * band + 2.0f * sun, 0.10f + 0.4f * t, 0.30f - 0.2f * t};
   });
 }
 
@@ -209,8 +208,8 @@ const ToolName kSubstance[] = {
     {"Metallic", "Rock_Metallic.png", texture::Role::Metallic, false},
     {"Height", "Rock_Height.png", texture::Role::Height, false},
     {"Emissive", "Rock_Emissive.png", texture::Role::Emissive, false},
-    {"OcclusionRoughnessMetallic",
-     "Rock_OcclusionRoughnessMetallic.png", texture::Role::Packed, false},
+    {"OcclusionRoughnessMetallic", "Rock_OcclusionRoughnessMetallic.png",
+     texture::Role::Packed, false},
 };
 
 const ToolName kPolyHaven[] = {
@@ -272,7 +271,8 @@ TEST(TextureSet, TheSetNameIsWhatStandsBeforeTheRoleWord) {
 }
 
 TEST(TextureSet, AUsageWordNamesARoleAndAnUnrecognisedOneIsUnknown) {
-  EXPECT_EQ(texture::roleForUsage("ambientOcclusion"), texture::Role::Occlusion);
+  EXPECT_EQ(texture::roleForUsage("ambientOcclusion"),
+            texture::Role::Occlusion);
   EXPECT_EQ(texture::roleForUsage("baseColor"), texture::Role::BaseColor);
   EXPECT_EQ(texture::roleForUsage("wibble"), texture::Role::Unknown);
   EXPECT_EQ(texture::name(texture::Role::Packed), "packed");
@@ -435,9 +435,9 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
   // each decode to the six faces as one 1:6 column, which is a sheet
   // fromCubeMap already reads — so the panorama is the same texel the
   // sheet of the same faces gives at each face's centre direction.
-  const sigil::image::test::CubeFaces kFace = {
-      SK_ColorRED,    SK_ColorGREEN, SK_ColorBLUE,
-      SK_ColorYELLOW, SK_ColorCYAN,  SK_ColorMAGENTA};
+  const sigil::image::test::CubeFaces kFace = {SK_ColorRED,  SK_ColorGREEN,
+                                               SK_ColorBLUE, SK_ColorYELLOW,
+                                               SK_ColorCYAN, SK_ColorMAGENTA};
   constexpr int kEdge = 16;
   SkBitmap column;
   column.allocPixels(SkImageInfo::MakeN32Premul(kEdge, 6 * kEdge));
@@ -448,14 +448,16 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
                                paint);
   }
   column.setImmutable();
-  const EnvironmentMap fromSheet = EnvironmentMap::fromCubeMap(column.asImage());
+  const EnvironmentMap fromSheet =
+      EnvironmentMap::fromCubeMap(column.asImage());
   ASSERT_TRUE(fromSheet.valid());
 
   const SkV3 axes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
                         {0, -1, 0}, {0, 0, 1},  {0, 0, -1}};
   const auto expectSameAsSheet = [&](const std::vector<std::byte>& bytes,
                                      const char* name) {
-    auto asset = sigil::image::decodeImage(bytes.data(), bytes.size(), {}, name);
+    auto asset =
+        sigil::image::decodeImage(bytes.data(), bytes.size(), {}, name);
     ASSERT_TRUE(asset.has_value()) << name;
     const EnvironmentMap env =
         EnvironmentMap::fromCubeMap(asset->frames()[0].image);
@@ -465,7 +467,8 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
     const sk_sp<SkImage> sheet = fromSheet.image(0);
     for (int i = 0; i < 6; ++i) {
       const SkV2 uv = equirectUv(axes[i]);
-      const int x = std::min((int)(uv.x * (float)pano->width()), pano->width() - 1);
+      const int x =
+          std::min((int)(uv.x * (float)pano->width()), pano->width() - 1);
       const int y =
           std::min((int)(uv.y * (float)pano->height()), pano->height() - 1);
       const SkColor4f got = floatPixel(pano, x, y);

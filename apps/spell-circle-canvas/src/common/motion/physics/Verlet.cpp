@@ -39,7 +39,8 @@ void Verlet::step(Points& points, std::span<const Force> forces,
   const int passes = iterations > 0 ? iterations : 1;
   if (!constraints.empty())
     for (int pass = 0; pass < passes; ++pass)
-      for (const Constraint& constraint : constraints) constraint.project(points);
+      for (const Constraint& constraint : constraints)
+        constraint.project(points);
 
   // The velocity is what the step ACHIEVED, not what it intended. A
   // point a stick stopped ends where the stick allows and comes out of

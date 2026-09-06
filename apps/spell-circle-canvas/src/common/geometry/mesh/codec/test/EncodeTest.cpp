@@ -7,18 +7,18 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/kit/Solids.h>
 
 #include <cmath>
 #include <filesystem>
 #include <string>
 
+#include "ScratchDir.h"
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/codec/Decode.h"
 #include "sigilgeometry/mesh/codec/Encode.h"
 #include "sigilgeometry/mesh/pop/Pop.h"
-#include "ScratchDir.h"
 #include "support/GeometrySupport.h"
-#include <sigilgeometry/kit/Solids.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;
@@ -148,11 +148,10 @@ TEST_P(PlyEncoding, RoundTripsAMeshWithItsFacesAndColours) {
   EXPECT_NEAR(back.colors[0].y, 0.9f, 1.5f / 255.0f);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    Ply, PlyEncoding, ::testing::Bool(),
-    [](const ::testing::TestParamInfo<bool>& info) {
-      return info.param ? "Binary" : "Ascii";
-    });
+INSTANTIATE_TEST_SUITE_P(Ply, PlyEncoding, ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                           return info.param ? "Binary" : "Ascii";
+                         });
 
 TEST(Save, ABinaryPlyRoundTripsACloudBitForBit) {
   // Binary rows are raw floats, so the round trip is BIT-exact and every
@@ -190,7 +189,6 @@ TEST(Save, ABinaryPlyRoundTripsACloudBitForBit) {
   EXPECT_FLOAT_EQ((*back.colorIf("glow"))[2].w, 0.125f);
   ASSERT_TRUE(back.colorIf("tint"));  // uchar red/green/blue/alpha
   EXPECT_NEAR((*back.colorIf("tint"))[2].w, 0.5f, 1.5f / 255.0f);
-
 }
 
 TEST(Save, PlyHeaderAndRowsAgreeWhenLanesMismatchAndEmptyCloudDeclines) {
@@ -333,7 +331,8 @@ TEST(Save, GeoRoundTripsACloudLaneForLane) {
   const std::vector<glm::vec4>* uv = again.colorIf("uv");
   ASSERT_NE(uv, nullptr);
   EXPECT_NEAR((*uv)[1].x, 0.5f, 1e-5f);
-  EXPECT_NEAR((*uv)[1].y, 0.25f, 1e-5f) << "the v flip is undone on the way out";
+  EXPECT_NEAR((*uv)[1].y, 0.25f, 1e-5f)
+      << "the v flip is undone on the way out";
   // A lane that arrived as a group leaves as the scalar it became, which
   // is what a mask reads either way.
   const std::vector<float>* ring = again.scalarIf("ring");

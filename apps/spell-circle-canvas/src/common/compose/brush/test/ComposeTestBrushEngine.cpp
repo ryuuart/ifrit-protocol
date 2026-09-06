@@ -55,8 +55,7 @@ TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
   SkPathBuilder b;
   b.moveTo(0, 0);
   b.lineTo(300, 0);
-  const SkPath jittered =
-      geometry::shapers::Jitter{8, 2, 11}.shape(b.detach());
+  const SkPath jittered = geometry::shapers::Jitter{8, 2, 11}.shape(b.detach());
   SkContourMeasureIter iter(jittered, false);
   float total = 0;
   bool anyClosed = false;
@@ -199,7 +198,6 @@ TEST(ComposeBrushEngine, AlongGradientRampsOverTheArc) {
   EXPECT_LT(SkColorGetR(end), 60u);
 }
 
-
 TEST(ComposeDecorations, ContourWalkCopyRebakesChangedStamp) {
   ContourWalk base;
   base.spacing = 1000.0f;  // one stamp at the open route's first point
@@ -242,11 +240,12 @@ TEST(ComposeBrushTail, BrushArtWarpsArtAlongTheOutline) {
 
 TEST(ComposeBrushTail, HatchFillsInteriorSparsely) {
   Host host;
-  host.composer.render(box().child(
-      box()
-          .absolute()
-          .inset(50, 50, 50, 50)
-          .background(lines::presets::hatch(Fill::color({1, 1, 1, 1}), 8, 1.5f, 45))));
+  host.composer.render(
+      box().child(box()
+                      .absolute()
+                      .inset(50, 50, 50, 50)
+                      .background(lines::presets::hatch(
+                          Fill::color({1, 1, 1, 1}), 8, 1.5f, 45))));
   host.frame();
   // Count lit pixels in the hatched interior: strictly between "empty"
   // and "solid fill" — the lattice is present but sparse.
@@ -496,5 +495,5 @@ TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
       if (plain.pixel(x, y) != glossed.pixel(x, y)) ++changed;
   EXPECT_GT(changed, 40);                                     // a band
   EXPECT_EQ(plain.pixel(100, 100), glossed.pixel(100, 100));  // not a wash
-  EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));  // and clipped out
+  EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));      // and clipped out
 }

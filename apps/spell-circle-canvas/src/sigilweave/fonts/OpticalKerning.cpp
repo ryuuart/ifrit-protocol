@@ -111,13 +111,13 @@ float gapBetween(const GlyphProfile& left, const GlyphProfile& right) {
     if (left.right[static_cast<size_t>(band)] == GlyphProfile::kNoInk) continue;
     // The height this band's middle stands at, and the right glyph's band
     // holding it.
-    const float height =
-        left.top - leftHeight * (static_cast<float>(band) + 0.5f) /
-                       static_cast<float>(kProfileBands);
+    const float height = left.top - leftHeight *
+                                        (static_cast<float>(band) + 0.5f) /
+                                        static_cast<float>(kProfileBands);
     const float position = (right.top - height) / rightHeight;
     if (position < 0 || position >= 1) continue;
-    const auto other = static_cast<size_t>(
-        position * static_cast<float>(kProfileBands));
+    const auto other =
+        static_cast<size_t>(position * static_cast<float>(kProfileBands));
     if (right.left[other] == GlyphProfile::kNoInk) continue;
     const float gap = (left.advance - left.right[static_cast<size_t>(band)]) +
                       right.left[other];

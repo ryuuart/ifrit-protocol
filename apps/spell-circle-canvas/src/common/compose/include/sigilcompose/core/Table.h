@@ -13,14 +13,13 @@
  * stands beside the seam rather than on the shelf of stock placements.
  */
 
+#include <include/core/SkRect.h>
+#include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
-
-#include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
 
 namespace sigil::compose {
 
@@ -90,11 +89,10 @@ struct Table {
       const SkSize size{
           s.across == Align::Stretch ? box.width() : in.childSizes[i].width(),
           s.down == Align::Stretch ? box.height() : in.childSizes[i].height()};
-      rects[i] = SkRect::MakeXYWH(at.fX + slack(s.across, box.width(),
-                                                size.width()),
-                                  at.fY + slack(s.down, box.height(),
-                                                size.height()),
-                                  size.width(), size.height());
+      rects[i] =
+          SkRect::MakeXYWH(at.fX + slack(s.across, box.width(), size.width()),
+                           at.fY + slack(s.down, box.height(), size.height()),
+                           size.width(), size.height());
     }
     return rects;
   }
@@ -116,9 +114,11 @@ struct Table {
     //    in it alone. A spanning child says nothing here — its width is
     //    a claim about several columns together, not about any one.
     for (size_t i = 0; i < spans.size(); ++i)
-      if (spans[i].columns == 1 && (size_t)spans[i].column < grid.columnWidths.size())
-        grid.columnWidths[(size_t)spans[i].column] = std::max(
-            grid.columnWidths[(size_t)spans[i].column], in.childSizes[i].width());
+      if (spans[i].columns == 1 &&
+          (size_t)spans[i].column < grid.columnWidths.size())
+        grid.columnWidths[(size_t)spans[i].column] =
+            std::max(grid.columnWidths[(size_t)spans[i].column],
+                     in.childSizes[i].width());
 
     // 2. Then the spanning children top their columns up, narrowest span
     //    first, so a wide span sees what the narrow ones already asked
@@ -130,7 +130,8 @@ struct Table {
         const float deficit = in.childSizes[i].width() - have;
         if (deficit <= 0) continue;
         const float share = have - (float)(k - 1) * pitch;
-        for (int j = 0; j < k && (size_t)(spans[i].column + j) < grid.columnWidths.size();
+        for (int j = 0;
+             j < k && (size_t)(spans[i].column + j) < grid.columnWidths.size();
              ++j) {
           float& w = grid.columnWidths[(size_t)(spans[i].column + j)];
           w += share > 0 ? deficit * w / share : deficit / (float)k;
@@ -142,8 +143,8 @@ struct Table {
     float content = 0;
     for (float w : grid.columnWidths) content += w;
     const float table = width > 0 ? width : in.container.width();
-    const float surplus =
-        table - (content + (float)cols * 2 * padding + (float)(cols + 1) * spacing);
+    const float surplus = table - (content + (float)cols * 2 * padding +
+                                   (float)(cols + 1) * spacing);
     if (surplus > 0 && content > 0)
       for (float& w : grid.columnWidths) w += surplus * w / content;
 
@@ -157,8 +158,8 @@ struct Table {
     for (int k = 2; k <= lines; ++k)
       for (size_t i = 0; i < spans.size(); ++i) {
         if (spans[i].rows != k) continue;
-        const float deficit =
-            in.childSizes[i].height() - extent(grid.rowHeights, spans[i].row, k);
+        const float deficit = in.childSizes[i].height() -
+                              extent(grid.rowHeights, spans[i].row, k);
         const size_t last = (size_t)(spans[i].row + k - 1);
         if (deficit > 0 && last < grid.rowHeights.size())
           grid.rowHeights[last] += deficit;

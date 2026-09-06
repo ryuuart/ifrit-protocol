@@ -72,14 +72,14 @@ TEST(DecorationBand, AnExplicitThicknessAndOffsetOverrideTheMetricsEntirely) {
 }
 
 TEST(DecorationBand, AnUnsetColourIsTheForegroundAndAnExplicitOneWins) {
-  EXPECT_EQ(detail::resolveDecorationBand({}, silentMetrics(), SK_ColorRED)
-                .color,
-            SK_ColorRED);
+  EXPECT_EQ(
+      detail::resolveDecorationBand({}, silentMetrics(), SK_ColorRED).color,
+      SK_ColorRED);
   Decoration blue;
   blue.color = SK_ColorBLUE;
-  EXPECT_EQ(detail::resolveDecorationBand(blue, silentMetrics(), SK_ColorRED)
-                .color,
-            SK_ColorBLUE);
+  EXPECT_EQ(
+      detail::resolveDecorationBand(blue, silentMetrics(), SK_ColorRED).color,
+      SK_ColorBLUE);
 }
 
 TEST(DecorationBand, SkipInkBreaksAroundDescenders) {

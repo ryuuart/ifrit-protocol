@@ -188,8 +188,8 @@ TEST(Substance, SetsAParameterItHasAndRefusesOneItDoesNot) {
       break;
     }
   ASSERT_TRUE(knob) << "the sample graph declares no movable float slider";
-  const float far = knob->values[0] == knob->maximum[0] ? knob->minimum[0]
-                                                        : knob->maximum[0];
+  const float far =
+      knob->values[0] == knob->maximum[0] ? knob->minimum[0] : knob->maximum[0];
   EXPECT_TRUE(graph.set(knob->identifier, far)) << knob->identifier;
 
   // A wrong identifier and a wrong arity are refused, not applied.

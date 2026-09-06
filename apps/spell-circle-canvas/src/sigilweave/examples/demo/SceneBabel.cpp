@@ -4,6 +4,7 @@
 // shape cache.
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmeasure/time/Stopwatch.h>
 
 #include <cmath>
 #include <cstdio>
@@ -12,7 +13,6 @@
 
 #include "DemoScenes.h"
 #include "DemoSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
 
 using namespace sigil::weave;
 

@@ -73,7 +73,8 @@ material::Texture importNative(Device& device,
                                bool takeOwnership) {
   core::hardware::GpuDevice* gpu = device.gpu();
   if (!gpu) return {};
-  const core::hardware::TextureHandle handle = gpu->importNative(native, takeOwnership);
+  const core::hardware::TextureHandle handle =
+      gpu->importNative(native, takeOwnership);
   if (!handle) return {};
   auto held = std::make_shared<Held>();
   held->device = gpu;

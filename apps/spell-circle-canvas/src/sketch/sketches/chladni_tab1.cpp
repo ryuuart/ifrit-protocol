@@ -106,7 +106,6 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
@@ -114,6 +113,7 @@
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
@@ -185,9 +185,9 @@ constexpr float kRuleGap = 11 * kScale;
 // the bearing of its Linien. `kUnit` has radius 1, so `at()` takes a
 // FRACTION of the disc and `about(c).px()` takes canvas px.
 constexpr path::Frame kUnit{.centre = {0, 0},
-                           .radius = 1.0f,
-                           .zero = path::Zero::North,
-                           .sense = path::Sense::CW};
+                            .radius = 1.0f,
+                            .zero = path::Zero::North,
+                            .sense = path::Sense::CW};
 
 SkPoint polar(SkPoint c, float radius, float bearingDeg) {
   return kUnit.about(c).px(bearingDeg, radius);
@@ -307,9 +307,7 @@ shapes::OutlineFn linieOutline(Linie l) {
   while (sweep <= -SK_FloatPI) sweep += 2 * SK_FloatPI;
   while (sweep > SK_FloatPI) sweep -= 2 * SK_FloatPI;
   const float rho = l.arcRadius;
-  auto at = [o, rho](float a) {
-    return arrange::onEllipse(o, {rho, rho}, a);
-  };
+  auto at = [o, rho](float a) { return arrange::onEllipse(o, {rho, rho}, a); };
   const SkPoint mid = at(a0 + sweep * 0.5f);
   if (mid.fX * mid.fX + mid.fY * mid.fY > 1.0f)
     sweep += sweep > 0 ? -2 * SK_FloatPI : 2 * SK_FloatPI;
@@ -407,9 +405,9 @@ struct Xorshift {
 sigil::weave::TextStyle type(sk_sp<SkTypeface> face, float size,
                              SkColor4f color, float tracking = 0) {
   return weave::textStyle({.face = std::move(face),
-                               .size = size,
-                               .color = color,
-                               .track = tracking});
+                           .size = size,
+                           .color = color,
+                           .track = tracking});
 }
 
 // --- the reading order, in seconds -----------------------------------------
@@ -552,7 +550,8 @@ struct ChladniTab1 : sketch::Sketch {
           const float off = (rng.next() + rng.next() - 1.0f) * 1.9f;
           grain.to = {c.fX - kR + pos.fX - tan.fY * off,
                       c.fY - kR + pos.fY + tan.fX * off};
-          grain.rotateTo = std::atan2(tan.fY, tan.fX) + rng.range(-0.10f, 0.10f);
+          grain.rotateTo =
+              std::atan2(tan.fY, tan.fX) + rng.range(-0.10f, 0.10f);
           frames[at] = rng.next() < 0.7f ? 1 : 2;
           grain.scaleFrom = grain.scaleTo = rng.range(0.45f, 0.78f);
         }
@@ -810,14 +809,14 @@ struct ChladniTab1 : sketch::Sketch {
     // enough that its repeat is not the strongest mark on the page.
     foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {skia::toColor(kFox)});
     foxing.seed(17);
-    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f, {skia::toColor(hex(0x94764c, 0.09f))});
+    foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f,
+                                 {skia::toColor(hex(0x94764c, 0.09f))});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.
-    inkMat = Paint::blend(
-        {{Paint::solid(kInk), SkBlendMode::kSrc},
-         {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)),
-          SkBlendMode::kSoftLight}});
+    inkMat = Paint::blend({{Paint::solid(kInk), SkBlendMode::kSrc},
+                           {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)),
+                            SkBlendMode::kSoftLight}});
 
     settleEase = ease::outBounce();
 

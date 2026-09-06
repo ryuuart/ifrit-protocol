@@ -3,9 +3,9 @@
  * SigilGeometryPath's, the pressure is the lane it carries.
  */
 
+#include <sigildraw/brush/Stroke.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Skia.h>
-#include <sigildraw/brush/Stroke.h>
 
 #include <algorithm>
 

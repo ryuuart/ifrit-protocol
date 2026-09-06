@@ -101,7 +101,8 @@ TEST_P(SoftHyphenBreaker, ADiscretionaryBreakIsTakenToFitTheMeasure) {
   EXPECT_GT(hyphenBreakCount, 0u);
 }
 
-TEST_P(SoftHyphenBreaker, TurningHyphenationOffFusesTheHalvesAndRemovesTheBreak) {
+TEST_P(SoftHyphenBreaker,
+       TurningHyphenationOffFusesTheHalvesAndRemovesTheBreak) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph paragraph = makeParagraph(kOneSoftHyphen);
   BlockFlow flow(SkRect::MakeWH(kHalfWordMeasure, 300));

@@ -217,7 +217,8 @@ bool StampGpu::dispatch(const kernel::StampDispatch& work) {
                                  dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
   dg::DispatchComputeAttribs attribs;
   attribs.ThreadGroupCountX =
-      (dg::Uint32)((count + kernel::kStampGroupSize - 1) / kernel::kStampGroupSize);
+      (dg::Uint32)((count + kernel::kStampGroupSize - 1) /
+                   kernel::kStampGroupSize);
   context->DispatchCompute(attribs);
   return true;
 }
@@ -244,8 +245,8 @@ void StampGpu::readBack(size_t count, glm::vec4* positions, glm::vec4* normals,
   // THE THREE LANES IN ONE CROSSING. A wait per lane would cost a round
   // trip per attribute a stamping happens to write; the copies are
   // queued together and waited on once.
-  dg::IBuffer* const lanes[kOutputLanes] = {
-      outPosition.buffer, outNormal.buffer, outColor.buffer};
+  dg::IBuffer* const lanes[kOutputLanes] = {outPosition.buffer,
+                                            outNormal.buffer, outColor.buffer};
   for (size_t i = 0; i < kOutputLanes; ++i)
     context->CopyBuffer(lanes[i], 0,
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION, staging,

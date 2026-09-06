@@ -96,8 +96,7 @@ class Neighbours {
   /** The indices stored in one cell, empty when the cell is outside the
    *  grid. What a caller walking cells itself reads; `forEachWithin` is
    *  written in terms of it. */
-  [[nodiscard]] std::span<const uint32_t> cellPoints(int x, int y,
-                                                     int z) const;
+  [[nodiscard]] std::span<const uint32_t> cellPoints(int x, int y, int z) const;
 
   /** `visit(index)` FOR EVERY POINT WITHIN `radius` OF `p`, allocating
    *  nothing at all. The order is cell order, which is not distance

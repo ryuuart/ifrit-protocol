@@ -178,10 +178,11 @@ struct HubReload final : sketch::Sketch {
                        "the UTF-8 convenience over blob() \xc2\xb7 read "
                        "once before the file changed and once after, "
                        "with poll() between them",
-                       lines({kit::formatted("first  \xc2\xb7 %s",
-                                          firstText ? firstText->c_str() : "-"),
+                       lines({kit::formatted(
+                                  "first  \xc2\xb7 %s",
+                                  firstText ? firstText->c_str() : "-"),
                               kit::formatted("poll() \xc2\xb7 %s",
-                                          moved ? "true" : "false"),
+                                             moved ? "true" : "false"),
                               kit::formatted(
                                   "second \xc2\xb7 %s",
                                   secondText ? secondText->c_str() : "-")})),
@@ -199,23 +200,22 @@ struct HubReload final : sketch::Sketch {
                        "nothing: a view already handed out keeps its "
                        "value, so the first reading is still the first "
                        "reading and the new one arrives by asking again",
-                       lines({kit::formatted("first  cloud \xc2\xb7 %zu points",
-                                          firstCloud ? firstCloud->points.size()
-                                                     : 0),
+                       lines({kit::formatted(
+                                  "first  cloud \xc2\xb7 %zu points",
+                                  firstCloud ? firstCloud->points.size() : 0),
                               kit::formatted(
                                   "second cloud \xc2\xb7 %zu points",
                                   secondCloud ? secondCloud->points.size() : 0),
-                              kit::formatted("first  chart \xc2\xb7 "
-                                          "%d\xc3\x97%d",
-                                          firstChart ? firstChart->width() : 0,
-                                          firstChart ? firstChart->height()
-                                                     : 0),
+                              kit::formatted(
+                                  "first  chart \xc2\xb7 "
+                                  "%d\xc3\x97%d",
+                                  firstChart ? firstChart->width() : 0,
+                                  firstChart ? firstChart->height() : 0),
                               kit::formatted("mount  \xc2\xb7 %s",
-                                          hub
-                                              .resolve(notesUri)
-                                              .filename()
-                                              .string()
-                                              .c_str())}))},
+                                             hub.resolve(notesUri)
+                                                 .filename()
+                                                 .string()
+                                                 .c_str())}))},
              .gap = 14})));
   }
 

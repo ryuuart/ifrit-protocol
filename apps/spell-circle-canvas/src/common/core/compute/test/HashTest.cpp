@@ -45,9 +45,8 @@ TEST(Fnv1a, TheBasisAndThePrimeAreTheOnesEveryBucketUses) {
 
 TEST_P(Fnv1aFold, AnswersTheNumberASecondImplementationMustAlsoAnswer) {
   const Fold& fold = GetParam();
-  EXPECT_EQ(std::visit(
-                [](auto v) { return hash::fnv1a(hash::kFnvOffset, v); },
-                fold.input),
+  EXPECT_EQ(std::visit([](auto v) { return hash::fnv1a(hash::kFnvOffset, v); },
+                       fold.input),
             fold.folded);
 }
 

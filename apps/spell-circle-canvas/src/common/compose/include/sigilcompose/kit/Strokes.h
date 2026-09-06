@@ -113,10 +113,10 @@ inline lines::Rails rails(int count, float width, const Fill& fill,
   lines::Rails r;
   const int n = std::max(count, 1);
   for (int i = 0; i < n; ++i)
-    r.rails.push_back(lines::Rail{
-        .across = gap * ((float)i - (float)(n - 1) * 0.5f),
-        .width = width,
-        .fill = fill});
+    r.rails.push_back(
+        lines::Rail{.across = gap * ((float)i - (float)(n - 1) * 0.5f),
+                    .width = width,
+                    .fill = fill});
   return r;
 }
 

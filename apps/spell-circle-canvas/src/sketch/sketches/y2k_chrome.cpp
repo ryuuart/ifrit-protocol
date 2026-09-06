@@ -57,8 +57,8 @@ namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -125,7 +125,7 @@ inline Element gelOrb(float d = kOrbD) {
       // through a ring table): a shape-following light band the preset's
       // axis-aligned lens can't produce on a sphere.
       .foreground(kit::gloss({0.85f, 0.95f, 1.0f, 0.5f}, d * 0.09f,
-                                {0, -d * 0.06f}, 0.48f, 0.30f))
+                             {0, -d * 0.06f}, 0.48f, 0.30f))
       // light-from-below, which the preset's inner lift undersells on a
       // sphere: a screen-blended bottom rim glow (child rides under the
       // preset's over-layer gloss, so the lens stays on top).
@@ -133,9 +133,9 @@ inline Element gelOrb(float d = kOrbD) {
                  .inset(d * 0.14f, d * 0.50f, d * 0.14f, d * 0.02f)
                  .corners({d * 0.24f})
                  .fill(Paint::radial({d * 0.36f, d * 0.55f}, d * 0.52f,
-                                        {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
-                                         {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
-                                         {1.00f, {0.55f, 0.85f, 1.0f, 0.0f}}}))
+                                     {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
+                                      {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
+                                      {1.00f, {0.55f, 0.85f, 1.0f, 0.0f}}}))
                  .blend(SkBlendMode::kScreen));
 }
 
@@ -169,7 +169,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
       .background(styles::dropShadow(t.halo, {0, 10}, 16))
       // body ramp: deep .82 -> mid .9 @0.9 -> light
       .fill(Paint::linear({0, 0}, {0, h},
-                             {{0.0f, t.deep}, {0.9f, t.mid}, {1.0f, t.light}}))
+                          {{0.0f, t.deep}, {0.9f, t.mid}, {1.0f, t.light}}))
       .foreground(rim(path::Edge::Top, hex(0x8BA2C1)))
       .foreground(rim(path::Edge::Right, hex(0x5890BF)))
       .foreground(rim(path::Edge::Bottom, hex(0x4F93CA)))
@@ -257,7 +257,7 @@ inline Element caption(std::string_view s) {
 
 struct Y2kChrome final : sketch::Sketch {
   choreograph::Output<float> tickX{0};
-  float unitW = 0;    // strip content's intrinsic width (compose::intrinsicSize)
+  float unitW = 0;  // strip content's intrinsic width (compose::intrinsicSize)
   float wrapLen = 1;  // marquee wrap length = unitW + gap
 
   void setup(sketch::SketchContext& ctx) override {
@@ -388,8 +388,8 @@ struct Y2kChrome final : sketch::Sketch {
     Element wordmark =
         box()
             .key("wordmark")
-            .translateY(
-                animate(motion::from(14.0f).to(0.0f), {550ms, &ch::easeOutQuint}))
+            .translateY(animate(motion::from(14.0f).to(0.0f),
+                                {550ms, &ch::easeOutQuint}))
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
             .child(plate)
             // The preset's specular sliver rides the plate BEHIND the type.
@@ -475,18 +475,17 @@ struct Y2kChrome final : sketch::Sketch {
     // ---- status bar: marquee, ticker-driven phase -------------------
     // The crawl, named: a strip run past a window twice so the loop has no
     // seam, with the wrap this file already keeps on `tickX`.
-    Element strip = sketch::kit::ticker({.content = stripContent(),
-                                         .phase = &tickX,
-                                         .gap = yc::kTickerGap});
+    Element strip = sketch::kit::ticker(
+        {.content = stripContent(), .phase = &tickX, .gap = yc::kTickerGap});
     strip.grow(1);
     Element statusBar =
         box()
             .height(yc::kStatusH)
             .fill(Fill::color(hex(0xD9DDE1)))
-            .foreground(onEdges(path::Edge::Top,
-                                        stroke(1, Fill::color(hex(0xFFFFFF)))))
-            .background(onEdges(path::Edge::Top,
-                                        stroke(1, Fill::color(hex(0x8F969D)))))
+            .foreground(
+                onEdges(path::Edge::Top, stroke(1, Fill::color(hex(0xFFFFFF)))))
+            .background(
+                onEdges(path::Edge::Top, stroke(1, Fill::color(hex(0x8F969D)))))
             .row()
             .alignItems(Align::Center)
             .padding(10, 0)
@@ -513,9 +512,9 @@ struct Y2kChrome final : sketch::Sketch {
             .inset(yc::kWindowX, yc::kWindowY, yc::kWindowX, yc::kWindowY)
             .background(styles::dropShadow({0, 0, 0, 0.38f}, {0, 7}, 18))
             .fill(Paint::linear({0, 0}, {0, yc::kH},
-                                   {{0.00f, hex(0x16204A)},
-                                    {0.48f, hex(0x0B1030)},
-                                    {1.00f, hex(0x050817)}}))
+                                {{0.00f, hex(0x16204A)},
+                                 {0.48f, hex(0x0B1030)},
+                                 {1.00f, hex(0x050817)}}))
             .corners({6})
             .clip()
             .child(box()
@@ -528,15 +527,15 @@ struct Y2kChrome final : sketch::Sketch {
                        .blend(SkBlendMode::kPlus))
             .child(box().inset(0).fill(
                 Paint::glowUnit({0.5f, 0.42f}, 1.02f,
-                                   {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
-                                    {0.55f, {0, 0, 0, 0.0f}},
-                                    {1.0f, {0, 0, 0, 0.45f}}})))
+                                {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
+                                 {0.55f, {0, 0, 0, 0.0f}},
+                                 {1.0f, {0, 0, 0, 0.45f}}})))
             .cache(Cache::Texture);
 
     // ---- assembly ---------------------------------------------------------
     return stack()
         .fill(Paint::linear({0, 0}, {0, yc::kH},
-                               {{0.0f, hex(0xB9BFC7)}, {1.0f, hex(0xA2A8B1)}}))
+                            {{0.0f, hex(0xB9BFC7)}, {1.0f, hex(0xA2A8B1)}}))
         .child(box().inset(0).fill(check))
         .child(windowBackplate)
         // the window
@@ -567,20 +566,21 @@ struct Y2kChrome final : sketch::Sketch {
                             box()
                                 .height(2)
                                 .margin(4, 0, 4, 10)
-                                .opacity(animate(motion::from(0.0f).to(1.0f), {500ms}))
-                                .fill(
-                                    Paint::linear({0, 0}, {0, 2},
-                                                     {{0.0f, hex(0x8F969D)},
-                                                      {0.5f, hex(0x8F969D)},
-                                                      {0.501f, hex(0xFFFFFF)},
-                                                      {1.0f, hex(0xFFFFFF)}})))
+                                .opacity(animate(motion::from(0.0f).to(1.0f),
+                                                 {500ms}))
+                                .fill(Paint::linear({0, 0}, {0, 2},
+                                                    {{0.0f, hex(0x8F969D)},
+                                                     {0.5f, hex(0x8F969D)},
+                                                     {0.501f, hex(0xFFFFFF)},
+                                                     {1.0f, hex(0xFFFFFF)}})))
                         // footer: preset orb, caption, 1998 plastic button
                         .child(
                             box()
                                 .row()
                                 .alignItems(Align::End)
                                 .key("footer")
-                                .opacity(animate(motion::from(0.0f).to(1.0f), {500ms}))
+                                .opacity(animate(motion::from(0.0f).to(1.0f),
+                                                 {500ms}))
                                 .child(yc::gelOrb())
                                 .child(
                                     box()

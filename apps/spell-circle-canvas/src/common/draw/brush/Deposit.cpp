@@ -2,9 +2,6 @@
  * The executor seam: dabs, or a stroke, laid down with a tool.
  */
 
-#include "DabStyle.h"
-#include "Executors.h"
-
 #include <include/core/SkCanvas.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
@@ -12,6 +9,9 @@
 
 #include <algorithm>
 #include <vector>
+
+#include "DabStyle.h"
+#include "Executors.h"
 
 namespace sigil::draw::brush {
 
@@ -62,8 +62,7 @@ void deposit(Pen& pen, const Tool& tool, std::span<const Dab> dabs,
     return;
   }
   std::vector<Stamp> stamps;
-  if (tool.tip == Tip::Dust || tool.tip == Tip::Nib ||
-      tool.tip == Tip::Scatter)
+  if (tool.tip == Tip::Dust || tool.tip == Tip::Nib || tool.tip == Tip::Scatter)
     stamps.reserve(dabs.size() * (tool.tip == Tip::Scatter
                                       ? (size_t)std::max(1, tool.bristles)
                                       : 1u));

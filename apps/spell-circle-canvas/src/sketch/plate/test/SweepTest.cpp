@@ -154,8 +154,7 @@ int worstChannelDrift(const SkImage& a, const SkImage& b) {
   SkBitmap left, right;
   left.allocN32Pixels(a.width(), a.height());
   right.allocN32Pixels(b.width(), b.height());
-  if (!a.readPixels(left.pixmap(), 0, 0) ||
-      !b.readPixels(right.pixmap(), 0, 0))
+  if (!a.readPixels(left.pixmap(), 0, 0) || !b.readPixels(right.pixmap(), 0, 0))
     return 256;
   int worst = 0;
   for (int y = 0; y < a.height(); ++y)

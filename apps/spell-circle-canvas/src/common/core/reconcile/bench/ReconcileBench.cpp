@@ -22,7 +22,8 @@ Description grid(int count, int changed = -1, int shift = 0) {
   children.reserve((size_t)count);
   for (int i = 0; i < count; ++i) {
     const int id = (i + shift) % count;
-    children.push_back(description("n" + std::to_string(id), id == changed ? 1 : 0));
+    children.push_back(
+        description("n" + std::to_string(id), id == changed ? 1 : 0));
   }
   return description("root", 0, std::move(children));
 }

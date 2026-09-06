@@ -58,7 +58,9 @@ struct Vec2 {
   constexpr Vec2 operator-(const Vec2& other) const {
     return {x - other.x, y - other.y};
   }
-  constexpr Vec2 operator*(float scalar) const { return {x * scalar, y * scalar}; }
+  constexpr Vec2 operator*(float scalar) const {
+    return {x * scalar, y * scalar};
+  }
   constexpr Vec2 operator-() const { return {-x, -y}; }
   constexpr Vec2& operator+=(const Vec2& other) {
     x += other.x;
@@ -90,7 +92,9 @@ struct Vec2 {
   }
 };
 
-inline constexpr Vec2 operator*(float scalar, const Vec2& v) { return v * scalar; }
+inline constexpr Vec2 operator*(float scalar, const Vec2& v) {
+  return v * scalar;
+}
 
 /** THE POINT SET: one lane per property, all the same length.
  *

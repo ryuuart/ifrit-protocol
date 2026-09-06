@@ -8,13 +8,13 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/kit/Sections.h>
 
 #include <cmath>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Sweep.h"
-#include <sigilgeometry/kit/Sections.h>
 
 using namespace sigil::geometry;
 using namespace sigil::geometry::mesh;

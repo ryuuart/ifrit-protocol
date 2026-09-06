@@ -50,7 +50,8 @@ TEST(Spring, DampingDecidesWhetherItCrossesTheTarget) {
   bool crossed = false;
   Spring s{.value = 1.0f};
   for (int i = 0; i < 120; ++i) {
-    s = spring(s, 0.0f, 1.0f / 120.0f, {.periodSeconds = 0.3f, .damping = 0.3f});
+    s = spring(s, 0.0f, 1.0f / 120.0f,
+               {.periodSeconds = 0.3f, .damping = 0.3f});
     crossed = crossed || s.value < 0.0f;
   }
   EXPECT_TRUE(crossed);
@@ -82,8 +83,8 @@ TEST(Spring, TheRingDecaysAtTheRateTheDampingNames) {
   // damping for a bounce it can SEE.
   const float zeta = 0.21545376f;
   const SpringParams p{.periodSeconds = 0.39060562f, .damping = zeta};
-  const float expected = std::exp(-zeta * 3.14159265f /
-                                  std::sqrt(1.0f - zeta * zeta));
+  const float expected =
+      std::exp(-zeta * 3.14159265f / std::sqrt(1.0f - zeta * zeta));
 
   // A displacement of 40 released at rest, half a ring later: a hand-
   // authored ladder of +40 -> -20 -> +10 -> 0 is what this replaces, and
@@ -112,8 +113,8 @@ TEST(Spring, AMovedTargetBendsTheFlightRatherThanRestartingIt) {
   // No jump: the step carries it about as far as the speed it already
   // had, and not one frame further.
   EXPECT_NEAR(bent.value, before, s.velocity / 120.0f);
-  EXPECT_LT(bent.velocity, s.velocity);        // it has begun turning
-  EXPECT_GT(bent.velocity, 0.0f);              // and is still going up
+  EXPECT_LT(bent.velocity, s.velocity);  // it has begun turning
+  EXPECT_GT(bent.velocity, 0.0f);        // and is still going up
 
   // It gets there, from wherever the turn left it.
   const Spring landed = run(bent, -100.0f, 3.0f, 1.0f / 120.0f, p);

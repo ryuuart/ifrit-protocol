@@ -2,9 +2,6 @@
  * The dab style, and the round tips that go down as stamps.
  */
 
-#include "DabStyle.h"
-#include "Executors.h"
-
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
@@ -18,6 +15,9 @@
 #include <memory>
 #include <optional>
 #include <source_location>
+
+#include "DabStyle.h"
+#include "Executors.h"
 
 namespace sigil::draw::brush {
 
@@ -187,7 +187,7 @@ void depositNib(const Tool& tool, const DabStyle& style,
 }
 
 void depositDust(Pen& pen, const Tool& tool, const Dab& dab,
-                  const DabStyle& style, std::vector<Stamp>& stamps) {
+                 const DabStyle& style, std::vector<Stamp>& stamps) {
   const float pressure = std::max(0.1f, pressureAt(tool, dab));
   if (pen.random() >=
       std::clamp(tool.density * std::min(1.0f, pressure), 0.0f, 1.0f))

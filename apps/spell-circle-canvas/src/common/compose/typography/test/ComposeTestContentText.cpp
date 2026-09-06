@@ -786,15 +786,17 @@ TEST(ComposeTextFx, ATrackedRunSurvivesTheBakeItIsCachedInto) {
   // paint the same letter in the same place.
   Host host(220, 200);
   const auto tracked = [](bool cached) {
-    Element leaf = text(u8"I", whiteStyle(40)).key("k").fx(
-        {.effect = fx::effect(
-             "drop",
-             [](const GlyphInfo&, float, sigil::core::noise::Mix64Stream&) {
-               GlyphMod m;
-               m.dy = 60;
-               return m;
-             },
-             /*reach=*/80.0f)});
+    Element leaf = text(u8"I", whiteStyle(40))
+                       .key("k")
+                       .fx({.effect = fx::effect(
+                                "drop",
+                                [](const GlyphInfo&, float,
+                                   sigil::core::noise::Mix64Stream&) {
+                                  GlyphMod m;
+                                  m.dy = 60;
+                                  return m;
+                                },
+                                /*reach=*/80.0f)});
     if (cached) leaf.cache(Cache::Texture);
     return box().padding(10).child(std::move(leaf));
   };
@@ -803,9 +805,9 @@ TEST(ComposeTextFx, ATrackedRunSurvivesTheBakeItIsCachedInto) {
     host.frame();
     auto b = host.composer.bounds("k");
     EXPECT_TRUE(b.has_value());
-    return anyWhiteIn(host,
-                      SkIRect::MakeLTRB((int)b->left(), (int)b->top() + 60,
-                                        (int)b->right(), (int)b->bottom() + 60));
+    return anyWhiteIn(
+        host, SkIRect::MakeLTRB((int)b->left(), (int)b->top() + 60,
+                                (int)b->right(), (int)b->bottom() + 60));
   };
   EXPECT_TRUE(ink(false)) << "the track alone drew nothing";
   EXPECT_TRUE(ink(true))
@@ -831,11 +833,10 @@ TEST(ComposeTextFx, ATrackReachKeepsAWideThrowInsideTheCull) {
     return t;
   };
   const auto inkBelow = [&](float reach) {
-    host.composer.render(
-        box().padding(10).child(text(u8"I", whiteStyle(40))
-                                    .key("k")
-                                    .cache(Cache::Texture)
-                                    .fx(drop(reach))));
+    host.composer.render(box().padding(10).child(text(u8"I", whiteStyle(40))
+                                                     .key("k")
+                                                     .cache(Cache::Texture)
+                                                     .fx(drop(reach))));
     host.frame();
     auto b = host.composer.bounds("k");
     EXPECT_TRUE(b.has_value());

@@ -53,7 +53,8 @@ std::vector<SkSize> boxes(size_t count, SkSize size) {
 // The track sizing functions
 
 TEST(KitGrid, AFixedTrackIsItsLengthAndFreeSpaceBesideItStaysFree) {
-  const Grid grid{.columns = {layouts::px(100), layouts::px(50), layouts::px(120)}};
+  const Grid grid{
+      .columns = {layouts::px(100), layouts::px(50), layouts::px(120)}};
   const std::vector<SkRect> at =
       grid.place(given({300, 100}, boxes(3, {10, 10})));
   ASSERT_EQ(at.size(), 3u);
@@ -68,11 +69,11 @@ TEST(KitGrid, AFixedTrackIsItsLengthAndFreeSpaceBesideItStaysFree) {
 }
 
 TEST(KitGrid, AContentTrackIsTheWidestThingInItAndDoesNotStretch) {
-  const Grid grid{.columns = {layouts::content(), layouts::content(),
-                              layouts::content()},
-                  .gap = {10, 0}};
-  const std::vector<SkRect> at = grid.place(
-      given({300, 50}, {{40, 10}, {60, 10}, {20, 10}}));
+  const Grid grid{
+      .columns = {layouts::content(), layouts::content(), layouts::content()},
+      .gap = {10, 0}};
+  const std::vector<SkRect> at =
+      grid.place(given({300, 50}, {{40, 10}, {60, 10}, {20, 10}}));
   ASSERT_EQ(at.size(), 3u);
   EXPECT_FLOAT_EQ(at[0].width(), 40);
   EXPECT_FLOAT_EQ(at[1].width(), 60);
@@ -107,8 +108,8 @@ TEST(KitGrid, AShareThatWouldFallUnderItsFloorFreezesAndTheRestRedivides) {
   // Without the freeze the two tracks would take 100 each, the first would
   // be pushed back up to its 180 floor, and the row would resolve 80 px
   // wider than the container it was given.
-  const Grid grid{
-      .columns = {layouts::minmax(layouts::px(180), layouts::fr(1)), layouts::fr(1)}};
+  const Grid grid{.columns = {layouts::minmax(layouts::px(180), layouts::fr(1)),
+                              layouts::fr(1)}};
   const std::vector<SkRect> at =
       grid.place(given({200, 50}, boxes(2, {0, 10})));
   ASSERT_EQ(at.size(), 2u);
@@ -134,9 +135,9 @@ TEST(KitGrid, MinmaxIsAFloorAndACeilingAndBothHold) {
 
 TEST(KitGrid, ASpanTopsUpItsTracksInProportionToWhatTheyAlreadyHold) {
   const Grid grid{.columns = {layouts::content(), layouts::content()}};
-  const std::vector<SkRect> at = grid.place(given(
-      {500, 50}, {{100, 10}, {40, 10}, {200, 10}},
-      {claims(0, 0), claims(1, 0), claims(0, 0, 2, 1)}));
+  const std::vector<SkRect> at =
+      grid.place(given({500, 50}, {{100, 10}, {40, 10}, {200, 10}},
+                       {claims(0, 0), claims(1, 0), claims(0, 0, 2, 1)}));
   ASSERT_EQ(at.size(), 3u);
   // 140 px were already asked for; the 60 px the span still needs are split
   // 100:40, not down the middle.
@@ -148,9 +149,9 @@ TEST(KitGrid, ASpanTopsUpItsTracksInProportionToWhatTheyAlreadyHold) {
 TEST(KitGrid, ARowSpanSharesItsDeficitAcrossItsRowsJustAsAColumnSpanDoes) {
   const Grid grid{.columns = {layouts::px(50)},
                   .rows = {layouts::content(), layouts::content()}};
-  const std::vector<SkRect> at = grid.place(
-      given({50, 400}, {{10, 30}, {10, 20}, {10, 100}},
-            {claims(0, 0), claims(0, 1), claims(0, 0, 1, 2)}));
+  const std::vector<SkRect> at =
+      grid.place(given({50, 400}, {{10, 30}, {10, 20}, {10, 100}},
+                       {claims(0, 0), claims(0, 1), claims(0, 0, 1, 2)}));
   ASSERT_EQ(at.size(), 3u);
   EXPECT_NEAR(at[0].height(), 60, 0.01f);  // 30 + 50·30/50
   EXPECT_NEAR(at[1].top(), 60, 0.01f);
@@ -165,9 +166,8 @@ TEST(KitGrid, ANameInThePicturePlacesAChildOnTheRectangleItCovers) {
   const Grid grid{.columns = {layouts::px(100), layouts::px(100)},
                   .rows = {layouts::px(50), layouts::px(50)},
                   .areas = {"head head", "nav  main"}};
-  const std::vector<SkRect> at =
-      grid.place(given({200, 100}, boxes(3, {10, 10}), {},
-                       {"head", "nav", "main"}));
+  const std::vector<SkRect> at = grid.place(
+      given({200, 100}, boxes(3, {10, 10}), {}, {"head", "nav", "main"}));
   ASSERT_EQ(at.size(), 3u);
   EXPECT_EQ(at[0], SkRect::MakeXYWH(0, 0, 200, 50));
   EXPECT_EQ(at[1], SkRect::MakeXYWH(0, 50, 100, 50));
@@ -176,8 +176,8 @@ TEST(KitGrid, ANameInThePicturePlacesAChildOnTheRectangleItCovers) {
 
 TEST(KitGrid, ThePictureAloneSaysHowWideAndHowDeepTheGridIs) {
   const Grid grid{.areas = {"a a b", "c c b"}};
-  const std::vector<SkRect> at = grid.place(
-      given({300, 100}, boxes(3, {10, 10}), {}, {"a", "b", "c"}));
+  const std::vector<SkRect> at =
+      grid.place(given({300, 100}, boxes(3, {10, 10}), {}, {"a", "b", "c"}));
   ASSERT_EQ(at.size(), 3u);
   // Three equal columns because no column list was given, two rows because
   // the picture has two lines.
@@ -188,8 +188,9 @@ TEST(KitGrid, ThePictureAloneSaysHowWideAndHowDeepTheGridIs) {
 }
 
 TEST(KitGrid, ANameThatCoversNoRectangleIsPlacedAtTheRectangleBoundingIt) {
-  const Grid grid{.columns = {layouts::px(10), layouts::px(10), layouts::px(10)},
-                  .areas = {"a . a"}};
+  const Grid grid{
+      .columns = {layouts::px(10), layouts::px(10), layouts::px(10)},
+      .areas = {"a . a"}};
   const std::vector<SkRect> at =
       grid.place(given({30, 20}, boxes(1, {5, 5}), {}, {"a"}));
   ASSERT_EQ(at.size(), 1u);
@@ -200,8 +201,8 @@ TEST(KitGrid, ANameThatCoversNoRectangleIsPlacedAtTheRectangleBoundingIt) {
 TEST(KitGrid, ANameThePictureDoesNotCarryFlowsLikeAChildThatSaidNothing) {
   const Grid grid{.columns = {layouts::px(10), layouts::px(10)},
                   .areas = {"a b"}};
-  const std::vector<SkRect> at = grid.place(
-      given({20, 20}, boxes(2, {5, 5}), {}, {"nowhere", "b"}));
+  const std::vector<SkRect> at =
+      grid.place(given({20, 20}, boxes(2, {5, 5}), {}, {"nowhere", "b"}));
   ASSERT_EQ(at.size(), 2u);
   EXPECT_FLOAT_EQ(at[1].left(), 10);  // "b" is where the picture says
   EXPECT_FLOAT_EQ(at[0].left(), 0);   // and the unknown name took a free cell
@@ -215,12 +216,13 @@ TEST(KitGrid, SparseFlowNeverLooksBackAndDenseFillsTheHoleBehindIt) {
   // child cannot start at column two, so it drops to the next row and
   // leaves a one-cell hole at the end of the first.
   const std::vector<SkSize> sizes = boxes(3, {5, 5});
-  const std::vector<CellSpan> spans = {
-      CellSpan{.columns = 2}, CellSpan{.columns = 2}, CellSpan{}};
+  const std::vector<CellSpan> spans = {CellSpan{.columns = 2},
+                                       CellSpan{.columns = 2}, CellSpan{}};
   const std::vector<layouts::Track> three = {layouts::px(10), layouts::px(10),
-                                    layouts::px(10)};
+                                             layouts::px(10)};
 
-  const Grid sparse{.columns = three, .rows = {layouts::px(10), layouts::px(10)}};
+  const Grid sparse{.columns = three,
+                    .rows = {layouts::px(10), layouts::px(10)}};
   const std::vector<SkRect> flowed =
       sparse.place(given({30, 20}, sizes, spans));
   ASSERT_EQ(flowed.size(), 3u);
@@ -289,16 +291,14 @@ struct Recorder {
 TEST(KitGrid, ASchemeThatAsksIsToldHowNarrowItsTextChildrenCanGo) {
   Host host(300, 200);
   const Recorder recorder;
-  host.composer.render(
-      box().absolute().inset(0).child(
-          layout(recorder)
-              .absolute()
-              .left(Dim(0.0f))
-              .top(Dim(0.0f))
-              .width(Dim(200.0f))
-              .child(text(u8"one two three four five six seven eight",
-                          styleAt(12))
-                         .width(Dim(200.0f)))));
+  host.composer.render(box().absolute().inset(0).child(
+      layout(recorder)
+          .absolute()
+          .left(Dim(0.0f))
+          .top(Dim(0.0f))
+          .width(Dim(200.0f))
+          .child(text(u8"one two three four five six seven eight", styleAt(12))
+                     .width(Dim(200.0f)))));
   host.frame();
   ASSERT_EQ(recorder.seen->childMinSizes.size(), 1u);
   // The narrowest the paragraph goes is one word, and it was measured at
@@ -313,8 +313,7 @@ TEST(KitGrid, ASchemeThatDoesNotAskIsToldNothingAndPaysForNothing) {
   struct Quiet {
     bool operator==(const Quiet&) const = default;
     std::vector<SkRect> place(const LayoutInput& in) const {
-      return std::vector<SkRect>(in.childSizes.size(),
-                                 SkRect::MakeWH(10, 10));
+      return std::vector<SkRect>(in.childSizes.size(), SkRect::MakeWH(10, 10));
     }
   };
   // The concept, not the runtime: a scheme without the declaration is not
@@ -351,13 +350,12 @@ TEST(KitGrid, AGridEmbeddedInAColumnTakesItsHeightFromWhatItPlaced) {
   // container contributes to its height and flex would collapse it to
   // nothing. The extent it placed is the height instead.
   Host host(300, 300);
-  host.composer.render(
-      box().column().absolute().inset(0).child(
-          layout(Grid{.columns = {layouts::fr(1), layouts::fr(1)},
-                      .rows = {layouts::px(60)}})
-              .key("grid")
-              .child(box().fill(red()))
-              .child(box().fill(green()))));
+  host.composer.render(box().column().absolute().inset(0).child(
+      layout(Grid{.columns = {layouts::fr(1), layouts::fr(1)},
+                  .rows = {layouts::px(60)}})
+          .key("grid")
+          .child(box().fill(red()))
+          .child(box().fill(green()))));
   host.frame();
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).height(), 60);
   EXPECT_FLOAT_EQ(require(host.composer.bounds("grid")).width(), 300);

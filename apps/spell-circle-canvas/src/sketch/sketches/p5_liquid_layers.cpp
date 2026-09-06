@@ -138,9 +138,8 @@ struct P5LiquidLayers final : sketch::DrawSketch {
     for (int mark = 0; mark < 14; ++mark) {
       // The mark is a short stroke along its own spoke, so the angle is
       // wanted as well as the point it starts from.
-      const float angle =
-          arrange::along(clock * 0.12f, TAU, (size_t)mark, 14,
-                         arrange::Turn::Closed);
+      const float angle = arrange::along(clock * 0.12f, TAU, (size_t)mark, 14,
+                                         arrange::Turn::Closed);
       const SkPoint at = arrange::onEllipse(
           {pen.width * 0.5f, pen.height * 0.5f}, {168.0f, 130.0f}, angle);
       brush::line(pen, bloom, at, arrange::onEllipse(at, {8.0f, 8.0f}, angle));

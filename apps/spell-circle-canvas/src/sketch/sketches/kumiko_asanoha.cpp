@@ -733,8 +733,7 @@ struct KumikoAsanoha : sketch::Sketch {
       }
     };
     auto group = stack().inset(0, 0, 0, 0).opacity(&seat);
-    group.child(
-        custom(std::string_view("joinery"), marks).inset(0, 0, 0, 0));
+    group.child(custom(std::string_view("joinery"), marks).inset(0, 0, 0, 0));
     for (const Strip& n : panel.nubs)
       group.child(stripElement(n, bank, nullptr, nullptr));
     return group;
@@ -813,8 +812,8 @@ struct KumikoAsanoha : sketch::Sketch {
 
   /** The seven ha of one cell of side @p side at @p origin, each pushed
    *  @p burst px along its own axis so the joints open. */
-  static std::vector<Strip> cellPieces(SkPoint origin, float side,
-                                       float stock, float burst) {
+  static std::vector<Strip> cellPieces(SkPoint origin, float side, float stock,
+                                       float burst) {
     const float rIn = 0.2928932f;   // incircle radius / leg
     const float rOut = 0.7071068f;  // 1 - rIn
     std::vector<Strip> out;
@@ -940,9 +939,12 @@ struct KumikoAsanoha : sketch::Sketch {
             .left(760)
             .top(56)
             .width(520));
-    g.child(text(toU8("incircle r = s(2\xe2\x88\x92\xe2\x88\x9a" "2)/2 = "
+    g.child(text(toU8("incircle r = s(2\xe2\x88\x92\xe2\x88\x9a"
+                      "2)/2 = "
                       "0.29289 s  \xc2\xb7  arm off a 45\xc2\xb0 corner = "
-                      "atan(\xe2\x88\x9a" "2\xe2\x88\x92" "1) = "
+                      "atan(\xe2\x88\x9a"
+                      "2\xe2\x88\x92"
+                      "1) = "
                       "22.5\xc2\xb0"),
                  rule)
                 .left(760)
@@ -1002,7 +1004,8 @@ struct KumikoAsanoha : sketch::Sketch {
         .child(text(toU8("ASANOHA KUMIKO \xc2\xb7 SQUARE JIGUMI \xc2\xb7 "
                          "HINOKI ON KEYAKI \xc2\xb7 900\xc3\x97"
                          "400mm TYPE"),
-                    weave::textStyle({.size = 12, .color = kCaption, .track = 1.1f}))
+                    weave::textStyle(
+                        {.size = 12, .color = kCaption, .track = 1.1f}))
                    .left(950)
                    .top(916)
                    .width(300)
@@ -1010,15 +1013,9 @@ struct KumikoAsanoha : sketch::Sketch {
         // A faint vertical vignette — the near-side room, in shadow. It
         // stops at the room's floor: the shop drawing under it is a
         // drawing, not part of the room.
-        .child(box()
-                   .left(0)
-                   .top(0)
-                   .width(kW)
-                   .height(kRoom)
-                   .fill(radialGradient(
-                       {700, 500}, 920,
-                       {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
-                       {0.30f, 0.72f, 1.0f})))
+        .child(box().left(0).top(0).width(kW).height(kRoom).fill(radialGradient(
+            {700, 500}, 920, {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
+            {0.30f, 0.72f, 1.0f})))
         .child(shopDrawing());
   }
 

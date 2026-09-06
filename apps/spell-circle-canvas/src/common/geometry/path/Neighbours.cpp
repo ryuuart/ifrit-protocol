@@ -199,8 +199,8 @@ std::vector<uint32_t> Neighbours::nearest(glm::vec3 p, int k) const {
   // a query outside the points would otherwise spend a doubling per
   // octave of empty space before reaching any of them.
   const glm::vec3 far = m_origin + glm::vec3(m_dimensions) * m_cell;
-  const glm::vec3 outside = glm::max(glm::max(m_origin - p, p - far),
-                                     glm::vec3(0.0f));
+  const glm::vec3 outside =
+      glm::max(glm::max(m_origin - p, p - far), glm::vec3(0.0f));
   float radius = glm::length(outside) +
                  m_cell * std::cbrt((float)want / kPointsPerCell + 1.0f);
   std::vector<uint32_t> gathered;
@@ -209,8 +209,7 @@ std::vector<uint32_t> Neighbours::nearest(glm::vec3 p, int k) const {
   // the grid, because a query far outside the points still has a nearest
   // one and must not be given up on before it is reached.
   const glm::vec3 extent = glm::vec3(m_dimensions) * m_cell;
-  const float limit =
-      glm::length(p - m_origin) + glm::length(extent) + m_cell;
+  const float limit = glm::length(p - m_origin) + glm::length(extent) + m_cell;
   while (true) {
     within(p, radius, gathered);
     if (gathered.size() >= want || radius >= limit) break;

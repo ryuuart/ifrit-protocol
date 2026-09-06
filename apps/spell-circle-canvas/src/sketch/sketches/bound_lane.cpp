@@ -135,50 +135,53 @@ Element stage(const char* key, const BoundFloat& lane, float lo, float hi) {
   // chain, the range and nothing else are a function of.
   return custom(key,
                 [lane, lo, hi](SkCanvas& canvas, const PaintContext& paint) {
-           const float pw = paint.size.width(), ph = paint.size.height();
-           const auto y = [&](float v) {
-             return ph - 6.0f - (v - lo) / (hi - lo) * (ph - 12.0f);
-           };
-           SkPaint rule;
-           rule.setStyle(SkPaint::kStroke_Style);
-           rule.setStrokeWidth(1);
-           rule.setColor4f(kFrame, nullptr);
-           canvas.drawLine(0, y(0.0f), pw, y(0.0f), rule);
-           canvas.drawLine(0, y(1.0f), pw, y(1.0f), rule);
-           SkPathBuilder trace;
-           for (int i = 0; i <= 600; ++i) {
-             const float p = (float)i / 600.0f;
-             const SkPoint at{pw * p, y(lane.apply(p))};
-             i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
-           }
-           strokePath(canvas, trace.detach(), kTrace, 1.4f);
-         })
+                  const float pw = paint.size.width(), ph = paint.size.height();
+                  const auto y = [&](float v) {
+                    return ph - 6.0f - (v - lo) / (hi - lo) * (ph - 12.0f);
+                  };
+                  SkPaint rule;
+                  rule.setStyle(SkPaint::kStroke_Style);
+                  rule.setStrokeWidth(1);
+                  rule.setColor4f(kFrame, nullptr);
+                  canvas.drawLine(0, y(0.0f), pw, y(0.0f), rule);
+                  canvas.drawLine(0, y(1.0f), pw, y(1.0f), rule);
+                  SkPathBuilder trace;
+                  for (int i = 0; i <= 600; ++i) {
+                    const float p = (float)i / 600.0f;
+                    const SkPoint at{pw * p, y(lane.apply(p))};
+                    i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
+                  }
+                  strokePath(canvas, trace.detach(), kTrace, 1.4f);
+                })
       .cache(Cache::None);
 }
 
 /** THE WIGGLE STAGE, on its own axes: the ±amount rails drawn in red,
  *  because the bound is the claim worth seeing. */
 Element wiggleStage(const char* key, const BoundFloat& lane) {
-  return custom(key, [lane](SkCanvas& canvas, const PaintContext& paint) {
-           const float pw = paint.size.width(), ph = paint.size.height();
-           const float cy = ph * 0.5f;
-           const float k = (ph * 0.5f - 6.0f) / kAmount;
-           SkPaint rule;
-           rule.setStyle(SkPaint::kStroke_Style);
-           rule.setStrokeWidth(1);
-           rule.setColor4f(kRail, nullptr);
-           canvas.drawLine(0, cy - kAmount * k, pw, cy - kAmount * k, rule);
-           canvas.drawLine(0, cy + kAmount * k, pw, cy + kAmount * k, rule);
-           rule.setColor4f(kFrame, nullptr);
-           canvas.drawLine(0, cy, pw, cy, rule);
-           SkPathBuilder trace;
-           for (int i = 0; i <= 1200; ++i) {
-             const float p = kWindow * (float)i / 1200.0f;
-             const SkPoint at{pw * (float)i / 1200.0f, cy - lane.apply(p) * k};
-             i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
-           }
-           strokePath(canvas, trace.detach(), kTrace, 1.4f);
-         })
+  return custom(
+             key,
+             [lane](SkCanvas& canvas, const PaintContext& paint) {
+               const float pw = paint.size.width(), ph = paint.size.height();
+               const float cy = ph * 0.5f;
+               const float k = (ph * 0.5f - 6.0f) / kAmount;
+               SkPaint rule;
+               rule.setStyle(SkPaint::kStroke_Style);
+               rule.setStrokeWidth(1);
+               rule.setColor4f(kRail, nullptr);
+               canvas.drawLine(0, cy - kAmount * k, pw, cy - kAmount * k, rule);
+               canvas.drawLine(0, cy + kAmount * k, pw, cy + kAmount * k, rule);
+               rule.setColor4f(kFrame, nullptr);
+               canvas.drawLine(0, cy, pw, cy, rule);
+               SkPathBuilder trace;
+               for (int i = 0; i <= 1200; ++i) {
+                 const float p = kWindow * (float)i / 1200.0f;
+                 const SkPoint at{pw * (float)i / 1200.0f,
+                                  cy - lane.apply(p) * k};
+                 i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
+               }
+               strokePath(canvas, trace.detach(), kTrace, 1.4f);
+             })
       .cache(Cache::None);
 }
 
@@ -189,25 +192,27 @@ Element locus(const char* key, const BoundFloat& wx, const BoundFloat& wy,
               SkColor4f color) {
   return custom(key,
                 [wx, wy, color](SkCanvas& canvas, const PaintContext& paint) {
-           const float w = paint.size.width(), h = paint.size.height();
-           const float cx = w * 0.5f, cy = h * 0.5f;
-           const float k = std::min(w, h) * 0.5f / (kAmount * 1.15f);
-           // The ±amount box: the locus can touch it, never leave it.
-           SkPaint box;
-           box.setStyle(SkPaint::kStroke_Style);
-           box.setStrokeWidth(1);
-           box.setColor4f(kRail, nullptr);
-           canvas.drawRect(SkRect::MakeLTRB(cx - kAmount * k, cy - kAmount * k,
-                                            cx + kAmount * k, cy + kAmount * k),
-                           box);
-           SkPathBuilder trace;
-           for (int i = 0; i <= 900; ++i) {
-             const float p = kWindow * (float)i / 900.0f;
-             const SkPoint at{cx + wx.apply(p) * k, cy + wy.apply(p) * k};
-             i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
-           }
-           strokePath(canvas, trace.detach(), color, 1.3f);
-         })
+                  const float w = paint.size.width(), h = paint.size.height();
+                  const float cx = w * 0.5f, cy = h * 0.5f;
+                  const float k = std::min(w, h) * 0.5f / (kAmount * 1.15f);
+                  // The ±amount box: the locus can touch it, never leave it.
+                  SkPaint box;
+                  box.setStyle(SkPaint::kStroke_Style);
+                  box.setStrokeWidth(1);
+                  box.setColor4f(kRail, nullptr);
+                  canvas.drawRect(
+                      SkRect::MakeLTRB(cx - kAmount * k, cy - kAmount * k,
+                                       cx + kAmount * k, cy + kAmount * k),
+                      box);
+                  SkPathBuilder trace;
+                  for (int i = 0; i <= 900; ++i) {
+                    const float p = kWindow * (float)i / 900.0f;
+                    const SkPoint at{cx + wx.apply(p) * k,
+                                     cy + wy.apply(p) * k};
+                    i == 0 ? (void)trace.moveTo(at) : (void)trace.lineTo(at);
+                  }
+                  strokePath(canvas, trace.detach(), color, 1.3f);
+                })
       .cache(Cache::None);
 }
 
@@ -301,32 +306,30 @@ struct BoundLane : sketch::Sketch {
     };
 
     Element chain = kit::cells(
-        {.cells = {panel(190, 128, "bare", "bind(&phase)",
-                         stage("lane.bare", bind(&phase).value(), -0.15f,
-                               1.15f)),
-                   panel(190, 128, "envelope", ".pingPong()",
-                         stage("lane.pingPong",
-                               bind(&phase).pingPong().value(), -0.15f,
-                               1.15f)),
-                   panel(190, 128, "curve", ".map(ease::outBack())",
-                         stage("lane.curve",
-                               bind(&phase).map(ease::outBack()).value(),
-                               -0.15f, 1.15f)),
-                   panel(
-                       190, 128, "quantize", ".quantize(8)",
-                       stage("lane.quantize",
-                             bind(&phase).quantize(8).value(), -0.15f, 1.15f)),
-                   panel(190, 128, "wrap", ".scale(3).wrap(1)",
-                         stage("lane.wrap",
-                               bind(&phase).scale(3.0f).wrap(1.0f).value(),
-                               -0.15f, 1.15f)),
-                   panel(190, 128, "wiggle \xc2\xb7 3 octaves",
-                         "rails are \xc2\xb1"
-                         "amount",
-                         wiggleStage("lane.wiggle",
-                                     wiggle(&seconds, kAmount, kFrequency,
-                                            kSeedX, kOctaves, kFalloff)
-                                         .value()))},
+        {.cells =
+             {panel(190, 128, "bare", "bind(&phase)",
+                    stage("lane.bare", bind(&phase).value(), -0.15f, 1.15f)),
+              panel(190, 128, "envelope", ".pingPong()",
+                    stage("lane.pingPong", bind(&phase).pingPong().value(),
+                          -0.15f, 1.15f)),
+              panel(
+                  190, 128, "curve", ".map(ease::outBack())",
+                  stage("lane.curve", bind(&phase).map(ease::outBack()).value(),
+                        -0.15f, 1.15f)),
+              panel(190, 128, "quantize", ".quantize(8)",
+                    stage("lane.quantize", bind(&phase).quantize(8).value(),
+                          -0.15f, 1.15f)),
+              panel(190, 128, "wrap", ".scale(3).wrap(1)",
+                    stage("lane.wrap",
+                          bind(&phase).scale(3.0f).wrap(1.0f).value(), -0.15f,
+                          1.15f)),
+              panel(190, 128, "wiggle \xc2\xb7 3 octaves",
+                    "rails are \xc2\xb1"
+                    "amount",
+                    wiggleStage("lane.wiggle",
+                                wiggle(&seconds, kAmount, kFrequency, kSeedX,
+                                       kOctaves, kFalloff)
+                                    .value()))},
          .gap = 12});
 
     Element locusRow = kit::cells(
@@ -336,8 +339,8 @@ struct BoundLane : sketch::Sketch {
                                kTraceB)),
                    panel(230, 230, "SEEDS 1 / 2 \xc2\xb7 a shake",
                          "two independent lanes",
-                         locus("locus.split", shakeX.value(),
-                               shakeY.value(), kTrace)),
+                         locus("locus.split", shakeX.value(), shakeY.value(),
+                               kTrace)),
                    panel(230, 230, "the same lanes, LIVE",
                          "amber = shared seed, teal = 1 / 2",
                          stack()

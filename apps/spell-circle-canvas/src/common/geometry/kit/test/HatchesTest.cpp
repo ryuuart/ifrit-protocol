@@ -18,9 +18,7 @@ using namespace sigil::geometry;
 
 namespace {
 
-size_t markCount(const SkPath& path) {
-  return path::segments(path).size();
-}
+size_t markCount(const SkPath& path) { return path::segments(path).size(); }
 
 TEST(Hatch, FillsAShapeWithLinesInsideIt) {
   const SkPath square = SkPath::Rect(SkRect::MakeWH(100, 100));
@@ -65,8 +63,8 @@ TEST(Hatch, AnOriginHoldsTheLinesStillWhileTheShapeMoves) {
   for (const path::SegmentContour& mark : b)
     EXPECT_NEAR(std::fmod(mark.segments[0].start().y + 1000.0f, 10.0f), 0.0f,
                 1e-3f);
-  EXPECT_NEAR(std::fmod(a.front().segments[0].start().y + 1000.0f, 10.0f),
-              0.0f, 1e-3f);
+  EXPECT_NEAR(std::fmod(a.front().segments[0].start().y + 1000.0f, 10.0f), 0.0f,
+              1e-3f);
 }
 
 TEST(Hatch, AnInsetKeepsTheMarksInsideTheEdge) {

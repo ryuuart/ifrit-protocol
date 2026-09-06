@@ -60,7 +60,9 @@ void BM_Tick_Timeline(benchmark::State& state) {
   cells.reserve((size_t)count);
   Ticker ticker;
   for (int64_t i = 0; i < count; ++i)
-    ticker.timeline().apply(grow(cells)).then<ch::RampTo>(1.0f, kEndlessSeconds);
+    ticker.timeline()
+        .apply(grow(cells))
+        .then<ch::RampTo>(1.0f, kEndlessSeconds);
 
   for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(ticker.tick(kFrameSeconds));

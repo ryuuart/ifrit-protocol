@@ -35,7 +35,7 @@ namespace sigil::weave {
  * live on the block's own style.
  */
 struct HyphenationLimits {
-  int minimumWordLength = 5;   ///< shorter words are never broken
+  int minimumWordLength = 5;     ///< shorter words are never broken
   int minimumLettersBefore = 2;  ///< kept on the line before the hyphen
   int minimumLettersAfter = 3;   ///< carried to the next line
   bool capitalizedWords = true;  ///< whether a capitalised word may break

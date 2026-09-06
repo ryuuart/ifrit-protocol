@@ -93,16 +93,16 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/texture/Texture.h>
-#include <sigilweave/style/Type.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
+#include <sigilweave/style/Type.h>
 #include <sigilworld/kit/Kit.h>
 
 #include <algorithm>
@@ -404,13 +404,12 @@ Element reachSphere(float seconds) {
     // of the ring cut there are the two components of the same place.
     const SkPoint on =
         arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, lat);
-    sphere.child(
-        Element()
-            .key("latitude" + std::to_string(i))
-            .at({0.0f, on.fY, 0.0f})
-            .mesh(gm::torus(on.fX, 1.1f, 64, 5))
-            .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
-            .tag("wire"));
+    sphere.child(Element()
+                     .key("latitude" + std::to_string(i))
+                     .at({0.0f, on.fY, 0.0f})
+                     .mesh(gm::torus(on.fX, 1.1f, 64, 5))
+                     .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
+                     .tag("wire"));
   }
   return sphere;
 }
@@ -556,17 +555,17 @@ struct VagrantStoryTarget final : sketch::Set {
     using namespace vs;
     const Limb& L = kLimbs[kSelected];
     const weave::TextStyle title = weave::textStyle({.size = 13.0f,
-                                                  .color = {1, 1, 1, 1},
-                                                  .track = 0.0f,
-                                                  .condense = 0.92f,
-                                                  .aliased = true,
-                                                  .antiAlias = false});
+                                                     .color = {1, 1, 1, 1},
+                                                     .track = 0.0f,
+                                                     .condense = 0.92f,
+                                                     .aliased = true,
+                                                     .antiAlias = false});
     const weave::TextStyle body = weave::textStyle({.size = 9.0f,
-                                                 .color = {1, 1, 1, 1},
-                                                 .track = 0.0f,
-                                                 .condense = 0.95f,
-                                                 .aliased = true,
-                                                 .antiAlias = false});
+                                                    .color = {1, 1, 1, 1},
+                                                    .track = 0.0f,
+                                                    .condense = 0.95f,
+                                                    .aliased = true,
+                                                    .antiAlias = false});
 
     compose::Element root =
         compose::box().width((float)kHudW).height((float)kHudH);

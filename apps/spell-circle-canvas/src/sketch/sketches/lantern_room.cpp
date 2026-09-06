@@ -125,15 +125,15 @@ struct LanternRoom final : sketch::Set {
 
     // A sun so faint it is an outline rather than a light: what keeps
     // the far side of every body from being nothing at all.
-    room.child(world::Element().key("sun").light(
-        world::light::sun({-0.35f, -0.85f, -0.4f}, {0.52f, 0.60f, 0.86f, 1.0f}, 0.22f)));
+    room.child(world::Element().key("sun").light(world::light::sun(
+        {-0.35f, -0.85f, -0.4f}, {0.52f, 0.60f, 0.86f, 1.0f}, 0.22f)));
 
     // The spot: opening downward onto the middle of the cluster, so the
     // tallest body is picked out from above while the lanterns reach it
     // from the sides.
     room.child(world::Element().key("spot").light(
-        world::light::spot({0.0f, 520.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 22.0f, 8.0f,
-             {1.0f, 0.96f, 0.88f, 1.0f}, 0.9f, 900.0f)));
+        world::light::spot({0.0f, 520.0f, 0.0f}, {0.0f, -1.0f, 0.0f}, 22.0f,
+                           8.0f, {1.0f, 0.96f, 0.88f, 1.0f}, 0.9f, 900.0f)));
 
     for (const Lantern& lantern : kLanterns) {
       // Each lantern rides a slow bob of its own, so what it reaches
@@ -158,7 +158,8 @@ struct LanternRoom final : sketch::Set {
       room.child(world::Element()
                      .key(std::string(lantern.key) + "-lamp")
                      .at(at)
-                     .light(world::light::point({0, 0, 0}, lantern.color, 1.25f, kReach))
+                     .light(world::light::point({0, 0, 0}, lantern.color, 1.25f,
+                                                kReach))
                      .tag("lamp"));
     }
 
@@ -179,10 +180,10 @@ struct LanternRoom final : sketch::Set {
     // lights its own room, so the preset that puts three lamps over a
     // ground plane would be describing a second room on top of it.
     room.child(world::kit::turntable({.at = {0.0f, 0.0f, 0.0f},
-                               .radius = 760.0f,
-                               .height = 260.0f,
-                               .period = 24.0f,
-                               .fovYDeg = 44.0f},
+                                      .radius = 760.0f,
+                                      .height = 260.0f,
+                                      .period = 24.0f,
+                                      .fovYDeg = 44.0f},
                                      seconds));
     return world::Frame(std::move(room));
   }

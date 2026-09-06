@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilweave/kit/PaintLayers.h>
 
 #include <algorithm>
 #include <cmath>
@@ -14,7 +15,6 @@
 #include <vector>
 
 #include "support/ChoreographSupport.h"
-#include <sigilweave/kit/PaintLayers.h>
 using namespace sigil::weave;
 using namespace sigil::weave::test;
 

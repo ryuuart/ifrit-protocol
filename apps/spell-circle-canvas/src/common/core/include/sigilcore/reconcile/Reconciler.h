@@ -101,7 +101,8 @@ class Reconciler {
     static_assert(ReconcileHost<Host, Node, Description>);
     m_stats.describedNodes++;
     bool described = true;
-    Description resolved = resolveMemo(inst.description ? &inst : nullptr, node, described);
+    Description resolved =
+        resolveMemo(inst.description ? &inst : nullptr, node, described);
     if (m_host.memoOf(node))
       inst.memoShell = node;
     else
@@ -212,7 +213,8 @@ class Reconciler {
    *  (env equal, then props equal — both compared because both are read
    *  by the deferred describe), else the memo's produce under the
    *  environment its author had. A non-memo resolves to itself. */
-  Description resolveMemo(Node* existing, const Description& node, bool& described) {
+  Description resolveMemo(Node* existing, const Description& node,
+                          bool& described) {
     const auto* memo = m_host.memoOf(node);
     if (!memo) {
       described = true;

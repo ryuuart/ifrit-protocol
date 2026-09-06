@@ -2,14 +2,14 @@
  * The Photoshop `.abr` reader: the sampled tips out of a brush library.
  */
 
-#include "Images.h"
-
 #include <sigildraw/brush/format/Photoshop.h>
 
 #include <cstdint>
 #include <cstring>
 #include <utility>
 #include <vector>
+
+#include "Images.h"
 
 namespace sigil::draw::brush::format {
 
@@ -100,7 +100,8 @@ bool expandPackBits(Cursor& cursor, std::span<uint8_t> row) {
       const size_t count = (size_t)(1 - control);
       const uint8_t value = cursor.byte();
       if (written + count > row.size()) return false;
-      for (size_t index = 0; index < count; ++index) row[written + index] = value;
+      for (size_t index = 0; index < count; ++index)
+        row[written + index] = value;
       written += count;
     }
   }
@@ -151,19 +152,17 @@ std::optional<Tool> readSampledBrush(Cursor& cursor, uint16_t subversion) {
     for (int64_t row = 0; row < height; ++row) cursor.word();
     if (!cursor.ok()) return finish(std::nullopt);
     for (int64_t row = 0; row < height; ++row)
-      if (!expandPackBits(cursor,
-                          std::span(raw).subspan((size_t)row * rowBytes,
-                                                 rowBytes)))
+      if (!expandPackBits(
+              cursor, std::span(raw).subspan((size_t)row * rowBytes, rowBytes)))
         return finish(std::nullopt);
   }
 
   std::vector<uint8_t> coverage((size_t)width * (size_t)height);
   for (size_t index = 0; index < coverage.size(); ++index)
-    coverage[index] = bytesPerSample == 1 ? raw[index]
-                                          : raw[index * 2];  // the high byte
+    coverage[index] =
+        bytesPerSample == 1 ? raw[index] : raw[index * 2];  // the high byte
 
-  sk_sp<SkImage> artwork =
-      coverageImage(coverage, (int)width, (int)height);
+  sk_sp<SkImage> artwork = coverageImage(coverage, (int)width, (int)height);
   if (!artwork) return finish(std::nullopt);
 
   Tool tool;

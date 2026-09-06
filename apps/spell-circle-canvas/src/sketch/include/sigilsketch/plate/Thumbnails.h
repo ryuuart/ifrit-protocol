@@ -59,7 +59,8 @@ inline constexpr std::chrono::milliseconds kThumbnailBudget{8000};
  *  trade: the alternative throws all of them away on every rebuild, and
  *  the refresh on opening writes back the frame that was just presented,
  *  so a still a rebuild made wrong heals the moment it is looked at. */
-[[nodiscard]] std::string thumbnailKey(const std::filesystem::path& entrySource);
+[[nodiscard]] std::string thumbnailKey(
+    const std::filesystem::path& entrySource);
 
 /** Where a fresh thumbnail for @p stem at @p key lands under @p dir. The
  *  key is in the filename so a changed source is a new URL — which is

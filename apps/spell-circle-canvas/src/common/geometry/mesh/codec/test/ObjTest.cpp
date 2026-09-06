@@ -23,8 +23,8 @@ using codec::decode::Model;
 using codec::decode::Part;
 
 using sigil::geometry::test::kCubeMtl;
-using sigil::geometry::test::toBytes;
 using sigil::geometry::test::kCubeObj;
+using sigil::geometry::test::toBytes;
 
 TEST(ReadObj, AMaterialLibraryIsFetchedThroughTheResolverAndReachesThePart) {
   std::vector<std::string> asked;

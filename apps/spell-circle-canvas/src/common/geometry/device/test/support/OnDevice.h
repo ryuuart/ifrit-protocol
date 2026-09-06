@@ -46,8 +46,8 @@ inline OnDevice onDevice() {
  *  is missing. `name` is a declarator, so it cannot be parenthesised;
  *  every caller passes a plain identifier. */
 // NOLINTBEGIN(bugprone-macro-parentheses)
-#define SIGIL_ON_DEVICE_OR_SKIP(name)                                \
-  const ::sigil::geometry::device::test::OnDevice name =             \
-      ::sigil::geometry::device::test::onDevice();                   \
+#define SIGIL_ON_DEVICE_OR_SKIP(name)                    \
+  const ::sigil::geometry::device::test::OnDevice name = \
+      ::sigil::geometry::device::test::onDevice();       \
   if (!name) GTEST_SKIP() << "no Vulkan device: " << (name).error
 // NOLINTEND(bugprone-macro-parentheses)

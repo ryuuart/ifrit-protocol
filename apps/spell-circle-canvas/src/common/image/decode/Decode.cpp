@@ -61,7 +61,8 @@ std::optional<ImageProbe> probeImage(const std::byte* bytes, size_t size,
                                      const std::filesystem::path& pathHint) {
   if (auto sniff = ImageAsset::probe(SkData::MakeWithoutCopy(bytes, size)))
     return sniff;  // Skia path: web formats, channels stay the N32 four
-  if (backend::looksLikeKtx(bytes, size)) return backend::probeWithKtx(bytes, size);
+  if (backend::looksLikeKtx(bytes, size))
+    return backend::probeWithKtx(bytes, size);
 #ifdef SIGILIMAGE_HAS_SVG
   if (backend::looksLikeSvg(bytes, size, pathHint))
     if (auto info = backend::probeWithSvg(bytes, size)) return info;

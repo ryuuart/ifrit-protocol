@@ -58,8 +58,8 @@ namespace mkit = sigil::material::kit;
 namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
 using sigil::compose::toU8;
+using sigil::material::skia::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -411,15 +411,17 @@ struct Cosmati final : sketch::Sketch {
                                PathFormat::Align::Inner))
             .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 8}, 18)));
     floorPlate.child(
-        text(toU8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
-                  "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
-             weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
+        text(
+            toU8("\xc2\xb7 QVATVOR \xc2\xb7 PRAECEDENTES "
+                 "\xc2\xb7 ET \xc2\xb7 TRES \xc2\xb7"),
+            weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
             .left(cs::kBandW)
             .top(13));
     floorPlate.child(
-        text(toU8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
-                  "MCCLXVIII \xc2\xb7"),
-             weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
+        text(
+            toU8("\xc2\xb7 ODORICVS \xc2\xb7 FECIT \xc2\xb7 "
+                 "MCCLXVIII \xc2\xb7"),
+            weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 3.4f}))
             .left(cs::kBandW)
             .top(cs::kFieldSide - 24));
 
@@ -441,8 +443,8 @@ struct Cosmati final : sketch::Sketch {
       // as well as the place it is centred on.
       const float a = arrange::along(0.7853982f, 6.2831853f, (size_t)i, 4,
                                      arrange::Turn::Closed);
-      const SkPoint mid = arrange::onEllipse(
-          {c, c}, {arm * 0.7071f + 4, arm * 0.7071f + 4}, a);
+      const SkPoint mid =
+          arrange::onEllipse({c, c}, {arm * 0.7071f + 4, arm * 0.7071f + 4}, a);
       const float mx = mid.fX, my = mid.fY;
       floorPlate.child(
           guilloche(mx, my, armLen, bandH, a * 180.0f / 3.14159265f, i));
@@ -450,11 +452,10 @@ struct Cosmati final : sketch::Sketch {
 
     // the roundels: four around one
     for (int i = 0; i < 4; ++i)
-      floorPlate.child(
-          roundel(arrange::onRing((size_t)i, 4, {c, c},
-                                  {arm * 1.414f, arm * 1.414f}, 0.7853982f,
-                                  6.2831853f, arrange::Turn::Closed),
-                  small, cs::kGlassTurq, cs::kGlassCobalt, i + 1));
+      floorPlate.child(roundel(
+          arrange::onRing((size_t)i, 4, {c, c}, {arm * 1.414f, arm * 1.414f},
+                          0.7853982f, 6.2831853f, arrange::Turn::Closed),
+          small, cs::kGlassTurq, cs::kGlassCobalt, i + 1));
     floorPlate.child(roundel({c, c}, big, cs::kOnyx, cs::kGialloLo, 0));
 
     // The circular inscription these pavements carry round their centre
@@ -468,9 +469,9 @@ struct Cosmati final : sketch::Sketch {
                           [] {
                             namespace cs = cosmati;
                             auto t = weave::textStyle({.size = 9,
-                                           .color = cs::kGiallo,
-                                           .track = 2.0f,
-                                           .weight = 600});
+                                                       .color = cs::kGiallo,
+                                                       .track = 2.0f,
+                                                       .weight = 600});
                             return t;
                           }())
                          .width(Dim(big * 1.50f))
@@ -492,9 +493,9 @@ struct Cosmati final : sketch::Sketch {
             .rotate(14.0f)
             .translateX(motion::bind(&rake).target(-260, cosmati::kW + 260))
             .fill(Paint::linear({0, 0}, {210, 0},
-                                   {{0.0f, {1, 0.96f, 0.88f, 0.0f}},
-                                    {0.5f, {1, 0.96f, 0.88f, 0.13f}},
-                                    {1.0f, {1, 0.96f, 0.88f, 0.0f}}}))
+                                {{0.0f, {1, 0.96f, 0.88f, 0.0f}},
+                                 {0.5f, {1, 0.96f, 0.88f, 0.13f}},
+                                 {1.0f, {1, 0.96f, 0.88f, 0.0f}}}))
             .blend(SkBlendMode::kPlus)
             .zIndex(9));
     root.child(std::move(floorPlate));
@@ -506,25 +507,27 @@ struct Cosmati final : sketch::Sketch {
             .column()
             .left(px)
             .top(cs::kFieldY + 4)
-            .child(text(toU8("OPUS SECTILE"), weave::textStyle({.size = 21,
-                                                    .color = cs::kInk,
-                                                    .track = 3.4f,
-                                                    .weight = 640})))
+            .child(
+                text(toU8("OPUS SECTILE"), weave::textStyle({.size = 21,
+                                                             .color = cs::kInk,
+                                                             .track = 3.4f,
+                                                             .weight = 640})))
             .child(text(toU8("Cosmatesque \xc2\xb7 Westminster "
                              "1268"),
-                        weave::textStyle({.size = 11, .color = cs::kInkDim, .track = 1.4f}))
+                        weave::textStyle(
+                            {.size = 11, .color = cs::kInkDim, .track = 1.4f}))
                        .margin(0, 6, 0, 0))
             .child(box()
                        .width(Dim(190.0f))
                        .height(Dim(1.0f))
                        .margin(0, 12, 0, 12)
                        .fill(Paint::linear({0, 0}, {190, 0},
-                                              {{0.0f,
-                                                {cs::kGiallo.fR, cs::kGiallo.fG,
-                                                 cs::kGiallo.fB, 0.7f}},
-                                               {1.0f,
-                                                {cs::kGiallo.fR, cs::kGiallo.fG,
-                                                 cs::kGiallo.fB, 0.0f}}})))
+                                           {{0.0f,
+                                             {cs::kGiallo.fR, cs::kGiallo.fG,
+                                              cs::kGiallo.fB, 0.7f}},
+                                            {1.0f,
+                                             {cs::kGiallo.fR, cs::kGiallo.fG,
+                                              cs::kGiallo.fB, 0.0f}}})))
             .child(
                 text(toU8("The governing figure is the QUINCUNX "
                           "\xe2\x80\x94 four roundels about a "
@@ -532,7 +535,8 @@ struct Cosmati final : sketch::Sketch {
                           "quincunx of quincunxes, 25 Roman feet "
                           "square, laid by a Roman crew under "
                           "Odoricus."),
-                     weave::textStyle({.size = 11.5f, .color = cs::kInkDim, .track = 0.2f}))
+                     weave::textStyle(
+                         {.size = 11.5f, .color = cs::kInkDim, .track = 0.2f}))
                     .width(Dim(210.0f))));
 
     // the quarry legend: every stone named, with a real sample of it
@@ -570,9 +574,8 @@ struct Cosmati final : sketch::Sketch {
            .slide = animate(motion::from(-14.0f).to(0.0f), {400ms})});
     {
       const sketch::kit::Provide look(quarryTheme());
-      root.child(sketch::kit::legend({.entries = std::move(quarries),
-                                      .gap = 6,
-                                      .labelGap = 9})
+      root.child(sketch::kit::legend(
+                     {.entries = std::move(quarries), .gap = 6, .labelGap = 9})
                      .key("quarries")
                      .left(px)
                      .bottom(46)

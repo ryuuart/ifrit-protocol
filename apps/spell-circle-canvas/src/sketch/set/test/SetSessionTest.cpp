@@ -82,8 +82,8 @@ struct Screened : Set {
   }
   world::Frame describe(float seconds) override {
     using namespace sigil::compose;
-    screen->render(
-        box().width(64).height(64).fill(Fill::color({0, 1, 0, 1})), seconds);
+    screen->render(box().width(64).height(64).fill(Fill::color({0, 1, 0, 1})),
+                   seconds);
     sigil::material::Material surface =
         sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}});
     surface.child(sigil::material::kit::kBaseColorSlot, screen->texture());

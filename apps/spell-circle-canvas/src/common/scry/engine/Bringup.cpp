@@ -45,7 +45,8 @@ bool WebEngine::Impl::setupPlatform() {
       graphite = m_ownedGraphite.get();
     }
 #ifdef __APPLE__
-    if (graphite && config.gpuDevice->backend() == sigil::core::hardware::Backend::Metal)
+    if (graphite &&
+        config.gpuDevice->backend() == sigil::core::hardware::Backend::Metal)
       m_gpuDriver = MetalDriver::create(*config.gpuDevice, *graphite);
 #endif
     if (m_gpuDriver)

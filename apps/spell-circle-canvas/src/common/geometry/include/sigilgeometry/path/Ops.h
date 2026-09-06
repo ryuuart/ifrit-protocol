@@ -229,7 +229,8 @@ PathOp chain(std::vector<PathOp> steps);
 
 /** offset() as a recipe step. */
 inline PathOp offsetBy(float delta, const OffsetOptions& options = {}) {
-  return [delta, options](const SkPath& p) { return offset(p, delta, options); };
+  return
+      [delta, options](const SkPath& p) { return offset(p, delta, options); };
 }
 
 }  // namespace sigil::geometry::path::ops

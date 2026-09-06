@@ -4,6 +4,8 @@
 // and Tibetan clusters, rare-script fallback, bidi reordering, emoji ZWJ
 // sequences, and supplementary-plane symbols in one cached layout.
 #include <include/core/SkPaint.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 
 #include <algorithm>
@@ -13,8 +15,6 @@
 
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
-#include <sigilmeasure/time/Stopwatch.h>
-#include <sigilcore/cache/Rebuild.h>
 
 using namespace sigil::weave;
 

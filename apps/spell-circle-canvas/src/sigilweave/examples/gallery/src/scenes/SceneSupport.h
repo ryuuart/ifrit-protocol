@@ -10,6 +10,8 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
+#include <sigilcore/cache/Rebuild.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/SigilWeave.h>
 #include <sigilweave/kit/SigilWeaveKit.h>
 
@@ -18,9 +20,7 @@
 #include <string_view>
 
 #include "../include/GalleryScenes.h"
-#include <sigilmeasure/time/Stopwatch.h>
 #include "Palette.h"
-#include <sigilcore/cache/Rebuild.h>
 
 namespace gallery {
 
@@ -40,8 +40,9 @@ inline constexpr SkColor kPaper = sigil::weave::examples::palette::kPaper;
 using kit::makeStyle;
 
 /// Caches a scene body paragraph until one of its shaping inputs changes:
-/// the gallery's SceneParams front-end to a sigil::core::RebuildGuard, resolving
-/// empty panel values to the scene's defaults before they enter the key.
+/// the gallery's SceneParams front-end to a sigil::core::RebuildGuard,
+/// resolving empty panel values to the scene's defaults before they enter the
+/// key.
 struct BodyCache {
   sigil::weave::Paragraph paragraph;
 

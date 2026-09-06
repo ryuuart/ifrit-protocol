@@ -19,7 +19,8 @@
  *   rail(stops, routers::octilinear())
  *       .stroke(lines::Line{.width = 3, .fill = ink,
  *                           .parallels = 2, .gap = 5});      // transit pair
- *   connector("a", "b").stroke(lines::presets::arrow(2, wire, 12));   // directed edge
+ *   connector("a", "b").stroke(lines::presets::arrow(2, wire, 12));   //
+ * directed edge
  */
 
 #include <include/core/SkCanvas.h>

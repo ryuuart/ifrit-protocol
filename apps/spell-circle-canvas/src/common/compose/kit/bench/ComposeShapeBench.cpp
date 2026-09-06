@@ -4,8 +4,8 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/kit/Layouts.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
 #include <cstdint>

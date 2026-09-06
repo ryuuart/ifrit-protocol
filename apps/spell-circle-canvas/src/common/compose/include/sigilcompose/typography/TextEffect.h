@@ -351,9 +351,7 @@ class TextEffect {
    *  axis leaves every pen position exactly where the layout put it, and a
    *  run under it keeps whole-pixel origins however hard its progress is
    *  running. Offsets, rotation, shear and scale are what move a glyph. */
-  [[nodiscard]] bool displaces() const {
-    return m_state && m_state->displaces;
-  }
+  [[nodiscard]] bool displaces() const { return m_state && m_state->displaces; }
 
   /** DECLARES THE FACT ABOVE for a body the library cannot read — the one
    *  knob `fx::effect` needs, since an ad-hoc lambda's deviation is opaque
