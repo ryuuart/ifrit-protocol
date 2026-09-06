@@ -137,13 +137,14 @@
 // a wider dark line rather than a blur.
 // =============================================================================
 
+#include "ResearchWeb.h"
+
 #include <include/core/SkBitmap.h>
 #include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkSurface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
@@ -155,6 +156,8 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
@@ -172,6 +175,8 @@
 
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
+namespace arrange = sigil::geometry::arrange;
+namespace path = sigil::geometry::path;
 namespace shapers = sigil::geometry::shapers;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
@@ -198,8 +203,9 @@ namespace thaum {
 // like a diagram, and at scale 3 it is WIDER than the 395-px window and runs
 // off both side edges — which is the screen everyone remembers. It is the
 // same arithmetic either way; the mod just does not open at scale 2 here.
-constexpr float U = 3.0f;
-constexpr float g(float v) { return v * U; }
+constexpr path::Grid kUnits{.scale = 3.0f};
+constexpr float U = kUnits.scale;
+constexpr float g(float v) { return kUnits.s(v); }
 
 constexpr float kCanvasW = 1280.0f, kCanvasH = 800.0f;
 constexpr float kGuiW = 427, kGuiH = 267;    // ceil(canvas / 3)
@@ -215,11 +221,19 @@ constexpr float kCell = g(24);               // the lattice cell, canvas px
 //   locY = floor((-4*24 - 235 + 48 +  4*24 - 24) / 2) = floor(-105.5) = -106
 constexpr float kLocX = -114, kLocY = -106;
 
-/** Node centre in canvas px. iconX = startX + col*24 - locX, icon is 16x16,
- *  so the centre is +8 (GuiResearchBrowser:596-600, :664). */
+/** THE LATTICE: 16x16 icons on a 24 px pitch, so eight of the pitch is
+ *  air (GuiResearchBrowser:596-600, :664). `arrange::cellRect` is that
+ *  arithmetic's origin — module, gap and origin, with the icon's own
+ *  centre read off the rect rather than added by hand. The view's scroll
+ *  is the grid's origin. */
+inline SkRect iconRect(int col, int row) {
+  return arrange::cellRect({col, row}, {16, 16}, {8, 8},
+                           {kStartX - kLocX, kStartY - kLocY});
+}
+/** Node centre in canvas px. */
 inline SkPoint centreOf(int col, int row) {
-  return {g(kStartX + (float)col * 24 - kLocX + 8),
-          g(kStartY + (float)row * 24 - kLocY + 8)};
+  const SkRect r = iconRect(col, row);
+  return kUnits.at({r.centerX(), r.centerY()});
 }
 
 /** :598 — the visibility test, and it is a CULL, not a clip: the ICON'S
@@ -280,171 +294,9 @@ const SkColor4f kTextYellow = hex(0xFFFF55);  // §e
 const SkColor4f kTextWhite = hex(0xFFFFFF);
 
 // ---------------------------------------------------------------------------
-// THE GRAPH — alchemy.json, all 22 entries, verbatim.
-
-enum Meta : uint8_t {
-  kPlain = 0,
-  kRound = 1,
-  kHex = 2,
-  kSpiky = 4,
-  kHidden = 8,
-  kReverse = 16
-};
-enum State : uint8_t { kComplete, kUnlockable, kLocked };
-
-// fields are grouped by what they belong to, not by size
-// NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
-struct Node {
-  const char* key;
-  int col, row;
-  uint8_t meta;
-  int icon;  // index into the reconstructed glyph set
-  State state;
-  const char* title;  // en_us.lang research.<KEY>.title
-  uint8_t warp;       // max stage warp — drives drawForbidden()
-  bool flagResearch;  // EnumResearchFlag.RESEARCH -> the UV(176,16) badge
-  bool flagPage;      // EnumResearchFlag.PAGE     -> the UV(208,16) badge
-};
-
-// Icon glyph ids (reconstructed art; the names are the mod's own texture
-// names from alchemy.json's `icons`).
-enum Glyph {
-  gAspect,
-  gAlumentum,
-  gIngot,
-  gCluster,
-  gTallow,
-  gBucket,
-  gBottle,
-  gSalts,
-  gSoap,
-  gSpa,
-  gSmelter,
-  gJar,
-  gTube,
-  gSmelterThaum,
-  gSmelterVoid,
-  gSmelterAux,
-  gVent,
-  gCentrifuge,
-  gThaumatorium,
-  gInput,
-  gUrn,
-  gSprayer,
-};
-
-// The save state is RECONSTRUCTED — a mid-game player who has just finished
-// the thaumium smelter and can see, but not yet take, the automation branch.
-// It is chosen so the one hovered node's tooltip is self-consistent with the
-// graph: THAUMATORIUM needs CENTRIFUGE, and CENTRIFUGE is not complete.
-constexpr Node kNodes[] = {
-    {"BASEALCHEMY", 0, 0, kRound | kHidden, gAspect, kComplete, "Basic Alchemy",
-     0, false, false},
-    {"ALUMENTUM", 2, -1, kPlain, gAlumentum, kComplete, "Alumentum", 0, false,
-     false},
-    {"METALLURGY", 2, 2, kPlain, gIngot, kComplete, "Alchemical Metallurgy", 0,
-     false, false},
-    {"METALPURIFICATION", 2, 4, kPlain, gCluster, kUnlockable,
-     "Metal Purification", 0, false, false},
-    {"HEDGEALCHEMY", -2, 0, kPlain, gTallow, kComplete, "Hedge Alchemy", 0,
-     false, false},
-    {"LIQUIDDEATH", -4, 2, kPlain, gBucket, kComplete, "Liquid Death", 3, false,
-     true},
-    {"BOTTLETAINT", -6, 0, kPlain, gBottle, kUnlockable, "Bottled Taint", 2,
-     true, false},
-    {"BATHSALTS", -4, -2, kHidden, gSalts, kComplete, "Purifying Bath Salts", 0,
-     false, false},
-    {"SANESOAP", -3, -4, kPlain, gSoap, kUnlockable, "Sanity Soap", 0, false,
-     false},
-    {"ARCANESPA", -5, -4, kPlain, gSpa, kUnlockable, "Arcane Spa", 0, false,
-     false},
-    {"ESSENTIASMELTER", 4, 0, kSpiky, gSmelter, kComplete, "Essentia Smelting",
-     0, false, false},
-    {"WARDEDJARS", 4, -2, kRound, gJar, kComplete, "Warded Jars & labels", 0,
-     false, false},
-    {"TUBES", 6, -2, kPlain, gTube, kComplete, "Essentia Tubes", 0, false,
-     false},
-    {"ESSENTIASMELTERTHAUMIUM", 8, 0, kPlain, gSmelterThaum, kComplete,
-     "Thaumium Essentia Smelter", 0, true, true},
-    {"ESSENTIASMELTERVOID", 12, 0, kPlain, gSmelterVoid, kLocked,
-     "Void Metal Essentia Smelter", 0, false, false},
-    {"IMPROVEDSMELTING", 5, -4, kPlain, gSmelterAux, kLocked,
-     "Improved Essentia Distillation (part 1)", 0, false, false},
-    {"IMPROVEDSMELTING2", 3, -4, kPlain, gVent, kLocked,
-     "Improved Essentia Distillation (part 2)", 0, false, false},
-    {"CENTRIFUGE", 7, -4, kPlain, gCentrifuge, kUnlockable,
-     "Essentia Centrifuge", 0, false, false},
-    {"THAUMATORIUM", 10, -2, kSpiky, gThaumatorium, kLocked,
-     "Alchemical Automation", 0, false, false},
-    {"ESSENTIATRANSPORT", 12, -2, kPlain, gInput, kLocked,
-     "Advanced Essentia Transport", 0, false, false},
-    {"EVERFULLURN", -2, 2, kPlain, gUrn, kComplete, "Everfull Urn", 0, false,
-     false},
-    {"POTIONSPRAYER", -1, -2, kReverse, gSprayer, kUnlockable, "Potion Sprayer",
-     0, false, false},
-};
-constexpr int kNodeCount = (int)(sizeof(kNodes) / sizeof(kNodes[0]));
-
-inline const Node& nodeByKey(const char* k) {
-  for (const Node& n : kNodes)
-    if (std::string(n.key) == k) return n;
-  return kNodes[0];
-}
-inline int indexByKey(const char* k) {
-  for (int i = 0; i < kNodeCount; ++i)
-    if (std::string(kNodes[i].key) == k) return i;
-  return 0;
-}
-
-/** The four edge tiers of genResearchBackgroundZoomable:550-571 — the colour
- *  the white tile art is MULTIPLIED by, the z it is drawn at, and whether it
- *  carries an arrowhead. Only three of the four occur in this save: nothing in
- *  ALCHEMY has an unknown sibling, so the 0.1875 tier never fires. */
-enum EdgeTier : uint8_t {
-  kParentKnown,    // 0.6,0.6,0.6  z=3  arrow
-  kParentUnknown,  // 0.2,0.2,0.2  z=2  arrow
-  kSiblingKnown,   // 0.3,0.3,0.4  z=1  no arrow
-};
-struct Edge {
-  const char* child;
-  const char* parent;
-  EdgeTier tier;
-  bool flipped;  // source.hasMeta(REVERSE)
-};
-
-// Parent edges are drawn only when the parent is in the same category, and are
-// SUPPRESSED when the parent lists the child as a sibling (:545) — which is why
-// WARDEDJARS<-ESSENTIASMELTER appears once, as a sibling edge, and not twice.
-// Parents outside ALCHEMY (UNLOCKALCHEMY, f_toomuchflux, BELLOWS, INFUSION,
-// BASEELDRITCH) draw nothing; a `~` parent (POTIONSPRAYER's ~TUBES) is
-// explicitly skipped at :547.
-constexpr Edge kEdges[] = {
-    {"ALUMENTUM", "BASEALCHEMY", kParentKnown, false},
-    {"METALLURGY", "BASEALCHEMY", kParentKnown, false},
-    {"HEDGEALCHEMY", "BASEALCHEMY", kParentKnown, false},
-    {"METALPURIFICATION", "METALLURGY", kParentKnown, false},
-    {"LIQUIDDEATH", "HEDGEALCHEMY", kParentKnown, false},
-    {"BOTTLETAINT", "HEDGEALCHEMY", kParentKnown, false},
-    {"BATHSALTS", "HEDGEALCHEMY", kParentKnown, false},
-    {"EVERFULLURN", "HEDGEALCHEMY", kParentKnown, false},
-    {"POTIONSPRAYER", "HEDGEALCHEMY", kParentKnown, true},
-    {"SANESOAP", "BATHSALTS", kParentKnown, false},
-    {"ARCANESPA", "BATHSALTS", kParentKnown, false},
-    {"ESSENTIASMELTER", "ALUMENTUM", kParentKnown, false},
-    {"ESSENTIASMELTER", "METALLURGY", kParentKnown, false},
-    {"WARDEDJARS", "ESSENTIASMELTER", kSiblingKnown, false},
-    {"TUBES", "WARDEDJARS", kParentKnown, false},
-    {"IMPROVEDSMELTING", "TUBES", kParentKnown, false},
-    {"CENTRIFUGE", "TUBES", kParentKnown, false},
-    {"ESSENTIASMELTERTHAUMIUM", "TUBES", kParentKnown, false},
-    {"ESSENTIASMELTERTHAUMIUM", "METALLURGY", kParentKnown, false},
-    {"IMPROVEDSMELTING2", "IMPROVEDSMELTING", kParentUnknown, false},
-    {"THAUMATORIUM", "CENTRIFUGE", kParentUnknown, false},
-    {"THAUMATORIUM", "ESSENTIASMELTERTHAUMIUM", kParentKnown, false},
-    {"ESSENTIATRANSPORT", "THAUMATORIUM", kParentUnknown, false},
-    {"ESSENTIASMELTERVOID", "ESSENTIASMELTERTHAUMIUM", kParentKnown, false},
-};
-constexpr int kEdgeCount = (int)(sizeof(kEdges) / sizeof(kEdges[0]));
+// THE EDGE TIERS — genResearchBackgroundZoomable:550-571. The web itself
+// (the nodes, the edges and the save state) is the catalogue beside this
+// file; what is here is what the drawing does with a tier.
 
 inline float tierMul(EdgeTier t) {
   return t == kParentKnown ? 0.6f : t == kParentUnknown ? 0.2f : 0.3f;
@@ -688,9 +540,17 @@ inline Element arrowCell(SkColor4f tint) {
 // variant of every one of them.
 
 /** A hand-torn square: the perimeter walked at 40 stations, each pushed out
- *  along its own normal by a seeded amount. Nothing here is a rounded rect. */
-inline shapes::OutlineFn tornSquare(uint32_t seed, float amp) {
-  return [seed, amp](SkSize s) {
+ *  along its own normal by a seeded amount. Nothing here is a rounded rect.
+ *
+ *  IT IS NOT `shapes::shaped(box(), shapers::Jitter{...})`, which this file
+ *  reaches for on three STROKES. A Jitter displaces in either direction at
+ *  a spacing set by segment length; a torn paper edge only ever goes
+ *  OUTWARD, and the forty stations are what makes the tear read at a
+ *  32 px plate. Two different drawings, so this one stays — as a value
+ *  keyed on the two numbers it is a function of, which is what lets the
+ *  plate prune. */
+inline auto tornSquare(uint32_t seed, float amp) {
+  return keyedShape(std::pair{seed, amp}, [seed, amp](SkSize s) {
     SkPathBuilder p;
     const int n = 40;
     const float w = s.width(), h = s.height();
@@ -727,7 +587,7 @@ inline shapes::OutlineFn tornSquare(uint32_t seed, float amp) {
     }
     p.close();
     return p.detach();
-  };
+  });
 }
 
 /** The plate: silhouette + parchment + tooth + a sketched double rule. The
@@ -735,7 +595,7 @@ inline shapes::OutlineFn tornSquare(uint32_t seed, float amp) {
  *  jitter and a second dotted pass offset inside it. */
 inline Element plateArt(uint8_t meta, uint32_t seed, const Element& spatter) {
   const bool hidden = (meta & kHidden) != 0;
-  shapes::OutlineFn shape = tornSquare(seed, g(hidden ? 2.4f : 1.3f));
+  Shape shape = tornSquare(seed, g(hidden ? 2.4f : 1.3f));
   if (meta & kRound)
     shape = shapes::blob(seed, 0.055f, 9);
   else if (meta & kHex)
