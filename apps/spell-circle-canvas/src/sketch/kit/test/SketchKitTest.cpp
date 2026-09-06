@@ -580,6 +580,59 @@ TEST(SketchKitLegend, AnEntryIsASwatchAndItsWords) {
                           kit::legend({.entries = {{warm, u8"lit"}}})));
 }
 
+/** THE LADDER KEY: a dim body inside a bright edge, the word set in the
+ *  colour it names, and the swatch and its word at the caller's own
+ *  density. Three facts about ONE entry that a key to a tier ladder
+ *  cannot state without them, asserted in pixels against the hand
+ *  spelling. */
+TEST(SketchKitLegend, AnEntryCanCarryItsOwnEdgeAndItsOwnInk) {
+  const kit::Theme& house = kit::houseTheme();
+  const SkColor4f rare{0.98f, 0.86f, 0.32f, 1};
+  const Fill body = Fill::color({rare.fR * 0.35f, rare.fG * 0.35f,
+                                 rare.fB * 0.35f, 1});
+  Element byHand =
+      compose::box()
+          .column()
+          .gap(house.spacing.rowGap)
+          .alignItems(compose::Align::Start)
+          .child(compose::box()
+                     .row()
+                     .alignItems(compose::Align::Center)
+                     .gap(6)
+                     .child(compose::box()
+                                .width(compose::Dim(9))
+                                .height(compose::Dim(9))
+                                .fill(body)
+                                .shrink(0)
+                                .corners(compose::Corners{1.5f})
+                                .foreground(compose::stroke(
+                                    1.0f, Fill::color(rare))))
+                     .child(compose::text(
+                         u8"rare",
+                         house.style(house.type.captionNote, rare))));
+  Element byKit = kit::legend({.entries = {{body, u8"rare", {},
+                                            Fill::color(rare), rare}},
+                               .swatch = 9,
+                               .corners = 1.5f,
+                               .labelGap = 6});
+  EXPECT_TRUE(sameDrawing(std::move(byHand), std::move(byKit)));
+}
+
+/** An entry with no ink of its own is still the theme's ink, and an
+ *  entry with no keyline still draws a flat patch — so the two fields
+ *  cost nothing to a key that does not want them. */
+TEST(SketchKitLegend, AnEntryWithoutThemDrawsWhatItAlwaysDid) {
+  const Fill warm = Fill::color({0.9f, 0.6f, 0.3f, 1});
+  EXPECT_TRUE(sameDrawing(
+      kit::legend({.entries = {{warm, u8"lit"}}}),
+      kit::legend({.entries = {{warm, u8"lit", {}, std::nullopt,
+                                std::nullopt}}})));
+  EXPECT_FALSE(sameDrawing(
+      kit::legend({.entries = {{warm, u8"lit"}}}),
+      kit::legend({.entries = {{warm, u8"lit", {},
+                                Fill::color({1, 1, 1, 1})}}})));
+}
+
 /** A strip that names only its ends keeps the unnamed steps butted, so
  *  the ramp reads as one band rather than as a row of tiles. */
 TEST(SketchKitLegend, AStripNamesTheStepsItHasWordsFor) {

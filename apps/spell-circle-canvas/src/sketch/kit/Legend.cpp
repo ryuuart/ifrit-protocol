@@ -27,6 +27,8 @@ compose::Element legend(const Legend& key) {
   else
     run.row();
   if (key.wrap) run.wrapLines();
+  const float labelGap =
+      key.labelGap.value_or(look.spacing.captionNoteGap);
   for (const LegendEntry& entry : key.entries) {
     Element mark = box().width(Dim(side)).height(Dim(side)).shrink(0);
     if (key.strokeWidth > 0)
@@ -34,14 +36,17 @@ compose::Element legend(const Legend& key) {
     else
       mark.fill(entry.swatch);
     if (key.corners > 0) mark.corners(Corners{key.corners});
+    if (entry.keyline)
+      mark.foreground(compose::stroke(key.keylineWidth, *entry.keyline));
     Element line = box()
                        .row()
                        .alignItems(Align::Center)
-                       .gap(look.spacing.captionNoteGap)
+                       .gap(labelGap)
                        .child(std::move(mark));
     if (!entry.label.empty())
       line.child(text(entry.label,
-                      look.style(look.type.captionNote, look.palette.ink)));
+                      look.style(look.type.captionNote,
+                                 entry.ink.value_or(look.palette.ink))));
     if (!entry.note.empty())
       line.child(text(entry.note,
                       look.style(look.type.captionNote, look.palette.ash)));

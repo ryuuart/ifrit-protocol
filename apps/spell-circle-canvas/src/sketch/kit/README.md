@@ -173,6 +173,13 @@ sketch::kit::legend({.entries = {{Fill::color(kWarm), u8"lit"},
                                  {Fill::color(kCool), u8"shaded"}}});
 ```
 
+An entry may carry its own `keyline` and its own `ink`. A key to a
+ladder of tiers is not a run of flat patches under one ink: its mark is
+a dim body inside a bright edge, and its word is set in the colour it
+names — which is how the reader tells the key from a caption. The
+entry's `note` stays in the quiet ash either way, because a gloss is
+not part of the naming.
+
 ### A fraction drawn — `Meter.h`
 
 | | |

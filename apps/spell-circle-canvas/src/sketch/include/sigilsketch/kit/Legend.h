@@ -24,6 +24,20 @@ struct LegendEntry {
   std::u8string label;
   /** After the label, in the quieter ink. */
   std::u8string note;
+  /** A LINE AROUND THE SWATCH, over its fill — for the key whose mark is
+   *  a dim body inside a bright edge rather than a flat patch, which is
+   *  what a rarity ladder and a fits/blocked pair are. Unset draws none.
+   *  It is per ENTRY because the edge is usually the entry's own colour
+   *  while the body is that colour dimmed, and the pair is the reading.
+   *  `Legend::strokeWidth` is a different thing: it replaces the patch
+   *  with an outline for a key to a map whose own marks are outlines. */
+  std::optional<compose::Fill> keyline;
+  /** THE LABEL'S OWN COLOUR — for a key whose words are set in what they
+   *  name, which is how a ladder of tiers and a coloured plot's key read.
+   *  Unset is the theme's ink, which is what a key to a picture with one
+   *  ink wants. The note beside it stays in the quiet ash either way: a
+   *  gloss is not part of the naming. */
+  std::optional<SkColor4f> ink;
 };
 
 /** THE KEY TO A PICTURE. */
@@ -43,6 +57,13 @@ struct Legend {
    *  filled patch. 0 (default) fills. A key to a map whose own marks are
    *  outlines has to be outlined too, or the key and the map disagree. */
   float strokeWidth = 0;
+  /** The width of an entry's `keyline`, where it has one. */
+  float keylineWidth = 1;
+  /** Between a swatch and the words beside it; unset is the theme's
+   *  caption-note gap. It is the caller's because two keys on one sheet
+   *  can be set at two densities and still be the same look — the same
+   *  reason `swatch` and `gap` are here. */
+  std::optional<float> labelGap;
   /** Lets a run along a line wrap to a second line rather than
    *  overflowing the width it is given. */
   bool wrap = false;
