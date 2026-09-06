@@ -75,19 +75,15 @@ inline sk_sp<SkTypeface> blackFace() {
       {"Arial Black", "Helvetica Neue"}, SkFontStyle::kBlack_Weight);
 }
 /** The body face both Flash-era pages set their prose in. */
-inline const sk_sp<SkTypeface>& arial() {
-  static const sk_sp<SkTypeface> f =
-      sigil::weave::ports::pickTypeface({"Arial", "Helvetica"});
-  return f;
+inline sk_sp<SkTypeface> arial() {
+  return sigil::weave::ports::face({"Arial", "Helvetica"});
 }
 /** The store's face: Verdana, which is what an HTML `size=1` cell was
  *  set in and what macOS still ships. */
-inline const sk_sp<SkTypeface>& verdanaFace(bool bold) {
-  static const sk_sp<SkTypeface> regular =
-      sigil::weave::ports::pickTypeface({"Verdana", "Arial"});
-  static const sk_sp<SkTypeface> heavy =
-      sigil::weave::ports::pickTypeface({"Verdana", "Arial"}, SkFontStyle::kBold_Weight);
-  return bold ? heavy : regular;
+inline sk_sp<SkTypeface> verdanaFace(bool bold) {
+  return bold ? sigil::weave::ports::face({"Verdana", "Arial"},
+                                          SkFontStyle::kBold_Weight)
+              : sigil::weave::ports::face({"Verdana", "Arial"});
 }
 
 // ---------------------------------------------------------------------------

@@ -130,10 +130,16 @@ sk_sp<SkImage> disc() {
  *  hide what `order()` does. kSrcOver means the last sprite drawn wins, and
  *  chain order decides who is last. */
 Element splat(mesh::Cloud cloud, float spriteSize) {
-  return custom([cloud = std::move(cloud), spriteSize](
+  // KEYLESS: what the program closes over is a whole point cloud, which no
+  // key spells — and the sink paints live at `Cache::None`, so its node was
+  // never going to prune.
+  // The stamp is baked into the program BY VALUE, once per describe: asked
+  // for inside the body it is a 64 px surface rasterised on every paint,
+  // which at `Cache::None` is every frame.
+  return custom([cloud = std::move(cloud), spriteSize, sprite = disc()](
                     SkCanvas& canvas, const PaintContext& paint) {
            mesh::points::BillboardStyle style;
-           style.sprite = disc();
+           style.sprite = sprite;
            style.size = spriteSize;
            style.sizeLane = "size";
            style.tintLane = "tint";

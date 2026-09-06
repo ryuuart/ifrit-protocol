@@ -103,14 +103,17 @@ geometry::mesh::camera::Camera lookAtColumn() {
   return camera;
 }
 
-/** The point stamp, baked where it is asked for — which is once. */
-sk_sp<SkImage> disc() { return kit::dotSprite(); }
-
+/** THE SINK. The point stamp is baked into the program BY VALUE, once per
+ *  describe: asked for inside the body it is a 64 px surface rasterised on
+ *  every paint, which at `Cache::None` is every frame. */
 Element splat(geometry::mesh::Cloud cloud) {
-  return custom([cloud = std::move(cloud)](SkCanvas& canvas,
-                                           const PaintContext& paint) {
+  // KEYLESS: what the program closes over is a whole point cloud, which no
+  // key spells — and the sink paints live at `Cache::None`, so its node was
+  // never going to prune.
+  return custom([cloud = std::move(cloud), sprite = kit::dotSprite()](
+                    SkCanvas& canvas, const PaintContext& paint) {
            geometry::mesh::points::BillboardStyle style;
-           style.sprite = disc();
+           style.sprite = sprite;
            style.size = 7;
            style.sizeLane = "size";
            style.tintLane = "tint";

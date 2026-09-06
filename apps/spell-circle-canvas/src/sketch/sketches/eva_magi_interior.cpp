@@ -473,14 +473,15 @@ half4 main(float2 xy) {
 }
 )SKSL";
 
+/** THE PROGRAM, compiled once and held by whoever paints with it: an effect
+ *  is compared by POINTER, so a fresh compile per panel would make the three
+ *  panels' paints unequal and re-record all three on every describe. Held on
+ *  the sketch rather than in a static, since this file is a dylib a reload
+ *  unloads. */
 inline sk_sp<SkRuntimeEffect> infectionEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] =
-        SkRuntimeEffect::MakeForShader(SkString(kInfectionSrc));
-    if (!effect) SkDebugf("magi infection shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(kInfectionSrc));
+  if (!effect) SkDebugf("magi infection shader: %s\n", err.c_str());
+  return effect;
 }
 
 /** THE CPU MIRROR of the shader's arrival(), float for float, so the front
@@ -641,6 +642,7 @@ inline SkPath ownPads(SkSize s, int salt, int count) {
 // =============================================================================
 
 struct EvaMagiInterior : sketch::Sketch {
+  sk_sp<SkRuntimeEffect> infectionFx = magi::infectionEffect();
   std::vector<magi::Panel> panels = magi::panels();
   std::vector<magi::Arrivals> arrivals;  // per panel, sorted by arrival
   SkPoint centre{613, 602};
@@ -791,7 +793,7 @@ struct EvaMagiInterior : sketch::Sketch {
         i == 0 ? &front0 : (i == 1 ? &front1 : &front2);
 
     mskia::Paint infection =
-        mskia::Paint::sksl(magi::infectionEffect())
+        mskia::Paint::sksl(infectionFx)
             .uniform("uSeed", std::array<float, 2>{p.seed.fX, p.seed.fY})
             .uniform("uCells",
                      std::array<float, 2>{std::ceil(sz.width() / magi::kCell),
