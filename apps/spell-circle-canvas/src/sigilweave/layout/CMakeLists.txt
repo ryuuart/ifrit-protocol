@@ -18,9 +18,9 @@ sigil_library(SigilWeaveLayout
   SOURCES BandScan.cpp BandScan.h Beside.cpp Flow.cpp Silhouette.cpp
           InitialLetter.cpp LineBreak.cpp KnuthPlass.cpp LayoutMetrics.cpp
           ParagraphLayoutInternal.h
-  HEADERS Beside.h Flow.h InitialLetter.h LayoutOptions.h PositionedRun.h
-          ParagraphLayout.h
-          Story.h
+  HEADERS Beside.h Breaking.h Flow.h Frame.h InitialLetter.h Justification.h
+          LayoutOptions.h Mojikumi.h Overflow.h ParagraphLayout.h
+          ParagraphStyle.h PositionedRun.h Story.h TabStops.h
   PUBLIC SigilWeaveParagraph SigilGeometryPath
   PRIVATE SigilWeaveUnicode SigilImageField SigilCoreCompute
           harfbuzz::harfbuzz ICU::uc Boost::unordered)
