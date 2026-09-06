@@ -30,10 +30,11 @@ same one; and the field pin, which fails the build when a struct grows a
 member a hand-written comparator does not mention.
 
 **Compute** — the arithmetic several libraries have to agree on to the
-bit: the seeded mixers a jitter draws from, and the folds a cache key is
-accumulated with. The standard library is the whole of its dependencies,
-so a shader's CPU twin, a point cook, a text cache and a resource store
-all reach the same bodies.
+bit: the seeded mixers a jitter draws from, the stream a caller holds
+one of them as and the distributions drawn out of it, and the folds a
+cache key is accumulated with. The standard library is the whole of its
+dependencies, so a shader's CPU twin, a point cook, a text cache and a
+resource store all reach the same bodies.
 
 **Schedule** — where independent work runs. One parallel for over the
 task runtime, taking a count, a grain and a body, so the runtime is
@@ -57,7 +58,7 @@ catalog. One target per directory:
 | target | directory | holds |
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
-| `SigilCoreCompute` | `compute/` | the seeded mixers, the identifying folds |
+| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the identifying folds |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
@@ -88,6 +89,7 @@ include their own directory's headers. The hardware feature's are
 | `comparable/Erased.h` | `Erased<Ops>` — comparable type erasure: a set of operations carried on the value that implements them |
 | `comparable/Fields.h` | `kFieldCount<T>` — how many direct non-static data members an aggregate has, and the pin a hand-written comparator sits under |
 | `compute/Noise.h` | `noise::hash` (a per-index float in [-1, 1]), the 64-bit avalanche `noise::mix64` with its `noise::kMix64Gamma` and the `noise::Mix64Stream` that walks it (`bits`, `unit`, `signedUnit`, `range`), the PCG family `noise::pcgAdvance`, `noise::pcgMix`, `noise::pcgHash`, `noise::pcgNext`, `noise::pcgUnit`, `noise::pcgUnitNext`, the xorshift stream `noise::xorshiftNext`/`noise::xorshiftUnitNext`, and the grid mixer `noise::lattice` |
+| `compute/Chance.h` | `chance::Stream` — the seeded stream a caller holds (`bits`, `unit`, `signedUnit`, `range`, `below`, `normal`, `sample`, `reseed`) over a `chance::Source` (`Pcg`, `Mix64`, `Xorshift`, `Halton`, `Sobol`, `Golden`, `Stratified`); the shapes `chance::Uniform`, `chance::Gaussian`, `chance::Exponential`, `chance::Weighted`; `chance::shuffle`, `chance::Reservoir`; and `chance::Chance`, the token one sheet re-rolls from |
 | `compute/Hash.h` | `hash::kFnvOffset`, `hash::kFnvPrime`, `hash::fnv1a` over a word or over text, and `hash::combine` — the stir that folds one more word into a hash in hand |
 | `compute/Intervals.h` | `IntervalEnds`, `Inverted`, `normalizeIntervals`, `complementIntervals`, `intersectIntervals` and `firstOverlap` — the sorted, disjoint normal form a set of runs is put in, and the three combinators over it, with the endpoint type and the epsilon the caller's |
 | `schedule/Parallel.h` | `schedule::parallelFor(count, grain, body)` over contiguous chunks and `schedule::parallelForEach(items, grain, body)` over a range's elements |
@@ -368,6 +370,39 @@ others. What the splitmix stream buys over the other two is its 64-bit
 counter: a caller with two integers to fold into one seed packs them into
 a word and does no mixing of its own.
 
+**A stream is a mixer a caller can HOLD.** `noise::` answers words from
+a state the caller carries; `chance::Stream` is that state and that
+choice as one copyable value, so a component keeps one in a member, a
+describe takes one by reference, and a function that scatters points
+takes the stream rather than a seed and a mixer name. It is not a fourth
+mixer: `Stream::pcg(s).bits()` is the word `noise::pcgNext` answers for
+a state of `s`, and the same holds for the other two, so replacing a
+hand-carried state with a stream does not move a picture. Only `unit()`
+differs, and deliberately — it squeezes through the 24 mantissa bits a
+float holds exactly, where `noise::pcgUnitNext` divides by a
+`0xFFFFFFFF` that rounds up to a float whose largest quotient is exactly
+1, a value that function's own range excludes.
+
+**A distribution is a value, not a function per name.** A shape is
+anything with an `Answer` type and a `draw(Stream&) const`, and
+`stream.sample(shape)` is the only call, so `Gaussian{0, 2}`,
+`Weighted{weights}` and a caller's own shape are reached the same way
+and a new distribution costs a struct with two members rather than a
+method here. `Weighted` answers an INDEX, so one shape serves every
+element type; `Reservoir` holds indices for the same reason.
+
+**Low discrepancy is a source, not a second vocabulary.** Halton, Sobol,
+the golden-ratio recurrence and a stratified ladder are not random —
+they are the numbers that fill an interval most evenly for the count
+drawn so far, which is what a scatter that must not clump wants. They
+sit under `bits()` beside the three mixers, so every shape above draws
+low-discrepancy for free when the stream is one of them, and the four
+golden-angle constants spelled by hand around this tree are
+`Stream::golden`. `below()` scales the unit draw rather than rejecting
+words for exactness: the bias is one part in 2^24, and rejection would
+throw terms out of a sequence, which is the one thing these sources
+exist to keep.
+
 ## Where work runs
 
 **A grain, and nothing else.** `schedule::parallelFor(count, grain, body)`
@@ -642,7 +677,7 @@ suite or a case is selected by name with no target behind it:
 | suites | what they prove | label |
 |---|---|---|
 | `comparable/test/` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes | — |
-| `compute/test/` | the mixers and folds, pinned to the exact words and floats they produce | — |
+| `compute/test/` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance over a hundred thousand draws | — |
 | `schedule/test/` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once, two at a time, and joining every thread even when one item fails | — |
 | `reconcile/test/` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering | — |
 | `cache/test/` | the settled-subtree proof, the stability release and the bake seam over a fake host | — |
@@ -656,8 +691,8 @@ a runner is told. The same questions on the Vulkan backend are asked in
 SigilGeometry's `Device` suite, since that is where a Vulkan device exists to ask
 them of.
 
-One file per subject, named for what it asserts: `HashTest` and
-`NoiseTest` in `compute/test/`; `ErasedTest` in `comparable/test/` (the
+One file per subject, named for what it asserts: `HashTest`,
+`IntervalsTest`, `NoiseTest` and `ChanceTest` in `compute/test/`; `ErasedTest` in `comparable/test/` (the
 erasure and the field pin are one subject — what a value needs before
 anything can decide it did not change — and a consumer takes both or
 neither); `ReconcilerTest`, `EnvTest`, `PhasesTest` and `ReadsTest` in
