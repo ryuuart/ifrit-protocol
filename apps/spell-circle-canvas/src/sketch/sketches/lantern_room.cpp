@@ -24,6 +24,7 @@
 
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
@@ -34,6 +35,7 @@
 #include <glm/vec4.hpp>
 #include <string>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
@@ -139,9 +141,10 @@ struct LanternRoom final : sketch::Set {
       // way to say so is to move one lamp and leave the rest.
       const float bearing = lantern.bearingDeg * kTwoPi / 360.0f;
       const float bob = std::sin(seconds * 0.75f + lantern.bearingDeg * 0.03f);
-      const glm::vec3 at{kRing * std::sin(bearing),
-                         kFloor + lantern.height + 42.0f * bob,
-                         kRing * std::cos(bearing)};
+      // A bearing is measured from +z and turns toward +x, so the
+      // ellipse's two components land on z and on x in that order.
+      const SkPoint on = arrange::onEllipse({0, 0}, {kRing, kRing}, bearing);
+      const glm::vec3 at{on.fY, kFloor + lantern.height + 42.0f * bob, on.fX};
       room.child(
           world::Element()
               .key(std::string(lantern.key) + "-shell")

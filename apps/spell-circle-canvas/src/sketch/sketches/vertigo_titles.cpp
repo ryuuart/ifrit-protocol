@@ -129,6 +129,7 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -154,6 +155,7 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace shapes = sigil::geometry::shapes;
@@ -296,7 +298,7 @@ weave::TextStyle hollow(sk_sp<SkTypeface> face, float size,
 shapes::KeyedParametric ringPath() {
   return shapes::parametric(
       "vertigo-limbus",
-      [](float a) { return SkPoint{std::cos(a), std::sin(a)}; }, kPi,
+      [](float a) { return arrange::onEllipse({0, 0}, {1, 1}, a); }, kPi,
       kPi + 2.0f * kPi, 361);
 }
 

@@ -437,20 +437,24 @@ struct Cosmati final : sketch::Sketch {
     const float bandH = cs::kInner * 0.115f;
     const float armLen = arm * 1.414f - big - small + 8;
     for (int i = 0; i < 4; ++i) {
-      const float a = 0.7853982f + 1.5707963f * (float)i;  // the diagonals
-      const float mx = c + std::cos(a) * (arm * 0.7071f + 4);
-      const float my = c + std::sin(a) * (arm * 0.7071f + 4);
+      // The arm is turned onto its own diagonal, so the angle is wanted
+      // as well as the place it is centred on.
+      const float a = arrange::along(0.7853982f, 6.2831853f, (size_t)i, 4,
+                                     arrange::Turn::Closed);
+      const SkPoint mid = arrange::onEllipse(
+          {c, c}, {arm * 0.7071f + 4, arm * 0.7071f + 4}, a);
+      const float mx = mid.fX, my = mid.fY;
       floorPlate.child(
           guilloche(mx, my, armLen, bandH, a * 180.0f / 3.14159265f, i));
     }
 
     // the roundels: four around one
-    for (int i = 0; i < 4; ++i) {
-      const float a = 0.7853982f + 1.5707963f * (float)i;
-      floorPlate.child(roundel(
-          {c + std::cos(a) * arm * 1.414f, c + std::sin(a) * arm * 1.414f},
-          small, cs::kGlassTurq, cs::kGlassCobalt, i + 1));
-    }
+    for (int i = 0; i < 4; ++i)
+      floorPlate.child(
+          roundel(arrange::onRing((size_t)i, 4, {c, c},
+                                  {arm * 1.414f, arm * 1.414f}, 0.7853982f,
+                                  6.2831853f, arrange::Turn::Closed),
+                  small, cs::kGlassTurq, cs::kGlassCobalt, i + 1));
     floorPlate.child(roundel({c, c}, big, cs::kOnyx, cs::kGialloLo, 0));
 
     // The circular inscription these pavements carry round their centre

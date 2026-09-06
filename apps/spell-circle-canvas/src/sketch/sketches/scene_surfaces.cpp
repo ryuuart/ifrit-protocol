@@ -41,6 +41,7 @@
 
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -58,6 +59,7 @@
 #include <string>
 #include <utility>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
@@ -329,11 +331,14 @@ struct SceneSurfaces final : sketch::Set {
       // than a matrix.
       const float bearingDeg = ((float)i - 1.0f) * kArcSpreadDeg;
       const float bearing = bearingDeg * kTwoPi / 360.0f;
+      // A bearing is measured from +z and turns toward +x, so the
+      // ellipse's two components land on z and on x in that order.
+      const SkPoint on =
+          arrange::onEllipse({0, 0}, {kArcRadius, kArcRadius}, bearing);
       console.child(
           world::Element()
               .key("card" + std::to_string(i))
-              .at({kArcRadius * std::sin(bearing), 78.0f,
-                   kArcRadius * std::cos(bearing) - kArcRadius})
+              .at({on.fY, 78.0f, on.fX - kArcRadius})
               .mesh(gm::quad(kCardWidth, kCardHeight))
               .backface(world::Backface::Visible)
               .fill(screenOf(cards[(size_t)i].at(seconds, content[(size_t)i])))

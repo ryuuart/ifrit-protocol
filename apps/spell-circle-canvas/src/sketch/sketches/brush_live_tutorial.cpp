@@ -9,6 +9,7 @@
 //   kPalette       the pigments shared by all six scenes
 
 #include <sigildraw/brush/Brush.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <array>
@@ -16,6 +17,7 @@
 #include <string_view>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace brush = sigil::draw::brush;
 using namespace sigil::draw;
@@ -165,7 +167,8 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
         "rotring",
     }};
     for (int ray = 0; ray < 20; ++ray) {
-      const float angle = (float)ray * 18.0f + seconds * 30.0f;
+      const float angle = arrange::along(seconds * 30.0f, 360.0f, (size_t)ray,
+                                        20, arrange::Turn::Closed);
       pen.randomSeed(0x33213u * (uint64_t)(ray + 1));
       const std::string_view name =
           wheelBrushes[(size_t)pen.random((float)wheelBrushes.size())];
@@ -173,10 +176,10 @@ struct BrushLiveTutorial final : sketch::DrawSketch {
           kPalette[(size_t)pen.random((float)kPalette.size())];
       brushes.set(name, color, 1.0f);
       const float radiansValue = radians(-angle);
-      brushes.flowLine(pen,
-                       {300.0f + 100.0f * std::cos(radiansValue),
-                        300.0f + 100.0f * std::sin(radiansValue)},
-                       320, angle);
+      brushes.flowLine(
+          pen, arrange::onEllipse({300.0f, 300.0f}, {100.0f, 100.0f},
+                                  radiansValue),
+          320, angle);
     }
 
     brushes.noField();

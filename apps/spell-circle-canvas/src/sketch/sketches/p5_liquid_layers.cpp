@@ -8,6 +8,7 @@
  */
 
 #include <sigildraw/brush/Brush.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/draw/Draw.h>
@@ -15,6 +16,7 @@
 #include <array>
 #include <cmath>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace brush = sigil::draw::brush;
 namespace mskia = sigil::material::skia;
@@ -104,10 +106,11 @@ struct P5LiquidLayers final : sketch::DrawSketch {
     }
     pen.beginShape();
     for (int point = 0; point < 12; ++point) {
-      const float angle = point * TAU / 12.0f + clock * 0.08f;
       const float radius = point % 2 == 0 ? 234.0f : 82.0f;
-      pen.vertex(pen.width * 0.5f + std::cos(angle) * radius,
-                 pen.height * 0.5f + std::sin(angle) * radius);
+      const SkPoint at = arrange::onRing(
+          (size_t)point, 12, {pen.width * 0.5f, pen.height * 0.5f},
+          {radius, radius}, clock * 0.08f, TAU, arrange::Turn::Closed);
+      pen.vertex(at.fX, at.fY);
     }
     pen.endShape(CLOSE);
 
@@ -133,12 +136,14 @@ struct P5LiquidLayers final : sketch::DrawSketch {
     bloom.opacity = 0.10f;
     bloom.blend = ADD;
     for (int mark = 0; mark < 14; ++mark) {
-      const float angle = mark * TAU / 14.0f + clock * 0.12f;
-      const SkPoint at{pen.width * 0.5f + std::cos(angle) * 168.0f,
-                       pen.height * 0.5f + std::sin(angle) * 130.0f};
-      brush::line(
-          pen, bloom, at,
-          {at.x() + std::cos(angle) * 8.0f, at.y() + std::sin(angle) * 8.0f});
+      // The mark is a short stroke along its own spoke, so the angle is
+      // wanted as well as the point it starts from.
+      const float angle =
+          arrange::along(clock * 0.12f, TAU, (size_t)mark, 14,
+                         arrange::Turn::Closed);
+      const SkPoint at = arrange::onEllipse(
+          {pen.width * 0.5f, pen.height * 0.5f}, {168.0f, 130.0f}, angle);
+      brush::line(pen, bloom, at, arrange::onEllipse(at, {8.0f, 8.0f}, angle));
     }
   }
 };

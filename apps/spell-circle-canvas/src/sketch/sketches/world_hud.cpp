@@ -62,6 +62,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -91,6 +92,7 @@
 #include <utility>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 namespace mpattern = sigil::material::pattern;
@@ -280,9 +282,10 @@ inline std::function<SkPath(SkSize)> glyphPath(Glyph g) {
         break;
       case Glyph::Frost:
         for (int i = 0; i < 3; ++i) {
-          const float a = (float)i * 1.0471976f;
-          const float dx = std::cos(a) * w * 0.36f,
-                      dy = std::sin(a) * h * 0.36f;
+          const SkPoint arm =
+              arrange::onRing((size_t)i, 6, {0, 0}, {w * 0.36f, h * 0.36f},
+                              0.0f, 6.2831853f, arrange::Turn::Closed);
+          const float dx = arm.fX, dy = arm.fY;
           b.moveTo(cx - dx, h * 0.5f - dy);
           b.lineTo(cx + dx, h * 0.5f + dy);
         }

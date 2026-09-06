@@ -222,6 +222,8 @@ inline double dot(V2 a, V2 b) { return a.x * b.x + a.y * b.y; }
  *  static outlives the code that computed it. */
 std::array<V2, 5> zeta() {
   std::array<V2, 5> out{};
+  // Not arrange::onRing: the pentagrid is solved in DOUBLE, and a ring
+  // rounded to float here moves every rhomb in the tiling.
   for (int j = 0; j < 5; ++j) {
     const double a = 2.0 * 3.14159265358979323846 * (double)j / 5.0;
     out[(size_t)j] = {std::cos(a), std::sin(a)};

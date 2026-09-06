@@ -93,6 +93,7 @@
 
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilweave/style/Type.h>
@@ -117,6 +118,7 @@
 #include <string_view>
 #include <utility>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace geometry = sigil::geometry;
@@ -398,11 +400,15 @@ Element reachSphere(float seconds) {
   constexpr int kLatitudes = 5;
   for (int i = 0; i < kLatitudes; ++i) {
     const float lat = ((float)i - 2.0f) * 26.0f * kDeg;
+    // One point on the meridian: its height up the sphere and the radius
+    // of the ring cut there are the two components of the same place.
+    const SkPoint on =
+        arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, lat);
     sphere.child(
         Element()
             .key("latitude" + std::to_string(i))
-            .at({0.0f, kSphereRadius * std::sin(lat), 0.0f})
-            .mesh(gm::torus(kSphereRadius * std::cos(lat), 1.1f, 64, 5))
+            .at({0.0f, on.fY, 0.0f})
+            .mesh(gm::torus(on.fX, 1.1f, 64, 5))
             .fill(wire(i == 2 ? 0.62f : 0.30f, i == 2 ? 2.4f : 1.5f))
             .tag("wire"));
   }
@@ -422,10 +428,13 @@ Element attackLadder() {
     const float a = (float)i * kAngleStep * kDeg;
     const bool inWedge = i < kAttackShapeAngle;
     const float len = inWedge ? 34.0f : 15.0f;
+    // The ticks turn the other way round the floor than they do on
+    // screen, so the ellipse's second component is negated onto z.
+    const SkPoint on =
+        arrange::onEllipse({0, 0}, {kSphereRadius, kSphereRadius}, a);
     Element bearing = Element()
                           .key("tick" + std::to_string(i))
-                          .at({std::cos(a) * kSphereRadius, 0.0f,
-                               -std::sin(a) * kSphereRadius})
+                          .at({on.fX, 0.0f, -on.fY})
                           .rotateY(-(float)i * kAngleStep);
     bearing.child(
         Element()

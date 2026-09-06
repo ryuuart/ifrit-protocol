@@ -106,6 +106,7 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
@@ -131,6 +132,7 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
@@ -306,7 +308,7 @@ shapes::OutlineFn linieOutline(Linie l) {
   while (sweep > SK_FloatPI) sweep -= 2 * SK_FloatPI;
   const float rho = l.arcRadius;
   auto at = [o, rho](float a) {
-    return SkPoint{o.fX + rho * std::cos(a), o.fY + rho * std::sin(a)};
+    return arrange::onEllipse(o, {rho, rho}, a);
   };
   const SkPoint mid = at(a0 + sweep * 0.5f);
   if (mid.fX * mid.fX + mid.fY * mid.fY > 1.0f)

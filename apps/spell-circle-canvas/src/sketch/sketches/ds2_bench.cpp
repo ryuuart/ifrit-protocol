@@ -58,6 +58,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/LayerStyles.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -86,6 +87,7 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace path = sigil::geometry::path;
@@ -1244,11 +1246,13 @@ struct Ds2Bench : sketch::Sketch {
                           canvas.drawCircle(r, r, r * 0.4f, p);
                           p.setStyle(SkPaint::kStroke_Style);
                           for (int i = 0; i < 4; ++i) {
-                            const float a = 1.5707963f * (float)i;
-                            const float c = std::cos(a), s = std::sin(a);
-                            canvas.drawLine(r + c * r * 0.6f, r + s * r * 0.6f,
-                                            r + c * r * 0.9f, r + s * r * 0.9f,
-                                            p);
+                            const SkPoint in = arrange::onRing(
+                                (size_t)i, 4, {r, r}, {r * 0.6f, r * 0.6f},
+                                0.0f, 6.2831853f, arrange::Turn::Closed);
+                            const SkPoint out = arrange::onRing(
+                                (size_t)i, 4, {r, r}, {r * 0.9f, r * 0.9f},
+                                0.0f, 6.2831853f, arrange::Turn::Closed);
+                            canvas.drawLine(in.fX, in.fY, out.fX, out.fY, p);
                           }
                         })
                             .width(Dim(15.0f))

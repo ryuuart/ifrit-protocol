@@ -38,6 +38,7 @@
 #include <include/core/SkPaint.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcompose/web/Web.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebImage.h>
 #include <sigilscry/platform/Runtime.h>
@@ -51,6 +52,7 @@
 #include <memory>
 #include <string>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace scry = sigil::scry;
@@ -151,11 +153,13 @@ void drawSigil(SkCanvas& canvas, float size) {
   chord.setColor4f(hex(0x7ee8ff, 0.7f), nullptr);
   const float radius = centre * 0.92f;
   for (int i = 0; i < 6; ++i) {
-    const float a = (float)i * 2.0f * (float)M_PI / 6.0f;
-    const float b = (float)((i + 2) % 6) * 2.0f * (float)M_PI / 6.0f;
-    canvas.drawLine(
-        centre + radius * std::cos(a), centre + radius * std::sin(a),
-        centre + radius * std::cos(b), centre + radius * std::sin(b), chord);
+    const SkPoint from =
+        arrange::onRing((size_t)i, 6, {centre, centre}, {radius, radius}, 0.0f,
+                        2.0f * (float)M_PI, arrange::Turn::Closed);
+    const SkPoint to = arrange::onRing(
+        (size_t)((i + 2) % 6), 6, {centre, centre}, {radius, radius}, 0.0f,
+        2.0f * (float)M_PI, arrange::Turn::Closed);
+    canvas.drawLine(from.fX, from.fY, to.fX, to.fY, chord);
   }
 }
 

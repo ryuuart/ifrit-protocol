@@ -73,6 +73,7 @@
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
@@ -100,6 +101,7 @@
 #include <string>
 #include <vector>
 
+namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace motion = sigil::motion;
@@ -292,7 +294,7 @@ Element discBox(SkPoint c, float r) {
 SkRect sectorBounds(SkPoint c, float r, float startDeg, float sweepDeg) {
   const auto at = [&](float deg) {
     const float a = deg * (float)std::numbers::pi / 180.0f;
-    return SkPoint{c.fX + r * std::cos(a), c.fY + r * std::sin(a)};
+    return arrange::onEllipse(c, {r, r}, a);
   };
   SkRect b = SkRect::MakeXYWH(c.fX, c.fY, 0, 0);
   const auto grow = [&](SkPoint p) {
