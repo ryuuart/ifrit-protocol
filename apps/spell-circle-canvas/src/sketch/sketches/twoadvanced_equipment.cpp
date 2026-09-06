@@ -61,6 +61,7 @@
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Scrollbar.h>
 
 #include <algorithm>
 #include <array>
@@ -189,9 +190,6 @@ struct TwoAdvancedEquipment : sketch::Sketch {
 
   float contentOverflow = 0;
 
-  /** THE THUMB'S LENGTH, which is the frame's share of what it scrolls —
-   *  stated once, because the scrollbar draws it and the clock places it
-   *  and the two disagreeing is a thumb that slides off its own track. */
   /** THE PAGE'S SCROLL, as one envelope: flat at the top, a glide down
    *  over five seconds, a beat at the bottom, and four seconds back. The
    *  corners are positions in the cycle; the quadratic ease rounds both
@@ -205,10 +203,19 @@ struct TwoAdvancedEquipment : sketch::Sketch {
         .map(ch::easeInOutQuad);
   }
 
-  float thumbHeight() const {
+  /** WHAT THE CONTENT FRAME SCROLLS, which is what the thumb's length and
+   *  its travel are read off — stated once, because the scrollbar draws
+   *  the thumb and the clock places it and the two disagreeing is a thumb
+   *  that slides off its own track. The frame is the window, the whole
+   *  list is the window plus what hangs below it, and the track is the
+   *  bar less its two arrow buttons. A list that fits keeps a pixel of
+   *  overflow, so the thumb is short of the track by a hair rather than
+   *  filling it: this frame is one the page always scrolls. */
+  sketch::kit::Scrolled scrolled() const {
     using namespace teq;
-    return (kContentH - 2 * kSbW) * kContentH /
-           (kContentH + std::max(contentOverflow, 1.0f));
+    return {.view = kContentH,
+            .content = kContentH + std::max(contentOverflow, 1.0f),
+            .track = kContentH - 2 * kSbW};
   }
 
   /** The bitmap at its own HTML display size, or a flat stand-in. An
@@ -353,21 +360,20 @@ struct TwoAdvancedEquipment : sketch::Sketch {
           .child(
               t(up ? "\xe2\x96\xb4" : "\xe2\x96\xbe", verdana(kSbArrow, true)));
     };
-    const float trackH = kContentH - 2 * kSbW;
-    const float thumbH = thumbHeight();
-    Element scrollbar = box()
-                            .width(Dim(kSbW))
-                            .column()
-                            .child(sbButton(true))
-                            .child(box().grow(1).fill(kSbTrack).child(
-                                at(box().fill(kSbFace).foreground(onEdges(
-                                       path::Edge::Top | path::Edge::Left,
-                                       stroke(1, Fill::color(kWhite),
-                                              PathFormat::Align::Inner))),
-                                   0, 0, kSbW, thumbH)
-                                    .translateY(scrollEnvelope().target(
-                                        0.0f, trackH - thumbH))))
-                            .child(sbButton(false));
+    const sketch::kit::Scrolled frame = scrolled();
+    Element scrollbar =
+        sketch::kit::scrollbar(
+            {.leading = sbButton(true),
+             .trailing = sbButton(false),
+             .thumb = box().fill(kSbFace).foreground(
+                 onEdges(path::Edge::Top | path::Edge::Left,
+                         stroke(1, Fill::color(kWhite),
+                                PathFormat::Align::Inner))),
+             .scrolled = frame,
+             .position =
+                 scrollEnvelope().target(0.0f, frame.thumb().travel),
+             .track = Fill::color(kSbTrack)})
+            .width(Dim(kSbW));
 
     return at(box().fill(kWhite), kLeftW, kTopH, kPageW - kLeftW, kContentH)
         .clip()
