@@ -149,7 +149,9 @@ fragment program declaring twenty-eight image samplers, where Metal
 allows sixteen. The device rejects the program, the pass is dropped, and
 the sweep reports the first failure and stops. Run alone
 (`--gtest_filter='MaterialGpu.*'`) the same case passes, so the count
-depends on what the binary compiled before it.
+depends on what the binary compiled before it — and ctest, which runs one
+process per case, is green on it. The whole-binary run is the one that
+sees it.
 
 Every `kit::unlit` surface carries an image slot per channel and each is
 filled with a texture even where the parameter is a constant colour, so
