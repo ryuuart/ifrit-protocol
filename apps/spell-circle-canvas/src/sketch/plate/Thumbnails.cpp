@@ -15,7 +15,6 @@
 #include <sigilsketch/core/Kind.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
-#include <sigilsketch/live/Host.h>
 
 #include <algorithm>
 #include <atomic>
@@ -55,8 +54,8 @@ constexpr std::string_view kKeyMark = "__";
 constexpr std::string_view kNoteSuffix = ".note";
 
 void hashInto(std::uint64_t& seed, std::uint64_t value) {
-  // A plain mixing step — the key only has to differ when the source or
-  // the host does, not to resist anything.
+  // A plain mixing step — the key only has to differ when the source
+  // does, not to resist anything.
   seed ^= value + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
 }
 
@@ -72,11 +71,12 @@ void hashFile(std::uint64_t& seed, const fs::path& file) {
 }  // namespace
 
 std::string thumbnailKey(const fs::path& entrySource) {
+  // THE SOURCE ALONE. Folding in the host would make every rebuild throw
+  // away every still on disk, and a library change is drawn back in the
+  // moment the sketch is opened — the refresh on opening writes the frame
+  // that was just presented under the sketch's current key — so a still
+  // that a rebuild made slightly wrong heals by being looked at.
   std::uint64_t seed = 0;
-  // The host's build identity first: new drawing code is a new picture,
-  // whatever the sources did.
-  hashInto(seed,
-           (std::uint64_t)hostBinaryTime().time_since_epoch().count());
   if (directorySketch(entrySource)) {
     // Every source beside the entry: a directory sketch is built from all
     // of them, so a still is stale when any of them changed.

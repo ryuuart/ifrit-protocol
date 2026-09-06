@@ -765,9 +765,15 @@ alone — so `folder:study kind:canvas rain` is one question, not three.
 per sketch, under the platform cache location (`--thumbnails-dir` and the
 `SIGIL_SKETCHBOOK_THUMBNAILS` environment variable name another). Each
 file's name carries a KEY: a hash of the sketch's source — the file, or
-every file of a directory sketch — folded with the running host's build
-identity, so a thumbnail whose key no longer matches is stale and is drawn
-again.
+every file of a directory sketch — and nothing else, so a thumbnail whose
+key no longer matches is stale and is drawn again.
+
+**The host is not in the key.** A library edit changes what a sketch
+draws while its source stands still, and every still on disk goes on
+claiming to be fresh. That is the trade taken deliberately: keying on the
+host would throw all of them away on every rebuild, and the refresh on
+opening writes back the frame that was just presented — so a still a
+rebuild made wrong heals the moment it is looked at.
 
 They are filled at two moments, and never while a sketch is being
 presented.
@@ -792,7 +798,7 @@ budget, and a sketch that declared itself a plate with `ctx.plate()`
 abandoned and gets a one-line NOTE beside where its still would have
 gone, under the same key: the note stands in for the picture, the fill
 moves on, and the question is asked again only when the sketch's source
-or the host changes. `--thumbnail-budget <sec>` names another budget and
+changes. `--thumbnail-budget <sec>` names another budget and
 `--thumbnail-heavy` walks the declared plates as well. A sketch that
 could not be drawn at all is named once in the status strip and not tried
 again this run.

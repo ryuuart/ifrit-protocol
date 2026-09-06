@@ -125,6 +125,26 @@ TEST(ThumbnailStore, ASourceThatChangedIsANewKey) {
   EXPECT_NE(first, thumbnailKey(source));
 }
 
+TEST(ThumbnailStore, TheKeyIsTheSourceAndNothingElse) {
+  // A KEY THAT CAME BACK is the whole claim: the key is a function of the
+  // source's own size and time, so a source restored to what it was is
+  // owed the still it had. Nothing outside the file — no host binary, no
+  // clock — may enter, or a source put back would answer differently.
+  const ScratchDir dir("sigil_thumbnail_pure");
+  const std::filesystem::path source = dir.path / "probe.cpp";
+  write(source, "// one");
+  const auto when = std::filesystem::last_write_time(source);
+  const std::string first = thumbnailKey(source);
+
+  write(source, "// one, and a second line that makes it longer");
+  ASSERT_NE(first, thumbnailKey(source));
+
+  write(source, "// one");
+  std::filesystem::last_write_time(source, when);
+  EXPECT_EQ(first, thumbnailKey(source))
+      << "the source is back, so the still it had is fresh again";
+}
+
 TEST(ThumbnailStore, AStillIsFreshOnlyUnderTheKeyItWasWrittenAt) {
   const ScratchDir dir("sigil_thumbnail_fresh");
   EXPECT_TRUE(freshThumbnail(dir.path, "probe", "aaaa").empty())

@@ -8,10 +8,10 @@
  * write: a still a browser shows is a convenience, not a verdict, so it
  * is rendered on demand into a cache beside the binary rather than copied
  * out of a sweep. One PNG per sketch stem, its filename carrying a KEY —
- * a hash of the sketch's source folded with the running host's build
- * identity — so a thumbnail whose key no longer matches is stale and is
- * re-rendered. The render is the same capture the CPU plate tier takes,
- * scaled down, and it never touches a device.
+ * a hash of the sketch's SOURCE and nothing else — so a thumbnail whose
+ * key no longer matches is stale and is re-rendered. The render is the
+ * same capture the CPU plate tier takes, scaled down, and it never
+ * touches a device.
  */
 
 #include <sigilsketch/core/Registry.h>
@@ -50,10 +50,15 @@ inline constexpr std::chrono::milliseconds kThumbnailBudget{8000};
  *
  *  It hashes the sketch's source — the entry file, or, for a sketch that
  *  is a directory, every `.cpp`/`.h` standing beside the entry — by size
- *  and modification time, and folds in the running host's build identity
- *  so that a rebuilt host regenerates every still. A thumbnail file whose
- *  name carries a different key is stale. Cheap enough to compute on the
- *  UI thread: it stats files rather than reading them. */
+ *  and modification time, and NOTHING ELSE. A thumbnail file whose name
+ *  carries a different key is stale. Cheap enough to compute on the UI
+ *  thread: it stats files rather than reading them.
+ *
+ *  THE HOST IS NOT IN IT. A library edit that changes what a sketch draws
+ *  leaves every still on disk claiming to be fresh, and that is the right
+ *  trade: the alternative throws all of them away on every rebuild, and
+ *  the refresh on opening writes back the frame that was just presented,
+ *  so a still a rebuild made wrong heals the moment it is looked at. */
 [[nodiscard]] std::string thumbnailKey(const std::filesystem::path& entrySource);
 
 /** Where a fresh thumbnail for @p stem at @p key lands under @p dir. The
@@ -74,8 +79,9 @@ inline constexpr std::chrono::milliseconds kThumbnailBudget{8000};
  *
  *  A sketch that ran past the budget, or that declared itself a plate,
  *  costs its whole budget to find out — every launch, forever, if the
- *  finding is not written down. The note carries the key, so editing the
- *  sketch or rebuilding the host asks the question again. */
+ *  finding is not written down. The note carries the same key the still
+ *  would have, so editing the sketch asks the question again and nothing
+ *  else does. */
 bool noteThumbnail(const std::filesystem::path& dir, std::string_view stem,
                    std::string_view key, std::string_view why);
 
