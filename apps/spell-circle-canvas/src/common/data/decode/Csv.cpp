@@ -321,7 +321,10 @@ std::optional<Table> decodeCsv(std::string_view text, const CsvOptions& options,
                                std::string_view name) {
   // A byte order mark is a claim about the encoding, not a field.
   if (text.starts_with("\xEF\xBB\xBF")) text.remove_prefix(3);
-  if (trimmed(text).empty()) return std::nullopt;
+  // Nothing but space is no table at all, however many blank lines it
+  // is written across.
+  if (text.find_first_not_of(" \t\r\n") == std::string_view::npos)
+    return std::nullopt;
 
   char delimiter = options.delimiter;
   if (delimiter == '\0') {

@@ -107,6 +107,73 @@ TEST(DataScale, SymlogSpreadsADomainThatHoldsZeroAndBothSigns) {
   EXPECT_NEAR(10.0, s.invert(s(10.0)), 1e-9);
 }
 
+TEST(DataScale, ALogDomainThatTouchesZeroHasNoAnswerAndNoLadder) {
+  const Scale touching{
+      .domain = {0, 100}, .range = {0, 1}, .transform = Transform::Log};
+  EXPECT_TRUE(std::isnan(touching(10.0)));
+  EXPECT_TRUE(std::isnan(touching(0.0)));
+  EXPECT_TRUE(touching.ticks(5).empty());
+  EXPECT_EQ(touching.domain, touching.nice(5).domain);
+
+  const Scale crossing{
+      .domain = {-10, 10}, .range = {0, 1}, .transform = Transform::Log};
+  EXPECT_TRUE(std::isnan(crossing(1.0)));
+  EXPECT_TRUE(crossing.ticks(5).empty());
+}
+
+TEST(DataScale, APropWithNoMappingReadsLikeALogDomainThatTouchesZero) {
+  // Every transform whose own prop leaves it without a mapping answers
+  // the same way: not a number, no ladder, and a domain left alone.
+  const Scale flat{.domain = {-100, 100},
+                   .range = {0, 1},
+                   .transform = Transform::Symlog,
+                   .threshold = 0.0};
+  EXPECT_TRUE(std::isnan(flat(10.0)));
+  EXPECT_TRUE(std::isnan(flat.invert(0.5)));
+  EXPECT_TRUE(flat.ticks(5).empty());
+  EXPECT_DOUBLE_EQ(0.0, flat.tickStep(5));
+  EXPECT_EQ(flat.domain, flat.nice(5).domain);
+
+  const Scale collapsed{.domain = {0, 10},
+                        .range = {0, 100},
+                        .transform = Transform::Pow,
+                        .exponent = 0.0};
+  EXPECT_TRUE(std::isnan(collapsed(5.0)));
+  EXPECT_TRUE(std::isnan(collapsed.invert(50.0)));
+  EXPECT_TRUE(collapsed.ticks(5).empty());
+  EXPECT_EQ(collapsed.domain, collapsed.nice(5).domain);
+
+  const Scale unit{.domain = {1, 1000},
+                   .range = {0, 3},
+                   .transform = Transform::Log,
+                   .base = 1.0};
+  EXPECT_TRUE(std::isnan(unit(10.0)));
+  EXPECT_TRUE(unit.ticks(5).empty());
+
+  // The neighbouring props still map, so the guard costs nothing that
+  // has an answer.
+  const Scale near{.domain = {-100, 100},
+                   .range = {0, 1},
+                   .transform = Transform::Symlog,
+                   .threshold = 0.001};
+  EXPECT_DOUBLE_EQ(0.5, near(0.0));
+  EXPECT_FALSE(std::isnan(near(10.0)));
+}
+
+TEST(DataScale, ThresholdReadsItsCutsInTheOrderTheyAreGiven) {
+  // A value's slot is how many leading cuts it is at or past, so a list
+  // that does not ascend has slots that overlap and it is the caller
+  // who sorts.
+  const Scale jumbled{.domain = {0, 40},
+                      .range = {0, 2},
+                      .transform = Transform::Threshold,
+                      .thresholds = {30, 10}};
+  EXPECT_EQ(0, jumbled.slot(5.0));
+  EXPECT_EQ(0, jumbled.slot(20.0));  // past the second cut, not the first
+  EXPECT_EQ(2, jumbled.slot(35.0));
+  EXPECT_EQ(std::vector<double>({30, 10}), jumbled.ticks());
+}
+
 TEST(DataScale, BandGivesEveryEntryAWidthAndPaddingEatsIntoIt) {
   const Scale plain{
       .range = {0, 100}, .transform = Transform::Band, .steps = 4};
