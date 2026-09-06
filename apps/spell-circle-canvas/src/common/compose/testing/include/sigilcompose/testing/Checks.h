@@ -14,11 +14,13 @@
  * separates them, because it asks each point how many pieces claim it.
  *
  * This header is for tests, sketches and verification passes, not for the
- * paint loop: coverage() costs O(samples × candidate pieces) and the
- * rasterizing helpers allocate a surface per call. It is the one header of
- * a separate target, SigilComposeTesting, so that a shipping paint loop
- * cannot reach it by accident and so that `report()` may speak to a feed
- * without the library itself depending on one. The namespace is `checks`
+ * paint loop: a check indexes the figure it is given and then samples it
+ * hundreds of thousands of times, and the rasterizing helpers allocate a
+ * surface per call. Its target, SigilComposeTesting, is a separate one —
+ * the checks here over the two indexes in Index.h beside them — so that a
+ * shipping paint loop cannot reach a point-sampled coverage scan by
+ * accident and so that `report()` may speak to a feed without the library
+ * itself depending on one. The namespace is `checks`
  * rather than the target's name because GoogleTest owns `::testing`, and
  * a test that brings `sigil::compose` in with a using-directive must be
  * able to spell both without qualifying either.
@@ -37,6 +39,7 @@
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Feed.h>
+#include <sigilcompose/testing/Index.h>
 #include <sigilgeometry/path/Profile.h>
 #include <sigilmeasure/check/Check.h>
 
@@ -74,38 +77,45 @@ struct Coverage {
   }
 };
 
-/** Samples @p region on a `grid × grid` lattice and counts how many
- *  pieces contain each point.
+namespace detail {
+
+/** The lattice walk both `coverage()` overloads are: every sample of @p box
+ *  asked of every piece, with @p region — where there is one — deciding
+ *  which samples are inside the figure at all.
  *
- *  Points are taken at CELL CENTRES, deliberately off the lattice a
- *  tiling is likely to be built on — sampling exactly on shared edges
- *  makes every boundary look doubled and tells you nothing. For the same
- *  reason a piece boundary passing exactly through a sample is a coin
- *  flip; raise `grid` rather than trusting a single small run.
- *
- *  @p grid of 128 is 16384 samples, which resolves a defect about
- *  1/128 of the region across. */
-inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
-                         int grid = 128, size_t witnesses = 8) {
+ *  Each piece is indexed by lattice row once, so a sample is asked of the
+ *  segments that span its own row rather than of every verb of the path.
+ *  The index answers what the path answers, and hands any point it cannot
+ *  decide back to the path. */
+inline Coverage lattice(std::span<const SkPath> pieces, const SkRect& box,
+                        const SkPath* region, int grid, size_t witnesses) {
   Coverage out;
-  if (region.isEmpty() || grid < 2) return out;
+  if (box.isEmpty() || grid < 2) return out;
 
-  // Bounds first: SkPath::contains is not cheap, and most pieces are
-  // nowhere near most samples.
+  // Bounds first: a point outside a piece's bounds is outside the piece,
+  // and most pieces are nowhere near most samples.
   std::vector<SkRect> bounds;
+  std::vector<RowIndex> index;
   bounds.reserve(pieces.size());
-  for (const SkPath& p : pieces) bounds.push_back(p.getBounds());
+  index.reserve(pieces.size());
+  for (const SkPath& p : pieces) {
+    bounds.push_back(p.getBounds());
+    index.emplace_back(p, box, grid);
+  }
+  const RowIndex within = region ? RowIndex(*region, box, grid) : RowIndex();
 
-  const float dx = region.width() / (float)grid;
-  const float dy = region.height() / (float)grid;
+  const float dx = box.width() / (float)grid;
+  const float dy = box.height() / (float)grid;
   for (int gy = 0; gy < grid; ++gy) {
-    const float y = region.top() + ((float)gy + 0.5f) * dy;
+    const float y = box.top() + ((float)gy + 0.5f) * dy;
     for (int gx = 0; gx < grid; ++gx) {
-      const float x = region.left() + ((float)gx + 0.5f) * dx;
+      const float x = box.left() + ((float)gx + 0.5f) * dx;
+      if (region && !within.contains(x, y, gy))
+        continue;  // outside the region entirely — not a gap
       int hits = 0;
       for (size_t i = 0; i < pieces.size() && hits < 2; ++i) {
         if (!bounds[i].contains(x, y)) continue;
-        if (pieces[i].contains(x, y)) ++hits;
+        if (index[i].contains(x, y, gy)) ++hits;
       }
       ++out.samples;
       if (hits == 0) {
@@ -121,6 +131,24 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
   return out;
 }
 
+}  // namespace detail
+
+/** Samples @p region on a `grid × grid` lattice and counts how many
+ *  pieces contain each point.
+ *
+ *  Points are taken at CELL CENTRES, deliberately off the lattice a
+ *  tiling is likely to be built on — sampling exactly on shared edges
+ *  makes every boundary look doubled and tells you nothing. For the same
+ *  reason a piece boundary passing exactly through a sample is a coin
+ *  flip; raise `grid` rather than trusting a single small run.
+ *
+ *  @p grid of 128 is 16384 samples, which resolves a defect about
+ *  1/128 of the region across. */
+inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
+                         int grid = 128, size_t witnesses = 8) {
+  return detail::lattice(pieces, region, nullptr, grid, witnesses);
+}
+
 /** Coverage over an arbitrary REGION rather than a rect.
  *
  *  An annulus, a sector, a plate — anything whose outline is not a box —
@@ -133,39 +161,7 @@ inline Coverage coverage(std::span<const SkPath> pieces, const SkRect& region,
  *  exactly like a real defect. */
 inline Coverage coverage(std::span<const SkPath> pieces, const SkPath& region,
                          int grid = 128, size_t witnesses = 8) {
-  Coverage out;
-  const SkRect box = region.getBounds();
-  if (box.isEmpty() || grid < 2) return out;
-
-  std::vector<SkRect> bounds;
-  bounds.reserve(pieces.size());
-  for (const SkPath& p : pieces) bounds.push_back(p.getBounds());
-
-  const float dx = box.width() / (float)grid;
-  const float dy = box.height() / (float)grid;
-  for (int gy = 0; gy < grid; ++gy) {
-    const float y = box.top() + ((float)gy + 0.5f) * dy;
-    for (int gx = 0; gx < grid; ++gx) {
-      const float x = box.left() + ((float)gx + 0.5f) * dx;
-      if (!region.contains(x, y))
-        continue;  // outside the region entirely — not a gap
-      int hits = 0;
-      for (size_t i = 0; i < pieces.size() && hits < 2; ++i) {
-        if (!bounds[i].contains(x, y)) continue;
-        if (pieces[i].contains(x, y)) ++hits;
-      }
-      ++out.samples;
-      if (hits == 0) {
-        ++out.uncovered;
-        if (out.uncoveredAt.size() < witnesses)
-          out.uncoveredAt.push_back({x, y});
-      } else if (hits > 1) {
-        ++out.doubled;
-        if (out.doubledAt.size() < witnesses) out.doubledAt.push_back({x, y});
-      }
-    }
-  }
-  return out;
+  return detail::lattice(pieces, region.getBounds(), &region, grid, witnesses);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,8 +235,10 @@ struct WidthAlong {
  *  cap is the one place where the shortest chord through a point is not
  *  the width.
  *
- *  Cost is O(stations × directions × band edges), like `coverage` and for
- *  the same reason: a verification pass, not a paint loop. */
+ *  A verification pass, not a paint loop, like `coverage` — but linear in
+ *  the band: the edges are filed into cells once and a ray reads the
+ *  cells along its own line, so a station's cost follows the ink under it
+ *  rather than the length of the whole band. */
 inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
                              const geometry::path::Profile& profile,
                              float step = 4.0f, int directions = 90,
@@ -286,20 +284,30 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
   const bool evenOdd = band.getFillType() == SkPathFillType::kEvenOdd ||
                        band.getFillType() == SkPathFillType::kInverseEvenOdd;
 
-  // The run of FILLED ray through `p` along `u`, both ways — the chord
-  // the eye would measure across the ink. Negative where this ray found
-  // no ink at the station at all, which is a different answer from a
-  // chord of zero and must not join the minimum.
+  // A cast reads the edges NEAR ITS OWN LINE. A band is thousands of unit
+  // edges and a station casts a ray in every heading, so asking each ray
+  // about every edge is the whole cost of the audit and almost all of it
+  // is edges the ray passes nowhere near.
+  const CellIndex cells(edges);
+  std::vector<uint32_t> near;
   std::vector<std::pair<float, int>> crossings;
-  const auto chord = [&](SkPoint p, SkVector u) {
+
+  const auto filled = [&](int accumulated) {
+    return evenOdd ? (accumulated & 1) != 0 : accumulated != 0;
+  };
+
+  // Where the ray through `p` along `u` meets the named edges, sorted
+  // along the ray and read the way the rasterizer reads it: every
+  // crossing kept, with the sense it was crossed in.
+  const auto meet = [&](SkPoint p, SkVector u, std::span<const uint32_t> which) {
     crossings.clear();
-    for (size_t i = 0; i + 1 < edges.size(); i += 2) {
-      const SkPoint a = edges[i], b = edges[i + 1];
-      const SkVector e{b.x() - a.x(), b.y() - a.y()};
-      const float den = u.x() * e.y() - u.y() * e.x();
+    for (uint32_t e : which) {
+      const SkPoint a = edges[(size_t)e * 2], b = edges[(size_t)e * 2 + 1];
+      const SkVector d{b.x() - a.x(), b.y() - a.y()};
+      const float den = u.x() * d.y() - u.y() * d.x();
       if (std::abs(den) < 1e-9f) continue;
       const SkVector w{a.x() - p.x(), a.y() - p.y()};
-      const float t = (w.x() * e.y() - w.y() * e.x()) / den;
+      const float t = (w.x() * d.y() - w.y() * d.x()) / den;
       const float s = (w.x() * u.y() - w.y() * u.x()) / den;
       // Half-open in s, so a vertex shared by two edges is one crossing
       // and not two — the difference between a filled run and a run with
@@ -307,7 +315,6 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
       if (s < 0.0f || s >= 1.0f) continue;
       crossings.push_back({t, den > 0 ? 1 : -1});
     }
-    if (crossings.empty()) return -1.0f;
     std::sort(crossings.begin(), crossings.end(),
               [](const auto& x, const auto& y) { return x.first < y.first; });
     // COINCIDENT CROSSINGS ARE ONE CROSSING. A shared seam is two edges
@@ -318,27 +325,31 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
     // empty, and the run of ink stops at the first seam it meets. Summed
     // into one crossing they cancel, which is what a seam is: a line
     // inside the ink with no boundary on it.
-    {
-      size_t kept = 0;
-      for (size_t i = 0; i < crossings.size();) {
-        size_t j = i;
-        int sum = 0;
-        while (j < crossings.size() &&
-               crossings[j].first - crossings[i].first < 1e-3f) {
-          sum += crossings[j].second;
-          ++j;
-        }
-        if (sum != 0) crossings[kept++] = {crossings[i].first, sum};
-        i = j;
+    size_t kept = 0;
+    for (size_t i = 0; i < crossings.size();) {
+      size_t j = i;
+      int sum = 0;
+      while (j < crossings.size() &&
+             crossings[j].first - crossings[i].first < 1e-3f) {
+        sum += crossings[j].second;
+        ++j;
       }
-      crossings.resize(kept);
+      if (sum != 0) crossings[kept++] = {crossings[i].first, sum};
+      i = j;
     }
+    crossings.resize(kept);
+  };
+
+  // The run of FILLED ray through `p` along `u`, both ways — the chord
+  // the eye would measure across the ink. Negative where this ray found
+  // no ink at the station at all, which is a different answer from a
+  // chord of zero and must not join the minimum.
+  const auto chord = [&](SkPoint p, SkVector u) {
+    cells.across(p, u, near);
+    meet(p, u, near);
     if (crossings.empty()) return -1.0f;
     // Far along the ray is outside, so the fill at any point is the sum
     // of what is crossed BEYOND it — read from the far end back.
-    const auto filled = [&](int accumulated) {
-      return evenOdd ? (accumulated & 1) != 0 : accumulated != 0;
-    };
     size_t at = crossings.size();  // the interval past the last crossing
     int accumulated = 0;
     // Walk back to the interval holding t = 0, keeping the fill state.

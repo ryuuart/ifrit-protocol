@@ -734,9 +734,20 @@ against what the composer kept for that call site, so its layout, its
 shaping, its caches and its bindings carry from frame to frame.
 
 **Testing — `testing/Checks.h`.** A separate target, `SigilComposeTesting`,
-whose one header verifies generated geometry and reads back what was
+which verifies generated geometry and reads back what was
 drawn, in `namespace test` (GoogleTest owns `::testing`): `test::coverage`, `test::widthAlong`, `test::endpointDegrees`,
-`test::rasterize` and the feed `test::report`. The checks a plate
+`test::rasterize` and the feed `test::report`. Both geometry checks ask
+one question of a figure hundreds of thousands of times, so both resolve
+the figure ONCE into an index beside them in `testing/Index.h` and read
+their answers out of it: `test::RowIndex` turns each row of a sampling
+lattice into the crossings the path makes with it, so a sample is a
+binary search rather than a walk of every verb, and `test::CellIndex`
+files a flattened figure's edges into square cells, so a cast tests the
+edges along its own line rather than every edge of a band. Both answer
+what the long way answers — the row index counts crossings under the
+rule the path's own containment test counts them by, and asks the path
+itself about any point lying ON one; the cell walk leaves out only edges
+the ray's line misses. The checks a plate
 reports — `measure::check` and `measure::failures`, with
 `measure::finding`, `measure::reading` and `measure::heading` for the
 rows that stand beside claims, and `measure::Table` for the run of them
