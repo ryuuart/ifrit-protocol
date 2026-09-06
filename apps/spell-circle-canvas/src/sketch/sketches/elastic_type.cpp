@@ -107,13 +107,13 @@ namespace {
 constexpr float kW = 1080.0f;
 constexpr float kH = 620.0f;
 
-constexpr SkColor4f kPaper = hex(0x101014);
-constexpr SkColor4f kInk = hex(0xF6F2E9);
-constexpr SkColor4f kLabel = hex(0x848B99);
-constexpr SkColor4f kFaint = hex(0x2E3440);
-constexpr SkColor4f kX = hex(0xFF7A59);  // scaleX / skewX
-constexpr SkColor4f kY = hex(0x5AC8F5);  // scaleY
-constexpr SkColor4f kRest = hex(0x4A5262);
+constexpr SkColor4f kPaper = hexColor(0x101014);
+constexpr SkColor4f kInk = hexColor(0xF6F2E9);
+constexpr SkColor4f kLabel = hexColor(0x848B99);
+constexpr SkColor4f kFaint = hexColor(0x2E3440);
+constexpr SkColor4f kX = hexColor(0xFF7A59);  // scaleX / skewX
+constexpr SkColor4f kY = hexColor(0x5AC8F5);  // scaleY
+constexpr SkColor4f kRest = hexColor(0x4A5262);
 
 constexpr float kWordSize = 68.0f;
 constexpr float kEachMs = 62.0f;
@@ -359,7 +359,8 @@ struct ElasticType : sketch::Sketch {
         .column()
         .padding(48, 42)
         .gap(26)
-        .fill(linearGradient({0, 0}, {0, kH}, {kPaper, hex(0x15151B), kPaper},
+        .fill(linearGradient({0, 0}, {0, kH},
+                             {kPaper, hexColor(0x15151B), kPaper},
                              {0.0f, 0.55f, 1.0f}))
         .child(box()
                    .row()

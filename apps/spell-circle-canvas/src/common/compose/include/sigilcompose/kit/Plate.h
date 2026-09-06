@@ -59,9 +59,9 @@ namespace sigil::compose::kit {
  *      kit::plate({.columns = {feed::feed(logA, style),
  *                               feed::feed(logB, style)},
  *                   .paddingX = 14, .paddingY = 9, .gap = 18,
- *                   .fill = Fill::color(hex(0xe4d9c0, 0.78f)),
- *                   .border = Fill::color(hex(0x241c15, 0.25f)),
- *                   .divider = Fill::color(hex(0x241c15, 0.18f))})
+ *                   .fill = Fill::color(hexColor(0xe4d9c0, 0.78f)),
+ *                   .border = Fill::color(hexColor(0x241c15, 0.25f)),
+ *                   .divider = Fill::color(hexColor(0x241c15, 0.18f))})
  *          .rect({64, 1420, kW - 64, 1576})
  *
  *  It covers one axis only. A titled plate, or a grid of plates, is a line
@@ -154,9 +154,9 @@ struct Plate {
  *                    .style = voice,
  *                    .stacked = 2,
  *                    .plate = {.paddingX = 12, .paddingY = 8, .gap = 14,
- *                              .fill = Fill::color(hex(0x1b1e26, 0.86f)),
- *                              .border = Fill::color(hex(0xc7ab74, 0.22f)),
- *                              .divider = Fill::color(hex(0xc7ab74, 0.16f))}})
+ *                              .fill = Fill::color(hexColor(0x1b1e26, 0.86f)),
+ *                              .border = Fill::color(hexColor(0xc7ab74,
+ * 0.22f)), .divider = Fill::color(hexColor(0xc7ab74, 0.16f))}})
  *          .rect(SkRect::MakeXYWH(1383, 882, 690, 468))
  *
  *  `plate.columns` is the console's to fill; anything in it is replaced.

@@ -79,23 +79,23 @@ constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 // applies to a saturated reading of the same list, and a black mortar
 // under it turns the Purbeck framework — which is the pavement's
 // STRONGEST structure — into void.
-constexpr SkColor4f kPorphyry = hex(0x74494A);  // Mons Claudianus, purple
-constexpr SkColor4f kPorphyryLo = hex(0x4C2F31);
-constexpr SkColor4f kSerpentine = hex(0x5B6552);  // lapis lacedaemonius
-constexpr SkColor4f kSerpentineLo = hex(0x3E4739);
-constexpr SkColor4f kGiallo = hex(0xC3AA76);  // yellow limestone
-constexpr SkColor4f kGialloLo = hex(0x9A8455);
-constexpr SkColor4f kMarble = hex(0xDED6C4);
-constexpr SkColor4f kMarbleLo = hex(0xB9B0A0);
-constexpr SkColor4f kOnyx = hex(0xCDBB94);
-constexpr SkColor4f kPurbeck = hex(0x77756B);  // the framework, not marble
-constexpr SkColor4f kPurbeckLo = hex(0x4F4E47);
-constexpr SkColor4f kGlassRed = hex(0x9A5348);
-constexpr SkColor4f kGlassTurq = hex(0x62867F);
-constexpr SkColor4f kGlassCobalt = hex(0x4E5A7E);
-constexpr SkColor4f kMortar = hex(0x6C695F);
-constexpr SkColor4f kInk = hex(0xE8E1CE);
-constexpr SkColor4f kInkDim = hex(0x9A9078);
+constexpr SkColor4f kPorphyry = hexColor(0x74494A);  // Mons Claudianus, purple
+constexpr SkColor4f kPorphyryLo = hexColor(0x4C2F31);
+constexpr SkColor4f kSerpentine = hexColor(0x5B6552);  // lapis lacedaemonius
+constexpr SkColor4f kSerpentineLo = hexColor(0x3E4739);
+constexpr SkColor4f kGiallo = hexColor(0xC3AA76);  // yellow limestone
+constexpr SkColor4f kGialloLo = hexColor(0x9A8455);
+constexpr SkColor4f kMarble = hexColor(0xDED6C4);
+constexpr SkColor4f kMarbleLo = hexColor(0xB9B0A0);
+constexpr SkColor4f kOnyx = hexColor(0xCDBB94);
+constexpr SkColor4f kPurbeck = hexColor(0x77756B);  // the framework, not marble
+constexpr SkColor4f kPurbeckLo = hexColor(0x4F4E47);
+constexpr SkColor4f kGlassRed = hexColor(0x9A5348);
+constexpr SkColor4f kGlassTurq = hexColor(0x62867F);
+constexpr SkColor4f kGlassCobalt = hexColor(0x4E5A7E);
+constexpr SkColor4f kMortar = hexColor(0x6C695F);
+constexpr SkColor4f kInk = hexColor(0xE8E1CE);
+constexpr SkColor4f kInkDim = hexColor(0x9A9078);
 
 // The field is square because the pavement is square.
 constexpr float kFieldSide = 556;
@@ -383,7 +383,8 @@ struct Cosmati final : sketch::Sketch {
     using namespace std::chrono_literals;
 
     auto root = stack().fill(Paint::linear(
-        {0, 0}, {0, cs::kH}, {{0.0f, hex(0x14120F)}, {1.0f, hex(0x080706)}}));
+        {0, 0}, {0, cs::kH},
+        {{0.0f, hexColor(0x14120F)}, {1.0f, hexColor(0x080706)}}));
 
     // ---- the pavement ------------------------------------------------
     Element floorPlate = stack()

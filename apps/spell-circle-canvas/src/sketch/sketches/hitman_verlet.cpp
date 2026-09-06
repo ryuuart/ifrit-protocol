@@ -233,20 +233,21 @@ namespace {
 // ---------------------------------------------------------------------------
 // Palette — this study's own chrome (a physics-debug register)
 
-constexpr SkColor4f kInk = hex(0x0A0A0C);
-constexpr SkColor4f kPanel = hex(0x101116);
-constexpr SkColor4f kKeyline = hex(0x191B22);
-constexpr SkColor4f kBone = hex(0xE8E6E1);
-constexpr SkColor4f kSteel = hex(0x8A8F9C);
-constexpr SkColor4f kBlue = hex(0x6FA8DC);
-constexpr SkColor4f kRed = hex(0xC8402F);
-constexpr SkColor4f kSolid = hex(0x2A2E38);
-constexpr SkColor4f kTick = hex(0x5A6070);
+constexpr SkColor4f kInk = hexColor(0x0A0A0C);
+constexpr SkColor4f kPanel = hexColor(0x101116);
+constexpr SkColor4f kKeyline = hexColor(0x191B22);
+constexpr SkColor4f kBone = hexColor(0xE8E6E1);
+constexpr SkColor4f kSteel = hexColor(0x8A8F9C);
+constexpr SkColor4f kBlue = hexColor(0x6FA8DC);
+constexpr SkColor4f kRed = hexColor(0xC8402F);
+constexpr SkColor4f kSolid = hexColor(0x2A2E38);
+constexpr SkColor4f kTick = hexColor(0x5A6070);
 
 // The constraint-error ramp — the study's whole visual thesis.
 constexpr float kRampStop[5] = {0.000f, 0.004f, 0.010f, 0.020f, 0.035f};
-constexpr SkColor4f kRampCol[5] = {hex(0x4FC79E), hex(0x93C866), hex(0xF2A73B),
-                                   hex(0xE2673A), hex(0xC8402F)};
+constexpr SkColor4f kRampCol[5] = {hexColor(0x4FC79E), hexColor(0x93C866),
+                                   hexColor(0xF2A73B), hexColor(0xE2673A),
+                                   hexColor(0xC8402F)};
 
 SkColor4f errColor(float e, float alpha = 1.0f) {
   if (e <= kRampStop[0])
@@ -986,7 +987,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
       // 1. The capped-cylinder proxies — the collision geometry the paper
       //    describes, at the width the solver actually uses.
       pen.strokeWeight(2.0f * kCapsule * kUnit * scale);
-      pen.stroke(hex(0x6FA8DC, 0.10f * fade));
+      pen.stroke(hexColor(0x6FA8DC, 0.10f * fade));
       for (const physics::Constraint& s : rig.sticks) {
         const SkPoint a = at(s.a), b = at(s.b);
         pen.line(a.fX, a.fY, b.fX, b.fY);
@@ -1003,7 +1004,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     }
     // 3. The inequality constraint — dotted, as Figure 8 draws it.
     pen.strokeWeight(1.4f * scale);
-    pen.stroke(hex(0xC8402F, 0.75f * fade));
+    pen.stroke(hexColor(0xC8402F, 0.75f * fade));
     pen.strokeDash({2.5f, 3.5f});
     const SkPoint lk = at(LKN), rk = at(RKN);
     pen.line(lk.fX, lk.fY, rk.fX, rk.fY);
@@ -1083,7 +1084,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.noStroke();
     pen.fill(floor);
     pen.rect(0, floorTop, kStage, kStage - floorTop);
-    pen.fill(hex(0x6FA8DC, 0.5f * a));
+    pen.fill(hexColor(0x6FA8DC, 0.5f * a));
     pen.rect(0, floorTop, kStage, 1);
 
     // The bump, drawn to the paper's own Fig. 4 scale, with a drafting
@@ -1091,7 +1092,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     const SkPoint a1 = toStage(kBumpA), b1 = toStage(kBumpB),
                   c1 = toStage(kBumpC);
     pen.fill(fadeTo(kSolid, a));
-    pen.stroke(hex(0x6FA8DC, 0.40f * a));
+    pen.stroke(hexColor(0x6FA8DC, 0.40f * a));
     pen.strokeWeight(1.0f);
     pen.triangle(a1.fX, a1.fY, b1.fX, b1.fY, c1.fX, c1.fY);
     {
@@ -1100,7 +1101,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
       // as the clip, so the hatch cannot outrun the bump it belongs to.
       pen.push();
       pen.clip([&] { pen.triangle(a1.fX, a1.fY, b1.fX, b1.fY, c1.fX, c1.fY); });
-      pen.stroke(hex(0x6FA8DC, 0.20f * a));
+      pen.stroke(hexColor(0x6FA8DC, 0.20f * a));
       pen.strokeWeight(1.0f);
       const float span = c1.fX - a1.fX + (a1.fY - b1.fY);
       for (float s = 0; s < span; s += 6.0f)
@@ -1115,7 +1116,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     const float g = cue(ms, 240, 620, &ch::easeOutCubic);
     pen.noFill();
     pen.strokeCap(draw::SQUARE);
-    pen.stroke(hex(0x6FA8DC, 0.45f));
+    pen.stroke(hexColor(0x6FA8DC, 0.45f));
     pen.strokeWeight(1.5f);
     // the bezel drawn UP TO a fraction of its perimeter, as a trim window
     // on a rect is
@@ -1134,7 +1135,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
       pen.line(p0.fX, p0.fY, p0.fX + u.fX * take, p0.fY + u.fY * take);
       walked += side;
     }
-    pen.stroke(hex(0x6FA8DC, 0.22f));
+    pen.stroke(hexColor(0x6FA8DC, 0.22f));
     pen.strokeDash({4.0f, 5.0f});
     pen.line(0, 1, kStage, 1);
     pen.noDash();
@@ -1147,7 +1148,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     const float f = bodyFade.value();
     // The cloth: one shape for the quad fill, then its edges.
     pen.noStroke();
-    pen.fill(hex(0x6FA8DC, 0.07f * f));
+    pen.fill(hexColor(0x6FA8DC, 0.07f * f));
     constexpr int C = 5, R = 5;
     pen.beginShape(draw::QUADS);
     for (int r = 0; r + 1 < R; ++r)
@@ -1167,13 +1168,13 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.noFill();
     pen.strokeCap(draw::ROUND);
     pen.strokeWeight(1.0f);
-    pen.stroke(hex(0x8A8F9C, 0.45f * f));
+    pen.stroke(hexColor(0x8A8F9C, 0.45f * f));
     for (const physics::Constraint& s : cloth.sticks) {
       const SkPoint a = drawn(cloth, s.a), b = drawn(cloth, s.b);
       pen.line(a.fX, a.fY, b.fX, b.fY);
     }
     pen.strokeWeight(2.0f);
-    pen.stroke(hex(0x8A8F9C, 0.70f * f));
+    pen.stroke(hexColor(0x8A8F9C, 0.70f * f));
     for (const Body& p : plants)
       for (const physics::Constraint& st : p.sticks) {
         const SkPoint a = drawn(p, st.a), b = drawn(p, st.b);
@@ -1185,7 +1186,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     // The contact markers: an open ring and a normal tick at every
     // projection this frame. These are the frames where the ramp fires.
     pen.noFill();
-    pen.stroke(hex(0xC8402F, 0.95f * f));
+    pen.stroke(hexColor(0xC8402F, 0.95f * f));
     pen.strokeWeight(1.3f);
     for (const Contact& k : contacts) {
       const SkPoint p = toStage(k.p);
@@ -1213,7 +1214,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
       pen.stroke(kInk);
       pen.line(h.fX, h.fY, tgt.fX, tgt.fY);
       pen.strokeWeight(2.0f);
-      pen.stroke(hex(0x6FA8DC, 0.55f));
+      pen.stroke(hexColor(0x6FA8DC, 0.55f));
       pen.strokeDash({4.0f, 3.0f}, -(float)pen.millis() * 0.02f);
       pen.line(h.fX, h.fY, tgt.fX, tgt.fY);
       pen.noDash();
@@ -1229,7 +1230,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     {
       const SkPoint b = toStage(kBlast);
       pen.strokeWeight(1.0f);
-      pen.stroke(hex(0xC8402F, 0.75f));
+      pen.stroke(hexColor(0xC8402F, 0.75f));
       pen.line(b.fX - 7, b.fY, b.fX + 7, b.fY);
       pen.line(b.fX, b.fY - 7, b.fX, b.fY + 7);
       pen.circle(b.fX, b.fY, 9.0f);
@@ -1280,9 +1281,9 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.blendMode(sigil::draw::ADD);
     pen.rectMode(sigil::draw::CENTER);
     pen.fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                             {{0.0f, hex(0xFFF3E2, 1.0f * a)},
-                              {0.35f, hex(0xFFC98A, 0.55f * a)},
-                              {1.0f, hex(0xC8402F, 0.0f)}}),
+                             {{0.0f, hexColor(0xFFF3E2, 1.0f * a)},
+                              {0.35f, hexColor(0xFFC98A, 0.55f * a)},
+                              {1.0f, hexColor(0xC8402F, 0.0f)}}),
              sigil::draw::SHAPE);
     pen.rect(c.fX, c.fY, 240.0f, 240.0f);
     pen.pop();
@@ -1323,7 +1324,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
         "1 UNIT = 0.736 px = 3.60 mm \xc2\xb7 THE STAGE IS SQUARE "
         "BECAUSE THE WORLD IS A CUBE.",
         240, 40, 262, 24);
-    penUi(pen, 7.0f, hex(0xC8402F, 0.8f), 0.4f);
+    penUi(pen, 7.0f, hexColor(0xC8402F, 0.8f), 0.4f);
     pen.text(
         "\xc2\xa7"
         "7 BOMB \xe2\x8a\x95 \xc2\xb7 |\xce\x94x| = K / |x\xe2\x88\x92"
@@ -1335,7 +1336,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     const char* names[5] = {"SPAWN", "HIT", "BOMB", "SETTLE", "DRAG"};
     float x = 16;
     for (int i = 0; i < 5; ++i) {
-      penUi(pen, 8.0f, i == phase ? kRed : hex(0x8A8F9C, 0.45f), 1.7f);
+      penUi(pen, 8.0f, i == phase ? kRed : hexColor(0x8A8F9C, 0.45f), 1.7f);
       pen.text(names[i], x, 690);
       x += pen.textWidth(names[i]) + 9;
     }
@@ -1420,7 +1421,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.noFill();
     pen.strokeWeight(1.2f);
     // the box, sunk by d_p
-    pen.stroke(hex(0x6FA8DC, 0.55f * a));
+    pen.stroke(hexColor(0x6FA8DC, 0.55f * a));
     pen.rect(58, 30, 34, 22);
     pen.stroke(fadeTo(kRed, a));
     pen.line(75, 52, 75, 44);  // d_p
@@ -1452,7 +1453,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
   /** A stage inset: the scrim over the world. */
   void inset(Pen& pen, float x, float y, float w, float h, float a) {
     pen.noStroke();
-    pen.fill(hex(0x101116, 0.88f * a));
+    pen.fill(hexColor(0x101116, 0.88f * a));
     pen.rect(x, y, w, h, 5);
     pen.noFill();
     pen.stroke(fadeTo(kKeyline, a));
@@ -1483,7 +1484,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
                bodyFade.value(), false);
     }
     pen.noStroke();
-    pen.fill(hex(0x191B22, 0.9f * a));
+    pen.fill(hexColor(0x191B22, 0.9f * a));
     pen.rect(x0 + 7 + 158, y0 + 19, 1, 76);
     penMono(pen, 7.0f, fadeTo(kTick, a), 0.2f);
     pen.text("ONE POOL WITH sizes() \xc2\xb7 ONE PEN PROGRAM", x0 + 7,
@@ -1498,7 +1499,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
   void errorLegend(Pen& pen, float x0, float y0, float a) {
     constexpr float w = 336, h = 48;
     pen.noStroke();
-    pen.fill(hex(0x101116, 0.86f * a));
+    pen.fill(hexColor(0x101116, 0.86f * a));
     pen.rect(x0, y0, w, h, 4);
     pen.noFill();
     pen.stroke(fadeTo(kKeyline, a));
@@ -1585,7 +1586,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
                  mono(8.0f, kRed, 0.1f)))
         .child(t("CORRECTED  : x1 = ( 10,0)  x2 = (110,0)  "
                  "\xe2\x86\x92 d = 100  EXACT",
-                 mono(8.0f, hex(0x4FC79E), 0.1f)))
+                 mono(8.0f, hexColor(0x4FC79E), 0.1f)))
         .child(box().height(Dim(2)).shrink(0))
         .child(t("FOUR OF THE FIVE STICK LISTINGS CARRY IT: (C2), "
                  "STICK-IN-A-BOX, CLOTH, MASS-WEIGHTED.",
@@ -1642,7 +1643,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
               box()
                   .width(Dim(30))
                   .height(Dim(h))
-                  .fill(i == 4 ? kBlue : hex(0x6FA8DC, 0.42f))
+                  .fill(i == 4 ? kBlue : hexColor(0x6FA8DC, 0.42f))
                   .scaleY(animate(from(0.0f).to(1.0f), {.duration = 220ms,
                                                         .ease = ease::outBack(),
                                                         .delay = 1600ms}))
@@ -1661,13 +1662,13 @@ struct HitmanVerlet final : sketch::DrawSketch {
                            .top(Dim(39.1f))
                            .width(Dim(324))
                            .height(Dim(1))
-                           .fill(hex(0x2A2E38)))
+                           .fill(hexColor(0x2A2E38)))
                 .child(box()  // u = 1
                            .left(Dim(108))
                            .top(Dim(0))
                            .width(Dim(1))
                            .height(Dim(64))
-                           .fill(hex(0x2A2E38)))
+                           .fill(hexColor(0x2A2E38)))
                 .child(plotCurve(false, kSteel, 1.4f))
                 .child(plotCurve(true, kBlue, 1.8f))
                 .child(
@@ -1745,13 +1746,13 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.noFill();
     pen.strokeCap(draw::ROUND);
     pen.strokeWeight(1.5f);
-    pen.stroke(hex(0x8A8F9C, 0.9f));
+    pen.stroke(hexColor(0x8A8F9C, 0.9f));
     for (const physics::Constraint& s : rig.sticks) {
       const SkPoint a = p[s.a], b = p[s.b];
       pen.line(a.fX, a.fY, b.fX, b.fY);
     }
     pen.strokeWeight(1.0f);
-    pen.stroke(hex(0xC8402F, 0.9f));
+    pen.stroke(hexColor(0xC8402F, 0.9f));
     pen.strokeDash({2.0f, 3.0f});
     pen.line(p[LKN].fX, p[LKN].fY, p[RKN].fX, p[RKN].fY);
     pen.noDash();
@@ -1833,7 +1834,7 @@ struct HitmanVerlet final : sketch::DrawSketch {
     pen.text(a, x0, y0 + 160);
     penMono(pen, 8.5f, kSteel, 0.1f);
     pen.text(b, x0, y0 + 171);
-    penMono(pen, 7.5f, monotone ? hex(0x4FC79E) : kRed, 0.1f);
+    penMono(pen, 7.5f, monotone ? hexColor(0x4FC79E) : kRed, 0.1f);
     pen.text(monotone ? "mean e(1) > mean e(4) > mean e(10)  \xe2\x9c\x93"
                       : "MONOTONICITY FAILED THIS FRAME",
              x0, y0 + 182);

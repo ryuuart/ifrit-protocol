@@ -220,20 +220,20 @@ namespace {
 // only bright thing here, and where the brush runs dry the IRON shows through
 // rather than a paler red.
 
-constexpr SkColor4f kNight = hex(0x08070a);
-constexpr SkColor4f kIronDeep = hex(0x232120);
-constexpr SkColor4f kIronMid = hex(0x35312c);
-constexpr SkColor4f kIronLit = hex(0x4c453b);
-constexpr SkColor4f kIronEdge = hex(0x6c6354);
-constexpr SkColor4f kCinnabar = hex(0xcf3018);
-constexpr SkColor4f kCinnaWet = hex(0xf2542a);
-constexpr SkColor4f kCinnaDry = hex(0x8f2313);
-constexpr SkColor4f kGold = hex(0xb2914f);
-constexpr SkColor4f kGoldDim = hex(0x6d5a33);
-constexpr SkColor4f kChalk = hex(0xd8cdb6);
-constexpr SkColor4f kVoidBlue = hex(0x4f92d8);
-constexpr SkColor4f kVoidRed = hex(0xd8422a);
-constexpr SkColor4f kVoidWhite = hex(0xe7e2d6);
+constexpr SkColor4f kNight = hexColor(0x08070a);
+constexpr SkColor4f kIronDeep = hexColor(0x232120);
+constexpr SkColor4f kIronMid = hexColor(0x35312c);
+constexpr SkColor4f kIronLit = hexColor(0x4c453b);
+constexpr SkColor4f kIronEdge = hexColor(0x6c6354);
+constexpr SkColor4f kCinnabar = hexColor(0xcf3018);
+constexpr SkColor4f kCinnaWet = hexColor(0xf2542a);
+constexpr SkColor4f kCinnaDry = hexColor(0x8f2313);
+constexpr SkColor4f kGold = hexColor(0xb2914f);
+constexpr SkColor4f kGoldDim = hexColor(0x6d5a33);
+constexpr SkColor4f kChalk = hexColor(0xd8cdb6);
+constexpr SkColor4f kVoidBlue = hexColor(0x4f92d8);
+constexpr SkColor4f kVoidRed = hexColor(0xd8422a);
+constexpr SkColor4f kVoidWhite = hexColor(0xe7e2d6);
 
 // ---------------------------------------------------------------------------
 // canvas & the plate. 五寸 × 三寸 — the ratio is the specification, so it is
@@ -816,38 +816,39 @@ struct ThunderFulu : sketch::Sketch {
                 .height(Dim(kPH + 44))
                 .shape(shapes::chamfered(26.0f))
                 .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
-                                        {{0.0f, hex(0x000000, 0.66f)},
-                                         {0.72f, hex(0x000000, 0.40f)},
-                                         {1.0f, hex(0x000000, 0.0f)}}))
+                                        {{0.0f, hexColor(0x000000, 0.66f)},
+                                         {0.72f, hexColor(0x000000, 0.40f)},
+                                         {1.0f, hexColor(0x000000, 0.0f)}}))
                 .key("ironshadow"));
 
     // the plate itself: hammered iron, warm under an altar lamp. The edge is
     // NOT a radius — it is what a hammer leaves.
-    g.child(box()
-                .inset(0)
-                .shape(shapes::shaped(shapes::chamfered(17.0f),
-                                      shapers::Jitter{46.0f, 2.6f, 1356}))
-                // linearUnit, not linear: linear() is in NODE PIXELS, so
-                // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
-                // and clamps the whole plate to its last stop.
-                .fill(Paint::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
-                                        {{0.0f, hex(0x736a5b)},
-                                         {0.18f, hex(0x4f4840)},
-                                         {0.46f, kIronMid},
-                                         {0.78f, hex(0x201e1d)},
-                                         {1.0f, hex(0x161514)}}))
-                .foreground(lines::presets::hatch(
-                    Fill::color(hex(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
-                .foreground(lines::presets::hatch(
-                    Fill::color(hex(0x000000, 0.13f)), 31.0f, 3.4f, 24.0f))
-                .foreground(Wash{.material = ironGrain,
-                                 .blend = SkBlendMode::kOverlay,
-                                 .amount = 0.30f})
-                .foreground(Wash{.material = ironSpeck.material(),
-                                 .blend = SkBlendMode::kMultiply,
-                                 .amount = 0.85f})
-                .cache(Cache::Texture)
-                .key("iron"));
+    g.child(
+        box()
+            .inset(0)
+            .shape(shapes::shaped(shapes::chamfered(17.0f),
+                                  shapers::Jitter{46.0f, 2.6f, 1356}))
+            // linearUnit, not linear: linear() is in NODE PIXELS, so
+            // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
+            // and clamps the whole plate to its last stop.
+            .fill(Paint::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
+                                    {{0.0f, hexColor(0x736a5b)},
+                                     {0.18f, hexColor(0x4f4840)},
+                                     {0.46f, kIronMid},
+                                     {0.78f, hexColor(0x201e1d)},
+                                     {1.0f, hexColor(0x161514)}}))
+            .foreground(lines::presets::hatch(
+                Fill::color(hexColor(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
+            .foreground(lines::presets::hatch(
+                Fill::color(hexColor(0x000000, 0.13f)), 31.0f, 3.4f, 24.0f))
+            .foreground(Wash{.material = ironGrain,
+                             .blend = SkBlendMode::kOverlay,
+                             .amount = 0.30f})
+            .foreground(Wash{.material = ironSpeck.material(),
+                             .blend = SkBlendMode::kMultiply,
+                             .amount = 0.85f})
+            .cache(Cache::Texture)
+            .key("iron"));
 
     // the beaten edge, and the corners rounded BY HAMMERING. brush::Pattern
     // corner tiles: a facet, not a fillet.
@@ -872,10 +873,10 @@ struct ThunderFulu : sketch::Sketch {
                         .layer(lines::rails(
                             {{.across = 0.0f,
                               .width = 3.0f,
-                              .fill = Fill::color(hex(0x5d564a, 0.85f))},
+                              .fill = Fill::color(hexColor(0x5d564a, 0.85f))},
                              {.across = -5.5f,
                               .width = 1.1f,
-                              .fill = Fill::color(hex(0x0a0909, 0.75f))}}))
+                              .fill = Fill::color(hexColor(0x0a0909, 0.75f))}}))
                         .layer(brush::Pattern{
                             .side = hammerTile,
                             .corner =
@@ -1176,17 +1177,17 @@ struct ThunderFulu : sketch::Sketch {
             .scale(
                 bind(&scribe).window(tSeal, tSeal + 0.45f).target(1.5f, 1.0f))
             .key("seal");
-    g.child(
-        box()
-            .inset(0)
-            .shape(shapes::chamfered(6.0f))
-            .fill(Fill::color(hex(0xb52a17, 0.90f)))
-            .foreground(lines::presets::crosshatch(
-                Fill::color(hex(0x6d1409, 0.25f)), 5.0f, 0.8f, 18.0f))
-            .stroke(PathFormat{.width = 5.0f,
-                               .strokeFill = Fill::color(hex(0xc23520, 1.0f)),
-                               .align = PathFormat::Align::Inner})
-            .key("sealground"));
+    g.child(box()
+                .inset(0)
+                .shape(shapes::chamfered(6.0f))
+                .fill(Fill::color(hexColor(0xb52a17, 0.90f)))
+                .foreground(lines::presets::crosshatch(
+                    Fill::color(hexColor(0x6d1409, 0.25f)), 5.0f, 0.8f, 18.0f))
+                .stroke(PathFormat{
+                    .width = 5.0f,
+                    .strokeFill = Fill::color(hexColor(0xc23520, 1.0f)),
+                    .align = PathFormat::Align::Inner})
+                .key("sealground"));
     // 五 above, 雷 below — each STRETCHED to fill its half cell, which is
     // what 篆書 does inside a seal.
     const int half[2] = {WU, LEI};
@@ -1203,7 +1204,7 @@ struct ThunderFulu : sketch::Sketch {
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 4.4f,
-                      .strokeFill = Fill::color(hex(0xf2e2cf, 0.95f)),
+                      .strokeFill = Fill::color(hexColor(0xf2e2cf, 0.95f)),
                       .cap = SkPaint::kSquare_Cap,
                       .join = SkPaint::kMiter_Join})
                   .key(kit::formatted("sealglyph%d", k)));
@@ -1225,21 +1226,21 @@ struct ThunderFulu : sketch::Sketch {
     g.child(ironGround());
 
     // the spine every component is strung on — a fu is a COLUMN
-    g.child(
-        box()
-            .inset(0)
-            .shape(keyedShape(std::string_view("plate-spine"),
-                              [](SkSize) {
-                                SkPathBuilder b;
-                                b.moveTo(kCol, 28);
-                                b.lineTo(kCol, kPH - 24);
-                                return b.detach();
-                              }))
-            .fill(Fill::none())
-            .stroke(PathFormat{.width = 0.8f,
-                               .strokeFill = Fill::color(hex(0x0e0d0c, 0.26f)),
-                               .dashIntervals = {2.0f, 9.0f}})
-            .key("spine"));
+    g.child(box()
+                .inset(0)
+                .shape(keyedShape(std::string_view("plate-spine"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(kCol, 28);
+                                    b.lineTo(kCol, kPH - 24);
+                                    return b.detach();
+                                  }))
+                .fill(Fill::none())
+                .stroke(PathFormat{
+                    .width = 0.8f,
+                    .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.26f)),
+                    .dashIntervals = {2.0f, 9.0f}})
+                .key("spine"));
 
     // the four registers, ruled faintly in the margin the way a plate is
     // laid out before it is written
@@ -1269,15 +1270,15 @@ struct ThunderFulu : sketch::Sketch {
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 0.7f,
-                      .strokeFill = Fill::color(hex(0x0e0d0c, 0.28f)),
+                      .strokeFill = Fill::color(hexColor(0x0e0d0c, 0.28f)),
                       .dashIntervals = {1.5f, 6.0f}})
                   .key(kit::formatted("reg%d", i)));
-      g.child(
-          text(toU8(regs[i].label), type(faceMono, 8.5f, hex(0x0b0a09, 0.60f)))
-              .left(20)
-              .top(regs[i].y + 3)
-              .width(360)
-              .key(kit::formatted("reglbl%d", i)));
+      g.child(text(toU8(regs[i].label),
+                   type(faceMono, 8.5f, hexColor(0x0b0a09, 0.60f)))
+                  .left(20)
+                  .top(regs[i].y + 3)
+                  .width(360)
+                  .key(kit::formatted("reglbl%d", i)));
     }
 
     g.child(inkLayer());
@@ -1316,24 +1317,24 @@ struct ThunderFulu : sketch::Sketch {
     walk.lineTo(S(8));
     const SkPath walkPath = walk.detach();
 
-    g.child(
-        box()
-            .inset(0)
-            .shape(heldPath(walkPath))
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 2.6f,
-                                   .fill = Fill::color(hex(0x8b6f36, 0.50f))},
-                                  {.across = 0.0f,
-                                   .width = 1.0f,
-                                   .fill = Fill::color(hex(0xd8bd7c, 0.75f)),
-                                   .dash = {2.0f, 7.0f}}}))
-            .foreground(brush::Scatter{.art = footPrint,
-                                       .spacing = 46.0f,
-                                       .alignToPath = true,
-                                       .bleedPx = 18.0f})
-            .opacity(bind(&scribe).window(tStars - 0.4f, tStars + 0.5f))
-            .key("walkpath"));
+    g.child(box()
+                .inset(0)
+                .shape(heldPath(walkPath))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 2.6f,
+                      .fill = Fill::color(hexColor(0x8b6f36, 0.50f))},
+                     {.across = 0.0f,
+                      .width = 1.0f,
+                      .fill = Fill::color(hexColor(0xd8bd7c, 0.75f)),
+                      .dash = {2.0f, 7.0f}}}))
+                .foreground(brush::Scatter{.art = footPrint,
+                                           .spacing = 46.0f,
+                                           .alignToPath = true,
+                                           .bleedPx = 18.0f})
+                .opacity(bind(&scribe).window(tStars - 0.4f, tStars + 0.5f))
+                .key("walkpath"));
 
     // the nine stations
     for (int i = 0; i < 9; ++i) {
@@ -1352,11 +1353,11 @@ struct ThunderFulu : sketch::Sketch {
               .inset(0)
               .shape(shapes::star(6, 0.30f))
               .fill(invisible ? Fill::none()
-                              : Fill::color(hex(0xe4c98a, 0.92f)))
+                              : Fill::color(hexColor(0xe4c98a, 0.92f)))
               .stroke(PathFormat{
                   .width = 1.0f,
                   .strokeFill =
-                      Fill::color(hex(0xe4c98a, invisible ? 0.7f : 0.4f)),
+                      Fill::color(hexColor(0xe4c98a, invisible ? 0.7f : 0.4f)),
                   .dashIntervals = invisible ? std::vector<SkScalar>{2.0f, 2.6f}
                                              : std::vector<SkScalar>{}}));
       g.child(std::move(st));
@@ -1368,7 +1369,7 @@ struct ThunderFulu : sketch::Sketch {
       // segments, which is why the rest of the table is 0.
       static const float kRitualDodge[9] = {0, 54, 0, 0, 0, 0, 0, 0, 0};
       g.child(text(toU8(kit::formatted("%d %s", i + 1, kDipper[i].ritual)),
-                   type(faceMono, 9.5f, hex(0xa48c5c, 0.9f)))
+                   type(faceMono, 9.5f, hexColor(0xa48c5c, 0.9f)))
                   .left(p.fX - 44 + kRitualDodge[i])
                   .top(p.fY - 34)
                   .width(140)
@@ -1386,7 +1387,7 @@ struct ThunderFulu : sketch::Sketch {
       // over the margin's own rules.
       static const float kNameDodge[9] = {-34, 0, 0, 0, 0, 30, 0, -30, 0};
       g.child(text(toU8(kDipper[i].name),
-                   type(faceItalic, 9.0f, hex(0x6f6047, 0.85f)))
+                   type(faceItalic, 9.0f, hexColor(0x6f6047, 0.85f)))
                   .left(p.fX - 22 + kNameDodge[i])
                   .top(p.fY + 12)
                   .width(140)
@@ -1422,12 +1423,12 @@ struct ThunderFulu : sketch::Sketch {
                    .shape(shapes::shaped(shapes::chamfered(5.0f),
                                          shapers::Jitter{14.0f, 1.4f, 7}))
                    .fill(Paint::linearUnit({0.18f, 0.0f}, {0.88f, 1.0f},
-                                           {{0.0f, hex(0x4a443b)},
-                                            {0.55f, hex(0x272522)},
-                                            {1.0f, hex(0x161514)}}))
+                                           {{0.0f, hexColor(0x4a443b)},
+                                            {0.55f, hexColor(0x272522)},
+                                            {1.0f, hexColor(0x161514)}}))
                    .stroke(PathFormat{
                        .width = 1.2f,
-                       .strokeFill = Fill::color(hex(0x5b5449, 0.85f)),
+                       .strokeFill = Fill::color(hexColor(0x5b5449, 0.85f)),
                        .align = PathFormat::Align::Inner}));
       // a miniature fu: the same grammar, four marks, generated
       SkPathBuilder b;
@@ -1462,12 +1463,12 @@ struct ThunderFulu : sketch::Sketch {
                                                  Fill::color(kCinnaWet))));
       if (i < 9) {
         mp.child(text(toU8(kOthers[i].pinyin),
-                      type(faceMono, 8.0f, hex(0xa89264, 0.95f)))
+                      type(faceMono, 8.0f, hexColor(0xa89264, 0.95f)))
                      .left(-16)
                      .top(ph + 10)
                      .width(124));
         mp.child(text(toU8(kOthers[i].gloss),
-                      type(faceItalic, 8.0f, hex(0x776953, 0.9f)))
+                      type(faceItalic, 8.0f, hexColor(0x776953, 0.9f)))
                      .left(-16)
                      .top(ph + 22)
                      .width(124));
@@ -1487,27 +1488,27 @@ struct ThunderFulu : sketch::Sketch {
                 .left(0)
                 .top(0)
                 .width(468));
-    g.child(
-        box()
-            .left(0)
-            .top(24)
-            .width(468)
-            .height(3)
-            .shape(keyedShape(std::string_view("rule-468"),
-                              [](SkSize) {
-                                SkPathBuilder b;
-                                b.moveTo(0, 1.5f);
-                                b.lineTo(468, 1.5f);
-                                return b.detach();
-                              }))
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 1.6f,
-                                   .fill = Fill::color(hex(0xb2914f, 0.55f))},
-                                  {.across = -4.0f,
-                                   .width = 0.7f,
-                                   .fill = Fill::color(hex(0xb2914f, 0.30f)),
-                                   .dash = {1.4f, 4.6f}}})));
+    g.child(box()
+                .left(0)
+                .top(24)
+                .width(468)
+                .height(3)
+                .shape(keyedShape(std::string_view("rule-468"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(0, 1.5f);
+                                    b.lineTo(468, 1.5f);
+                                    return b.detach();
+                                  }))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 1.6f,
+                      .fill = Fill::color(hexColor(0xb2914f, 0.55f))},
+                     {.across = -4.0f,
+                      .width = 0.7f,
+                      .fill = Fill::color(hexColor(0xb2914f, 0.30f)),
+                      .dash = {1.4f, 4.6f}}})));
     const char* lines_[6] = {
         "SHANG DI YOU LING      The High Emperor has commanded:",
         "YAO NI MIE XING        demon-rainbow, annihilate its form.",
@@ -1530,12 +1531,12 @@ struct ThunderFulu : sketch::Sketch {
         text(toU8("\xe2\x80\x9c\xe6\x80\xa5\xe6\x80\xa5\xe5\xa6\x82\xe5\xbe"
                   "\x8b\xe4\xbb\xa4\xe2\x80\x9d is the Han imperial-document "
                   "closing formula, borrowed whole. It ends"),
-             type(faceItalic, 10.5f, hex(0x7d6f52)))
+             type(faceItalic, 10.5f, hexColor(0x7d6f52)))
             .left(0)
             .top(136)
             .width(468));
     g.child(text(toU8("almost every fu, and it goes at the FOOT."),
-                 type(faceItalic, 10.5f, hex(0x7d6f52)))
+                 type(faceItalic, 10.5f, hexColor(0x7d6f52)))
                 .left(0)
                 .top(150)
                 .width(468));
@@ -1544,12 +1545,12 @@ struct ThunderFulu : sketch::Sketch {
 
   feed::TextOptions logStyle() {
     feed::TextOptions s;
-    s.styles.base(type(faceMono, 9.6f, hex(0x9a8a68)))
-        .set("dim", type(faceMono, 9.6f, hex(0x6d6249)))
+    s.styles.base(type(faceMono, 9.6f, hexColor(0x9a8a68)))
+        .set("dim", type(faceMono, 9.6f, hexColor(0x6d6249)))
         .set("heading", type(faceMono, 9.6f, kGold))
-        .set("pass", type(faceMono, 9.6f, hex(0x5fae7f)))
-        .set("number", type(faceMono, 9.6f, hex(0xcf6a4a)))
-        .set("fail", type(faceMono, 9.6f, hex(0xc4483a)));
+        .set("pass", type(faceMono, 9.6f, hexColor(0x5fae7f)))
+        .set("number", type(faceMono, 9.6f, hexColor(0xcf6a4a)))
+        .set("fail", type(faceMono, 9.6f, hexColor(0xc4483a)));
     s.window.gap = 1.0f;
     s.window.visible = 13;
     return s;
@@ -1564,9 +1565,9 @@ struct ThunderFulu : sketch::Sketch {
                           .paddingX = 11,
                           .paddingY = 8,
                           .gap = 7,
-                          .fill = Fill::color(hex(0x131215, 0.88f)),
-                          .border = Fill::color(hex(0xb2914f, 0.20f)),
-                          .divider = Fill::color(hex(0xb2914f, 0.14f))}})
+                          .fill = Fill::color(hexColor(0x131215, 0.88f)),
+                          .border = Fill::color(hexColor(0xb2914f, 0.20f)),
+                          .divider = Fill::color(hexColor(0xb2914f, 0.14f))}})
         .rect(SkRect::MakeXYWH(1228, 768, 638, 420))
         .key("console");
   }
@@ -1586,26 +1587,27 @@ struct ThunderFulu : sketch::Sketch {
         "FU JIAO  foot       38 str   0.034 s/stroke   NO LIFT, FLYING WHITE",
     };
     for (int i = 0; i < 5; ++i)
-      g.child(text(toU8(rows[i]), type(faceMono, 10.5f,
-                                       i == 4 ? hex(0xcf6a4a) : hex(0x9a8a68)))
+      g.child(text(toU8(rows[i]),
+                   type(faceMono, 10.5f,
+                        i == 4 ? hexColor(0xcf6a4a) : hexColor(0x9a8a68)))
                   .left(0)
                   .top(20 + (float)i * 15)
                   .width(468));
     g.child(
         text(toU8("the foot is 7.1x the body \xe2\x80\x94 doctrine, measured: "
                   "\"the foot is the last"),
-             type(faceItalic, 10.5f, hex(0x7d6f52)))
+             type(faceItalic, 10.5f, hexColor(0x7d6f52)))
             .left(0)
             .top(100)
             .width(468));
     g.child(text(toU8("step; total concentration, cut off in a single breath, "
                       "no slowing"),
-                 type(faceItalic, 10.5f, hex(0x7d6f52)))
+                 type(faceItalic, 10.5f, hexColor(0x7d6f52)))
                 .left(0)
                 .top(114)
                 .width(468));
     g.child(text(toU8("or dragging.\"  A fu written at one tempo is not a fu."),
-                 type(faceItalic, 10.5f, hex(0x7d6f52)))
+                 type(faceItalic, 10.5f, hexColor(0x7d6f52)))
                 .left(0)
                 .top(128)
                 .width(468));
@@ -1637,13 +1639,14 @@ struct ThunderFulu : sketch::Sketch {
                               return b.detach();
                             }))
           .fill(Fill::none())
-          .stroke(lines::rails({{.across = 0.0f,
-                                 .width = 1.3f,
-                                 .fill = Fill::color(hex(0xb2914f, 0.48f))},
-                                {.across = -3.4f,
-                                 .width = 0.6f,
-                                 .fill = Fill::color(hex(0xb2914f, 0.26f)),
-                                 .dash = {1.3f, 4.2f}}}));
+          .stroke(
+              lines::rails({{.across = 0.0f,
+                             .width = 1.3f,
+                             .fill = Fill::color(hexColor(0xb2914f, 0.48f))},
+                            {.across = -3.4f,
+                             .width = 0.6f,
+                             .fill = Fill::color(hexColor(0xb2914f, 0.26f)),
+                             .dash = {1.3f, 4.2f}}}));
     };
 
     // --- 踏符頭: one chant line per hook, as the hook goes down -----------
@@ -1679,41 +1682,41 @@ struct ThunderFulu : sketch::Sketch {
       SkPathBuilder axis;
       axis.moveTo(2, bh * 0.5f);
       axis.lineTo(pw - 2, bh * 0.5f);
-      g.child(
-          box()
-              .left(0)
-              .top(py + 6)
-              .width(Dim(pw))
-              .height(Dim(bh))
-              .shape(heldPath(axis.detach()))
-              .fill(Fill::none())
-              .stroke(brush::Ribbon{.fill = Fill::color(hex(0xcf3018, 0.92f)),
-                                    .step = 1.5f,
-                                    .width = LawBand{21.0f}})
-              .key("lawband"));
+      g.child(box()
+                  .left(0)
+                  .top(py + 6)
+                  .width(Dim(pw))
+                  .height(Dim(bh))
+                  .shape(heldPath(axis.detach()))
+                  .fill(Fill::none())
+                  .stroke(brush::Ribbon{
+                      .fill = Fill::color(hexColor(0xcf3018, 0.92f)),
+                      .step = 1.5f,
+                      .width = LawBand{21.0f}})
+                  .key("lawband"));
       // STRIP 2 — w(s) plotted from a baseline, with the 1.0 reference
       const float cy = py + 6 + bh + 12, chh = ph - bh - 18;
       const float sc = chh / 2.0f;
-      g.child(
-          box()
-              .left(0)
-              .top(cy)
-              .width(Dim(pw))
-              .height(Dim(chh))
-              .shape(keyedShape(std::tuple{pw, chh, sc},
-                                [pw, chh, sc](SkSize) {
-                                  SkPathBuilder b;
-                                  b.moveTo(0, chh - sc);
-                                  b.lineTo(pw, chh - sc);
-                                  b.moveTo(0, chh);
-                                  b.lineTo(pw, chh);
-                                  return b.detach();
-                                }))
-              .fill(Fill::none())
-              .stroke(PathFormat{.width = 0.7f,
-                                 .strokeFill = Fill::color(hex(0x8b7f66, 0.5f)),
-                                 .dashIntervals = {1.6f, 4.4f}})
-              .key("lawaxis"));
+      g.child(box()
+                  .left(0)
+                  .top(cy)
+                  .width(Dim(pw))
+                  .height(Dim(chh))
+                  .shape(keyedShape(std::tuple{pw, chh, sc},
+                                    [pw, chh, sc](SkSize) {
+                                      SkPathBuilder b;
+                                      b.moveTo(0, chh - sc);
+                                      b.lineTo(pw, chh - sc);
+                                      b.moveTo(0, chh);
+                                      b.lineTo(pw, chh);
+                                      return b.detach();
+                                    }))
+                  .fill(Fill::none())
+                  .stroke(PathFormat{
+                      .width = 0.7f,
+                      .strokeFill = Fill::color(hexColor(0x8b7f66, 0.5f)),
+                      .dashIntervals = {1.6f, 4.4f}})
+                  .key("lawaxis"));
       g.child(box()
                   .left(0)
                   .top(cy)
@@ -1733,22 +1736,22 @@ struct ThunderFulu : sketch::Sketch {
                   .stroke(lines::rails(
                       {{.across = 0.0f,
                         .width = 1.5f,
-                        .fill = Fill::color(hex(0xe6d7ae, 0.95f))},
+                        .fill = Fill::color(hexColor(0xe6d7ae, 0.95f))},
                        {.across = -3.0f,
                         .width = 0.6f,
-                        .fill = Fill::color(hex(0xcf3018, 0.55f))}}))
+                        .fill = Fill::color(hexColor(0xcf3018, 0.55f))}}))
                   .key("lawcurve"));
       const char* marks[3] = {"ni feng 1.77", "belly 0.73", "dun 1.42"};
       const float mx[3] = {0.0f, 0.28f, 0.88f};
       const float off[3] = {2, -18, -52};
       for (int i = 0; i < 3; ++i)
-        g.child(text(toU8(marks[i]), type(faceMono, 8.5f, hex(0xa89778)))
+        g.child(text(toU8(marks[i]), type(faceMono, 8.5f, hexColor(0xa89778)))
                     .left(mx[i] * pw + off[i])
                     .top(cy + chh - widthLaw(mx[i]) * sc + (i == 1 ? 4 : -13))
                     .width(120)
                     .key(kit::formatted("lawmk%d", i)));
       g.child(text(toU8("s = distance / fullLength, NOT PathSample::fraction"),
-                   type(faceMono, 8.5f, hex(0x6f6047)))
+                   type(faceMono, 8.5f, hexColor(0x6f6047)))
                   .left(0)
                   .top(cy + chh + 4)
                   .width(Dim(pw)));
@@ -1799,7 +1802,7 @@ struct ThunderFulu : sketch::Sketch {
                   .key(kit::formatted("spec%d", c)));
       g.child(text(toU8(kit::formatted("%s  %.3f em", kClsName[c],
                                        (double)w0ForClass(c))),
-                   type(faceMono, 9.0f, hex(0xa48c5c)))
+                   type(faceMono, 9.0f, hexColor(0xa48c5c)))
                   .left(cx)
                   .top(y + 56)
                   .width(140)
@@ -1819,7 +1822,7 @@ struct ThunderFulu : sketch::Sketch {
       const float t = tGall + (float)k * (10.0f * tGallEach / 6.0f);
       g.child(
           text(toU8(kit::formatted("%d/6  %s", k + 1, kGallChant[k])),
-               type(faceItalic, 11.0f, k == 5 ? hex(0xe07a52) : kChalk))
+               type(faceItalic, 11.0f, k == 5 ? hexColor(0xe07a52) : kChalk))
               .left(0)
               .top(gy + 28 + (float)k * 18)
               .width(Dim(Wc))
@@ -1827,7 +1830,7 @@ struct ThunderFulu : sketch::Sketch {
               .key(kit::formatted("gc%d", k)));
     }
     g.child(text(toU8("the sixth phrase lands on the tenth stroke"),
-                 type(faceMono, 9.0f, hex(0x6f6047)))
+                 type(faceMono, 9.0f, hexColor(0x6f6047)))
                 .left(0)
                 .top(gy + 132)
                 .width(Dim(Wc)));
@@ -1877,42 +1880,41 @@ struct ThunderFulu : sketch::Sketch {
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 0.8f,
-                      .strokeFill = Fill::color(hex(0xb2914f, 0.42f))})
+                      .strokeFill = Fill::color(hexColor(0xb2914f, 0.42f))})
                   .key(kit::formatted("reg%d", i + 10)));
     }
     // tick ladder down the plate's left margin — cun and fen
-    g.child(
-        box()
-            .left(kPL - 26)
-            .top(kPT)
-            .width(20)
-            .height(Dim(kPH))
-            .shape(keyedShape(std::string_view("tick-ladder"),
-                              [](SkSize s) {
-                                SkPathBuilder b;
-                                for (int i = 0; i <= 50; ++i) {
-                                  const float y = s.height() * (float)i / 50.0f;
-                                  const float len =
-                                      (i % 10 == 0)
-                                          ? 17.0f
-                                          : (i % 5 == 0 ? 10.0f : 5.0f);
-                                  b.moveTo(s.width(), y);
-                                  b.lineTo(s.width() - len, y);
-                                }
-                                return b.detach();
-                              }))
-            .fill(Fill::none())
-            .stroke(PathFormat{.width = 0.9f,
-                               .strokeFill = Fill::color(hex(0xb2914f, 0.40f))})
-            .key("ladder"));
+    g.child(box()
+                .left(kPL - 26)
+                .top(kPT)
+                .width(20)
+                .height(Dim(kPH))
+                .shape(keyedShape(
+                    std::string_view("tick-ladder"),
+                    [](SkSize s) {
+                      SkPathBuilder b;
+                      for (int i = 0; i <= 50; ++i) {
+                        const float y = s.height() * (float)i / 50.0f;
+                        const float len =
+                            (i % 10 == 0) ? 17.0f : (i % 5 == 0 ? 10.0f : 5.0f);
+                        b.moveTo(s.width(), y);
+                        b.lineTo(s.width() - len, y);
+                      }
+                      return b.detach();
+                    }))
+                .fill(Fill::none())
+                .stroke(PathFormat{
+                    .width = 0.9f,
+                    .strokeFill = Fill::color(hexColor(0xb2914f, 0.40f))})
+                .key("ladder"));
     for (int i = 0; i <= 5; ++i)
       g.child(text(toU8(kit::formatted("%d", i)),
-                   type(faceMono, 8.5f, hex(0x8b7644)))
+                   type(faceMono, 8.5f, hexColor(0x8b7644)))
                   .left(kPL - 46)
                   .top(kPT + kPH * (float)i / 5.0f - 5)
                   .width(16)
                   .key(kit::formatted("ladlbl%d", i)));
-    g.child(text(toU8("CUN"), type(faceMono, 8.0f, hex(0x8b7644)))
+    g.child(text(toU8("CUN"), type(faceMono, 8.0f, hexColor(0x8b7644)))
                 .left(kPL - 52)
                 .top(kPT + kPH + 8)
                 .width(40));
@@ -1922,31 +1924,31 @@ struct ThunderFulu : sketch::Sketch {
                 .left(1046)
                 .top(706)
                 .width(830));
-    g.child(
-        box()
-            .left(1046)
-            .top(724)
-            .width(830)
-            .height(3)
-            .shape(keyedShape(std::string_view("rule-830"),
-                              [](SkSize) {
-                                SkPathBuilder b;
-                                b.moveTo(0, 1.5f);
-                                b.lineTo(830, 1.5f);
-                                return b.detach();
-                              }))
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 1.3f,
-                                   .fill = Fill::color(hex(0xb2914f, 0.48f))},
-                                  {.across = -3.4f,
-                                   .width = 0.6f,
-                                   .fill = Fill::color(hex(0xb2914f, 0.26f)),
-                                   .dash = {1.3f, 4.2f}}})));
+    g.child(box()
+                .left(1046)
+                .top(724)
+                .width(830)
+                .height(3)
+                .shape(keyedShape(std::string_view("rule-830"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(0, 1.5f);
+                                    b.lineTo(830, 1.5f);
+                                    return b.detach();
+                                  }))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 1.3f,
+                      .fill = Fill::color(hexColor(0xb2914f, 0.48f))},
+                     {.across = -3.4f,
+                      .width = 0.6f,
+                      .fill = Fill::color(hexColor(0xb2914f, 0.26f)),
+                      .dash = {1.3f, 4.2f}}})));
     g.child(text(toU8("Nine stations: J2000 right ascension and declination, "
                       "gnomonically projected about the asterism's own "
                       "centroid. Yu bu is \"three steps, nine prints\"."),
-                 type(faceItalic, 10.0f, hex(0x8d7f60)))
+                 type(faceItalic, 10.0f, hexColor(0x8d7f60)))
                 .left(1046)
                 .top(734)
                 .width(830));
@@ -1955,7 +1957,7 @@ struct ThunderFulu : sketch::Sketch {
                       "gang plate separates the pair by hand, and so does this "
                       "one. You Bi is invisible: its station is doctrine, and "
                       "it is drawn open."),
-                 type(faceItalic, 10.0f, hex(0x6d6047)))
+                 type(faceItalic, 10.0f, hexColor(0x6d6047)))
                 .left(1046)
                 .top(752)
                 .width(830));
@@ -1963,7 +1965,7 @@ struct ThunderFulu : sketch::Sketch {
                       "a patient with eye disease. \xc2\xb7 SigilCompose study "
                       "\xc2\xb7 no CJK font is loaded: every Han glyph here is "
                       "stroke geometry"),
-                 type(faceMono, 9.5f, hex(0x5d5341)))
+                 type(faceMono, 9.5f, hexColor(0x5d5341)))
                 .left(76)
                 .top(kH - 34)
                 .width(1600));
@@ -2186,8 +2188,8 @@ struct ThunderFulu : sketch::Sketch {
 
     ironGrain = Paint::recipe(field::grain(2.2f, 4, 1356.0f, 0.55f, 2.6f));
     ironSpeck = patterns::speckle(420, 26, 0.7f, 2.6f,
-                                  {skia::toColor(hex(0x7c7263, 0.10f)),
-                                   skia::toColor(hex(0x000000, 0.16f))});
+                                  {skia::toColor(hexColor(0x7c7263, 0.10f)),
+                                   skia::toColor(hexColor(0x000000, 0.16f))});
     ironSpeck.seed(1220);
 
     // brush::Scatter / brush::Pattern art: held as MEMBERS. Built inside a
@@ -2197,7 +2199,7 @@ struct ThunderFulu : sketch::Sketch {
                     .width(7)
                     .height(11)
                     .shape(shapes::squircle(2.6f))
-                    .fill(Fill::color(hex(0xb2914f, 0.42f)));
+                    .fill(Fill::color(hexColor(0xb2914f, 0.42f)));
     hammerTile = box().width(22).height(3).fill(Fill::none());
     hammerCorner =
         box()
@@ -2214,9 +2216,10 @@ struct ThunderFulu : sketch::Sketch {
                                 b.close();
                                 return b.detach();
                               }))
-            .fill(Fill::color(hex(0x6b6355, 0.55f)))
-            .stroke(PathFormat{.width = 0.9f,
-                               .strokeFill = Fill::color(hex(0x100f0f, 0.7f))});
+            .fill(Fill::color(hexColor(0x6b6355, 0.55f)))
+            .stroke(PathFormat{
+                .width = 0.9f,
+                .strokeFill = Fill::color(hexColor(0x100f0f, 0.7f))});
 
     validateClassifier();
     buildStrokes();

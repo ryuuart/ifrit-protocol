@@ -215,7 +215,7 @@ __attribute__((format(printf, 1, 2))) std::string formatted(const char* pattern,
  *  between neighbours where the sheet rules them apart.
  *
  *      kit::cells({.cells = {a, b, c}, .gap = 20,
- *                  .divider = Fill::color(hex(0x241c15, 0.2f))})
+ *                  .divider = Fill::color(hexColor(0x241c15, 0.2f))})
  *
  *  It places nothing itself and sizes nothing: the run is an ordinary
  *  box in its parent's flow, and a cell keeps the width it was given. A

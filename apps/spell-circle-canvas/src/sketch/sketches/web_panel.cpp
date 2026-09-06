@@ -66,8 +66,8 @@ constexpr int kPageWidth = 640;
 constexpr int kPageHeight = 470;
 constexpr int kSlotSize = 168;
 
-constexpr SkColor4f kInk = hex(0xe8ecf6);
-constexpr SkColor4f kDim = hex(0x93a0bd);
+constexpr SkColor4f kInk = hexColor(0xe8ecf6);
+constexpr SkColor4f kDim = hexColor(0x93a0bd);
 
 /** The page. Transparent, so what is behind it in the scene is part of
  *  the composite rather than covered by it, and static, so it settles to
@@ -143,7 +143,7 @@ void drawSigil(SkCanvas& canvas, float size) {
   ring.setStyle(SkPaint::kStroke_Style);
   for (int i = 0; i < 3; ++i) {
     ring.setStrokeWidth(3.0f - (float)i);
-    ring.setColor4f(i % 2 ? hex(0xb18cff) : hex(0x7ee8ff), nullptr);
+    ring.setColor4f(i % 2 ? hexColor(0xb18cff) : hexColor(0x7ee8ff), nullptr);
     canvas.drawCircle(centre, centre, centre * (0.92f - 0.22f * (float)i),
                       ring);
   }
@@ -151,7 +151,7 @@ void drawSigil(SkCanvas& canvas, float size) {
   chord.setAntiAlias(true);
   chord.setStyle(SkPaint::kStroke_Style);
   chord.setStrokeWidth(1.4f);
-  chord.setColor4f(hex(0x7ee8ff, 0.7f), nullptr);
+  chord.setColor4f(hexColor(0x7ee8ff, 0.7f), nullptr);
   const float radius = centre * 0.92f;
   for (int i = 0; i < 6; ++i) {
     const SkPoint from =
@@ -169,8 +169,8 @@ Element note(std::u8string heading, std::u8string body) {
       .width(236)
       .corners({12})
       .padding(14)
-      .fill(Fill::color(hex(0x121a2c, 0.86f)))
-      .foreground(stroke(1.0f, Fill::color(hex(0x7ee8ff, 0.22f))))
+      .fill(Fill::color(hexColor(0x121a2c, 0.86f)))
+      .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.22f))))
       .column()
       .gap(6)
       .child(text(std::move(heading),
@@ -189,9 +189,9 @@ struct WebPanelSketch final : sketch::Sketch {
   static bool available(std::string* why) { return scry::available(why); }
 
   void setup(sketch::SketchContext& ctx) override {
-    sketch::kit::stage(
-        ctx,
-        {.size = {980, 660}, .captureAt = 1.0, .background = hex(0x0b0a16)});
+    sketch::kit::stage(ctx, {.size = {980, 660},
+                             .captureAt = 1.0,
+                             .background = hexColor(0x0b0a16)});
 
     std::string why;
     const std::shared_ptr<scry::WebEngine> engine =
@@ -223,8 +223,9 @@ struct WebPanelSketch final : sketch::Sketch {
 
   [[nodiscard]] Element scene() const {
     return stack()
-        .fill(linearGradient({0, 0}, {0, 660},
-                             {hex(0x140e26), hex(0x241033), hex(0x0d1424)}))
+        .fill(linearGradient(
+            {0, 0}, {0, 660},
+            {hexColor(0x140e26), hexColor(0x241033), hexColor(0x0d1424)}))
         .child(
             text(u8"A PAGE AS A LEAF",
                  weave::textStyle({.size = 15, .color = kInk, .track = 2.4f}))
@@ -236,7 +237,7 @@ struct WebPanelSketch final : sketch::Sketch {
                    .inset(40, 96, 300, 94)
                    .corners({16})
                    .clip()
-                   .background(shadow(hex(0x000000, 0.55f), {0, 10}, 26))
+                   .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 26))
                    .child(web(m_view).width(kPageWidth).height(kPageHeight)))
         .child(box()
                    .left(704)
@@ -268,19 +269,20 @@ struct WebPanelSketch final : sketch::Sketch {
    *  the registry first. */
   [[nodiscard]] static Element unavailable(const std::string& why) {
     return stack()
-        .fill(Fill::color(hex(0x0b0a16)))
-        .child(box()
-                   .inset(40, 40, 40, 40)
-                   .corners({16})
-                   .padding(28)
-                   .fill(Fill::color(hex(0x121a2c, 0.9f)))
-                   .foreground(stroke(1.0f, Fill::color(hex(0x7ee8ff, 0.2f))))
-                   .column()
-                   .gap(10)
-                   .child(text(u8"no web engine here",
-                               weave::textStyle({.size = 22, .color = kInk})))
-                   .child(text(toU8(why),
-                               weave::textStyle({.size = 13, .color = kDim}))));
+        .fill(Fill::color(hexColor(0x0b0a16)))
+        .child(
+            box()
+                .inset(40, 40, 40, 40)
+                .corners({16})
+                .padding(28)
+                .fill(Fill::color(hexColor(0x121a2c, 0.9f)))
+                .foreground(stroke(1.0f, Fill::color(hexColor(0x7ee8ff, 0.2f))))
+                .column()
+                .gap(10)
+                .child(text(u8"no web engine here",
+                            weave::textStyle({.size = 22, .color = kInk})))
+                .child(text(toU8(why),
+                            weave::textStyle({.size = 13, .color = kDim}))));
   }
 
  private:

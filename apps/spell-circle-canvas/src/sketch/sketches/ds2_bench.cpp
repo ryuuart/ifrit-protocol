@@ -107,17 +107,17 @@ namespace {
 // ---------------------------------------------------------------------------
 // palette
 
-using sigil::compose::alpha;  // the same colour at a different alpha
-using sigil::compose::hex;    // 0xRRGGBB -> SkColor4f
+using sigil::compose::alpha;     // the same colour at a different alpha
+using sigil::compose::hexColor;  // 0xRRGGBB -> SkColor4f
 
-const SkColor4f kBody = hex(0x0B1E21);
-const SkColor4f kStrip = hex(0x102A2A);
-const SkColor4f kCyan = hex(0x8FE0E6);
-const SkColor4f kTitle = hex(0xE4F7F8);
-const SkColor4f kDim = hex(0x33514E);
-const SkColor4f kBrassLo = hex(0xC9A227);
-const SkColor4f kBrassHi = hex(0xE8C860);
-const SkColor4f kBrassDk = hex(0x5E4914);
+const SkColor4f kBody = hexColor(0x0B1E21);
+const SkColor4f kStrip = hexColor(0x102A2A);
+const SkColor4f kCyan = hexColor(0x8FE0E6);
+const SkColor4f kTitle = hexColor(0xE4F7F8);
+const SkColor4f kDim = hexColor(0x33514E);
+const SkColor4f kBrassLo = hexColor(0xC9A227);
+const SkColor4f kBrassHi = hexColor(0xE8C860);
+const SkColor4f kBrassDk = hexColor(0x5E4914);
 
 // ---------------------------------------------------------------------------
 // canvas geometry (1200 x 800)
@@ -429,16 +429,16 @@ struct KindArt {
 inline KindArt artOf(Kind k) {
   switch (k) {
     case DMG:
-      return {hex(0x6E332F), hex(0xE9BCB4), "DMG"};
+      return {hexColor(0x6E332F), hexColor(0xE9BCB4), "DMG"};
     case CAP:
-      return {hex(0x274963), hex(0xB2D6EC), "CAP"};
+      return {hexColor(0x274963), hexColor(0xB2D6EC), "CAP"};
     case CHR:
-      return {hex(0x4C5E2B), hex(0xD6E8AA), "CHR"};
+      return {hexColor(0x4C5E2B), hexColor(0xD6E8AA), "CHR"};
     case REL:
-      return {hex(0x563F1D), hex(0xE2C088), "REL"};
+      return {hexColor(0x563F1D), hexColor(0xE2C088), "REL"};
     case Blank:
     default:
-      return {hex(0x0A1B1E), alpha(kCyan, 0.88f), nullptr};
+      return {hexColor(0x0A1B1E), alpha(kCyan, 0.88f), nullptr};
   }
 }
 
@@ -622,10 +622,10 @@ struct Ds2Bench : sketch::Sketch {
     Element filled = box()
                          .shape(chevron())
                          .fill(Paint::linear({0, 0}, {0, kPipH},
-                                             {{0.0f, hex(0xC8DADA)},
-                                              {0.42f, hex(0x92AAAC)},
-                                              {0.52f, hex(0x70898C)},
-                                              {1.0f, hex(0xB0C6C8)}}))
+                                             {{0.0f, hexColor(0xC8DADA)},
+                                              {0.42f, hexColor(0x92AAAC)},
+                                              {0.52f, hexColor(0x70898C)},
+                                              {1.0f, hexColor(0xB0C6C8)}}))
                          .stroke(stroke(1.0f, Fill::color(alpha(kCyan, 0.5f)),
                                         PathFormat::Align::Inner));
     Element empty = box().shape(chevron()).stroke(stroke(
@@ -668,16 +668,17 @@ struct Ds2Bench : sketch::Sketch {
     // every frame too.
     Element room = box().key("room").inset(0).cache(Cache::Texture).zIndex(0);
     auto strut = [&](float x, float w, float a) {
-      room.child(box()
-                     .rect(SkRect::MakeXYWH(x, -40.0f, w, kH + 80))
-                     .fill(Paint::linear({0, 0}, {0, kH},
-                                         {{0.0f, hex(0x16262F, a * 0.35f)},
-                                          {0.38f, hex(0x1C303C, a)},
-                                          {1.0f, hex(0x080F16, a * 0.2f)}}))
-                     // the strut melts vertically out of focus: 18 along
-                     // the vertical, 12 across
-                     .effect(Effect::directionalBlur(18, 90, 12))
-                     .zIndex(0));
+      room.child(
+          box()
+              .rect(SkRect::MakeXYWH(x, -40.0f, w, kH + 80))
+              .fill(Paint::linear({0, 0}, {0, kH},
+                                  {{0.0f, hexColor(0x16262F, a * 0.35f)},
+                                   {0.38f, hexColor(0x1C303C, a)},
+                                   {1.0f, hexColor(0x080F16, a * 0.2f)}}))
+              // the strut melts vertically out of focus: 18 along
+              // the vertical, 12 across
+              .effect(Effect::directionalBlur(18, 90, 12))
+              .zIndex(0));
     };
     // THE MACHINE ROOM, so the panel has something to be glass OVER.
     // Dead Space's bench is a hologram standing in a room and the wall
@@ -697,9 +698,9 @@ struct Ds2Bench : sketch::Sketch {
     room.child(box()
                    .rect(SkRect::MakeXYWH(250.0f, 118.0f, 176.0f, 470.0f))
                    .fill(Paint::linear({0, 0}, {0, 470},
-                                       {{0.0f, hex(0x2A4A52, 0.34f)},
-                                        {0.45f, hex(0x3E6A6E, 0.26f)},
-                                        {1.0f, hex(0x0C1A20, 0.09f)}}))
+                                       {{0.0f, hexColor(0x2A4A52, 0.34f)},
+                                        {0.45f, hexColor(0x3E6A6E, 0.26f)},
+                                        {1.0f, hexColor(0x0C1A20, 0.09f)}}))
                    .effect(Effect::directionalBlur(22, 90, 16))
                    .zIndex(0));
     // …and a bank of pipes crossing the wall behind the right half.
@@ -708,16 +709,16 @@ struct Ds2Bench : sketch::Sketch {
                      .rect(SkRect::MakeXYWH(560.0f, 150.0f + (float)i * 96.0f,
                                             560.0f, 13.0f))
                      .fill(Paint::linear({0, 0}, {0, 13},
-                                         {{0.0f, hex(0x25444E, 0.30f)},
-                                          {0.5f, hex(0x1A3038, 0.20f)},
-                                          {1.0f, hex(0x0A1218, 0.07f)}}))
+                                         {{0.0f, hexColor(0x25444E, 0.30f)},
+                                          {0.5f, hexColor(0x1A3038, 0.20f)},
+                                          {1.0f, hexColor(0x0A1218, 0.07f)}}))
                      .effect(Effect::directionalBlur(9, 0, 14))
                      .zIndex(0));
     room.child(box()
                    .rect(SkRect::MakeXYWH(-40.0f, 2.0f, kW + 80, 28.0f))
                    .fill(Paint::linear({0, 0}, {0, 28},
-                                       {{0.0f, hex(0x243B47, 0.5f)},
-                                        {1.0f, hex(0x0A141C, 0.25f)}}))
+                                       {{0.0f, hexColor(0x243B47, 0.5f)},
+                                        {1.0f, hexColor(0x0A141C, 0.25f)}}))
                    // 10 along the vertical, 7 across
                    .effect(Effect::directionalBlur(10, 90, 7))
                    .zIndex(0));
@@ -745,9 +746,9 @@ struct Ds2Bench : sketch::Sketch {
                  // unit-square ramp: the lift is authored against the
                  // box, not against a pixel extent transcribed by hand
                  {Paint::radialUnit({0.40f, 0.32f}, 1.15f,
-                                    {{0.0f, hex(0xFFFFFF)},
-                                     {0.5f, hex(0xC0D0D0)},
-                                     {1.0f, hex(0x4E6264)}}),
+                                    {{0.0f, hexColor(0xFFFFFF)},
+                                     {0.5f, hexColor(0xC0D0D0)},
+                                     {1.0f, hexColor(0x4E6264)}}),
                   SkBlendMode::kMultiply},
                  {scanField(alpha(kCyan, 0.075f), 3.0f, &scanClock),
                   SkBlendMode::kScreen}}))
@@ -777,7 +778,7 @@ struct Ds2Bench : sketch::Sketch {
             .stroke(LayeredBrush{{
                 {14, alpha(kCyan, 0.09f), 8, {}, 0, SkBlendMode::kPlus},
                 {5, alpha(kCyan, 0.22f), 2.6f, {}, 0, SkBlendMode::kPlus},
-                {2.4f, alpha(hex(0xCFF2F5), 0.95f)},
+                {2.4f, alpha(hexColor(0xCFF2F5), 0.95f)},
             }})
             .zIndex(6));
 
@@ -956,7 +957,7 @@ struct Ds2Bench : sketch::Sketch {
           .glowColor = toColor(alpha(kCyan, typed ? 0.32f : 0.22f)),
           .shadowOffset = {0, 0},
           .shadowBlur = typed ? 6.0f : 4.5f,
-          .shadowColor = toColor(hex(0x01080A, 1.0f))};
+          .shadowColor = toColor(hexColor(0x01080A, 1.0f))};
       Paint m = Paint::recipe(sdf::material(sdf::circle(), st))
                     .uniform("uGlowR",
                              &glow[(size_t)(glowSlot++ % (int)glow.size())]);
@@ -1075,8 +1076,8 @@ struct Ds2Bench : sketch::Sketch {
         .child(box().grow(1))
         .child(box()
                    .width(Dim(84.0f))
-                   .child(text(toU8(s.value),
-                               benchType(13, hex(0xDCEEF2), 0.02f, false))));
+                   .child(text(toU8(s.value), benchType(13, hexColor(0xDCEEF2),
+                                                        0.02f, false))));
   }
 
   void legend(Element& root) {
@@ -1175,23 +1176,24 @@ struct Ds2Bench : sketch::Sketch {
                             .corners({14})
                             .fill(Paint::linear({0, 0}, {0, 28},
                                                 {{0.0f, kBrassLo},
-                                                 {0.45f, hex(0x7E6318)},
+                                                 {0.45f, hexColor(0x7E6318)},
                                                  {1.0f, kBrassDk}})))
-                    .child(box()
-                               .rect(SkRect::MakeXYWH(2.0f, 2.0f, 62.0f, 27.0f))
-                               .shape(shapes::squircle(2.0f))
-                               .fill(Paint::linear({0, 0}, {52, 27},
-                                                   {{0.0f, kBrassHi},
-                                                    {0.4f, hex(0xD3AA33)},
-                                                    {1.0f, hex(0x8E6F1E)}}))
-                               .stroke(stroke(
-                                   1.0f, Fill::color(hex(0xF3DC94, 0.75f)))))
+                    .child(
+                        box()
+                            .rect(SkRect::MakeXYWH(2.0f, 2.0f, 62.0f, 27.0f))
+                            .shape(shapes::squircle(2.0f))
+                            .fill(Paint::linear({0, 0}, {52, 27},
+                                                {{0.0f, kBrassHi},
+                                                 {0.4f, hexColor(0xD3AA33)},
+                                                 {1.0f, hexColor(0x8E6F1E)}}))
+                            .stroke(stroke(
+                                1.0f, Fill::color(hexColor(0xF3DC94, 0.75f)))))
                     .child(
                         box()
                             .rect(SkRect::MakeXYWH(22.0f, 8.0f, 24.0f, 13.0f))
                             .shape(shapes::squircle(2.0f))
-                            .stroke(stroke(1.3f,
-                                           Fill::color(hex(0x74590F, 0.9f))))))
+                            .stroke(stroke(
+                                1.3f, Fill::color(hexColor(0x74590F, 0.9f))))))
             .child(text(toU8("2"), benchType(40, kTitle, 0.0f))
                        .key("nodecount")
                        .transition({.duration = 200ms})));
@@ -1294,9 +1296,9 @@ struct Ds2Bench : sketch::Sketch {
     root.child(box()
                    .inset(0)
                    .fill(Paint::radial({kW * 0.5f, kH * 0.46f}, kW * 0.60f,
-                                       {{0.0f, hex(0x000000, 0.0f)},
-                                        {0.55f, hex(0x000000, 0.14f)},
-                                        {1.0f, hex(0x01050A, 0.86f)}}))
+                                       {{0.0f, hexColor(0x000000, 0.0f)},
+                                        {0.55f, hexColor(0x000000, 0.14f)},
+                                        {1.0f, hexColor(0x01050A, 0.86f)}}))
                    .zIndex(11));
   }
 
@@ -1305,9 +1307,10 @@ struct Ds2Bench : sketch::Sketch {
   Element describe(sketch::SketchContext& ctx) {
     (void)ctx;
     glowSlot = 0;
-    auto root = stack().fill(Paint::radial(
-        {kW * 0.5f, kH * 0.5f}, 880,
-        {{0.0f, hex(0x09131B)}, {0.6f, hex(0x050B11)}, {1.0f, hex(0x020406)}}));
+    auto root = stack().fill(Paint::radial({kW * 0.5f, kH * 0.5f}, 880,
+                                           {{0.0f, hexColor(0x09131B)},
+                                            {0.6f, hexColor(0x050B11)},
+                                            {1.0f, hexColor(0x020406)}}));
     backdrop(root);
 
     // everything that belongs to the hologram rides one jittering group,
@@ -1335,7 +1338,7 @@ struct Ds2Bench : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     sketch::kit::stage(ctx, {.size = SkSize::Make((int)kW, (int)kH),
                              .captureAt = 2.5,
-                             .background = hex(0x02060A)});
+                             .background = hexColor(0x02060A)});
     bakePips();
 
     ctx.ticker.add([this, &ticker = ctx.ticker](double) {

@@ -61,7 +61,7 @@ struct AquaGelOptions {
  *  dresses a pill of any dimensions; because it is value-comparable, a
  *  static button wearing it prunes without a memo. */
 struct AquaBody {
-  SkColor4f tint = hex(0x1E8FFF);
+  SkColor4f tint = hexColor(0x1E8FFF);
   AquaGelOptions opts;
 
   bool operator==(const AquaBody&) const = default;
@@ -95,13 +95,14 @@ struct AquaGloss {
  *  recess: `AquaGelOptions{.topBand = 1.0f}` is the deep cut,
  * where the band under the top edge ends in a line and the lens reads as a
  * second object laid on the pill. */
-LayerStyle aquaGel(SkColor4f tint = hex(0x1E8FFF), AquaGelOptions opts = {});
+LayerStyle aquaGel(SkColor4f tint = hexColor(0x1E8FFF),
+                   AquaGelOptions opts = {});
 
 /** The sphere-tuned bundle: a domed lens inset further from the edges and
  *  confined to the upper half, over a hotter bottom glow — what reads as
  *  round rather than as a pill. Pass the diameter so the halo reserves the
  *  right cull reach. */
-LayerStyle aquaOrb(SkColor4f tint = hex(0x1E8FFF),
+LayerStyle aquaOrb(SkColor4f tint = hexColor(0x1E8FFF),
                    float expectedDiameter = 128.0f);
 
 }  // namespace sigil::compose::kit

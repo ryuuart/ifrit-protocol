@@ -127,10 +127,10 @@ namespace {
 // palette — sampled from the scan (patch means + the darkest/lightest
 // deciles, which separate "ink dot" from "paper showing through")
 
-constexpr SkColor4f kPaper = hex(0xf2e9d9);  // aged ivory, WARM CREAM
-constexpr SkColor4f kInk = hex(0x241c15);    // engraver's warm black-brown
-constexpr SkColor4f kInkSoft = hex(0x241c15, 0.55f);
-constexpr SkColor4f kFox = hex(0xc9a688, 0.10f);
+constexpr SkColor4f kPaper = hexColor(0xf2e9d9);  // aged ivory, WARM CREAM
+constexpr SkColor4f kInk = hexColor(0x241c15);    // engraver's warm black-brown
+constexpr SkColor4f kInkSoft = hexColor(0x241c15, 0.55f);
+constexpr SkColor4f kFox = hexColor(0xc9a688, 0.10f);
 
 // per band: the paper-side wash and the ink dot laid over it
 // Read off the lithograph rather than off a modern chart of it: the blue
@@ -138,12 +138,12 @@ constexpr SkColor4f kFox = hex(0xc9a688, 0.10f);
 // cream. A saturated teal and a salmon on a pink-lilac ground are the
 // same data a stop or two too strong, and at that strength the sheet
 // stops looking like a stone-printed diagram.
-constexpr SkColor4f kBlueWash = hex(0xccd9e0);
-constexpr SkColor4f kBlueInk = hex(0x5d7f8c);
-constexpr SkColor4f kRoseWash = hex(0xe6cec6);
-constexpr SkColor4f kRoseInk = hex(0xb07a6a);
-constexpr SkColor4f kGreyWash = hex(0xd9d0c8);
-constexpr SkColor4f kGreyInk = hex(0x241f19);
+constexpr SkColor4f kBlueWash = hexColor(0xccd9e0);
+constexpr SkColor4f kBlueInk = hexColor(0x5d7f8c);
+constexpr SkColor4f kRoseWash = hexColor(0xe6cec6);
+constexpr SkColor4f kRoseInk = hexColor(0xb07a6a);
+constexpr SkColor4f kGreyWash = hexColor(0xd9d0c8);
+constexpr SkColor4f kGreyInk = hexColor(0x241f19);
 
 // ---------------------------------------------------------------------------
 // geometry — canvas 1900x1032 keeps the plate's 35:19 ratio
@@ -499,11 +499,12 @@ struct NightingaleCoxcomb : sketch::Sketch {
       // the flash the index needle rings out of each month's rim
       const float rim =
           radiusOf(std::max({mo.disease, mo.wounds, mo.other, 1.0f})) + 10.0f;
-      wheelBox.child(discBox(local, rim)
-                         .key(std::string(tag) + "flash" + std::to_string(m))
-                         .shape(shapes::arc(skia0 + 1.0f, 28.0f))
-                         .stroke(stroke(2.4f, Fill::color(hex(0xc8a24a, 0.9f))))
-                         .opacity(&flash[flashBase + m]));
+      wheelBox.child(
+          discBox(local, rim)
+              .key(std::string(tag) + "flash" + std::to_string(m))
+              .shape(shapes::arc(skia0 + 1.0f, 28.0f))
+              .stroke(stroke(2.4f, Fill::color(hexColor(0xc8a24a, 0.9f))))
+              .opacity(&flash[flashBase + m]));
     }
     return wheelBox;
   }
@@ -514,8 +515,8 @@ struct NightingaleCoxcomb : sketch::Sketch {
     return discBox(centre, rMax)
         .key(key)
         .shape(spoke(1.0f, 0.0f))
-        .stroke(stroke(1.4f, Fill::color(hex(0xd8b45c))))
-        .background(shadow(hex(0xd8b45c, 0.5f), {0, 0}, 9))
+        .stroke(stroke(1.4f, Fill::color(hexColor(0xd8b45c))))
+        .background(shadow(hexColor(0xd8b45c, 0.5f), {0, 0}, 9))
         .transformOrigin(0.5f, 0.5f)
         .rotate(deg)
         .opacity(alpha)
@@ -545,11 +546,11 @@ struct NightingaleCoxcomb : sketch::Sketch {
                    .child(box().inset(0).fill(paperMat).opacity(0.17f).blend(
                        SkBlendMode::kSoftLight))
                    .child(box().inset(0).fill(foxing.material()))
-                   .child(box().inset(0).fill(
-                       radialGradient({kW * 0.5f, kH * 0.5f}, kW * 0.72f,
-                                      {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
-                                       hex(0x6b4a33, 0.085f)},
-                                      {0.0f, 0.70f, 1.0f})))
+                   .child(box().inset(0).fill(radialGradient(
+                       {kW * 0.5f, kH * 0.5f}, kW * 0.72f,
+                       {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
+                        hexColor(0x6b4a33, 0.085f)},
+                       {0.0f, 0.70f, 1.0f})))
                    .cache(Cache::Texture));
 
     // ---- the reverse page showing through (custom leaf, raw Skia) ----
@@ -562,7 +563,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
           SkFont f(faceDisplay, 46);
           SkPaint p;
           p.setAntiAlias(true);
-          p.setColor4f(hex(0x241c15, 0.055f), nullptr);
+          p.setColor4f(hexColor(0x241c15, 0.055f), nullptr);
           canvas.save();
           canvas.translate(760, 118);  // mirrored: the verso title
           canvas.scale(-1, 1);
@@ -571,20 +572,22 @@ struct NightingaleCoxcomb : sketch::Sketch {
         }).inset(0));
 
     // ---- the plate mark: the physical impression of the copper ------
-    root.child(box()
-                   .inset(26)
-                   .fill(Fill::none())
-                   .stroke(stroke(1.0f, Fill::color(hex(0x8a7060, 0.20f)))));
-    root.child(box()
-                   .inset(28)
-                   .fill(Fill::none())
-                   .stroke(stroke(1.0f, Fill::color(hex(0xffffff, 0.35f)))));
+    root.child(
+        box()
+            .inset(26)
+            .fill(Fill::none())
+            .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7060, 0.20f)))));
+    root.child(
+        box()
+            .inset(28)
+            .fill(Fill::none())
+            .stroke(stroke(1.0f, Fill::color(hexColor(0xffffff, 0.35f)))));
 
     // ---- the spine fold at the sheet's centre -----------------------
     root.child(box().left(938).top(0).width(24).height(kH).fill(
         linearGradient({0, 0}, {24, 0},
-                       {hex(0x3a2a20, 0.0f), hex(0x3a2a20, 0.06f),
-                        hex(0xffffff, 0.09f), hex(0x3a2a20, 0.0f)},
+                       {hexColor(0x3a2a20, 0.0f), hexColor(0x3a2a20, 0.06f),
+                        hexColor(0xffffff, 0.09f), hexColor(0x3a2a20, 0.0f)},
                        {0.0f, 0.42f, 0.60f, 1.0f})));
 
     // ---- title block -------------------------------------------------
@@ -604,7 +607,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     root.child(text(toU8("DIAGRAM of the CAUSES of MORTALITY"), title1)
                    .key("title1")
                    .fx(std::move(t1))
-                   .echo({0.8f, 0.5f}, hex(0x241c15, 0.8f))
+                   .echo({0.8f, 0.5f}, hexColor(0x241c15, 0.8f))
                    .centerAt({968, 38}));
 
     Track t2{.effect = fx::typeOn(),
@@ -614,7 +617,7 @@ struct NightingaleCoxcomb : sketch::Sketch {
     root.child(text(toU8("in the ARMY in the EAST."), title2)
                    .key("title2")
                    .fx(std::move(t2))
-                   .echo({0.6f, 0.4f}, hex(0x241c15, 0.7f))
+                   .echo({0.6f, 0.4f}, hexColor(0x241c15, 0.7f))
                    .centerAt({945, 84}));
 
     // the double hairline under the title

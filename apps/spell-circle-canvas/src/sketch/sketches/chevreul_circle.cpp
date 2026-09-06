@@ -167,15 +167,15 @@ namespace {
 // ---------------------------------------------------------------------------
 // palette — sampled off the 1864 plate
 
-constexpr SkColor4f kPaper = hex(0xEFE8D9);  // the plate's unprinted paper
-constexpr SkColor4f kWell = hex(0xE4DCCA);   // panel wells, the limb's tint
-constexpr SkColor4f kRule = hex(0x8C8578);   // engraved rules and hairlines
-constexpr SkColor4f kInk = hex(0x221F1A);    // letterpress
-constexpr SkColor4f kInk2 = hex(0x5C554A);   // small caps, numerals
-constexpr SkColor4f kRed = hex(0x8E2F26);    // annotation red
-constexpr SkColor4f kShade = hex(0x3A352D);  // mounted-panel shadow
-constexpr SkColor4f kBlack = hex(0x000000);
-constexpr SkColor4f kWhite = hex(0xFFFFFF);
+constexpr SkColor4f kPaper = hexColor(0xEFE8D9);  // the plate's unprinted paper
+constexpr SkColor4f kWell = hexColor(0xE4DCCA);  // panel wells, the limb's tint
+constexpr SkColor4f kRule = hexColor(0x8C8578);  // engraved rules and hairlines
+constexpr SkColor4f kInk = hexColor(0x221F1A);   // letterpress
+constexpr SkColor4f kInk2 = hexColor(0x5C554A);  // small caps, numerals
+constexpr SkColor4f kRed = hexColor(0x8E2F26);   // annotation red
+constexpr SkColor4f kShade = hexColor(0x3A352D);  // mounted-panel shadow
+constexpr SkColor4f kBlack = hexColor(0x000000);
+constexpr SkColor4f kWhite = hexColor(0xFFFFFF);
 
 // ---------------------------------------------------------------------------
 // the seventy-two couleurs franches. n is Chevreul's index from ROUGE; the
@@ -634,8 +634,8 @@ struct ChevreulCircle : sketch::Sketch {
 
   void computeColours() {
     for (int n = 0; n < 72; ++n) {
-      corrected[(size_t)n] = wallLift(hex(kCorrectedHex[(size_t)n]));
-      scanned[(size_t)n] = hex(kScannedHex[(size_t)n]);
+      corrected[(size_t)n] = wallLift(hexColor(kCorrectedHex[(size_t)n]));
+      scanned[(size_t)n] = hexColor(kScannedHex[(size_t)n]);
       lab[(size_t)n] = toLab(corrected[(size_t)n]);
     }
     // §164 read as equal REFLECTANCE, against the modern equal-code-value
@@ -1089,7 +1089,8 @@ struct ChevreulCircle : sketch::Sketch {
     // the panel's own shadow, attached FIRST so the fill paints over it
     g.child(kit::disc(kC, kRSweepOut + 6)
                 .shape(shapes::circle())
-                .background(styles::dropShadow(hex(0x3A352D, 0.30f), {3, 3}, 8))
+                .background(
+                    styles::dropShadow(hexColor(0x3A352D, 0.30f), {3, 3}, 8))
                 .fill(Fill::color(kPaper)));
 
     // ---- the limb's tint and its two engraved circles ---------------
@@ -1162,9 +1163,9 @@ struct ChevreulCircle : sketch::Sketch {
     g.child(kit::disc(kC, rMed + 3)
                 .shape(shapes::circle())
                 .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                      {{0.0f, hex(0x8C8578, 0.0f)},
-                                       {0.72f, hex(0x8C8578, 0.0f)},
-                                       {1.0f, hex(0x8C8578, 0.22f)}})));
+                                      {{0.0f, hexColor(0x8C8578, 0.0f)},
+                                       {0.72f, hexColor(0x8C8578, 0.0f)},
+                                       {1.0f, hexColor(0x8C8578, 0.22f)}})));
     g.child(kit::disc(kC, rMed)
                 .shape(shapes::circle())
                 .fill(Fill::color(kPaper))
@@ -1379,11 +1380,12 @@ struct ChevreulCircle : sketch::Sketch {
                       t == 15 ? mn(6.5f, kRed, 0) : mn(6.5f, kInk2, 0), 56,
                       kQY + (float)(t - 1) * (kQCellH + kQGapY) - 2.0f, 34));
     g.child(at(kQX - 4, kQY + 14.0f * (kQCellH + kQGapY) - 1, gw + 8, 1)
-                .fill(Fill::color(hex(0x8E2F26, 0.55f)))
+                .fill(Fill::color(hexColor(0x8E2F26, 0.55f)))
                 .opacity(bind(&demo).window(0.93f, 0.95f)));
 
     g.child(at(kQX, kQY, gw, gh)
-                .background(styles::dropShadow(hex(0x3A352D, 0.22f), {2, 2}, 5))
+                .background(
+                    styles::dropShadow(hexColor(0x3A352D, 0.22f), {2, 2}, 5))
                 .fill(Fill::color(kWell))
                 .child(instancing::instances(quadAtlas, quadPool,
                                              instancing::Mode::Live)));
@@ -1433,8 +1435,9 @@ struct ChevreulCircle : sketch::Sketch {
         ax.moveTo(c0.fX - x0, c0.fY - y0);
         ax.lineTo(d0.fX - x0, d0.fY - y0);
       }
-      decorations::paintOn(c, pc, ax.detach(),
-                           stroke(0.5f, Fill::color(hex(0x8C8578, 0.35f))));
+      decorations::paintOn(
+          c, pc, ax.detach(),
+          stroke(0.5f, Fill::color(hexColor(0x8C8578, 0.35f))));
       SkPathBuilder cross;
       const SkPoint o = P(0, 0);
       cross.moveTo(o.fX - x0 - 9, o.fY - y0);
@@ -1460,12 +1463,13 @@ struct ChevreulCircle : sketch::Sketch {
       cb.lineTo(B.fX - bb.left(), B.fY - bb.top());
       const SkPath chord = cb.detach();
       const float lo = 0.19f + 0.0026f * (float)n;
-      g.child(at(bb.left(), bb.top(), bb.width(), bb.height())
-                  .key("chord" + std::to_string(n))
-                  .fill(Fill::none())
-                  .shape(heldPath(chord))
-                  .stroke(spans::upTo(bind(&demo).window(lo, lo + 0.012f)),
-                          stroke(0.8f, Fill::color(hex(0x8C8578, 0.85f)))));
+      g.child(
+          at(bb.left(), bb.top(), bb.width(), bb.height())
+              .key("chord" + std::to_string(n))
+              .fill(Fill::none())
+              .shape(heldPath(chord))
+              .stroke(spans::upTo(bind(&demo).window(lo, lo + 0.012f)),
+                      stroke(0.8f, Fill::color(hexColor(0x8C8578, 0.85f)))));
     }
     // the 72 points, each in its own colour
     for (int n = 0; n < 72; ++n) {
@@ -1475,7 +1479,7 @@ struct ChevreulCircle : sketch::Sketch {
                   .key("labpt" + std::to_string(n))
                   .shape(shapes::circle())
                   .fill(Fill::color(corrected[(size_t)n]))
-                  .stroke(stroke(0.4f, Fill::color(hex(0x221F1A, 0.5f))))
+                  .stroke(stroke(0.4f, Fill::color(hexColor(0x221F1A, 0.5f))))
                   .transformOrigin(0.5f, 0.5f)
                   .opacity(bind(&demo).window(lo, lo + 0.01f)));
     }
@@ -1597,7 +1601,8 @@ struct ChevreulCircle : sketch::Sketch {
                 mn(7.5f, kInk2, 0.3f), 1100, 553, 644));
 
     g.child(at(kStairX, kStairYA - 2, kBandW * kBandN, kStairH + 4)
-                .background(styles::dropShadow(hex(0x3A352D, 0.22f), {2, 2}, 5))
+                .background(
+                    styles::dropShadow(hexColor(0x3A352D, 0.22f), {2, 2}, 5))
                 .fill(Fill::color(kWell)));
     g.child(aStaircase(gamme, kStairYA, kStairH, "sa", true));
     g.child(label("§164 · Y = (20−t)/19, sRGB-encoded · tone 10 = " +
@@ -1605,7 +1610,8 @@ struct ChevreulCircle : sketch::Sketch {
                   mn(7.0f, kInk2, 0.2f), kStairX, kStairYA + kStairH + 5, 520));
 
     g.child(at(kStairX, kStairYB - 2, kBandW * kBandN, kStairH + 4)
-                .background(styles::dropShadow(hex(0x3A352D, 0.22f), {2, 2}, 5))
+                .background(
+                    styles::dropShadow(hexColor(0x3A352D, 0.22f), {2, 2}, 5))
                 .fill(Fill::color(kWell)));
     g.child(aStaircase(gammeCode, kStairYB, kStairH, "sb", true));
     g.child(label("equal code value · tone 10 = " + hexOf(gammeCode[9]) +
@@ -1767,7 +1773,7 @@ struct ChevreulCircle : sketch::Sketch {
     root.child(
         at(28, 28, kW - 56, kH - 56)
             .fill(Fill::none())
-            .foreground(stroke(1.0f, Fill::color(hex(0x8C8578, 0.55f)))));
+            .foreground(stroke(1.0f, Fill::color(hexColor(0x8C8578, 0.55f)))));
 
     root.child(theHeader());
     root.child(theWheel(ctx));

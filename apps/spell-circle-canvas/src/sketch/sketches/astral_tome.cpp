@@ -323,19 +323,22 @@ constexpr float kCellW = 80.0f, kCellH = 110.0f;    // Cluster:59 — the HIT bo
 constexpr float kUlen = kRenderBox / (float)kGrid;  // 3.0645 GUI px
 constexpr float kLineBreadth = 2.0f;                // Cluster:240
 
-using sigil::compose::hex;       // 0xRRGGBB -> SkColor4f
+using sigil::compose::hexColor;  // 0xRRGGBB -> SkColor4f
 using sigil::compose::scaleRgb;  // scale RGB by k, optionally replacing alpha
 
 // Palette, sampled out of the mod's own PNGs (see the header).
-const SkColor4f kLeatherDark = hex(0x0A0800);  // guijspacebook, darkest bulk
-const SkColor4f kLeatherMid = hex(0x2C1602);   // its commonest opaque colour
-const SkColor4f kLeatherWarm = hex(0x634913);
-const SkColor4f kGilt = hex(0x9B7A2D);   // its brightest
-const SkColor4f kOlive = hex(0x7D6C00);  // guijarrow
-const SkColor4f kOliveDim = hex(0x574E25);
-const SkColor4f kNebula = hex(0x0B080B);     // guiresbgcst mean * (.8,.8,1)*.7
-const SkColor4f kFieldStar = hex(0x8F8FB3);  // its white points, same tint
-const SkColor4f kInk = hex(0xDDDDDD);        // Cluster:253 text 0xBBDDDDDD
+const SkColor4f kLeatherDark =
+    hexColor(0x0A0800);  // guijspacebook, darkest bulk
+const SkColor4f kLeatherMid =
+    hexColor(0x2C1602);  // its commonest opaque colour
+const SkColor4f kLeatherWarm = hexColor(0x634913);
+const SkColor4f kGilt = hexColor(0x9B7A2D);   // its brightest
+const SkColor4f kOlive = hexColor(0x7D6C00);  // guijarrow
+const SkColor4f kOliveDim = hexColor(0x574E25);
+const SkColor4f kNebula =
+    hexColor(0x0B080B);  // guiresbgcst mean * (.8,.8,1)*.7
+const SkColor4f kFieldStar = hexColor(0x8F8FB3);  // its white points, same tint
+const SkColor4f kInk = hexColor(0xDDDDDD);        // Cluster:253 text 0xBBDDDDDD
 constexpr float kInkAlpha = 0xBB / 255.0f;
 
 // ---------------------------------------------------------------------------
@@ -704,7 +707,7 @@ struct AstralTome : sketch::Sketch {
   Element linkPass(const at::Con& c, int li, int pass, int key) const {
     const SkPoint a = at::starAt(c, c.links[(size_t)li].first);
     const SkPoint b = at::starAt(c, c.links[(size_t)li].second);
-    const SkColor4f col = paled(at::hex(c.color));
+    const SkColor4f col = paled(at::hexColor(c.color));
     const float half = at::g(at::kLineBreadth);  // 6 canvas px
     const float band = half * 2.0f;              // 12 canvas px
 
@@ -787,7 +790,7 @@ struct AstralTome : sketch::Sketch {
    *  the one piece of magnitude information the graph actually carries. */
   Element starEl(const at::Con& c, int si, int key) const {
     const SkPoint p = at::starAt(c, si);
-    const SkColor4f col = paled(at::hex(c.color));
+    const SkColor4f col = paled(at::hexColor(c.color));
     const int deg = at::degreeOf(c, si);
     const float base = at::g(at::kUlen * 2.0f);  // 18.39 canvas px
     const float r = base * (0.74f + 0.15f * (float)std::min(deg, 4));

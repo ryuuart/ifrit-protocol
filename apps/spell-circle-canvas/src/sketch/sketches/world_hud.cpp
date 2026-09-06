@@ -120,33 +120,33 @@ namespace worldhud {
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 // voxygen/src/hud/mod.rs, verbatim.
-constexpr SkColor4f kHp = hex(0x54A100);
-constexpr SkColor4f kLowHp = hex(0xED9608);
-constexpr SkColor4f kCritHp = hex(0xC9302B);
-constexpr SkColor4f kStamina = hex(0x4A9EBF);
-constexpr SkColor4f kXp = hex(0x9669AB);
-constexpr SkColor4f kPoise = hex(0xB30099);
-constexpr SkColor4f kPoiseTick = hex(0xB3E600);
-constexpr SkColor4f kEnemyHp = hex(0xED1A4A);
-constexpr SkColor4f kBuff = hex(0x10B01F);
-constexpr SkColor4f kDebuff = hex(0xC9302B);
-constexpr SkColor4f kQualityLow = hex(0x999999);
-constexpr SkColor4f kQualityCommon = hex(0xC9FFFF);
-constexpr SkColor4f kQualityModerate = hex(0x10B01F);
-constexpr SkColor4f kQualityHigh = hex(0x2E52E6);
-constexpr SkColor4f kQualityEpic = hex(0x944AED);
-constexpr SkColor4f kQualityLegendary = hex(0xEBC200);
-constexpr SkColor4f kQualityArtifact = hex(0xBD3D1C);
+constexpr SkColor4f kHp = hexColor(0x54A100);
+constexpr SkColor4f kLowHp = hexColor(0xED9608);
+constexpr SkColor4f kCritHp = hexColor(0xC9302B);
+constexpr SkColor4f kStamina = hexColor(0x4A9EBF);
+constexpr SkColor4f kXp = hexColor(0x9669AB);
+constexpr SkColor4f kPoise = hexColor(0xB30099);
+constexpr SkColor4f kPoiseTick = hexColor(0xB3E600);
+constexpr SkColor4f kEnemyHp = hexColor(0xED1A4A);
+constexpr SkColor4f kBuff = hexColor(0x10B01F);
+constexpr SkColor4f kDebuff = hexColor(0xC9302B);
+constexpr SkColor4f kQualityLow = hexColor(0x999999);
+constexpr SkColor4f kQualityCommon = hexColor(0xC9FFFF);
+constexpr SkColor4f kQualityModerate = hexColor(0x10B01F);
+constexpr SkColor4f kQualityHigh = hexColor(0x2E52E6);
+constexpr SkColor4f kQualityEpic = hexColor(0x944AED);
+constexpr SkColor4f kQualityLegendary = hexColor(0xEBC200);
+constexpr SkColor4f kQualityArtifact = hexColor(0xBD3D1C);
 
 // The frame material: Veloren's UI is carved bone over dark wood.
-constexpr SkColor4f kBoneHi = hex(0xD8CBA8);
-constexpr SkColor4f kBone = hex(0xA2947A);
-constexpr SkColor4f kBoneLo = hex(0x584E3D);
-constexpr SkColor4f kWood = hex(0x2A2118);
-constexpr SkColor4f kWoodLo = hex(0x160F0A);
-constexpr SkColor4f kTrack = hex(0x0B0906);
-constexpr SkColor4f kInk = hex(0xEDE6D4);
-constexpr SkColor4f kInkDim = hex(0x8C8271);
+constexpr SkColor4f kBoneHi = hexColor(0xD8CBA8);
+constexpr SkColor4f kBone = hexColor(0xA2947A);
+constexpr SkColor4f kBoneLo = hexColor(0x584E3D);
+constexpr SkColor4f kWood = hexColor(0x2A2118);
+constexpr SkColor4f kWoodLo = hexColor(0x160F0A);
+constexpr SkColor4f kTrack = hexColor(0x0B0906);
+constexpr SkColor4f kInk = hexColor(0xEDE6D4);
+constexpr SkColor4f kInkDim = hexColor(0x8C8271);
 
 // skillbar.rs dimensions, unscaled — the stage is wide enough to take
 // them, and scaling them would be the one thing that loses the study.
@@ -625,9 +625,9 @@ struct WorldHud final : sketch::Set {
                       .transformOrigin(0.0f, 0.5f)
                       .scaleX(&hp)
                       .fill(Paint::linear({0, 0}, {0, wh::kHealthInnerH},
-                                          {{0.0f, hex(0x7FE000)},
+                                          {{0.0f, hexColor(0x7FE000)},
                                            {0.5f, wh::kHp},
-                                           {1.0f, hex(0x2F5C00)}})));
+                                           {1.0f, hexColor(0x2F5C00)}})));
     stackEl.child(box()
                       .left(wh::kBarX)
                       .top(wh::kBarY)
@@ -797,7 +797,7 @@ struct WorldHud final : sketch::Set {
                 .inset(0)
                 .corners({d * 0.5f})
                 .clip()
-                .fill(Paint::solid(hex(0x2E4A2A)))
+                .fill(Paint::solid(hexColor(0x2E4A2A)))
                 .child(box()
                            .inset(0)
                            .fill(Paint::recipe(field::noise(0.014f, 5, 3.0f)))
@@ -825,9 +825,9 @@ struct WorldHud final : sketch::Set {
                 .child(
                     box()
                         .inset(0)
-                        .fill(Pattern(mpattern::stripes(
-                                          2, 47,
-                                          mskia::toColor(hex(0x2F6FA8, 0.30f))))
+                        .fill(Pattern(mpattern::stripes(2, 47,
+                                                        mskia::toColor(hexColor(
+                                                            0x2F6FA8, 0.30f))))
                                   .material())
                         .rotate(24.0f)
                         .opacity(0.7f)))
@@ -857,7 +857,7 @@ struct WorldHud final : sketch::Set {
                    .width(Dim(8.0f))
                    .height(Dim(8.0f))
                    .shape(shapes::polygon(3))
-                   .fill(Paint::solid(hex(0xFFE9A8))))
+                   .fill(Paint::solid(hexColor(0xFFE9A8))))
         .child(box()
                    .left(d * 0.30f)
                    .top(d * 0.36f)
@@ -935,9 +935,9 @@ struct WorldHud final : sketch::Set {
               .corners({4})
               .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
               .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
-              .fill(
-                  Paint::linear({0, 0}, {0, 30},
-                                {{0.0f, hex(0x2A2118)}, {1.0f, hex(0x120C08)}}))
+              .fill(Paint::linear(
+                  {0, 0}, {0, 30},
+                  {{0.0f, hexColor(0x2A2118)}, {1.0f, hexColor(0x120C08)}}))
               .foreground(stroke(1.4f, Fill::color({p.color.fR, p.color.fG,
                                                     p.color.fB, 0.28f})))
               // THE DRAIN RING: the same outline stroked again, trimmed

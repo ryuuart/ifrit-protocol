@@ -102,12 +102,12 @@ namespace {
 constexpr float kW = 1120.0f;
 constexpr float kH = 620.0f;
 
-constexpr SkColor4f kPaper = hex(0x0C0C0E);
-constexpr SkColor4f kInk = hex(0xF4F1EA);
-constexpr SkColor4f kLabel = hex(0x7E8492);
-constexpr SkColor4f kFaint = hex(0x3A3F4B);
-constexpr SkColor4f kMark = hex(0xE2504B);  // the overhang
-constexpr SkColor4f kAxis = hex(0x63B8FF);  // the driven coordinate
+constexpr SkColor4f kPaper = hexColor(0x0C0C0E);
+constexpr SkColor4f kInk = hexColor(0xF4F1EA);
+constexpr SkColor4f kLabel = hexColor(0x7E8492);
+constexpr SkColor4f kFaint = hexColor(0x3A3F4B);
+constexpr SkColor4f kMark = hexColor(0xE2504B);  // the overhang
+constexpr SkColor4f kAxis = hexColor(0x63B8FF);  // the driven coordinate
 
 const char* kProof = "HAMBURGEFONTSIV";
 
@@ -362,7 +362,8 @@ struct AxisRipple : sketch::Sketch {
         .column()
         .padding(kPadX, kPadY)
         .gap(30)
-        .fill(linearGradient({0, 0}, {0, kH}, {kPaper, hex(0x111116), kPaper},
+        .fill(linearGradient({0, 0}, {0, kH},
+                             {kPaper, hexColor(0x111116), kPaper},
                              {0.0f, 0.6f, 1.0f}))
         .child(
             box()

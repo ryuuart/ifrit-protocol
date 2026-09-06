@@ -225,32 +225,34 @@ constexpr float kCaptionH = 128.0f;
 // what the 6-bit VGA palette actually delivered, sampled off the lossless PNG.
 // The gap is the finding (see header).
 
-constexpr SkColor4f kGreen = hex(0x3CF800);  // _colorTable[992],  req #00FF00
+constexpr SkColor4f kGreen =
+    hexColor(0x3CF800);  // _colorTable[992],  req #00FF00
 constexpr SkColor4f kSelected =
-    hex(0xFCFC7C);  // _colorTable[32747], req #F8F858
+    hexColor(0xFCFC7C);  // _colorTable[32747], req #F8F858
 constexpr SkColor4f kInactive =
-    hex(0x183018);                            // _colorTable[1313],  req #084808
-constexpr SkColor4f kTagged = hex(0xA0A0A0);  // _colorTable[21140], exact
-constexpr SkColor4f kGold = hex(0x907824);    // _colorTable[18979], req #908818
-constexpr SkColor4f kGoldDim = hex(0x7C6818);  // engraving shadow
-constexpr SkColor4f kInk = hex(0x000000);      // ALL card text and its rule
+    hexColor(0x183018);  // _colorTable[1313],  req #084808
+constexpr SkColor4f kTagged = hexColor(0xA0A0A0);  // _colorTable[21140], exact
+constexpr SkColor4f kGold =
+    hexColor(0x907824);  // _colorTable[18979], req #908818
+constexpr SkColor4f kGoldDim = hexColor(0x7C6818);  // engraving shadow
+constexpr SkColor4f kInk = hexColor(0x000000);  // ALL card text and its rule
 
-constexpr SkColor4f kWell = hex(0x040C00);       // inset interior: near-black,
-                                                 // GREEN-cast, not pure black
-constexpr SkColor4f kPlate = hex(0x383020);      // metal plate, base olive
-constexpr SkColor4f kPlateLit = hex(0x483828);   // lit facet
-constexpr SkColor4f kPlateDark = hex(0x302820);  // shadowed facet
-constexpr SkColor4f kRust = hex(0x7C581C);
-constexpr SkColor4f kParch = hex(0x9C7434);  // parchment base ochre
-constexpr SkColor4f kParchLit = hex(0xAC8044);
-constexpr SkColor4f kParchLit2 = hex(0xBC9054);
-constexpr SkColor4f kParchDark = hex(0x8C6428);
-constexpr SkColor4f kParchScuff = hex(0x947C60);
-constexpr SkColor4f kLampOff = hex(0x580000);
-constexpr SkColor4f kLampOn = hex(0xF80000);  // _colorTable[31744]
-constexpr SkColor4f kDigit = hex(0xFFFFFF);   // the odometer sprite sheet's
-                                              // first half (the second half is
-                                              // red, for stats above 10)
+constexpr SkColor4f kWell = hexColor(0x040C00);   // inset interior: near-black,
+                                                  // GREEN-cast, not pure black
+constexpr SkColor4f kPlate = hexColor(0x383020);  // metal plate, base olive
+constexpr SkColor4f kPlateLit = hexColor(0x483828);   // lit facet
+constexpr SkColor4f kPlateDark = hexColor(0x302820);  // shadowed facet
+constexpr SkColor4f kRust = hexColor(0x7C581C);
+constexpr SkColor4f kParch = hexColor(0x9C7434);  // parchment base ochre
+constexpr SkColor4f kParchLit = hexColor(0xAC8044);
+constexpr SkColor4f kParchLit2 = hexColor(0xBC9054);
+constexpr SkColor4f kParchDark = hexColor(0x8C6428);
+constexpr SkColor4f kParchScuff = hexColor(0x947C60);
+constexpr SkColor4f kLampOff = hexColor(0x580000);
+constexpr SkColor4f kLampOn = hexColor(0xF80000);  // _colorTable[31744]
+constexpr SkColor4f kDigit = hexColor(0xFFFFFF);  // the odometer sprite sheet's
+                                                  // first half (the second half
+                                                  // is red, for stats above 10)
 
 // ---------------------------------------------------------------------------
 // GEOMETRY. Source tag: (code) = character_editor.cc; (measured) = scanned off
@@ -884,9 +886,10 @@ struct Fallout2CharSheet : sketch::Sketch {
     // olive-steel on the capture and a fifth of a stop lighter turns it
     // into painted card, which is most of what made this sheet read warm
     // and flat beside the reference.
-    plateMat = Paint::linearUnit(
-        {0, 0}, {0.15f, 1},
-        {{0.0f, hex(0x483828)}, {0.40f, hex(0x383020)}, {1.0f, hex(0x302820)}});
+    plateMat = Paint::linearUnit({0, 0}, {0.15f, 1},
+                                 {{0.0f, hexColor(0x483828)},
+                                  {0.40f, hexColor(0x383020)},
+                                  {1.0f, hexColor(0x302820)}});
     plateTooth = Paint::recipe(field::grain(0.22f, 3, 11.0f, 0.65f, 1.0f));
     rustMat = Paint::blend(
         {{Paint::solid(kRust), SkBlendMode::kSrcOver},
@@ -899,14 +902,15 @@ struct Fallout2CharSheet : sketch::Sketch {
     // The odometer drum: a cylinder, bright just above centre, dark below,
     // lifting again at the bottom lip. Sampled off the capture at x=61.
     wheelMat = Paint::linearUnit({0, 0}, {0, 1},
-                                 {{0.0f, hex(0x3C3C3C)},
-                                  {0.22f, hex(0x545454)},
-                                  {0.58f, hex(0x282828)},
-                                  {0.80f, hex(0x1C1C1C)},
-                                  {1.0f, hex(0x383838)}});
-    rivetMat = Paint::radialUnit(
-        {0.34f, 0.30f}, 1.15f,
-        {{0.0f, hex(0x6A5838)}, {0.55f, hex(0x3A3020)}, {1.0f, hex(0x140F08)}});
+                                 {{0.0f, hexColor(0x3C3C3C)},
+                                  {0.22f, hexColor(0x545454)},
+                                  {0.58f, hexColor(0x282828)},
+                                  {0.80f, hexColor(0x1C1C1C)},
+                                  {1.0f, hexColor(0x383838)}});
+    rivetMat = Paint::radialUnit({0.34f, 0.30f}, 1.15f,
+                                 {{0.0f, hexColor(0x6A5838)},
+                                  {0.55f, hexColor(0x3A3020)},
+                                  {1.0f, hexColor(0x140F08)}});
     tabMat = Paint::linearUnit(
         {0, 0}, {0, 1},
         {{0.0f, kPlateLit}, {0.55f, kPlate}, {1.0f, kPlateDark}});
@@ -940,24 +944,26 @@ struct Fallout2CharSheet : sketch::Sketch {
   Element well(fo::Rect r, float radius = 3.0f, bool rivets = false) {
     using namespace fo;
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(wellMat);
-    e.background(styles::dropShadow(hex(0x000000, 0.55f), {0, n(1)}, n(2)));
-    e.stroke(
-        stroke(n(1), Fill::color(hex(0x0A0E06)), PathFormat::Align::Inner));
+    e.background(
+        styles::dropShadow(hexColor(0x000000, 0.55f), {0, n(1)}, n(2)));
+    e.stroke(stroke(n(1), Fill::color(hexColor(0x0A0E06)),
+                    PathFormat::Align::Inner));
     e.foreground(
-        inset(n(-1.5f), stroke(n(1.5f), Fill::color(hex(0x5C4C30, 0.85f)),
+        inset(n(-1.5f), stroke(n(1.5f), Fill::color(hexColor(0x5C4C30, 0.85f)),
                                PathFormat::Align::Center)));
-    e.foreground(styles::BevelEmboss{
-        n(1.2f), n(1.6f), 118, hex(0x8A7448, 0.55f), hex(0x000000, 0.60f)});
+    e.foreground(styles::BevelEmboss{n(1.2f), n(1.6f), 118,
+                                     hexColor(0x8A7448, 0.55f),
+                                     hexColor(0x000000, 0.60f)});
     if (rivets) {
       const float inset = 5.0f;
       for (int i = 0; i < 4; ++i) {
         const float rx = ((unsigned)i & 1u) ? r.w - inset : inset;
         const float ry = ((unsigned)i & 2u) ? r.h - inset : inset;
-        e.child(
-            sigil::compose::kit::disc(SkPoint{n(rx), n(ry)}, n(2.4f))
-                .fill(rivetMat)
-                .foreground(stroke(n(0.6f), Fill::color(hex(0x000000, 0.7f)),
-                                   PathFormat::Align::Outer)));
+        e.child(sigil::compose::kit::disc(SkPoint{n(rx), n(ry)}, n(2.4f))
+                    .fill(rivetMat)
+                    .foreground(stroke(n(0.6f),
+                                       Fill::color(hexColor(0x000000, 0.7f)),
+                                       PathFormat::Align::Outer)));
       }
     }
     return e;
@@ -968,9 +974,10 @@ struct Fallout2CharSheet : sketch::Sketch {
   Element raised(fo::Rect r, float radius = 2.0f) {
     using namespace fo;
     Element e = atR(box(), r).corners(Corners{n(radius)}).fill(tabMat);
-    e.foreground(styles::BevelEmboss{
-        n(1.4f), n(1.8f), 118, hex(0xA08858, 0.60f), hex(0x0C0906, 0.65f)});
-    e.stroke(stroke(n(1), Fill::color(hex(0x1A1610, 0.9f)),
+    e.foreground(styles::BevelEmboss{n(1.4f), n(1.8f), 118,
+                                     hexColor(0xA08858, 0.60f),
+                                     hexColor(0x0C0906, 0.65f)});
+    e.stroke(stroke(n(1), Fill::color(hexColor(0x1A1610, 0.9f)),
                     PathFormat::Align::Inner));
     return e;
   }
@@ -1021,18 +1028,18 @@ struct Fallout2CharSheet : sketch::Sketch {
                            .fill(Fill::color(kWell))
                            .corners(Corners{n(1.5f)});
       plaque.background(
-          styles::dropShadow(hex(0x000000, 0.6f), {0, n(1)}, n(2)));
-      plaque.foreground(
-          styles::InnerShadow{hex(0x000000, 0.75f), {0, n(1.2f)}, n(2.0f)});
-      plaque.stroke(
-          stroke(n(1), Fill::color(hex(0x14100A)), PathFormat::Align::Inner));
+          styles::dropShadow(hexColor(0x000000, 0.6f), {0, n(1)}, n(2)));
+      plaque.foreground(styles::InnerShadow{
+          hexColor(0x000000, 0.75f), {0, n(1.2f)}, n(2.0f)});
+      plaque.stroke(stroke(n(1), Fill::color(hexColor(0x14100A)),
+                           PathFormat::Align::Inner));
       g.child(plaque);
       // the gold L: a bar under the plaque running 4 px past its left edge,
       // and a short riser (sampled at y = 59..60, x from 96)
       g.child(at(box(), kPlaqueX - 4, y + 22, kPlaqueW + 6, 2)
                   .fill(Paint::linearUnit(
                       {0, 0}, {0, 1},
-                      {{0.0f, kParchLit2}, {1.0f, hex(0x8C6428)}})));
+                      {{0.0f, kParchLit2}, {1.0f, hexColor(0x8C6428)}})));
       g.child(
           at(box(), kPlaqueX - 4, y + 15, 2, 7).fill(alpha(kParchLit, 0.85f)));
       g.child(bodyAt(descriptor(value), kGreen, kDescX, y + 8));
@@ -1047,10 +1054,10 @@ struct Fallout2CharSheet : sketch::Sketch {
                    const std::string& onesOverride) {
     using namespace fo;
     Element g = at(box(), x - 1, y - 1, kOdoW * 2 + 2, kOdoH + 2)
-                    .fill(Fill::color(hex(0x000000)))
+                    .fill(Fill::color(hexColor(0x000000)))
                     .corners(Corners{n(2)});
-    g.foreground(
-        stroke(n(1), Fill::color(hex(0x0A0A0A)), PathFormat::Align::Inner));
+    g.foreground(stroke(n(1), Fill::color(hexColor(0x0A0A0A)),
+                        PathFormat::Align::Inner));
     const std::string digits =
         (value < 10 ? "0" : "") + std::to_string(std::clamp(value, 0, 99));
     for (int c = 0; c < 2; ++c) {
@@ -1077,9 +1084,10 @@ struct Fallout2CharSheet : sketch::Sketch {
       // them — a rule through the middle turns a 14x24 numeral into a
       // flip-clock digit at this size. What stays is the well's own inner
       // keyline, which the sprite sheet does have.
-      wheel.foreground(onEdges(
-          path::Edge::All, stroke(n(0.7f), Fill::color(hex(0x000000, 0.75f)),
-                                  PathFormat::Align::Inner)));
+      wheel.foreground(
+          onEdges(path::Edge::All,
+                  stroke(n(0.7f), Fill::color(hexColor(0x000000, 0.75f)),
+                         PathFormat::Align::Inner)));
       g.child(wheel);
     }
     return g;
@@ -1186,10 +1194,10 @@ struct Fallout2CharSheet : sketch::Sketch {
       const float x0 = tabX[i], x1 = tabX[i + 1];
       Element tab = raised(
           {x0, sel ? 327.0f : 330.0f, x1 - x0, sel ? 33.0f : 29.0f}, 2.5f);
-      if (!sel) tab.overlay(styles::colorOverlay(hex(0x000000, 0.30f)));
+      if (!sel) tab.overlay(styles::colorOverlay(hexColor(0x000000, 0.30f)));
       tab.justify(Justify::Center).alignItems(Align::Center);
       tab.child(engravedText(tabs[(size_t)i], n(23.0f),
-                             sel ? kGold : hex(0x6E5A20), engravedCondense,
+                             sel ? kGold : hexColor(0x6E5A20), engravedCondense,
                              0.3f)
                     .translateY(sel ? n(-1.0f) : n(0.0f)));
       g.child(tab);
@@ -1216,11 +1224,11 @@ struct Fallout2CharSheet : sketch::Sketch {
     for (int i = 0; i < 2; ++i) {
       const bool up = i == 0;
       Element a = at(box(), 317, up ? 361.0f : 456.0f, 11, 12)
-                      .fill(Paint::linearUnit(
-                          {0, 0}, {0, 1},
-                          {{0.0f, hex(0x50432E)}, {1.0f, hex(0x2C2418)}}))
+                      .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                              {{0.0f, hexColor(0x50432E)},
+                                               {1.0f, hexColor(0x2C2418)}}))
                       .corners(Corners{n(1)});
-      a.foreground(stroke(n(0.8f), Fill::color(hex(0x1A1610)),
+      a.foreground(stroke(n(0.8f), Fill::color(hexColor(0x1A1610)),
                           PathFormat::Align::Inner));
       // The arrowhead spans the whole cell, so it is not the inscribed
       // `shapes::polygon(3)` — it is a triangle keyed on the one thing it
@@ -1273,14 +1281,15 @@ struct Fallout2CharSheet : sketch::Sketch {
     const float sy = (float)selected * kRowPitch11 + 27 + 16;
     Element slider =
         at(box(), 592, sy - 12, 36, 24).fill(tabMat).corners(Corners{n(2)});
-    slider.foreground(styles::BevelEmboss{
-        n(1.2f), n(1.4f), 118, hex(0xA08858, 0.5f), hex(0x0C0906, 0.6f)});
+    slider.foreground(styles::BevelEmboss{n(1.2f), n(1.4f), 118,
+                                          hexColor(0xA08858, 0.5f),
+                                          hexColor(0x0C0906, 0.6f)});
     for (int k = 0; k < 2; ++k) {
-      Element btn =
-          at(box(), 22, 2 + 11.0f * (float)k, 12, 9)
-              .fill(Fill::color(k == 0 ? hex(0x3A3020) : hex(0x2A2418)))
-              .corners(Corners{n(1.5f)});
-      btn.foreground(stroke(n(0.8f), Fill::color(hex(0x8A7448, 0.7f)),
+      Element btn = at(box(), 22, 2 + 11.0f * (float)k, 12, 9)
+                        .fill(Fill::color(k == 0 ? hexColor(0x3A3020)
+                                                 : hexColor(0x2A2418)))
+                        .corners(Corners{n(1.5f)});
+      btn.foreground(stroke(n(0.8f), Fill::color(hexColor(0x8A7448, 0.7f)),
                             PathFormat::Align::Inner));
       if (k == 0)  // the `+` lamp flashes on each spend
         btn.child(box()
@@ -1297,7 +1306,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       slider.child(btn);
     }
     slider.child(at(box(), 2, 6, 16, 12)
-                     .fill(Fill::color(hex(0x141008)))
+                     .fill(Fill::color(hexColor(0x141008)))
                      .corners(Corners{n(1)}));
     g.child(slider);
     return g;
@@ -1421,30 +1430,33 @@ struct Fallout2CharSheet : sketch::Sketch {
     c.child(at(box(), -40, -20, 34, 260)
                 .rotate(9.0f)
                 .translateX(n(232))
-                .fill(Paint::linearUnit({0, 0}, {1, 0},
-                                        {{0.0f, alpha(hex(0x7C581C), 0.0f)},
-                                         {0.5f, alpha(hex(0x6A4A18), 0.20f)},
-                                         {1.0f, alpha(hex(0x7C581C), 0.0f)}})));
+                .fill(Paint::linearUnit(
+                    {0, 0}, {1, 0},
+                    {{0.0f, alpha(hexColor(0x7C581C), 0.0f)},
+                     {0.5f, alpha(hexColor(0x6A4A18), 0.20f)},
+                     {1.0f, alpha(hexColor(0x7C581C), 0.0f)}})));
     c.child(at(box(), 150, 120, 130, 55)
                 .fill(Paint::radialUnit({0.55f, 0.75f}, 1.0f,
                                         {{0.0f, alpha(kParchScuff, 0.30f)},
                                          {1.0f, alpha(kParchScuff, 0.0f)}})));
     c.child(at(box(), -6, -10, 60, 190)
-                .fill(Paint::linearUnit({0, 0}, {1, 0},
-                                        {{0.0f, alpha(hex(0x5A3C10), 0.28f)},
-                                         {1.0f, alpha(hex(0x5A3C10), 0.0f)}})));
+                .fill(Paint::linearUnit(
+                    {0, 0}, {1, 0},
+                    {{0.0f, alpha(hexColor(0x5A3C10), 0.28f)},
+                     {1.0f, alpha(hexColor(0x5A3C10), 0.0f)}})));
     // the scrap's own soiling — kept light: the reference card is bright ochre
     // right into its corners
     c.child(box().inset(0).fill(
         Paint::radialUnit({0.46f, 0.42f}, 1.35f,
-                          {{0.0f, alpha(hex(0x2A1C08), 0.0f)},
-                           {0.70f, alpha(hex(0x2A1C08), 0.04f)},
-                           {1.0f, alpha(hex(0x2A1C08), 0.22f)}})));
+                          {{0.0f, alpha(hexColor(0x2A1C08), 0.0f)},
+                           {0.70f, alpha(hexColor(0x2A1C08), 0.04f)},
+                           {1.0f, alpha(hexColor(0x2A1C08), 0.22f)}})));
     c.child(at(box(), 178, 118, 110, 60)
-                .fill(Paint::radialUnit({0.60f, 0.85f}, 1.0f,
-                                        {{0.0f, alpha(hex(0x3A2A12), 0.18f)},
-                                         {1.0f, alpha(hex(0x3A2A12), 0.0f)}})));
-    c.stroke(stroke(n(1.5f), Fill::color(hex(0x2A1C08, 0.75f)),
+                .fill(Paint::radialUnit(
+                    {0.60f, 0.85f}, 1.0f,
+                    {{0.0f, alpha(hexColor(0x3A2A12), 0.18f)},
+                     {1.0f, alpha(hexColor(0x3A2A12), 0.0f)}})));
+    c.stroke(stroke(n(1.5f), Fill::color(hexColor(0x2A1C08, 0.75f)),
                     PathFormat::Align::Inner));
     c.child(box().inset(0).child(slot("card")));
     return c;
@@ -1460,25 +1472,25 @@ struct Fallout2CharSheet : sketch::Sketch {
     // The outer frame and the dividers between the five panels — raised
     // facets lit from the top-left.
     g.child(at(box(), 0, 0, 640, 480)
-                .foreground(stroke(n(3), Fill::color(hex(0x1E1810)),
+                .foreground(stroke(n(3), Fill::color(hexColor(0x1E1810)),
                                    PathFormat::Align::Inner))
-                .foreground(
-                    inset(n(3), styles::BevelEmboss{n(2.0f), n(2.5f), 118,
-                                                    hex(0xA08858, 0.45f),
-                                                    hex(0x0C0906, 0.55f)})));
+                .foreground(inset(
+                    n(3), styles::BevelEmboss{n(2.0f), n(2.5f), 118,
+                                              hexColor(0xA08858, 0.45f),
+                                              hexColor(0x0C0906, 0.55f)})));
     // vertical divider between the left/middle block and the skills column
     g.child(at(box(), 328, 0, 4, 480)
                 .fill(Paint::linearUnit(
                     {0, 0}, {1, 0},
-                    {{0.0f, hex(0x554430)}, {1.0f, hex(0x241D12)}})));
+                    {{0.0f, hexColor(0x554430)}, {1.0f, hexColor(0x241D12)}})));
     g.child(at(box(), 165, 30, 3, 240)
                 .fill(Paint::linearUnit(
                     {0, 0}, {1, 0},
-                    {{0.0f, hex(0x4E4030)}, {1.0f, hex(0x241D12)}})));
+                    {{0.0f, hexColor(0x4E4030)}, {1.0f, hexColor(0x241D12)}})));
     g.child(at(box(), 5, 318, 320, 3)
                 .fill(Paint::linearUnit(
                     {0, 0}, {0, 1},
-                    {{0.0f, hex(0x554430)}, {1.0f, hex(0x241D12)}})));
+                    {{0.0f, hexColor(0x554430)}, {1.0f, hexColor(0x241D12)}})));
 
     // Top plaques (measured bright runs at y = 1: 15..153, 155..236, 238..312).
     const char* plaqueText[3] = {"NARG", "AGE 20", "MALE"};
@@ -1509,11 +1521,11 @@ struct Fallout2CharSheet : sketch::Sketch {
     g.child(ink(engravedText("SKILL POINTS", n(24.0f), kGold, 0.78f, 0.5f), 400,
                 232, engravedRise(n(24.0f))));
     g.child(at(box(), 520, 226, 34, 28)
-                .fill(Fill::color(hex(0x120E08)))
+                .fill(Fill::color(hexColor(0x120E08)))
                 .corners(Corners{n(2)})
                 .foreground(styles::BevelEmboss{n(1.0f), n(1.4f), 300,
-                                                hex(0x8A7448, 0.45f),
-                                                hex(0x000000, 0.6f)}));
+                                                hexColor(0x8A7448, 0.45f),
+                                                hexColor(0x000000, 0.6f)}));
     g.child(box().left(Dim(0)).top(Dim(0)).child(slot("points")));
 
     // PRINT / DONE / CANCEL at y = 454, each with a red button light. Lamp
@@ -1525,10 +1537,10 @@ struct Fallout2CharSheet : sketch::Sketch {
       Element lamp = at(box(), lampX[i], 455, 12, 12)
                          .corners(Corners{n(6)})
                          .fill(Paint::radialUnit({0.35f, 0.30f}, 1.1f,
-                                                 {{0.0f, hex(0xFF6A4A)},
+                                                 {{0.0f, hexColor(0xFF6A4A)},
                                                   {0.45f, kLampOn},
-                                                  {1.0f, hex(0x600000)}}));
-      lamp.foreground(stroke(n(1.2f), Fill::color(hex(0x1A1208)),
+                                                  {1.0f, hexColor(0x600000)}}));
+      lamp.foreground(stroke(n(1.2f), Fill::color(hexColor(0x1A1208)),
                              PathFormat::Align::Outer));
       if (i == 1)  // DONE dims and returns as the `+` is pressed
         lamp.child(box()
@@ -1583,9 +1595,9 @@ struct Fallout2CharSheet : sketch::Sketch {
       Element sp = atR(box(), kWellSpecial)
                        .corners(Corners{n(4)})
                        .fill(Paint::linearUnit({0, 0}, {0.2f, 1},
-                                               {{0.0f, hex(0x54462E)},
+                                               {{0.0f, hexColor(0x54462E)},
                                                 {0.35f, kPlateLit},
-                                                {1.0f, hex(0x3A3020)}}));
+                                                {1.0f, hexColor(0x3A3020)}}));
       sp.child(box()
                    .inset(0)
                    .fill(plateTooth)
@@ -1598,19 +1610,20 @@ struct Fallout2CharSheet : sketch::Sketch {
                    .blend(SkBlendMode::kSoftLight)
                    .opacity(0.70f)
                    .cache(Cache::Texture));
-      sp.foreground(styles::BevelEmboss{
-          n(1.6f), n(2.0f), 118, hex(0xB09868, 0.55f), hex(0x080604, 0.70f)});
-      sp.stroke(
-          stroke(n(1), Fill::color(hex(0x1A1610)), PathFormat::Align::Inner));
+      sp.foreground(styles::BevelEmboss{n(1.6f), n(2.0f), 118,
+                                        hexColor(0xB09868, 0.55f),
+                                        hexColor(0x080604, 0.70f)});
+      sp.stroke(stroke(n(1), Fill::color(hexColor(0x1A1610)),
+                       PathFormat::Align::Inner));
       for (int i = 0; i < 4; ++i)
-        sp.child(
-            sigil::compose::kit::disc(
-                SkPoint{n(((unsigned)i & 1u) ? kWellSpecial.w - 6 : 6.0f),
-                        n(((unsigned)i & 2u) ? kWellSpecial.h - 6 : 6.0f)},
-                n(2.6f))
-                .fill(rivetMat)
-                .foreground(stroke(n(0.6f), Fill::color(hex(0x000000, 0.7f)),
-                                   PathFormat::Align::Outer)));
+        sp.child(sigil::compose::kit::disc(
+                     SkPoint{n(((unsigned)i & 1u) ? kWellSpecial.w - 6 : 6.0f),
+                             n(((unsigned)i & 2u) ? kWellSpecial.h - 6 : 6.0f)},
+                     n(2.6f))
+                     .fill(rivetMat)
+                     .foreground(stroke(n(0.6f),
+                                        Fill::color(hexColor(0x000000, 0.7f)),
+                                        PathFormat::Align::Outer)));
       screen.child(sp);
     }
     screen.child(well(kWellStatus));
@@ -1654,7 +1667,7 @@ struct Fallout2CharSheet : sketch::Sketch {
     using namespace fo;
     sketch::kit::Theme look;
     look.palette.ash = kGreen;
-    look.palette.figure = hex(0xE04020);
+    look.palette.figure = hexColor(0xE04020);
     look.type.sans = bodyFace();
     look.type.mono = bodyFace();
     look.type.captionNote = {17.0f, 0.1f};
@@ -1665,7 +1678,7 @@ struct Fallout2CharSheet : sketch::Sketch {
       if (c.pass || !c.judged()) continue;
       rows.push_back({{toU8(c.label), toU8(c.actual),
                        toU8("shipped sheet says " + c.expected)},
-                      Fill::color(hex(0xE04020))});
+                      Fill::color(hexColor(0xE04020))});
     }
     sketch::kit::Provide bound(look);
     return box()
@@ -1673,15 +1686,15 @@ struct Fallout2CharSheet : sketch::Sketch {
         .top(Dim(160))
         .width(Dim(kScreenW - 240))
         .height(Dim(120.0f + 24.0f * (float)rows.size()))
-        .fill(Fill::color(hex(0x0B0D08, 0.96f)))
-        .foreground(
-            stroke(3.0f, Fill::color(hex(0xE04020)), PathFormat::Align::Inner))
+        .fill(Fill::color(hexColor(0x0B0D08, 0.96f)))
+        .foreground(stroke(3.0f, Fill::color(hexColor(0xE04020)),
+                           PathFormat::Align::Inner))
         .column()
         .padding(28)
         .gap(14)
         .child(text(toU8("THE ARITHMETIC DOES NOT MATCH THE SHIPPED "
                          "PREMADES"),
-                    sheetType(bodyBold(), 22.0f, hex(0xE04020), 1.2f)))
+                    sheetType(bodyBold(), 22.0f, hexColor(0xE04020), 1.2f)))
         .child(sketch::kit::table(
             std::move(rows),
             {.columns = {{420}, {90, true}, {}}, .gap = 16, .swatchSide = 11}));
@@ -1694,12 +1707,12 @@ struct Fallout2CharSheet : sketch::Sketch {
                        .top(Dim(kScreenH))
                        .width(Dim(kScreenW))
                        .height(Dim(kCaptionH))
-                       .fill(Paint::linearUnit(
-                           {0, 0}, {0, 1},
-                           {{0.0f, hex(0x0B0D08)}, {1.0f, hex(0x050604)}}));
-    band.foreground(onEdges(
-        path::Edge::Top,
-        stroke(2.0f, Fill::color(hex(0x3A3020)), PathFormat::Align::Inner)));
+                       .fill(Paint::linearUnit({0, 0}, {0, 1},
+                                               {{0.0f, hexColor(0x0B0D08)},
+                                                {1.0f, hexColor(0x050604)}}));
+    band.foreground(
+        onEdges(path::Edge::Top, stroke(2.0f, Fill::color(hexColor(0x3A3020)),
+                                        PathFormat::Align::Inner)));
     const std::string audited = kit::formatted(
         "SEVEN NUMBERS BECOME SIXTY \xc2\xb7 %d/%d derived values "
         "match the shipped sheets (Narg, Mingan, Chitsa), trait "
@@ -1723,18 +1736,18 @@ struct Fallout2CharSheet : sketch::Sketch {
         line("_colorTable[992] REQUESTS #00FF00; the 256-colour VGA "
              "palette has no pure green, so what reached the CRT is "
              "#3CF800.",
-             13.0f, hex(0x8A8A78), 64, 0.1f));
+             13.0f, hexColor(0x8A8A78), 64, 0.1f));
     band.child(
         line("Chrome, plaques, rivets, tabs and parchment are "
              "procedural; the originals are raster FRMs (intrface art "
              "id 177). The sheet is RE-SET in real faces.",
-             13.0f, hex(0x6A6A5A), 84, 0.1f));
+             13.0f, hexColor(0x6A6A5A), 84, 0.1f));
     band.child(
         line("The screen above is exactly 1280\xc3\x97"
              "960 \xe2\x80\x94 "
              "halve it and it overlays the 1998 capture. This band is "
              "not part of the artefact.",
-             13.0f, hex(0x55554A), 104, 0.1f));
+             13.0f, hexColor(0x55554A), 104, 0.1f));
     return band;
   }
 
@@ -1748,7 +1761,7 @@ struct Fallout2CharSheet : sketch::Sketch {
     sketch::kit::stage(ctx,
                        {.size = SkSize::Make(kScreenW, kScreenH + kCaptionH),
                         .captureAt = 6.0,
-                        .background = hex(0x050604),
+                        .background = hexColor(0x050604),
                         .oversample = 2});
 
     nargTraits.gifted = true;

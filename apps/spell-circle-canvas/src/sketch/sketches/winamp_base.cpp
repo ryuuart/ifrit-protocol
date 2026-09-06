@@ -136,43 +136,47 @@ inline SkColor4f dark(SkColor4f c, float k) { return scaleRgb(c, 1 - k); }
 // Palette — sampled from the extracted BMPs, or quoted from the skin's own
 // plain-text config files. Nothing here is remembered.
 
-constexpr SkColor4f kBody = hex(0x343453);     // MAIN.BMP body base
-constexpr SkColor4f kBodyTop = hex(0x3B3B5A);  // the unit ramp, top-lit
-constexpr SkColor4f kBodyBot = hex(0x2E2E48);  // ... to shadowed
-constexpr SkColor4f kLcd = hex(0x131320);      // LCD screen (sampled
-                                           // #181829, dropped four levels so
-                                           // the #182129 unlit ghost reads)
-constexpr SkColor4f kBezel = hex(0x161622);    // LCD bezel outer ring
-constexpr SkColor4f kUnlit = hex(0x182129);    // VISCOLOR color 1, "grey for
-                                               // dots" — byte-identical to the
-                                               // sampled NUMBERS.BMP background
-constexpr SkColor4f kGreen = hex(0x00F800);    // NUMBERS.BMP digit green
-constexpr SkColor4f kTitle = hex(0x25253A);    // TITLEBAR.BMP base
-constexpr SkColor4f kGold = hex(0xA99865);     // wordmark, focused
-constexpr SkColor4f kGoldDim = hex(0x7A7A94);  // wordmark, unfocused
-constexpr SkColor4f kBtnHi = hex(0xEFFFFF);    // CBUTTONS bevel highlight
-constexpr SkColor4f kBtnFace = hex(0x97A8B9);  // CBUTTONS steel-blue face
-constexpr SkColor4f kBtnLo = hex(0x4A5A6B);    // CBUTTONS bevel shadow
-constexpr SkColor4f kGlyph = hex(0x1E2833);    // the ink on a transport key
-constexpr SkColor4f kGraph = hex(0x1B1A2C);    // EQMAIN graph screen navy
-constexpr SkColor4f kGrid = hex(0x3A3A55);     // EQMAIN dashed gridline
-constexpr SkColor4f kEqTop = hex(0x2A9A16);    // fader track, green
-constexpr SkColor4f kEqMid = hex(0xA6C731);    // ... yellow-gold
-constexpr SkColor4f kEqBot = hex(0xC5431B);    // ... red
-constexpr SkColor4f kPlBg = hex(0x000000);     // PLEDIT.TXT NormalBG
-constexpr SkColor4f kPlText = hex(0x00FF00);   // PLEDIT.TXT Normal
-constexpr SkColor4f kPlNow = hex(0xFFFFFF);    // PLEDIT.TXT Current
-constexpr SkColor4f kPlSel = hex(0x0000C6);    // PLEDIT.TXT SelectedBG
-constexpr SkColor4f kDesk = hex(0x008080);     // Windows 9x/2000 default teal
-constexpr SkColor4f kPeak = hex(0x969696);     // VISCOLOR 23, peak-hold dots
+constexpr SkColor4f kBody = hexColor(0x343453);     // MAIN.BMP body base
+constexpr SkColor4f kBodyTop = hexColor(0x3B3B5A);  // the unit ramp, top-lit
+constexpr SkColor4f kBodyBot = hexColor(0x2E2E48);  // ... to shadowed
+constexpr SkColor4f kLcd =
+    hexColor(0x131320);  // LCD screen (sampled
+                         // #181829, dropped four levels so
+                         // the #182129 unlit ghost reads)
+constexpr SkColor4f kBezel = hexColor(0x161622);  // LCD bezel outer ring
+constexpr SkColor4f kUnlit =
+    hexColor(0x182129);  // VISCOLOR color 1, "grey for
+                         // dots" — byte-identical to the
+                         // sampled NUMBERS.BMP background
+constexpr SkColor4f kGreen = hexColor(0x00F800);    // NUMBERS.BMP digit green
+constexpr SkColor4f kTitle = hexColor(0x25253A);    // TITLEBAR.BMP base
+constexpr SkColor4f kGold = hexColor(0xA99865);     // wordmark, focused
+constexpr SkColor4f kGoldDim = hexColor(0x7A7A94);  // wordmark, unfocused
+constexpr SkColor4f kBtnHi = hexColor(0xEFFFFF);    // CBUTTONS bevel highlight
+constexpr SkColor4f kBtnFace = hexColor(0x97A8B9);  // CBUTTONS steel-blue face
+constexpr SkColor4f kBtnLo = hexColor(0x4A5A6B);    // CBUTTONS bevel shadow
+constexpr SkColor4f kGlyph = hexColor(0x1E2833);   // the ink on a transport key
+constexpr SkColor4f kGraph = hexColor(0x1B1A2C);   // EQMAIN graph screen navy
+constexpr SkColor4f kGrid = hexColor(0x3A3A55);    // EQMAIN dashed gridline
+constexpr SkColor4f kEqTop = hexColor(0x2A9A16);   // fader track, green
+constexpr SkColor4f kEqMid = hexColor(0xA6C731);   // ... yellow-gold
+constexpr SkColor4f kEqBot = hexColor(0xC5431B);   // ... red
+constexpr SkColor4f kPlBg = hexColor(0x000000);    // PLEDIT.TXT NormalBG
+constexpr SkColor4f kPlText = hexColor(0x00FF00);  // PLEDIT.TXT Normal
+constexpr SkColor4f kPlNow = hexColor(0xFFFFFF);   // PLEDIT.TXT Current
+constexpr SkColor4f kPlSel = hexColor(0x0000C6);   // PLEDIT.TXT SelectedBG
+constexpr SkColor4f kDesk = hexColor(0x008080);  // Windows 9x/2000 default teal
+constexpr SkColor4f kPeak = hexColor(0x969696);  // VISCOLOR 23, peak-hold dots
 
 /** VISCOLOR.TXT colors 2..17, bottom of spectrum -> top, quoted verbatim.
  *  The same family the EQ fader tracks are sampled from. */
 constexpr std::array<SkColor4f, 16> kVis = {
-    hex(0x188408), hex(0x299400), hex(0x319C08), hex(0x39B510),
-    hex(0x32BE10), hex(0x29CE10), hex(0x94DE21), hex(0xBDDE29),
-    hex(0xD6B521), hex(0xDEA518), hex(0xC67B08), hex(0xD67300),
-    hex(0xD66600), hex(0xD65A00), hex(0xCE2910), hex(0xEF3110)};
+    hexColor(0x188408), hexColor(0x299400), hexColor(0x319C08),
+    hexColor(0x39B510), hexColor(0x32BE10), hexColor(0x29CE10),
+    hexColor(0x94DE21), hexColor(0xBDDE29), hexColor(0xD6B521),
+    hexColor(0xDEA518), hexColor(0xC67B08), hexColor(0xD67300),
+    hexColor(0xD66600), hexColor(0xD65A00), hexColor(0xCE2910),
+    hexColor(0xEF3110)};
 
 // ---------------------------------------------------------------------------
 // Type. Almost nothing in classic Winamp is live text: TEXT.BMP is a fixed
@@ -239,8 +243,9 @@ inline Element& raised(Element& e, SkColor4f hi = kBtnHi, SkColor4f lo = kBtnLo,
 }
 /** The same pair the other way up. Every LCD well, trough and list frame
  *  in the skin. */
-inline Element& sunken(Element& e, SkColor4f hi = alpha(hex(0x5C5C86), 0.9f),
-                       SkColor4f lo = hex(0x101018), float w = 1.0f) {
+inline Element& sunken(Element& e,
+                       SkColor4f hi = alpha(hexColor(0x5C5C86), 0.9f),
+                       SkColor4f lo = hexColor(0x101018), float w = 1.0f) {
   e.overlay(styles::BevelPair{hi, lo, n(w), n(w), true});
   return e;
 }
@@ -479,9 +484,9 @@ struct WinampBase : sketch::Sketch {
     // CRT glass: the flat screen colour plus a soft off-centre catch-light.
     lcdMat = mskia::Paint::blend(
         {{mskia::Paint::solid(kLcd), SkBlendMode::kSrcOver},
-         {mskia::Paint::radialUnit(
-              {0.28f, 0.22f}, 1.25f,
-              {{0.0f, hex(0x2A2A46, 0.75f)}, {1.0f, hex(0x2A2A46, 0.0f)}}),
+         {mskia::Paint::radialUnit({0.28f, 0.22f}, 1.25f,
+                                   {{0.0f, hexColor(0x2A2A46, 0.75f)},
+                                    {1.0f, hexColor(0x2A2A46, 0.0f)}}),
           SkBlendMode::kSrcOver}});
 
     // ONE fader-track value shared by all eleven faders (preamp + 10
@@ -514,11 +519,12 @@ struct WinampBase : sketch::Sketch {
     // The title-bar grip: horizontal hairlines, as a rotated stripe tile.
     // TITLEBAR.BMP's grip rails are CREAM, not the body's blue-grey — the
     // one warm thing on an otherwise cold window.
-    gripTile = patterns::stripes(n(1), n(1), mskia::toColor(hex(0xC8BC98)));
+    gripTile =
+        patterns::stripes(n(1), n(1), mskia::toColor(hexColor(0xC8BC98)));
     gripTile.rotate(90.0f);
     // The preview-visualiser swatch's default checkerboard art.
-    previewCheck = patterns::checker(n(2), mskia::toColor(hex(0x2B2B44)),
-                                     mskia::toColor(hex(0x14141F)));
+    previewCheck = patterns::checker(n(2), mskia::toColor(hexColor(0x2B2B44)),
+                                     mskia::toColor(hexColor(0x14141F)));
     // The visualiser well's baked dot grid (MAIN.BMP paints these under the
     // bars, in VISCOLOR's own "grey for dots").
     visDots = patterns::halftone(n(2), n(0.5f), mskia::toColor(kUnlit), false);
@@ -568,7 +574,7 @@ struct WinampBase : sketch::Sketch {
     using namespace wa;
     Element e = key(x, y, w, h, box());
     e.justify(Justify::Center).alignItems(Align::Center);
-    e.child(t(label, pix(cell, hex(0x121A24))));
+    e.child(t(label, pix(cell, hexColor(0x121A24))));
     return e;
   }
 
@@ -585,7 +591,7 @@ struct WinampBase : sketch::Sketch {
     bar.fill(mskia::Paint::linearUnit(
         {0, 0}, {0, 1},
         {{0.0f, lighten(kTitle, 0.06f)}, {1.0f, dark(kTitle, 0.25f)}}));
-    raised(bar, alpha(hex(0x5A5A82), 0.85f), hex(0x101018));
+    raised(bar, alpha(hexColor(0x5A5A82), 0.85f), hexColor(0x101018));
 
     // grip hairlines either side of the wordmark
     const float gripW = wide ? 100.0f : 52.0f;
@@ -617,7 +623,7 @@ struct WinampBase : sketch::Sketch {
                       .fill(dark(kTitle, 0.35f))
                       .justify(Justify::Center)
                       .alignItems(Align::Center);
-      raised(b, alpha(hex(0x5A5A82), 0.8f), hex(0x0E0E16));
+      raised(b, alpha(hexColor(0x5A5A82), 0.8f), hexColor(0x0E0E16));
       b.child(t(g, pix(3.6f, kGold)));
       return b;
     };
@@ -637,7 +643,7 @@ struct WinampBase : sketch::Sketch {
     // The brushed body, on its own leaf so the bake is a texture and the
     // window's live children never drag the grain shader back per frame.
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, alpha(hex(0x585880), 0.7f), hex(0x0E0E18));
+    raised(w, alpha(hexColor(0x585880), 0.7f), hexColor(0x0E0E18));
     w.child(titleBar(275, "WINAMP", false));
 
     // ---- the big display well (native x 0..275, y 21..58) ---------------
@@ -646,8 +652,8 @@ struct WinampBase : sketch::Sketch {
     w.child(well);
 
     // clutter bar O A I D V — its own dark strip, running past the well
-    Element clutter = at(box(), 10, 22, 8, 43).fill(hex(0x101020));
-    sunken(clutter, alpha(hex(0x4A4A70), 0.7f), hex(0x080810));
+    Element clutter = at(box(), 10, 22, 8, 43).fill(hexColor(0x101020));
+    sunken(clutter, alpha(hexColor(0x4A4A70), 0.7f), hexColor(0x080810));
     static const char* cl[5] = {"O", "A", "I", "D", "V"};
     static const float cy[5] = {3, 11, 18, 25, 33};
     static const float cht[5] = {8, 7, 7, 8, 7};
@@ -655,11 +661,11 @@ struct WinampBase : sketch::Sketch {
       clutter.child(at(box(), 0, cy[i], 8, cht[i])
                         .justify(Justify::Center)
                         .alignItems(Align::Center)
-                        .child(t(cl[i], pix(3.4f, hex(0x8E8EB4)))));
+                        .child(t(cl[i], pix(3.4f, hexColor(0x8E8EB4)))));
     // the specular glint that sweeps the stack once every 5 s
     clutter.child(
         at(box(), 0, 0, 8, 6)
-            .fill(hex(0xCFE4FF, 0.55f))
+            .fill(hexColor(0xCFE4FF, 0.55f))
             .blend(SkBlendMode::kPlus)
             .translateY(motion::bind(&glint).target(-n(6), n(43)))
             .opacity(
@@ -690,11 +696,11 @@ struct WinampBase : sketch::Sketch {
     // SUBSTITUTED face so its ADVANCE is 5 px, and that face's line box is
     // taller than its advance, so a 6- or 7-px viewport cut the bottom
     // scanline off every round glyph — E read as F, L as I, U as II.
-    Element titleWell = at(box(), 109, 22, 158, 11).fill(hex(0x101020));
-    sunken(titleWell, alpha(hex(0x4A4A70), 0.5f), hex(0x08080E));
+    Element titleWell = at(box(), 109, 22, 158, 11).fill(hexColor(0x101020));
+    sunken(titleWell, alpha(hexColor(0x4A4A70), 0.5f), hexColor(0x08080E));
     Element title = at(box(), 2, 1, 154, 9).clip();
     title.child(kit::marquee(
-        t(marqueeText(), pix(5, hex(0x00E000))),
+        t(marqueeText(), pix(5, hexColor(0x00E000))),
         {.phase = &marqueePhase, .gap = n(40), .contentWidth = marqueeW}));
     titleWell.child(title);
     w.child(titleWell);
@@ -702,34 +708,34 @@ struct WinampBase : sketch::Sketch {
     // kbps / kHz readouts — each a small bordered window with its unit
     // printed outside it, exactly as MAIN.BMP bakes them.
     auto readout = [&](float x, float wN, const char* v) {
-      Element e = at(box(), x, 41, wN, 9).fill(hex(0x101020));
-      sunken(e, alpha(hex(0x4A4A70), 0.5f), hex(0x08080E));
+      Element e = at(box(), x, 41, wN, 9).fill(hexColor(0x101020));
+      sunken(e, alpha(hexColor(0x4A4A70), 0.5f), hexColor(0x08080E));
       e.child(at(box(), 1, 2, wN - 2, 6)
                   .justify(Justify::End)
                   .alignItems(Align::Center)
-                  .child(t(v, pix(4.6f, hex(0x00E000)))));
+                  .child(t(v, pix(4.6f, hexColor(0x00E000)))));
       return e;
     };
     w.child(readout(111, 17, "192"));
     w.child(at(box(), 130, 43, 20, 6)
                 .alignItems(Align::Center)
-                .child(t("kbps", pix(4, hex(0x6E6E9A)))));
+                .child(t("kbps", pix(4, hexColor(0x6E6E9A)))));
     w.child(readout(154, 13, "44"));
     w.child(at(box(), 169, 43, 18, 6)
                 .alignItems(Align::Center)
-                .child(t("kHz", pix(4, hex(0x6E6E9A)))));
+                .child(t("kHz", pix(4, hexColor(0x6E6E9A)))));
     w.child(at(box(), 212, 41, 28, 12)
                 .justify(Justify::Center)
                 .alignItems(Align::Center)
-                .child(t("MONO", pix(4.4f, hex(0x3A3A5C)))));
+                .child(t("MONO", pix(4.4f, hexColor(0x3A3A5C)))));
     w.child(at(box(), 240, 41, 29, 12)
                 .justify(Justify::Center)
                 .alignItems(Align::Center)
-                .child(t("STEREO", pix(4.0f, hex(0x00E000)))));
+                .child(t("STEREO", pix(4.0f, hexColor(0x00E000)))));
 
     // ---- the spectrum analyser well (native 24,43,76,16) ---------------
-    Element vis = at(box(), 24, 43, 76, 16).fill(hex(0x000000));
-    sunken(vis, alpha(hex(0x4A4A70), 0.6f), hex(0x08080E));
+    Element vis = at(box(), 24, 43, 76, 16).fill(hexColor(0x000000));
+    sunken(vis, alpha(hexColor(0x4A4A70), 0.6f), hexColor(0x08080E));
     vis.child(box().inset(0).fill(visDots.material()));
     // ONE atlas stamp for 19x16 LED segments plus 19 peak-hold dots.
     vis.child(box().inset(0).child(instancing::instances(
@@ -740,7 +746,7 @@ struct WinampBase : sketch::Sketch {
     // A shutter over the whole well, keyframed with easeNone so each step
     // is a hard cut — old displays do not fade in.
     w.child(at(box(), 0, 21, 275, 37)
-                .fill(hex(0x090911))
+                .fill(hexColor(0x090911))
                 .opacity(animate(motion::through({{0ms, 1.0f},
                                                   {300ms, 1.0f},
                                                   {310ms, 0.0f},
@@ -761,11 +767,11 @@ struct WinampBase : sketch::Sketch {
     w.child(eqPlToggle());
 
     // ---- position / seek bar (native 16,72,248,10) ----------------------
-    Element pos = at(box(), 16, 72, 248, 10).fill(hex(0x14141F));
-    sunken(pos, alpha(hex(0x4A4A70), 0.7f), hex(0x08080E));
+    Element pos = at(box(), 16, 72, 248, 10).fill(hexColor(0x14141F));
+    sunken(pos, alpha(hexColor(0x4A4A70), 0.7f), hexColor(0x08080E));
     // Two of playPos's consumers, both here: the elapsed underlay's scaleX …
     pos.child(at(box(), 1, 1, 246, 8)
-                  .fill(hex(0x24243A))
+                  .fill(hexColor(0x24243A))
                   .transformOrigin(0, 0.5f)
                   .scaleX(&playPos));
     // … and the thumb, in pixels.
@@ -791,7 +797,7 @@ struct WinampBase : sketch::Sketch {
                     {0, 0}, {0, 1},
                     // MAIN.BMP's bolt is a muted orange-brown, not the
                     // bright yellow a lightning glyph wants to be.
-                    {{0.0f, hex(0xC98A32)}, {1.0f, hex(0x7A4208)}})));
+                    {{0.0f, hexColor(0xC98A32)}, {1.0f, hexColor(0x7A4208)}})));
     return w;
   }
 
@@ -802,9 +808,9 @@ struct WinampBase : sketch::Sketch {
       Element e = key(x, 0, 23, 12, box());
       e.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
       e.child(box().width(Dim(n(3))).height(Dim(n(3))).fill(
-          on ? wa::kGreen : hex(0x3C4A58)));
+          on ? wa::kGreen : hexColor(0x3C4A58)));
       e.child(box().width(Dim(n(1.5f))));
-      e.child(t(lbl, pix(4.2f, hex(0x121A24))));
+      e.child(t(lbl, pix(4.2f, hexColor(0x121A24))));
       return e;
     };
     g.child(tog(0, "EQ", true));
@@ -852,22 +858,23 @@ struct WinampBase : sketch::Sketch {
     // rounding slop in the ORIGINAL layout, kept.
     Element shuf = key(164, 1, 47, 15, box());
     shuf.row().alignItems(Align::Center).padding(n(3), 0, 0, 0);
-    shuf.child(box().width(Dim(n(3))).height(Dim(n(3))).fill(hex(0x3C4A58)));
+    shuf.child(
+        box().width(Dim(n(3))).height(Dim(n(3))).fill(hexColor(0x3C4A58)));
     shuf.child(box().width(Dim(n(2))));
-    shuf.child(t("SHUFFLE", pix(4.6f, hex(0x121A24))));
+    shuf.child(t("SHUFFLE", pix(4.6f, hexColor(0x121A24))));
     r.child(shuf);
 
     Element rep = key(211, 1, 28, 15, box());
     rep.row().alignItems(Align::Center).padding(n(3), 0, 0, 0);
     rep.child(box().width(Dim(n(3))).height(Dim(n(3))).fill(wa::kGreen));
     rep.child(box().width(Dim(n(2))));
-    rep.child(t("REP", pix(4.6f, hex(0x121A24))));
+    rep.child(t("REP", pix(4.6f, hexColor(0x121A24))));
     r.child(rep);
 
     // the "hardware self-test" light sweep — a single 150 ms pass over the
     // six keys with NO easing, entirely as mount keyframes.
     r.child(at(box(), 0, 0, 8, 18)
-                .fill(hex(0xE8F4FF, 0.55f))
+                .fill(hexColor(0xE8F4FF, 0.55f))
                 .blend(SkBlendMode::kPlus)
                 .translateX(
                     animate(motion::through({{600ms, n(10)}, {750ms, n(162)}}),
@@ -891,8 +898,8 @@ struct WinampBase : sketch::Sketch {
     Element g = box();
 
     const SkColor4f volColor = kVis[(size_t)std::clamp((vol * 15) / 28, 0, 15)];
-    Element track = at(box(), 0, 0, 68, 13).fill(hex(0x1B1B2C));
-    sunken(track, alpha(hex(0x4A4A70), 0.6f), hex(0x0A0A12));
+    Element track = at(box(), 0, 0, 68, 13).fill(hexColor(0x1B1B2C));
+    sunken(track, alpha(hexColor(0x4A4A70), 0.6f), hexColor(0x0A0A12));
     track.child(at(box(), 1, 3, 66, 3).fill(dark(volColor, 0.45f)));
     track.child(at(box(), 1, 6, 66, 3).fill(volColor));
     track.child(at(box(), 1, 9, 66, 2).fill(dark(volColor, 0.65f)));
@@ -911,8 +918,8 @@ struct WinampBase : sketch::Sketch {
     // centre: the colour ramps outward in both directions from frame 14.
     const int b = std::abs(bal - 14);
     const SkColor4f balColor = kVis[(size_t)std::clamp((b * 15) / 14, 0, 15)];
-    Element btr = at(box(), 70, 0, 38, 13).fill(hex(0x1B1B2C));
-    sunken(btr, alpha(hex(0x4A4A70), 0.6f), hex(0x0A0A12));
+    Element btr = at(box(), 70, 0, 38, 13).fill(hexColor(0x1B1B2C));
+    sunken(btr, alpha(hexColor(0x4A4A70), 0.6f), hexColor(0x0A0A12));
     btr.child(at(box(), 1, 4, 36, 5).fill(dark(balColor, 0.55f)));
     btr.child(at(box(), 18, 1, 2, 11).fill(alpha(balColor, 0.9f)));
     Element bt =
@@ -973,7 +980,7 @@ struct WinampBase : sketch::Sketch {
     using namespace wa;
     Element w = box().width(Dim(n(275))).height(Dim(n(116)));
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, alpha(hex(0x585880), 0.7f), hex(0x0E0E18));
+    raised(w, alpha(hexColor(0x585880), 0.7f), hexColor(0x0E0E18));
     w.child(titleBar(275, "WINAMP EQUALIZER", false, false));
 
     // ON / AUTO / PRESETS
@@ -981,14 +988,15 @@ struct WinampBase : sketch::Sketch {
     on.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
     on.child(box().width(Dim(n(3))).height(Dim(n(3))).fill(wa::kGreen));
     on.child(box().width(Dim(n(2))));
-    on.child(t("ON", pix(4.4f, hex(0x121A24))));
+    on.child(t("ON", pix(4.4f, hexColor(0x121A24))));
     w.child(on);
 
     Element autoB = key(40, 18, 32, 12, box());
     autoB.row().alignItems(Align::Center).padding(n(2), 0, 0, 0);
-    autoB.child(box().width(Dim(n(3))).height(Dim(n(3))).fill(hex(0x3C4A58)));
+    autoB.child(
+        box().width(Dim(n(3))).height(Dim(n(3))).fill(hexColor(0x3C4A58)));
     autoB.child(box().width(Dim(n(2))));
-    autoB.child(t("AUTO", pix(4.4f, hex(0x121A24))));
+    autoB.child(t("AUTO", pix(4.4f, hexColor(0x121A24))));
     w.child(autoB);
 
     w.child(textKey(217, 18, 44, 12, "PRESETS", 4.4f));
@@ -996,7 +1004,7 @@ struct WinampBase : sketch::Sketch {
     // the response graph (native 86,17,113,19) — its curve is the SAME 10
     // Outputs the faders below ride, so the two widgets can never disagree.
     Element graph = at(box(), 86, 17, 113, 19).fill(graphMat);
-    sunken(graph, alpha(hex(0x4A4A70), 0.6f), hex(0x08080E));
+    sunken(graph, alpha(hexColor(0x4A4A70), 0.6f), hexColor(0x08080E));
     graph.child(box().inset(0).fill(graphGrid.material()));
     graph.child(eqCurve().inset(0).cache(Cache::None));
     w.child(graph);
@@ -1005,8 +1013,8 @@ struct WinampBase : sketch::Sketch {
     // from x78 — the real, non-skinnable positions.
     for (int i = 0; i < 11; ++i) {
       const float x = i == 0 ? 21.0f : 78.0f + 18.0f * (float)(i - 1);
-      Element trough = at(box(), x, 38, 14, 63).fill(hex(0x14141F));
-      sunken(trough, alpha(hex(0x4A4A70), 0.55f), hex(0x08080E));
+      Element trough = at(box(), x, 38, 14, 63).fill(hexColor(0x14141F));
+      sunken(trough, alpha(hexColor(0x4A4A70), 0.55f), hexColor(0x08080E));
       trough.child(at(box(), 2, 1, 10, 61).fill(faderTrack));
       // thumb 11x11, travel 0..52 native. bind() turns the [-1,1] gain
       // straight into pixels — no second Output in slider units.
@@ -1039,14 +1047,14 @@ struct WinampBase : sketch::Sketch {
     // PREAMP + the ten band captions, tight against the fader feet.
     w.child(at(box(), 3, 104, 30, 7)
                 .alignItems(Align::Center)
-                .child(t("PREAMP", pix(3.6f, hex(0x8E8EB4)))));
+                .child(t("PREAMP", pix(3.6f, hexColor(0x8E8EB4)))));
     static const char* bands[10] = {"60", "170", "310", "600", "1K",
                                     "3K", "6K",  "12K", "14K", "16K"};
     for (int i = 0; i < 10; ++i)
       w.child(at(box(), 76.0f + 18.0f * (float)i, 104, 18, 7)
                   .justify(Justify::Center)
                   .alignItems(Align::Center)
-                  .child(t(bands[i], pix(3.6f, hex(0x8E8EB4)))));
+                  .child(t(bands[i], pix(3.6f, hexColor(0x8E8EB4)))));
     return w;
   }
 
@@ -1105,10 +1113,10 @@ struct WinampBase : sketch::Sketch {
       p.setAntiAlias(true);
       p.setStyle(SkPaint::kStroke_Style);
       p.setStrokeWidth(wa::n(1));
-      p.setColor4f(hex(0x1AE81A), nullptr);
+      p.setColor4f(hexColor(0x1AE81A), nullptr);
       canvas.drawPath(path, p);
       p.setStrokeWidth(wa::n(2.5f));
-      p.setColor4f(hex(0x1AE81A, 0.20f), nullptr);
+      p.setColor4f(hexColor(0x1AE81A, 0.20f), nullptr);
       canvas.drawPath(path, p);
       canvas.restore();
     });
@@ -1121,7 +1129,7 @@ struct WinampBase : sketch::Sketch {
     const float W = 400, H = 377;
     Element w = box().width(Dim(n(W))).height(Dim(n(H)));
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, alpha(hex(0x585880), 0.7f), hex(0x0E0E18));
+    raised(w, alpha(hexColor(0x585880), 0.7f), hexColor(0x0E0E18));
     w.child(titleBar(W, "WINAMP PLAYLIST", true, false, 20.0f));
 
     // The list well: left rail 12, right rail 20. At this window height it
@@ -1130,7 +1138,7 @@ struct WinampBase : sketch::Sketch {
     // exactly as the real window does at a size that is not a multiple of
     // the row height.
     Element list = at(box(), 12, 20, W - 32, 319).fill(kPlBg);
-    sunken(list, alpha(hex(0x4A4A70), 0.6f), hex(0x06060A));
+    sunken(list, alpha(hexColor(0x4A4A70), 0.6f), hexColor(0x06060A));
     // row backgrounds: one atlas stamp, three tint states.
     list.child(box().inset(0).child(
         instancing::instances(rowAtlas, rowPool, instancing::Mode::Live)));
@@ -1142,8 +1150,8 @@ struct WinampBase : sketch::Sketch {
     // two arrows stack INSIDE its bottom 28 px, over it. The grip is a
     // skin's sprite at the one size the skin cut it, so it is not a
     // reading of how much list is showing either.
-    Element rail = at(box(), W - 20, 20, 20, 319).fill(hex(0x1A1A2A));
-    sunken(rail, alpha(hex(0x4A4A70), 0.5f), hex(0x0A0A12));
+    Element rail = at(box(), W - 20, 20, 20, 319).fill(hexColor(0x1A1A2A));
+    sunken(rail, alpha(hexColor(0x4A4A70), 0.5f), hexColor(0x0A0A12));
     w.child(rail);
     Element grip = at(box(), W - 19, 24, 18, 36).fill(kBtnFace);
     raised(grip);
@@ -1159,7 +1167,7 @@ struct WinampBase : sketch::Sketch {
     // ---- the bottom control strip (native y 339..377) -------------------
     Element bottom = at(box(), 0, 339, W, 38);
     bottom.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    bottom.child(at(box(), 0, 0, W, 1).fill(alpha(hex(0x585880), 0.6f)));
+    bottom.child(at(box(), 0, 0, W, 1).fill(alpha(hexColor(0x585880), 0.6f)));
 
     // ADD / REM / SEL / MISC. These sit in the strip's own coordinates, 6
     // native px clear of the sill — in the real window the row is pinned to
@@ -1170,8 +1178,8 @@ struct WinampBase : sketch::Sketch {
       bottom.child(textKey(14 + 29 * (float)i, 14, 22, 18, menus[i], 4.0f));
     Element opts = key(W - 44, 14, 22, 18, box());
     opts.column().justify(Justify::Center).alignItems(Align::Center);
-    opts.child(t("LIST", pix(3.8f, hex(0x121A24))));
-    opts.child(t("OPTS", pix(3.8f, hex(0x121A24))));
+    opts.child(t("LIST", pix(3.8f, hexColor(0x121A24))));
+    opts.child(t("OPTS", pix(3.8f, hexColor(0x121A24))));
     bottom.child(opts);
 
     // running-time readout
@@ -1180,8 +1188,8 @@ struct WinampBase : sketch::Sketch {
                      .child(t(runningTime(), pix(4.0f, kPlText))));
 
     // the mini transport dock
-    Element dock = at(box(), 132, 22, 62, 12).fill(hex(0x12121E));
-    sunken(dock, alpha(hex(0x4A4A70), 0.55f), hex(0x08080E));
+    Element dock = at(box(), 132, 22, 62, 12).fill(hexColor(0x12121E));
+    sunken(dock, alpha(hexColor(0x4A4A70), 0.55f), hexColor(0x08080E));
     for (int i = 0; i < 5; ++i) {
       Element g = box();
       if (i == 0) {
@@ -1207,8 +1215,8 @@ struct WinampBase : sketch::Sketch {
     bottom.child(dock);
 
     // the preview-visualiser swatch (default checkerboard art)
-    Element sw = at(box(), W - 88, 20, 38, 14).fill(hex(0x000000));
-    sunken(sw, alpha(hex(0x4A4A70), 0.5f), hex(0x08080E));
+    Element sw = at(box(), W - 88, 20, 38, 14).fill(hexColor(0x000000));
+    sunken(sw, alpha(hexColor(0x4A4A70), 0.5f), hexColor(0x08080E));
     sw.child(box().inset(0).fill(previewCheck.material()));
     bottom.child(sw);
     w.child(bottom);
@@ -1384,7 +1392,8 @@ struct WinampBase : sketch::Sketch {
     }
 
     // --- the marquee wants its content width measured once.
-    marqueeW = ctx.measure(t(marqueeText(), pix(5, hex(0x00E000)))).width();
+    marqueeW =
+        ctx.measure(t(marqueeText(), pix(5, hexColor(0x00E000)))).width();
     if (marqueeW < 1) marqueeW = n(300);
 
     // --- one steppable drives every idle loop.

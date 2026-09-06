@@ -103,20 +103,20 @@ namespace daemon_console {
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
 // ---- palette: graphite steel, phosphor accents ----------------------------
-constexpr SkColor4f kVoid = hex(0x04060B);
-constexpr SkColor4f kGroundTop = hex(0x0A101A);
-constexpr SkColor4f kPanel = hex(0x0C121C, 0.97f);
-constexpr SkColor4f kRule = hex(0x22344A);
-constexpr SkColor4f kAccent = hex(0x59CBE3);
-constexpr SkColor4f kBone = hex(0xE8EFF6);
-constexpr SkColor4f kChrome = hex(0x8296AE);
-constexpr SkColor4f kDim = hex(0x49596D);
-constexpr SkColor4f kBody = hex(0xAFC8BB);
-constexpr SkColor4f kOk = hex(0x49D6A2);
-constexpr SkColor4f kWarn = hex(0xF2B04E);
-constexpr SkColor4f kCrit = hex(0xFF5752);
-constexpr SkColor4f kCritText = hex(0xFF7A73);
-constexpr SkColor4f kMeterBed = hex(0x16202E);
+constexpr SkColor4f kVoid = hexColor(0x04060B);
+constexpr SkColor4f kGroundTop = hexColor(0x0A101A);
+constexpr SkColor4f kPanel = hexColor(0x0C121C, 0.97f);
+constexpr SkColor4f kRule = hexColor(0x22344A);
+constexpr SkColor4f kAccent = hexColor(0x59CBE3);
+constexpr SkColor4f kBone = hexColor(0xE8EFF6);
+constexpr SkColor4f kChrome = hexColor(0x8296AE);
+constexpr SkColor4f kDim = hexColor(0x49596D);
+constexpr SkColor4f kBody = hexColor(0xAFC8BB);
+constexpr SkColor4f kOk = hexColor(0x49D6A2);
+constexpr SkColor4f kWarn = hexColor(0xF2B04E);
+constexpr SkColor4f kCrit = hexColor(0xFF5752);
+constexpr SkColor4f kCritText = hexColor(0xFF7A73);
+constexpr SkColor4f kMeterBed = hexColor(0x16202E);
 
 // ---- severities -----------------------------------------------------------
 enum Sev : int { kTrace = 0, kInfo, kSeal, kFlux, kBreach, kSevCount };
@@ -324,7 +324,7 @@ struct DaemonConsole final : sketch::Sketch {
                        {.face = faceMono, .size = 12.5f, .color = dc::kDim}));
     s.set("seal",
           weave::textStyle(
-              {.face = faceMono, .size = 12.5f, .color = hex(0x8FE5C4)}));
+              {.face = faceMono, .size = 12.5f, .color = hexColor(0x8FE5C4)}));
     s.set("flux", weave::textStyle(
                       {.face = faceMono, .size = 12.5f, .color = dc::kWarn}));
     s.set("breach",
@@ -619,9 +619,9 @@ struct DaemonConsole final : sketch::Sketch {
     const sdf::Style panelStyle{
         .fill = mskia::toColor(dc::kPanel),
         .borderWidth = 1.0f,
-        .borderColor = mskia::toColor(hex(0x3B5474, 0.95f)),
+        .borderColor = mskia::toColor(hexColor(0x3B5474, 0.95f)),
         .glowRadius = 6,
-        .glowColor = mskia::toColor(hex(0x3EC2DC, 0.22f))};
+        .glowColor = mskia::toColor(hexColor(0x3EC2DC, 0.22f))};
     Paint panel = Paint::recipe(sdf::material(sdf::roundBox(12), panelStyle));
     const float padX = sdf::pad(panelStyle) + 17.0f;
     const float padY = sdf::pad(panelStyle) + 12.0f;

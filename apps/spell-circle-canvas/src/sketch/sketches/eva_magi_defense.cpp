@@ -257,16 +257,22 @@ inline SkPoint unroll(SkPoint m) {
 // ---------------------------------------------------------------------------
 // PALETTE. Percentiles over the actual frame, classified by HSV.
 
-const SkColor4f kGround = hex(0x050A01);   // 51% of the frame; green-cast black
-const SkColor4f kHostile = hex(0xEE2C26);  // a captured MAGI (measured core)
-const SkColor4f kFriendly = hex(0x8BF0FE);  // MAGI 01, and every site pre-fall
-const SkColor4f kRim = hex(0xFF9456);       // 2 px core, blooms
-const SkColor4f kRimFriendly = hex(0xD6FBEA);
-const SkColor4f kNumeral = hex(0xFDA114);  // yellower and hotter than the rims
-const SkColor4f kInkHostile = hex(0x990000);  // knocked DARK into the plate
-const SkColor4f kInkFriendly = hex(0x29985E);
-const SkColor4f kAlarm = hex(0xFF4740);  // COLLAPSING — pure red, never orange
-const SkColor4f kCell = hex(0x060200);   // the cells are not quite black
+const SkColor4f kGround =
+    hexColor(0x050A01);  // 51% of the frame; green-cast black
+const SkColor4f kHostile =
+    hexColor(0xEE2C26);  // a captured MAGI (measured core)
+const SkColor4f kFriendly =
+    hexColor(0x8BF0FE);                     // MAGI 01, and every site pre-fall
+const SkColor4f kRim = hexColor(0xFF9456);  // 2 px core, blooms
+const SkColor4f kRimFriendly = hexColor(0xD6FBEA);
+const SkColor4f kNumeral =
+    hexColor(0xFDA114);  // yellower and hotter than the rims
+const SkColor4f kInkHostile =
+    hexColor(0x990000);  // knocked DARK into the plate
+const SkColor4f kInkFriendly = hexColor(0x29985E);
+const SkColor4f kAlarm =
+    hexColor(0xFF4740);  // COLLAPSING — pure red, never orange
+const SkColor4f kCell = hexColor(0x060200);  // the cells are not quite black
 
 /** THE FIELD, sampled down the reference plate.
  *
@@ -795,7 +801,7 @@ inline sk_sp<SkImage> fieldStrip(float hueTurn) {
   std::vector<mskia::Stop> stops;
   stops.reserve((size_t)kRampN);
   for (const auto& stop : kRamp)
-    stops.push_back({stop.t, hex(turnHue(stop.rgb, hueTurn))});
+    stops.push_back({stop.t, hexColor(turnHue(stop.rgb, hueTurn))});
   SkPaint paint;
   paint.setShader(
       mskia::Paint::linear({0, 0}, {0, kH}, std::move(stops)).asShader());

@@ -84,12 +84,12 @@ namespace teq {
 using namespace twoadvanced;
 
 // The page's entire palette, straight from its attributes.
-constexpr SkColor4f kMaroon = hex(0x7C252C);   // header rows, copy, links
-constexpr SkColor4f kRose = hex(0xF0E7E8);     // description cells
-constexpr SkColor4f kWhite = hex(0xFFFFFF);    // BODY bgColor
-constexpr SkColor4f kSbFace = hex(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
-constexpr SkColor4f kSbTrack = hex(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
-constexpr SkColor4f kSbArrow = hex(0x666666);  // SCROLLBAR-ARROW-COLOR
+constexpr SkColor4f kMaroon = hexColor(0x7C252C);   // header rows, copy, links
+constexpr SkColor4f kRose = hexColor(0xF0E7E8);     // description cells
+constexpr SkColor4f kWhite = hexColor(0xFFFFFF);    // BODY bgColor
+constexpr SkColor4f kSbFace = hexColor(0xBBC0C9);   // SCROLLBAR-FACE-COLOR
+constexpr SkColor4f kSbTrack = hexColor(0xE4E6EA);  // SCROLLBAR-TRACK-COLOR
+constexpr SkColor4f kSbArrow = hexColor(0x666666);  // SCROLLBAR-ARROW-COLOR
 
 /** Verdana at HTML size=1: 10 px — the one register the whole store is
  *  set in, bold only in the product headers. Untracked, because an HTML
@@ -301,7 +301,7 @@ struct TwoAdvancedEquipment : sketch::Sketch {
         box()
             .row()
             .child(box().width(13))
-            .child(img(p.thumb, 69, 52, hex(0xD8D0D0)))
+            .child(img(p.thumb, 69, 52, hexColor(0xD8D0D0)))
             .child(box().width(3))
             .child(
                 box()
@@ -352,9 +352,9 @@ struct TwoAdvancedEquipment : sketch::Sketch {
           .foreground(
               onEdges(path::Edge::Top | path::Edge::Left,
                       stroke(1, Fill::color(kWhite), PathFormat::Align::Inner)))
-          .foreground(onEdges(
-              path::Edge::Bottom | path::Edge::Right,
-              stroke(1, Fill::color(hex(0x000000)), PathFormat::Align::Inner)))
+          .foreground(onEdges(path::Edge::Bottom | path::Edge::Right,
+                              stroke(1, Fill::color(hexColor(0x000000)),
+                                     PathFormat::Align::Inner)))
           .justify(Justify::Center)
           .alignItems(Align::Center)
           .child(

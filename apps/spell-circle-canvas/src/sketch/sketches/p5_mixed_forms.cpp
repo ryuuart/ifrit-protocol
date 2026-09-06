@@ -56,10 +56,12 @@ struct P5MixedForms final : sketch::DrawSketch {
         .fill(compose::Fill::color({0.16f, 0.20f, 0.34f, 0.92f}))
         .child(compose::text(
             u8"a compose card, retained",
-            weave::textStyle({.size = 16, .color = compose::hex(0xffffff)})))
-        .child(compose::text(compose::toU8("frame " + std::to_string(frame)),
-                             weave::textStyle(
-                                 {.size = 13, .color = compose::hex(0x9fb0d0)}))
+            weave::textStyle(
+                {.size = 16, .color = compose::hexColor(0xffffff)})))
+        .child(compose::text(
+                   compose::toU8("frame " + std::to_string(frame)),
+                   weave::textStyle(
+                       {.size = 13, .color = compose::hexColor(0x9fb0d0)}))
                    .key("frame"));
   }
 

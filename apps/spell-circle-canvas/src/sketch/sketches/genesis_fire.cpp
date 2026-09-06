@@ -185,13 +185,13 @@ namespace {
 // ---------------------------------------------------------------------------
 // Palette — this study's own chrome, not sourced
 
-constexpr SkColor4f kInk = hex(0x06070B);
-constexpr SkColor4f kPanel = hex(0x0B0D14);
-constexpr SkColor4f kBone = hex(0xE9ECF3);
-constexpr SkColor4f kSteel = hex(0x77819A);
-constexpr SkColor4f kSteelDim = hex(0x545E74);
-constexpr SkColor4f kKeyline = hex(0x242A36);
-constexpr SkColor4f kCyan = hex(0x4FB8D8);
+constexpr SkColor4f kInk = hexColor(0x06070B);
+constexpr SkColor4f kPanel = hexColor(0x0B0D14);
+constexpr SkColor4f kBone = hexColor(0xE9ECF3);
+constexpr SkColor4f kSteel = hexColor(0x77819A);
+constexpr SkColor4f kSteelDim = hexColor(0x545E74);
+constexpr SkColor4f kKeyline = hexColor(0x242A36);
+constexpr SkColor4f kCyan = hexColor(0x4FB8D8);
 
 // THE EMISSION SEED. Everything about the fire's colour is a consequence
 // of this triple plus "light adds and clamps" [R83 §2.5].
@@ -725,8 +725,9 @@ struct GenesisFire final : sketch::DrawSketch {
     const int bin[5] = {1, 5, 19, 76, 319};
     // B-V ramp [S82]: Carpenter "deduced the colors of the individual
     // stars" from the Yale Bright Star Catalogue.
-    const SkColor4f bv[6] = {hex(0xAEC6FF), hex(0xD6E2FF), hex(0xFFFFFF),
-                             hex(0xFFE9B8), hex(0xFFC48A), hex(0xFF9E6E)};
+    const SkColor4f bv[6] = {hexColor(0xAEC6FF), hexColor(0xD6E2FF),
+                             hexColor(0xFFFFFF), hexColor(0xFFE9B8),
+                             hexColor(0xFFC48A), hexColor(0xFF9E6E)};
     const int bvWeight[6] = {6, 12, 20, 26, 24, 12};
     starPool = std::make_shared<instancing::Pool>();
     rng = 0x5EED1982u;
@@ -757,7 +758,7 @@ struct GenesisFire final : sketch::DrawSketch {
                         .width(3.2f)
                         .height(3.2f)
                         .shape(shapes::circle())
-                        .stroke(stroke(0.7f, Fill::color(hex(0x2E3A46)),
+                        .stroke(stroke(0.7f, Fill::color(hexColor(0x2E3A46)),
                                        PathFormat::Align::Inner)),
                     {4, 4});
     planAtlas->cell(box().width(4.0f).height(4.0f).fill(
@@ -854,25 +855,25 @@ struct GenesisFire final : sketch::DrawSketch {
                               }))
             .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
                                         {.duration = 620ms, .delay = 1300ms})),
-                    stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.35f))))
+                    stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.35f))))
             .key("asterism"));
 
     for (int i = 0; i < 8; ++i) {
       const SkPoint p = at(i);
       const float rad = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
       const bool sol = i == 7;
-      g.child(
-          kit::disc(p, rad * 2.0f)
-              .fill(Paint::radialUnit(
-                  {0.5f, 0.5f}, 0.707f,
-                  {{0.0f, sol ? hex(0xFFFFFF) : hex(0xEFF3FF)},
-                   {0.22f, sol ? hex(0xFFF4D8, 0.9f) : hex(0xD9E4FF, 0.85f)},
-                   {1.0f, {1, 1, 1, 0}}}))
-              .blend(SkBlendMode::kPlus)
-              .opacity(animate(from(0.0f).to(1.0f),
-                               {.duration = 500ms, .delay = 1200ms})));
+      g.child(kit::disc(p, rad * 2.0f)
+                  .fill(Paint::radialUnit(
+                      {0.5f, 0.5f}, 0.707f,
+                      {{0.0f, sol ? hexColor(0xFFFFFF) : hexColor(0xEFF3FF)},
+                       {0.22f, sol ? hexColor(0xFFF4D8, 0.9f)
+                                   : hexColor(0xD9E4FF, 0.85f)},
+                       {1.0f, {1, 1, 1, 0}}}))
+                  .blend(SkBlendMode::kPlus)
+                  .opacity(animate(from(0.0f).to(1.0f),
+                                   {.duration = 500ms, .delay = 1200ms})));
       g.child(t(kStars[i].name,
-                mono(7.0f, sol ? kCyan : hex(0x9FB0CC, 0.85f), 1.1f))
+                mono(7.0f, sol ? kCyan : hexColor(0x9FB0CC, 0.85f), 1.1f))
                   .left(p.fX + rad + 5.0f)
                   .top(p.fY - 5.0f)
                   .opacity(animate(from(0.0f).to(1.0f),
@@ -881,7 +882,7 @@ struct GenesisFire final : sketch::DrawSketch {
     // Smith's joke, verified in the header block.
     const SkPoint s = at(7);
     g.child(box().left(s.fX + 4).top(s.fY + 6).width(1).height(16).fill(
-        hex(0x4FB8D8, 0.5f)));
+        hexColor(0x4FB8D8, 0.5f)));
     g.child(box()
                 .left(s.fX + 9)
                 .top(s.fY + 12)
@@ -892,7 +893,7 @@ struct GenesisFire final : sketch::DrawSketch {
                 .child(t("m = 2.63 FROM \xce\xb5 INDI (3.64 pc)",
                          mono(7.0f, kCyan, 0.9f)))
                 .child(t("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"",
-                         mono(7.0f, hex(0x4FB8D8, 0.7f), 0.9f))));
+                         mono(7.0f, hexColor(0x4FB8D8, 0.7f), 0.9f))));
     return g;
   }
 
@@ -901,15 +902,15 @@ struct GenesisFire final : sketch::DrawSketch {
     // (Tom Duff's), riding the wavefront.
     Paint ground =
         Paint::blend({{Paint::radialUnit({0.5f, 0.723f}, 0.50f,
-                                         {{0.0f, hex(0x3B3933)},
-                                          {0.42f, hex(0x232119)},
-                                          {1.0f, hex(0x0A0A0C)}}),
+                                         {{0.0f, hexColor(0x3B3933)},
+                                          {0.42f, hexColor(0x232119)},
+                                          {1.0f, hexColor(0x0A0A0C)}}),
                        SkBlendMode::kSrc},
                       {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
                        SkBlendMode::kSoftLight},
                       {Pattern(patterns::speckle(170, 17, 0.9f, 3.4f,
-                                                 {toColor(hex(0x6A655B)),
-                                                  toColor(hex(0x171512))}))
+                                                 {toColor(hexColor(0x6A655B)),
+                                                  toColor(hexColor(0x171512))}))
                            .material(),
                        SkBlendMode::kOverlay}});
 
@@ -926,9 +927,9 @@ struct GenesisFire final : sketch::DrawSketch {
         // Duff's local light. ONE Output (loopU) shaped into px.
         .child(kit::disc(SkPoint{0, 0}, 132)
                    .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
-                                           {{0.0f, hex(0xFF8A3A, 0.62f)},
-                                            {0.38f, hex(0xC24E14, 0.24f)},
-                                            {1.0f, hex(0xFF8A3A, 0.0f)}}))
+                                           {{0.0f, hexColor(0xFF8A3A, 0.62f)},
+                                            {0.38f, hexColor(0xC24E14, 0.24f)},
+                                            {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
                    .blend(SkBlendMode::kPlus)
                    .translateX(bind(&loopU).scale(1680.0f).offset(-80.0f))
                    .translateY(limbY(444.0f) + 26.0f)
@@ -947,8 +948,8 @@ struct GenesisFire final : sketch::DrawSketch {
     g.child(kit::disc(impact, 170)
                 .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
                                         {{0.0f, {1, 1, 1, 0.95f}},
-                                         {0.25f, hex(0xFFE7B0, 0.6f)},
-                                         {1.0f, hex(0xFF7A20, 0.0f)}}))
+                                         {0.25f, hexColor(0xFFE7B0, 0.6f)},
+                                         {1.0f, hexColor(0xFF7A20, 0.0f)}}))
                 .blend(SkBlendMode::kPlus)
                 .opacity(bind(&loopU).map([](float v) {
                   const float t = v * 10.0f;
@@ -961,7 +962,7 @@ struct GenesisFire final : sketch::DrawSketch {
                 })));
     g.child(kit::disc(impact, 520)
                 .shape(shapes::circle())
-                .stroke(stroke(2.0f, Fill::color(hex(0xFFB070, 0.85f))))
+                .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
                 .blend(SkBlendMode::kPlus)
                 .scale(bind(&loopU)
                            .map([](float v) {
@@ -986,9 +987,9 @@ struct GenesisFire final : sketch::DrawSketch {
         .height(kStageH)
         .clip()
         .fill(Paint::linearUnit({0.5f, 0.0f}, {0.5f, 0.85f},
-                                {{0.0f, hex(0x03040A)},
-                                 {0.55f, hex(0x05060D)},
-                                 {1.0f, hex(0x0A0B13)}}))
+                                {{0.0f, hexColor(0x03040A)},
+                                 {0.55f, hexColor(0x05060D)},
+                                 {1.0f, hexColor(0x0A0B13)}}))
         .child(starField().zIndex(1))
         .child(dipper().zIndex(2))
         .child(regolith().zIndex(3))
@@ -1006,12 +1007,13 @@ struct GenesisFire final : sketch::DrawSketch {
             .height(184)
             .shape(shapes::circle())
             .clip(true)
-            .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.55f)),
+            .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.55f)),
                            PathFormat::Align::Inner))
             // the expanding wavefront ring — same Output, unit scale
             .child(kit::disc(SkPoint{34, 106}, 124)
                        .shape(shapes::circle())
-                       .stroke(stroke(1.0f, Fill::color(hex(0x4FB8D8, 0.75f))))
+                       .stroke(
+                           stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.75f))))
                        .scale(bind(&loopU)
                                   .scale(10.0f / (float)kFrontCrossSeconds)
                                   .clamp(0.004f, 1.0f)))
@@ -1025,7 +1027,7 @@ struct GenesisFire final : sketch::DrawSketch {
         .width(208)
         .height(208)
         .corners({6})
-        .fill(hex(0x0B0D14, 0.86f))
+        .fill(hexColor(0x0B0D14, 0.86f))
         .stroke(stroke(1.5f, Fill::color(kKeyline), PathFormat::Align::Inner))
         .opacity(
             animate(from(0.0f).to(1.0f), {.duration = 340ms, .delay = 900ms}))
@@ -1040,7 +1042,7 @@ struct GenesisFire final : sketch::DrawSketch {
                    .width(4)
                    .height(4)
                    .shape(shapes::circle())
-                   .fill(hex(0xFFFFFF, 0.95f)))
+                   .fill(hexColor(0xFFFFFF, 0.95f)))
         // rim caption on a curved baseline
         .child(t("IMPACT \xc2\xb7 KETI BANDAR \xc2\xb7 \xce\xb5 INDI",
                  mono(8.0f, kCyan, 1.4f))
@@ -1087,17 +1089,17 @@ struct GenesisFire final : sketch::DrawSketch {
   void blurCallout(Pen& pen, float x0, float y0, float w, float h, float a) {
     // the panel
     pen.noStroke();
-    pen.fill(hex(0x0B0D14, 0.86f * a));
+    pen.fill(hexColor(0x0B0D14, 0.86f * a));
     pen.rect(x0, y0, w, h, 6);
     pen.noFill();
-    pen.stroke(hex(0x242A36, a));
+    pen.stroke(hexColor(0x242A36, a));
     pen.strokeWeight(1.5f);
     pen.rect(x0 + 0.75f, y0 + 0.75f, w - 1.5f, h - 1.5f, 6);
     pen.noStroke();
 
     float cy = y0 + 11;
     pen.textFont(weave::Type{.face = uiFace(), .size = 8.5f, .track = 1.7f});
-    pen.fill(hex(0x4FB8D8, a));
+    pen.fill(hexColor(0x4FB8D8, a));
     pen.textAlign(sigil::draw::LEFT, sigil::draw::TOP);
     pen.text(
         "MOTION BLUR \xe2\x80\x94 REEVES 1983 \xc2\xa7"
@@ -1116,7 +1118,7 @@ struct GenesisFire final : sketch::DrawSketch {
     pen.fill(edge);
     pen.vertex(x1, sy - 5);
     pen.vertex(x2, sy - 5);
-    pen.fill(hex(hot.toSkColor() & 0xFFFFFFu, a));
+    pen.fill(hexColor(hot.toSkColor() & 0xFFFFFFu, a));
     pen.vertex(x1, sy);
     pen.vertex(x2, sy);
     pen.fill(edge);
@@ -1125,13 +1127,13 @@ struct GenesisFire final : sketch::DrawSketch {
     pen.endShape();
 
     // the two sample positions
-    pen.fill(hex(0xFFFFFF, 0.95f * a));
+    pen.fill(hexColor(0xFFFFFF, 0.95f * a));
     pen.circle(x2, sy, 5.2f);
-    pen.fill(hex(0xFFFFFF, 0.45f * a));
+    pen.fill(hexColor(0xFFFFFF, 0.45f * a));
     pen.circle(x1, sy, 4.0f);
     // cyan dimension bracket
     pen.noFill();
-    pen.stroke(hex(0x4FB8D8, 0.9f * a));
+    pen.stroke(hexColor(0x4FB8D8, 0.9f * a));
     pen.strokeWeight(1.0f);
     const float by = sy + 13;
     pen.line(x1, by - 3, x1, by + 3);
@@ -1139,10 +1141,10 @@ struct GenesisFire final : sketch::DrawSketch {
     pen.line(x1, by, x2, by);
     pen.noStroke();
     // labels
-    penMono(pen, 7.0f, hex(0x9FB0CC, a));
+    penMono(pen, 7.0f, hexColor(0x9FB0CC, a));
     pen.text("pos(f + 1/2)", x1 - 8, sy - 18);
     pen.text("pos(f)", x2 - 14, sy - 18);
-    penMono(pen, 7.0f, hex(0x4FB8D8, a));
+    penMono(pen, 7.0f, hexColor(0x4FB8D8, a));
     pen.text("0.5 \xc2\xb7 |v|", (x1 + x2) * 0.5f - 16, by + 4);
 
     cy = y0 + h - 46;
@@ -1206,7 +1208,7 @@ struct GenesisFire final : sketch::DrawSketch {
   Element censusBar(float frac, SkColor4f c, const char* key) {
     sketch::kit::Meter bar{.width = Dim(96),
                            .height = Dim(7),
-                           .track = Fill::color(hex(0x171B24)),
+                           .track = Fill::color(hexColor(0x171B24)),
                            .bar = Fill::color(c)};
     bar.level = animate(
         from(0.0f).to(frac),
@@ -1230,7 +1232,7 @@ struct GenesisFire final : sketch::DrawSketch {
         .child(censusCell(sys, 62, mono(9.5f, c, 0.4f)))
         .child(censusCell(particles, 108, monoB(9.5f, c, 0.4f)))
         .child(censusCell(per, 76, mono(9.5f, cd, 0.4f)))
-        .child(censusBar(frac, live ? kCyan : hex(0x6D5A3F),
+        .child(censusBar(frac, live ? kCyan : hexColor(0x6D5A3F),
                          live ? "livebar" : nullptr));
   }
 
@@ -1358,8 +1360,8 @@ struct GenesisFire final : sketch::DrawSketch {
                    .height(52)
                    .shrink(0)
                    .clip(true)
-                   .fill(hex(0x05060A))
-                   .stroke(stroke(1.0f, Fill::color(hex(0x1B2029)),
+                   .fill(hexColor(0x05060A))
+                   .stroke(stroke(1.0f, Fill::color(hexColor(0x1B2029)),
                                   PathFormat::Align::Inner))
                    .child(std::move(content)))
         .child(t(caption, mono(7.0f, cc, 0.2f))
@@ -1374,22 +1376,22 @@ struct GenesisFire final : sketch::DrawSketch {
     return panel(kPanelH[3], 4)
         .gap(4)
         .child(panelHead("RENDER MODEL \xe2\x80\x94 THREE PATHS, ONE POOL"))
-        .child(
-            box()
-                .row()
-                .gap(15)
-                .shrink(0)
-                .child(benchCell(box().inset(0).child(instancing::instances(
-                                     abAtlas, abPool, instancing::Mode::Live,
-                                     SkBlendMode::kSrcOver)),
-                                 "instances() \xc2\xb7 kSrcOver",
-                                 hex(0x8A93A8)))
-                .child(benchCell(box().inset(0).child(instancing::instances(
-                                     abAtlas, abPool, instancing::Mode::Live,
-                                     SkBlendMode::kPlus)),
-                                 "instances() \xc2\xb7 kPlus", hex(0xFFB672)))
-                .child(benchCell(box().inset(0), "pen quads \xc2\xb7 kPlus",
-                                 hex(0xFFB672))))
+        .child(box()
+                   .row()
+                   .gap(15)
+                   .shrink(0)
+                   .child(benchCell(box().inset(0).child(instancing::instances(
+                                        abAtlas, abPool, instancing::Mode::Live,
+                                        SkBlendMode::kSrcOver)),
+                                    "instances() \xc2\xb7 kSrcOver",
+                                    hexColor(0x8A93A8)))
+                   .child(benchCell(box().inset(0).child(instancing::instances(
+                                        abAtlas, abPool, instancing::Mode::Live,
+                                        SkBlendMode::kPlus)),
+                                    "instances() \xc2\xb7 kPlus",
+                                    hexColor(0xFFB672)))
+                   .child(benchCell(box().inset(0), "pen quads \xc2\xb7 kPlus",
+                                    hexColor(0xFFB672))))
         .child(box().grow(1))
         .child(t("SAME 700 PARTICLES, ONE POOL. LEFT AND CENTRE DIFFER ONLY "
                  "IN BLEND: kSrcOver CANNOT ACCUMULATE, SO ITS WHOLE PALETTE "
@@ -1592,7 +1594,8 @@ struct GenesisFire final : sketch::DrawSketch {
                 cue(pen.millis(), 1150, 340));
     // the bezel
     pen.noFill();
-    pen.stroke(hex(0x242A36, cue(pen.millis(), 260, 520, &ch::easeOutCubic)));
+    pen.stroke(
+        hexColor(0x242A36, cue(pen.millis(), 260, 520, &ch::easeOutCubic)));
     pen.strokeWeight(1.5f);
     pen.rect(kStageX + 0.75f, kBodyY + 0.75f, kStageW - 1.5f, kStageH - 1.5f);
     pen.noStroke();
@@ -1650,7 +1653,7 @@ struct GenesisFire final : sketch::DrawSketch {
                   ctx.measured(buildUs / 1000.0));
     const float right = kStageX + kStageW;
     pen.textAlign(sigil::draw::RIGHT, sigil::draw::TOP);
-    penMono(pen, 8.5f, fadeTo(hex(0xFFB672, 0.85f), a), 0.5f);
+    penMono(pen, 8.5f, fadeTo(hexColor(0xFFB672, 0.85f), a), 0.5f);
     pen.text(buf, right, kCaptionY);
     penMono(pen, 8.5f, fadeTo(kSteel, a), 0.5f);
     pen.text(
@@ -1658,7 +1661,7 @@ struct GenesisFire final : sketch::DrawSketch {
         "666 = 4:3 \xe2\x80\x94 THE 500-LINE VIDEO RASTER THE DEMO WAS "
         "COMPUTED FOR",
         right, kCaptionY + 12);
-    penMono(pen, 8.5f, fadeTo(hex(0xFF8A3A, 0.75f), a), 0.5f);
+    penMono(pen, 8.5f, fadeTo(hexColor(0xFF8A3A, 0.75f), a), 0.5f);
     pen.text(
         "WARM GROUND LIGHT RIDING THE FRONT = TOM DUFF'S LOCAL LIGHT, "
         "THE ONLY HAND-PLACED LIGHT IN THE SHOT",

@@ -250,24 +250,24 @@ constexpr float kW = 1280.0f;
 constexpr float kH = 1280.0f;
 
 // ---- palette: chalk by candlelight, then one hue of light -----------------
-constexpr SkColor4f kNight = hex(0x0A0812);
-constexpr SkColor4f kNightLift = hex(0x141021);
-constexpr SkColor4f kGold = hex(0xD8A94E);
-constexpr SkColor4f kBone = hex(0xE9DFC8);
-constexpr SkColor4f kEmber = hex(0x8A4A26);
-constexpr SkColor4f kIron = hex(0x3B3554);     // construction lines
-constexpr SkColor4f kIronDim = hex(0x262238);  // faint construction
-constexpr SkColor4f kAsh = hex(0x8A8299);      // secondary type
-constexpr SkColor4f kAshDim = hex(0x8A8299, 0.62f);
-constexpr SkColor4f kRuneInk = hex(0x9C8FB8);  // the register's ink
+constexpr SkColor4f kNight = hexColor(0x0A0812);
+constexpr SkColor4f kNightLift = hexColor(0x141021);
+constexpr SkColor4f kGold = hexColor(0xD8A94E);
+constexpr SkColor4f kBone = hexColor(0xE9DFC8);
+constexpr SkColor4f kEmber = hexColor(0x8A4A26);
+constexpr SkColor4f kIron = hexColor(0x3B3554);     // construction lines
+constexpr SkColor4f kIronDim = hexColor(0x262238);  // faint construction
+constexpr SkColor4f kAsh = hexColor(0x8A8299);      // secondary type
+constexpr SkColor4f kAshDim = hexColor(0x8A8299, 0.62f);
+constexpr SkColor4f kRuneInk = hexColor(0x9C8FB8);  // the register's ink
 
 // ---- the ignited palette: ONE hue family, value doing the drawing --------
 // Not a second scheme beside the candlelit one. It is the state the circle
 // changes INTO: chalk is pigment on a surface and reflects what the room
 // gives it, light is emitted and collapses to one hue with a white core.
-constexpr SkColor4f kCore = hex(0xFFF6E2);   // the white-hot core
-constexpr SkColor4f kHalo = hex(0xFFC152);   // the saturated halo
-constexpr SkColor4f kBloom = hex(0xC96F1E);  // the wide dim bloom
+constexpr SkColor4f kCore = hexColor(0xFFF6E2);   // the white-hot core
+constexpr SkColor4f kHalo = hexColor(0xFFC152);   // the saturated halo
+constexpr SkColor4f kBloom = hexColor(0xC96F1E);  // the wide dim bloom
 
 // ---- the circle's frame ---------------------------------------------------
 constexpr SkPoint kEye{640.0f, 640.0f};  // centre in canvas px
@@ -1322,7 +1322,7 @@ struct RotaConvocationis : sketch::Sketch {
         .child(kit::disc(c, kSpurR)
                    .key("spur-ground")
                    .hitTestable(false)
-                   .fill(Fill::color(hex(0x0D0A16, 0.92f)))
+                   .fill(Fill::color(hexColor(0x0D0A16, 0.92f)))
                    .opacity(beat(0.9, 1.4)))
         .child(line("spur-rules", spurRules, 1.2f, kIron, 1.0, 0.9))
         .child(text(toU8(spurText), rune(19.0f, kBone, 0.0f))
@@ -1468,13 +1468,13 @@ struct RotaConvocationis : sketch::Sketch {
                    .inset(0)
                    .corners({kSealR})
                    .hitTestable(false)
-                   .fill(Fill::color(hex(0x0D0A16, 0.94f)))
+                   .fill(Fill::color(hexColor(0x0D0A16, 0.94f)))
                    // The ground is dressed rather than shaded: an inner glow is
                    // a blurred band hugging its own edge, a value decoration
                    // that records once with the disc it sits on. It gives the
                    // seal a lip of light without a second node and without a
                    // shader.
-                   .overlay(styles::innerGlow(hex(0xE79A32, 0.30f), 8.0f))
+                   .overlay(styles::innerGlow(hexColor(0xE79A32, 0.30f), 8.0f))
                    .opacity(beat(at, at + 0.4)));
     // The seal's own emissive rule. A seal is a small magic circle, so it
     // lights like one — but its two rules are concentric and cross
@@ -1692,31 +1692,32 @@ struct RotaConvocationis : sketch::Sketch {
     Element panel = box().key("rota").absolute().inset(0).hitTestable(false);
 
     // The ground wash under the figure.
-    panel.child(
-        box()
-            .key("rota-wash")
-            .absolute()
-            .inset(0)
-            .hitTestable(false)
-            .fill(mskia::Paint::glowUnit(
-                {0.5f, 0.5f}, 0.62f,
-                {{0.0f, kNightLift}, {0.66f, hex(0x0D0A18)}, {1.0f, kNight}})));
+    panel.child(box()
+                    .key("rota-wash")
+                    .absolute()
+                    .inset(0)
+                    .hitTestable(false)
+                    .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.62f,
+                                                 {{0.0f, kNightLift},
+                                                  {0.66f, hexColor(0x0D0A18)},
+                                                  {1.0f, kNight}})));
 
     // THE FLOOD: light thrown at the whole sheet from behind the figure.
     // It screens, so it lifts what is already there toward white instead
     // of laying a wash over it, and it is worth its full-panel gradient
     // only while it is on — at gain zero the node is not painted at all.
-    panel.child(box()
-                    .key("flood")
-                    .absolute()
-                    .inset(-120)
-                    .hitTestable(false)
-                    .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.86f,
-                                                 {{0.0f, hex(0xFFD98A, 0.55f)},
-                                                  {0.42f, hex(0xE79A32, 0.30f)},
-                                                  {1.0f, hex(0xC96F1E, 0.0f)}}))
-                    .blend(SkBlendMode::kScreen)
-                    .opacity(&floodA));
+    panel.child(
+        box()
+            .key("flood")
+            .absolute()
+            .inset(-120)
+            .hitTestable(false)
+            .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.86f,
+                                         {{0.0f, hexColor(0xFFD98A, 0.55f)},
+                                          {0.42f, hexColor(0xE79A32, 0.30f)},
+                                          {1.0f, hexColor(0xC96F1E, 0.0f)}}))
+            .blend(SkBlendMode::kScreen)
+            .opacity(&floodA));
 
     // THE RAYS, thrown past the figure at ignition — the reading that
     // makes an ignition a whole-frame event and not a brighter drawing.
@@ -1876,20 +1877,21 @@ struct RotaConvocationis : sketch::Sketch {
     // The scribe: the point of the pen, led round the band by the writing
     // cascade — placed every frame from the schedule read back, so it
     // cannot drift from the letters it appears to write.
-    panel.child(box()
-                    .key("scribe")
-                    .left(-9)
-                    .top(-9)
-                    .width(18)
-                    .height(18)
-                    .hitTestable(false)
-                    .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.5f,
-                                                 {{0.0f, hex(0xFFE9B0)},
-                                                  {0.35f, hex(0xD8A94E, 0.55f)},
-                                                  {1.0f, hex(0xD8A94E, 0.0f)}}))
-                    .translateX(&scribeX)
-                    .translateY(&scribeY)
-                    .opacity(&scribeA));
+    panel.child(
+        box()
+            .key("scribe")
+            .left(-9)
+            .top(-9)
+            .width(18)
+            .height(18)
+            .hitTestable(false)
+            .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 0.5f,
+                                         {{0.0f, hexColor(0xFFE9B0)},
+                                          {0.35f, hexColor(0xD8A94E, 0.55f)},
+                                          {1.0f, hexColor(0xD8A94E, 0.0f)}}))
+            .translateX(&scribeX)
+            .translateY(&scribeY)
+            .opacity(&scribeA));
     return panel;
   }
 
@@ -1931,7 +1933,7 @@ struct RotaConvocationis : sketch::Sketch {
                          " GLYPHS \xc2\xb7 23 CVRVED BASELINES \xc2\xb7 10 "
                          "TVRNING LAYERS \xc2\xb7 EVERY START CHAINED FROM A "
                          "SPAN, NONE FITTED BY HAND"),
-                    label(8.5f, hex(0x8A8299, 0.42f), 2.4f))
+                    label(8.5f, hexColor(0x8A8299, 0.42f), 2.4f))
                    .key("colophon-2")
                    .opacity(beat(tIgnite + 0.4, tIgnite + 1.2)));
   }
@@ -2249,10 +2251,10 @@ struct RotaConvocationis : sketch::Sketch {
     emberAtlas = std::make_shared<instancing::Atlas>(2.0f);
     emberFrame = emberAtlas->cell(
         box().fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                          {{0.0f, hex(0xFFF3D2)},
-                                           {0.22f, hex(0xFFD277, 0.85f)},
-                                           {0.55f, hex(0xE79A32, 0.30f)},
-                                           {1.0f, hex(0xC96F1E, 0.0f)}})),
+                                          {{0.0f, hexColor(0xFFF3D2)},
+                                           {0.22f, hexColor(0xFFD277, 0.85f)},
+                                           {0.55f, hexColor(0xE79A32, 0.30f)},
+                                           {1.0f, hexColor(0xC96F1E, 0.0f)}})),
         {22, 22});
     embers = std::make_shared<instancing::Pool>();
     embers->resize(kEmbers);

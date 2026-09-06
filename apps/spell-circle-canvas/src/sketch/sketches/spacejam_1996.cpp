@@ -177,8 +177,8 @@ inline SkColor4f C5(uint32_t rgb, float a = 1.0f) noexcept {
 
 // Straight out of the shipped HTML:
 // <body bgcolor="#000000" text="#ff0000" link="#ff4c4c" ...>
-constexpr SkColor4f kPageBlack = hex(0x000000);
-constexpr SkColor4f kBodyText = hex(0xFF0000);
+constexpr SkColor4f kPageBlack = hexColor(0x000000);
+constexpr SkColor4f kBodyText = hexColor(0xFF0000);
 
 // The label treatment, pixel-sampled and identical on all twelve GIFs
 // THE LABELS ARE NOT ALL YELLOW. The shipped art sets STELLAR SOUVENIRS,

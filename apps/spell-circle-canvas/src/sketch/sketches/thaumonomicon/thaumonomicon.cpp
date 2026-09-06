@@ -278,20 +278,20 @@ constexpr uint32_t kMortuus = 0x6A0005, kInstrumentum = 0x4040EE;
 }  // namespace aspect
 
 // Reconstructed ink/parchment.
-const SkColor4f kInkDeep = hex(0x0E0A06);
-const SkColor4f kInkBody = hex(0xEADCBC);
-const SkColor4f kPaper = hex(0xA0865E);
-const SkColor4f kPaperLit = hex(0xCDAE7B);
-const SkColor4f kPaperDark = hex(0x2A2113);
-const SkColor4f kBrass = hex(0x8A6E38);
-const SkColor4f kBrassLit = hex(0xC9A860);
-const SkColor4f kBrassDark = hex(0x2A200F);
+const SkColor4f kInkDeep = hexColor(0x0E0A06);
+const SkColor4f kInkBody = hexColor(0xEADCBC);
+const SkColor4f kPaper = hexColor(0xA0865E);
+const SkColor4f kPaperLit = hexColor(0xCDAE7B);
+const SkColor4f kPaperDark = hexColor(0x2A2113);
+const SkColor4f kBrass = hexColor(0x8A6E38);
+const SkColor4f kBrassLit = hexColor(0xC9A860);
+const SkColor4f kBrassDark = hexColor(0x2A200F);
 
 // Text colours, converted from the source's decimal literals.
-const SkColor4f kTextGold = hex(0xFFAA00);    // §6
-const SkColor4f kTextRed = hex(0xFF5555);     // §c
-const SkColor4f kTextYellow = hex(0xFFFF55);  // §e
-const SkColor4f kTextWhite = hex(0xFFFFFF);
+const SkColor4f kTextGold = hexColor(0xFFAA00);    // §6
+const SkColor4f kTextRed = hexColor(0xFF5555);     // §c
+const SkColor4f kTextYellow = hexColor(0xFFFF55);  // §e
+const SkColor4f kTextWhite = hexColor(0xFFFFFF);
 
 // ---------------------------------------------------------------------------
 // THE EDGE TIERS — genResearchBackgroundZoomable:550-571. The web itself
@@ -681,18 +681,18 @@ struct Ink {
 
 /** A stoppered phial/bottle silhouette shared by several icons. */
 inline void glassVessel(const Ink& k, SkColor4f liquid, float top = 4) {
-  k.r(6, top - 1, 4, 2, hex(0x6B5030));  // cork
-  k.r(6, top + 1, 4, 1, hex(0x8A8FA0));  // neck
-  k.r(5, top + 2, 6, 11 - (top - 4), hex(0xB6C6D6, 0.35f));
-  k.r(5, top + 2, 1, 11 - (top - 4), hex(0xE7F1F8, 0.55f));
+  k.r(6, top - 1, 4, 2, hexColor(0x6B5030));  // cork
+  k.r(6, top + 1, 4, 1, hexColor(0x8A8FA0));  // neck
+  k.r(5, top + 2, 6, 11 - (top - 4), hexColor(0xB6C6D6, 0.35f));
+  k.r(5, top + 2, 1, 11 - (top - 4), hexColor(0xE7F1F8, 0.55f));
   k.r(6, top + 6, 4, 7 - (top - 4), liquid);
-  k.r(5, 14, 6, 1, hex(0x2A3240));
+  k.r(5, 14, 6, 1, hexColor(0x2A3240));
 }
 
 inline void drawGlyph(SkCanvas& canvas, int glyph, float alpha) {
   const Ink k{canvas};
   auto a = [alpha](uint32_t word, float mulA = 1.0f) {
-    return hex(word, alpha * mulA);
+    return hexColor(word, alpha * mulA);
   };
   switch (glyph) {
     case gAspect: {  // cat_alchemy.png — the alkimia aspect medallion
@@ -880,9 +880,10 @@ inline Element researchBadge() {
       .width(g(16))
       .height(g(16))
       .shape(shapes::star(4, 0.30f, 0.55f))
-      .fill(Paint::radialUnit(
-          {0.5f, 0.5f}, 0.9f,
-          {{0, hex(0xFFF3C0)}, {0.45f, hex(0xFFAA00)}, {1, hex(0xFFAA00, 0)}}));
+      .fill(Paint::radialUnit({0.5f, 0.5f}, 0.9f,
+                              {{0, hexColor(0xFFF3C0)},
+                               {0.45f, hexColor(0xFFAA00)},
+                               {1, hexColor(0xFFAA00, 0)}}));
 }
 inline Element pageBadge() {
   Element e = box()
@@ -901,9 +902,10 @@ inline Element pageBadge() {
                                       p.close();
                                       return p.detach();
                                     }))
-                  .fill(Fill::color(hex(0xD9E8C6)));
-  e.stroke(PathFormat{.width = g(1), .strokeFill = Fill::color(hex(0x2A3A1E))});
-  e.overlay(lines::Hatch{.strokeFill = Fill::color(hex(0x5A7A46, 0.75f)),
+                  .fill(Fill::color(hexColor(0xD9E8C6)));
+  e.stroke(
+      PathFormat{.width = g(1), .strokeFill = Fill::color(hexColor(0x2A3A1E))});
+  e.overlay(lines::Hatch{.strokeFill = Fill::color(hexColor(0x5A7A46, 0.75f)),
                          .spacing = g(2.4f),
                          .width = g(0.8f),
                          .angleDeg = 0});
@@ -923,16 +925,17 @@ inline Element pageBadge() {
 
 inline Element warpSwirl(const ch::Output<float>* spin, int strength) {
   const float a = 0.30f + 0.09f * (float)strength;
-  Element e = box()
-                  .width(g(44))
-                  .height(g(44))
-                  .shape(shapes::star(6, 0.50f, 0.62f))
-                  .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                          {{0.0f, hex(0xC060FF, a)},
-                                           {0.45f, hex(0x7A0BA8, a * 0.8f)},
-                                           {1.0f, hex(0x2A0038, 0)}}))
-                  .blend(SkBlendMode::kPlus)
-                  .rotate(bind(spin).scale(360.0f));
+  Element e =
+      box()
+          .width(g(44))
+          .height(g(44))
+          .shape(shapes::star(6, 0.50f, 0.62f))
+          .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
+                                  {{0.0f, hexColor(0xC060FF, a)},
+                                   {0.45f, hexColor(0x7A0BA8, a * 0.8f)},
+                                   {1.0f, hexColor(0x2A0038, 0)}}))
+          .blend(SkBlendMode::kPlus)
+          .rotate(bind(spin).scale(360.0f));
   return e;
 }
 
@@ -1132,11 +1135,11 @@ struct Thaumonomicon : sketch::Sketch {
         // ground — a 2.0 : 1.5 depth ratio only reads when the two planes
         // hold structure the eye can follow.
         Paint::radialUnit({0.44f, 0.38f}, 1.20f,
-                          {{0.00f, hex(0x6E2A72)},
-                           {0.22f, hex(0x4A1A56)},
-                           {0.46f, hex(0x2A1036)},
-                           {0.74f, hex(0x140A1C)},
-                           {1.00f, hex(0x060309)}}));
+                          {{0.00f, hexColor(0x6E2A72)},
+                           {0.22f, hexColor(0x4A1A56)},
+                           {0.46f, hexColor(0x2A1036)},
+                           {0.74f, hexColor(0x140A1C)},
+                           {1.00f, hexColor(0x060309)}}));
     // The painted plate under it: an alchemical wheel, a ruled margin, and
     // washes — the structure a photographed grimoire page carries and a noise
     // field never will.
@@ -1151,9 +1154,9 @@ struct Thaumonomicon : sketch::Sketch {
         const float x = (0.5f + 0.5f * noise1(i, 1, 5)) * in.size.width();
         const float y = (0.5f + 0.5f * noise1(i, 2, 5)) * in.size.height();
         const float r = g(26.0f + 72.0f * (0.5f + 0.5f * noise1(i, 3, 5)));
-        p.setColor4f(
-            (i % 2 != 0) ? hex(0xB03CC0, 0.055f) : hex(0x120618, 0.20f),
-            nullptr);
+        p.setColor4f((i % 2 != 0) ? hexColor(0xB03CC0, 0.055f)
+                                  : hexColor(0x120618, 0.20f),
+                     nullptr);
         c.drawCircle(x, y, r, p);
       }
       // …and the star field over it. Two magnitudes, seeded, so the near
@@ -1162,7 +1165,7 @@ struct Thaumonomicon : sketch::Sketch {
         const float x = (0.5f + 0.5f * noise1(i, 11, 7)) * in.size.width();
         const float y = (0.5f + 0.5f * noise1(i, 12, 7)) * in.size.height();
         const float m = 0.5f + 0.5f * noise1(i, 13, 7);
-        p.setColor4f(hex(0xF2E4FF, 0.16f + 0.60f * m * m), nullptr);
+        p.setColor4f(hexColor(0xF2E4FF, 0.16f + 0.60f * m * m), nullptr);
         c.drawCircle(x, y, g(m > 0.86f ? 1.3f : 0.7f), p);
       }
       p.setStyle(SkPaint::kStroke_Style);
@@ -1198,7 +1201,7 @@ struct Thaumonomicon : sketch::Sketch {
       }
       c.drawPath(t.detach(), p);
       // strata: long diagonal scrapes across the plate
-      p.setColor4f(hex(0xD8C08A, 0.055f), nullptr);
+      p.setColor4f(hexColor(0xD8C08A, 0.055f), nullptr);
       SkPathBuilder s2;
       for (int i = 0; i < 22; ++i) {
         const float y0 = (0.5f + 0.5f * noise1(i, 9, 4)) * in.size.height();
@@ -1230,9 +1233,9 @@ struct Thaumonomicon : sketch::Sketch {
         .fill(Paint::blend({{Paint::recipe(field::grain(0.0075f, 4, 11.0f)),
                              SkBlendMode::kSrc},
                             {Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                               {{0.0f, hex(0xFFFFFF)},
-                                                {0.7f, hex(0x808080)},
-                                                {1.0f, hex(0x000000)}}),
+                                               {{0.0f, hexColor(0xFFFFFF)},
+                                                {0.7f, hexColor(0x808080)},
+                                                {1.0f, hexColor(0x000000)}}),
                              SkBlendMode::kMultiply}}));
   }
 
@@ -1482,7 +1485,7 @@ struct Thaumonomicon : sketch::Sketch {
                          [cat, selected](SkCanvas& c, const PaintContext&) {
                            const Ink k{c};
                            const SkColor4f col =
-                               hex(cat.aspect, selected ? 1.0f : 0.66f);
+                               hexColor(cat.aspect, selected ? 1.0f : 0.66f);
                            // seven distinct runes, one per category
                            switch (cat.rune) {
                              case 0:
@@ -1576,14 +1579,14 @@ struct Thaumonomicon : sketch::Sketch {
           // plus its 1 px shadow, which then cross the inner border.
           const SkRect r = SkRect::MakeLTRB(g(x - 4), g(y - 4), g(x + wd + 4),
                                             g(y + ht + 3));
-          p.setColor4f(hex(0x100010, 0.94f), nullptr);
+          p.setColor4f(hexColor(0x100010, 0.94f), nullptr);
           c.drawRect(r, p);
           // the vanilla two-tone inner border
           p.setStyle(SkPaint::kStroke_Style);
           p.setStrokeWidth(g(1));
-          p.setColor4f(hex(0x5000FF, 0.31f), nullptr);
+          p.setColor4f(hexColor(0x5000FF, 0.31f), nullptr);
           c.drawRect(r.makeInset(g(1), g(1)), p);
-          p.setColor4f(hex(0x28007F, 0.31f), nullptr);
+          p.setColor4f(hexColor(0x28007F, 0.31f), nullptr);
           c.drawRect(r.makeInset(g(2), g(2)), p);
           blitText(c, a, x, y, kTextGold);
           blitText(c, b, x, y + 10, kTextRed);
@@ -1598,7 +1601,7 @@ struct Thaumonomicon : sketch::Sketch {
     // px, so every stamped tile on the 24-px lattice lands whole.
     sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
                              .captureAt = 6.0,
-                             .background = hex(0x0B0906),
+                             .background = hexColor(0x0B0906),
                              .oversample = 2});
 
     face = systemFace();

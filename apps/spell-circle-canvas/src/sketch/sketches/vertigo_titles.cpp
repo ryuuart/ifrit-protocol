@@ -178,13 +178,13 @@ constexpr float kDeg = kPi / 180.0f;
 // chrome palette — this study's own (film-base warm black, deliberately
 // warmer than a neutral UI near-black)
 
-constexpr SkColor4f kInk = hex(0x0A0806);    // canvas
-constexpr SkColor4f kPlate = hex(0x110D0A);  // sidebar plates
-constexpr SkColor4f kBone = hex(0xEDE6D8);   // primary type
-constexpr SkColor4f kSteel = hex(0x8A7D68);  // secondary type
-constexpr SkColor4f kSteelDim = hex(0x8A7D68, 0.62f);
-constexpr SkColor4f kKeyline = hex(0x3A342C);   // panel keylines
-constexpr SkColor4f kSolidInk = hex(0x050403);  // "solid black capitals"
+constexpr SkColor4f kInk = hexColor(0x0A0806);    // canvas
+constexpr SkColor4f kPlate = hexColor(0x110D0A);  // sidebar plates
+constexpr SkColor4f kBone = hexColor(0xEDE6D8);   // primary type
+constexpr SkColor4f kSteel = hexColor(0x8A7D68);  // secondary type
+constexpr SkColor4f kSteelDim = hexColor(0x8A7D68, 0.62f);
+constexpr SkColor4f kKeyline = hexColor(0x3A342C);   // panel keylines
+constexpr SkColor4f kSolidInk = hexColor(0x050403);  // "solid black capitals"
 
 // ---------------------------------------------------------------------------
 // canvas / panel geometry — 1480x800 is the film's own 1.85:1
@@ -225,16 +225,16 @@ constexpr int kSamples = 1100;
 constexpr float kNib = 0.008f;
 
 constexpr std::array<Card, 4> kCards = {{
-    {"A", 3, 2, 90.0f, 0.15f, 200.0f, 0.035f, hex(0xE0601A),
+    {"A", 3, 2, 90.0f, 0.15f, 200.0f, 0.035f, hexColor(0xE0601A),
      "A — WARM / ORANGE · a:b = 3:2 · δ 90°",
      "k 0.15 · R 176 px · 3-petal rosette, slow precession"},
-    {"B", 5, 4, 0.0f, 0.10f, 195.0f, 0.020f, hex(0xC81E2C),
+    {"B", 5, 4, 0.0f, 0.10f, 195.0f, 0.020f, hexColor(0xC81E2C),
      "B — RED · a:b = 5:4 · δ 0°",
      "k 0.10 · R 172 px · tight weave, near-static precession"},
-    {"C", 2, 1, 45.0f, 0.22f, 205.0f, 0.045f, hex(0x1C4F9C),
+    {"C", 2, 1, 45.0f, 0.22f, 205.0f, 0.045f, hexColor(0x1C4F9C),
      "C — COOL / BLUE · a:b = 2:1 · δ 45°",
      "k 0.22 · R 180 px · figure-eight base, fast precession"},
-    {"D", 5, 3, 60.0f, 0.12f, 190.0f, 0.030f, hex(0x5A2E82),
+    {"D", 5, 3, 60.0f, 0.12f, 190.0f, 0.030f, hexColor(0x5A2E82),
      "D — PURPLE · a:b = 5:3 · δ 60°", "k 0.12 · R 167 px · 5-lobe flower"},
 }};
 
@@ -359,7 +359,7 @@ struct VertigoTitles : sketch::Sketch {
             .key("curve" + tag)
             .shape(figure(c))
             .stroke(spans::upTo(&growth[i]),
-                    brush::presets::filament(c.core, hex(0xFFE9CF), 0.48f))
+                    brush::presets::filament(c.core, hexColor(0xFFE9CF), 0.48f))
             .rotate(turntable())
             .opacity(&cardA[i]));
 
@@ -399,23 +399,22 @@ struct VertigoTitles : sketch::Sketch {
                      .key("screen")
                      .fill(irisMat);
 
-    panel.child(ring(61.0f, hex(0x090604, 0.85f), 3.0f)
+    panel.child(ring(61.0f, hexColor(0x090604, 0.85f), 3.0f)
                     .key("pupil-edge")
                     .opacity(animate(from(0.0f).to(1.0f), ramp(300, 420))));
-    panel.child(ring(146.0f, hex(0x2A1D10, 0.40f), 1.2f).key("iris-mid"));
-    panel.child(ring(262.0f, hex(0x120C07, 0.24f), 10.0f).key("limbus"));
+    panel.child(ring(146.0f, hexColor(0x2A1D10, 0.40f), 1.2f).key("iris-mid"));
+    panel.child(ring(262.0f, hexColor(0x120C07, 0.24f), 10.0f).key("limbus"));
 
     // "the screen is suddenly stained red" — kColor keeps the iris's
     // luminance and swaps its hue/saturation, so it TINTS rather than
     // covers. Sudden onset: easeInQuad.
-    panel.child(
-        box()
-            .key("stain")
-            .inset(0)
-            .blend(SkBlendMode::kColor)
-            .fill(animate(
-                from(Fill::color(hex(0x3A2A1C))).to(Fill::color(hex(0xC81E2C))),
-                ramp(700, 500, ch::easeInQuad))));
+    panel.child(box()
+                    .key("stain")
+                    .inset(0)
+                    .blend(SkBlendMode::kColor)
+                    .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
+                                      .to(Fill::color(hexColor(0xC81E2C))),
+                                  ramp(700, 500, ch::easeInQuad))));
 
     for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
@@ -474,7 +473,7 @@ struct VertigoTitles : sketch::Sketch {
     // lettering would have been one leaf and one measure() per glyph.
     panel.child(
         text(toU8("JOHN WHITNEY · M-5 GUN DIRECTOR · PENDULUM OVER PLATE"),
-             faced(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
+             faced(faceGothic, 11, hexColor(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-top")
             .width(544)
             .height(544)
@@ -487,7 +486,7 @@ struct VertigoTitles : sketch::Sketch {
             .opacity(animate(from(0.0f).to(1.0f), ramp(1000, 500))));
     panel.child(
         text(toU8("PARAMOUNT 1958 · 1.85:1 · TECHNICOLOR"),
-             faced(faceGothic, 11, hex(0xEDE6D8, 0.42f), 3.4f))
+             faced(faceGothic, 11, hexColor(0xEDE6D8, 0.42f), 3.4f))
             .key("ring-bottom")
             .width(544)
             .height(544)
@@ -519,7 +518,7 @@ struct VertigoTitles : sketch::Sketch {
                       .top(20)
                       .opacity(&cardA[i]));
     panel.child(text(toU8("T = 6π · N = 1100 · TURNTABLE 18°/s · easeNone"),
-                     faced(faceGothic, 10, hex(0xEDE6D8, 0.50f), 1.8f))
+                     faced(faceGothic, 10, hexColor(0xEDE6D8, 0.50f), 1.8f))
                     .key("slug-rig")
                     .left(22)
                     .bottom(20)
@@ -558,7 +557,7 @@ struct VertigoTitles : sketch::Sketch {
     p.child(figureBox({130.0f, 70.0f}, 74.0f)
                 .key("spec-bed")
                 .shape(figure(kCards[2], 700))
-                .stroke(stroke(0.8f, Fill::color(hex(0x2E5C9E, 0.55f))))
+                .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
                 .rotate(turntable()));
     p.child(text(toU8("VERTIGO"), hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
                 .key("spec-outline"));
@@ -589,7 +588,7 @@ struct VertigoTitles : sketch::Sketch {
                     .height(38)
                     .shrink(0)
                     .corners({3})
-                    .fill(Fill::color(hex(0x080605)))
+                    .fill(Fill::color(hexColor(0x080605)))
                     .stroke(stroke(1.0f, Fill::color(kKeyline),
                                    PathFormat::Align::Inner))
                     .child(figureBox({19.0f, 19.0f}, 13.0f)
@@ -766,12 +765,12 @@ struct VertigoTitles : sketch::Sketch {
     }
     irisMat = Paint::blend(
         {{Paint::radial(kEye, 360.0f,
-                        {{0.00f, hex(0x100C09)},  // pupil
-                         {0.11f, hex(0x17110B)},
-                         {0.17f, hex(0x8A6A44)},  // bright inner iris
-                         {0.40f, hex(0x6E5230)},
-                         {0.72f, hex(0x6A5030)},
-                         {1.00f, hex(0x36271A)}}),
+                        {{0.00f, hexColor(0x100C09)},  // pupil
+                         {0.11f, hexColor(0x17110B)},
+                         {0.17f, hexColor(0x8A6A44)},  // bright inner iris
+                         {0.40f, hexColor(0x6E5230)},
+                         {0.72f, hexColor(0x6A5030)},
+                         {1.00f, hexColor(0x36271A)}}),
           SkBlendMode::kSrc},
          {Paint::sweep(kEye, fibres, 0.0f, 360.0f), SkBlendMode::kSoftLight}});
 

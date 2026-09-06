@@ -68,7 +68,7 @@ namespace weave = sigil::weave;
 
 using namespace sigil::draw;
 using namespace std::chrono_literals;
-using compose::hex;
+using compose::hexColor;
 namespace ch = choreograph;
 
 namespace {
@@ -85,12 +85,12 @@ constexpr uint32_t kPalette[37] = {
     0xEFEFC7, 0xFFFFFF};
 
 // Chrome palette — the study's own UI, not the simulation.
-constexpr SkColor4f kInk = hex(0x0B0B0F);
-constexpr SkColor4f kPanelInk = hex(0x090909);
-constexpr SkColor4f kBone = hex(0xEDE9DE);
-constexpr SkColor4f kSteel = hex(0x6E7B91);
-constexpr SkColor4f kKeyline = hex(0x3A3A42);
-constexpr SkColor4f kAmber = hex(0xFFB000);
+constexpr SkColor4f kInk = hexColor(0x0B0B0F);
+constexpr SkColor4f kPanelInk = hexColor(0x090909);
+constexpr SkColor4f kBone = hexColor(0xEDE9DE);
+constexpr SkColor4f kSteel = hexColor(0x6E7B91);
+constexpr SkColor4f kKeyline = hexColor(0x3A3A42);
+constexpr SkColor4f kAmber = hexColor(0xFFB000);
 
 // Geometry. The buffer dimensions are the source's; everything else is
 // this study's layout, sized so the blit stays an integer scale.
@@ -309,10 +309,10 @@ struct PsxDoomFire final : sketch::DrawSketch {
   compose::Element doomWord() {
     weave::TextStyle s = weave::textStyle({.face = heavyFace(),
                                            .size = 186,
-                                           .color = hex(0xC23A1C),
+                                           .color = hexColor(0xC23A1C),
                                            .track = 34.0f});
-    s.paint.addUnderlay(sigil::weave::kit::outline(hex(0x2A0805).toSkColor(),
-                                                   7.0f, SkPaint::kRound_Join));
+    s.paint.addUnderlay(sigil::weave::kit::outline(
+        hexColor(0x2A0805).toSkColor(), 7.0f, SkPaint::kRound_Join));
     return compose::text(compose::toU8("DOOM"), std::move(s))
         .width(kPanelW)
         .textAlign(weave::TextAlignment::kCenter)
@@ -340,7 +340,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
     const float h = size + 12.0f;
     if (ground > 0.0f) {
       pen.fill(SkColor4f{0, 0, 0, ground * a});
-      pen.stroke(fade(hex(0x3A3A42, 0.8f), a));
+      pen.stroke(fade(hexColor(0x3A3A42, 0.8f), a));
       pen.strokeWeight(1);
       pen.rect(x, y, w, h);
       pen.noStroke();
@@ -383,12 +383,12 @@ struct PsxDoomFire final : sketch::DrawSketch {
     }
 
     // the seed row: the fire's only permanent energy source
-    pen.fill(hex(0xFFFFFF, 0.9f));
+    pen.fill(hexColor(0xFFFFFF, 0.9f));
     pen.rect(x, y + kPanelH - kBlit, kPanelW, kBlit);
     chip(pen,
          "SEED ROW  y = 167  \xc2\xb7  HEAT 36  \xc2\xb7  "
          "WRITTEN ONCE, NEVER RE-RANDOMISED",
-         x + 10, y + kPanelH - 12 - 22, 10, hex(0xEFEFC7), 1.0f, 0.72f,
+         x + 10, y + kPanelH - 12 - 22, 10, hexColor(0xEFEFC7), 1.0f, 0.72f,
          cue(ms, 1000, 300));
 
     // where the sidebar's inspector is looking
@@ -412,7 +412,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
 
     const std::string step =
         compose::kit::formatted("STEP %06llu", (unsigned long long)simSteps);
-    mono(pen, 11, hex(0xEFEFC7), 1.2f);
+    mono(pen, 11, hexColor(0xEFEFC7), 1.2f);
     pen.textAlign(RIGHT, TOP);
     pen.text(step, x + kPanelW - 28, y + 26);
     pen.textAlign(LEFT, TOP);
@@ -452,8 +452,8 @@ struct PsxDoomFire final : sketch::DrawSketch {
       pen.push();
       pen.translate(x + kSwatch * 0.5f, bottom);  // origin (0.5, 1)
       pen.scale(s);
-      pen.fill(hex(kPalette[i]));
-      if (i == 36) pen.fill(hex(kPalette[36], strobe()));
+      pen.fill(hexColor(kPalette[i]));
+      if (i == 36) pen.fill(hexColor(kPalette[36], strobe()));
       pen.rect(-kSwatch * 0.5f, -34, kSwatch, 34);
       if (i == 0) {  // the transparent one — show the key, not the colour
         pen.noFill();
@@ -471,7 +471,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
     pen.textAlign(CENTER, TOP);
     pen.text("PALETTE \xe2\x80\x94 37 ENTRIES, HARD LUT, NO INTERPOLATION",
              kPadX + kPanelW * 0.5f, y);
-    mono(pen, 10, hex(0xEFEFC7), 1.2f);
+    mono(pen, 10, hexColor(0xEFEFC7), 1.2f);
     pen.textAlign(RIGHT, TOP);
     pen.text("IDX 36 \xc2\xb7 SEED \xe2\x86\x91", kPadX + kPanelW, y);
     pen.textAlign(LEFT, TOP);
@@ -501,7 +501,7 @@ struct PsxDoomFire final : sketch::DrawSketch {
       // A continuation line is dimmer: the level is read off the line, as
       // it was when the console was a feed of styled records.
       const bool dim = kBoot[i][2] == ' ';
-      mono(pen, 11.5f, dim ? hex(0x8A6A22) : kAmber);
+      mono(pen, 11.5f, dim ? hexColor(0x8A6A22) : kAmber);
       pen.text(kBoot[i], x, cursor);
       cursor += 11.5f + 4.0f;
     }
@@ -528,12 +528,13 @@ struct PsxDoomFire final : sketch::DrawSketch {
       const float m = rowMean[(size_t)(kFireH - 1 - i)];  // bottom → top
       const int idx = std::clamp((int)std::lround(m), 0, 36);
       const float bh = std::max(1.0f, (m / 36.0f) * h);
-      pen.fill(fade(idx == 0 ? hex(0x24242A) : hex(kPalette[idx]), a));
+      pen.fill(
+          fade(idx == 0 ? hexColor(0x24242A) : hexColor(kPalette[idx]), a));
       pen.rect(x + (float)i * step, y + h - bh, step + 0.6f, bh);
     }
     pen.smooth();
     // the mean-heat ceiling the flame never crosses
-    pen.stroke(fade(hex(0x3A3A42, 0.9f), a));
+    pen.stroke(fade(hexColor(0x3A3A42, 0.9f), a));
     pen.strokeWeight(1);
     pen.line(x, y + h - 0.5f, x + w, y + h - 0.5f);
     pen.noStroke();

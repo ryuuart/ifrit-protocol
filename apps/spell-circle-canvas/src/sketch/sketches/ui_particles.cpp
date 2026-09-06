@@ -297,10 +297,11 @@ struct UiParticles final : sketch::Sketch {
         .child(text(cfg.title, weave::textStyle({.size = 15, .color = accent})))
         .child(box().width(pct(38)).height(2).corners({1}).fill(
             Fill::color(accent)))
-        .child(text(cfg.body1,
-                    weave::textStyle({.size = 10.5f, .color = hex(0xcdd3df)})))
-        .child(text(cfg.body2,
-                    weave::textStyle({.size = 10.5f, .color = hex(0x9aa3b4)})));
+        .child(text(cfg.body1, weave::textStyle({.size = 10.5f,
+                                                 .color = hexColor(0xcdd3df)})))
+        .child(text(
+            cfg.body2,
+            weave::textStyle({.size = 10.5f, .color = hexColor(0x9aa3b4)})));
   }
 
   Element postVariant(const PostConfig& cfg) {
@@ -507,7 +508,7 @@ struct UiParticles final : sketch::Sketch {
                 kit::scrim(text(u8"UI as particles \u2014 820 chips over "
                                 u8"30 posts, one instances() stamp a tier",
                                 weave::textStyle(
-                                    {.size = 17, .color = hex(0xf2f5fb)})),
+                                    {.size = 17, .color = hexColor(0xf2f5fb)})),
                            {.fill = Fill::color({0.03f, 0.025f, 0.06f, 0.92f}),
                             .paddingX = 14,
                             .paddingY = 9})

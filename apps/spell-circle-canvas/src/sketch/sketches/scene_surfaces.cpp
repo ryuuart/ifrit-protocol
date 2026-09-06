@@ -94,11 +94,11 @@ compose::Element levels(float seconds, SkColor4f accent) {
                               .column()
                               .gap(8.0f)
                               .padding(16.0f)
-                              .fill(compose::hex(0x12171f));
-  root.child(compose::text(u8"LEVELS",
-                           weave::textStyle({.size = 22.0f,
-                                             .color = compose::hex(0xbfd4ef),
-                                             .antiAlias = false})));
+                              .fill(compose::hexColor(0x12171f));
+  root.child(compose::text(
+      u8"LEVELS", weave::textStyle({.size = 22.0f,
+                                    .color = compose::hexColor(0xbfd4ef),
+                                    .antiAlias = false})));
   compose::Element row =
       compose::box().row().gap(7.0f).height(compose::pct(100));
   for (int i = 0; i < 9; ++i) {
@@ -124,11 +124,11 @@ compose::Element trace(float seconds, SkColor4f accent) {
                               .column()
                               .gap(10.0f)
                               .padding(16.0f)
-                              .fill(compose::hex(0x0f141c));
-  root.child(compose::text(u8"TRACE",
-                           weave::textStyle({.size = 22.0f,
-                                             .color = compose::hex(0xbfd4ef),
-                                             .antiAlias = false})));
+                              .fill(compose::hexColor(0x0f141c));
+  root.child(compose::text(
+      u8"TRACE", weave::textStyle({.size = 22.0f,
+                                   .color = compose::hexColor(0xbfd4ef),
+                                   .antiAlias = false})));
   constexpr int kCells = 14;
   compose::Element row = compose::box().row().gap(5.0f).height(44.0f);
   for (int i = 0; i < kCells; ++i) {
@@ -142,10 +142,11 @@ compose::Element trace(float seconds, SkColor4f accent) {
                                   accent.fB * lit, 1.0f}));
   }
   root.child(std::move(row));
-  root.child(compose::text(u8"one wave, fourteen cells",
-                           weave::textStyle({.size = 19.0f,
-                                             .color = compose::hex(0x7e93b4),
-                                             .antiAlias = false})));
+  root.child(
+      compose::text(u8"one wave, fourteen cells",
+                    weave::textStyle({.size = 19.0f,
+                                      .color = compose::hexColor(0x7e93b4),
+                                      .antiAlias = false})));
   return root;
 }
 
@@ -159,16 +160,16 @@ compose::Element dial(float seconds, SkColor4f accent) {
                               .column()
                               .gap(10.0f)
                               .padding(16.0f)
-                              .fill(compose::hex(0x14121f));
-  root.child(
-      compose::text(u8"DIAL", weave::textStyle({.size = 22.0f,
-                                                .color = compose::hex(0xbfd4ef),
-                                                .antiAlias = false})));
+                              .fill(compose::hexColor(0x14121f));
+  root.child(compose::text(
+      u8"DIAL", weave::textStyle({.size = 22.0f,
+                                  .color = compose::hexColor(0xbfd4ef),
+                                  .antiAlias = false})));
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
   compose::Element track = compose::box()
                                .width(compose::pct(100))
                                .height(26.0f)
-                               .fill(compose::hex(0x242938));
+                               .fill(compose::hexColor(0x242938));
   compose::Element needle =
       compose::box().width(10.0f).height(26.0f).fill(accent);
   needle.absolute().left(6.0f + reading * 150.0f).top(0.0f);
@@ -191,7 +192,7 @@ compose::Element band(float seconds) {
                               .row()
                               .gap(6.0f)
                               .padding(12.0f)
-                              .fill(compose::hex(0x0d121a));
+                              .fill(compose::hexColor(0x0d121a));
   constexpr int kCells = 26;
   for (int i = 0; i < kCells; ++i) {
     const float phase = seconds * 1.4f - (float)i * 0.34f;
@@ -216,23 +217,24 @@ compose::Element tape(float seconds) {
                               .column()
                               .gap(6.0f)
                               .padding(14.0f)
-                              .fill(compose::hex(0x1f2430));
-  root.child(compose::text(u8"WOVEN",
-                           weave::textStyle({.size = 46.0f,
-                                             .color = compose::hex(0xf2ebdc),
-                                             .antiAlias = false})));
-  root.child(compose::text(u8"a scene, sampled",
-                           weave::textStyle({.size = 20.0f,
-                                             .color = compose::hex(0x9eb8d9),
-                                             .antiAlias = false})));
+                              .fill(compose::hexColor(0x1f2430));
+  root.child(compose::text(
+      u8"WOVEN", weave::textStyle({.size = 46.0f,
+                                   .color = compose::hexColor(0xf2ebdc),
+                                   .antiAlias = false})));
+  root.child(
+      compose::text(u8"a scene, sampled",
+                    weave::textStyle({.size = 20.0f,
+                                      .color = compose::hexColor(0x9eb8d9),
+                                      .antiAlias = false})));
   compose::Element marks =
       compose::box().row().gap(10.0f).height(18.0f).absolute();
   marks.left(16.0f).bottom(14.0f);
   for (int i = 0; i < 3; ++i) {
     const float phase = seconds * 1.7f + (float)i * 0.7f;
     const float length = 46.0f + 34.0f * (0.5f + 0.5f * std::sin(phase));
-    marks.child(
-        compose::box().width(length).height(6.0f).fill(compose::hex(0xeb8c40)));
+    marks.child(compose::box().width(length).height(6.0f).fill(
+        compose::hexColor(0xeb8c40)));
   }
   root.child(std::move(marks));
   return root;

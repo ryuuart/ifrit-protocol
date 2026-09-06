@@ -73,7 +73,9 @@ struct Fill {
 
 // Colour — source palettes arrive as lists of hex integers.
 
-/** `0xRRGGBB` (+ alpha) as an SkColor4f, sRGB byte values divided by 255.
+/** `0xRRGGBB` (+ alpha) as an SkColor4f, sRGB byte values divided by 255 —
+ *  the spelling a source palette is written in, one hex integer per colour,
+ *  each one written where it is used.
  *
  *  Not `rgb`, because `rgb(0xRRGGBB)` reads as "three arguments" when
  *  there is only one. constexpr, so palette constants stay constexpr. */
@@ -81,12 +83,6 @@ constexpr SkColor4f hexColor(uint32_t rrggbb, float a = 1.0f) noexcept {
   return {(float)((rrggbb >> 16u) & 0xffu) / 255.0f,
           (float)((rrggbb >> 8u) & 0xffu) / 255.0f,
           (float)(rrggbb & 0xffu) / 255.0f, a};
-}
-
-/** `hexColor` at palette density: a source palette is a list of hex
- *  integers, and each one is written where it is used. */
-constexpr SkColor4f hex(uint32_t rrggbb, float a = 1.0f) noexcept {
-  return hexColor(rrggbb, a);
 }
 
 /** The same colour at a different alpha — `{c.fR, c.fG, c.fB, a}`.

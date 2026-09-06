@@ -55,8 +55,8 @@ constexpr float kHeaderHeight = 104;
 constexpr float kCaptionHeight = 46;
 constexpr int kPerRow = 4;
 
-constexpr SkColor4f kInk = hex(0xf0ece4);
-constexpr SkColor4f kDim = hex(0xb4a894);
+constexpr SkColor4f kInk = hexColor(0xf0ece4);
+constexpr SkColor4f kDim = hexColor(0xb4a894);
 
 /** The archive's own look: warm ink on a cooled ground, and the card's
  *  two lines under its picture rather than around it. */
@@ -99,7 +99,8 @@ Element card(const Swatch& swatch) {
                  .height(kCard)
                  .corners({10})
                  .clip()
-                 .foreground(stroke(1.0f, Fill::color(hex(0xffffff, 0.16f)))))
+                 .foreground(
+                     stroke(1.0f, Fill::color(hexColor(0xffffff, 0.16f)))))
       .width(kCard);
 }
 
@@ -108,8 +109,8 @@ Element notice(std::u8string heading, const std::string& detail) {
       .inset(kMargin, kMargin, kMargin, kMargin)
       .corners({16})
       .padding(28)
-      .fill(Fill::color(hex(0x241c14, 0.9f)))
-      .foreground(stroke(1.0f, Fill::color(hex(0xffb46b, 0.24f))))
+      .fill(Fill::color(hexColor(0x241c14, 0.9f)))
+      .foreground(stroke(1.0f, Fill::color(hexColor(0xffb46b, 0.24f))))
       .column()
       .gap(10)
       .child(text(std::move(heading),
@@ -134,7 +135,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
   }
 
   void setup(sketch::SketchContext& ctx) override {
-    ctx.background(hex(0x140f0a));
+    ctx.background(hexColor(0x140f0a));
     ctx.captureAt(0.5);
 
     std::string error;
@@ -144,7 +145,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
       ctx.canvas(940, 320);
       ctx.composer.render(
           stack()
-              .fill(Fill::color(hex(0x140f0a)))
+              .fill(Fill::color(hexColor(0x140f0a)))
               .child(notice(u8"the archive did not load",
                             error.empty() ? archive().string() : error)));
       return;
@@ -156,7 +157,7 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
       ctx.canvas(940, 320);
       ctx.composer.render(
           stack()
-              .fill(Fill::color(hex(0x140f0a)))
+              .fill(Fill::color(hexColor(0x140f0a)))
               .child(notice(u8"the graph did not cook", archive().string())));
       return;
     }
@@ -209,8 +210,9 @@ struct SubstanceSwatchesSketch final : sketch::Sketch {
         stack()
             .child(sketch::kit::backdrop(
                 {.over = ctx.size,
-                 .ground = linearGradient({0, 0}, {0, ctx.size.height()},
-                                          {hex(0x1a120b), hex(0x0f0d10)})}))
+                 .ground =
+                     linearGradient({0, 0}, {0, ctx.size.height()},
+                                    {hexColor(0x1a120b), hexColor(0x0f0d10)})}))
             .child(sketch::kit::titleCard(
                        {.title = {u8"A PROCEDURAL ARCHIVE, COOKED"},
                         .subtitle = {toU8(caption)}})

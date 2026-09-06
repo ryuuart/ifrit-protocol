@@ -61,7 +61,7 @@ struct Type {
    *
    *  NOT a no-op and not an equivalent spelling: the round trip quantises
    *  each channel to one of 256 values, and Skia climbs a byte back to
-   *  float by multiplying by 1/255 where `hex()` divides by 255, which
+   *  float by multiplying by 1/255 where `hexColor()` divides by 255, which
    *  lands one ulp apart on 126 of the 256 byte values. A palette taken
    *  from a reference's own ARGB words wants this ladder; a colour
    *  computed in float does not. */

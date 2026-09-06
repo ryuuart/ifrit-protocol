@@ -157,12 +157,12 @@ namespace {
 // dense star fills #181511). Rag paper this age reads lighter in the hand,
 // so the base is lifted and the sampled tone becomes the vignette end.
 
-constexpr SkColor4f kPaper = hex(0xe3d7b6);
-constexpr SkColor4f kPaperEdge = hex(0xa08757);
-constexpr SkColor4f kInk = hex(0x211c14);      // the dense star fills
-constexpr SkColor4f kInkLine = hex(0x362e23);  // hairline rims and rules
-constexpr SkColor4f kInkSoft = hex(0x3a3125, 0.72f);
-constexpr SkColor4f kFox = hex(0x9c7f57, 0.10f);
+constexpr SkColor4f kPaper = hexColor(0xe3d7b6);
+constexpr SkColor4f kPaperEdge = hexColor(0xa08757);
+constexpr SkColor4f kInk = hexColor(0x211c14);      // the dense star fills
+constexpr SkColor4f kInkLine = hexColor(0x362e23);  // hairline rims and rules
+constexpr SkColor4f kInkSoft = hexColor(0x3a3125, 0.72f);
+constexpr SkColor4f kFox = hexColor(0x9c7f57, 0.10f);
 
 // ---------------------------------------------------------------------------
 // geometry — canvas = the 1600x2072 scan x 0.975, so every measured pixel
@@ -616,7 +616,7 @@ struct ChladniTab1 : sketch::Sketch {
       // blank channel these two figures are measured by begins.
       {
         lines::RadialHatch fan = lines::presets::radialHatch(
-            Fill::color(hex(0x211c14, 0.62f)), (int)f.points * 60, 0.85f);
+            Fill::color(hexColor(0x211c14, 0.62f)), (int)f.points * 60, 0.85f);
         fan.holeFraction = f.inner;
         root.child(
             kit::disc(c, kR)
@@ -649,7 +649,7 @@ struct ChladniTab1 : sketch::Sketch {
 
     // ---- the bow's contact arc: a travelling window on the rim, as a
     // per-decoration trim (one node, its own window) ----
-    PathFormat bow = stroke(3.0f, Fill::color(hex(0x211c14, 0.75f)));
+    PathFormat bow = stroke(3.0f, Fill::color(hexColor(0x211c14, 0.75f)));
     bow.align = PathFormat::Align::Inner;
     bow.trimStart = 0.0f;
     bow.trimEnd = 0.065f;
@@ -730,7 +730,7 @@ struct ChladniTab1 : sketch::Sketch {
                        .fill(foxingLL.material()))
             .child(box().inset(0).fill(radialGradient(
                 {kW * 0.48f, kH * 0.44f}, kW * 0.94f,
-                {hex(0x000000, 0.0f), hex(0x000000, 0.0f),
+                {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
                  SkColor4f{kPaperEdge.fR, kPaperEdge.fG, kPaperEdge.fB, 0.26f}},
                 {0.0f, 0.62f, 1.0f})))
             .cache(Cache::Texture));
@@ -809,7 +809,7 @@ struct ChladniTab1 : sketch::Sketch {
     foxing = patterns::speckle(640, 22, 1.4f, 5.0f, {skia::toColor(kFox)});
     foxing.seed(17);
     foxingLL = patterns::speckle(520, 14, 2.0f, 7.0f,
-                                 {skia::toColor(hex(0x94764c, 0.09f))});
+                                 {skia::toColor(hexColor(0x94764c, 0.09f))});
     foxingLL.seed(53);
     // Ink on rag paper is never flat: luminance noise, so it shades the
     // fill rather than hue-shifting it.
@@ -822,16 +822,16 @@ struct ChladniTab1 : sketch::Sketch {
     // The grain atlas: three engraved marks, baked once, stamped ~5900x.
     atlas = std::make_shared<instancing::Atlas>(3.0f);
     atlas->cell(box().width(8.6f).height(2.3f).corners({1.15f}).fill(
-                    Fill::color(hex(0x211c14, 0.94f))),
+                    Fill::color(hexColor(0x211c14, 0.94f))),
                 {10, 4});
     atlas->cell(box().width(6.0f).height(1.7f).corners({0.85f}).fill(
-                    Fill::color(hex(0x2c2519, 0.88f))),
+                    Fill::color(hexColor(0x2c2519, 0.88f))),
                 {8, 3});
     atlas->cell(box().width(3.1f).height(3.1f).corners({1.55f}).fill(
-                    Fill::color(hex(0x211c14, 0.9f))),
+                    Fill::color(hexColor(0x211c14, 0.9f))),
                 {5, 5});
     atlas->cell(box().width(15.0f).height(1.35f).corners({0.68f}).fill(
-                    Fill::color(hex(0x211c14, 0.82f))),
+                    Fill::color(hexColor(0x211c14, 0.82f))),
                 {17, 3});
     seedGrains();
 

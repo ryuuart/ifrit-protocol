@@ -116,18 +116,18 @@ constexpr float kH = 470.0f;
 // the resting blue is a dim slate rather than a pale one — a pale blue
 // against a warm yellow would come back olive, which looks like a bug in
 // the tint rather than a choice about the palette.
-constexpr SkColor4f kStage = hex(0x110033);
-constexpr SkColor4f kBand = hex(0x220055);
-constexpr SkColor4f kSung = hex(0xFFEEAA);  // the saturated colour
-constexpr SkColor4f kPale = hex(0x5A6B84);  // the resting line
-constexpr SkColor4f kNext = hex(0x44557A);  // the line to come
-constexpr SkColor4f kLabel = hex(0x88AACC);
-constexpr SkColor4f kFaint = hex(0x445588);
+constexpr SkColor4f kStage = hexColor(0x110033);
+constexpr SkColor4f kBand = hexColor(0x220055);
+constexpr SkColor4f kSung = hexColor(0xFFEEAA);  // the saturated colour
+constexpr SkColor4f kPale = hexColor(0x5A6B84);  // the resting line
+constexpr SkColor4f kNext = hexColor(0x44557A);  // the line to come
+constexpr SkColor4f kLabel = hexColor(0x88AACC);
+constexpr SkColor4f kFaint = hexColor(0x445588);
 /** The hard black keyline every CD+G caption wears. A disc draws it as a
  *  second colour index around the glyph cell; here it is a stroke under
  *  the fill, which is the same picture and the same reason — a caption
  *  over a video signal has no ground of its own. */
-constexpr SkColor4f kKey = hex(0x000000);
+constexpr SkColor4f kKey = hexColor(0x000000);
 
 const char* kLine1 = "COME TAKE A TRIP IN MY AIRSHIP";
 const char* kLine2 = "COME TAKE A SAIL AMONG THE STARS";
@@ -294,7 +294,7 @@ struct KaraokeWipe : sketch::Sketch {
                                   // Fleischer's ball is a hard white disc,
                                   // and it is the one thing on the frame
                                   // that is not part of the caption.
-                                  .fill(Fill::color(hex(0xFFFFFF)))
+                                  .fill(Fill::color(hexColor(0xFFFFFF)))
                                   .translateX(&ballX)
                                   .translateY(&ballY)))
             .child(lyricLine())

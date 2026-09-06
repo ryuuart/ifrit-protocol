@@ -65,13 +65,13 @@ struct Channel {
 
 Element meter(const Channel &c) {
   const SkColor4f ink =
-      c.alarm ? hex(0xff5252) : hex(0x8fd0ff);
+      c.alarm ? hexColor(0xff5252) : hexColor(0x8fd0ff);
   return box()
       .row()
       .gap(10)
       .padding(12)
       .corners({6})
-      .fill(hex(0x0e1218))
+      .fill(hexColor(0x0e1218))
       .alignItems(Align::Center)
       // A mark on part of the boundary: L-brackets at every tangent break.
       .stroke(spans::corners(12), stroke(1.5f, Fill::color(ink)))
@@ -92,7 +92,7 @@ Element dashboard(const std::vector<Channel> &channels) {
       .column()
       .gap(8)
       .padding(24)
-      .fill(hex(0x05070a))
+      .fill(hexColor(0x05070a))
       .children(channels | std::views::transform([](const Channel &c) {
                   // memo() skips the describe call entirely while the props
                   // compare equal. key() is what the reconciler matches on
@@ -452,7 +452,7 @@ sound model; nothing below them changes kernel semantics.
 
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
   `PaintContext`,
-  `StampCache`, and the colour spellings `hexColor`, `hex`, `alpha`,
+  `StampCache`, and the colour spellings `hexColor`, `alpha`,
   `scaleRgb`, `lighten`, `mix` over `SkColor4f`.
 - `core/TextPainter.h` — the seam the kernel draws dressed type through:
   `TextPainterOps`, the operations the composer asks of text that is not

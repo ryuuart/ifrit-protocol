@@ -127,16 +127,16 @@ namespace {
 // couple of stops under it and only the arris reaches the daylight value —
 // otherwise cream wood and cream light have no separation and the fretwork
 // stops silhouetting, which is the whole point of a ranma.
-const SkColor4f kHinoki = hex(0xD6BC89);      // planed cypress, room-side
-const SkColor4f kHinokiLit = hex(0xF5E6C4);   // #E9D3A0's daylight arris
-const SkColor4f kHinokiDark = hex(0x8E6C3B);  // notch shadow
-const SkColor4f kKeyaki = hex(0x76472A);      // zelkova frame
-const SkColor4f kKeyakiLit = hex(0x9C6B3E);
-const SkColor4f kKeyakiDark = hex(0x4B2A12);
-const SkColor4f kGlow = hex(0xF4E3B8);  // the far room's lamp
-const SkColor4f kNight = hex(0x0D0906);
-const SkColor4f kSeam = hex(0x4A3620, 0.55f);
-const SkColor4f kCaption = hex(0xD8C9A8, 0.60f);
+const SkColor4f kHinoki = hexColor(0xD6BC89);      // planed cypress, room-side
+const SkColor4f kHinokiLit = hexColor(0xF5E6C4);   // #E9D3A0's daylight arris
+const SkColor4f kHinokiDark = hexColor(0x8E6C3B);  // notch shadow
+const SkColor4f kKeyaki = hexColor(0x76472A);      // zelkova frame
+const SkColor4f kKeyakiLit = hexColor(0x9C6B3E);
+const SkColor4f kKeyakiDark = hexColor(0x4B2A12);
+const SkColor4f kGlow = hexColor(0xF4E3B8);  // the far room's lamp
+const SkColor4f kNight = hexColor(0x0D0906);
+const SkColor4f kSeam = hexColor(0x4A3620, 0.55f);
+const SkColor4f kCaption = hexColor(0xD8C9A8, 0.60f);
 
 // ---------------------------------------------------------------------------
 // Composition. The field is FIXED; the pitch is the free constant —
@@ -228,8 +228,8 @@ const Timber kHinokiTimber{kHinoki, kHinokiLit, kHinokiDark, 0.19f, 0.26f};
 const Timber kKeyakiTimber{kKeyaki, kKeyakiLit, kKeyakiDark, 0.055f, 0.38f};
 // The room-side members face AWAY from the far room's lamp, so the same
 // keyaki reads two stops down on the nageshi/kamoi and the posts.
-const Timber kKeyakiShade{hex(0x33200F), hex(0x54341B), hex(0x140C05), 0.045f,
-                          0.42f};
+const Timber kKeyakiShade{hexColor(0x33200F), hexColor(0x54341B),
+                          hexColor(0x140C05), 0.045f, 0.42f};
 
 class TimberBank {
  public:
@@ -748,7 +748,7 @@ struct KumikoAsanoha : sketch::Sketch {
         .height(open.height())
         .clip(true)
         .opacity(&glow)
-        .background(styles::OuterGlow{hex(0xF4E3B8, 0.34f), 70, 6})
+        .background(styles::OuterGlow{hexColor(0xF4E3B8, 0.34f), 70, 6})
         // A SHOJI DIFFUSES. Paper over a lamp is a lit field, not a point
         // source seen through a hole: the ramp falls a third of a stop
         // from the middle of the opening to its corners, and the pattern —
@@ -760,11 +760,11 @@ struct KumikoAsanoha : sketch::Sketch {
                    .inset(0, 0, 0, 0)
                    .fill(Paint::radial(
                        {open.width() * 0.5f, open.height() * 0.5f}, 585,
-                       {{0.00f, hex(0xF7E8C6, 0.88f)},
-                        {0.30f, hex(0xF2E0B4, 0.85f)},
-                        {0.58f, hex(0xE6CE9A, 0.79f)},
-                        {0.80f, hex(0xD3B37C, 0.71f)},
-                        {1.00f, hex(0xBE9862, 0.62f)}})));
+                       {{0.00f, hexColor(0xF7E8C6, 0.88f)},
+                        {0.30f, hexColor(0xF2E0B4, 0.85f)},
+                        {0.58f, hexColor(0xE6CE9A, 0.79f)},
+                        {0.80f, hexColor(0xD3B37C, 0.71f)},
+                        {1.00f, hexColor(0xBE9862, 0.62f)}})));
   }
 
   Element beam(float y, float h, bool top) {
@@ -861,17 +861,17 @@ struct KumikoAsanoha : sketch::Sketch {
     const float r = side * rIn;  // the incircle radius of each half
 
     const auto rule = weave::textStyle(
-        {.size = 10.5f, .color = hex(0xC9B78F, 0.75f), .track = 0.9f});
+        {.size = 10.5f, .color = hexColor(0xC9B78F, 0.75f), .track = 0.9f});
     const auto ink = weave::textStyle(
-        {.size = 12, .color = hex(0xE4D5B2, 0.86f), .track = 1.3f});
+        {.size = 12, .color = hexColor(0xE4D5B2, 0.86f), .track = 1.3f});
     const auto dim = weave::textStyle(
-        {.size = 10.5f, .color = hex(0xB7A281, 0.55f), .track = 0.5f});
+        {.size = 10.5f, .color = hexColor(0xB7A281, 0.55f), .track = 0.5f});
 
     Element g = box().left(0).top(y0).width(kW).height(kBandH).fill(
-        Fill::color(hex(0x120C07)));
+        Fill::color(hexColor(0x120C07)));
     // the drawing's own ground: a hairline ruled off the room above it
     g.child(box().left(0).top(0).width(kW).height(1).fill(
-        Fill::color(hex(0x4A3620, 0.9f))));
+        Fill::color(hexColor(0x4A3620, 0.9f))));
 
     Element art = box().left(0).top(0).width(kW).height(kBandH);
 
@@ -881,7 +881,7 @@ struct KumikoAsanoha : sketch::Sketch {
                   .top(org.y() - y0)
                   .width(side)
                   .height(side)
-                  .stroke(stroke(1.0f, Fill::color(hex(0x8E6C3B, 0.85f)),
+                  .stroke(stroke(1.0f, Fill::color(hexColor(0x8E6C3B, 0.85f)),
                                  PathFormat::Align::Center)));
     // the two incircles, struck: the construction the whole pattern is
     // derived from, and the only circles anywhere in a kumiko panel
@@ -891,12 +891,12 @@ struct KumikoAsanoha : sketch::Sketch {
                     .fill(Fill::none())
                     .stroke(PathFormat{
                         .width = 0.9f,
-                        .strokeFill = Fill::color(hex(0xC79A57, 0.45f)),
+                        .strokeFill = Fill::color(hexColor(0xC79A57, 0.45f)),
                         .dashIntervals = {4.0f, 4.0f}}));
     for (const SkPoint& c : {I1, I2})
       art.child(kit::disc(SkPoint{c.x(), c.y() - y0}, 2.4f)
                     .shape(shapes::circle())
-                    .fill(Fill::color(hex(0xF4E3B8, 0.9f))));
+                    .fill(Fill::color(hexColor(0xF4E3B8, 0.9f))));
 
     // the seven pieces, exploded off their seats
     for (const Strip& st : cellPieces({org.x(), org.y() - y0}, side,
@@ -912,8 +912,8 @@ struct KumikoAsanoha : sketch::Sketch {
       const float a0 = 22.5f * (float)i;
       g.child(kit::disc(SkPoint{x, 96.0f}, 44.0f)
                   .shape(shapes::sector(-90.0f + a0, 22.5f, 0.0f))
-                  .fill(Fill::color(hex(0xC79A57, 0.16f)))
-                  .stroke(stroke(0.9f, Fill::color(hex(0xC79A57, 0.55f)),
+                  .fill(Fill::color(hexColor(0xC79A57, 0.16f)))
+                  .stroke(stroke(0.9f, Fill::color(hexColor(0xC79A57, 0.55f)),
                                  PathFormat::Align::Inner)));
       g.child(text(toU8(jig[i]), rule)
                   .left(x - 30)
@@ -981,9 +981,9 @@ struct KumikoAsanoha : sketch::Sketch {
                 .blend(SkBlendMode::kPlus)
                 .fill(Paint::radial(
                     {kRegOuter.width() * 0.5f, kRegOuter.height() * 0.5f}, 360,
-                    {{0.00f, hex(0xFFF2D2, 0.13f)},
-                     {0.45f, hex(0xE6BC7C, 0.07f)},
-                     {1.00f, hex(0x000000, 0.00f)}})))
+                    {{0.00f, hexColor(0xFFF2D2, 0.13f)},
+                     {0.45f, hexColor(0xE6BC7C, 0.07f)},
+                     {1.00f, hexColor(0x000000, 0.00f)}})))
         .child(frame())
         // The mitred frame's keyline draws itself on around the perimeter —
         // one continuous reveal, the first beat of the assembly.
@@ -993,10 +993,10 @@ struct KumikoAsanoha : sketch::Sketch {
                    .width(mid.width())
                    .height(mid.height())
                    .stroke(spans::upTo(&frameTrim),
-                           PathFormat{
-                               .width = 2.2f,
-                               .strokeFill = Fill::color(hex(0xC79A57, 0.60f)),
-                               .align = PathFormat::Align::Center}))
+                           PathFormat{.width = 2.2f,
+                                      .strokeFill = Fill::color(
+                                          hexColor(0xC79A57, 0.60f)),
+                                      .align = PathFormat::Align::Center}))
         .child(post(0, 146))
         .child(post(kW - 146, 146))
         .child(beam(0, 122, true))

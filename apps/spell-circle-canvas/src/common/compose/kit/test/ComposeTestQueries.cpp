@@ -506,17 +506,17 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
 }
 
 TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
-  // hex() is defined 24 times across 64 files under three names with
+  // hexColor() is defined 24 times across 64 files under three names with
   // byte-identical bodies and no shared brief between the groups.
-  constexpr SkColor4f rubric = hex(0x8C2F22);
-  static_assert(hex(0xFFFFFF).fR == 1.0f,
+  constexpr SkColor4f rubric = hexColor(0x8C2F22);
+  static_assert(hexColor(0xFFFFFF).fR == 1.0f,
                 "must stay constexpr — the "
                 "palettes are constexpr");
   EXPECT_FLOAT_EQ(rubric.fR, 0x8C / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fG, 0x2F / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fB, 0x22 / 255.0f);
   EXPECT_FLOAT_EQ(rubric.fA, 1.0f);
-  EXPECT_FLOAT_EQ(hex(0x000000, 0.25f).fA, 0.25f);
+  EXPECT_FLOAT_EQ(hexColor(0x000000, 0.25f).fA, 0.25f);
 
   // alpha() and scaleRgb() are two names on purpose: 45 gallery sites override
   // alpha and 16 scale channels, and they are different operations.

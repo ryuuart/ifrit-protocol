@@ -188,44 +188,44 @@ namespace {
 constexpr float kPi = 3.14159265358979f;
 constexpr float kDeg = kPi / 180.0f;
 
-using sigil::compose::hex;  // hex(0xRRGGBB[, a]) -> SkColor4f, usable in
-                            // constexpr
+using sigil::compose::hexColor;  // hexColor(0xRRGGBB[, a]) -> SkColor4f, usable
+                                 // constexpr
 
 // ---------------------------------------------------------------------------
 // palette — sampled by percentile over masked regions of the two scans.
 // TWO worlds, deliberately kept apart: the aged artefact, and the audit.
 
-constexpr SkColor4f kDesk = hex(0x1b1a18);  // the table the sheet lies on
-constexpr SkColor4f kPaperShadow = hex(0xb9ad98);  // p10: edges, foxing
-constexpr SkColor4f kPaperBody = hex(0xcbbfab);    // p50: the sheet's ground
-constexpr SkColor4f kPaperLight = hex(0xd6cab6);   // p90
+constexpr SkColor4f kDesk = hexColor(0x1b1a18);  // the table the sheet lies on
+constexpr SkColor4f kPaperShadow = hexColor(0xb9ad98);  // p10: edges, foxing
+constexpr SkColor4f kPaperBody = hexColor(0xcbbfab);  // p50: the sheet's ground
+constexpr SkColor4f kPaperLight = hexColor(0xd6cab6);  // p90
 // "LE ROUGE", AS THE SHEET PRINTS IT. Minard names the advance zone red
 // and the 1869 lithograph lays it as a pale buff ochre — a warm cream a
 // shade off the paper, not a rose. A pinker, darker zone competes with
 // the black retreat band instead of sitting under it, which inverts the
 // sheet's whole reading: the black is the figure and the zone the ground.
-constexpr SkColor4f kZoneDark = hex(0xcfb890);
-constexpr SkColor4f kZone = hex(0xd8c39b);
-constexpr SkColor4f kZoneLight = hex(0xe0cda8);
+constexpr SkColor4f kZoneDark = hexColor(0xcfb890);
+constexpr SkColor4f kZone = hexColor(0xd8c39b);
+constexpr SkColor4f kZoneLight = hexColor(0xe0cda8);
 // The engraved strengths. They are what the band's WIDTH is for, so they
 // are set firm and black on the lithograph and have to be readable off
 // the plate at plate size; smaller than this and the sheet's own subject
 // cannot be checked against the drawing that carries it.
 constexpr float kNumSize = 11.4f;
 
-constexpr SkColor4f kInk = hex(0x25211d);  // p50 printed black
-constexpr SkColor4f kInkDeep = hex(0x0a0806);
-constexpr SkColor4f kInkThin = hex(0x4e4436);     // hairlines, hachures
-constexpr SkColor4f kManuscript = hex(0x3b3a46);  // iron-gall, colder
-constexpr SkColor4f kStampRed = hex(0x8e3b34);
+constexpr SkColor4f kInk = hexColor(0x25211d);  // p50 printed black
+constexpr SkColor4f kInkDeep = hexColor(0x0a0806);
+constexpr SkColor4f kInkThin = hexColor(0x4e4436);     // hairlines, hachures
+constexpr SkColor4f kManuscript = hexColor(0x3b3a46);  // iron-gall, colder
+constexpr SkColor4f kStampRed = hexColor(0x8e3b34);
 
-constexpr SkColor4f kCard = hex(0xf2ece0);  // the audit's cooler paper
-constexpr SkColor4f kCardInk = hex(0x1c1a17);
-constexpr SkColor4f kBlue = hex(0x2f6f9c);      // MEASURED
-constexpr SkColor4f kClaimRed = hex(0x8c2f22);  // WHAT THE LEGEND SAYS
-constexpr SkColor4f kPass = hex(0x3e6b4a);
-constexpr SkColor4f kAmber = hex(0xb5761e);
-constexpr SkColor4f kGrey = hex(0x6d675c);
+constexpr SkColor4f kCard = hexColor(0xf2ece0);  // the audit's cooler paper
+constexpr SkColor4f kCardInk = hexColor(0x1c1a17);
+constexpr SkColor4f kBlue = hexColor(0x2f6f9c);      // MEASURED
+constexpr SkColor4f kClaimRed = hexColor(0x8c2f22);  // WHAT THE LEGEND SAYS
+constexpr SkColor4f kPass = hexColor(0x3e6b4a);
+constexpr SkColor4f kAmber = hexColor(0xb5761e);
+constexpr SkColor4f kGrey = hexColor(0x6d675c);
 
 // ---------------------------------------------------------------------------
 // composition — canvas 2560 x 1600
@@ -829,8 +829,9 @@ struct Minard1869 : sketch::Sketch {
                      c.save();
                      c.clipPath(sea, true);
                      for (size_t i = 0; i < rings.size(); ++i) {
-                       p.setColor4f(hex(0x4e4436, 0.55f - 0.062f * (float)i),
-                                    nullptr);
+                       p.setColor4f(
+                           hexColor(0x4e4436, 0.55f - 0.062f * (float)i),
+                           nullptr);
                        c.drawPath(rings[i], p);
                      }
                      c.restore();
@@ -963,7 +964,7 @@ struct Minard1869 : sketch::Sketch {
                   .inset(0)
                   .shape(pathFn(smooth(pts)))
                   .stroke(spans::upTo(beat(t0, t0 + 0.4f)),
-                          stroke(0.8f, Fill::color(hex(0x4e4436, 0.8f))))
+                          stroke(0.8f, Fill::color(hexColor(0x4e4436, 0.8f))))
                   .key(k));
     };
     river({{206, 190}, {198, 240}, {212, 280}, {200, 322}}, "ebre",
@@ -997,7 +998,7 @@ struct Minard1869 : sketch::Sketch {
       const Place& p = plate.places[i];
       sigil::weave::TextStyle st =
           p.kind == 0   ? type(faceRoman, 11, kInk, 2.6f)
-          : p.kind == 3 ? type(faceItalic, 10, hex(0x4e4436), 1.2f)
+          : p.kind == 3 ? type(faceItalic, 10, hexColor(0x4e4436), 1.2f)
                         : type(faceItalic, 9, kInk, 0.2f);
       g.child(text(toU8(p.name), st)
                   .at({p.x, p.y})
@@ -1178,9 +1179,9 @@ struct Minard1869 : sketch::Sketch {
                   .inset(0)
                   .shape(pathFn(smooth(pts)))
                   .stroke(spans::upTo(beat(t0, t0 + 0.35f)),
-                          stroke(0.7f, Fill::color(hex(0x4e4436, 0.85f))))
+                          stroke(0.7f, Fill::color(hexColor(0x4e4436, 0.85f))))
                   .key(k));
-      g.child(text(toU8(label), type(faceItalic, 8, hex(0x4e4436), 0.6f))
+      g.child(text(toU8(label), type(faceItalic, 8, hexColor(0x4e4436), 0.6f))
                   .at({lp.x(), lp.y()})
                   .key(std::string(k) + "L")
                   .opacity(beat(t0 + 0.2f, t0 + 0.5f)));
@@ -1334,7 +1335,7 @@ struct Minard1869 : sketch::Sketch {
     g.child(text(toU8("hypotheses: the labels are half their true value · "
                       "copied unrescaled from Fezensac · my longitude "
                       "scale is wrong.  None asserted."),
-                 type(faceUi, 9.0f, hex(0xb5761e, 0.9f)))
+                 type(faceUi, 9.0f, hexColor(0xb5761e, 0.9f)))
                 .at({880, 972})
                 .key("barhyp")
                 .opacity(beat(tBar + 0.4f, tBar + 0.8f)));
@@ -1411,7 +1412,7 @@ struct Minard1869 : sketch::Sketch {
                   .shape(segFn({kFrameL, y}, {kFrameR - 34, y}))
                   .stroke(spans::upTo(beat(tTemp + 0.1f + 0.03f * (float)r,
                                            tTemp + 0.45f + 0.03f * (float)r)),
-                          stroke(0.4f, Fill::color(hex(0x4e4436, 0.45f))))
+                          stroke(0.4f, Fill::color(hexColor(0x4e4436, 0.45f))))
                   .key("taxis" + std::to_string(r)));
       g.child(text(toU8(r == 30 ? "30 degrés" : std::to_string(r)),
                    type(faceNum, 7, kInk))
@@ -1444,7 +1445,7 @@ struct Minard1869 : sketch::Sketch {
                      p.setAntiAlias(true);
                      p.setStyle(SkPaint::kStroke_Style);
                      p.setStrokeWidth(0.55f);
-                     p.setColor4f(hex(0x38301f, 0.9f), nullptr);
+                     p.setColor4f(hexColor(0x38301f, 0.9f), nullptr);
                      SkContourMeasureIter it(curvePath, false);
                      while (sk_sp<SkContourMeasure> m = it.next()) {
                        const float len = m->length();
@@ -1478,9 +1479,9 @@ struct Minard1869 : sketch::Sketch {
       f.width = 0.7f;
       // the rule fades as it crosses the panel divider
       f.strokeMaterial = Paint::linearUnit({0, 0}, {0, 1},
-                                           {{0.0f, hex(0x4e4436, 0.80f)},
-                                            {0.66f, hex(0x4e4436, 0.22f)},
-                                            {1.0f, hex(0x4e4436, 0.75f)}});
+                                           {{0.0f, hexColor(0x4e4436, 0.80f)},
+                                            {0.66f, hexColor(0x4e4436, 0.22f)},
+                                            {1.0f, hexColor(0x4e4436, 0.75f)}});
       g.child(box()
                   .inset(0)
                   .shape(pathFn(d.detach()))
@@ -1570,12 +1571,13 @@ struct Minard1869 : sketch::Sketch {
       p.lineTo(x + 16, y + halfPx);
       p.moveTo(x + 12, y - halfPx);
       p.lineTo(x + 12, y + halfPx);
-      g.child(box()
-                  .inset(0)
-                  .shape(pathFn(p.detach()))
-                  .background(shadow(hex(0x000000, 0.30f), {1.5f, 2.0f}, 3.0f))
-                  .stroke(stroke(2.0f, Fill::color(kBlue)))
-                  .key(k));
+      g.child(
+          box()
+              .inset(0)
+              .shape(pathFn(p.detach()))
+              .background(shadow(hexColor(0x000000, 0.30f), {1.5f, 2.0f}, 3.0f))
+              .stroke(stroke(2.0f, Fill::color(kBlue)))
+              .key(k));
     };
     jaw(r.x, r.y, r.halfPx, "jaw1");
     const float rx = kFrameL + 10, ry = 686.0f;
@@ -1591,7 +1593,7 @@ struct Minard1869 : sketch::Sketch {
     g.child(text(toU8(std::string(r.where) +
                       "\n(measured on the BnF sheet, no cross-scan "
                       "calibration)"),
-                 type(faceUi, 9, hex(0x2f6f9c, 0.9f)))
+                 type(faceUi, 9, hexColor(0x2f6f9c, 0.9f)))
                 .at({rx, ry + 33})
                 .key("calread3"));
     g.child(
@@ -1604,7 +1606,7 @@ struct Minard1869 : sketch::Sketch {
   Element sheet(sketch::SketchContext& ctx) {
     return box()
         .rect(SkRect::MakeXYWH(kSheetX, kSheetY, kSheetW, kSheetH))
-        .background(shadow(hex(0x000000, 0.55f), {6, 10}, 26))
+        .background(shadow(hexColor(0x000000, 0.55f), {6, 10}, 26))
         .child(paperGround())
         .child(frames())
         .child(hannibalPanel())
@@ -1614,7 +1616,7 @@ struct Minard1869 : sketch::Sketch {
         .child(provenance())
         .child(box()
                    .inset(0)
-                   .fill(Fill::color(hex(0x120f0b)))
+                   .fill(Fill::color(hexColor(0x120f0b)))
                    .opacity(&dimAmt)
                    .key("dim"))
         // (the dim veil is painted BELOW this: an instrument laid on the
@@ -1658,7 +1660,7 @@ struct Minard1869 : sketch::Sketch {
                         .rule = Fill::color(kCardInk)},
                        box())
                 .inset(0)
-                .stroke(stroke(1.0f, Fill::color(hex(0xcfc6b4)))));
+                .stroke(stroke(1.0f, Fill::color(hexColor(0xcfc6b4)))));
     c.child(std::move(body));
     return c;
   }
@@ -1883,7 +1885,7 @@ struct Minard1869 : sketch::Sketch {
                   .inset(0)
                   .shape(pathFn(rt.detach()))
                   .stroke(spans::upTo(beat(tGeo, tGeo + 0.5f)),
-                          stroke(1.4f, Fill::color(hex(0x1c1a17, 0.35f))))
+                          stroke(1.4f, Fill::color(hexColor(0x1c1a17, 0.35f))))
                   .key("georoute"));
     }
     SkPathBuilder crosses, vectors;
@@ -1902,7 +1904,7 @@ struct Minard1869 : sketch::Sketch {
                 .inset(0)
                 .shape(pathFn(vectors.detach()))
                 .stroke(spans::upTo(beat(tGeo + 0.5f, tGeo + 1.1f)),
-                        stroke(0.8f, Fill::color(hex(0x2f6f9c, 0.6f))))
+                        stroke(0.8f, Fill::color(hexColor(0x2f6f9c, 0.6f))))
                 .key("geovec"));
     g.child(box()
                 .inset(0)
@@ -1951,7 +1953,7 @@ struct Minard1869 : sketch::Sketch {
     // the digitisation quantum, as a grey band behind
     g.child(box()
                 .rect(SkRect::MakeXYWH(hx + hw * 6.41f / 40.0f - 6, hy, 12, hh))
-                .fill(Paint::solid(hex(0x6d675c, 0.22f)))
+                .fill(Paint::solid(hexColor(0x6d675c, 0.22f)))
                 .key("quantum")
                 .opacity(beat(tGeo + 1.3f, tGeo + 1.6f)));
     g.child(text(toU8("residual vectors ×8"), type(faceUi, 9, kGrey))
@@ -2138,12 +2140,12 @@ struct Minard1869 : sketch::Sketch {
                                       "Minard's paper, so every band width "
                                       "on screen is a real millimetre "
                                       "count"),
-                        .ink = Fill::color(hex(0x2f6f9c))},
+                        .ink = Fill::color(hexColor(0x2f6f9c))},
                        {.words = toU8("THE PLATE STATES ITS OWN "
                                       "CONSTRUCTION RULE.  THIS SKETCH "
                                       "CHECKS IT — AND THEN CHECKS ITSELF "
                                       "WITH THE SAME MEASUREMENT."),
-                        .ink = Fill::color(hex(0xb5761e))}}})
+                        .ink = Fill::color(hexColor(0xb5761e))}}})
             .left(Dim(0))
             .top(Dim(0))
             .width(Dim(2464)));
@@ -2152,16 +2154,16 @@ struct Minard1869 : sketch::Sketch {
 
   Element consoleStrip() {
     feed::TextOptions s;
-    s.styles = kit::tinted(faceMono, 8.2f, hex(0xb9b2a4),
-                           {{"dim", hex(0x6d675c)},
-                            {"pass", hex(0x62ab74)},
-                            {"fail", hex(0xd08a2a)},
-                            {"measured", hex(0x64a8d8)},
-                            {"heading", hex(0xf0e8d8)}});
+    s.styles = kit::tinted(faceMono, 8.2f, hexColor(0xb9b2a4),
+                           {{"dim", hexColor(0x6d675c)},
+                            {"pass", hexColor(0x62ab74)},
+                            {"fail", hexColor(0xd08a2a)},
+                            {"measured", hexColor(0x64a8d8)},
+                            {"heading", hexColor(0xf0e8d8)}});
     // The heading runs a shade larger; set() replaces it where it sits.
-    s.styles.set("heading",
-                 weave::textStyle(
-                     {.face = faceMono, .size = 8.8f, .color = hex(0xf0e8d8)}));
+    s.styles.set("heading", weave::textStyle({.face = faceMono,
+                                              .size = 8.8f,
+                                              .color = hexColor(0xf0e8d8)}));
     s.window.gap = 0.0f;
     s.window.visible = 20;
     return kit::console({.feeds = {&colA, &colB, &colC, &colD, &colE},
@@ -2169,8 +2171,8 @@ struct Minard1869 : sketch::Sketch {
                          .plate = {.paddingX = 8,
                                    .paddingY = 8,
                                    .gap = 12,
-                                   .fill = Fill::color(hex(0x141311)),
-                                   .border = Fill::color(hex(0x2c2a26)),
+                                   .fill = Fill::color(hexColor(0x141311)),
+                                   .border = Fill::color(hexColor(0x2c2a26)),
                                    .borderAlign = PathFormat::Align::Center,
                                    .columnExtent = 480}})
         .rect(SkRect::MakeXYWH(48, kConsoleY, 2464, kConsoleH))
@@ -2816,10 +2818,10 @@ struct Minard1869 : sketch::Sketch {
     // the air the masthead's lines stand apart by.
     sheetLook = {};
     sheetLook.palette.ground = kDesk;
-    sheetLook.palette.ink = hex(0xe3dccd);
-    sheetLook.palette.ash = hex(0x9a9285);
-    sheetLook.palette.rule = hex(0x2c2a26);
-    sheetLook.palette.figure = hex(0xe3dccd);
+    sheetLook.palette.ink = hexColor(0xe3dccd);
+    sheetLook.palette.ash = hexColor(0x9a9285);
+    sheetLook.palette.rule = hexColor(0x2c2a26);
+    sheetLook.palette.figure = hexColor(0xe3dccd);
     sheetLook.type.sans = faceUi;
     sheetLook.type.mono = faceMono;
     sheetLook.type.title = {20, 0};
@@ -2832,20 +2834,20 @@ struct Minard1869 : sketch::Sketch {
     // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px
     // pitch, the chain lines at ~26 px, and foxing.
     paperPulp = patterns::speckle(160, 220, 0.35f, 0.9f,
-                                  {skia::toColor(hex(0xb9ad98, 0.20f)),
-                                   skia::toColor(hex(0xd6cab6, 0.18f))});
+                                  {skia::toColor(hexColor(0xb9ad98, 0.20f)),
+                                   skia::toColor(hexColor(0xd6cab6, 0.18f))});
     paperPulp.seed(1869);
     laidLines =
-        patterns::stripes(0.6f, 0.7f, skia::toColor(hex(0xb9ad98, 0.10f)));
+        patterns::stripes(0.6f, 0.7f, skia::toColor(hexColor(0xb9ad98, 0.10f)));
     laidLines.rotate(90.0f);
-    chainLines =
-        patterns::stripes(1.1f, 25.0f, skia::toColor(hex(0xb9ad98, 0.13f)));
+    chainLines = patterns::stripes(1.1f, 25.0f,
+                                   skia::toColor(hexColor(0xb9ad98, 0.13f)));
     chainLines.rotate(90.0f);
     foxing = patterns::speckle(190, 5, 1.6f, 6.0f,
-                               {skia::toColor(hex(0xa07f55, 0.10f))});
+                               {skia::toColor(hexColor(0xa07f55, 0.10f))});
     foxing.seed(91);
     tintSpeckle = patterns::speckle(64, 40, 0.6f, 2.4f,
-                                    {skia::toColor(hex(0x8f6a55, 0.5f))});
+                                    {skia::toColor(hexColor(0x8f6a55, 0.5f))});
     tintSpeckle.seed(41);
 
     paperMat = Paint::blend({
@@ -2858,9 +2860,10 @@ struct Minard1869 : sketch::Sketch {
         {foxing.material(), SkBlendMode::kSrcOver},
     });
     // lying under a window: the vignette centre sits slightly ABOVE middle
-    vignette = Paint::radialUnit(
-        {0.46f, 0.40f}, 1.10f,
-        {{0.0f, hex(0xffffff)}, {0.70f, hex(0xf6f1e6)}, {1.0f, hex(0xc4b9a4)}});
+    vignette = Paint::radialUnit({0.46f, 0.40f}, 1.10f,
+                                 {{0.0f, hexColor(0xffffff)},
+                                  {0.70f, hexColor(0xf6f1e6)},
+                                  {1.0f, hexColor(0xc4b9a4)}});
 
     runAudits(ctx);
 

@@ -31,7 +31,7 @@ struct ChromeOptions {
   /** SkColor4f, as every other era look states its colours in: these
    *  values are painted, and a look whose knobs are in two colour types
    *  makes an author convert to set one of them. */
-  SkColor4f keyline = hex(0x10141A);
+  SkColor4f keyline = hexColor(0x10141A);
   float bevelDepth = 3.0f, bevelSize = 5.0f;
   bool operator==(const ChromeOptions&) const = default;
 };

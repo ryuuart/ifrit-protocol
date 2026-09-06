@@ -248,7 +248,7 @@ namespace ch = choreograph;
 
 namespace {
 
-using sigil::compose::hex;  // 0xRRGGBB (+ optional alpha) → SkColor4f
+using sigil::compose::hexColor;  // 0xRRGGBB (+ optional alpha) → SkColor4f
 
 // ---------------------------------------------------------------------------
 // palette — beeswax, four centuries old, under museum light: one hue and
@@ -256,23 +256,24 @@ using sigil::compose::hex;  // 0xRRGGBB (+ optional alpha) → SkColor4f
 // (the large disc) and .c (the small one); the cut is not a colour, it is a
 // shadowed wall and a lit wall.
 
-constexpr SkColor4f kVitrine = hex(0x14161c);
+constexpr SkColor4f kVitrine = hexColor(0x14161c);
 // THE DISC IS WAX, and the record says which wax: a dull olive-brown
 // beeswax, matte, scuffed, green-stained where the graver went in. A warm
 // parchment tan with a golden sheen is new vellum, and on new vellum a
 // line is drawn; on wax it is CUT.
-constexpr SkColor4f kWaxDeep = hex(0x5c4c26);
-constexpr SkColor4f kWaxMid = hex(0x7d6a37);
-constexpr SkColor4f kWaxLit = hex(0x9c8949);
-constexpr SkColor4f kWaxPale = hex(0xb3a267);
-constexpr SkColor4f kCutDark = hex(0x2b2210);  // the groove's floor
-constexpr SkColor4f kCutLite = hex(0xc4b485);  // the wall that catches light
-constexpr SkColor4f kInk = hex(0x2b2118);
-constexpr SkColor4f kInkSoft = hex(0x6a5a42);
-constexpr SkColor4f kRubric = hex(0x8c2f22);
-constexpr SkColor4f kTrace = hex(0x1f6f9c);
-constexpr SkColor4f kGold = hex(0xb8862c);
-constexpr SkColor4f kVellum = hex(0xece1c8);
+constexpr SkColor4f kWaxDeep = hexColor(0x5c4c26);
+constexpr SkColor4f kWaxMid = hexColor(0x7d6a37);
+constexpr SkColor4f kWaxLit = hexColor(0x9c8949);
+constexpr SkColor4f kWaxPale = hexColor(0xb3a267);
+constexpr SkColor4f kCutDark = hexColor(0x2b2210);  // the groove's floor
+constexpr SkColor4f kCutLite =
+    hexColor(0xc4b485);  // the wall that catches light
+constexpr SkColor4f kInk = hexColor(0x2b2118);
+constexpr SkColor4f kInkSoft = hexColor(0x6a5a42);
+constexpr SkColor4f kRubric = hexColor(0x8c2f22);
+constexpr SkColor4f kTrace = hexColor(0x1f6f9c);
+constexpr SkColor4f kGold = hexColor(0xb8862c);
+constexpr SkColor4f kVellum = hexColor(0xece1c8);
 
 // ---------------------------------------------------------------------------
 // canvas & the seal's frame
@@ -675,10 +676,10 @@ struct SigillumAemeth : sketch::Sketch {
     g.child(kit::disc(SkPoint{kRR, kRR}, kWaxEdge * 1.055f * kR)
                 .shape(shapes::annulus(0.90f))
                 .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                        {{0.0f, hex(0x05070a, 0.0f)},
-                                         {0.905f, hex(0x05070a, 0.0f)},
-                                         {0.945f, hex(0x05070a, 0.62f)},
-                                         {1.0f, hex(0x05070a, 0.0f)}}))
+                                        {{0.0f, hexColor(0x05070a, 0.0f)},
+                                         {0.905f, hexColor(0x05070a, 0.0f)},
+                                         {0.945f, hexColor(0x05070a, 0.62f)},
+                                         {1.0f, hexColor(0x05070a, 0.0f)}}))
                 .translateX(5)
                 .translateY(11)
                 .key("waxshadow"));
@@ -693,8 +694,8 @@ struct SigillumAemeth : sketch::Sketch {
                                  SkBlendMode::kSrcOver},
                                 {waxGrain, SkBlendMode::kOverlay},
                                 {waxSpeck.material(), SkBlendMode::kMultiply}}))
-            .foreground(lines::presets::hatch(Fill::color(hex(0x6d5228, 0.10f)),
-                                              11.0f, 0.9f, -24.0f))
+            .foreground(lines::presets::hatch(
+                Fill::color(hexColor(0x6d5228, 0.10f)), 11.0f, 0.9f, -24.0f))
             .foreground(PathFormat{
                 .width = 9.0f,
                 .strokeFill = grooveFill(kWaxEdge * kR, 9.0f, 0.55f, 0.42f),
@@ -707,18 +708,18 @@ struct SigillumAemeth : sketch::Sketch {
     g.child(kit::disc(SkPoint{kRR, kRR}, 0.33f * kR)
                 .shape(shapes::circle())
                 .fill(Paint::radialUnit({0.42f, 0.38f}, 1.0f,
-                                        {{0.0f, hex(0xfff6dd, 0.34f)},
-                                         {0.55f, hex(0xffeec6, 0.14f)},
-                                         {1.0f, hex(0x000000, 0.0f)}}))
+                                        {{0.0f, hexColor(0xfff6dd, 0.34f)},
+                                         {0.55f, hexColor(0xffeec6, 0.14f)},
+                                         {1.0f, hexColor(0x000000, 0.0f)}}))
                 .blend(SkBlendMode::kScreen)
                 .key("shew"));
-    g.child(
-        kit::disc(SkPoint{kRR, kRR}, 0.335f * kR)
-            .shape(shapes::circle())
-            .fill(Fill::none())
-            .stroke(PathFormat{.width = 2.0f,
-                               .strokeFill = Fill::color(hex(0x7d5f2c, 0.20f))})
-            .key("shewring"));
+    g.child(kit::disc(SkPoint{kRR, kRR}, 0.335f * kR)
+                .shape(shapes::circle())
+                .fill(Fill::none())
+                .stroke(PathFormat{
+                    .width = 2.0f,
+                    .strokeFill = Fill::color(hexColor(0x7d5f2c, 0.20f))})
+                .key("shewring"));
     return g;
   }
 
@@ -746,7 +747,7 @@ struct SigillumAemeth : sketch::Sketch {
                      .fill = grooveFill(rNorm * kR, heavy, 0.95f, 0.55f)});
       lines::Rail inner{.across = -gap,
                         .width = hair,
-                        .fill = Fill::color(hex(0x4a3418, 0.72f))};
+                        .fill = Fill::color(hexColor(0x4a3418, 0.72f))};
       if (dotted) inner.dash = {1.2f, 5.0f};
       set.push_back(inner);
       lines::Rails rails = lines::rails(std::move(set));
@@ -760,7 +761,7 @@ struct SigillumAemeth : sketch::Sketch {
                 .shape(shapes::annulus(rBandIn / rGreat))
                 .fill(Fill::none())
                 .foreground(lines::RadialHatch{
-                    .strokeFill = Fill::color(hex(0x6d5228, 0.11f)),
+                    .strokeFill = Fill::color(hexColor(0x6d5228, 0.11f)),
                     .spokes = 320,
                     .rings = 0,
                     .width = 0.8f,
@@ -784,7 +785,7 @@ struct SigillumAemeth : sketch::Sketch {
                                .width(5)
                                .height(5)
                                .shape(shapes::polygon(4))
-                               .fill(Fill::color(hex(0x2c1c06, 0.85f))),
+                               .fill(Fill::color(hexColor(0x2c1c06, 0.85f))),
                     .spacing = step,
                     .alignToPath = true,
                     .bleedPx = 8.0f})
@@ -798,33 +799,33 @@ struct SigillumAemeth : sketch::Sketch {
 
     // the 40 radial dividers: INTERRUPTED rules that stop short of both
     // circles. One node, forty contours, one trim window on the stroke.
-    g.child(
-        box()
-            .inset(0)
-            .shape(keyedShape(std::string_view("band-dividers"),
-                              [](SkSize) {
-                                SkPathBuilder b;
-                                for (int i = 0; i < 40; ++i) {
-                                  const float th = (float)i * 9.0f - 4.5f;
-                                  b.moveTo(P(th, rBandIn));
-                                  b.lineTo(P(th, rGreat));
-                                }
-                                return b.detach();
-                              }))
-            .fill(Fill::none())
-            .stroke(PathFormat{.width = 1.9f,
-                               .strokeFill = Fill::color(hex(0x2c1c06, 1.0f)),
-                               .cap = SkPaint::kRound_Cap,
-                               .trimStart = 0.09f,
-                               .trimEnd = 0.91f})
-            .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 620)))
-            .key("dividers"));
+    g.child(box()
+                .inset(0)
+                .shape(keyedShape(std::string_view("band-dividers"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    for (int i = 0; i < 40; ++i) {
+                                      const float th = (float)i * 9.0f - 4.5f;
+                                      b.moveTo(P(th, rBandIn));
+                                      b.lineTo(P(th, rGreat));
+                                    }
+                                    return b.detach();
+                                  }))
+                .fill(Fill::none())
+                .stroke(PathFormat{
+                    .width = 1.9f,
+                    .strokeFill = Fill::color(hexColor(0x2c1c06, 1.0f)),
+                    .cap = SkPaint::kRound_Cap,
+                    .trimStart = 0.09f,
+                    .trimEnd = 0.91f})
+                .opacity(animate(from(0.0f).to(1.0f), ramp(tCells * 1000, 620)))
+                .key("dividers"));
 
     // the letters, upright-radial, and their numbers above or below
     const weaveNs::TextStyle letStyle =
-        type(faceRing, 0.060f * kR, hex(0x241603, 1.0f));
+        type(faceRing, 0.060f * kR, hexColor(0x241603, 1.0f));
     const weaveNs::TextStyle numStyle =
-        type(faceRing, 0.031f * kR, hex(0x4a3210, 1.0f));
+        type(faceRing, 0.031f * kR, hexColor(0x4a3210, 1.0f));
     for (int i = 0; i < 40; ++i) {
       const Cell& c = kRing[(size_t)i];
       const float th = (float)i * 9.0f;
@@ -909,7 +910,7 @@ struct SigillumAemeth : sketch::Sketch {
                                 b.close();
                                 return b.detach();
                               }))
-            .fill(Fill::color(hex(0x402c10, 0.92f)));
+            .fill(Fill::color(hexColor(0x402c10, 0.92f)));
     Element sideTile = box().width(20).height(3).fill(Fill::none());
 
     auto plates = box().inset(0).cache(Cache::Texture);
@@ -920,17 +921,17 @@ struct SigillumAemeth : sketch::Sketch {
           kit::disc(SkPoint{kRR, kRR}, 0.868f * kR)
               .shape(shapes::sector(skAngle(mid - half), 2 * half,
                                     0.720f / 0.868f))
-              .fill(Fill::color(hex(0xd9bd88, 0.30f)))
+              .fill(Fill::color(hexColor(0xd9bd88, 0.30f)))
               .foreground(lines::RadialHatch{
-                  .strokeFill = Fill::color(hex(0x6d5228, 0.13f)),
+                  .strokeFill = Fill::color(hexColor(0x6d5228, 0.13f)),
                   .spokes = 96,
                   .rings = 0,
                   .width = 0.9f,
                   .holeFraction = 0.70f})
               .stroke(Brush{}
-                          .layer(PathFormat{
-                              .width = 1.5f,
-                              .strokeFill = Fill::color(hex(0x4a3418, 0.55f))})
+                          .layer(PathFormat{.width = 1.5f,
+                                            .strokeFill = Fill::color(
+                                                hexColor(0x4a3418, 0.55f))})
                           .layer(brush::Pattern{
                               .side = sideTile,
                               .corner =
@@ -946,7 +947,7 @@ struct SigillumAemeth : sketch::Sketch {
     // the 49 letters: ONE text run per row on a SEVEN-CONTOUR chord path,
     // addressed by (k + 0.5)/7 of one continuous arc-length coordinate.
     const weaveNs::TextStyle angStyle =
-        type(faceSeal, 0.049f * kR, hex(0x201404, 1.0f), 0.034f * kR);
+        type(faceSeal, 0.049f * kR, hexColor(0x201404, 1.0f), 0.034f * kR);
     for (int k = 0; k < 7; ++k) {
       std::string row;
       for (int c = 0; c < 7; ++c) row += kAngles[k][c];
@@ -975,7 +976,7 @@ struct SigillumAemeth : sketch::Sketch {
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 2.2f,
-                      .strokeFill = Fill::color(hex(0x402c10, 0.85f)),
+                      .strokeFill = Fill::color(hexColor(0x402c10, 0.85f)),
                       .align = PathFormat::Align::Inner})
                   .opacity(animate(from(0.0f).to(1.0f),
                                    ramp(tBirds * 1000 + (float)k * 260, 420)))
@@ -997,32 +998,32 @@ struct SigillumAemeth : sketch::Sketch {
                 .fill(Fill::none())
                 .stroke(Brush{}
                             .layer(brush::presets::calligraphic(
-                                34.0f, 6.8f, Fill::color(hex(0x291a05, 0.95f)),
-                                0.22f))
-                            .layer(PathFormat{
-                                .width = 0.9f,
-                                .strokeFill = Fill::color(hex(0xf7e9c4, 0.35f)),
-                                .trimStart = 0.0f,
-                                .trimEnd = 1.0f}))
+                                34.0f, 6.8f,
+                                Fill::color(hexColor(0x291a05, 0.95f)), 0.22f))
+                            .layer(PathFormat{.width = 0.9f,
+                                              .strokeFill = Fill::color(
+                                                  hexColor(0xf7e9c4, 0.35f)),
+                                              .trimStart = 0.0f,
+                                              .trimEnd = 1.0f}))
                 .key("heptrule"));
 
     // the second, inner heptagon rule — the Names sit between the two
-    g.child(
-        box()
-            .inset(0)
-            .shape(heptChords(rNameHept - 0.043f, 0.0f))
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 2.2f,
-                                   .fill = Fill::color(hex(0x4a3418, 0.72f))},
-                                  {.across = -5.0f,
-                                   .width = 0.8f,
-                                   .fill = Fill::color(hex(0x4a3418, 0.45f)),
-                                   .dash = {1.4f, 4.6f}}}))
-            .key("heptrule2"));
+    g.child(box()
+                .inset(0)
+                .shape(heptChords(rNameHept - 0.043f, 0.0f))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 2.2f,
+                      .fill = Fill::color(hexColor(0x4a3418, 0.72f))},
+                     {.across = -5.0f,
+                      .width = 0.8f,
+                      .fill = Fill::color(hexColor(0x4a3418, 0.45f)),
+                      .dash = {1.4f, 4.6f}}}))
+                .key("heptrule2"));
 
     const weaveNs::TextStyle nameStyle =
-        type(faceQuill, 0.048f * kR, hex(0x201404, 1.0f), 0.026f * kR);
+        type(faceQuill, 0.048f * kR, hexColor(0x201404, 1.0f), 0.026f * kR);
     for (int k = 0; k < 7; ++k) {
       std::string row;
       for (auto gl : kGodNames[(size_t)k].glyphs) {
@@ -1039,7 +1040,7 @@ struct SigillumAemeth : sketch::Sketch {
                                    .orient = TextPath::Orient::Tangent}));
       // the Latin marginal reading, inside the heptagon, smaller
       g.child(text(toU8(kGodNames[(size_t)k].gloss),
-                   type(faceItalic, 0.022f * kR, hex(0x53380f, 0.88f)))
+                   type(faceItalic, 0.022f * kR, hexColor(0x53380f, 0.88f)))
                   .inset(0)
                   .key("gloss" + std::to_string(k))
                   .onPath(TextPath{.path = heptChords(rNameHept - 0.056f, 0.0f),
@@ -1100,10 +1101,10 @@ struct SigillumAemeth : sketch::Sketch {
                  // the shadowed wall, and the lip of wax pushed up beside it
                  {.across = 1.2f - bandW * 0.5f,
                   .width = 2.4f,
-                  .fill = Fill::color(hex(0x1a1409, 0.85f))},
+                  .fill = Fill::color(hexColor(0x1a1409, 0.85f))},
                  {.across = 1.6f - bandW * 0.5f - 2.4f,
                   .width = 1.0f,
-                  .fill = Fill::color(hex(0xbfae76, 0.45f))}}));
+                  .fill = Fill::color(hexColor(0xbfae76, 0.45f))}}));
         (void)over;
       };
       for (int i = 0; i < 7; ++i) limb(c, i, false);
@@ -1161,9 +1162,9 @@ struct SigillumAemeth : sketch::Sketch {
                       b.close();
                       return b.detach();
                     }))
-                .fill(Fill::color(hex(0x7d5f2c, 0.10f)))
+                .fill(Fill::color(hexColor(0x7d5f2c, 0.10f)))
                 .foreground(lines::presets::crosshatch(
-                    Fill::color(hex(0x5a4218, 0.16f)), 8.0f, 0.8f, 22.0f))
+                    Fill::color(hexColor(0x5a4218, 0.16f)), 8.0f, 0.8f, 22.0f))
                 .key("recess"));
 
     // the concentric rules that cut the points into cells
@@ -1200,13 +1201,13 @@ struct SigillumAemeth : sketch::Sketch {
       float size;
     };
     const Order orders[4] = {
-        {kFiliaeLucis, rFiliaeLucis, 0, hex(0x2c1c06, 0.95f), 0.027f},
-        {kFiliiLucis, rFiliiLucis, 1, hex(0x2c1c06, 0.95f), 0.025f},
-        {kFiliaeFil, rFiliaeFil, 2, hex(0x2c1c06, 0.95f), 0.024f},
-        {kFiliiFil, rFiliiFil, 3, hex(0x2c1c06, 0.95f), 0.023f}};
+        {kFiliaeLucis, rFiliaeLucis, 0, hexColor(0x2c1c06, 0.95f), 0.027f},
+        {kFiliiLucis, rFiliiLucis, 1, hexColor(0x2c1c06, 0.95f), 0.025f},
+        {kFiliaeFil, rFiliaeFil, 2, hexColor(0x2c1c06, 0.95f), 0.024f},
+        {kFiliiFil, rFiliiFil, 3, hexColor(0x2c1c06, 0.95f), 0.023f}};
     const SkColor4f kTabletFace[4] = {
-        hex(0xe4cd9e, 0.62f), hex(0xecd7a8, 0.66f), hex(0xe8d2a2, 0.60f),
-        hex(0xdfc793, 0.58f)};
+        hexColor(0xe4cd9e, 0.62f), hexColor(0xecd7a8, 0.66f),
+        hexColor(0xe8d2a2, 0.60f), hexColor(0xdfc793, 0.58f)};
 
     for (int o = 0; o < 4; ++o) {
       const Order& ord = orders[o];
@@ -1221,9 +1222,9 @@ struct SigillumAemeth : sketch::Sketch {
                 .height(Dim(em))
                 .centerAt(at)
                 .fill(Fill::color(kTabletFace[o]))
-                .foreground(
-                    lines::presets::hatch(Fill::color(hex(0x4a3418, 0.30f)),
-                                          3.6f, 0.7f, 20.0f + (float)o * 40.0f))
+                .foreground(lines::presets::hatch(
+                    Fill::color(hexColor(0x4a3418, 0.30f)), 3.6f, 0.7f,
+                    20.0f + (float)o * 40.0f))
                 .stroke(PathFormat{.width = 1.7f,
                                    .strokeFill = Fill::color(ord.rule)})
                 .rotate(th)
@@ -1242,7 +1243,7 @@ struct SigillumAemeth : sketch::Sketch {
 
         const std::string nm = ord.names[k];
         g.child(text(toU8(nm == "*" ? "E\xc9\x9b" : nm),
-                     type(faceSeal, ord.size * kR, hex(0x201404, 1.0f)))
+                     type(faceSeal, ord.size * kR, hexColor(0x201404, 1.0f)))
                     .width(Dim(2 * ord.radius * kR))
                     .height(Dim(2 * ord.radius * kR))
                     .centerAt({kRR, kRR})
@@ -1258,23 +1259,23 @@ struct SigillumAemeth : sketch::Sketch {
 
     // ZABATHIEL — "this name must be distributed in his letters into 7 sides
     // of that innermost Heptagonum. So have you just 7 places."
-    g.child(
-        box()
-            .inset(0)
-            .shape(heptChords(rInnerHept, 0.0f))
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 2.2f,
-                                   .fill = Fill::color(hex(0x3f2c12, 0.88f))},
-                                  {.across = 4.0f,
-                                   .width = 0.7f,
-                                   .fill = Fill::color(hex(0xfbf0d0, 0.40f))}}))
-            .key("zabhept"));
+    g.child(box()
+                .inset(0)
+                .shape(heptChords(rInnerHept, 0.0f))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 2.2f,
+                      .fill = Fill::color(hexColor(0x3f2c12, 0.88f))},
+                     {.across = 4.0f,
+                      .width = 0.7f,
+                      .fill = Fill::color(hexColor(0xfbf0d0, 0.40f))}}))
+                .key("zabhept"));
     for (int k = 0; k < 7; ++k) {
       const std::string s = kZabathiel[k];
       g.child(
           text(toU8(s == "I*" ? "I\xc9\x9b" : s),
-               type(faceSeal, 0.030f * kR, hex(0x201404, 1.0f)))
+               type(faceSeal, 0.030f * kR, hexColor(0x201404, 1.0f)))
               .inset(0)
               .key("zab" + std::to_string(k))
               .onPath(TextPath{.path = heptChords(rInnerHept - 0.028f, 0.0f),
@@ -1295,28 +1296,28 @@ struct SigillumAemeth : sketch::Sketch {
                  .transformOrigin(0.5f, 0.5f);
     // "Set Z, of Zedekieil within the angle which standeth up toward the
     // begynning of the greatest Circle" — point-up, aligned on division 1.
-    g.child(
-        kit::disc(SkPoint{kHp, kHp}, rPenta * kR)
-            .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))
-            .fill(Fill::color(hex(0xe6cf9e, 0.18f)))
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 3.0f,
-                                   .fill = Fill::color(hex(0x3f2c12, 0.92f))},
-                                  {.across = 3.2f,
-                                   .width = 0.8f,
-                                   .fill = Fill::color(hex(0xfbf0d0, 0.45f))}}))
-            // THE MARKS, and not the wash under them: the reveal runs on
-            // the rails only, and the 18%-alpha ground is simply there
-            // from the start. Sweeping a wash that faint across its own
-            // background is a change too small to read as an entrance.
-            .mask(parts::marks(),
-                  by::spans(spans::upTo(animate(
-                      from(0.0f).to(1.0f), ramp(tInner * 1000 + 500, 800)))))
-            .key("penta"));
+    g.child(kit::disc(SkPoint{kHp, kHp}, rPenta * kR)
+                .shape(wobbled(shapes::star(5, 0.382f), 5, 16.0f, 0.30f))
+                .fill(Fill::color(hexColor(0xe6cf9e, 0.18f)))
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 3.0f,
+                      .fill = Fill::color(hexColor(0x3f2c12, 0.92f))},
+                     {.across = 3.2f,
+                      .width = 0.8f,
+                      .fill = Fill::color(hexColor(0xfbf0d0, 0.45f))}}))
+                // THE MARKS, and not the wash under them: the reveal runs on
+                // the rails only, and the 18%-alpha ground is simply there
+                // from the start. Sweeping a wash that faint across its own
+                // background is a change too small to read as an entrance.
+                .mask(parts::marks(), by::spans(spans::upTo(animate(
+                                          from(0.0f).to(1.0f),
+                                          ramp(tInner * 1000 + 500, 800)))))
+                .key("penta"));
     for (int k = 0; k < 5; ++k) {
       const float th = (float)k * 72.0f;
       g.child(text(toU8(kPentaNames[(size_t)k].initial),
-                   type(faceSeal, 0.052f * kR, hex(0x241704, 1.0f)))
+                   type(faceSeal, 0.052f * kR, hexColor(0x241704, 1.0f)))
                   .width(Dim(2 * rPentaInit * kR))
                   .height(Dim(2 * rPentaInit * kR))
                   .centerAt({kHp, kHp})
@@ -1332,7 +1333,7 @@ struct SigillumAemeth : sketch::Sketch {
                               ramp(tInner * 1000 + 900 + (float)k * 40, 420))));
       // the rest of the name runs circularly outward into the exterior angle
       g.child(text(toU8(kPentaNames[(size_t)k].tail),
-                   type(faceQuill, 0.024f * kR, hex(0x40300f, 0.92f)))
+                   type(faceQuill, 0.024f * kR, hexColor(0x40300f, 0.92f)))
                   .width(Dim(2 * rPentaTail * kR))
                   .height(Dim(2 * rPentaTail * kR))
                   .centerAt({kHp, kHp})
@@ -1356,36 +1357,36 @@ struct SigillumAemeth : sketch::Sketch {
     auto g =
         box().rect(SkRect::MakeXYWH(kRR - kHc, kRR - kHc, 2 * kHc, 2 * kHc));
     const float arm = rCross * kR;
-    g.child(
-        box()
-            .width(Dim(2.4f * arm))
-            .height(Dim(2.4f * arm))
-            .centerAt({kHc, kHc})
-            .shape(keyedShape(std::string_view("crux"),
-                              [](SkSize s) {
-                                SkPathBuilder b;
-                                const float w = s.width(), h = s.height();
-                                const float t = w * 0.085f;
-                                const float top = h * 0.06f;
-                                b.moveTo(w * 0.5f - t, top);
-                                b.lineTo(w * 0.5f + t, top);
-                                b.lineTo(w * 0.5f + t, h * 0.34f - t);
-                                b.lineTo(w * 0.90f, h * 0.34f - t);
-                                b.lineTo(w * 0.90f, h * 0.34f + t);
-                                b.lineTo(w * 0.5f + t, h * 0.34f + t);
-                                b.lineTo(w * 0.5f + t, h * 0.96f);
-                                b.lineTo(w * 0.5f - t, h * 0.96f);
-                                b.lineTo(w * 0.5f - t, h * 0.34f + t);
-                                b.lineTo(w * 0.10f, h * 0.34f + t);
-                                b.lineTo(w * 0.10f, h * 0.34f - t);
-                                b.lineTo(w * 0.5f - t, h * 0.34f - t);
-                                b.close();
-                                return b.detach();
-                              }))
-            .fill(Fill::color(hex(0xe9d4a4, 0.34f)))
-            .stroke(PathFormat{.width = 2.4f,
-                               .strokeFill = Fill::color(hex(0x3f2c12, 0.92f))})
-            .key("crux"));
+    g.child(box()
+                .width(Dim(2.4f * arm))
+                .height(Dim(2.4f * arm))
+                .centerAt({kHc, kHc})
+                .shape(keyedShape(std::string_view("crux"),
+                                  [](SkSize s) {
+                                    SkPathBuilder b;
+                                    const float w = s.width(), h = s.height();
+                                    const float t = w * 0.085f;
+                                    const float top = h * 0.06f;
+                                    b.moveTo(w * 0.5f - t, top);
+                                    b.lineTo(w * 0.5f + t, top);
+                                    b.lineTo(w * 0.5f + t, h * 0.34f - t);
+                                    b.lineTo(w * 0.90f, h * 0.34f - t);
+                                    b.lineTo(w * 0.90f, h * 0.34f + t);
+                                    b.lineTo(w * 0.5f + t, h * 0.34f + t);
+                                    b.lineTo(w * 0.5f + t, h * 0.96f);
+                                    b.lineTo(w * 0.5f - t, h * 0.96f);
+                                    b.lineTo(w * 0.5f - t, h * 0.34f + t);
+                                    b.lineTo(w * 0.10f, h * 0.34f + t);
+                                    b.lineTo(w * 0.10f, h * 0.34f - t);
+                                    b.lineTo(w * 0.5f - t, h * 0.34f - t);
+                                    b.close();
+                                    return b.detach();
+                                  }))
+                .fill(Fill::color(hexColor(0xe9d4a4, 0.34f)))
+                .stroke(PathFormat{
+                    .width = 2.4f,
+                    .strokeFill = Fill::color(hexColor(0x3f2c12, 0.92f))})
+                .key("crux"));
     // LE · VA · NA · el, on the arms — Levanael read left, top, right, foot
     const struct {
       const char* s;
@@ -1397,7 +1398,7 @@ struct SigillumAemeth : sketch::Sketch {
                   {"LE", 270.0f, rCross * 1.02f}};
     for (int i = 0; i < 4; ++i) {
       g.child(text(toU8(kArms[i].s),
-                   type(faceSeal, 0.025f * kR, hex(0x2b1d08, 1.0f)))
+                   type(faceSeal, 0.025f * kR, hexColor(0x2b1d08, 1.0f)))
                   .width(Dim(2 * kArms[i].r * kR))
                   .height(Dim(2 * kArms[i].r * kR))
                   .centerAt({kHc, kHc})
@@ -1472,10 +1473,11 @@ struct SigillumAemeth : sketch::Sketch {
                   }()))
                   .fill(Fill::none())
                   .stroke(spans::upTo(reveal(760.0f)),
-                          lines::Line{.width = 2.6f,
-                                      .fill = Fill::color(hex(0x7fd0f4, 0.95f)),
-                                      .endCap = lines::Cap::Arrow,
-                                      .capSize = 15.0f})
+                          lines::Line{
+                              .width = 2.6f,
+                              .fill = Fill::color(hexColor(0x7fd0f4, 0.95f)),
+                              .endCap = lines::Cap::Arrow,
+                              .capSize = 15.0f})
                   .opacity(fade(0))
                   .key("hops" + std::to_string(n)));
       g.child(box()
@@ -1488,9 +1490,9 @@ struct SigillumAemeth : sketch::Sketch {
                   }()))
                   .fill(Fill::none())
                   .stroke(spans::upTo(reveal(820.0f)),
-                          PathFormat{
-                              .width = 2.0f,
-                              .strokeFill = Fill::color(hex(0x59b6e8, 0.92f))})
+                          PathFormat{.width = 2.0f,
+                                     .strokeFill = Fill::color(
+                                         hexColor(0x59b6e8, 0.92f))})
                   .opacity(fade(0))
                   .key("lands" + std::to_string(n)));
     }
@@ -1513,31 +1515,31 @@ struct SigillumAemeth : sketch::Sketch {
     g.child(
         text(toU8("EMETH nuncupatum \xc2\xb7 Mortlake by Richemond \xc2\xb7 "
                   "21 Martii 1582"),
-             type(faceItalic, 19, hex(0xc7ab74)))
+             type(faceItalic, 19, hexColor(0xc7ab74)))
             .at({2, 58}));
     g.child(
         text(toU8("BL Sloane MS 3188 f.30r \xc2\xb7 wax disc BM 1838,1232.90.a "
                   "\xc2\xb7 23.2 cm"),
-             type(faceSerif, 15, hex(0x8d7a58)))
+             type(faceSerif, 15, hexColor(0x8d7a58)))
             .at({2, 86}));
-    g.child(
-        box()
-            .rect(SkRect::MakeXYWH(0, 114, w, 2))
-            .fill(Fill::none())
-            .shape(keyedShape(w,
-                              [w](SkSize) {
-                                SkPathBuilder b;
-                                b.moveTo(0, 1);
-                                b.lineTo(w, 1);
-                                return b.detach();
-                              }))
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 2.4f,
-                                   .fill = Fill::color(hex(0xc7ab74, 0.75f))},
-                                  {.across = -5.0f,
-                                   .width = 0.8f,
-                                   .fill = Fill::color(hex(0xc7ab74, 0.40f)),
-                                   .dash = {2.0f, 5.0f}}})));
+    g.child(box()
+                .rect(SkRect::MakeXYWH(0, 114, w, 2))
+                .fill(Fill::none())
+                .shape(keyedShape(w,
+                                  [w](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(0, 1);
+                                    b.lineTo(w, 1);
+                                    return b.detach();
+                                  }))
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 2.4f,
+                      .fill = Fill::color(hexColor(0xc7ab74, 0.75f))},
+                     {.across = -5.0f,
+                      .width = 0.8f,
+                      .fill = Fill::color(hexColor(0xc7ab74, 0.40f)),
+                      .dash = {2.0f, 5.0f}}})));
 
     // the seven Names, printing as the walk finds them
     g.child(text(toU8("THE SEVEN NAMES, WALKED OFF THE RIM"),
@@ -1557,7 +1559,7 @@ struct SigillumAemeth : sketch::Sketch {
                 .fill(Fill::none())
                 .stroke(PathFormat{
                     .width = 0.8f,
-                    .strokeFill = Fill::color(hex(0xc7ab74, 0.14f))}));
+                    .strokeFill = Fill::color(hexColor(0xc7ab74, 0.14f))}));
     for (int n = 0; n < 7; ++n) {
       const Solved& s = solved[(size_t)n];
       const float y = 166 + (float)n * 46;
@@ -1566,7 +1568,7 @@ struct SigillumAemeth : sketch::Sketch {
       for (size_t i = 0; i < s.cells.size(); ++i)
         chain += (i ? "\xc2\xb7" : "") + std::to_string(s.cells[i]);
       g.child(text(toU8(std::to_string(n + 1) + "."),
-                   type(faceMono, 17, hex(0x8d7a58)))
+                   type(faceMono, 17, hexColor(0x8d7a58)))
                   .at({0, y + 6})
                   .opacity(animate(from(0.0f).to(1.0f), ramp(at, 300))));
       g.child(text(toU8(kNames[(size_t)n].name),
@@ -1576,7 +1578,7 @@ struct SigillumAemeth : sketch::Sketch {
       g.child(text(toU8(s.raw == s.reduced
                             ? ""
                             : "\xe2\x9f\xa8" + s.raw + "\xe2\x9f\xa9"),
-                   type(faceItalic, 15, hex(0x6f5f45)))
+                   type(faceItalic, 15, hexColor(0x6f5f45)))
                   .at({212, y + 10})
                   .opacity(animate(from(0.0f).to(1.0f), ramp(at + 240, 420))));
       g.child(text(toU8(chain), type(faceMono, 14, kTrace))
@@ -1596,7 +1598,7 @@ struct SigillumAemeth : sketch::Sketch {
           text(toU8(kit::formatted(
                    "%d of 40 cells consumed \xc2\xb7 %d never visited",
                    usedCells, 40 - usedCells)),
-               type(faceMono, 15, hex(0x8d7a58)))
+               type(faceMono, 15, hexColor(0x8d7a58)))
               .at({0, 492})
               .opacity(animate(from(0.0f).to(1.0f), ramp(tDark * 1000, 500))));
       g.child(text(toU8("unvisited  " + un + "   =  " + unl),
@@ -1608,7 +1610,7 @@ struct SigillumAemeth : sketch::Sketch {
           text(toU8("\xe2\x86\xb3 the same rule reads them as YMON 22\xc2\xb7"
                     "7\xc2\xb7\x31\x33\xc2\xb7\x33\x31 and BORAOTH "
                     "26\xc2\xb7\x33\x36\xc2\xb7\x31\x39\xc2\xb7\xe2\x80\xa6"),
-               type(faceItalic, 14, hex(0x6f5f45)))
+               type(faceItalic, 14, hexColor(0x6f5f45)))
               .at({0, 536})
               .opacity(
                   animate(from(0.0f).to(1.0f), ramp(tDark * 1000 + 400, 500))));
@@ -1635,30 +1637,31 @@ struct SigillumAemeth : sketch::Sketch {
       return -fanSpan * 0.5f + fanSpan * ((float)col + 0.5f) / 7.0f;
     };
     // the seven arcs the rows sit on — ruled first, as on a prepared sheet
-    g.child(
-        box()
-            .rect(SkRect::MakeXYWH(0, 560, w, 300))
-            .shape(keyedShape(
-                std::tuple{fanCx, fanCy, fanR0, fanDR, fanSpan},
-                [fanCx, fanCy, fanR0, fanDR, fanSpan](SkSize) {
-                  SkPathBuilder b;
-                  for (int r = 0; r <= 7; ++r) {
-                    const float rr = fanR0 - (float)r * fanDR + fanDR * 0.5f;
-                    for (int i = 0; i <= 24; ++i) {
-                      const float a = (-fanSpan * 0.54f +
-                                       fanSpan * 1.08f * (float)i / 24.0f) *
-                                      kD;
-                      const SkPoint q = arrange::onEllipse(
-                          {fanCx, fanCy - 560.0f}, {rr, rr}, a - 1.5707963f);
-                      i == 0 ? b.moveTo(q) : b.lineTo(q);
-                    }
-                  }
-                  return b.detach();
-                }))
-            .fill(Fill::none())
-            .stroke(
-                PathFormat{.width = 0.8f,
-                           .strokeFill = Fill::color(hex(0xc7ab74, 0.15f))}));
+    g.child(box()
+                .rect(SkRect::MakeXYWH(0, 560, w, 300))
+                .shape(keyedShape(
+                    std::tuple{fanCx, fanCy, fanR0, fanDR, fanSpan},
+                    [fanCx, fanCy, fanR0, fanDR, fanSpan](SkSize) {
+                      SkPathBuilder b;
+                      for (int r = 0; r <= 7; ++r) {
+                        const float rr =
+                            fanR0 - (float)r * fanDR + fanDR * 0.5f;
+                        for (int i = 0; i <= 24; ++i) {
+                          const float a = (-fanSpan * 0.54f +
+                                           fanSpan * 1.08f * (float)i / 24.0f) *
+                                          kD;
+                          const SkPoint q =
+                              arrange::onEllipse({fanCx, fanCy - 560.0f},
+                                                 {rr, rr}, a - 1.5707963f);
+                          i == 0 ? b.moveTo(q) : b.lineTo(q);
+                        }
+                      }
+                      return b.detach();
+                    }))
+                .fill(Fill::none())
+                .stroke(PathFormat{
+                    .width = 0.8f,
+                    .strokeFill = Fill::color(hexColor(0xc7ab74, 0.15f))}));
     // the column rays light in sequence, and each drags a leader out to its
     // name
     for (int c = 0; c < 7; ++c) {
@@ -1679,10 +1682,10 @@ struct SigillumAemeth : sketch::Sketch {
                   .stroke(lines::rails(
                       {{.across = 19.0f,
                         .width = 0.9f,
-                        .fill = Fill::color(hex(0x62b0dc, 0.60f))},
+                        .fill = Fill::color(hexColor(0x62b0dc, 0.60f))},
                        {.across = -19.0f,
                         .width = 0.9f,
-                        .fill = Fill::color(hex(0x62b0dc, 0.60f))}}))
+                        .fill = Fill::color(hexColor(0x62b0dc, 0.60f))}}))
                   .opacity(animate(from(0.0f).to(1.0f), ramp(delay, 360))));
       g.child(
           box()
@@ -1697,15 +1700,16 @@ struct SigillumAemeth : sketch::Sketch {
                     return b.detach();
                   }))
               .fill(Fill::none())
-              .stroke(spans::upTo(
-                          animate(from(0.0f).to(1.0f), ramp(delay + 120, 420))),
-                      lines::Line{.width = 0.9f,
-                                  .fill = Fill::color(hex(0x2f6f9c, 0.55f)),
-                                  .endCap = lines::Cap::Dot,
-                                  .capSize = 4.0f})
+              .stroke(
+                  spans::upTo(
+                      animate(from(0.0f).to(1.0f), ramp(delay + 120, 420))),
+                  lines::Line{.width = 0.9f,
+                              .fill = Fill::color(hexColor(0x2f6f9c, 0.55f)),
+                              .endCap = lines::Cap::Dot,
+                              .capSize = 4.0f})
               .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 120, 300))));
       g.child(
-          text(toU8(kArchangels[c]), type(faceQuill, 21, hex(0xd8c08a)))
+          text(toU8(kArchangels[c]), type(faceQuill, 21, hexColor(0xd8c08a)))
               .at({nameAt.fX, nameAt.fY})
               .opacity(animate(from(0.0f).to(1.0f), ramp(delay + 220, 360))));
     }
@@ -1726,7 +1730,7 @@ struct SigillumAemeth : sketch::Sketch {
       }
     g.child(text(toU8("48 letters, and one is noted by a Cross: which maketh "
                       "the 49th."),
-                 type(faceItalic, 15, hex(0x8d7a58)))
+                 type(faceItalic, 15, hexColor(0x8d7a58)))
                 .at({0, 840})
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(tBirds * 1000 + 2600, 400))));
@@ -1738,8 +1742,8 @@ struct SigillumAemeth : sketch::Sketch {
         "Fili\xc3\xa6 Filiarum \xc2\xb7 four-square white ivory",
         "Filii Filiorum \xc2\xb7 three-cornered green"};
     const SkColor4f kLegendTint[4] = {
-        hex(0xb9c6da, 0.95f), hex(0xe6bf63, 0.95f), hex(0xf7f1e2, 0.95f),
-        hex(0x9dbfa2, 0.95f)};
+        hexColor(0xb9c6da, 0.95f), hexColor(0xe6bf63, 0.95f),
+        hexColor(0xf7f1e2, 0.95f), hexColor(0x9dbfa2, 0.95f)};
     g.child(text(toU8("THE FOUR ORDERS OF THE CHILDREN OF LIGHT"),
                  type(faceMono, 15, kRubric, 1.6f))
                 .at({0, 870}));
@@ -1755,7 +1759,7 @@ struct SigillumAemeth : sketch::Sketch {
       else if (i == 0)
         swatch.shape(shapes::sector(-100.0f, 200.0f, 0.55f));
       g.child(std::move(swatch));
-      g.child(text(toU8(kLegend[i]), type(faceSerif, 15, hex(0x9d8a66)))
+      g.child(text(toU8(kLegend[i]), type(faceSerif, 15, hexColor(0x9d8a66)))
                   .at({28, 896 + (float)i * 26}));
     }
     return g;
@@ -1772,11 +1776,11 @@ struct SigillumAemeth : sketch::Sketch {
     // is 50 characters, so the size has to be at most 11 x 47/50.
     constexpr float kMono = 10.2f;
     feed::TextOptions s;
-    s.styles = kit::tinted(faceMono, kMono, hex(0x9d8a66),
-                           {{"dim", hex(0x6b5c44)},
+    s.styles = kit::tinted(faceMono, kMono, hexColor(0x9d8a66),
+                           {{"dim", hexColor(0x6b5c44)},
                             {"heading", kRubric},
-                            {"pass", hex(0x59b98a)},
-                            {"number", hex(0x62b0dc)}});
+                            {"pass", hexColor(0x59b98a)},
+                            {"number", hexColor(0x62b0dc)}});
     s.window.gap = 1.0f;
     s.window.visible = 16;
     return s;
@@ -1795,9 +1799,9 @@ struct SigillumAemeth : sketch::Sketch {
                 .plate = {.paddingX = 12,
                           .paddingY = 8,
                           .gap = 14,
-                          .fill = Fill::color(hex(0x1b1e26, 0.86f)),
-                          .border = Fill::color(hex(0xc7ab74, 0.22f)),
-                          .divider = Fill::color(hex(0xc7ab74, 0.16f))}})
+                          .fill = Fill::color(hexColor(0x1b1e26, 0.86f)),
+                          .border = Fill::color(hexColor(0xc7ab74, 0.22f)),
+                          .divider = Fill::color(hexColor(0xc7ab74, 0.16f))}})
         .rect(SkRect::MakeXYWH(px, py, pw, ph))
         .scale(kS)
         .transformOrigin(0.0f, 0.0f);
@@ -1808,34 +1812,34 @@ struct SigillumAemeth : sketch::Sketch {
                  .rect(SkRect::MakeXYWH(1660 * kS, 1552 * kS, 690, 120))
                  .scale(kS)
                  .transformOrigin(0.0f, 0.0f);
-    g.child(
-        box()
-            .rect(SkRect::MakeXYWH(0, 0, 690, 2))
-            .shape(keyedShape(std::string_view("colophon-rule"),
-                              [](SkSize) {
-                                SkPathBuilder b;
-                                b.moveTo(0, 1);
-                                b.lineTo(690, 1);
-                                return b.detach();
-                              }))
-            .fill(Fill::none())
-            .stroke(lines::rails({{.across = 0.0f,
-                                   .width = 1.8f,
-                                   .fill = Fill::color(hex(0xc7ab74, 0.55f))},
-                                  {.across = -4.0f,
-                                   .width = 0.7f,
-                                   .fill = Fill::color(hex(0xc7ab74, 0.30f)),
-                                   .dash = {1.6f, 4.4f}}})));
+    g.child(box()
+                .rect(SkRect::MakeXYWH(0, 0, 690, 2))
+                .shape(keyedShape(std::string_view("colophon-rule"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(0, 1);
+                                    b.lineTo(690, 1);
+                                    return b.detach();
+                                  }))
+                .fill(Fill::none())
+                .stroke(lines::rails(
+                    {{.across = 0.0f,
+                      .width = 1.8f,
+                      .fill = Fill::color(hexColor(0xc7ab74, 0.55f))},
+                     {.across = -4.0f,
+                      .width = 0.7f,
+                      .fill = Fill::color(hexColor(0xc7ab74, 0.30f)),
+                      .dash = {1.6f, 4.4f}}})));
     g.child(
         text(toU8("\xe2\x80\x9cThis is the Seale, whose Name is \xc3\x86meth: "
                   "and it is to be made of perfect wax.\xe2\x80\x9d"),
-             type(faceItalic, 17, hex(0xb59a6c)))
+             type(faceItalic, 17, hexColor(0xb59a6c)))
             .left(0)
             .top(16)
             .width(690));
     g.child(text(toU8("Uriel, 14 March 1582 \xc2\xb7 reconstruction from the "
                       "rule, not a tracing \xc2\xb7 SigilCompose study"),
-                 type(faceMono, 12, hex(0x6f5f45)))
+                 type(faceMono, 12, hexColor(0x6f5f45)))
                 .at({0, 62}));
     return g;
   }
@@ -2114,7 +2118,7 @@ struct SigillumAemeth : sketch::Sketch {
 
     waxGrain = Paint::recipe(field::grain(1.6f, 4, 1582.0f, 0.34f));
     waxSpeck = patterns::speckle(520, 18, 1.4f, 4.4f,
-                                 {skia::toColor(hex(0x6a4a20, 0.10f))});
+                                 {skia::toColor(hexColor(0x6a4a20, 0.10f))});
     waxSpeck.seed(1582);
 
     // solve, then draw what the solver said

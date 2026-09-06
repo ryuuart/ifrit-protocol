@@ -82,12 +82,12 @@ namespace gerstner {
 
 constexpr float kW = kSceneSize.fWidth, kH = kSceneSize.fHeight;
 
-constexpr SkColor4f kPaper = hex(0xEDEAE3);
-constexpr SkColor4f kPaperLo = hex(0xDCD7CB);
-constexpr SkColor4f kInk = hex(0x16151A);
-constexpr SkColor4f kInkSoft = hex(0x55525A);
-constexpr SkColor4f kRed = hex(0xD8442F);
-constexpr SkColor4f kBlue = hex(0x2C4CA8);  // the non-printing grid blue
+constexpr SkColor4f kPaper = hexColor(0xEDEAE3);
+constexpr SkColor4f kPaperLo = hexColor(0xDCD7CB);
+constexpr SkColor4f kInk = hexColor(0x16151A);
+constexpr SkColor4f kInkSoft = hexColor(0x55525A);
+constexpr SkColor4f kRed = hexColor(0xD8442F);
+constexpr SkColor4f kBlue = hexColor(0x2C4CA8);  // the non-printing grid blue
 
 // The measure is 58 units. The unit here is a screen unit, not 10pt —
 // but every ratio below is Gerstner's.

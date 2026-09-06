@@ -97,7 +97,7 @@ TEST(KitEras, TheKeylineIsStrokedOutsideTheSilhouetteAndZeroWidthDropsIt) {
 
 TEST(KitEras, TheGelBodyLightsItsBottomEdgeAndTheHaloIsWhatItReserves) {
   Host host(200, 140);
-  const kit::AquaBody body{hex(0x1E8FFF), {}};
+  const kit::AquaBody body{hexColor(0x1E8FFF), {}};
   host.composer.render(panel(Decoration(body)));
   host.frame();
   // Light from below: the bottom of the surface beats its middle.
@@ -109,7 +109,7 @@ TEST(KitEras, TheGelBodyLightsItsBottomEdgeAndTheHaloIsWhatItReserves) {
   kit::AquaGelOptions dark;
   dark.halo = false;
   EXPECT_GT(body.bleed(), 0.0f);
-  const kit::AquaBody unhaloed{hex(0x1E8FFF), dark};
+  const kit::AquaBody unhaloed{hexColor(0x1E8FFF), dark};
   EXPECT_FLOAT_EQ(unhaloed.bleed(), 0.0f);
 }
 
@@ -128,8 +128,8 @@ TEST(KitEras, TheLensRampFadesToItsEndAndPaintsNothingBelowIt) {
 }
 
 TEST(KitEras, AnOrbReservesItsHaloFromTheDiameterItWasGiven) {
-  const LayerStyle small = kit::aquaOrb(hex(0x1E8FFF), 64.0f);
-  const LayerStyle large = kit::aquaOrb(hex(0x1E8FFF), 256.0f);
+  const LayerStyle small = kit::aquaOrb(hexColor(0x1E8FFF), 64.0f);
+  const LayerStyle large = kit::aquaOrb(hexColor(0x1E8FFF), 256.0f);
   ASSERT_FALSE(small.under.empty());
   ASSERT_FALSE(large.under.empty());
   // The halo reaches beyond the box by a fraction of the height the caller

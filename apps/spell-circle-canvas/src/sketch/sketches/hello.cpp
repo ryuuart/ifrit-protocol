@@ -46,8 +46,9 @@ struct HelloSketch : sketch::Sketch {
           .background(shadow({0, 0, 0, 0.4f}, {3, 4}, 10))
           .alignItems(Align::Center)
           .justify(Justify::Center)
-          .child(text(std::move(label),
-                      weave::textStyle({.size = 20, .color = hex(0xffffff)})));
+          .child(text(
+              std::move(label),
+              weave::textStyle({.size = 20, .color = hexColor(0xffffff)})));
     };
 
     return stack()
@@ -98,11 +99,11 @@ struct HelloSketch : sketch::Sketch {
         // Re-rendered by update() whenever the score changes —
         // the keyed text keeps its identity across renders.
         .child(text(toU8("score " + std::to_string(score)),
-                    weave::textStyle({.size = 24, .color = hex(0xffd9a0)}))
+                    weave::textStyle({.size = 24, .color = hexColor(0xffd9a0)}))
                    .key("score")
                    .inset(650, 120, 90, 480))
         .child(text(u8"Sketchbook — edit hello.cpp and save",
-                    weave::textStyle({.size = 17, .color = hex(0x9aa4bb)}))
+                    weave::textStyle({.size = 17, .color = hexColor(0x9aa4bb)}))
                    .inset(90, 560, 90, 40));
   }
 

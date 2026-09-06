@@ -23,15 +23,15 @@ using namespace sigil::compose;
 
 namespace {
 
-const SkColor4f kGround = hex(0x020202);
-const SkColor4f kOrange = hex(0xF08320);
-const SkColor4f kOrangeDim = hex(0xA94C15);
-const SkColor4f kMint = hex(0x63E6BC);
-const SkColor4f kMintRule = hex(0x2AA98A);
-const SkColor4f kMintRuleHi = hex(0x65E3BC);
-const SkColor4f kInk = hex(0x071615);
-const SkColor4f kRed = hex(0xA20915);
-const SkColor4f kRedHot = hex(0xE1262E);
+const SkColor4f kGround = hexColor(0x020202);
+const SkColor4f kOrange = hexColor(0xF08320);
+const SkColor4f kOrangeDim = hexColor(0xA94C15);
+const SkColor4f kMint = hexColor(0x63E6BC);
+const SkColor4f kMintRule = hexColor(0x2AA98A);
+const SkColor4f kMintRuleHi = hexColor(0x65E3BC);
+const SkColor4f kInk = hexColor(0x071615);
+const SkColor4f kRed = hexColor(0xA20915);
+const SkColor4f kRedHot = hexColor(0xE1262E);
 
 std::u8string toU8(const char* value) {
   return std::u8string(reinterpret_cast<const char8_t*>(value));
@@ -177,7 +177,7 @@ struct EvaMagiDeliberation : sketch::Sketch {
             .top(295.0f)
             .width(275.0f)
             .height(130.0f)
-            .fill(mskia::Paint::solid(hex(0x150103)))
+            .fill(mskia::Paint::solid(hexColor(0x150103)))
             .style(decorations::doubleBorder(
                 decorations::border(7.0f, Fill::color(kRed), 0.0f),
                 decorations::border(3.0f, Fill::color(kRedHot), 14.0f)))

@@ -184,13 +184,13 @@ namespace {
 constexpr float kW = 1440.0f;
 constexpr float kH = 880.0f;
 
-constexpr SkColor4f kSea = hex(0x06090E);      // ground
-constexpr SkColor4f kSeaLift = hex(0x0B111A);  // panel wash
-constexpr SkColor4f kBone = hex(0xE9E5DB);     // primary type
-constexpr SkColor4f kSlate = hex(0x76828F);    // secondary type
-constexpr SkColor4f kSlateDim = hex(0x76828F, 0.62f);
-constexpr SkColor4f kKeyline = hex(0x1A2532);
-constexpr SkColor4f kAmber = hex(0xF0A03C);  // the one accent
+constexpr SkColor4f kSea = hexColor(0x06090E);      // ground
+constexpr SkColor4f kSeaLift = hexColor(0x0B111A);  // panel wash
+constexpr SkColor4f kBone = hexColor(0xE9E5DB);     // primary type
+constexpr SkColor4f kSlate = hexColor(0x76828F);    // secondary type
+constexpr SkColor4f kSlateDim = hexColor(0x76828F, 0.62f);
+constexpr SkColor4f kKeyline = hexColor(0x1A2532);
+constexpr SkColor4f kAmber = hexColor(0xF0A03C);  // the one accent
 
 constexpr float kRingBox = 660.0f;  // the square the ring panel occupies
 constexpr float kRingR = 292.0f;    // sea-area baseline radius
@@ -382,7 +382,7 @@ struct ShippingForecast : sketch::Sketch {
     // lettering has something to sit on without a visible plate edge.
     panel.child(box().inset(0).fill(mskia::Paint::glowUnit(
         {0.5f, 0.5f}, 0.94f,
-        {{0.0f, kSeaLift}, {0.62f, hex(0x090E15)}, {1.0f, kSea}})));
+        {{0.0f, kSeaLift}, {0.62f, hexColor(0x090E15)}, {1.0f, kSea}})));
 
     const auto hair = [](float r, SkColor4f color, float width) {
       return kit::disc(kEye, r)
@@ -392,7 +392,8 @@ struct ShippingForecast : sketch::Sketch {
     };
     panel.child(hair(kRingR + 21.0f, kKeyline, 1.0f).key("ring-outer"));
     panel.child(hair(kInnerR, kKeyline, 1.0f).key("ring-inner"));
-    panel.child(hair(kInnerR - 9.0f, hex(0x121B26), 1.0f).key("ring-inner-2"));
+    panel.child(
+        hair(kInnerR - 9.0f, hexColor(0x121B26), 1.0f).key("ring-inner-2"));
 
     // THE COMPASS. A tick at every area's own bearing, and a longer one
     // with a letter at each cardinal point, so the ring can be read as a
@@ -451,7 +452,7 @@ struct ShippingForecast : sketch::Sketch {
       panel.child(text(toU8(kAreaRing[i].name),
                        weave::textStyle({.face = faceBold,
                                          .size = 11.5f,
-                                         .color = hex(0xBFC7D1),
+                                         .color = hexColor(0xBFC7D1),
                                          .track = 1.1f}))
                       .key(std::string("area") + std::to_string(i))
                       .inset(kRingBox * 0.5f - radius)
@@ -498,12 +499,12 @@ struct ShippingForecast : sketch::Sketch {
   [[nodiscard]] Element galeStrip() {
     TextEffect arrive = fx::seq(fx::slide(-46.0f).until(0.46f).xfade(0.20f),
                                 fx::pop(0.86f, 2.6f));
-    return sketch::kit::well({.ground = Fill::color(hex(0x1C1206)),
+    return sketch::kit::well({.ground = Fill::color(hexColor(0x1C1206)),
                               .padding = 13,
                               .paddingY = 10,
                               .clip = false,
                               .corners = 3,
-                              .keyline = Fill::color(hex(0x4A3411))})
+                              .keyline = Fill::color(hexColor(0x4A3411))})
         .row()
         .alignItems(Align::Center)
         .gap(12)
@@ -766,7 +767,7 @@ struct ShippingForecast : sketch::Sketch {
     Element strip = box().row().gap(6).height(56).alignItems(Align::End);
     for (int f = 0; f <= 12; ++f) {
       const bool named = f >= 5 && f <= 8;
-      const SkColor4f ink = named ? kAmber : hex(0x37475B);
+      const SkColor4f ink = named ? kAmber : hexColor(0x37475B);
       strip.child(
           box()
               .grow(1)
@@ -913,7 +914,8 @@ struct ShippingForecast : sketch::Sketch {
                        .opacity(beat(3.10f, 3.75f)));
 
     return stack()
-        .fill(linearGradient({0, 0}, {0, kH}, {kSea, kSeaLift, hex(0x05080C)},
+        .fill(linearGradient({0, 0}, {0, kH},
+                             {kSea, kSeaLift, hexColor(0x05080C)},
                              {0.0f, 0.55f, 1.0f}))
         .child(spine().opacity(envelope()))
         .child(std::move(column));
@@ -946,9 +948,10 @@ struct ShippingForecast : sketch::Sketch {
     // The hero's ink: a ramp pinned to the metric band, warm at the
     // baseline and bone at the cap line, so a letter arriving from below
     // cools as it rises into place.
-    heroInk = mskia::Paint::linearUnit(
-        {0.5f, 0.0f}, {0.5f, 1.0f},
-        {{0.00f, hex(0xFFFBF2)}, {0.52f, kBone}, {1.00f, hex(0xC9A46A)}});
+    heroInk = mskia::Paint::linearUnit({0.5f, 0.0f}, {0.5f, 1.0f},
+                                       {{0.00f, hexColor(0xFFFBF2)},
+                                        {0.52f, kBone},
+                                        {1.00f, hexColor(0xC9A46A)}});
 
     ctx.ticker.add([this, &ticker = ctx.ticker](double) {
       const double t = ticker.elapsed();

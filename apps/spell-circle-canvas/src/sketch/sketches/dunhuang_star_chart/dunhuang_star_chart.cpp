@@ -255,21 +255,21 @@ std::string fmt(const char* f, A... args) {
 // the edges of every stroke; the three schools are cinnabar, that same
 // carbon, and an ochre-white lead that has oxidised warm.
 
-constexpr SkColor4f kVoid = hex(0x14120e);
-constexpr SkColor4f kPaperDeep = hex(0xb99f72);
-constexpr SkColor4f kPaperMid = hex(0xd6bf95);
-constexpr SkColor4f kPaperLit = hex(0xe8d6ad);
-constexpr SkColor4f kPaperPale = hex(0xf1e4c2);
-constexpr SkColor4f kKraft = hex(0xa87f4c);
-constexpr SkColor4f kInk = hex(0x2a2118);
-constexpr SkColor4f kInkSoft = hex(0x5d4c37);
-constexpr SkColor4f kInkFaint = hex(0x8a7458);
-constexpr SkColor4f kCinnabar = hex(0xa8382a);
-constexpr SkColor4f kLead = hex(0xf4ecd8);
-constexpr SkColor4f kRule = hex(0x6b573c);
-constexpr SkColor4f kTrace = hex(0x2f6d86);
-constexpr SkColor4f kFlag = hex(0xb4531f);
-constexpr SkColor4f kChalk = hex(0xcbb894);
+constexpr SkColor4f kVoid = hexColor(0x14120e);
+constexpr SkColor4f kPaperDeep = hexColor(0xb99f72);
+constexpr SkColor4f kPaperMid = hexColor(0xd6bf95);
+constexpr SkColor4f kPaperLit = hexColor(0xe8d6ad);
+constexpr SkColor4f kPaperPale = hexColor(0xf1e4c2);
+constexpr SkColor4f kKraft = hexColor(0xa87f4c);
+constexpr SkColor4f kInk = hexColor(0x2a2118);
+constexpr SkColor4f kInkSoft = hexColor(0x5d4c37);
+constexpr SkColor4f kInkFaint = hexColor(0x8a7458);
+constexpr SkColor4f kCinnabar = hexColor(0xa8382a);
+constexpr SkColor4f kLead = hexColor(0xf4ecd8);
+constexpr SkColor4f kRule = hexColor(0x6b573c);
+constexpr SkColor4f kTrace = hexColor(0x2f6d86);
+constexpr SkColor4f kFlag = hexColor(0xb4531f);
+constexpr SkColor4f kChalk = hexColor(0xcbb894);
 
 // ---------------------------------------------------------------------------
 // canvas, and the scroll's own metric. Everything below is in MILLIMETRES of
@@ -903,9 +903,9 @@ struct DunhuangStarChart : sketch::Sketch {
                 .width(Dim(kW))
                 .height(Dim(kH))
                 .fill(Paint::linear({0, 0}, {kW, kH},
-                                    {{0.0f, hex(0x171410)},
-                                     {0.5f, hex(0x1d1913)},
-                                     {1.0f, hex(0x120f0c)}}))
+                                    {{0.0f, hexColor(0x171410)},
+                                     {0.5f, hexColor(0x1d1913)},
+                                     {1.0f, hexColor(0x120f0c)}}))
                 .cache(Cache::Texture));
     return g;
   }
@@ -982,7 +982,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(6)
                   .width(Dim(3.0f))
                   .height(Dim(kBandH - 12))
-                  .fill(Fill::color(hex(0x8b6e45, 0.10f))));
+                  .fill(Fill::color(hexColor(0x8b6e45, 0.10f))));
     }
 
     // top and bottom rules — unequal, per lines::Rails
@@ -1006,13 +1006,14 @@ struct DunhuangStarChart : sketch::Sketch {
                     .shaped(shapers::Jitter{
                         .segLength = 34, .deviation = 0.9f, .seed = 3326})
                     .layer(lines::Rails{
-                        .rails = {{.across = 0,
-                                   .width = 1.9f,
-                                   .fill = Fill::color(hex(0x6b573c, 0.62f))},
-                                  {.across = -4.5f,
-                                   .width = 0.55f,
-                                   .fill = Fill::color(hex(0x6b573c, 0.34f)),
-                                   .dash = {9, 6}}}})));
+                        .rails = {
+                            {.across = 0,
+                             .width = 1.9f,
+                             .fill = Fill::color(hexColor(0x6b573c, 0.62f))},
+                            {.across = -4.5f,
+                             .width = 0.55f,
+                             .fill = Fill::color(hexColor(0x6b573c, 0.34f)),
+                             .dash = {9, 6}}}})));
     return g;
   }
 
@@ -1055,30 +1056,31 @@ struct DunhuangStarChart : sketch::Sketch {
                                                 .seed = (uint32_t)(600 + k)})
                         .layer(lines::Line{
                             .width = 1.0f,
-                            .fill = Fill::color(hex(0x8a7458, 0.42f))}))
-            .stroke(spans::corners(15.0f),
-                    brush::solid(1.4f, Fill::color(hex(0x6b573c, 0.52f)))));
+                            .fill = Fill::color(hexColor(0x8a7458, 0.42f))}))
+            .stroke(
+                spans::corners(15.0f),
+                brush::solid(1.4f, Fill::color(hexColor(0x6b573c, 0.52f)))));
 
     // the equator — the one line whose position the paper says varies ±5°
     const float yEq = (mapGcDec(k) + 45.0f) / kDecPerMm * kPxMm;
-    g.child(
-        box()
-            .left(0)
-            .top(yEq - 1)
-            .width(Dim(w))
-            .height(Dim(2))
-            .shape(keyedShape(std::string_view("equator"),
-                              [](SkSize s) {
-                                SkPathBuilder b;
-                                b.moveTo(0, 1);
-                                b.lineTo(s.width(), 1);
-                                return b.detach();
-                              }))
-            .stroke(PathFormat{.width = 0.75f,
-                               .strokeFill = Fill::color(hex(0x8a3020, 0.42f)),
-                               .dashIntervals = {5, 5},
-                               .trimStart = 0.04f,
-                               .trimEnd = 0.96f}));
+    g.child(box()
+                .left(0)
+                .top(yEq - 1)
+                .width(Dim(w))
+                .height(Dim(2))
+                .shape(keyedShape(std::string_view("equator"),
+                                  [](SkSize s) {
+                                    SkPathBuilder b;
+                                    b.moveTo(0, 1);
+                                    b.lineTo(s.width(), 1);
+                                    return b.detach();
+                                  }))
+                .stroke(PathFormat{
+                    .width = 0.75f,
+                    .strokeFill = Fill::color(hexColor(0x8a3020, 0.42f)),
+                    .dashIntervals = {5, 5},
+                    .trimStart = 0.04f,
+                    .trimEnd = 0.96f}));
 
     // the RA ladder: a tick every 6°, numbered every 12°
     for (int t = -24; t <= 24; t += 6) {
@@ -1090,17 +1092,17 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(0)
                   .width(Dim(0.9f))
                   .height(Dim(big ? 8.0f : 4.5f))
-                  .fill(Fill::color(hex(0x8a7458, 0.40f))));
+                  .fill(Fill::color(hexColor(0x8a7458, 0.40f))));
       g.child(box()
                   .left(x - 0.4f)
                   .top(kFrameH - (big ? 8.0f : 4.5f))
                   .width(Dim(0.9f))
                   .height(Dim(big ? 8.0f : 4.5f))
-                  .fill(Fill::color(hex(0x8a7458, 0.40f))));
+                  .fill(Fill::color(hexColor(0x8a7458, 0.40f))));
       if (big)
         g.child(text(toU8(fmt("%d", (int)std::lround(
                                         wrap360(mapCentre(k) + (float)t)))),
-                     type(faceMono, 7.4f, hex(0x8a7458, 0.60f)))
+                     type(faceMono, 7.4f, hexColor(0x8a7458, 0.60f)))
                     .left(x - 11)
                     .top(kFrameH + 3)
                     .width(Dim(24))
@@ -1108,12 +1110,12 @@ struct DunhuangStarChart : sketch::Sketch {
     }
 
     // the map's own number and month, in the margin above
-    g.child(
-        text(toU8(fmt("%d", k)), type(faceDisplay, 13.0f, hex(0x4a3b28, 0.82f)))
-            .left(w - 20)
-            .top(-19)
-            .width(Dim(18))
-            .textAlign(weave::TextAlignment::kEnd));
+    g.child(text(toU8(fmt("%d", k)),
+                 type(faceDisplay, 13.0f, hexColor(0x4a3b28, 0.82f)))
+                .left(w - 20)
+                .top(-19)
+                .width(Dim(18))
+                .textAlign(weave::TextAlignment::kEnd));
 
     // THE MANSION BOUNDARIES, ruled where the DETERMINATIVE STARS put them
     // and not at 12.86° apiece — Stellarium's lunar_system.defining_stars,
@@ -1123,32 +1125,33 @@ struct DunhuangStarChart : sketch::Sketch {
       const float dRa = wrap180(xiuRa[(size_t)m] - mapCentre(k));
       if (std::abs(dRa) > 23.0f) continue;
       const float x = w * 0.5f + dRa / kRaPerMm * kPxMm;
+      g.child(box()
+                  .left(x - 6)
+                  .top(0)
+                  .width(Dim(12))
+                  .height(Dim(kFrameH))
+                  .shape(keyedShape(std::string_view("ra-tick"),
+                                    [](SkSize sz) {
+                                      SkPathBuilder b;
+                                      b.moveTo(sz.width() * 0.5f, 0);
+                                      b.lineTo(sz.width() * 0.5f, sz.height());
+                                      return b.detach();
+                                    }))
+                  .stroke(PathFormat{
+                      .width = 0.7f,
+                      .strokeFill = Fill::color(hexColor(0x4a3b28, 0.5f)),
+                      .dashIntervals = {7, 5},
+                      .trimStart = 0.06f,
+                      .trimEnd = 0.94f}));
       g.child(
-          box()
-              .left(x - 6)
-              .top(0)
-              .width(Dim(12))
-              .height(Dim(kFrameH))
-              .shape(keyedShape(std::string_view("ra-tick"),
-                                [](SkSize sz) {
-                                  SkPathBuilder b;
-                                  b.moveTo(sz.width() * 0.5f, 0);
-                                  b.lineTo(sz.width() * 0.5f, sz.height());
-                                  return b.detach();
-                                }))
-              .stroke(PathFormat{.width = 0.7f,
-                                 .strokeFill = Fill::color(hex(0x4a3b28, 0.5f)),
-                                 .dashIntervals = {7, 5},
-                                 .trimStart = 0.06f,
-                                 .trimEnd = 0.94f}));
-      g.child(text(toU8(cat.xiu(m).native), type(faceHan ? faceHan : faceSerif,
-                                                 11.5f, hex(0x2a2118, 0.88f)))
-                  .left(x - 9)
-                  .top(-32)
-                  .width(Dim(18))
-                  .textAlign(weave::TextAlignment::kCenter));
+          text(toU8(cat.xiu(m).native), type(faceHan ? faceHan : faceSerif,
+                                             11.5f, hexColor(0x2a2118, 0.88f)))
+              .left(x - 9)
+              .top(-32)
+              .width(Dim(18))
+              .textAlign(weave::TextAlignment::kCenter));
       g.child(text(toU8(cat.xiu(m).pinyin),
-                   type(faceMono, 7.0f, hex(0x5d4c37, 0.75f)))
+                   type(faceMono, 7.0f, hexColor(0x5d4c37, 0.75f)))
                   .left(x - 20)
                   .top(-45)
                   .width(Dim(40))
@@ -1195,7 +1198,7 @@ struct DunhuangStarChart : sketch::Sketch {
                     .top(gy)
                     .width(Dim(7.8f))
                     .height(Dim(6.2f))
-                    .fill(Fill::color(hex(0x241d15, 0.80f)))
+                    .fill(Fill::color(hexColor(0x241d15, 0.80f)))
                     .shape(shapes::blob((uint32_t)(k * 97 + c * 13 + gI), 0.42f,
                                         7)));
       }
@@ -1227,12 +1230,12 @@ struct DunhuangStarChart : sketch::Sketch {
             .width(Dim(d))
             .height(Dim(d))
             .shape(shapes::circle())
-            .stroke(
-                Brush{}
-                    .shaped(shapers::Jitter{
-                        .segLength = 22, .deviation = 1.0f, .seed = 1300})
-                    .layer(brush::presets::heavyHairHeavy(
-                        1.7f, 0.5f, Fill::color(hex(0x3a2e1e, 0.86f)), 5.0f))));
+            .stroke(Brush{}
+                        .shaped(shapers::Jitter{
+                            .segLength = 22, .deviation = 1.0f, .seed = 1300})
+                        .layer(brush::presets::heavyHairHeavy(
+                            1.7f, 0.5f, Fill::color(hexColor(0x3a2e1e, 0.86f)),
+                            5.0f))));
 
     // the DEC rings, at the published 5.10 °/cm — parametric, not stamped
     for (int dec = 60; dec <= 85; dec += 5) {
@@ -1246,7 +1249,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .shape(shapes::circle())
                   .stroke(PathFormat{
                       .width = 0.5f,
-                      .strokeFill = Fill::color(hex(0x5d4c37, 0.30f)),
+                      .strokeFill = Fill::color(hexColor(0x5d4c37, 0.30f)),
                       .dashIntervals = {3, 5}}));
     }
 
@@ -1273,7 +1276,7 @@ struct DunhuangStarChart : sketch::Sketch {
                                     }))
                   .stroke(PathFormat{
                       .width = 0.62f,
-                      .strokeFill = Fill::color(hex(0x4a3b28, 0.44f)),
+                      .strokeFill = Fill::color(hexColor(0x4a3b28, 0.44f)),
                       .trimStart = 0.05f,
                       .trimEnd = 0.90f}));
       {
@@ -1281,13 +1284,13 @@ struct DunhuangStarChart : sketch::Sketch {
         const SkPoint label =
             arrange::onEllipse({rOut, rOut}, {rOut - 16.0f, rOut - 16.0f}, a);
         const float lx = label.fX, ly = label.fY;
-        g.child(
-            text(toU8(cat.xiu(m).native), type(faceHan ? faceHan : faceSerif,
-                                               11.0f, hex(0x2a2118, 0.85f)))
-                .left(lx - 8)
-                .top(ly - 8)
-                .width(Dim(16))
-                .textAlign(weave::TextAlignment::kCenter));
+        g.child(text(toU8(cat.xiu(m).native),
+                     type(faceHan ? faceHan : faceSerif, 11.0f,
+                          hexColor(0x2a2118, 0.85f)))
+                    .left(lx - 8)
+                    .top(ly - 8)
+                    .width(Dim(16))
+                    .textAlign(weave::TextAlignment::kCenter));
       }
     }
 
@@ -1302,7 +1305,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .shape(shapes::circle())
                 .stroke(PathFormat{
                     .width = 0.7f,
-                    .strokeFill = Fill::color(hex(0x4a3b28, 0.7f))}));
+                    .strokeFill = Fill::color(hexColor(0x4a3b28, 0.7f))}));
     g.child(box()
                 .left(rOut - 3.2f)
                 .top(rOut - poleOff - 3.2f)
@@ -1319,7 +1322,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .width(Dim(8))
                 .height(Dim(8))
                 .shape(shapes::circle())
-                .fill(Fill::color(hex(0xa8382a, 0.34f)))
+                .fill(Fill::color(hexColor(0xa8382a, 0.34f)))
                 .opacity(gate(tFold1, tFold1 + 0.8f)));
     return g;
   }
@@ -1345,16 +1348,17 @@ struct DunhuangStarChart : sketch::Sketch {
             (90.0f - kDiscCenDec) / kPolPerMm),
     };
     for (int i = 0; i < 4; ++i)
-      g.child(text(toU8(rows[(size_t)i]),
-                   type(faceMono, 8.0f,
-                        i >= 2 ? hex(0x8a3020, 0.95f) : hex(0x4a3b28, 0.9f)))
-                  .left(0)
-                  .top((float)i * 10.4f)
-                  .width(Dim(rOut * 2 + 16)));
+      g.child(
+          text(toU8(rows[(size_t)i]), type(faceMono, 8.0f,
+                                           i >= 2 ? hexColor(0x8a3020, 0.95f)
+                                                  : hexColor(0x4a3b28, 0.9f)))
+              .left(0)
+              .top((float)i * 10.4f)
+              .width(Dim(rOut * 2 + 16)));
     g.child(text(toU8("slightly erased, sits near it \xe2\x80\x94 \"could be "
                       "the Pole "
                       "star\". Drawn as found."),
-                 type(faceMono, 8.0f, hex(0x8a3020, 0.95f)))
+                 type(faceMono, 8.0f, hexColor(0x8a3020, 0.95f)))
                 .left(0)
                 .top(41.6f)
                 .width(Dim(rOut * 2 + 16)));
@@ -1432,10 +1436,10 @@ struct DunhuangStarChart : sketch::Sketch {
       SkPathBuilder shift;
       shift.addPath(path, -bounds.left(), -bounds.top());
       const float u = wrap360(astRa[(size_t)a] - 296.0f) / 360.0f;
-      astArt.push_back({shift.detach(), bounds,
-                        tLine0 + u * (tLine1 - tLine0 - 0.9f),
-                        astSchool[(size_t)a] == 'W' ? hex(0x6a5a3f, 0.80f)
-                                                    : hex(0x24201a, 0.86f)});
+      astArt.push_back(
+          {shift.detach(), bounds, tLine0 + u * (tLine1 - tLine0 - 0.9f),
+           astSchool[(size_t)a] == 'W' ? hexColor(0x6a5a3f, 0.80f)
+                                       : hexColor(0x24201a, 0.86f)});
     }
   }
 
@@ -1536,9 +1540,9 @@ struct DunhuangStarChart : sketch::Sketch {
                                              : flash(t, t + 0.3f, t + 3.0f))
                   .stroke(PathFormat{
                       .width = 1.1f,
-                      .strokeFill =
-                          Fill::color(!r.defect.empty() ? hex(0xb4531f, 0.85f)
-                                                        : hex(0x2f6d86, 0.7f)),
+                      .strokeFill = Fill::color(!r.defect.empty()
+                                                    ? hexColor(0xb4531f, 0.85f)
+                                                    : hexColor(0x2f6d86, 0.7f)),
                       .dashIntervals = {4, 4}}));
 
       // WHAT IS WRITTEN ON THE PAPER, defects included
@@ -1555,37 +1559,37 @@ struct DunhuangStarChart : sketch::Sketch {
       }  // Ping, misplaced
       if (!none)
         g.child(text(toU8(written), type(faceHan ? faceHan : faceSerif, 12.5f,
-                                         hex(0x241d15, 0.92f)))
+                                         hexColor(0x241d15, 0.92f)))
                     .left(lx)
                     .top(ly)
                     .width(Dim(60))
                     .opacity(gate(tLine1 - 0.6f, tLine1 + 0.5f)));
       else
-        g.child(
-            text(toU8("[no label]"), type(faceMono, 8.2f, hex(0xb4531f, 0.9f)))
-                .left(c.fX + 22)
-                .top(c.fY - 40)
-                .width(Dim(70))
-                .opacity(gate(t, t + 0.3f)));
+        g.child(text(toU8("[no label]"),
+                     type(faceMono, 8.2f, hexColor(0xb4531f, 0.9f)))
+                    .left(c.fX + 22)
+                    .top(c.fY - 40)
+                    .width(Dim(70))
+                    .opacity(gate(t, t + 0.3f)));
       if (cid == "21D")  // the leader from the misplaced label to its stars
-        g.child(
-            box()
-                .left(std::min(lx, c.fX))
-                .top(ly + 10)
-                .width(Dim(std::abs(lx - c.fX) + 4))
-                .height(Dim(c.fY - ly - 10))
-                .shape(keyedShape(std::string_view("label-leader"),
-                                  [](SkSize sz) {
-                                    SkPathBuilder b;
-                                    b.moveTo(sz.width(), 0);
-                                    b.lineTo(0, sz.height());
-                                    return b.detach();
-                                  }))
-                .opacity(gate(t, t + 0.3f))
-                .stroke(lines::Line{.width = 0.7f,
-                                    .fill = Fill::color(hex(0xb4531f, 0.8f)),
-                                    .startCap = lines::Cap::Dot,
-                                    .capSize = 4.0f}));
+        g.child(box()
+                    .left(std::min(lx, c.fX))
+                    .top(ly + 10)
+                    .width(Dim(std::abs(lx - c.fX) + 4))
+                    .height(Dim(c.fY - ly - 10))
+                    .shape(keyedShape(std::string_view("label-leader"),
+                                      [](SkSize sz) {
+                                        SkPathBuilder b;
+                                        b.moveTo(sz.width(), 0);
+                                        b.lineTo(0, sz.height());
+                                        return b.detach();
+                                      }))
+                    .opacity(gate(t, t + 0.3f))
+                    .stroke(lines::Line{
+                        .width = 0.7f,
+                        .fill = Fill::color(hexColor(0xb4531f, 0.8f)),
+                        .startCap = lines::Cap::Dot,
+                        .capSize = 4.0f}));
     }
     return g;
   }
@@ -1648,7 +1652,7 @@ struct DunhuangStarChart : sketch::Sketch {
         len += SkPoint::Distance(b.pts[j - 1], b.pts[j]);
       const float w0 = b.w0;
       brush::Ribbon rib;
-      rib.fill = Fill::color(hex(0x241d15, 0.90f));
+      rib.fill = Fill::color(hexColor(0x241d15, 0.90f));
       rib.step = 2.0f;
       rib.width = BonePress{len, w0};
       g.child(box()
@@ -1662,25 +1666,25 @@ struct DunhuangStarChart : sketch::Sketch {
                           rib));
     }
     // the bow and the arrow
-    g.child(
-        box()
-            .left(0)
-            .top(0)
-            .width(Dim(w))
-            .height(Dim(h))
-            .shape(keyedShape(std::string_view("bow"),
-                              [](SkSize) {
-                                SkPathBuilder b;
-                                b.moveTo(34, 8);
-                                b.cubicTo(-10, 56, -10, 126, 34, 176);
-                                b.moveTo(34, 8);
-                                b.lineTo(20, 92);
-                                b.lineTo(34, 176);
-                                return b.detach();
-                              }))
-            .stroke(spans::upTo(gate(tArch + 0.45f, tArch + 1.0f)),
-                    lines::Line{.width = 1.9f,
-                                .fill = Fill::color(hex(0x241d15, 0.88f))}));
+    g.child(box()
+                .left(0)
+                .top(0)
+                .width(Dim(w))
+                .height(Dim(h))
+                .shape(keyedShape(std::string_view("bow"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(34, 8);
+                                    b.cubicTo(-10, 56, -10, 126, 34, 176);
+                                    b.moveTo(34, 8);
+                                    b.lineTo(20, 92);
+                                    b.lineTo(34, 176);
+                                    return b.detach();
+                                  }))
+                .stroke(spans::upTo(gate(tArch + 0.45f, tArch + 1.0f)),
+                        lines::Line{
+                            .width = 1.9f,
+                            .fill = Fill::color(hexColor(0x241d15, 0.88f))}));
     g.child(
         box()
             .left(0)
@@ -1697,13 +1701,13 @@ struct DunhuangStarChart : sketch::Sketch {
             .stroke(spans::upTo(gate(tArch + 0.75f, tArch + 1.15f)),
                     lines::presets::arrow(1.5f, Fill::color(kCinnabar), 9.0f)));
     g.child(text(toU8("a bowman in traditional dress, captioned THE GOD OF"),
-                 type(faceMono, 8.4f, hex(0x4a3b28, 0.85f)))
+                 type(faceMono, 8.4f, hexColor(0x4a3b28, 0.85f)))
                 .left(-18)
                 .top(h - 12)
                 .width(Dim(300))
                 .opacity(gate(tArch + 1.0f, tArch + 1.6f)));
     g.child(text(toU8("LIGHTNING, over a title nobody can read convincingly"),
-                 type(faceMono, 8.4f, hex(0x4a3b28, 0.85f)))
+                 type(faceMono, 8.4f, hexColor(0x4a3b28, 0.85f)))
                 .left(-18)
                 .top(h + 0)
                 .width(Dim(300))
@@ -1760,9 +1764,9 @@ struct DunhuangStarChart : sketch::Sketch {
                               .shaped(shapers::Jitter{.segLength = 9.0f,
                                                       .deviation = 0.7f,
                                                       .seed = seed})
-                              .layer(lines::Line{
-                                  .width = 1.9f,
-                                  .fill = Fill::color(hex(0x241d15, 0.78f))})));
+                              .layer(lines::Line{.width = 1.9f,
+                                                 .fill = Fill::color(hexColor(
+                                                     0x241d15, 0.78f))})));
     }
     return g;
   }
@@ -1788,12 +1792,12 @@ struct DunhuangStarChart : sketch::Sketch {
                 .width(Dim(lw))
                 .height(Dim(lh))
                 .fill(Paint::linear({0, 0}, {0, lh},
-                                    {{0.0f, hex(0xa2865c)},
-                                     {0.5f, hex(0xd6bf95)},
-                                     {1.0f, hex(0xa2865c)}}))
+                                    {{0.0f, hexColor(0xa2865c)},
+                                     {0.5f, hexColor(0xd6bf95)},
+                                     {1.0f, hexColor(0xa2865c)}}))
                 .stroke(PathFormat{
                     .width = 0.9f,
-                    .strokeFill = Fill::color(hex(0x2a2118, 0.75f))}));
+                    .strokeFill = Fill::color(hexColor(0x2a2118, 0.75f))}));
     // the 26 clouds and the 80 columns of the divination section, at the RIGHT
     for (int c = 0; c < 26; ++c) {
       const float cx = lw - 24.0f - (float)c * 24.0f;
@@ -1803,7 +1807,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .width(Dim(14))
                   .height(Dim(9))
                   .shape(shapes::blob((uint32_t)(700 + c), 0.34f, 6))
-                  .fill(Fill::color(hex(0x33291c, 0.85f))));
+                  .fill(Fill::color(hexColor(0x33291c, 0.85f))));
     }
     for (int c = 0; c < 80; ++c) {
       const float cx = lw - 20.0f - (float)c * 7.6f;
@@ -1812,7 +1816,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(19)
                   .width(Dim(1.1f))
                   .height(Dim(lh - 25))
-                  .fill(Fill::color(hex(0x33291c, 0.55f))));
+                  .fill(Fill::color(hexColor(0x33291c, 0.55f))));
     }
     // the 13 maps
     const float atlasRight = lw - kScrollMm * mm + kAtlasMm * mm;
@@ -1825,7 +1829,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .height(Dim(lh * 0.68f))
                   .stroke(PathFormat{
                       .width = 0.8f,
-                      .strokeFill = Fill::color(hex(0x2a2118, 0.9f))}));
+                      .strokeFill = Fill::color(hexColor(0x2a2118, 0.9f))}));
     }
     {
       const float dcx = atlasRight - discCentreS() * mm;
@@ -1838,7 +1842,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .shape(shapes::circle())
                   .stroke(PathFormat{
                       .width = 0.8f,
-                      .strokeFill = Fill::color(hex(0x2a2118, 0.9f))}));
+                      .strokeFill = Fill::color(hexColor(0x2a2118, 0.9f))}));
     }
     // the two windows this plate actually shows
     struct Win {
@@ -1857,7 +1861,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(-4)
                   .width(Dim(b - a))
                   .height(Dim(lh + 8))
-                  .fill(Fill::color(hex(0x2f6d86, 0.30f)))
+                  .fill(Fill::color(hexColor(0x2f6d86, 0.30f)))
                   .stroke(spans::corners(9.0f),
                           brush::solid(1.4f, Fill::color(kTrace))));
     }
@@ -1867,7 +1871,7 @@ struct DunhuangStarChart : sketch::Sketch {
                       "\xc2\xb7 left: the "
                       "13-map atlas, 2,100 mm \xc2\xb7 shaded: what this plate "
                       "shows"),
-                 type(faceMono, 8.6f, hex(0x9a8a68, 0.9f)))
+                 type(faceMono, 8.6f, hexColor(0x9a8a68, 0.9f)))
                 .left(2)
                 .top(lh + 5)
                 .width(Dim(1700)));
@@ -1910,7 +1914,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .shape(shapes::circle())
                   .stroke(PathFormat{
                       .width = 0.5f,
-                      .strokeFill = Fill::color(hex(0x8a7458, 0.30f)),
+                      .strokeFill = Fill::color(hexColor(0x8a7458, 0.30f)),
                       .dashIntervals = {2, 5}}));
     }
     // the track, drawn BACKWARD from J2000 as the precession runs
@@ -1939,16 +1943,16 @@ struct DunhuangStarChart : sketch::Sketch {
       if (90.0f - dec > 30.0f) continue;
       (wb.countPoints() == 0) ? wb.moveTo(q) : wb.lineTo(q);
     }
-    g.child(
-        box()
-            .left(0)
-            .top(0)
-            .width(Dim(S))
-            .height(Dim(S))
-            .shape(heldPath(wb.detach()))
-            .stroke(PathFormat{.width = 0.7f,
-                               .strokeFill = Fill::color(hex(0x8a7458, 0.45f)),
-                               .dashIntervals = {3, 4}}));
+    g.child(box()
+                .left(0)
+                .top(0)
+                .width(Dim(S))
+                .height(Dim(S))
+                .shape(heldPath(wb.detach()))
+                .stroke(PathFormat{
+                    .width = 0.7f,
+                    .strokeFill = Fill::color(hexColor(0x8a7458, 0.45f)),
+                    .dashIntervals = {3, 4}}));
     // alp UMi is 0.74° from the J2000 pole, so its dot lands ON the centre
     // marker and the default up-right label lands ON "J2000 pole". The two
     // captions flank the coincident pair on one line instead.
@@ -1969,7 +1973,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .height(Dim(6))
                   .shape(shapes::circle())
                   .fill(Fill::color(kCinnabar)));
-      g.child(text(toU8(r.name), type(faceMono, 7.4f, hex(0x9a8a68)))
+      g.child(text(toU8(r.name), type(faceMono, 7.4f, hexColor(0x9a8a68)))
                   .left(q.fX + r.lx)
                   .top(q.fY + r.ly)
                   .width(Dim(60)));
@@ -1995,8 +1999,8 @@ struct DunhuangStarChart : sketch::Sketch {
                 .shape(shapes::circle())
                 .stroke(PathFormat{
                     .width = 0.9f,
-                    .strokeFill = Fill::color(hex(0xe0cfa6, 0.8f))}));
-    g.child(text(toU8("J2000 pole"), type(faceMono, 7.4f, hex(0x6d6249)))
+                    .strokeFill = Fill::color(hexColor(0xe0cfa6, 0.8f))}));
+    g.child(text(toU8("J2000 pole"), type(faceMono, 7.4f, hexColor(0x6d6249)))
                 .left(cx - 52)
                 .top(cy + 6)
                 .width(Dim(70)));
@@ -2011,7 +2015,7 @@ struct DunhuangStarChart : sketch::Sketch {
                  .key("poletext")
                  .opacity(gate(tPrec0 - 0.6f, tPrec0 + 0.4f));
     g.child(text(toU8("THE CHART DATES ITSELF"),
-                 type(faceDisplay, 12.0f, hex(0xc9a35c), 1.0f))
+                 type(faceDisplay, 12.0f, hexColor(0xc9a35c), 1.0f))
                 .left(0)
                 .top(0)
                 .width(Dim(430)));
@@ -2026,7 +2030,7 @@ struct DunhuangStarChart : sketch::Sketch {
     };
     for (int i = 0; i < 7; ++i)
       g.child(text(toU8(rows[i]),
-                   type(faceMono, 9.0f, i == 3 ? kChalk : hex(0x9a8a68)))
+                   type(faceMono, 9.0f, i == 3 ? kChalk : hexColor(0x9a8a68)))
                   .left(0)
                   .top(18.0f + (float)i * 12.2f)
                   .width(Dim(430)));
@@ -2036,35 +2040,35 @@ struct DunhuangStarChart : sketch::Sketch {
     // marker — bind() doing the unit conversion at each call site instead of
     // three Outputs in the tick loop.
     const float bw = 430.0f;
-    g.child(box()
-                .left(0)
-                .top(112)
-                .width(Dim(bw))
-                .height(Dim(9))
-                .shape(keyedShape(std::string_view("ruler-scale"),
-                                  [](SkSize sz) {
-                                    SkPathBuilder b;
-                                    b.moveTo(0, 0);
-                                    b.lineTo(0, sz.height());
-                                    b.moveTo(0, sz.height() * 0.5f);
-                                    b.lineTo(sz.width(), sz.height() * 0.5f);
-                                    b.moveTo(sz.width(), 0);
-                                    b.lineTo(sz.width(), sz.height());
-                                    for (int c = 1; c < 13; ++c) {
-                                      const float x =
-                                          sz.width() * (float)c / 13.0f;
-                                      b.moveTo(x, sz.height() * 0.5f - 2.5f);
-                                      b.lineTo(x, sz.height() * 0.5f + 2.5f);
-                                    }
-                                    return b.detach();
-                                  }))
-                .stroke(lines::Line{.width = 0.9f,
-                                    .fill = Fill::color(hex(0x9a8a68, 0.8f))}));
-    g.child(text(toU8("+700"), type(faceMono, 8.0f, hex(0x9a8a68)))
+    g.child(
+        box()
+            .left(0)
+            .top(112)
+            .width(Dim(bw))
+            .height(Dim(9))
+            .shape(keyedShape(std::string_view("ruler-scale"),
+                              [](SkSize sz) {
+                                SkPathBuilder b;
+                                b.moveTo(0, 0);
+                                b.lineTo(0, sz.height());
+                                b.moveTo(0, sz.height() * 0.5f);
+                                b.lineTo(sz.width(), sz.height() * 0.5f);
+                                b.moveTo(sz.width(), 0);
+                                b.lineTo(sz.width(), sz.height());
+                                for (int c = 1; c < 13; ++c) {
+                                  const float x = sz.width() * (float)c / 13.0f;
+                                  b.moveTo(x, sz.height() * 0.5f - 2.5f);
+                                  b.lineTo(x, sz.height() * 0.5f + 2.5f);
+                                }
+                                return b.detach();
+                              }))
+            .stroke(lines::Line{
+                .width = 0.9f, .fill = Fill::color(hexColor(0x9a8a68, 0.8f))}));
+    g.child(text(toU8("+700"), type(faceMono, 8.0f, hexColor(0x9a8a68)))
                 .left(0)
                 .top(124)
                 .width(Dim(40)));
-    g.child(text(toU8("J2000"), type(faceMono, 8.0f, hex(0x9a8a68)))
+    g.child(text(toU8("J2000"), type(faceMono, 8.0f, hexColor(0x9a8a68)))
                 .left(bw - 40)
                 .top(124)
                 .width(Dim(40))
@@ -2084,7 +2088,7 @@ struct DunhuangStarChart : sketch::Sketch {
                                                         .target(0.0f, bw))));
     g.child(text(toU8("13.00 Julian centuries \xc2\xb7 the sky slides "
                       "18.5\xc2\xb0 in RA"),
-                 type(faceMono, 8.4f, hex(0xc9a35c)))
+                 type(faceMono, 8.4f, hexColor(0xc9a35c)))
                 .left(0)
                 .top(136)
                 .width(Dim(430)));
@@ -2110,7 +2114,7 @@ struct DunhuangStarChart : sketch::Sketch {
                         "HATCHED: the 18\xc2\xb0 it shares with its neighbour "
                         "\xc2\xb7 "
                         "the axis JUMPS BACK at every boundary"),
-                   type(faceMono, 8.4f, hex(0xc9a35c, 0.9f)))
+                   type(faceMono, 8.4f, hexColor(0xc9a35c, 0.9f)))
                   .left(600)
                   .top(y - 26)
                   .width(Dim(900)));  // just clear of the sheet
@@ -2119,48 +2123,49 @@ struct DunhuangStarChart : sketch::Sketch {
       const float xl = segX(seg, s0 + kMapWmm) - segLo(seg);
       const float xr = segX(seg, s0) - segLo(seg);
       if (xr < -6 || xl > segHi(seg) - segLo(seg) + 6) continue;
-      g.child(
-          box()
-              .left(xl)
-              .top(y)
-              .width(Dim(xr - xl))
-              .height(Dim(11))
-              .shape(keyedShape(std::string_view("span-bracket"),
-                                [](SkSize sz) {
-                                  SkPathBuilder b;
-                                  b.moveTo(0, 0);
-                                  b.lineTo(0, sz.height());
-                                  b.moveTo(0, sz.height() * 0.5f);
-                                  b.lineTo(sz.width(), sz.height() * 0.5f);
-                                  b.moveTo(sz.width(), 0);
-                                  b.lineTo(sz.width(), sz.height());
-                                  return b.detach();
-                                }))
-              .stroke(lines::Line{.width = 1.0f,
-                                  .fill = Fill::color(hex(0xc9a35c, 0.7f))}));
+      g.child(box()
+                  .left(xl)
+                  .top(y)
+                  .width(Dim(xr - xl))
+                  .height(Dim(11))
+                  .shape(keyedShape(std::string_view("span-bracket"),
+                                    [](SkSize sz) {
+                                      SkPathBuilder b;
+                                      b.moveTo(0, 0);
+                                      b.lineTo(0, sz.height());
+                                      b.moveTo(0, sz.height() * 0.5f);
+                                      b.lineTo(sz.width(), sz.height() * 0.5f);
+                                      b.moveTo(sz.width(), 0);
+                                      b.lineTo(sz.width(), sz.height());
+                                      return b.detach();
+                                    }))
+                  .stroke(lines::Line{
+                      .width = 1.0f,
+                      .fill = Fill::color(hexColor(0xc9a35c, 0.7f))}));
       g.child(text(toU8(fmt("%d\xc2\xb0",
                             (int)std::lround(wrap360(mapCentre(k) - 24.0f)))),
-                   type(faceMono, 7.6f, hex(0xc9a35c, 0.85f)))
+                   type(faceMono, 7.6f, hexColor(0xc9a35c, 0.85f)))
                   .left(xr - 26)
                   .top(y + 13)
                   .width(Dim(28))
                   .textAlign(weave::TextAlignment::kEnd));
       g.child(text(toU8(fmt("%d\xc2\xb0",
                             (int)std::lround(wrap360(mapCentre(k) + 24.0f)))),
-                   type(faceMono, 7.6f, hex(0xc9a35c, 0.85f)))
+                   type(faceMono, 7.6f, hexColor(0xc9a35c, 0.85f)))
                   .left(xl - 2)
                   .top(y + 13)
                   .width(Dim(28)));
       // the 18 deg this frame shares with its LEFT neighbour, hatched
       const float ov = 18.0f / kRaPerMm * kPxMm;
-      g.child(box()
-                  .left(xl)
-                  .top(y - 11)
-                  .width(Dim(ov))
-                  .height(Dim(9))
-                  .fill(Fill::color(hex(0xb4531f, 0.16f)))
-                  .background(lines::presets::hatch(
-                      Fill::color(hex(0xb4531f, 0.75f)), 3.6f, 0.7f, 45.0f)));
+      g.child(
+          box()
+              .left(xl)
+              .top(y - 11)
+              .width(Dim(ov))
+              .height(Dim(9))
+              .fill(Fill::color(hexColor(0xb4531f, 0.16f)))
+              .background(lines::presets::hatch(
+                  Fill::color(hexColor(0xb4531f, 0.75f)), 3.6f, 0.7f, 45.0f)));
     }
     return g;
   }
@@ -2175,37 +2180,37 @@ struct DunhuangStarChart : sketch::Sketch {
                  .opacity(gate(tPaper + 0.4f, tPaper + 1.4f));
     const float w = kBreakR - kBreakL + 16, h = kBandH + 32;
     g.child(box().left(0).top(0).width(Dim(w)).height(Dim(h)).fill(
-        Fill::color(hex(0x171410, 0.96f))));
+        Fill::color(hexColor(0x171410, 0.96f))));
     for (int i = 0; i < 2; ++i) {
       const float x = 8.0f + (float)i * (w - 16.0f);
-      g.child(
-          box()
-              .left(x - 9)
-              .top(0)
-              .width(Dim(18))
-              .height(Dim(h))
-              .shape(keyedShape(std::string_view("break-zigzag"),
-                                [](SkSize s) {
-                                  SkPathBuilder b;
-                                  b.moveTo(s.width() * 0.5f, 0);
-                                  // the loop walks a distance; the accumulated
-                                  // float is the position
-                                  // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-                                  for (float y = 0; y < s.height();
-                                       y += 22.0f) {
-                                    b.lineTo(s.width() * 0.5f + 6, y + 5.5f);
-                                    b.lineTo(s.width() * 0.5f - 6, y + 16.5f);
-                                    b.lineTo(s.width() * 0.5f, y + 22.0f);
-                                  }
-                                  return b.detach();
-                                }))
-              .stroke(lines::Line{.width = 1.2f,
-                                  .fill = Fill::color(hex(0x8a7458, 0.8f))}));
+      g.child(box()
+                  .left(x - 9)
+                  .top(0)
+                  .width(Dim(18))
+                  .height(Dim(h))
+                  .shape(keyedShape(
+                      std::string_view("break-zigzag"),
+                      [](SkSize s) {
+                        SkPathBuilder b;
+                        b.moveTo(s.width() * 0.5f, 0);
+                        // the loop walks a distance; the accumulated
+                        // float is the position
+                        // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
+                        for (float y = 0; y < s.height(); y += 22.0f) {
+                          b.lineTo(s.width() * 0.5f + 6, y + 5.5f);
+                          b.lineTo(s.width() * 0.5f - 6, y + 16.5f);
+                          b.lineTo(s.width() * 0.5f, y + 22.0f);
+                        }
+                        return b.detach();
+                      }))
+                  .stroke(lines::Line{
+                      .width = 1.2f,
+                      .fill = Fill::color(hexColor(0x8a7458, 0.8f))}));
     }
     const float sL = (kOriginR - kBreakR) / kPxMm,
                 sR = (kOriginL - kBreakL) / kPxMm;
     g.child(text(toU8(fmt("%d mm", (int)std::lround(sR - sL))),
-                 type(faceMono, 8.2f, hex(0x9a8a68, 0.85f)))
+                 type(faceMono, 8.2f, hexColor(0x9a8a68, 0.85f)))
                 .left(-16)
                 .top(h + 4)
                 .width(Dim(w + 32))
@@ -2215,12 +2220,12 @@ struct DunhuangStarChart : sketch::Sketch {
 
   feed::TextOptions logStyle() {
     feed::TextOptions s;
-    s.styles.base(type(faceMono, 9.2f, hex(0x9a8a68)))
-        .set("dim", type(faceMono, 9.2f, hex(0x6d6249)))
-        .set("heading", type(faceMono, 9.2f, hex(0xc9a35c)))
-        .set("pass", type(faceMono, 9.2f, hex(0x6ba87e)))
-        .set("number", type(faceMono, 9.2f, hex(0xcf6a4a)))
-        .set("fail", type(faceMono, 9.2f, hex(0xc4483a)));
+    s.styles.base(type(faceMono, 9.2f, hexColor(0x9a8a68)))
+        .set("dim", type(faceMono, 9.2f, hexColor(0x6d6249)))
+        .set("heading", type(faceMono, 9.2f, hexColor(0xc9a35c)))
+        .set("pass", type(faceMono, 9.2f, hexColor(0x6ba87e)))
+        .set("number", type(faceMono, 9.2f, hexColor(0xcf6a4a)))
+        .set("fail", type(faceMono, 9.2f, hexColor(0xc4483a)));
     s.window.gap = 1.0f;
     s.window.visible = 12;
     return s;
@@ -2230,7 +2235,7 @@ struct DunhuangStarChart : sketch::Sketch {
     auto g = box().left(96).top(1046).width(Dim(700)).key("proj").opacity(
         gate(tProj, tProj + 0.9f));
     g.child(text(toU8("TWO QUESTIONS THE CHART CANNOT ANSWER, AND WHY"),
-                 type(faceDisplay, 13.0f, hex(0xc9a35c), 1.1f))
+                 type(faceDisplay, 13.0f, hexColor(0xc9a35c), 1.1f))
                 .left(0)
                 .top(0)
                 .width(Dim(690)));
@@ -2253,7 +2258,7 @@ struct DunhuangStarChart : sketch::Sketch {
       auto p = box().left(pl.x).top(30).width(Dim(pw)).height(Dim(ph));
       p.child(box().left(0).top(0).width(Dim(pw)).height(Dim(ph)).stroke(
           spans::edges(16.0f),
-          brush::solid(0.9f, Fill::color(hex(0x8a7458, 0.5f)))));
+          brush::solid(0.9f, Fill::color(hexColor(0x8a7458, 0.5f)))));
       const float lo = pl.lo, hi = pl.hi;
       const bool merc = pl.merc;
       // THE DEPARTURE CURVE, self-normalised — the same residual the
@@ -2295,12 +2300,12 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(ph * 0.5f - half)
                   .width(Dim(pw))
                   .height(Dim(half * 2))
-                  .fill(Fill::color(hex(0xa8382a, 0.13f)))
+                  .fill(Fill::color(hexColor(0xa8382a, 0.13f)))
                   .stroke(PathFormat{
                       .width = 0.6f,
-                      .strokeFill = Fill::color(hex(0xa8382a, 0.45f)),
+                      .strokeFill = Fill::color(hexColor(0xa8382a, 0.45f)),
                       .dashIntervals = {4, 4}}));
-      p.child(text(toU8(pl.cap), type(faceMono, 8.4f, hex(0x9a8a68)))
+      p.child(text(toU8(pl.cap), type(faceMono, 8.4f, hexColor(0x9a8a68)))
                   .left(0)
                   .top(ph + 4)
                   .width(Dim(pw)));
@@ -2309,7 +2314,7 @@ struct DunhuangStarChart : sketch::Sketch {
                              : "equidist. \xe2\x88\x92 stereo. (blue); the "
                                "hand is 7.6\xc3\x97 "
                                "the plot, off scale"),
-                   type(faceMono, 8.4f, hex(0x6d6249)))
+                   type(faceMono, 8.4f, hexColor(0x6d6249)))
                   .left(0)
                   .top(ph + 15)
                   .width(Dim(pw)));
@@ -2338,14 +2343,14 @@ struct DunhuangStarChart : sketch::Sketch {
                   .width(Dim(690)));
     g.child(text(toU8("all three maps favour PURE CYLINDRICAL (0.974/0.972, "
                       "0.975/0.974, 0.996/0.994) \xe2\x80\x94 3 of 3, p=0.125"),
-                 type(faceMono, 9.6f, hex(0xcf6a4a)))
+                 type(faceMono, 9.6f, hexColor(0xcf6a4a)))
                 .left(0)
                 .top(280)
                 .width(Dim(690)));
     g.child(text(toU8("the disc cannot decide BECAUSE IT STOPS AT +52\xc2\xb0: "
                       "over a "
                       "full hemisphere the pair would part by 7.00\xc2\xb0"),
-                 type(faceMono, 9.6f, hex(0x6d6249)))
+                 type(faceMono, 9.6f, hexColor(0x6d6249)))
                 .left(0)
                 .top(294)
                 .width(Dim(690)));
@@ -2359,7 +2364,7 @@ struct DunhuangStarChart : sketch::Sketch {
         gate(tAudit - 0.9f, tAudit - 0.2f));
     g.child(text(toU8("MAP 5 \xc2\xb7 THE ORION REGION \xc2\xb7 TABLE 4 OF "
                       "BONNET-BIDAUD, PRADERIE & WHITFIELD 2009"),
-                 type(faceDisplay, 13.0f, hex(0xc9a35c), 1.0f))
+                 type(faceDisplay, 13.0f, hexColor(0xc9a35c), 1.0f))
                 .left(0)
                 .top(0)
                 .width(Dim(880)));
@@ -2369,7 +2374,7 @@ struct DunhuangStarChart : sketch::Sketch {
                       "W\xe2\x86\x92"
                       "E, i.e. by increasing RA \xc2\xb7 R=Shi shi  B=Gan shi  "
                       "W=Wu Xian shi"),
-                 type(faceMono, 8.6f, hex(0x9a8a68)))
+                 type(faceMono, 8.6f, hexColor(0x9a8a68)))
                 .left(0)
                 .top(16)
                 .width(Dim(880)));
@@ -2388,7 +2393,7 @@ struct DunhuangStarChart : sketch::Sketch {
         {228, "COL"}, {253, "SXC"},     {281, "MAP"},
         {312, "CZ"},  {362, "CONF"},    {400, "DEFECT"}};
     for (const Head& h : heads)
-      g.child(text(toU8(h.s), type(faceMono, 8.6f, hex(0x6d6249)))
+      g.child(text(toU8(h.s), type(faceMono, 8.6f, hexColor(0x6d6249)))
                   .left(h.x)
                   .top(y0 - 13)
                   .width(Dim(120)));
@@ -2401,11 +2406,11 @@ struct DunhuangStarChart : sketch::Sketch {
       int cz = 0;
       for (int a = 0; a < nAst; ++a)
         if (cat.ast(a).id == r.cid) cz = astUnique(cat, cat.ast(a));
-      row.child(
-          text(toU8(fmt("%3d", i + 1)), type(faceMono, 9.4f, hex(0x6d6249)))
-              .left(0)
-              .top(0)
-              .width(Dim(26)));
+      row.child(text(toU8(fmt("%3d", i + 1)),
+                     type(faceMono, 9.4f, hexColor(0x6d6249)))
+                    .left(0)
+                    .top(0)
+                    .width(Dim(26)));
       row.child(text(toU8(r.pinyin), type(faceMono, 9.4f, kChalk))
                     .left(30)
                     .top(0)
@@ -2424,24 +2429,25 @@ struct DunhuangStarChart : sketch::Sketch {
                     .fill(Fill::color(schoolInk(r.school)))
                     .stroke(PathFormat{.width = 0.8f,
                                        .strokeFill = Fill::color(kInk)}));
-      row.child(text(toU8(fmt("%4d %4d %4d", r.sxc, r.map, cz)),
-                     type(faceMono, 9.4f,
-                          r.sxc == r.map ? hex(0x9a8a68) : hex(0xcf6a4a)))
-                    .left(250)
-                    .top(0)
-                    .width(Dim(94)));
+      row.child(
+          text(toU8(fmt("%4d %4d %4d", r.sxc, r.map, cz)),
+               type(faceMono, 9.4f,
+                    r.sxc == r.map ? hexColor(0x9a8a68) : hexColor(0xcf6a4a)))
+              .left(250)
+              .top(0)
+              .width(Dim(94)));
       // the confidence index, as five cells
       for (int c = 0; c < 5; ++c)
-        row.child(
-            box()
-                .left(356 + (float)c * 7.0f)
-                .top(3.6f)
-                .width(Dim(5.2f))
-                .height(Dim(7.0f))
-                .fill(Fill::color(c < r.confidence ? hex(0xc9a35c, 0.85f)
-                                                   : hex(0x6d6249, 0.28f))));
+        row.child(box()
+                      .left(356 + (float)c * 7.0f)
+                      .top(3.6f)
+                      .width(Dim(5.2f))
+                      .height(Dim(7.0f))
+                      .fill(Fill::color(c < r.confidence
+                                            ? hexColor(0xc9a35c, 0.85f)
+                                            : hexColor(0x6d6249, 0.28f))));
       if (!r.defect.empty())
-        row.child(text(toU8(r.defect), type(faceMono, 9.0f, hex(0xb4531f)))
+        row.child(text(toU8(r.defect), type(faceMono, 9.0f, hexColor(0xb4531f)))
                       .left(400)
                       .top(0)
                       .width(Dim(478)));
@@ -2453,7 +2459,7 @@ struct DunhuangStarChart : sketch::Sketch {
                 .top(yT - 4)
                 .width(Dim(878))
                 .height(Dim(0.8f))
-                .fill(Fill::color(hex(0x8a7458, 0.5f)))
+                .fill(Fill::color(hexColor(0x8a7458, 0.5f)))
                 .opacity(gate(tAudit + 5.4f, tAudit + 5.9f)));
     const std::string tot = fmt(
         "TOTALS  SXC %d   map %d   Chen Zhuo %d distinct (Fa's 3 in, Sanzhu's "
@@ -2467,7 +2473,7 @@ struct DunhuangStarChart : sketch::Sketch {
     g.child(
         text(toU8("Table 4's own n(map) column sums to 108. Its stated total "
                   "is 109. The census is soft, and the paper says so."),
-             type(faceMono, 9.4f, hex(0xcf6a4a)))
+             type(faceMono, 9.4f, hexColor(0xcf6a4a)))
             .left(0)
             .top(yT + 13)
             .width(Dim(878))
@@ -2476,7 +2482,7 @@ struct DunhuangStarChart : sketch::Sketch {
                       "\xe2\x80\x94 "
                       "ringed on map 5 above. A study that corrects them has "
                       "destroyed the object."),
-                 type(faceMono, 9.4f, hex(0xb4531f)))
+                 type(faceMono, 9.4f, hexColor(0xb4531f)))
                 .left(0)
                 .top(yT + 26)
                 .width(Dim(878))
@@ -2490,7 +2496,7 @@ struct DunhuangStarChart : sketch::Sketch {
     auto g = box().left(96).top(1362).width(Dim(700)).key("m13").opacity(
         gate(tAudit + 4.6f, tAudit + 5.4f));
     g.child(text(toU8("MAP 13 \xc2\xb7 THE CIRCUMPOLAR DISC \xc2\xb7 TABLE 5"),
-                 type(faceDisplay, 12.0f, hex(0xc9a35c), 1.0f))
+                 type(faceDisplay, 12.0f, hexColor(0xc9a35c), 1.0f))
                 .left(0)
                 .top(0)
                 .width(Dim(700)));
@@ -2513,17 +2519,17 @@ struct DunhuangStarChart : sketch::Sketch {
         "XIAN, the other",
     };
     for (int i = 0; i < 10; ++i)
-      g.child(
-          text(toU8(rows[i]),
-               type(faceMono, 9.2f, i == 3 || i == 5 ? kChalk : hex(0x9a8a68)))
-              .left(0)
-              .top(18.0f + (float)i * 12.4f)
-              .width(Dim(700)));
+      g.child(text(toU8(rows[i]),
+                   type(faceMono, 9.2f,
+                        i == 3 || i == 5 ? kChalk : hexColor(0x9a8a68)))
+                  .left(0)
+                  .top(18.0f + (float)i * 12.4f)
+                  .width(Dim(700)));
     g.child(
         text(
             toU8(
                 "under GAN. The map draws both BLACK. Printed, not corrected."),
-            type(faceMono, 9.2f, hex(0xb4531f)))
+            type(faceMono, 9.2f, hexColor(0xb4531f)))
             .left(0)
             .top(18.0f + 10 * 12.4f)
             .width(Dim(700)));
@@ -2537,22 +2543,23 @@ struct DunhuangStarChart : sketch::Sketch {
                  .top(y)
                  .width(Dim(w))
                  .height(Dim(h))
-                 .fill(Fill::color(hex(0x100e0b, 0.86f)))
-                 .stroke(stroke(1.0f, Fill::color(hex(0x8a7458, 0.24f)),
+                 .fill(Fill::color(hexColor(0x100e0b, 0.86f)))
+                 .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7458, 0.24f)),
                                 PathFormat::Align::Inner))
                  .key("console");
-    g.child(box()
-                .left(12)
-                .top(9)
-                .width(Dim(w - 24))
-                .height(Dim(h - 18))
-                .column()
-                .gap(6)
-                .child(feed::feed(logA, logStyle()))
-                .child(box().height(1).fill(Fill::color(hex(0x8a7458, 0.16f))))
-                .child(feed::feed(logB, logStyle()))
-                .child(box().height(1).fill(Fill::color(hex(0x8a7458, 0.16f))))
-                .child(feed::feed(logC, logStyle())));
+    g.child(
+        box()
+            .left(12)
+            .top(9)
+            .width(Dim(w - 24))
+            .height(Dim(h - 18))
+            .column()
+            .gap(6)
+            .child(feed::feed(logA, logStyle()))
+            .child(box().height(1).fill(Fill::color(hexColor(0x8a7458, 0.16f))))
+            .child(feed::feed(logB, logStyle()))
+            .child(box().height(1).fill(Fill::color(hexColor(0x8a7458, 0.16f))))
+            .child(feed::feed(logC, logStyle())));
     return g;
   }
 
@@ -2572,23 +2579,24 @@ struct DunhuangStarChart : sketch::Sketch {
         "deg over a 360 deg sky: the gold bars below SHARE 18 deg each.",
     };
     for (int i = 0; i < 6; ++i)
-      g.child(text(toU8(rows[i]),
-                   type(i ? faceMono : faceDisplay, i ? 9.0f : 12.0f,
-                        i ? hex(0x9a8a68) : hex(0xc9a35c), i ? 0.0f : 1.0f))
-                  .left(0)
-                  .top(i ? 16.0f + (float)i * 12.2f : 0.0f)
-                  .width(Dim(700)));
+      g.child(
+          text(toU8(rows[i]), type(i ? faceMono : faceDisplay, i ? 9.0f : 12.0f,
+                                   i ? hexColor(0x9a8a68) : hexColor(0xc9a35c),
+                                   i ? 0.0f : 1.0f))
+              .left(0)
+              .top(i ? 16.0f + (float)i * 12.2f : 0.0f)
+              .width(Dim(700)));
     g.child(
         text(toU8("take 30 deg per map instead (12 x 30 = 360, one dot per "
                   "star, matching the 1,339 census) and the columns come out"),
-             type(faceMono, 9.0f, hex(0xcf6a4a)))
+             type(faceMono, 9.0f, hexColor(0xcf6a4a)))
             .left(0)
             .top(92)
             .width(Dim(700)));
     g.child(
         text(toU8("21.6 mm wide, which is not a Tang column. NEITHER READING "
                   "CLOSES. This plate draws the first, so you can see it."),
-             type(faceMono, 9.0f, hex(0xcf6a4a)))
+             type(faceMono, 9.0f, hexColor(0xcf6a4a)))
             .left(0)
             .top(104)
             .width(Dim(700)));
@@ -2598,7 +2606,7 @@ struct DunhuangStarChart : sketch::Sketch {
   Element headings() {
     auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH)).key("head");
     g.child(text(toU8("THE DUNHUANG STAR CHART, REPROJECTED"),
-                 type(faceDisplay, 27.0f, hex(0xe0cfa6), 2.4f))
+                 type(faceDisplay, 27.0f, hexColor(0xe0cfa6), 2.4f))
                 .left(96)
                 .top(16)
                 .width(Dim(1200)));
@@ -2607,7 +2615,7 @@ struct DunhuangStarChart : sketch::Sketch {
                       "684 \xc2\xb7 3,940 \xc3\x97 244 mm, "
                       "pure mulberry fibre 0.04 mm \xc2\xb7 1,339 dots in 257 "
                       "asterisms"),
-                 type(faceMono, 10.2f, hex(0x9a8a68)))
+                 type(faceMono, 10.2f, hexColor(0x9a8a68)))
                 .left(98)
                 .top(46)
                 .width(Dim(1500)));
@@ -2615,42 +2623,43 @@ struct DunhuangStarChart : sketch::Sketch {
                       "\xe2\x86\x92 +700 "
                       "(IAU 1976) and pushed through Table 3's own measured "
                       "projection."),
-                 type(faceMono, 10.2f, hex(0xc9a35c)))
+                 type(faceMono, 10.2f, hexColor(0xc9a35c)))
                 .left(1660)
                 .top(16)
                 .width(Dim(830)));
     g.child(
         text(toU8("PLATE I \xc2\xb7 north up, WEST AT RIGHT, RA increasing "
                   "right-to-left \xe2\x80\x94 the direction the scroll reads"),
-             type(faceMono, 9.4f, hex(0x6d6249)))
+             type(faceMono, 9.4f, hexColor(0x6d6249)))
             .left(1660)
             .top(34)
             .width(Dim(830)));
     // the scale bar, in cm of real paper
     const float barMm = 100.0f;
-    g.child(box()
-                .left(96)
-                .top(1546)
-                .width(Dim(barMm * kPxMm))
-                .height(Dim(7))
-                .shape(keyedShape(std::string_view("scale-bar"),
-                                  [](SkSize s) {
-                                    SkPathBuilder b;
-                                    b.moveTo(0, 6);
-                                    b.lineTo(0, 0);
-                                    b.lineTo(s.width(), 0);
-                                    b.lineTo(s.width(), 6);
-                                    for (int i = 1; i < 10; ++i) {
-                                      b.moveTo(s.width() * (float)i / 10.0f, 0);
-                                      b.lineTo(s.width() * (float)i / 10.0f,
-                                               i % 5 ? 3 : 5);
-                                    }
-                                    return b.detach();
-                                  }))
-                .stroke(lines::Line{.width = 1.0f,
-                                    .fill = Fill::color(hex(0x9a8a68, 0.8f))}));
+    g.child(
+        box()
+            .left(96)
+            .top(1546)
+            .width(Dim(barMm * kPxMm))
+            .height(Dim(7))
+            .shape(keyedShape(std::string_view("scale-bar"),
+                              [](SkSize s) {
+                                SkPathBuilder b;
+                                b.moveTo(0, 6);
+                                b.lineTo(0, 0);
+                                b.lineTo(s.width(), 0);
+                                b.lineTo(s.width(), 6);
+                                for (int i = 1; i < 10; ++i) {
+                                  b.moveTo(s.width() * (float)i / 10.0f, 0);
+                                  b.lineTo(s.width() * (float)i / 10.0f,
+                                           i % 5 ? 3 : 5);
+                                }
+                                return b.detach();
+                              }))
+            .stroke(lines::Line{
+                .width = 1.0f, .fill = Fill::color(hexColor(0x9a8a68, 0.8f))}));
     g.child(text(toU8("10 cm of scroll \xc2\xb7 IDP scan 204.8 px/cm"),
-                 type(faceMono, 8.6f, hex(0x6d6249)))
+                 type(faceMono, 8.6f, hexColor(0x6d6249)))
                 .left(96 + barMm * kPxMm + 10)
                 .top(1544)
                 .width(Dim(420)));
@@ -2659,7 +2668,7 @@ struct DunhuangStarChart : sketch::Sketch {
                       "3\xe2\x80\x93"
                       "5 "
                       "\xc2\xb7 IDP 7861395E5F814419BA05483EAB254832"),
-                 type(faceMono, 8.6f, hex(0x6d6249)))
+                 type(faceMono, 8.6f, hexColor(0x6d6249)))
                 .left(1660)
                 .top(1544)
                 .width(Dim(880)));
@@ -2698,9 +2707,10 @@ struct DunhuangStarChart : sketch::Sketch {
                                 }
                                 return b.detach();
                               }))
-            .stroke(PathFormat{.width = 0.8f,
-                               .strokeFill = Fill::color(hex(0x2f6d86, 0.42f)),
-                               .dashIntervals = {3, 7}}));
+            .stroke(
+                PathFormat{.width = 0.8f,
+                           .strokeFill = Fill::color(hexColor(0x2f6d86, 0.42f)),
+                           .dashIntervals = {3, 7}}));
 
     root.child(scrollBand(-90, kBreakL, "bandL", -0.42f));
     root.child(scrollBand(kBreakR, kW + 90, "bandR", -0.42f));
@@ -2784,8 +2794,8 @@ struct DunhuangStarChart : sketch::Sketch {
     // the fibre runs ALONG the roll: anisotropic luminance grain, not noise
     paperGrain = Paint::recipe(field::grain(1.15f, 4, 3326.0f, 0.42f, 5.5f));
     paperSpeck = patterns::speckle(900, 34, 0.20f, 0.85f,
-                                   {skia::toColor(hex(0x6a5330, 0.10f)),
-                                    skia::toColor(hex(0x2a2118, 0.08f))});
+                                   {skia::toColor(hexColor(0x6a5330, 0.10f)),
+                                    skia::toColor(hexColor(0x2a2118, 0.08f))});
     paperSpeck.seed(649);
 
     cat = catalogue(ctx.assets);
@@ -2805,9 +2815,10 @@ struct DunhuangStarChart : sketch::Sketch {
       auto e = box().width(11).height(11).shape(shapes::circle());
       if (fill.fA > 0) e.fill(Fill::color(fill));
       if (ring)
-        e.stroke(PathFormat{.width = 1.15f,
-                            .strokeFill = Fill::color(hex(0x1d1710, 0.92f)),
-                            .align = PathFormat::Align::Inner});
+        e.stroke(
+            PathFormat{.width = 1.15f,
+                       .strokeFill = Fill::color(hexColor(0x1d1710, 0.92f)),
+                       .align = PathFormat::Align::Inner});
       return e;
     };
     cellRed = atlas->cell(dot(kCinnabar, true), {11, 11});
@@ -2816,7 +2827,7 @@ struct DunhuangStarChart : sketch::Sketch {
     // NOT an empty ring: the chart's default mark IS a dot with a black
     // ring, and only the FILL carries the school. A star whose school the
     // tables do not give is drawn as a dot of undeclared colour.
-    cellOpen = atlas->cell(dot(hex(0x6f5c40), true), {11, 11});
+    cellOpen = atlas->cell(dot(hexColor(0x6f5c40), true), {11, 11});
     cellBare = atlas->cell(dot(kCinnabar, false), {11, 11});
 
     pool = std::make_shared<instancing::Pool>();

@@ -312,30 +312,32 @@ constexpr float kW = 1016.0f, kH = 720.0f;
 // that way on purpose: a colour with an alpha would have to darken something
 // to read, and nothing in this interface darkens anything.
 
-const SkColor4f kGround = hex(0x060719);    // the plate's own p10; #0F1023,
-                                            // its p50, is what the CONTRIB-
-                                            // UTIONS above are taken against
-const SkColor4f kProse = hex(0x1B2138);     // Japanese glyph peaks, +46+54+77
-const SkColor4f kPanel = hex(0x101F27);     // the lightened panel, +16+31+39
-const SkColor4f kBodyMid = hex(0x475F86);   // pedestal centre  (#334D83)
-const SkColor4f kBodyEdge = hex(0x040A24);  // pedestal edge    (#151E52)
-const SkColor4f kBarTopHi = hex(0x587962);  // top bar bright edge   (#67899E)
-const SkColor4f kBarTopLo = hex(0x234A3C);  // top bar dark middle   (#325A74)
-const SkColor4f kBarBotHi = hex(0x6FA586);  // bottom bar peak       (#7EB5CA)
-const SkColor4f kBarBotLo = hex(0x578C70);  // bottom bar middle     (#669CB1)
-const SkColor4f kRail = hex(0x1D3242);      // side hairlines, dimmer than bars
+const SkColor4f kGround = hexColor(0x060719);  // the plate's own p10; #0F1023,
+                                               // its p50, is what the CONTRIB-
+                                               // UTIONS above are taken against
+const SkColor4f kProse = hexColor(0x1B2138);  // Japanese glyph peaks, +46+54+77
+const SkColor4f kPanel = hexColor(0x101F27);  // the lightened panel, +16+31+39
+const SkColor4f kBodyMid = hexColor(0x475F86);   // pedestal centre  (#334D83)
+const SkColor4f kBodyEdge = hexColor(0x040A24);  // pedestal edge    (#151E52)
+const SkColor4f kBarTopHi =
+    hexColor(0x587962);  // top bar bright edge   (#67899E)
+const SkColor4f kBarTopLo =
+    hexColor(0x234A3C);  // top bar dark middle   (#325A74)
+const SkColor4f kBarBotHi = hexColor(0x6FA586);  // bottom bar peak (#7EB5CA)
+const SkColor4f kBarBotLo = hexColor(0x578C70);  // bottom bar middle (#669CB1)
+const SkColor4f kRail = hexColor(0x1D3242);  // side hairlines, dimmer than bars
 const SkColor4f kConsoleInk =
-    hex(0x46C89A);                         // ~ #84FFFF - #425689, the add the
-                                           // reference's own body demands; the
-                                           // green is trimmed against the
-                                           // measured core #72F9F5, not guessed
-const SkColor4f kWire = hex(0x3A6257);     // hairline peak #5683AD on a
-                                           // #1C2156 ground, dLuma +55
-const SkColor4f kMinds = hex(0xA6B7BE);    // `no double minds`, +166+183+190
-const SkColor4f kAlright = hex(0xB3B6BF);  // `make me feel alright?` core
-const SkColor4f kCover = hex(0x7A3416);    // `COVer me`, dr-db = +40
-const SkColor4f kMagenta = hex(0x3A1B3C);  // the streaks, p90 #603871
-const SkColor4f kWordmark = hex(0x2B3A54);  // the rotated Copland lockup
+    hexColor(0x46C89A);  // ~ #84FFFF - #425689, the add the
+                         // reference's own body demands; the
+                         // green is trimmed against the
+                         // measured core #72F9F5, not guessed
+const SkColor4f kWire = hexColor(0x3A6257);   // hairline peak #5683AD on a
+                                              // #1C2156 ground, dLuma +55
+const SkColor4f kMinds = hexColor(0xA6B7BE);  // `no double minds`, +166+183+190
+const SkColor4f kAlright = hexColor(0xB3B6BF);   // `make me feel alright?` core
+const SkColor4f kCover = hexColor(0x7A3416);     // `COVer me`, dr-db = +40
+const SkColor4f kMagenta = hexColor(0x3A1B3C);   // the streaks, p90 #603871
+const SkColor4f kWordmark = hexColor(0x2B3A54);  // the rotated Copland lockup
 
 // ---------------------------------------------------------------------------
 // THE WINDOW. Measured off Layer 04 and shifted +58 in x, so the reconstruction
@@ -1021,21 +1023,31 @@ struct LainNavi : sketch::Sketch {
     // is also why Texture is excluded from the direct-blend path.
     // Bounded to the eye's own box, so the bake covers the eye and not the
     // whole canvas.
-    root.child(
-        box()
-            .rect(SkRect::MakeXYWH(370, 150, 376, 400))
-            .shape(keyedShape(std::string_view("eye-furniture"),
-                              [](SkSize s) {
-                                return eyeFurniture(
-                                    {s.width() * 0.5f, s.height() * 0.46f},
-                                    92.0f);
-                              }))
-            .foreground(LayeredBrush{
-                {{24.0f, hex(0x070C17), 13.0f, {}, 0, SkBlendMode::kPlus, true},
-                 {9.0f, hex(0x0A1120), 5.0f, {}, 0, SkBlendMode::kPlus, true}}})
-            .blend(SkBlendMode::kPlus)
-            .cache(Cache::Texture)
-            .key("eye"));
+    root.child(box()
+                   .rect(SkRect::MakeXYWH(370, 150, 376, 400))
+                   .shape(keyedShape(std::string_view("eye-furniture"),
+                                     [](SkSize s) {
+                                       return eyeFurniture({s.width() * 0.5f,
+                                                            s.height() * 0.46f},
+                                                           92.0f);
+                                     }))
+                   .foreground(LayeredBrush{{{24.0f,
+                                              hexColor(0x070C17),
+                                              13.0f,
+                                              {},
+                                              0,
+                                              SkBlendMode::kPlus,
+                                              true},
+                                             {9.0f,
+                                              hexColor(0x0A1120),
+                                              5.0f,
+                                              {},
+                                              0,
+                                              SkBlendMode::kPlus,
+                                              true}}})
+                   .blend(SkBlendMode::kPlus)
+                   .cache(Cache::Texture)
+                   .key("eye"));
 
     // the side rails: single hairlines at the body's own edges, dimmer than
     // the bars. No corner anywhere — the bars simply overhang them.

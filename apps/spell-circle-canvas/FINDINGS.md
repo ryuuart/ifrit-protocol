@@ -47,8 +47,7 @@ before the review, rewritten to what the tree holds now.
   tier (which reports rather than gates until the glyph-edge cause is
   found), ASan and TSan over the suite, and the bench and app-FPS
   retake on an idle machine.
-- Naming: `hexColor` is the one spelling (`hex` is deleted and every
-  call site rewritten); compose's colour verbs unify onto SigilMaterial's
+- Naming: compose's colour verbs unify onto SigilMaterial's
   linear-light vocabulary, which is made fast enough to stand in for
   them (no conversion where the input is already linear, constexpr
   where a palette constant needs it), and every plate that ramps a
