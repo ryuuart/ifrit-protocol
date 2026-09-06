@@ -135,7 +135,8 @@
 //                                      mostly-empty canvas
 //   ctx.measure()                      every label's point size is SOLVED from
 //                                      the width measured off the reference
-//   feed::TextRing                     the rotation audit, printed as it runs
+//   measure::Table                     the rotation audit, its verdict computed
+//                                      from the two values each row reports
 //
 // -----------------------------------------------------------------------------
 // Run:
@@ -173,7 +174,6 @@
 #include <include/core/SkTypeface.h>
 #include <shared/EvangelionUi.h>
 #include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/core/Feed.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
@@ -184,6 +184,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/schedule/Cascade.h>
 #include <sigilmotion/values/Keyframes.h>
@@ -191,11 +192,12 @@
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <cstring>
 #include <functional>
 #include <string>
@@ -207,6 +209,7 @@ namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
+namespace measure = sigil::measure;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -912,14 +915,17 @@ struct EvaMagiDefense : sketch::Sketch {
   std::vector<float> labelSize;  // role size, reduced only when it must fit
   std::vector<float> siteNameSize;
   float numeralSize = 96.0f;
-  sigil::compose::feed::TextRing audit{48};
-  std::vector<std::u8string> failures;
+  /** THE ROTATION RULE, ASSERTED. Every row's verdict is COMPUTED from the
+   *  two values it reports, so a line that reads PASS cannot disagree with
+   *  the arithmetic beside it, and `failures()` is what decides whether the
+   *  plate carries a warning. */
+  measure::Table verdict;
   SkPath funnel;
 
   // --- the construction rule, asserted ---------------------------------------
   void runAudit() {
     using namespace eva;
-    failures.clear();
+    verdict = {};
     // MAGI 01's target is the CENTROID of the five attackers; everyone else's
     // is the hub. Same rule, one substitution.
     SkPoint centroid{0, 0};
@@ -928,12 +934,9 @@ struct EvaMagiDefense : sketch::Sketch {
         centroid.fX += unroll(s.centre).fX / 5.0f;
         centroid.fY += unroll(s.centre).fY / 5.0f;
       }
-    audit.append({u8"ROTATION RULE  theta = snap45(bearing(site->target) - 90)",
-                  "heading"});
-    std::printf("\n  MAGI defense plate — rotation audit\n");
-    std::printf(
-        "  site   centre        target        bearing   want    "
-        "declared  stem_dir  err\n");
+    verdict.add(
+        measure::heading("ROTATION RULE  theta = snap45(bearing(site "
+                         "\xe2\x86\x92 target) \xe2\x88\x92 90)"));
     for (const Site& s : kSites) {
       const bool hub = s.falls;
       const SkPoint tgt = hub ? kHub : centroid;
@@ -945,17 +948,20 @@ struct EvaMagiDefense : sketch::Sketch {
       const SkVector stem{-std::sin(th), std::cos(th)};
       const float stemDeg = deg(std::atan2(stem.fY, stem.fX));
       const float err = std::fabs(wrap180(stemDeg - bearing));
-      const bool ok =
-          std::fabs(wrap180(want - s.rotation)) < 0.5f && err < 22.5f;
-      const std::string line = kit::formatted(
-          "  MAGI %s (%4.0f,%4.0f)  (%4.0f,%4.0f)  %7.2f  %+5.0f  "
-          "%+7.0f  %+7.1f  %5.2f  %s",
-          s.name, (double)at.fX, (double)at.fY, (double)tgt.fX, (double)tgt.fY,
-          (double)bearing, (double)want, (double)s.rotation, (double)stemDeg,
-          (double)err, ok ? "PASS" : "*** FAIL ***");
-      std::printf("%s\n", line.c_str());
-      audit.append({toU8(line.c_str() + 2), ok ? "pass" : "fail"});
-      if (!ok) failures.push_back(toU8(line.c_str() + 2));
+      // Two independent claims on one site: the declared angle IS the snap,
+      // and the stem it turns actually points at the target. A single
+      // combined boolean would report a wrong snap and a stem off by twenty
+      // degrees with the same word.
+      verdict.add(measure::check(
+          kit::formatted("MAGI %s  (%.0f,%.0f) \xe2\x86\x92 (%.0f,%.0f), "
+                         "declared rotation deg",
+                         s.name, (double)at.fX, (double)at.fY, (double)tgt.fX,
+                         (double)tgt.fY),
+          0.0, (double)wrap180(want - s.rotation), 0.5));
+      verdict.add(measure::check(
+          kit::formatted("MAGI %s  stem %+.1f vs bearing %.2f, deg apart",
+                         s.name, (double)stemDeg, (double)bearing),
+          0.0, (double)err, 22.5));
     }
     // ...and the plate's other published number: the wall angle. The
     // polyline is authored pre-roll, so the check is "does the CAMERA put it
@@ -968,19 +974,12 @@ struct EvaMagiDefense : sketch::Sketch {
       const float rx = -ax * c - ay * sn;  // rotated by the camera
       const float ry = -ax * sn + ay * c;
       const float rendered = std::fabs(rx / ry);
-      const bool ok = std::fabs(rendered - kDiag) < 0.01f;
-      const std::string line = kit::formatted(
-          "  WALL  authored %.4f  + roll %.2f deg -> %.4f   "
-          "frame measures %.4f  %s",
-          (double)(ax / ay), (double)kRoll, (double)rendered, (double)kDiag,
-          ok ? "PASS" : "*** FAIL ***");
-      std::printf("%s\n", line.c_str());
-      audit.append({toU8(line.c_str() + 2), ok ? "pass" : "fail"});
-      if (!ok) failures.push_back(toU8(line.c_str() + 2));
+      verdict.add(measure::check(
+          kit::formatted("WALL  authored %.4f + roll %.2f deg, dx:dy the "
+                         "frame measures",
+                         (double)(ax / ay), (double)kRoll),
+          (double)kDiag, (double)rendered, 0.01));
     }
-    std::printf(
-        "  %d/%d sites obey the rule; stem half-window is 22.5 deg.\n\n",
-        kSiteN - (int)failures.size(), kSiteN);
   }
 
   // --- one installation ------------------------------------------------------
@@ -1259,28 +1258,38 @@ struct EvaMagiDefense : sketch::Sketch {
                    .opacity(&flicker)
                    .key("flicker"));
 
-    if (!failures.empty()) root.child(failureBanner());
+    if (verdict.failures() > 0) root.child(failureBanner());
     return root;
   }
 
   /** The rotation check, painted across the plate — and ONLY when it fails.
-   *  The reference carries no drafting chrome, so the checks live on stdout in
-   *  the normal case; a violated construction rule gets the whole ring dumped
-   *  in magenta where nobody can miss it. */
+   *  The reference carries no drafting chrome, so a plate whose construction
+   *  holds shows the construction and nothing else; a violated rule gets the
+   *  whole table dealt in magenta where nobody can miss it. */
   Element failureBanner() const {
-    sigil::compose::feed::TextOptions st;
-    st.styles.base(eva::type(23, {0, 0, 0, 1}, 0.95f))
-        .set("dim", eva::type(23, {0.25f, 0, 0.25f, 1}, 0.95f))
-        .set("heading", eva::type(26, {0, 0, 0, 1}, 0.95f))
-        .set("pass", eva::type(23, {0, 0.25f, 0.15f, 1}, 0.95f))
-        .set("fail", eva::type(23, {0.6f, 0, 0, 1}, 0.95f));
-    st.window.gap = 3.0f;
-    st.window.visible = 16;
+    sketch::kit::Theme look;
+    look.palette.ash = {0, 0, 0, 1};
+    look.palette.figure = {0.32f, 0, 0, 1};
+    look.type.sans = eva::boldFace();
+    look.type.mono = eva::boldFace();
+    look.type.captionNote = {23.0f, 0.2f};
+    look.type.captionLabel = {23.0f, 0.2f, true};
+    look.spacing.rowGap = 7;
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (!c.judged()) continue;
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual),
+            toU8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+           Fill::color(c.pass ? SkColor4f{0, 0.30f, 0.14f, 1}
+                              : SkColor4f{0.62f, 0, 0, 1})});
+    }
+    sketch::kit::Provide bound(look);
     return box()
         .left(0)
         .top(300)
         .width(eva::kW)
-        .height(150 + 30 * (float)audit.size())
+        .height(150.0f + 30.0f * (float)rows.size())
         .fill(Fill::color({1, 0, 1, 0.93f}))
         .column()
         .padding(26)
@@ -1288,7 +1297,10 @@ struct EvaMagiDefense : sketch::Sketch {
         .child(
             text(u8"ROTATION RULE VIOLATED — this plate is not one component",
                  eva::type(40, {0, 0, 0, 1}, 0.95f)))
-        .child(sigil::compose::feed::feed(audit, st));
+        .child(sketch::kit::table(std::move(rows),
+                                  {.columns = {{820}, {180, true}, {}},
+                                   .gap = 18,
+                                   .swatchSide = 15}));
   }
 
   // --- host ------------------------------------------------------------------
