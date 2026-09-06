@@ -13,8 +13,6 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
-#include <algorithm>
-#include <cstdint>
 #include <string>
 
 namespace sketch = sigil::sketch;
@@ -24,12 +22,6 @@ namespace weave = sigil::weave;
 using namespace sigil::compose;
 
 namespace {
-
-SkColor4f hex(uint32_t value, float alpha = 1.0f) {
-  return {(float)((value >> 16u) & 255u) / 255.0f,
-          (float)((value >> 8u) & 255u) / 255.0f,
-          (float)(value & 255u) / 255.0f, alpha};
-}
 
 const SkColor4f kGround = hex(0x020202);
 const SkColor4f kOrange = hex(0xF08320);
@@ -223,6 +215,9 @@ struct EvaMagiDeliberation : sketch::Sketch {
     context.canvas(layout.canvasWidth, layout.canvasHeight);
     context.background(kGround);
     fonts = context.fonts;
+    // The plate does not move: one moment, named, so the sweep and the
+    // window render the same picture.
+    context.captureAt(0.05);
     context.composer.render(describe());
   }
 };

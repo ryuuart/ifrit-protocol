@@ -227,18 +227,20 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Theme.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -250,6 +252,7 @@ namespace motion = sigil::motion;
 namespace arrange = sigil::geometry::arrange;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
+namespace measure = sigil::measure;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
@@ -259,11 +262,6 @@ namespace ch = choreograph;
 namespace magi {
 
 constexpr float kW = 1440.0f, kH = 1052.0f;
-
-inline SkColor4f hex(uint32_t v, float a = 1.0f) noexcept {
-  return {(float)((v >> 16u) & 255u) / 255.0f,
-          (float)((v >> 8u) & 255u) / 255.0f, (float)(v & 255u) / 255.0f, a};
-}
 
 // ---------------------------------------------------------------------------
 // PALETTE — HSV-class percentiles over the anchor. There is NO WHITE.
@@ -669,7 +667,12 @@ struct EvaMagiInterior : sketch::Sketch {
 
   brush::Pattern beadBrush;
   brush::Pattern chevronBrush;
-  bool auditOk = true;
+
+  /** THE VERIFICATION, as one table. Every row's verdict is COMPUTED from
+   *  the two values it reports, so a line that reads PASS cannot disagree
+   *  with the arithmetic beside it, and `failures()` is what decides
+   *  whether the plate carries a warning. */
+  measure::Table verdict;
 
   // ==========================================================================
   // THE AUDIT — three copies of one square, equally spaced on a radial
@@ -681,9 +684,11 @@ struct EvaMagiInterior : sketch::Sketch {
       c.fY += p.box.centerY();
     }
     centre = {c.fX / (float)panels.size(), c.fY / (float)panels.size()};
-    auditOk = true;
-    std::printf("MAGI INTERIOR — modular voting plate\n");
-    std::printf("  module centroid = (%.0f, %.0f)\n", centre.fX, centre.fY);
+    verdict = {};
+    verdict.add(measure::heading("MODULE RULE"));
+    verdict.add(measure::reading(
+        "module centroid",
+        kit::formatted("(%.0f, %.0f)", (double)centre.fX, (double)centre.fY)));
     const auto distance = [](SkPoint a, SkPoint b) {
       return std::hypot(a.fX - b.fX, a.fY - b.fY);
     };
@@ -695,15 +700,56 @@ struct EvaMagiInterior : sketch::Sketch {
     const float expectedRotation[3] = {60.0f, 0.0f, -60.0f};
     for (size_t i = 0; i < panels.size(); ++i) {
       const auto& p = panels[i];
-      const bool square = std::fabs(p.box.width() - p.box.height()) < 0.1f;
-      const bool equilateral = std::fabs(sides[i] - sides[(i + 1) % 3]) < 0.5f;
-      const bool oriented = std::fabs(p.rotation - expectedRotation[i]) < 0.1f;
-      const bool ok = square && equilateral && oriented;
-      auditOk = auditOk && ok;
-      std::printf("  %-10s square %.0f  edge %.1f  rotate %+4.0f  %s\n", p.key,
-                  p.box.width(), sides[i], p.rotation, ok ? "OK" : "FAIL");
+      verdict.add(measure::check(
+          kit::formatted("%s  square, w \xe2\x88\x92 h px", p.key),
+          (double)p.box.width(), (double)p.box.height(), 0.1));
+      verdict.add(measure::check(
+          kit::formatted("%s  edge to the next module, px", p.key),
+          (double)sides[(i + 1) % 3], (double)sides[i], 0.5));
+      verdict.add(measure::check(kit::formatted("%s  rotation, deg", p.key),
+                                 (double)expectedRotation[i],
+                                 (double)p.rotation, 0.1));
     }
-    if (!auditOk) std::printf("  *** MODULE RULE VIOLATED\n");
+  }
+
+  /** THE VERIFICATION, PAINTED — and only when it fails. The reference
+   *  carries no drafting chrome, so a plate whose construction holds shows
+   *  the construction and nothing else; a violated module rule is dealt
+   *  across it in magenta where nobody can miss it. */
+  Element failureCard() const {
+    sketch::kit::Theme look;
+    look.palette.ash = {0, 0, 0, 1};
+    look.palette.figure = {0.32f, 0, 0, 1};
+    look.type.sans = magi::latin();
+    look.type.mono = magi::latin();
+    look.type.captionNote = {19.0f, 0.2f};
+    look.type.captionLabel = {19.0f, 0.2f, true};
+    look.spacing.rowGap = 6;
+    std::vector<sketch::kit::Row> rows;
+    for (const measure::Check& c : verdict.rows) {
+      if (!c.judged()) continue;
+      rows.push_back(
+          {{toU8(c.label), toU8(c.actual),
+            toU8(c.pass ? std::string("PASS") : "FAIL want " + c.expected)},
+           Fill::color(c.pass ? SkColor4f{0, 0.30f, 0.14f, 1}
+                              : SkColor4f{0.62f, 0, 0, 1})});
+    }
+    sketch::kit::Provide bound(look);
+    return box()
+        .left(0)
+        .top(360)
+        .width(magi::kW)
+        .height(140.0f + 25.0f * (float)rows.size())
+        .fill(Fill::color({1, 0, 1, 0.94f}))
+        .column()
+        .padding(30)
+        .gap(14)
+        .child(text(u8"MODULE RULE VIOLATED",
+                    magi::type(magi::latin(), 52.0f, {0, 0, 0, 1})))
+        .child(sketch::kit::table(std::move(rows),
+                                  {.columns = {{560}, {150, true}, {}},
+                                   .gap = 16,
+                                   .swatchSide = 13}));
   }
 
   // ==========================================================================
@@ -1550,17 +1596,7 @@ struct EvaMagiInterior : sketch::Sketch {
                    .opacity(&flicker)
                    .key("flicker"));
 
-    if (!auditOk)
-      root.child(box()
-                     .left(0)
-                     .top(420)
-                     .width(magi::kW)
-                     .height(96)
-                     .fill(Fill::color({1, 0, 1, 0.94f}))
-                     .child(text(u8"MODULE RULE VIOLATED",
-                                 magi::type(magi::latin(), 56.0f, {0, 0, 0, 1}))
-                                .left(30)
-                                .top(20)));
+    if (verdict.failures() > 0) root.child(failureCard());
     return root;
   }
 
@@ -1596,8 +1632,8 @@ struct EvaMagiInterior : sketch::Sketch {
     audit();
 
     arrivals.clear();
-    std::printf("MAGI INTERIOR — the front, SOLVED (cell %.0f px)\n",
-                magi::kCell);
+    verdict.add(measure::heading("THE FRONT, SOLVED"));
+    verdict.add(measure::reading("arrival cell, px", (double)magi::kCell));
     for (int i = 0; i < 3; ++i) {
       seeded[(size_t)i] = false;
       const magi::Panel& pp = panels[(size_t)i];
@@ -1618,11 +1654,17 @@ struct EvaMagiInterior : sketch::Sketch {
       float reach = 0;
       for (const auto& c : tab.cells)
         if (c.first < 1e3f) reach += c.second;
-      std::printf(
-          "  %-10s cells %3d  area %6.1f  reachable %.0f%%  "
-          "coverage(2.5) = %5.1f%%  (measured %4.1f%%)\n",
-          panels[(size_t)i].key, (int)tab.cells.size(), (double)tab.total,
-          100.0 * reach / (double)tab.total, 100.0 * k, 100.0 * kWant[i]);
+      const char* key = panels[(size_t)i].key;
+      verdict.add(measure::reading(kit::formatted("%s  cells", key),
+                                   (long)tab.cells.size()));
+      verdict.add(measure::reading(kit::formatted("%s  reachable, %%", key),
+                                   100.0 * reach / (double)tab.total));
+      // The schedule has to land on the coverage measured off the flat
+      // plate at the reference moment; that is what makes the still a
+      // reconstruction rather than an impression of one.
+      verdict.add(measure::check(
+          kit::formatted("%s  coverage at %.1f s, %%", key, kRefT),
+          100.0 * (double)kWant[i], 100.0 * k, 0.05));
     }
 
     ctx.ticker.add([this](double dt) {
