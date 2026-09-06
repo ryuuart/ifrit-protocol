@@ -18,28 +18,28 @@ using compose::text;
 compose::Element meter(const Meter& bar) {
   const Theme& look = theme();
   const float filled = std::clamp(bar.fraction, 0.0f, 1.0f);
-  const Fill trackFill =
+  const Ground trackPaint =
       bar.track.value_or(Fill::color(look.palette.cellGround));
-  const Fill barFill = bar.bar.value_or(Fill::color(look.palette.figure));
+  const Ground barPaint = bar.bar.value_or(Fill::color(look.palette.figure));
 
-  Element rail = box().fill(trackFill).clip();
+  Element rail = box();
+  trackPaint.paint(rail);
+  rail.clip();
   if (bar.width.unit != Dim::Unit::Auto) rail.width(bar.width);
   rail.height(bar.height.value_or(Dim(look.spacing.barHeight)));
   if (bar.corners > 0) rail.corners(Corners{bar.corners});
   if (bar.level) {
     // Scaled from the left edge rather than sized: the bed keeps its
     // recording and only the transform moves.
-    Element run = box()
-                      .absolute()
-                      .inset(0)
-                      .fill(barFill)
-                      .transformOrigin(0, 0.5f)
-                      .scaleX(*bar.level);
+    Element run = box().absolute().inset(0);
+    barPaint.paint(run);
+    run.transformOrigin(0, 0.5f).scaleX(*bar.level);
     if (bar.corners > 0) run.corners(Corners{bar.corners});
     rail.child(std::move(run));
   } else if (filled > 0) {
-    Element run = box().width(compose::pct(filled * 100)).fill(barFill).
-                  alignSelf(Align::Stretch);
+    Element run = box().width(compose::pct(filled * 100));
+    barPaint.paint(run);
+    run.alignSelf(Align::Stretch);
     if (bar.corners > 0) run.corners(Corners{bar.corners});
     rail.child(std::move(run));
   }
@@ -69,12 +69,11 @@ compose::Element gauge(const Gauge& dial) {
   // `thickness` px on a dial of `diameter` px leaves this much of it.
   const float inner =
       std::clamp(1.0f - (2.0f * dial.thickness) / diameter, 0.0f, 0.999f);
-  const auto ring = [&](float sweep, Fill paint) {
-    return box()
-        .absolute()
-        .inset(0)
-        .shape(geometry::shapes::sector(dial.startDeg, sweep, inner))
-        .fill(paint);
+  const auto ring = [&](float sweep, const Ground& paint) {
+    Element band = box().absolute().inset(0).shape(
+        geometry::shapes::sector(dial.startDeg, sweep, inner));
+    paint.paint(band);
+    return band;
   };
 
   Element face = box().width(Dim(diameter)).height(Dim(diameter));

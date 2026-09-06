@@ -10,6 +10,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilsketch/kit/Ground.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -28,7 +29,7 @@ struct Backdrop {
    *  thing here a theme cannot carry. */
   SkSize over{0, 0};
   /** Unset is the theme's ground. */
-  std::optional<compose::Fill> ground;
+  std::optional<Ground> ground;
   /** How dark the corners go, 0 to 1. 0 shades nothing. */
   float vignette = 0;
   /** The colour the corners are shaded TOWARD; unset is black, because a
@@ -66,13 +67,13 @@ struct Frame {
   compose::Dim width;
   compose::Dim height;
   /** The body; unset is the theme's cell ground. */
-  std::optional<compose::Fill> shell;
+  std::optional<Ground> shell;
   float corners = 6;
   /** How much shell stands around the screen on every side. */
   float bezel = 10;
   /** The screen's own ground; unset is the theme's page ground, which is
    *  the darker of the theme's two. */
-  std::optional<compose::Fill> screen;
+  std::optional<Ground> screen;
   float screenCorners = 2;
   /** A keyline around the screen's opening; unset is the theme's rule.
    *  `Fill::none()` draws none — the same spelling `Well::ground` takes,

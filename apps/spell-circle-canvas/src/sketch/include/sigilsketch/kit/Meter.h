@@ -8,6 +8,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilmotion/values/Animated.h>
+#include <sigilsketch/kit/Ground.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -36,9 +37,9 @@ struct Meter {
   /** Unset is the theme's bar height. */
   std::optional<compose::Dim> height;
   /** The empty part; unset is the theme's cell ground. */
-  std::optional<compose::Fill> track;
+  std::optional<Ground> track;
   /** The filled part; unset is the theme's figure colour. */
-  std::optional<compose::Fill> bar;
+  std::optional<Ground> bar;
   float corners = 0;
 };
 
@@ -65,9 +66,9 @@ struct Gauge {
   float startDeg = 135;
   float sweepDeg = 270;
   /** The unswept part; unset is the theme's cell ground. */
-  std::optional<compose::Fill> track;
+  std::optional<Ground> track;
   /** The swept part; unset is the theme's figure colour. */
-  std::optional<compose::Fill> bar;
+  std::optional<Ground> bar;
   /** Inside the dial, in the theme's figure colour; empty draws none. */
   std::u8string reading;
 };

@@ -10,7 +10,7 @@ compose::Element console(const Console& panel) {
   const float size = panel.size.value_or(look.type.captionLabel.size);
   const compose::Fill border =
       panel.border.value_or(compose::Fill::color(look.palette.rule));
-  return compose::kit::console(
+  compose::Element plate = compose::kit::console(
       {.feeds = panel.feeds,
        .style = {.window = {.visible = panel.visible,
                             .gap = look.spacing.rowGap},
@@ -22,10 +22,13 @@ compose::Element console(const Console& panel) {
        .plate = {.paddingX = look.spacing.panelPadding,
                  .paddingY = look.spacing.panelPadding * 0.6f,
                  .gap = look.spacing.labelGap,
-                 .fill = panel.ground.value_or(
-                     compose::Fill::color(look.palette.cellGround)),
                  .border = border,
                  .divider = border}});
+  // The ground goes on after the primitive rather than through it,
+  // because the primitive takes a Fill and a ground may be a material.
+  panel.ground.value_or(compose::Fill::color(look.palette.cellGround))
+      .paint(plate);
+  return plate;
 }
 
 }  // namespace sigil::sketch::kit

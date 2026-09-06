@@ -91,6 +91,22 @@ a component nests inside another the way a box does — which is the point:
 a sketch is meant to read as its algorithm plus a run of these calls, not
 as a thousand lines of furniture.
 
+**A GROUND IS EITHER OF TWO THINGS.** Every field here that paints an
+area — `Well::ground`, `Frame::shell` and `Frame::screen`, `Page::ground`,
+`Console::ground`, `Backdrop::ground`, a meter's track and its bar, a
+chip's ground, a legend's swatches — is a `Ground`: one value holding a
+`compose::Fill` **or** a material, converting from either, so
+`Fill::color(kPlate)`, a `material::skia::Paint` and a bare
+`material::Material` are each written where the ground is asked for and
+none of them is wrapped. A fill goes onto the node as it always did; a
+material goes on the way `Element::fill` puts one there, so a static one
+collapses to a Fill and rides the same caching and prune path a colour
+does, while a live or geometry-dependent one stays whole and is resolved
+against the frame it is drawn at. A reconstruction whose ground is
+quarried stone is the reason for the second form: the picture holds a
+recipe, and a component that took only a `Fill` would turn that half of
+the tree away.
+
 ### The surface — `Page.h`, `Cells.h`
 
 | | |

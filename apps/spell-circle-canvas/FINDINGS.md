@@ -73,3 +73,18 @@ theme rather than in the house one it was written against.
 
 Assert once fixed: no sketch under `src/sketch/sketches/` declares a
 `SkColor4f` equal to a `houseTheme()` palette value.
+
+## A timeline's `ink` colours its ticks but not its words
+
+`sketch::kit::Timeline::ink` says it is "the ticks and the words", and
+`kit::timeline` reads it for the ticks only: every mark's label is set in
+`palette.ash` whatever `ink` says. A scale whose ticks are given a colour
+of their own therefore draws its words in a different one, with no way to
+ask for the pair.
+
+Intended: one colour names both, since a tick and the word under it are
+one mark — which is what the field's own sentence says.
+
+Assert once fixed: a `timeline` given an `ink` that is not the theme's
+ash draws different pixels from the same timeline without it in the rows
+the words occupy, not only in the rows the ticks occupy.

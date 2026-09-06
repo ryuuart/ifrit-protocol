@@ -29,14 +29,18 @@ compose::Element page(const Page& sheet, compose::Element content) {
       .marginBottom = look.spacing.marginBottom,
       .subtitleGap = look.spacing.subtitleGap,
       .contentGap = look.spacing.contentGap,
-      .ground =
-          sheet.ground.value_or(compose::Fill::color(look.palette.ground)),
       .rule = sheet.ruled ? compose::Fill::color(look.palette.rule)
                           : compose::Fill{},
       .key = sheet.key};
   // A page is the whole surface: the sheet does not size itself, so this
   // is where the canvas is handed to it.
-  return compose::kit::sheet(spec, std::move(content)).absolute().inset(0);
+  compose::Element surface =
+      compose::kit::sheet(spec, std::move(content)).absolute().inset(0);
+  // The ground goes on after the primitive rather than through it,
+  // because the primitive takes a Fill and a ground may be a material.
+  sheet.ground.value_or(compose::Fill::color(look.palette.ground))
+      .paint(surface);
+  return surface;
 }
 
 }  // namespace sigil::sketch::kit

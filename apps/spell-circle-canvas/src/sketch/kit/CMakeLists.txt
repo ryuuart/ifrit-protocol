@@ -14,10 +14,10 @@
 sigil_library(SigilSketchKit
   SOURCES Cells.cpp Console.cpp Heading.cpp Legend.cpp Meter.cpp Page.cpp
           Panel.cpp Passage.cpp Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp
-  HEADERS Cells.h Console.h Heading.h Kit.h Legend.h Meter.h Page.h Panel.h
-          Passage.h Rows.h Scrollbar.h Theme.h Ticker.h
+  HEADERS Cells.h Console.h Ground.h Heading.h Kit.h Legend.h Meter.h Page.h
+          Panel.h Passage.h Rows.h Scrollbar.h Theme.h Ticker.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
-         SigilGeometryKit SigilWeave
+         SigilGeometryKit SigilMaterial SigilWeave
   PRIVATE SigilWeavePorts SigilIO)
 
 # The kit's own claim: the theme is a comparable value a scope binds, and
@@ -26,4 +26,4 @@ sigil_library(SigilSketchKit
 # migrated sketch's plate rests on.
 sigil_test(sketch_test
   SOURCES test/SketchKitTest.cpp
-  LIBRARIES SigilSketchKit SigilMotionClock)
+  LIBRARIES SigilSketchKit SigilMaterialKit SigilMotionClock)

@@ -32,8 +32,9 @@ compose::Element scrollbar(Scrollbar bar) {
     shell.row();
   if (bar.leading) shell.child(std::move(*bar.leading));
 
-  Element rail = box().grow(1).fill(
-      bar.track.value_or(Fill::color(look.palette.cellGround)));
+  Element rail = box().grow(1);
+  bar.track.value_or(Fill::color(look.palette.cellGround))
+      .paint(rail);
 
   const Thumb reading = bar.scrolled.thumb();
   Dim length = bar.thumbLength;

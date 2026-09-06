@@ -8,6 +8,7 @@
 
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilsketch/kit/Ground.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -23,10 +24,10 @@ struct Reading {
   std::u8string value;
   /** After the figure, in the quieter ink: a unit, a bound, a verdict. */
   std::u8string note;
-  /** A colour standing BEFORE the name, for a row that is also a key —
-   *  a tier, a channel, a series on a chart beside it. Fill::none()
-   *  (default) draws none and spends no room. */
-  compose::Fill swatch;
+  /** A mark standing BEFORE the name, for a row that is also a key —
+   *  a tier, a channel, a series on a chart beside it. Empty (default)
+   *  draws none and spends no room. */
+  Ground swatch;
 };
 
 /** HOW A ROW IS SET — the widths and the mark, with none of the words. */
@@ -74,7 +75,7 @@ struct Readout {
 struct Row {
   std::vector<std::u8string> cells;
   /** Before the first column, for a table that is also a key. */
-  compose::Fill swatch;
+  Ground swatch;
   /** Names the row, so a query can read it back and a reveal can address
    *  it one row at a time. Empty keys nothing. */
   std::string key;

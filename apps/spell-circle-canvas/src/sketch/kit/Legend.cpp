@@ -31,10 +31,17 @@ compose::Element legend(const Legend& key) {
       key.labelGap.value_or(look.spacing.captionNoteGap);
   for (const LegendEntry& entry : key.entries) {
     Element mark = box().width(Dim(side)).height(Dim(side)).shrink(0);
-    if (key.strokeWidth > 0)
-      mark.stroke(compose::stroke(key.strokeWidth, entry.swatch));
-    else
-      mark.fill(entry.swatch);
+    if (key.strokeWidth > 0) {
+      // An outlined key draws the swatch as a line, so the ground goes
+      // into the stroke's own two slots rather than onto the node.
+      compose::PathFormat outline =
+          compose::stroke(key.strokeWidth, entry.swatch.fill());
+      if (const material::skia::Paint* m = entry.swatch.material())
+        outline.strokeMaterial = *m;
+      mark.stroke(std::move(outline));
+    } else {
+      entry.swatch.paint(mark);
+    }
     if (key.corners > 0) mark.corners(Corners{key.corners});
     if (entry.keyline)
       mark.foreground(compose::stroke(key.keylineWidth, *entry.keyline));
@@ -60,7 +67,8 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
   Element run = box().row().gap(strip.gap.value_or(look.spacing.rowGap)).
                 alignItems(Align::Start);
   for (size_t i = 0; i < strip.swatches.size(); ++i) {
-    Element patch = box().fill(strip.swatches[i]);
+    Element patch = box();
+    strip.swatches[i].paint(patch);
     if (strip.width.unit != Dim::Unit::Auto) patch.width(strip.width);
     if (strip.height.unit != Dim::Unit::Auto) patch.height(strip.height);
     if (strip.corners > 0) patch.corners(Corners{strip.corners});
@@ -86,12 +94,11 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
 compose::Element chip(const Chip& tag) {
   const Theme& look = theme();
   Element plate =
-      box()
-          .padding(look.spacing.chipPaddingX, look.spacing.chipPaddingY)
-          .fill(tag.ground.value_or(Fill::color(look.palette.figure)))
-          .child(text(tag.label,
-                      look.style(look.type.eyebrow,
-                                 tag.ink.value_or(look.palette.ground))));
+      box().padding(look.spacing.chipPaddingX, look.spacing.chipPaddingY);
+  tag.ground.value_or(Fill::color(look.palette.figure)).paint(plate);
+  plate.child(text(tag.label, look.style(look.type.eyebrow,
+                                         tag.ink.value_or(
+                                             look.palette.ground))));
   if (tag.corners > 0) plate.corners(Corners{tag.corners});
   return plate;
 }

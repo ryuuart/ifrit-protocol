@@ -20,10 +20,11 @@ compose::Element labelRow(const Reading& reading, const Readout& how) {
   Element row = box().row().alignItems(Align::Center).gap(
       look.spacing.labelGap);
   if (how.measure > 0) row.width(Dim(how.measure));
-  if (reading.swatch.kind != Fill::Kind::None) {
+  if (!reading.swatch.none()) {
     const float side = how.swatch.value_or(look.spacing.swatch);
-    Element mark =
-        box().width(Dim(side)).height(Dim(side)).fill(reading.swatch).shrink(0);
+    Element mark = box().width(Dim(side)).height(Dim(side));
+    reading.swatch.paint(mark);
+    mark.shrink(0);
     if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
     row.child(std::move(mark));
   }
@@ -80,10 +81,11 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
     Element line = box().row().alignItems(Align::Center).gap(
         how.gap.value_or(look.spacing.labelGap));
     if (!row.key.empty()) line.key(row.key);
-    if (row.swatch.kind != Fill::Kind::None) {
+    if (!row.swatch.none()) {
       const float side = how.swatch.value_or(look.spacing.swatch);
-      Element mark =
-          box().width(Dim(side)).height(Dim(side)).fill(row.swatch).shrink(0);
+      Element mark = box().width(Dim(side)).height(Dim(side));
+      row.swatch.paint(mark);
+      mark.shrink(0);
       if (how.swatchCorners > 0) mark.corners(Corners{how.swatchCorners});
       line.child(std::move(mark));
     }

@@ -17,14 +17,16 @@ compose::Element well(const Well& spec, compose::Element surface) {
   // The padding is chained here rather than handed down, because the
   // primitive takes one distance and a plate may be set tighter down than
   // across. Everything else is the primitive's.
-  compose::Element plate = compose::kit::well(
-      {.width = spec.width,
-       .height = spec.height,
-       .ground = spec.ground.value_or(
-           compose::Fill::color(look.palette.cellGround)),
-       .padding = 0,
-       .clip = spec.clip},
-      std::move(surface));
+  const Ground bed =
+      spec.ground.value_or(compose::Fill::color(look.palette.cellGround));
+  compose::Element plate = compose::kit::well({.width = spec.width,
+                                               .height = spec.height,
+                                               .padding = 0,
+                                               .clip = spec.clip},
+                                              std::move(surface));
+  // The ground goes on after the primitive rather than through it,
+  // because the primitive takes a Fill and a ground may be a material.
+  bed.paint(plate);
   if (padX != 0 || padY != 0) plate.padding(padX, padY);
   if (spec.corners > 0) plate.corners(compose::Corners{spec.corners});
   if (spec.keyline)

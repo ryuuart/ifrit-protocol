@@ -15,6 +15,8 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -323,6 +325,27 @@ TEST(SketchKitCells, APaddingDownOfItsOwn) {
                  .ground = ground,
                  .padding = 13,
                  .paddingY = 10},
+                compose::box().child(subject()))));
+}
+
+/** THE GROUND'S OTHER FORM: a well grounded in a material draws what the
+ *  same material put on a compose node by hand draws. The recipe is
+ *  geometry-dependent SkSL, so it rides the node's material slot rather
+ *  than collapsing to a Fill — which is the half a `Fill` alone could not
+ *  say. */
+TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
+  const sigil::material::Material quarry = sigil::material::kit::stone(
+      {.hi = {0.47f, 0.29f, 0.29f, 1}, .lo = {0.30f, 0.19f, 0.19f, 1}});
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .width(compose::Dim(163))
+          .height(compose::Dim(176))
+          .clip()
+          .fill(sigil::material::skia::Paint::recipe(quarry))
+          .child(subject()),
+      kit::well({.width = compose::Dim(163),
+                 .height = compose::Dim(176),
+                 .ground = quarry},
                 compose::box().child(subject()))));
 }
 
@@ -717,7 +740,7 @@ TEST(SketchKitLegend, AnEntryWithoutThemDrawsWhatItAlwaysDid) {
 /** A strip that names only its ends keeps the unnamed steps butted, so
  *  the ramp reads as one band rather than as a row of tiles. */
 TEST(SketchKitLegend, AStripNamesTheStepsItHasWordsFor) {
-  std::vector<Fill> steps;
+  std::vector<kit::Ground> steps;
   for (int i = 0; i < 4; ++i)
     steps.push_back(Fill::color({0.2f * (float)i, 0.3f, 0.4f, 1}));
   EXPECT_FALSE(sameDrawing(
@@ -941,6 +964,43 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
                           kit::frame({.width = compose::Dim(200),
                                       .height = compose::Dim(120),
                                       .bezel = 8},
+                                     subject())));
+}
+
+/** A shell quarried rather than coloured: the frame's two grounds each
+ *  take a material, and the chrome is what the same materials on the two
+ *  hand-spelled nodes draw. */
+TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
+  const sigil::material::Material purbeck = sigil::material::kit::stone(
+      {.hi = {0.47f, 0.46f, 0.42f, 1}, .lo = {0.31f, 0.31f, 0.28f, 1}});
+  const sigil::material::Material mortar = sigil::material::kit::stone(
+      {.hi = {0.42f, 0.41f, 0.37f, 1}, .lo = {0.28f, 0.27f, 0.25f, 1},
+       .bedAngle = 60.0f});
+  const kit::Theme& house = kit::houseTheme();
+  Element byHand =
+      compose::box()
+          .column()
+          .padding(8)
+          .width(compose::Dim(200))
+          .height(compose::Dim(120))
+          .fill(sigil::material::skia::Paint::recipe(purbeck))
+          .corners(compose::Corners{6})
+          .child(compose::box()
+                     .column()
+                     .grow(1)
+                     .fill(sigil::material::skia::Paint::recipe(mortar))
+                     .clip()
+                     .corners(compose::Corners{2})
+                     .stroke(compose::stroke(
+                         1, Fill::color(house.palette.rule),
+                         compose::PathFormat::Align::Inner))
+                     .child(subject()));
+  EXPECT_TRUE(sameDrawing(std::move(byHand),
+                          kit::frame({.width = compose::Dim(200),
+                                      .height = compose::Dim(120),
+                                      .shell = purbeck,
+                                      .bezel = 8,
+                                      .screen = mortar},
                                      subject())));
 }
 

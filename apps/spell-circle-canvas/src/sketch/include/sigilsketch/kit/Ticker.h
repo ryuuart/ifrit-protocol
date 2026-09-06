@@ -9,6 +9,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilmotion/values/Animated.h>
+#include <sigilsketch/kit/Ground.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>
@@ -62,7 +63,7 @@ struct Timeline {
   /** How far a major tick reaches past the rail. */
   float tick = 5;
   /** The rail; unset is the theme's rule colour. */
-  std::optional<compose::Fill> rail;
+  std::optional<Ground> rail;
   /** The ticks and the words; unset is the theme's ash. */
   std::optional<compose::Fill> ink;
   /** true puts the ticks and words under the rail, false over it. */
