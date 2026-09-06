@@ -15,7 +15,8 @@ sigil_library_root(SigilData
 
 # Dependencies point down this list.
 add_subdirectory(scale)
+add_subdirectory(table)
 
 sigil_library(SigilData
   HEADERS Data.h
-  INTERFACE SigilDataScale)
+  INTERFACE SigilDataScale SigilDataTable)

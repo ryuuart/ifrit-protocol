@@ -1,6 +1,9 @@
 # SigilData
 
-Tabular data, and the one value that maps it onto a drawing. A `Scale`
+Tabular data, and the one value that maps it onto a drawing. A `Table`
+holds named, typed columns — numbers, text, flags, instants — as
+contiguous spans a drawing walks straight down, and reshapes by
+selecting, filtering, sorting and grouping into new tables. A `Scale`
 carries a domain, a range and the transform between them and answers
 where a value lands, which value a position came from, and which values
 deserve a label. Everything that would otherwise be a family of
@@ -17,6 +20,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
+| `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
 
 `SigilData` is the umbrella target over them, and `<sigildata/Data.h>`
 the umbrella header.
@@ -25,6 +29,7 @@ the umbrella header.
 
 ```cpp
 #include <sigildata/scale/Scale.h>
+#include <sigildata/table/Table.h>
 
 using namespace sigil::data;
 
@@ -53,6 +58,19 @@ const double wedge = month.bandwidth();
 // A ladder whose ends ARE the axis: nice() first, then ticks().
 const Scale axis = Scale{.domain = {2.3, 17.6}}.nice(5);
 for (double at : axis.ticks(5)) label(axis(at), at);
+
+// A table, and the two ways its cells are read: as one span for the
+// whole column, and as one cell where the type is not known ahead.
+Table sheet;
+sheet.add("month", std::vector<std::string>{"Jan", "Feb"});
+sheet.add("deaths", std::vector<double>{2761, 2120});
+sheet.derive("root", [&](size_t row) {
+  return std::sqrt(sheet.column<double>("deaths")[row]);
+});
+
+for (double d : sheet.column<double>("deaths")) mark(radius(d));
+const Table worst = sheet.sort("deaths", Order::Descending);
+for (const Table::Group& g : sheet.group("month")) draw(sheet.take(g.rows));
 
 // A colour range without a colour type: the caller's own interpolator,
 // read at the scale's unit position.
@@ -144,6 +162,37 @@ rather than as a plausible band from the other; `apply()` answers that
 band's position in the range, and `ticks()` the values where the answer
 changes band.
 
+**A column is one contiguous vector of one type.** That is the whole
+point of a typed column: a scale walks a numeric column with no copy and
+no per-cell branch. `column<double>("x")` answers that span, and answers
+an EMPTY span when the column holds something else or is not there, so a
+caller that asked for the wrong type reads nothing rather than reading a
+reinterpretation. `cell(name, row)` is the other reading, for code that
+does not know the type ahead: one `Value`, which is the four things a
+cell can be.
+
+A boolean cell is a `Flag` rather than a `bool` because a vector of
+bools is a bit field and cannot hand out a span; it converts to `bool`,
+so a cell still reads as a condition. A time cell is an `Instant` —
+seconds since the start of 1970 UTC — because a time column is read as
+numbers by a scale and written as a number by an encoder, and what a
+time PRINTS as belongs to whoever formats it.
+
+**Missing is a bit, not a magic number.** A cell the source left empty
+is marked, and the marks cost a column with no gaps nothing. A number
+that is not a number reads as missing too, so a gap in a file and a gap
+in the arithmetic answer the same way.
+
+**Every reshaping is one row-picking.** `take(rows)` answers the rows at
+those indices, in that order, and `filter`, `sort` and `group` all
+answer through it. So they compose without knowing about each other, the
+table they came from is untouched, and a group is a list of row indices
+the caller feeds back to `take()` rather than a second kind of table.
+
+**The table is as long as its longest column.** A column shorter than
+that reads as missing past its end rather than as a row that is not
+there, so a file with a short last line is still a table.
+
 ## Gotchas
 
 `Log` has no answer for a domain that touches or crosses zero: every
@@ -154,6 +203,11 @@ holding zero and both signs wants instead.
 `ticks(count)` is a request, never a promise of `count` values. Code
 that needs exactly n divisions wants `Band` or `Quantize` with
 `steps = n`, not a tick ladder.
+
+`sort()` puts missing cells last whichever way the order runs, because a
+gap is not the smallest value — it is no value. Sorting or taking by a
+column that is not there is not an error and answers the table
+unchanged, since a name that does not name anything cannot be an order.
 
 `invert()` on a discrete scale answers an INDEX, not a domain value,
 because a discrete scale has no domain to answer with. On `Quantize` and
@@ -181,7 +235,8 @@ dependency runs the other way. A two-dimensional mapping — a map
 projection — answers in points and belongs beside the path vocabulary in
 SigilGeometry, not here.
 
-`SigilDataScale` depends on the standard library alone.
+`SigilDataScale` and `SigilDataTable` depend on the standard library
+alone.
 
 ## Build and test
 
@@ -193,11 +248,14 @@ cmake --build build --config Release --target data_test
 ctest --test-dir build -C Release -R '^Data' --output-on-failure
 ```
 
-Targets: `SigilDataScale` (`scale/`) with `scale/test/`, whose every
+Targets: `SigilDataTable` (`table/`) with `table/test/`, which pins what
+each reshaping answers and what it leaves alone — a filtered table's
+source unchanged, a tie keeping its order, a missing cell last both ways
+— and `SigilDataScale` (`scale/`) with `scale/test/`, whose every
 case asserts one thing the header promises against a closed form worked
 out by hand — a half of an area is a half of a radius squared, a
 ladder's ends are the ends of a niced domain, a lone entry stands where
 its transform says it stands — rather than against whatever the code
 happens to answer; and `data_bench`, which times one mapping per call on
 each transform a per-mark loop runs through and the tick ladder a redraw
-rebuilds.
+rebuilds along with the reshapings a redraw runs.

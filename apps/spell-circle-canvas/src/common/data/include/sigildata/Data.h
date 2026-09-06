@@ -3,3 +3,4 @@
 /** @file Every public SigilData header in one include. */
 
 #include "sigildata/scale/Scale.h"
+#include "sigildata/table/Table.h"
