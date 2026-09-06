@@ -19,13 +19,13 @@ find_package(CDT CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilGeometryPath
-  SOURCES Band.cpp Contour.cpp Crossings.cpp Edges.cpp Hull.cpp Lattice.cpp
-          Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp
-          Scatter.cpp Symmetry.cpp Trace.cpp Triangulate.cpp
-  HEADERS Arrange.h Band.h Cells.h Contour.h Crossings.h Edges.h Frame.h
-          Hull.h Lattice.h Neighbours.h Noise.h Numeric.h Ops.h Polyline.h
-          Pose.h Profile.h Scatter.h Shaper.h Skia.h Stride.h Symmetry.h
-          Trace.h Triangulate.h
+  SOURCES Band.cpp Contour.cpp Crossings.cpp Direction.cpp Edges.cpp Hull.cpp
+          Lattice.cpp Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp
+          Scatter.cpp Segments.cpp Symmetry.cpp Trace.cpp Triangulate.cpp
+  HEADERS Arrange.h Band.h Cells.h Contour.h Crossings.h Direction.h Edges.h
+          Frame.h Hull.h Lattice.h Neighbours.h Noise.h Numeric.h Ops.h
+          Polyline.h Pose.h Profile.h Scatter.h Segments.h Shaper.h Skia.h
+          Stride.h Symmetry.h Trace.h Triangulate.h
   PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute Boost::unordered
   # CDT is the Delaunay triangulator, read in Triangulate.cpp alone: the
   # answer crosses the boundary in this library's own points, indices and
@@ -39,6 +39,7 @@ sigil_library(SigilGeometryPath
 # crossings, frames, blend.
 sigil_test(geometry_test
   SOURCES test/ContoursTest.cpp test/PolylinesTest.cpp test/MarksTest.cpp
+          test/SegmentsTest.cpp
           test/NeighboursTest.cpp test/ScatterTest.cpp
           test/TriangulateTest.cpp test/FieldsTest.cpp
           test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp

@@ -8,10 +8,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <limits>
 #include <mapbox/earcut.hpp>
 
 #include "sigilgeometry/mesh/Vec.h"
+#include "sigilgeometry/path/Direction.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
 
@@ -26,18 +26,6 @@ using glm::cross;
 using sigil::geometry::mesh::normalized;
 
 namespace {
-
-bool pointInRing(glm::vec2 p, const std::vector<glm::vec2>& ring) {
-  bool inside = false;
-  const size_t n = ring.size();
-  for (size_t i = 0, j = n - 1; i < n; j = i++) {
-    const glm::vec2 a = ring[i], b = ring[j];
-    if ((a.y > p.y) != (b.y > p.y) &&
-        p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x)
-      inside = true;
-  }
-  return inside;
-}
 
 /** Ensure the geometric normal of triangle (i0,i1,i2) points along
  *  @p wanted, swapping winding when it does not. */
@@ -68,26 +56,13 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
   // Even-odd containment depth: even = outer ring, odd = hole of the
   // innermost containing outer.
   const size_t ringCount = rings.size();
-  std::vector<int> depth(ringCount, 0);
-  std::vector<int> parent(ringCount, -1);
-  for (size_t i = 0; i < ringCount; ++i) {
-    float bestArea = std::numeric_limits<float>::max();
-    for (size_t j = 0; j < ringCount; ++j) {
-      if (i == j) continue;
-      if (pointInRing(rings[i].points[0], rings[j].points)) {
-        ++depth[i];
-        const float area = std::abs(rings[j].signedArea());
-        if (area < bestArea) {
-          bestArea = area;
-          parent[i] = (int)j;
-        }
-      }
-    }
-  }
+  const std::vector<path::Nesting> where = path::nesting(rings);
 
   // Canonical winding in y-up space: outers CCW (positive area), holes CW.
+  // The y flip above put the rings in y-up space, where a positive signed
+  // area is counter-clockwise.
   for (size_t i = 0; i < ringCount; ++i) {
-    const bool isHole = depth[i] % 2 == 1;
+    const bool isHole = where[i].depth % 2 == 1;
     const float area = rings[i].signedArea();
     if ((isHole && area > 0) || (!isHole && area < 0)) rings[i].reverse();
   }
@@ -99,7 +74,7 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
   // Caps: one earcut polygon per outer ring with its direct holes.
   auto addCap = [&](float z, bool front) {
     for (size_t i = 0; i < ringCount; ++i) {
-      if (depth[i] % 2 != 0) continue;
+      if (where[i].depth % 2 != 0) continue;
       using EarPoint = std::array<double, 2>;
       std::vector<std::vector<EarPoint>> polygon;
       std::vector<const Polyline*> ringsUsed;
@@ -113,7 +88,8 @@ Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
       };
       pushRing(rings[i]);
       for (size_t h = 0; h < ringCount; ++h)
-        if (depth[h] % 2 == 1 && parent[h] == (int)i) pushRing(rings[h]);
+        if (where[h].depth % 2 == 1 && where[h].parent == (int)i)
+          pushRing(rings[h]);
 
       const std::vector<uint32_t> tris = mapbox::earcut<uint32_t>(polygon);
       const uint32_t base = (uint32_t)out.positions.size();

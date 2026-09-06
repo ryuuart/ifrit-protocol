@@ -355,7 +355,7 @@ the library root instead, in `test/support/`. Features nest by dependency — a 
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Twenty-three headers that
+**`path`** — `SigilGeometryPath`, the leaf. Twenty-five headers that
 depend on nothing else in the library: Skia, glm, SigilCoreCompute, whose
 seeded mixers the value-noise field and the scatter's stream are built
 on, and CDT, the Delaunay triangulator, read in one source file and named
@@ -381,6 +381,36 @@ in no header.
   joins the ends whether or not the polyline says it is closed) with
   `containsEvenOdd()` over a set of them, and `edgeCrossings()`, where a
   segment crosses the edges, nearest its start first.
+- **`path/Segments.h`** — the outline read as SEGMENTS: one `Segment` per
+  drawn piece (`Line`, `Quad`, `Conic`, `Cubic`) with its points in
+  drawing order and the conic's weight beside them, `segments()` in and
+  `toPath()` out, round-tripping a path verb for verb and weight for
+  weight. A closed contour's closing line is the CLOSURE and not a
+  segment, so a rectangle is three pieces and comes back as the four
+  points it was stored as. This is the reading that can answer a question
+  about a NODE, which `Polyline` (which throws the curves away) and
+  `Contour` (which sees only arc length) cannot: where a cubic turns,
+  which handles lie on their chord, whether two outlines have the same
+  nodes in the same order. `compatible()` is that last question and
+  names the FIRST REASON a pair is not — contour count, segment count,
+  a moved start point, or a genuinely different kind of piece — so a
+  caller is told what to repair instead of silently getting a
+  resampling. `reversed()`/`reverse()` and `startedAt()`/`startAt()` are
+  the two rewrites that leave the drawn shape exactly where it is and
+  change only which way the pen went and which node it went from.
+- **`path/Direction.h`** — which way round an outline is drawn, and the
+  two things that travel with it. `nesting()` answers, per ring, how many
+  rings enclose it and which encloses it most tightly — the even-odd
+  reading, and the one piece of arithmetic an extrusion's caps, a hole
+  test and a winding fix all need. `direction()` is the whole operation:
+  `Winding` puts outers one way and holes the other, `orderContours`
+  brings the outers first, and `resetStart` starts every closed contour
+  at its bottom-left node. Three switches rather than three functions
+  because they exist for one reason — an outline whose winding is fixed
+  but whose contours arrive in another order still interpolates into a
+  tangle. The sign convention is `Polyline::signedArea`'s: in Skia's
+  y-down space a positive area is a CLOCKWISE ring, so a winding test
+  copied from a y-up source reads inverted here.
 - **`path/Stride.h`** — the even-spacing walk for a curve that arrives one
   piece at a time. `Stride::advance(length, spacing, land)` answers the
   fractions of the piece the walk lands at and carries the distance still
