@@ -34,7 +34,12 @@ enum class ForceKind : uint8_t {
   Drag,
   /** A pull towards `point`, or a push away from it when `strength` is
    *  negative, falling off with distance and reaching `radius`. The
-   *  attractor a cursor is, the repulsor an explosion is. */
+   *  attractor a cursor is, the repulsor an explosion is.
+   *
+   *  The falloff is `1/distance`, held at its ONE-UNIT value inside one
+   *  unit of the centre: `strength` is the pull at one unit away and
+   *  nothing is pulled harder than that, so a point that arrives on the
+   *  attractor is not thrown off the picture by an unbounded number. */
   Attract,
   /** A push whose DIRECTION is read from a noise field at the point's
    *  own position: the flow a drifting field of particles follows. The
@@ -88,8 +93,9 @@ struct Force {
   /** `Attract`: what it pulls towards. */
   Vec2 point{};
   /** How hard, in the units its kind is stated in: `Drag`'s per-second
-   *  fraction of speed, `Attract`'s pull at one unit away (negative
-   *  pushes), `Wind`'s push, `Flock`'s overall weight. */
+   *  fraction of speed, `Attract`'s pull at one unit away and its
+   *  strongest pull anywhere (negative pushes), `Wind`'s push, `Flock`'s
+   *  overall weight. */
   float strength = 1.0f;
   /** How far it reaches: `Attract` falls to nothing at this distance and
    *  `Flock` looks no further than it for neighbours. Zero is unbounded
@@ -129,7 +135,8 @@ struct Force {
 
 /** A PULL TOWARDS @p centre, @p strength at one unit away, falling off
  *  with distance and reaching nothing past @p radius. Zero radius
- *  reaches everywhere. */
+ *  reaches everywhere, and nothing inside one unit of the centre is
+ *  pulled harder than @p strength. */
 [[nodiscard]] inline Force attract(Vec2 centre, float strength,
                                    float radius = 0.0f) {
   return {.kind = ForceKind::Attract,

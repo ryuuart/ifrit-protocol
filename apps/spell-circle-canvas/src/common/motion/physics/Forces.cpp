@@ -40,7 +40,13 @@ void applyAttract(Points& points, const Force& force) {
     // close is thrown across the picture in one step. A falloff that
     // reaches zero AT the radius is what keeps a bounded attractor from
     // snapping things at its edge.
-    float falloff = 1.0f / distance;
+    //
+    // And the pull STOPS GROWING one unit from the centre, which is the
+    // distance `strength` is stated at: 1/d is unbounded as a point
+    // arrives, so without the floor a point that lands on the attractor
+    // is thrown off the picture by an arbitrarily large number.
+    const float reached = distance < 1.0f ? 1.0f : distance;
+    float falloff = 1.0f / reached;
     if (reach > 0.0f) falloff *= 1.0f - distance / reach;
     points.force[i] +=
         toward.normalized() * (force.strength * falloff * points.mass[i]);

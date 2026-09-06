@@ -162,13 +162,22 @@ struct Points {
   /** Every lane emptied. */
   void clear();
 
-  /** Whether the stepper and the constraints may move this point. */
+  /** Whether the stepper and the constraints may move this point.
+   *
+   *  @p index must name a point this set holds. These two read the lanes
+   *  the way `position[i]` does — unchecked, because they are called once
+   *  per point per force and a bounds test there would be paid by every
+   *  point of every step. Whoever holds an index that may be stale
+   *  answers for it: a constraint carries indices a `remove` renumbers,
+   *  so `Constraint::project` tests them against `size()` before it asks
+   *  anything here. */
   [[nodiscard]] bool movable(size_t index) const {
     return !pinned[index] && mass[index] > 0.0f;
   }
   /** One over the mass, or zero for anything immovable — the weight a
    *  constraint shares its correction by, where an immovable point takes
-   *  none of it and its partner takes all. */
+   *  none of it and its partner takes all. @p index must name a point
+   *  this set holds, as above. */
   [[nodiscard]] float inverseMass(size_t index) const {
     return movable(index) ? 1.0f / mass[index] : 0.0f;
   }

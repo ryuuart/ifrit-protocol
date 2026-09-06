@@ -40,7 +40,13 @@ void Constraint::project(Points& points) const {
   if (!(length > 0.0f)) return;
 
   const Vec2 direction = offset * (1.0f / length);
-  const float correction = (length - target) * stiffness;
+  // Held to [0, 1]: the fraction of the error one pass takes out. Above
+  // one a pass would move the pair PAST the band and the next pass would
+  // pull it back, so a stiffness meant to read as "rigid" would ring
+  // instead; below zero it would push the error wider.
+  const float taken =
+      stiffness < 0.0f ? 0.0f : (stiffness > 1.0f ? 1.0f : stiffness);
+  const float correction = (length - target) * taken;
   points.position[a] += direction * (correction * weightA / total);
   points.position[b] -= direction * (correction * weightB / total);
 }

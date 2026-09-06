@@ -2,7 +2,10 @@
  * The stepper: a fixed step is the same run twice, gravity lands on the
  * closed form, a pinned pair settles on its rest length, a band does
  * nothing until it is taut, a constraint takes the speed it took, and a
- * flock keeps every bird it started with.
+ * flock keeps every bird it started with — and the degenerate settings a
+ * caller can hand in (no time, the clock's biggest step, no iterations, a
+ * stiffness past rigid, an attractor arrived at, a body with nothing in
+ * it) answer rather than dividing.
  */
 
 #include <gtest/gtest.h>
@@ -11,6 +14,8 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+
+#include "support/StandsAlone.h"
 
 using namespace sigil::motion::physics;
 
@@ -205,4 +210,142 @@ TEST(Physics, ACallersOwnForceIsAValueLikeTheOthers) {
   // compares — which is what lets a describe carry a force list.
   EXPECT_EQ(custom, forces[0]);
   EXPECT_NE(custom, Force{});
+}
+
+TEST(Physics, AStepOfNoTimeMovesNothing) {
+  // The step covers no time, so nothing happened in it — and answering
+  // by dividing the forces through a zero would be a NaN in every lane
+  // instead of the point set the caller handed in.
+  const std::vector<Force> forces{gravity({0, 980}), drag(0.5f)};
+  const std::vector<Constraint> stick{distance(0, 1, 5.0f)};
+  Points points;
+  points.add({0, 0}, {7, -3});
+  points.add({40, 0}, {-2, 1});
+  const std::vector<Vec2> before = points.position;
+  const std::vector<Vec2> speeds = points.velocity;
+
+  for (float dt : {0.0f, -1.0f / 60.0f}) {
+    const Verlet stepper{.dt = dt};
+    stepper.step(points, forces, stick);
+    EXPECT_EQ(points.position, before) << "at dt " << dt;
+    EXPECT_EQ(points.velocity, speeds) << "at dt " << dt;
+  }
+}
+
+TEST(Physics, AStepAsLongAsTheClocksCeilingIsCoarseAndNotExploded) {
+  // A quarter of a second is what a stalled host or a debugger break
+  // hands over, and it is the biggest step there is. A constraint is a
+  // projection onto POSITIONS and runs last, so it is satisfied at the
+  // end of the pass whatever the step before it did — the coarse step
+  // costs accuracy in the middle of the motion, not the structure.
+  const Verlet stepper{.dt = 0.25f, .damping = 0.5f, .iterations = 8};
+  const std::vector<Force> forces{gravity({0, 980}), drag(0.3f)};
+  const std::vector<Constraint> stick{distance(0, 1, 20.0f)};
+  Points pair;
+  pair.add({0, 0}, {}, 1.0f, true);
+  pair.add({20, 0});
+  for (int frame = 0; frame < 20; ++frame) stepper.step(pair, forces, stick);
+  EXPECT_NEAR(apart(pair, 0, 1), 20.0f, 1e-3f);
+  EXPECT_EQ(pair.position[0], (Vec2{0, 0}));
+
+  // A CHAIN of them at that step is coarse — a walk of the list only
+  // carries a correction one link along, so a long chain under a step
+  // that big is left stretched rather than converged — but it is a
+  // number: every lane is finite, and the constraint the pass projected
+  // LAST is satisfied exactly, whatever the step before it did.
+  std::vector<Constraint> chain;
+  Points hanging;
+  hanging.add({0, 0}, {}, 1.0f, true);
+  for (int i = 1; i < 12; ++i) {
+    hanging.add({(float)i * 20.0f, 0});
+    chain.push_back(distance(i - 1, i, 20.0f));
+  }
+  for (int frame = 0; frame < 40; ++frame) stepper.step(hanging, forces, chain);
+  for (size_t i = 0; i < hanging.size(); ++i) {
+    EXPECT_TRUE(std::isfinite(hanging.position[i].x)) << "at " << i;
+    EXPECT_TRUE(std::isfinite(hanging.position[i].y)) << "at " << i;
+    EXPECT_TRUE(std::isfinite(hanging.velocity[i].x)) << "at " << i;
+    EXPECT_TRUE(std::isfinite(hanging.velocity[i].y)) << "at " << i;
+  }
+  EXPECT_NEAR(apart(hanging, 10, 11), 20.0f, 1e-3f);
+}
+
+TEST(Physics, NoIterationsIsStillOnePassOverTheList) {
+  // `iterations` is how many walks, and a walk is the least a constraint
+  // list can be given: zero would be a list silently ignored, which is
+  // the one answer a caller cannot tell from a constraint that does not
+  // work.
+  const std::vector<Constraint> stick{distance(0, 1, 40.0f)};
+  auto run = [&](int iterations) {
+    const Verlet stepper{.dt = 1.0f / 60.0f, .iterations = iterations};
+    Points points;
+    points.add({0, 0}, {}, 1.0f, true);
+    points.add({10, 0});
+    stepper.step(points, {}, stick);
+    return points.position[1];
+  };
+  EXPECT_EQ(run(0), run(1));
+  EXPECT_NEAR((run(0) - Vec2{0, 0}).length(), 40.0f, 1e-3f);
+}
+
+TEST(Physics, AStiffnessAboveOneIsHeldAtRigidRatherThanOvershooting) {
+  // Above one, a pass would take out MORE than the whole error and land
+  // the pair on the far side of the band; the number is held at one, so
+  // the softest reading of "stiffer than rigid" is rigid.
+  const Verlet stepper{.dt = 1.0f / 60.0f, .iterations = 1};
+  auto once = [&](float stiffness) {
+    Points points;
+    points.add({0, 0}, {}, 1.0f, true);
+    points.add({10, 0});
+    const std::vector<Constraint> soft{spring(0, 1, 40.0f, stiffness)};
+    stepper.step(points, {}, soft);
+    return points.position[1].x;
+  };
+  EXPECT_FLOAT_EQ(once(2.0f), once(1.0f));
+  EXPECT_NEAR(once(2.0f), 40.0f, 1e-3f);
+  // …and below zero is held at nothing rather than pushing the error
+  // wider.
+  EXPECT_FLOAT_EQ(once(-3.0f), 10.0f);
+}
+
+TEST(Physics, AnAttractorPullsNoHarderThanItsStrengthAtTheCentre) {
+  // The falloff is 1/distance, so without a floor a point that arrives
+  // is pulled by an arbitrarily large number: at 1e-6 away, a millionth
+  // of the strength would become a million times it. `strength` is the
+  // pull at one unit away and is the most there is.
+  const float strength = 300.0f;
+  const std::vector<Force> forces{attract({0, 0}, strength)};
+  const Verlet stepper{.dt = 1.0f / 60.0f};
+  for (float away : {1e-6f, 1e-3f, 0.5f, 1.0f}) {
+    Points points;
+    points.add({away, 0});
+    stepper.step(points, forces);
+    // The force lane is what the step spent, and it is a push: a mass of
+    // one makes the two the same number.
+    EXPECT_LE(points.force[0].length(), strength + 1e-2f) << "at " << away;
+    EXPECT_TRUE(std::isfinite(points.position[0].x)) << "at " << away;
+  }
+  // And it IS the strength there, rather than nothing: the floor holds
+  // the pull, it does not switch it off.
+  Points arrived;
+  arrived.add({1e-6f, 0});
+  stepper.step(arrived, forces);
+  EXPECT_NEAR(arrived.force[0].length(), strength, 1e-2f);
+}
+
+TEST(Physics, ABodyForceWithNothingInItPushesNothing) {
+  // `Body` is a plain function pointer, so a default-constructed force
+  // of that kind carries a null one — a value a describe can hand over
+  // before it has decided what the push is.
+  const Force empty{.kind = ForceKind::Body, .strength = 400.0f};
+  ASSERT_EQ(empty.body, nullptr);
+  Points points;
+  points.add({3, 4}, {1, 1});
+  const std::vector<Vec2> before = points.position;
+  const Verlet stepper{.dt = 1.0f / 60.0f};
+  const std::vector<Force> forces{empty};
+  stepper.step(points, forces);
+  EXPECT_EQ(points.force[0], (Vec2{0, 0}));
+  // It coasts on the speed it had and nothing else touched it.
+  EXPECT_EQ(points.position[0], (before[0] + Vec2{1, 1} * stepper.dt));
 }

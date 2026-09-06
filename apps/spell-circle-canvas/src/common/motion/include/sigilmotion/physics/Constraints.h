@@ -51,7 +51,9 @@ struct Constraint {
    *  the constraint is satisfied by the end of the pass — and less is
    *  soft, which is a spring stated as how fast it converges rather than
    *  as a stiffness in force units that has to be retuned when the step
-   *  changes. */
+   *  changes. A number outside the range is HELD to it: taking more than
+   *  the whole error would move the pair past the band and ring, and
+   *  taking less than none would widen it. */
   float stiffness = 1.0f;
   /** `Pin`: where `a` is held. */
   Vec2 at{};
