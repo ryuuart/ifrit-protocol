@@ -63,9 +63,6 @@ Material maskConstant(float value);
 /** One channel of @p map. The map's own sampling — its tiling, its uv
  *  placement, its region — decides where each texel lands. */
 Material maskMap(Texture map, int channel = 0);
-/** One channel of a painted vertex-colour lane, which the renderer
- *  supplies as @p colors. */
-Material maskVertexColor(Texture colors, int channel = 0);
 /** 1 where the normal in @p normals points along @p up, falling off as
  *  it turns away: raw = dot(N, up), fitted onto [low, high]. */
 Material maskSlope(Texture normals, glm::vec3 up, float low = 0.5f,

@@ -65,7 +65,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Params.h` includes | SigilCoreCompute |
 | `SigilMaterialCore` | the value model: `Target`, `Params`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
-| `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskVertexColor`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
+| `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, over the 3D-LUT `lutRecipe()` and the per-channel `responseRecipe()` | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
@@ -615,10 +615,10 @@ different pieces of code — a `lerp`, a `dot`, a `smoothstep` — because an
 intrinsic is where one source stops producing one answer.
 
 **Masks say where.** `maskConstant` is a number; `maskMap`
-reads a channel of a texture; `maskVertexColor`, `maskSlope`
-and `maskHeight` read a channel, a tangent normal dotted with an
-axis, or a value dotted with an axis, from whatever texture the renderer
-supplies as the source. All of them then fit — `low` and `high` remap the
+reads a channel of a texture — of an image, or of a painted lane a
+renderer supplies; `maskSlope` and `maskHeight` read a tangent normal
+dotted with an axis, or a value dotted with an axis, from whatever
+texture the renderer supplies as the source. All of them then fit — `low` and `high` remap the
 raw value onto 0..1 and clamp, and `invertMask` flips it — which is why
 the slope and height factories take the range: without one those masks
 mean nothing. `fitMask` moves the range on an existing mask, and both it

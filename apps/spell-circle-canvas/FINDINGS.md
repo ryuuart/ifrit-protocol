@@ -305,23 +305,6 @@ at front, middle and end, and the dropped `Blend.OklabMidGrayIsPerceptual`.
 
 ## SigilMaterial (findings/review-material.md)
 
-Blockers:
-
-- `src/common/material/skia/Ramp.cpp:46` — `skia::unitRamp` builds a
-  gradient one node-local pixel tall and clamps, while the header
-  promises the stops over the unit square top to bottom; the compose
-  kit's chrome text fills (`compose/kit/Eras.cpp:171,175`) therefore
-  paint the last stop flat. Fix: `Paint::linearUnit`. Assert: `unitRamp`
-  fills a 100 px box with the whole ramp.
-- `material/core/Material.cpp:266` — `*o.leaf` dereferenced without the
-  null-parity check the material branch at 264 has; `Material::child`
-  with a null leaf is a public door. Add the parity guard.
-- `material/mask/shaders/MaskConstant.sksl:2`, `MaskSampled.sksl:15` —
-  the SkSL bodies put the coverage in alpha where `Mask.cpp:6-8` and the
-  Slang twins say all three colour channels at full alpha; a mask drawn
-  alone is transparent, not grey. Return `half4(v,v,v,1)`. Assert: the
-  two twins paint the same pixels.
-
 Should-fix (correctness): `skia/Effect.cpp:606` `then` precomposes and
 drops geometry-dependent children; `kit/Surface.cpp:29` an unguarded
 `find` before `replace`; `field/Field.cpp:119` an unlocked lazily filled
@@ -340,8 +323,7 @@ modules are not in DEPENDS.
 Should-fix (API, duplicates, comments, docs): `skia/Paint.cpp:996` and
 `skia/Effect.cpp:535` `uniform()` appends without replacing by name
 while `child()` does; `skia/Paint.cpp:892,1482` the first layer's
-`amount` is silently discarded; `mask/Mask.cpp:72` `maskVertexColor` is
-a second name for `maskMap`; `core/shaders/Shading.slang:124` the
+`amount` is silently discarded; `core/shaders/Shading.slang:124` the
 shading terms duplicated line for line in `sigilgeometry/mesh/render/
 Shading.h` with no parity test; `kit/shaders/GrainedPrelude.slang`,
 `kit/shaders/NoisePrelude.sksl`, `field/shaders/Grain.sksl` three value
@@ -352,13 +334,12 @@ bracket; citations of compose headers and wrong file names in
 `skia/Paint.h:16,392,636` name a `ch::Output` the API does not take;
 `kit/shaders/Surface.sksl` ignores seven parameters the Slang body
 honours and the header says nothing; `skia/Effect.cpp:220` the 17th
-undeclared uniform is never reported. Files by subject: `skia/Paint.cpp`
-(1573), `skia/Paint.h` (771), `skia/Effect.cpp` (748) and the four test
-files over 680 lines.
+undeclared uniform is never reported. Files by subject:
+`texture/test/TextureTest.cpp` (690) and `kit/test/KitTest.cpp` (686).
 
 Tests missing: `Paint::sweep`, `Paint::conical`, `Paint::buffer` and
-`PixelBuffer`, `unitRamp`/`verticalRamp`, MedianCut on degenerate input,
-a one-stop and an unsorted ramp, harmonies across the 360/0 wrap.
+`PixelBuffer`, MedianCut on degenerate input, a one-stop and an unsorted
+ramp, harmonies across the 360/0 wrap.
 
 ## SigilGeometry mesh, point operators, kit, device (findings/review-geometry-mesh-pop.md)
 

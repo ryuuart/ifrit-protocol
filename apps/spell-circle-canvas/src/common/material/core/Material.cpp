@@ -263,6 +263,7 @@ bool Material::operator==(const Material& other) const {
     if (slot != otherSlot) return false;
     if ((s.material != nullptr) != (o.material != nullptr)) return false;
     if (s.material && !(*s.material == *o.material)) return false;
+    if ((s.leaf != nullptr) != (o.leaf != nullptr)) return false;
     if (s.leaf && !(*s.leaf == *o.leaf)) return false;
   }
   return true;

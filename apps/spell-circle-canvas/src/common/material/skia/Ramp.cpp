@@ -43,7 +43,7 @@ Paint unitRamp(const std::vector<RampStop>& ramp) {
   stops.reserve(ramp.size());
   for (const RampStop& stop : ramp)
     stops.push_back({stop.pos, toSkColor(stop.color)});
-  return Paint::linear({0, 0}, {0, 1}, std::move(stops));
+  return Paint::linearUnit({0, 0}, {0, 1}, std::move(stops));
 }
 
 sk_sp<SkImage> paletteImage(const Palette& palette) {

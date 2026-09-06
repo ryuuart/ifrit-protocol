@@ -69,10 +69,6 @@ Material maskMap(Texture map, int channel) {
   return sampled(std::move(map), params);
 }
 
-Material maskVertexColor(Texture colors, int channel) {
-  return maskMap(std::move(colors), channel);
-}
-
 Material maskSlope(Texture normals, glm::vec3 up, float low, float high) {
   MaskParams params;
   params.reading = (float)MaskReading::Slope;
@@ -109,7 +105,7 @@ bool isMask(const Material& material, const char* verb) {
              std::string(verb) + " reshapes a MASK, and recipe \"" +
                  material.recipe().name() +
                  "\" is not one; nothing was changed. A mask comes from "
-                 "maskConstant, maskMap, maskVertexColor, maskSlope or "
+                 "maskConstant, maskMap, maskSlope or "
                  "maskHeight. A mask says WHERE something applies; a "
                  "material that paints says WHAT.");
   return false;
