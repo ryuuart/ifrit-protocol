@@ -24,6 +24,7 @@
  */
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <glm/ext/vector_int3.hpp>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
@@ -137,5 +138,42 @@ class Neighbours {
   float m_cell = 1;
   float m_inverseCell = 1;
 };
+
+/** HOW HARD POINTS ARE PUSHED OUT OF EACH OTHER'S WAY.
+ *
+ *  A relaxation is what turns a scatter that clumped into one that is
+ *  evenly spread without being a lattice: every point is nudged away from
+ *  the points inside its radius, all of them at once, and the pass is
+ *  repeated. It is the same operator whether the points came from filling
+ *  an outline, from a mesh surface or from a hand-placed set, so there is
+ *  one body and the tiers differ only in what they hold the points to. */
+struct Relaxation {
+  /** How far a point pushes. Points further apart than this do not see
+   *  each other at all, which is what bounds the work. */
+  float radius = 1;
+  /** How many passes. Each one is a fresh index over the moved points,
+   *  because a pass must see where its neighbours are now. */
+  int iterations = 4;
+  /** What fraction of the push is taken each pass, 0 to 1. Below one the
+   *  points settle instead of ringing. */
+  float strength = 0.5f;
+  friend bool operator==(const Relaxation&, const Relaxation&) = default;
+};
+
+/** POINTS PUSHED APART, in place.
+ *
+ *  Each pass indexes the points as they are, sums the outward push from
+ *  every neighbour inside the radius weighted by how far inside it they
+ *  are, and moves every point by `strength` of its own sum. Two
+ *  coincident points have no direction to separate along and are left
+ *  alone: a scatter answers that with a seed, not with an arbitrary
+ *  bearing.
+ *
+ *  `hold`, when given, is applied to every moved point and its answer is
+ *  where the point lands — a clamp back inside a shape, a projection onto
+ *  a surface, a fixed axis. Without it the points relax freely and the
+ *  set spreads. */
+void relax(std::span<glm::vec3> points, const Relaxation& relaxation,
+           const std::function<glm::vec3(glm::vec3)>& hold = {});
 
 }  // namespace sigil::geometry::path

@@ -17,9 +17,10 @@ find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilGeometryPath
   SOURCES Band.cpp Contour.cpp Crossings.cpp Edges.cpp Lattice.cpp
           Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp
+          Scatter.cpp
   HEADERS Arrange.h Band.h Contour.h Crossings.h Edges.h Frame.h Lattice.h
           Neighbours.h Noise.h Numeric.h Ops.h Polyline.h Pose.h Profile.h
-          Shaper.h Skia.h Stride.h
+          Scatter.h Shaper.h Skia.h Stride.h
   PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute Boost::unordered)
 
 # ONE BINARY over the leaf and the shape interpolation that stands on it.
@@ -29,7 +30,7 @@ sigil_library(SigilGeometryPath
 # crossings, frames, blend.
 sigil_test(geometry_test
   SOURCES test/ContoursTest.cpp test/PolylinesTest.cpp test/MarksTest.cpp
-          test/NeighboursTest.cpp
+          test/NeighboursTest.cpp test/ScatterTest.cpp
           test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/BlendTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)

@@ -218,4 +218,39 @@ std::vector<uint32_t> Neighbours::nearest(glm::vec3 p, int k) const {
   return answer;
 }
 
+void relax(std::span<glm::vec3> points, const Relaxation& relaxation,
+           const std::function<glm::vec3(glm::vec3)>& hold) {
+  if (points.size() < 2 || !(relaxation.radius > 0)) return;
+  const float radius = relaxation.radius;
+  const float strength = std::clamp(relaxation.strength, 0.0f, 1.0f);
+  if (strength <= 0) return;
+
+  std::vector<glm::vec3> push(points.size());
+  for (int pass = 0; pass < relaxation.iterations; ++pass) {
+    // A fresh index per pass: the index is a snapshot by contract, and a
+    // pass must push against where its neighbours are NOW rather than
+    // where they started. Every point moves off the same snapshot, so the
+    // result does not depend on the order they are walked in.
+    const Neighbours index(points, radius);
+    std::fill(push.begin(), push.end(), glm::vec3(0));
+    for (size_t i = 0; i < points.size(); ++i) {
+      const glm::vec3 here = points[i];
+      index.forEachWithin(here, radius, [&](uint32_t other) {
+        if ((size_t)other == i) return;
+        const glm::vec3 away = here - points[other];
+        const float distance = glm::length(away);
+        // Coincident points have no bearing to separate along, and
+        // inventing one would make the answer depend on the order.
+        if (!(distance > 0)) return;
+        push[i] += away * ((radius - distance) / (distance * radius));
+      });
+    }
+    for (size_t i = 0; i < points.size(); ++i) {
+      glm::vec3 moved = points[i] + push[i] * (strength * radius * 0.5f);
+      if (hold) moved = hold(moved);
+      points[i] = moved;
+    }
+  }
+}
+
 }  // namespace sigil::geometry::path
