@@ -150,6 +150,8 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Heading.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -679,6 +681,9 @@ struct Minard1869 : sketch::Sketch {
   std::string riserWorstCity;
 
   feed::TextRing colA{200}, colB{200}, colC{200}, colD{200}, colE{200};
+  /** The look every kit component below this sketch is set in; built in
+   *  setup, once the faces it names have been resolved. */
+  sketch::kit::Theme sheetLook;
 
   // -----------------------------------------------------------------------
   // beat clock (seconds). Everything reads through bind(&T).window(a,b).
@@ -2112,29 +2117,36 @@ struct Minard1869 : sketch::Sketch {
   // =======================================================================
   // THE TITLE STRIP and THE CONSOLE
 
+  /** THE MASTHEAD: the plate's own title over its provenance, with the two
+   *  remarks the sheet is read under ranged at the far edge — the scale it
+   *  is drawn at, and the claim this sketch makes about it. The registers
+   *  and the air between them are the sheet's theme's. */
   Element titleStrip() {
     auto g = box().rect(SkRect::MakeXYWH(48, 28, 2464, 80));
-    g.child(text(toU8("Carte figurative des pertes successives en hommes de "
-                      "l'armée française dans la campagne de Russie "
-                      "1812–1813, comparée à celle d'Annibal "
-                      "durant la 2ᵉᵐᵉ guerre punique"),
-                 type(faceUi, 20, hex(0xe3dccd)))
-                .at({0, 0}));
-    g.child(text(toU8("BnF, Ge Don 4182 · lithograph · 62 × 54 "
-                      "cm · Paris, 20 novembre 1869 · Minard was 88, "
-                      "and died ten months later during the siege of Paris"),
-                 type(faceUi, 12, hex(0x9a9285)))
-                .at({0, 30}));
-    g.child(text(toU8("the sheet is drawn at its own aspect — 2.258 px "
-                      "per millimetre of Minard's paper, so every band width "
-                      "on screen is a real millimetre count"),
-                 type(faceUi, 11, hex(0x2f6f9c)))
-                .at({0, 50}));
-    g.child(text(toU8("THE PLATE STATES ITS OWN CONSTRUCTION RULE.  THIS "
-                      "SKETCH CHECKS IT — AND THEN CHECKS ITSELF WITH THE "
-                      "SAME MEASUREMENT."),
-                 type(faceUiBold, 12, hex(0xb5761e), 1.2f))
-                .at({1444, 50}));
+    g.child(
+        sketch::kit::titleCard(
+            {.title = {toU8("Carte figurative des pertes successives en "
+                            "hommes de l'armée française dans la campagne "
+                            "de Russie 1812–1813, comparée à celle "
+                            "d'Annibal durant la 2ᵉᵐᵉ guerre punique")},
+             .subtitle = {toU8("BnF, Ge Don 4182 · lithograph · 62 × 54 "
+                               "cm · Paris, 20 novembre 1869 · Minard was "
+                               "88, and died ten months later during the "
+                               "siege of Paris")},
+             .notes = {{.words = toU8("the sheet is drawn at its own aspect "
+                                      "— 2.258 px per millimetre of "
+                                      "Minard's paper, so every band width "
+                                      "on screen is a real millimetre "
+                                      "count"),
+                        .ink = Fill::color(hex(0x2f6f9c))},
+                       {.words = toU8("THE PLATE STATES ITS OWN "
+                                      "CONSTRUCTION RULE.  THIS SKETCH "
+                                      "CHECKS IT — AND THEN CHECKS ITSELF "
+                                      "WITH THE SAME MEASUREMENT."),
+                        .ink = Fill::color(hex(0xb5761e))}}})
+            .left(Dim(0))
+            .top(Dim(0))
+            .width(Dim(2464)));
     return g;
   }
 
@@ -2168,6 +2180,10 @@ struct Minard1869 : sketch::Sketch {
   // =======================================================================
 
   Element describe(sketch::SketchContext& ctx) {
+    // The desk's sheet stands for everything described below it, so a kit
+    // component four levels down is set in this plate's registers without
+    // being handed them.
+    sketch::kit::Provide look(sheetLook);
     return box()
         .fill(Paint::solid(kDesk))
         .child(titleStrip())
@@ -2791,7 +2807,26 @@ struct Minard1869 : sketch::Sketch {
     faceUi = weave::ports::face({"Helvetica Neue", "Baskerville"});
     faceUiBold = weave::ports::face({"Helvetica Neue", "Baskerville"},
                                     SkFontStyle::kBold_Weight);
-    faceMono = weave::ports::face({"Menlo", "Courier New"});
+    faceMono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
+
+    // THE DESK'S OWN SHEET, once the faces exist to name it with. Every kit
+    // component reads the theme in scope, and this plate is a lithograph on
+    // a dark table rather than the house sheet, so it binds its own: the
+    // interface face the commentary is set in, the plate's three inks, and
+    // the air the masthead's lines stand apart by.
+    sheetLook = {};
+    sheetLook.palette.ground = kDesk;
+    sheetLook.palette.ink = hex(0xe3dccd);
+    sheetLook.palette.ash = hex(0x9a9285);
+    sheetLook.palette.rule = hex(0x2c2a26);
+    sheetLook.palette.figure = hex(0xe3dccd);
+    sheetLook.type.sans = faceUi;
+    sheetLook.type.mono = faceMono;
+    sheetLook.type.title = {20, 0};
+    sheetLook.type.subtitle = {12, 0};
+    sheetLook.type.captionNote = {11, 0};
+    sheetLook.spacing.subtitleGap = 6;
+    sheetLook.spacing.rowGap = 5;
 
     // THE PAPER, and it is a FIBRE problem, not a colour problem: pulp
     // grain, the laid lines of a hand-made 19th-century sheet at ~1.2 px
