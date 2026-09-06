@@ -15,6 +15,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkYUVAInfo.h>
 #include <include/gpu/graphite/Context.h>
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
@@ -24,6 +25,7 @@
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilskia/graphite/TextureImage.h>
 
+#include <array>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -95,6 +97,32 @@ TextureDesc smallTarget() {
   desc.height = 8;
   desc.format = TextureFormat::BGRA8Unorm;
   desc.cpuAccessible = true;
+  return desc;
+}
+
+/** An 8x8 BGRA texture no shader may sample: a render target and nothing
+ *  else, which is what a wrap refuses after it has taken the release on. */
+MTLTextureDescriptor *sampleFreeDescriptor() {
+  MTLTextureDescriptor *desc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
+                                                         width:8
+                                                        height:8
+                                                     mipmapped:NO];
+  desc.usage = MTLTextureUsageRenderTarget;
+  desc.storageMode = MTLStorageModePrivate;
+  return desc;
+}
+
+/** The chroma plane beside it: half the size, two channels, and equally
+ *  unsampleable. */
+MTLTextureDescriptor *sampleFreeChromaDescriptor() {
+  MTLTextureDescriptor *desc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRG8Unorm
+                                                         width:4
+                                                        height:4
+                                                     mipmapped:NO];
+  desc.usage = MTLTextureUsageRenderTarget;
+  desc.storageMode = MTLStorageModePrivate;
   return desc;
 }
 
@@ -229,6 +257,101 @@ TEST(SigilSkiaGraphite, WrapsNoImageWithoutATexture) {
   EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), (__bridge void *)device(), 0, 8), nullptr);
 }
 
+// A REFUSED WRAP OWES THE TEXTURE NOTHING: the wrap binds its release to
+// the retained texture before it validates anything, and runs it itself
+// on the way out, so a texture a refusal touched is left exactly as
+// retained as it was handed over. The guard retain keeps a second release
+// from freeing the texture under the case.
+TEST(SigilSkiaGraphite, ARefusedWrapLeavesTheRetainCountWhereItWas) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  id<MTLTexture> texture = [device() newTextureWithDescriptor:sampleFreeDescriptor()];
+  ASSERT_NE(texture, nil);
+  CFTypeRef guard = CFRetain((__bridge CFTypeRef)texture);
+  const CFIndex before = CFGetRetainCount(guard);
+
+  // Not sampleable, so the wrap refuses after it has taken the release on.
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), (__bridge void *)texture, 8, 8), nullptr);
+
+  EXPECT_EQ(CFGetRetainCount(guard), before);
+  CFRelease(guard);
+}
+
+// THE PLANAR WRAP HANDS ITS PLANES OVER EXACTLY ONCE, whichever way it
+// ends: a refusal it makes itself, a refusal the wrap makes, and a wrap
+// that succeeds and holds them until the image is gone.
+TEST(SigilSkiaGraphite, PlanarWrapReleasesThePlanesOnce) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const auto count = [](void *context) { ++*static_cast<int *>(context); };
+
+  int released = 0;
+  const SkYUVAInfo info({8, 8}, SkYUVAInfo::PlaneConfig::kY_UV, SkYUVAInfo::Subsampling::k420,
+                        kRec709_Limited_SkYUVColorSpace);
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), {}, info, nullptr, count, &released), nullptr);
+  EXPECT_EQ(released, 1);
+
+  int missing = 0;
+  const std::array<sigil::skia::TexturePlane, 2> noTexture{
+      sigil::skia::TexturePlane{nullptr, 8, 8}, sigil::skia::TexturePlane{nullptr, 4, 4}};
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), noTexture, info, nullptr, count, &missing),
+            nullptr);
+  EXPECT_EQ(missing, 1);
+
+  // Planes of the right shape that no shader may sample: the refusal is
+  // the wrap's own, and it runs the release on its way out.
+  int unsampleable = 0;
+  id<MTLTexture> luma = [device() newTextureWithDescriptor:sampleFreeDescriptor()];
+  id<MTLTexture> chroma = [device() newTextureWithDescriptor:sampleFreeChromaDescriptor()];
+  ASSERT_NE(luma, nil);
+  ASSERT_NE(chroma, nil);
+  const std::array<sigil::skia::TexturePlane, 2> planes{
+      sigil::skia::TexturePlane{(__bridge void *)luma, 8, 8},
+      sigil::skia::TexturePlane{(__bridge void *)chroma, 4, 4}};
+  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), planes, info, nullptr, count, &unsampleable),
+            nullptr);
+  EXPECT_EQ(unsampleable, 1);
+}
+
+TEST(SigilSkiaGraphite, WrapsPlanesAsOneImage) {
+  SKIP_WITHOUT_METAL();
+  GraphiteContext *ctx = graphite();
+  const auto count = [](void *context) { ++*static_cast<int *>(context); };
+
+  MTLTextureDescriptor *lumaDesc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR8Unorm
+                                                         width:8
+                                                        height:8
+                                                     mipmapped:NO];
+  lumaDesc.usage = MTLTextureUsageShaderRead;
+  lumaDesc.storageMode = MTLStorageModeShared;
+  MTLTextureDescriptor *chromaDesc =
+      [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRG8Unorm
+                                                         width:4
+                                                        height:4
+                                                     mipmapped:NO];
+  chromaDesc.usage = MTLTextureUsageShaderRead;
+  chromaDesc.storageMode = MTLStorageModeShared;
+  id<MTLTexture> luma = [device() newTextureWithDescriptor:lumaDesc];
+  id<MTLTexture> chroma = [device() newTextureWithDescriptor:chromaDesc];
+  ASSERT_NE(luma, nil);
+  ASSERT_NE(chroma, nil);
+
+  const SkYUVAInfo info({8, 8}, SkYUVAInfo::PlaneConfig::kY_UV, SkYUVAInfo::Subsampling::k420,
+                        kRec709_Limited_SkYUVColorSpace);
+  const std::array<sigil::skia::TexturePlane, 2> planes{
+      sigil::skia::TexturePlane{(__bridge void *)luma, 8, 8},
+      sigil::skia::TexturePlane{(__bridge void *)chroma, 4, 4}};
+  int released = 0;
+  sk_sp<SkImage> image =
+      sigil::skia::wrapImage(*ctx->recorder(), planes, info, nullptr, count, &released);
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->width(), 8);
+  EXPECT_EQ(image->height(), 8);
+  // The planes are the image's for as long as it lives.
+  EXPECT_EQ(released, 0);
+}
+
 TEST(SigilSkiaGraphite, NullTextureWrapsNothing) {
   SKIP_WITHOUT_METAL();
   GraphiteContext *ctx = graphite();
@@ -307,8 +430,9 @@ TEST(SigilSkiaGraphite, StandsOnADeviceAdoptedFromTheHost) {
   // the Vulkan arms take.
   GpuDevice *dev = adoptedDevice();
   ASSERT_NE(dev, nullptr) << "no Metal device";
-  std::unique_ptr<GraphiteContext> ctx = GraphiteContext::create(*dev);
   SKIP_WITHOUT_METAL();
+  std::unique_ptr<GraphiteContext> ctx = GraphiteContext::create(*dev);
+  ASSERT_NE(ctx, nullptr);
   EXPECT_EQ(dev->native().mtlDevice, (__bridge void *)device());
 
   const TextureHandle handle = dev->createTexture(smallTarget());

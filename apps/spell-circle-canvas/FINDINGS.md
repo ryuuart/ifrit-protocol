@@ -85,13 +85,6 @@ sub-passes arrived as delegated passes and are listed with the rest.
 
 Blockers:
 
-- `src/common/skia/graphite/TextureImageMetal.mm:39,68` — on a failed
-  `WrapTexture` the code releases the retained `MTLTexture` itself, but
-  Skia builds its release callback before validating and runs it on
-  every null return, so the texture is released twice; `refuse()` after
-  `TextureFromYUVATextures` runs the caller's release a second time the
-  same way. Delete line 39; return the image at 68. Assert: a refused
-  wrap leaves the texture's retain count where it was.
 - `src/common/compose/include/sigilcompose/kit/Grid.h:383-389` — the
   flow search `for (;; ++at)` never exits when an undeclared child's
   span is wider than the column count; layout hangs. Clamp the span to

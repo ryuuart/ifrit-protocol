@@ -34,9 +34,10 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, void *mtlTexture, 
       &recorder, backendTexture, alphaType, std::move(colorSpace),
       [](void *context) { CFRelease(static_cast<CFTypeRef>(context)); },
       const_cast<void *>(static_cast<const void *>(retained)));
-  // A wrap that failed never took the release proc on, so the retain is
-  // this function's to undo.
-  if (!image) CFRelease(retained);
+  // THE RELEASE PROC IS THE ONLY RELEASE once the wrap has the context: it
+  // is bound before the wrap validates anything, and every failing return
+  // out of the wrap runs it. A release here as well would free the texture
+  // twice.
   return image;
 }
 
@@ -44,7 +45,10 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, std::span<const Te
                          const SkYUVAInfo &info, sk_sp<SkColorSpace> colorSpace,
                          TextureRelease release, void *releaseContext) {
   // THE RELEASE RUNS ON EVERY PATH OUT: the caller handed its planes over
-  // once, and a wrap that never happened must not leave them held.
+  // once, and a wrap that never happened must not leave them held. Only a
+  // refusal made before the wrap is called may run it here — the wrap binds
+  // the release to its own context before it validates, and runs it itself
+  // on every failing return.
   const auto refuse = [&]() -> sk_sp<SkImage> {
     if (release) release(releaseContext);
     return nullptr;
@@ -65,7 +69,6 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder &recorder, std::span<const Te
 
   sk_sp<SkImage> image = SkImages::TextureFromYUVATextures(&recorder, yuva, std::move(colorSpace),
                                                            release, releaseContext);
-  if (!image) return refuse();
   return image;
 }
 

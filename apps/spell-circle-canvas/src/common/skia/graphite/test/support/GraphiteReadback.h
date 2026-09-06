@@ -54,12 +54,16 @@ inline SkBitmap readGraphiteSurface(GraphiteContext& ctx, SkSurface* surface) {
   for (int spin = 0; spin < 5000 && !read.called; ++spin)
     ctx.context()->checkAsyncWorkCompletion();
   if (!read.result) return bitmap;
-  bitmap.allocPixels(info);
+  // An allocation the machine cannot make is the case's to report, not
+  // the process's to die on, and a row is as wide as the surface's colour
+  // type makes it — four bytes is N32 alone.
+  if (!bitmap.tryAllocPixels(info)) return SkBitmap();
   const auto* src = static_cast<const uint8_t*>(read.result->data(0));
   const size_t rowBytes = read.result->rowBytes(0);
+  const size_t copyBytes = info.minRowBytes();
   for (int y = 0; y < info.height(); ++y)
     std::memcpy(bitmap.pixmap().writable_addr(0, y), src + (size_t)y * rowBytes,
-                (size_t)info.width() * 4);
+                copyBytes);
   return bitmap;
 }
 
