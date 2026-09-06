@@ -3,8 +3,10 @@
 A runtime resource hub. Application code asks for a resource by URI —
 `res://ui/logo.png` — instead of by filesystem path. URI prefixes mount
 onto directories, results are cached per resource, and `poll()` re-stats
-what has been loaded so edited files reload without a restart. `write()`
-stores bytes back through the same mounts. `http://`
+what has been loaded so edited files reload without a restart. A whole
+DIRECTORY or a glob is a resource set: one selector names it, `preload()`
+fetches it concurrently, and a lease says how long the hub promises to
+keep it. `write()` stores bytes back through the same mounts. `http://`
 and `https://` URIs fetch over libcurl behind an on-disk cache with a
 selectable policy; `file://` strips to a plain local path. What a byte
 MEANS is not its job in either direction: it hands bytes to registered
@@ -33,7 +35,7 @@ sigil::io::Hub hub;
 hub.mount("res://", "/opt/myapp/assets");
 
 auto shader = hub.text("res://shaders/glow.sksl");   // std::optional<std::string>
-auto table  = hub.blob("res://data/table.bin");      // shared_ptr<const Blob>
+auto table  = hub.blob("res://data/table.bin");      // shared_ptr<const Bytes>
 auto logo   = hub.image("res://ui/logo.png");        // stills and animations
 auto icon   = hub.image("res://ui/mark.svg", {.width = 256});
 auto layer  = hub.image("res://light/probe.exr", {.layer = "diffuse"});
@@ -274,44 +276,55 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release --target io_test
-ctest --test-dir build -C Release -R '^io_' --output-on-failure
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-Targets: `SigilIOSource` (`source/` — headers plus the one call that
-asks the platform where the running binary stands) with
-`source/test/`, which checks the concepts against a fixture source,
-a fixture decoder and a fixture sink with no hub in the binary, and
-`writeBytes` against a real scratch directory; `SigilIOHub` (static
-library, `hub/` — mounts, selection, cache, network and the decoder registry
-split behind the private `hub/Fetch.h`) with
-`hub/test/`, which also checks `TextCatalog`, and `io_bench` (Google Benchmark, built by the
-`benches` target and run from a Release build through
+Targets: `SigilIOSource` (`source/` — headers plus the two places only
+the platform can name, where the running binary stands and where a
+process may leave throwaway files) with `source/test/`, whose
+`SourceVocabulary`, `SinkVocabulary` and `Places` suites check the
+concepts against a fixture source, a fixture decoder and a fixture sink
+with no hub in the binary, and `writeBytes` against a real scratch
+directory; `SigilIOHub` (static library, `hub/` — mounts, selection,
+cache, retention, network and the decoder registry, split behind the
+private `hub/Fetch.h` and `hub/Residency.h`) with `hub/test/`, whose
+`IOHub`, `IOSource`, `IOChannels`, `IOResourceLease`, `IONetwork`,
+`IOOiio` and `IOTextCatalog` suites cover it — `IOSource` being the hub
+answering as a `ByteSource`, which is the seam a consumer that only
+wants bytes stands on; and `io_bench` (Google Benchmark, built
+by the `benches` target and run from a Release build through
 `scripts/bench_ledger.py`: `Hub::blob` on a cache hit and `load<T>` on a
 decoded view per call, `resolve` per URI against the mount table, and
 `networkCacheKey` per URL — the disk kept out of every timed loop); and
 `SigilIO`, the umbrella.
 
-Both binaries take their scratch directory from `src/test/ScratchDir.h`,
-the repository-level test support header: a directory named after the
+There is one test binary, `io_test`, built from both features' `test/`
+directories, and ctest discovers one entry per CASE out of it, so a
+suite or a case is selected by name with no target behind it —
+`-R '^IOHub\.'` for the hub's cases, `-R '^Places\.'` for the platform's.
+
+Its cases take their scratch directory from `src/test/ScratchDir.h`, the
+repository-level test support header: a directory named after the
 case and the process, emptied on the way in and removed on the way out.
 The hub cases open most of themselves from a `MountedHub` fixture —
 one such directory mounted at `res://`, which is the whole of what a hub
-needs before it can be asked anything — and forces a distinct mtime
+needs before it can be asked anything — and force a distinct mtime
 through one `touchForward()` helper rather than by sleeping, since a
 filesystem's timestamp granularity is not this test's running time.
 
-Two parts of the hub's cases are conditional, and a ctest label says so in
-both cases. The EXR cases compile only when OpenImageIO is found at
-configure time — the test uses it to *write* its fixtures, while the
-library itself never calls it — so a build without it carries the `oiio`
-label. The live-network case fetches a pinned immutable URL once and
-reads it back through a fresh hub locked `Offline`; it is a ctest entry
-of its own, `io_hub_network_test`, labelled `network`, and the entry the
-other cases run under leaves it out, so a default run needs no
-connectivity and no resolver at all. Every other network case is a
-pre-seeded disk cache, with a stub transport standing in for libcurl
-where a fetch has to succeed or fail, so libcurl itself is untested by
-default.
+Two parts of the hub's cases carry a ctest label, because each needs
+something the machine may not have. The `IOOiio` suite is the EXR cases,
+which compile only where OpenImageIO is found at configure time — the
+test uses it to *write* its fixtures, while the library itself never
+calls it — and carries the `oiio` label. The live-network case fetches a
+pinned immutable URL once and reads it back through a fresh hub locked
+`Offline`; it is a ctest entry of its own,
+`IONetwork.LiveFetchThenOfflineRoundTrip`, labelled `network`, and it
+skips itself where there is no route, so `-LE network` is how a run
+leaves it out rather than how it avoids failing. Every other network
+case is a pre-seeded disk cache, with a stub transport standing in for
+libcurl where a fetch has to succeed or fail, so libcurl itself is
+untested by default.
 
 A case here asserts one thing a header promises and is named that
 promise as a sentence. It pins only what editing this library could
