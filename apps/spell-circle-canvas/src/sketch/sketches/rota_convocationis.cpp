@@ -213,6 +213,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -767,14 +768,14 @@ half4 main(float2 xy) {
   return half4(lo.r, mid.g, hi.b, mid.a);
 })";
 
-/** The fringe compiled once for the process. */
+/** The fringe, compiled where it is asked for. The caller holds it for
+ *  the length of a declaration: a `static` here would outlive the dylib
+ *  a hot-reloaded sketch is compiled into, and an effect compared by
+ *  pointer after that reload points into code that is gone. */
 sk_sp<SkRuntimeEffect> fringeEffect() {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(kFringeSksl));
-    if (!effect) std::fprintf(stderr, "[rota] fringe: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(kFringeSksl));
+  if (!effect) std::fprintf(stderr, "[rota] fringe: %s\n", err.c_str());
+  return effect;
 }
 
 int glyphsOf(const std::string& s) {
@@ -843,6 +844,8 @@ struct RotaConvocationis : sketch::Sketch {
   // exactly zero outside the crest, which is what keeps the effect from
   // being paid for on any frame that does not want it.
   ch::Output<float> fringeK{0}, fringeA{0};
+  /** The fringe shader, compiled once per declaration and held here. */
+  sk_sp<SkRuntimeEffect> fringeFx;
 
   sk_sp<SkTypeface> faceRing, faceRingBold, faceMono;
 
@@ -1833,7 +1836,7 @@ struct RotaConvocationis : sketch::Sketch {
             .absolute()
             .inset(0)
             .hitTestable(false)
-            .backdrop(mskia::Effect::shader(fringeEffect(), {{"uCx", kEye.x()},
+            .backdrop(mskia::Effect::shader(fringeFx, {{"uCx", kEye.x()},
                                                              {"uCy", kEye.y()}})
                           .uniform("uSpread", &fringeK))
             .opacity(&fringeA));
@@ -1922,6 +1925,8 @@ struct RotaConvocationis : sketch::Sketch {
   void setup(sketch::SketchContext& ctx) override {
     ctx.canvas(kW, kH);
     ctx.background(kNight);
+
+    fringeFx = fringeEffect();
 
     faceRing = weave::ports::face({".SF NS", "SF Pro", "Helvetica Neue"}, 500);
     faceRingBold =
@@ -2254,12 +2259,11 @@ struct RotaConvocationis : sketch::Sketch {
   }
 
   /** The ignition's own envelope: a fast rise to the crest and a long
-   *  decay, so what follows the crest is an AFTERGLOW and not a cut. */
+   *  decay, so what follows the crest is an AFTERGLOW and not a cut.
+   *  `motion::flash` is that shape at its origin — a linear rise to
+   *  exactly 1 at the crest and an exponential fall from it. */
   static float burst(double tc, double at, double rise, double fall) {
-    if (tc < at) return 0.0f;
-    const double since = tc - at;
-    if (since < rise) return (float)(since / rise);
-    return (float)std::exp(-(since - rise) / fall);
+    return motion::flash((float)(tc - at), (float)rise, (float)fall);
   }
 
   /** Every gain the fire drives, plus the ember pool. */
