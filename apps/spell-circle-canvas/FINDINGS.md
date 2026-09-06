@@ -137,3 +137,34 @@ parallel sweep can gate.
 
 Assert once fixed: `--tier promotion` and `--tier cpu` both render it
 inside the ceiling at the default job count.
+
+## slang_portable's plate draws a counter over the process's history
+
+The sketch's "source that is not Slang" cell prints the compiler's own
+diagnostic verbatim, and that text names the module it failed on:
+`SigilProgram14.slang`. The name is built in
+`material/slang/SlangCompiler.cpp` from a function-local `static uint64_t
+serial` incremented once per `compileModule()` call, so the number counts
+every module the PROCESS has compiled, not the three this sketch
+compiles. It reads 14 only because eleven others were built before it in
+that session.
+
+The plate is judged on byte identity, so anything that changes how many
+modules are compiled ahead of this one moves its hash without moving
+anything the sketch is about: a warm-up gaining or losing a recipe, the
+live host opening on a file after another sketch, or a sweep that ever
+renders more than one scene per process. Today `plate_ledger.py` opens
+one process per scene and the number is stable, which is the only reason
+this is latent rather than a flapper.
+
+Intended: a plate shows what the sketch demonstrates — here, that a body
+which cannot compile says why. The renderer already has the pin for a
+number a sketch measures about its own execution (`ctx.measured(value,
+pinned)` under `ctx.deterministic`), and the module serial in a
+diagnostic is exactly that kind of number.
+
+Assert once fixed: the cell's text is identical whether the sketch is
+rendered alone or after another sketch has compiled a module in the same
+process — either by pinning the serial through `measured()` or by
+stripping the generated module name out of the diagnostic before it is
+drawn.
