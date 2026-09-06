@@ -1,5 +1,5 @@
 /** @file
- * The statistics a study is summarised with, against closed forms.
+ * The summaries a run of numbers is described by, against closed forms.
  *
  * Every claim here has an arithmetic answer that can be written down —
  * the variance of the first n whole numbers, the skewness of three zeros
@@ -12,11 +12,9 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmeasure/stats/Fit.h>
 #include <sigilmeasure/stats/Histogram.h>
 #include <sigilmeasure/stats/Moments.h>
 #include <sigilmeasure/stats/Rescale.h>
-#include <sigilmeasure/stats/Samples.h>
 
 #include <cmath>
 #include <numeric>
@@ -296,55 +294,4 @@ TEST(Rescale, ARunWithNoWidthCollapsesRatherThanDividingByZero) {
 
   const Rescale nothing = zScore({});
   EXPECT_DOUBLE_EQ(nothing(4.0), 0.0);
-}
-
-// ---- the quantiles and the correlation ------------------------------------
-
-TEST(Quantiles, AreEachTheOneQuantileWouldHaveGivenForOneSort) {
-  const std::vector<double> values = {4.0, 1.0, 3.0, 2.0, 9.0, 7.0, 5.0};
-  const std::vector<double> fractions = {0.0, 0.5, 0.9, 0.25, 1.0};
-  const std::vector<double> answers = quantiles(values, fractions);
-  ASSERT_EQ(answers.size(), fractions.size());
-  for (size_t i = 0; i < fractions.size(); ++i)
-    EXPECT_DOUBLE_EQ(answers[i], quantile(values, fractions[i]))
-        << "fraction " << fractions[i];
-  // The answers come back in the order they were asked for, not sorted.
-  EXPECT_DOUBLE_EQ(answers[1], 4.0);
-  EXPECT_GT(answers[2], answers[3]);
-
-  EXPECT_TRUE(quantiles({}, fractions).size() == fractions.size());
-  EXPECT_DOUBLE_EQ(quantiles({}, fractions)[0], 0.0);
-}
-
-TEST(Quantiles, TheMedianIsTheMiddleAndInterpolatesAcrossAnEvenRun) {
-  const std::vector<double> even = {1.0, 2.0, 3.0, 4.0};
-  EXPECT_DOUBLE_EQ(median(even), 2.5);
-  const std::vector<double> odd = {1.0, 2.0, 3.0};
-  EXPECT_DOUBLE_EQ(median(odd), 2.0);
-}
-
-TEST(LineFit, TheCorrelationSaysTheDirectionThatR2CannotSay) {
-  const std::vector<double> xs = {0.0, 1.0, 2.0, 3.0};
-  const std::vector<double> rising = {1.0, 3.0, 5.0, 7.0};
-  const std::vector<double> falling = {7.0, 5.0, 3.0, 1.0};
-
-  const LineFit<double> up = lineFit<double>(xs, rising);
-  const LineFit<double> down = lineFit<double>(xs, falling);
-  // Both explain everything, which is all r2 can say; the correlation
-  // separates them.
-  EXPECT_NEAR(up.r2, 1.0, 1e-12);
-  EXPECT_NEAR(down.r2, 1.0, 1e-12);
-  EXPECT_NEAR(up.correlation(), 1.0, 1e-12);
-  EXPECT_NEAR(down.correlation(), -1.0, 1e-12);
-
-  // And on a run that is not a line, it is the root of r2 with the
-  // slope's sign and nothing else.
-  const std::vector<double> scattered = {1.0, 4.0, 2.0, 8.0};
-  const LineFit<double> loose = lineFit<double>(xs, scattered);
-  EXPECT_NEAR(std::abs(loose.correlation()), std::sqrt(loose.r2), 1e-12);
-  EXPECT_EQ(loose.correlation() < 0, loose.slope < 0);
-
-  // Nothing to fit is no correlation rather than a divide by zero.
-  const std::vector<double> flat = {2.0, 2.0, 2.0, 2.0};
-  EXPECT_DOUBLE_EQ(lineFit<double>(flat, flat).correlation(), 0.0);
 }

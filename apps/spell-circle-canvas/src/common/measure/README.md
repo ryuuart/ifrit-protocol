@@ -13,9 +13,13 @@ of different units on a common footing, the least-squares line, and
 reports. It has no domain-library dependency, so every other library can
 measure itself without pulling in another Sigil layer.
 
-Namespace `sigil::measure`. One static target, `SigilMeasure`; every
-public header lives under `include/sigilmeasure/<subject>/` and is spelled
-`<sigilmeasure/<subject>/X.h>`, and `<sigilmeasure/Measure.h>` includes
+Namespace `sigil::measure`. One target per feature —
+`SigilMeasureStats` and `SigilMeasureTime`, both header-only, and
+`SigilMeasureCheck`, which carries the one source file the table
+formatting lives in — with `SigilMeasure` the umbrella over all three,
+so a consumer of the whole library links one name. Every public header
+lives under `include/sigilmeasure/<feature>/` and is spelled
+`<sigilmeasure/<feature>/X.h>`, and `<sigilmeasure/Measure.h>` includes
 them all:
 
 | header | holds |
@@ -198,35 +202,42 @@ the writer's, not this one's.
 
 ## Testing and benchmarks
 
-`measure_test` is built from two files: `MeasureTest.cpp` for the
-instruments, and `StatsTest.cpp` for the statistics, every claim in
-which is asserted against an arithmetic answer that can be written down
+One `measure_test`, contributed to by every feature's own `test/`
+directory: `stats/test/` holds `SamplesTest.cpp`, `StatsTest.cpp`,
+`FitTest.cpp` and `CountersTest.cpp`, `time/test/TimeTest.cpp` holds the
+instruments and `check/test/CheckTest.cpp` the claims. Every statistical
+claim is asserted against an arithmetic answer that can be written down
 — the variance of the first n whole numbers, the skewness of three zeros
 and a one, the density of a flat run, the mean and deviation a z-score
 leaves behind — rather than against a number this code once produced.
-One case there is of a different kind and is the reason the accumulation
-is shaped as it is: a run of large, close values, where the naive
-formula is shown missing the answer the shifted run gives exactly.
-Between them they cover the quantile's edges (empty, one sample,
-interpolation, clamping), several fractions off one sort agreeing with
-the single-fraction call, the line fit (an exact line found exactly, a
-lifted point read off the residual rather than off the slope, a vertical
-run answering no slope, and the float sums matching a hand-written
-accumulation term for term), the ring's wrap-around, the counters, the lap
-timer's naming and totals, `ScopedMs` leaving its target alone until
-scope exit, the frame timer's lanes, and `Check::line` formatting as one
+One case is of a different kind and is the reason the accumulation is
+shaped as it is: a run of large, close values, where the naive formula is
+shown missing the answer the shifted run gives exactly. Between them the
+cases cover the quantile's edges (empty, one sample, interpolation,
+clamping), several fractions off one sort agreeing with the
+single-fraction call, the line fit (an exact line found exactly, a lifted
+point read off the residual rather than off the slope, a vertical run
+answering no slope and still reporting the spread of its ordinates, and
+the float sums matching a hand-written accumulation term for term), the
+ring's wrap-around, the counters, the lap timer's naming and totals, the
+names a lap may be given — a literal, a view, a string the caller keeps —
+and the temporary it refuses, asserted as a compile-time refusal rather
+than as a value, `ScopedMs` leaving its target alone until scope exit,
+the frame timer's lanes, and `Check::line` formatting as one
 parameterised case per kind of claim — integral, tolerance, text, bare
 condition, and a label longer than its column. Exactly one case reads the
 wall clock, and it owns every claim that needs one: that the stopwatch,
 the lap timer and `ScopedMs` advance with real time, and that a reset
 sends the reading back — asserted against the span already measured,
 since a stopwatch that ignored reset could only ever read higher, and
-not against a ceiling a busy scheduler could cross. Every other timing case is deterministic, because
-sleeping and then asserting on a duration asserts the operating system's
-scheduler rather than anything this library promises. `measure_bench` times `Samples::add`,
-`Samples::percentile` and `Samples::mean` per sample count, and in
-`StatsBench.cpp` the per-value cost of `Moments::add` and
-`Histogram::add`, the per-run cost of `Moments::of`, `Histogram::over`
-and `zScore`, and the two quantile arms side by side, where the whole
-point is that one sorts once and the other sorts per fraction; it builds
-through the `benches` target and runs through `scripts/sigil.py bench`.
+not against a ceiling a busy scheduler could cross. Every other timing
+case is deterministic, because sleeping and then asserting on a duration
+asserts the operating system's scheduler rather than anything this
+library promises. One `measure_bench`, out of `stats/bench/`:
+`SamplesBench.cpp` times `Samples::add`, `Samples::percentile` and
+`Samples::mean` per sample count, and `StatsBench.cpp` the per-value cost
+of `Moments::add` and `Histogram::add`, the per-run cost of
+`Moments::of`, `Histogram::over` and `zScore`, and the two quantile arms
+side by side, where the whole point is that one sorts once and the other
+sorts per fraction; it builds through the `benches` target and runs
+through `scripts/sigil.py bench`.
