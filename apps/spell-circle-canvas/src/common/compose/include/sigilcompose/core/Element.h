@@ -159,7 +159,7 @@ class Element {
   Element& centerAt(SkPoint p);
   /** WHICH CELLS this child claims of the `layout()` scheme above it, and
    *  how many it covers — read by grid-shaped schemes (`Table`,
-   *  `layouts::ModularGrid`) and by nothing else.
+   *  `layouts::Grid`, `layouts::ModularGrid`) and by nothing else.
    *
    *  Said HERE, on the child, rather than in a list the scheme carries
    *  beside it: a parallel list has nothing to check itself against, and

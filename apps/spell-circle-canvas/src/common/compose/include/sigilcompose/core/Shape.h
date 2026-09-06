@@ -319,14 +319,17 @@ struct MotionPath {
  *    bounded raster, so its edges are axis-aligned steps, and a
  *    decoration that dresses it dresses that staircase. A keyline around
  *    a cut-out reads as a keyline around a stepped cut-out.
- *  - THE STEP SIZE IS THE NODE'S OWN. The trace rasterises the node's box
- *    at a fixed number of pixels on its longer side however large the box
- *    is, so the cost of a coverage boundary does not grow with the node,
- *    and the steps of a big node are bigger than the steps of a small one.
- *  - PAINT BELOW HALF COVERAGE IS NOT A SILHOUETTE. A pixel joins the
- *    boundary when the node's paint covers at least half of it, so a 30%
- *    wash over the whole box traces to nothing at all and its decorations
- *    have nothing to dress.
+ *  - A STEP IS A DEVICE PIXEL. The trace rasterises the node at the scale
+ *    the node is being drawn at, so the boundary is as fine as the edge
+ *    the viewer is looking at, and a node that moves to a denser display
+ *    is traced again and traces finer. A node too large to raster at that
+ *    scale is traced smaller, and its steps grow to whatever that took.
+ *  - PAINT UNDER THE THRESHOLD IS NOT A SILHOUETTE. A pixel joins the
+ *    boundary when the node's paint reaches `Element::threshold` of full
+ *    opacity there, which defaults to half — the rule an unantialiased
+ *    rasteriser uses — so a 30% wash over the whole box traces to nothing
+ *    and its decorations have nothing to dress. Lowering the threshold is
+ *    what makes a wash, a feathered cut-out or a glow a silhouette.
  *
  *  The node's OWN decorations are not in the trace — they are what dresses
  *  it, and a mark that dressed itself would have no fixed point. Its fill,
