@@ -41,30 +41,30 @@
 # the root is the umbrella over the kernel — exactly core/Core.h — and
 # each feature has a <Feature>.h umbrella of its own.
 #
-# A test binary exists where it links a STRICTLY SMALLER set of targets
-# than its neighbours and that boundary is a promise somebody could read.
-# Two binaries over one closure are one binary: they state nothing a
-# consumer can act on and only decide which half of a shared fixture a
-# case can reach. Every test binary links exactly the targets it names
-# plus SigilComposeTesting and the system font port, so a test reaching
-# past its tier fails to link rather than passing on a dependency it was
-# not meant to have.
+# One test binary, compose_test, declared feature by feature from each
+# directory's own test/, and one bench binary, compose_bench, the same
+# way. What locates a case is its name, not a binary: ctest discovers one
+# entry per CASE, so a suite is selected by its own prefix and nothing
+# stands behind it to build. Each declaration links exactly the targets
+# its cases name plus SigilComposeTesting and the system font port, so a
+# case reaching past its feature fails to link rather than passing on a
+# dependency it was not meant to have.
 #
 # One file per subject, named for what it asserts, so a case is found by
-# opening the file its subject names. Each binary has a support header
+# opening the file its subject names. Each feature has a support header
 # under test/support that includes only the headers its targets expose,
 # over the shared harness in test/support/Host.h; the font context that
-# harness holds is the tree-wide src/test/Fonts.h. A binary that skips or
+# harness holds is the tree-wide src/test/Fonts.h. A case that skips or
 # vanishes without a device, a font or an SDK carries the ctest label
-# that says so.
+# that says so, scoped by SUITES to the cases that need it.
 #
-# The benchmarks are one binary per feature over bench/BenchSupport.h,
-# and the ones that ask for the Graphite arm get it where a GPU device
-# can be made. A claim about how a cost GROWS lives there rather than in
-# a ctest wall-clock ceiling.
+# The benchmarks stand over bench/BenchSupport.h, and the ones that ask
+# for the Graphite arm get it where a GPU device can be made. A claim
+# about how a cost GROWS lives there rather than in a ctest wall-clock
+# ceiling.
 #
-# Committed test assets sit in test/assets/: two generated variable
-# fonts, an advance-variant wght instrument and a vertical-advance one.
+# Committed test assets sit in test/assets/: one generated variable font,
+# the vertical-advance instrument, beside the script that generates it.
 # Not fetch_assets — a TEST must never depend on an opt-in target.
 sigil_library_root(SigilCompose
   BRIEF "Immutable value-typed descriptions of a 2D scene, laid out with flexbox and drawn to an SkCanvas"

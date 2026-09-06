@@ -1226,12 +1226,11 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release --target sketch_test
-ctest --test-dir build -C Release -R sketch_ --output-on-failure
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-A binary exists only where it links a **strictly smaller** set of
-targets than its neighbours, or where what a runner must supply to run it
-differs — one per feature, each linking that feature alone.
+A suite is selected by its own name — `ctest -R '^SketchRegistry\.'` — and
+a case by its full one, with no target behind either.
 The library has one test binary, `sketch_test`, built from every
 feature's `test/` directory; ctest discovers one entry per CASE out of
 it. `core/test/` covers the registry, the kind seam, the crash reporter

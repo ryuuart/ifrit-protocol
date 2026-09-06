@@ -333,7 +333,7 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release
-ctest --test-dir build -C Release -R weave_ --output-on-failure
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 The library has ONE test binary, `weave_test`, built from every feature's

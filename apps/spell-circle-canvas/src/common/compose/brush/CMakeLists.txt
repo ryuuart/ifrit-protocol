@@ -42,13 +42,11 @@ sigil_library(SigilComposeBrush
          SigilMaterial SigilSkiaDraw SigilWeave
   PRIVATE SigilCoreCompute yoga::yogacore)
 
-# The one brush binary, one file per subject: lines and rails, the brush
+# The brush cases, one file per subject: lines and rails, the brush
 # kinds, the brush engine, the stroke grammar, decorations on a node and
 # on text, stamps and strips, the mask gates, the paint values this tier
 # spells over SigilMaterial, the pixel styles and the kit's stroke
-# presets. One binary rather than two over the same two targets, because a
-# second one states no boundary a consumer could read -- it only decides
-# which half of a shared fixture a case can reach.
+# presets.
 sigil_test(compose_test
   SOURCES test/ComposeTestLines.cpp test/ComposeTestBrushes.cpp
           test/ComposeTestBrushEngine.cpp test/ComposeTestStrokeGrammar.cpp

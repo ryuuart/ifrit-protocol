@@ -1096,7 +1096,7 @@ such a machine is the CPU executor, not a second GPU path.
 ## Testing and benchmarks
 
 ```sh
-ctest --test-dir build -C Release -R world_
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 A case here asserts one thing this library promises through its public

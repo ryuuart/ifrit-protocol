@@ -51,8 +51,8 @@ set(SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/support
     CACHE INTERNAL "the shared Graphite readback")
 
 # THE PIXEL READS ARE ARITHMETIC over an SkImage — no device, no context,
-# no bring-up — so they are their own binary, built and run everywhere,
-# where the device cases below are Apple-only and labelled.
+# no bring-up — so they are declared unconditionally and run on every
+# machine, where the device cases below are Apple-only and labelled.
 sigil_test(skia_test
   SOURCES test/PixelsTest.cpp
   LIBRARIES SigilSkiaGraphite)

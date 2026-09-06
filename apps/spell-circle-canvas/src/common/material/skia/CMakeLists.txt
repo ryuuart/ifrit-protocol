@@ -6,8 +6,9 @@
 # buffer sources, the SkSL leaf with its live uniforms and child slots,
 # the blend stack, and the door onto a recipe instance — Effect, the
 # post-processing recipe over a layer a consumer has already rendered, and
-# the two crossings that turn the colour leaf's ramp stops into a
-# gradient.
+# the four crossings out of the colour leaf: two that turn a ramp's stops
+# into a gradient, and two that carry a palette as a lookup table — an
+# N x 1 image and the nearest-sampled material a child slot takes.
 # Links the texture feature (and through it the core and Skia) and
 # SigilMotion, for the animatable a live uniform and a bound pan hold.
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)

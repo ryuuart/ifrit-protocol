@@ -35,13 +35,10 @@ sigil_library(SigilComposeKit
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
          SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave)
 
-# The kit tier's tests. Separate from the kernel binaries because the kit
-# changes nothing in the kernel, so a kit failure must never look like a
-# kernel failure on the dashboard. One binary for the tier rather than
-# three: the kit PUBLIC-links Brush, so a binary over Kit and a binary
-# over Kit+Brush have the same closure and the split states no boundary a
-# consumer could read. SigilMeasure is here for the checks a feed plate
-# reports, which is the one target the kit's own link line does not carry.
+# The kit's cases, declared here beside the code they cover and carried
+# by the library's one test binary. SigilMeasure is here for the checks a
+# feed plate reports, which is the one target the kit's own link line
+# does not carry.
 #
 # Every case sets the instrument face from src/test/assets/ except the one
 # that asks the machine's italic families whether their ink overhangs, so

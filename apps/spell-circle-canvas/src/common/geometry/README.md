@@ -1709,7 +1709,7 @@ binary with device cases puts that directory on its include path.
 scattered along. A helper one file uses stays in that file.
 
 ```sh
-ctest --test-dir build -C Release -R geometry --output-on-failure
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 **Looking at any of it** goes through SigilSketch, in `src/sketch/`: one
