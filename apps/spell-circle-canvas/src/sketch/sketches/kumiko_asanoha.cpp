@@ -179,7 +179,12 @@ const float kRegW = kJigumiW * 0.80f;
 // NOLINTEND(bugprone-throwing-static-initialization)
 
 // ---------------------------------------------------------------------------
-// Timeline. One clock, per-piece delays computed from role/row/col.
+// Timeline. One clock, per-piece delays computed from role/row/col. Six
+// laws, not one ladder: the frame's four boards, the register's grid, the
+// two jig passes and the leaves each open on their own base at their own
+// step, and a leaf's base is a function of which CELL it belongs to. A
+// cascade numbers units 0..N-1 and spaces them evenly, which is one of
+// the six.
 
 constexpr double kPeriod = 6.4;
 constexpr double kTFrame = 0.00, kDFrame = 0.55;
@@ -615,7 +620,7 @@ Element stripElement(const Strip& s, TimberBank& bank,
           .width(boxW)
           .height(s.w)
           .rotate(angDeg)
-          .shape([shape](SkSize) { return shape; })
+          .shape(heldPath(shape))
           .fill(bank.get(*s.timber, s.w, !lit, s.seed))
           // The arris: light angle counter-rotated into the piece's
           // own frame so one raking source lights every board.
@@ -704,34 +709,37 @@ struct KumikoAsanoha : sketch::Sketch {
   // The joint pass: every half-lap seam mark and every tenon nub arrives on
   // one beat — the craftsman's final seating tap.
   Element joinery() {
+    // The panel's seams are settled when the panel is built, so the whole
+    // pass is one named drawing rather than a callable nothing can compare.
     auto seams = panel.seams;
+    auto marks = [seams](SkCanvas& c, const PaintContext&) {
+      SkPaint p;
+      p.setAntiAlias(true);
+      p.setStyle(SkPaint::kStroke_Style);
+      for (const Panel::Seam& s : seams) {
+        const SkVector n = perp(s.along);
+        for (int side = -1; side <= 1; side += 2) {
+          const float o = (float)side * s.w * 0.5f;
+          const SkPoint m{s.p.x() + n.x() * o, s.p.y() + n.y() * o};
+          p.setStrokeWidth(1.5f);
+          p.setColor4f({0.28f, 0.18f, 0.07f, 0.55f}, nullptr);
+          c.drawLine(m.x() - s.along.x() * s.halfSpan,
+                     m.y() - s.along.y() * s.halfSpan,
+                     m.x() + s.along.x() * s.halfSpan,
+                     m.y() + s.along.y() * s.halfSpan, p);
+          p.setStrokeWidth(0.7f);
+          p.setColor4f({1, 0.95f, 0.82f, 0.30f}, nullptr);
+          const float k = (float)side * 0.9f;
+          c.drawLine(m.x() - s.along.x() * s.halfSpan + n.x() * k,
+                     m.y() - s.along.y() * s.halfSpan + n.y() * k,
+                     m.x() + s.along.x() * s.halfSpan + n.x() * k,
+                     m.y() + s.along.y() * s.halfSpan + n.y() * k, p);
+        }
+      }
+    };
     auto group = stack().inset(0, 0, 0, 0).opacity(&seat);
-    group.child(custom([seams](SkCanvas& c, const PaintContext&) {
-                  SkPaint p;
-                  p.setAntiAlias(true);
-                  p.setStyle(SkPaint::kStroke_Style);
-                  for (const Panel::Seam& s : seams) {
-                    const SkVector n = perp(s.along);
-                    for (int side = -1; side <= 1; side += 2) {
-                      const float o = (float)side * s.w * 0.5f;
-                      const SkPoint m{s.p.x() + n.x() * o, s.p.y() + n.y() * o};
-                      p.setStrokeWidth(1.5f);
-                      p.setColor4f({0.28f, 0.18f, 0.07f, 0.55f}, nullptr);
-                      c.drawLine(m.x() - s.along.x() * s.halfSpan,
-                                 m.y() - s.along.y() * s.halfSpan,
-                                 m.x() + s.along.x() * s.halfSpan,
-                                 m.y() + s.along.y() * s.halfSpan, p);
-                      p.setStrokeWidth(0.7f);
-                      p.setColor4f({1, 0.95f, 0.82f, 0.30f}, nullptr);
-                      const float k = (float)side * 0.9f;
-                      c.drawLine(m.x() - s.along.x() * s.halfSpan + n.x() * k,
-                                 m.y() - s.along.y() * s.halfSpan + n.y() * k,
-                                 m.x() + s.along.x() * s.halfSpan + n.x() * k,
-                                 m.y() + s.along.y() * s.halfSpan + n.y() * k,
-                                 p);
-                    }
-                  }
-                }).inset(0, 0, 0, 0));
+    group.child(
+        custom(std::string_view("joinery"), marks).inset(0, 0, 0, 0));
     for (const Strip& n : panel.nubs)
       group.child(stripElement(n, bank, nullptr, nullptr));
     return group;
