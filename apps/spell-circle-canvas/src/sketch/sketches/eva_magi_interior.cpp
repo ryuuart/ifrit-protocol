@@ -238,6 +238,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -824,10 +825,7 @@ struct EvaMagiInterior : sketch::Sketch {
           box()
               .inset(0)
               .fill(Fill::none())
-              // the callable is invoked on every layout, so its capture must
-              // survive each return
-              // NOLINTNEXTLINE(performance-no-automatic-move)
-              .shape([circuit](SkSize) { return circuit; })
+              .shape(heldPath(circuit))
               .stroke(lines::Rails{.rails = {{.across = 6.0f,
                                               .width = 3.0f,
                                               .fill = Fill::color(magi::kInk),
@@ -842,10 +840,7 @@ struct EvaMagiInterior : sketch::Sketch {
       node.child(box()
                      .inset(0)
                      .fill(Fill::none())
-                     // the callable is invoked on every layout, so its capture
-                     // must survive each return
-                     // NOLINTNEXTLINE(performance-no-automatic-move)
-                     .shape([pads](SkSize) { return pads; })
+                     .shape(heldPath(pads))
                      .stroke(PathFormat{.width = 2.0f,
                                         .strokeFill = Fill::color(magi::kInk),
                                         .join = SkPaint::kMiter_Join}));
@@ -1103,10 +1098,7 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([dend](SkSize) { return dend; })
+                  .shape(heldPath(dend))
                   .stroke(brush::Ribbon{
                       .fill = Fill::color(scaleRgb(hex(0x8A2412), magi::kBack)),
                       .widthStart = 8.0f,
@@ -1152,12 +1144,7 @@ struct EvaMagiInterior : sketch::Sketch {
           ab.lineTo(kPCX + p.fX, kPCY + p.fY);
       }
       const SkPath arcp = ab.detach();
-      Element run = box().inset(0).fill(Fill::none()).shape([arcp](SkSize) {
-        // the callable is invoked on every layout, so its capture must survive
-        // each return
-        // NOLINTNEXTLINE(performance-no-automatic-move)
-        return arcp;
-      });
+      Element run = box().inset(0).fill(Fill::none()).shape(heldPath(arcp));
       if (seg % 2)
         run.stroke(beadBrush);
       else
@@ -1178,10 +1165,7 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([arcp](SkSize) { return arcp; })
+                  .shape(heldPath(arcp))
                   .stroke(lines::Rails{
                       .rails = {{.across = 6.0f,
                                  .width = 4.0f,
@@ -1218,10 +1202,7 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([fan](SkSize) { return fan; })
+                  .shape(heldPath(fan))
                   .stroke(PathFormat{.width = 0.8f,
                                      .strokeFill = Fill::color(scaleRgb(
                                          hex(0xD08A9A), magi::kBack))}));
@@ -1240,10 +1221,7 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([comb](SkSize) { return comb; })
+                  .shape(heldPath(comb))
                   .stroke(lines::Line{.width = 1.8f,
                                       .fill = Fill::color(magi::kPPin)}));
       SkPathBuilder rb;
@@ -1255,10 +1233,7 @@ struct EvaMagiInterior : sketch::Sketch {
       g.child(box()
                   .inset(0)
                   .fill(Fill::none())
-                  // the callable is invoked on every layout, so its capture
-                  // must survive each return
-                  // NOLINTNEXTLINE(performance-no-automatic-move)
-                  .shape([ladder](SkSize) { return ladder; })
+                  .shape(heldPath(ladder))
                   .stroke(lines::Line{.width = 0.8f,
                                       .fill = Fill::color(magi::kPChart),
                                       .midCap = lines::Cap::Arrow,
@@ -1447,7 +1422,10 @@ struct EvaMagiInterior : sketch::Sketch {
     // wave are the ones already chosen above.
     tissue.child(box()
                      .inset(0)
-                     .shape([](SkSize s) {
+                     // The folds are a function of the card's size and of
+                     // nothing else, so the drawing has one identity and the
+                     // node settles on it.
+                     .shape(keyedShape(std::string_view("sulci"), [](SkSize s) {
                        const float w = s.width(), h = s.height();
                        SkPathBuilder b;
                        // the longitudinal fissure
@@ -1465,7 +1443,7 @@ struct EvaMagiInterior : sketch::Sketch {
                                   h * (y + 0.07f));
                        }
                        return b.detach();
-                     })
+                     }))
                      .stroke(lines::Line{.width = 1.6f,
                                          .fill = Fill::color(hex(0x4A2E1E)),
                                          .waveAmplitude = 1.5f,
@@ -1522,10 +1500,7 @@ struct EvaMagiInterior : sketch::Sketch {
                                                hex(0x0B060B), 0.88f, 3.0f))
                        .inset(0)
                        .onPath(TextPath{
-                           // the callable is invoked on every layout, so its
-                           // capture must survive each return
-                           // NOLINTNEXTLINE(performance-no-automatic-move)
-                           .path = [stencilArc](SkSize) { return stencilArc; },
+                           .path = heldPath(stencilArc),
                            .at = 0.5f,
                            .align = TextPath::Align::Center,
                            .orient = TextPath::Orient::Tangent})));
