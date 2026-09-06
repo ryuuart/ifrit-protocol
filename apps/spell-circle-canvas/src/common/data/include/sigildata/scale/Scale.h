@@ -52,15 +52,20 @@ enum class Transform {
   Linear,
   /** Position proportional to the logarithm of the value in `base`.
    *  A domain that touches or crosses zero has no logarithm and every
-   *  answer from such a scale is not a number. */
+   *  answer from such a scale is not a number, as does a base that is
+   *  not above zero and away from one. */
   Log,
-  /** Position proportional to `sign(v) * |v|^exponent`. */
+  /** Position proportional to `sign(v) * |v|^exponent`. An `exponent` of
+   *  zero carries every value onto the same point and answers not a
+   *  number. */
   Pow,
   /** `Pow` at exponent 0.5, named because an area read as a radius is
    *  the reason a square-root axis exists. */
   Sqrt,
   /** Logarithmic away from zero and linear within `threshold` of it, so
-   *  a domain holding zero and both signs still spreads. */
+   *  a domain holding zero and both signs still spreads. A `threshold`
+   *  that is not above zero leaves no linear stretch and answers not a
+   *  number. */
   Symlog,
   /** Linear in seconds. Only `ticks()` differs: they land on second,
    *  minute, hour and day multiples rather than on powers of ten. */
@@ -70,7 +75,10 @@ enum class Transform {
    *  values. */
   Quantize,
   /** The domain cut at the values in `thresholds`; the answer is the
-   *  slot's position. `thresholds.size() + 1` slots. */
+   *  slot's position. `thresholds.size() + 1` slots. The cuts are read
+   *  in the order given and a value's slot is how many leading cuts it
+   *  is at or past, so a list that does not ascend cuts the domain into
+   *  slots that overlap. */
   Threshold,
   /** An index in [0, steps) spread evenly across the range, first entry
    *  at `range.low` and last at `range.high` — the plain reading of
@@ -129,12 +137,14 @@ struct Scale {
   Transform transform = Transform::Linear;
   Overflow overflow = Overflow::Extend;
 
-  /** `Log`: the base whose logarithm the position is proportional to. */
+  /** `Log`: the base whose logarithm the position is proportional to.
+   *  Above zero and not one; a ladder needs it above one. */
   double base = 10.0;
-  /** `Pow`: the exponent. `Sqrt` ignores it and uses 0.5. */
+  /** `Pow`: the exponent. Not zero, which would carry every value onto
+   *  the same point. `Sqrt` ignores it and uses 0.5. */
   double exponent = 1.0;
   /** `Symlog`: the distance from zero within which the mapping is
-   *  linear. */
+   *  linear. Above zero. */
   double threshold = 1.0;
   /** `Quantize`: how many bands the domain is cut into. `Ordinal`,
    *  `Band` and `Point`: how many entries there are. */

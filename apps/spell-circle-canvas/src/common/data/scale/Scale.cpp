@@ -101,11 +101,33 @@ bool banded(Transform transform) {
   return transform == Transform::Quantize || transform == Transform::Threshold;
 }
 
+constexpr double kNoAnswer = std::numeric_limits<double>::quiet_NaN();
+
+/** Whether a transform's own prop is one it has a mapping for: a base
+ *  has a logarithm above zero and away from one, an exponent that is
+ *  zero flattens the domain onto a point it cannot be inverted off, and
+ *  a threshold is the distance from zero the mapping is linear within.
+ *  A prop outside that answers not a number, the way a domain that
+ *  touches zero does on a logarithmic axis. */
+bool usable(const Scale& scale) {
+  switch (scale.transform) {
+    case Transform::Log:
+      return scale.base > 0.0 && scale.base != 1.0;
+    case Transform::Pow:
+      return scale.exponent != 0.0;
+    case Transform::Symlog:
+      return scale.threshold > 0.0;
+    default:
+      return true;
+  }
+}
+
 /** The domain value carried onto the axis the position is proportional
  *  to. Every continuous transform is this one function plus its
  *  inverse; the mapping itself is then the same division in every
  *  case. */
 double forward(const Scale& scale, double value) {
+  if (!usable(scale)) return kNoAnswer;
   switch (scale.transform) {
     case Transform::Log:
       return std::log(value) / std::log(scale.base);
@@ -122,6 +144,7 @@ double forward(const Scale& scale, double value) {
 }
 
 double backward(const Scale& scale, double axis) {
+  if (!usable(scale)) return kNoAnswer;
   switch (scale.transform) {
     case Transform::Log:
       return std::pow(scale.base, axis);
@@ -279,6 +302,7 @@ double Scale::stepWidth() const {
 
 double Scale::tickStep(int count) const {
   if (discrete(transform) || banded(transform)) return 0.0;
+  if (!usable(*this)) return 0.0;
   const double low = std::min(domain.low, domain.high);
   const double high = std::max(domain.low, domain.high);
   if (transform == Transform::Time) return readableTimeStep(low, high, count);
@@ -301,6 +325,9 @@ std::vector<double> Scale::ticks(int count) const {
       values.push_back(domain.low + domain.extent() * (double(i) / n));
     return values;
   }
+  // A ladder is a set of values on the axis, and a transform with no
+  // mapping has no axis to put them on.
+  if (!usable(*this)) return values;
 
   const double low = std::min(domain.low, domain.high);
   const double high = std::max(domain.low, domain.high);
@@ -346,6 +373,7 @@ std::vector<double> Scale::ticks(int count) const {
 Scale Scale::nice(int count) const {
   Scale niced = *this;
   if (discrete(transform) || banded(transform)) return niced;
+  if (!usable(*this)) return niced;
 
   double low = std::min(domain.low, domain.high);
   double high = std::max(domain.low, domain.high);

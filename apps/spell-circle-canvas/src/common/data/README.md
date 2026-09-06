@@ -232,9 +232,25 @@ wrapped in double quotes, a quoted field may hold the delimiter, a
 newline and a quote written twice. An unquoted field's surrounding space
 is layout and is dropped — `a, b` is two fields, not one of them
 beginning with a space — and a quoted field's is its own and is kept. A
-thousands separator is read only in the exact shape `1,234,567`, because
-a lone comma between digits is a decimal point in half the world and
-guessing which would silently multiply a value by a thousand.
+quote that is never closed runs to the end of the text, because a
+truncated download is still worth the rows above the cut. A thousands
+separator is read only in the exact shape `1,234,567`, because a lone
+comma between digits is a decimal point in half the world and guessing
+which would silently multiply a value by a thousand. A line ends at a
+newline, at a carriage return, or at the pair.
+
+A number may carry either sign, and `nan` and `inf` in any case are
+numbers as well, so a `nan` cell is a missing cell in a number column. A
+number too big for a double is not one: rounding it to infinity would be
+a different number, so its column is text and the digits survive.
+
+**No two columns share a name.** A second column of a name replaces the
+first, so a header that writes one name twice, or a record of lists with
+a repeated key, would lose the earlier column's data. Both decoders
+number the repeats by their occurrence instead — `name`, `name_2` — and
+keep counting past a suffix the source already used, so every column of
+a file survives decoding. An empty header name is the column's 1-based
+position, which is also how a file read with no header is named.
 
 **A rectangle is a table; a nesting is a `Json`.** JSON is published in
 three rectangular shapes and `tableFromJson` reads all three: a list of
@@ -243,7 +259,12 @@ lists (one column each), and a list of lists (columns named by
 position). A cell holding a list or a record of its own has no place in
 a rectangle and is missing — that document is a `Json`, which is
 nested, ordered, comparable and copyable, and whose lookups answer a
-shared null rather than crashing when a member is not there.
+shared null rather than crashing when a member is not there. A record
+that writes one key twice keeps both members and answers the first,
+since dropping one would be an edit to somebody else's document. A lone
+number, string, boolean or null is a document too, and holds no
+rectangle; text that is not valid UTF-8, or that nests deeper than the
+parser reads, is no document at all.
 
 **The table is as long as its longest column.** A column shorter than
 that reads as missing past its end rather than as a row that is not
@@ -255,6 +276,18 @@ there, so a file with a short last line is still a table.
 mapping from such a scale is not a number, and `ticks()` and `nice()`
 answer nothing and leave the domain alone. `Symlog` is what a domain
 holding zero and both signs wants instead.
+
+A transform's own prop reads the same way when it is one the transform
+has no mapping for — a `base` that is not above zero and away from one, a
+`Pow` `exponent` of zero, a `Symlog` `threshold` that is not above zero.
+Every mapping is not a number, `ticks()` answers nothing and `nice()`
+leaves the domain alone, so the three read alike and a scale built from
+props that are still at zero draws nothing rather than drawing
+somewhere.
+
+`Threshold` reads its cuts in the order they are given: a value's slot
+is how many leading cuts it is at or past. A list that does not ascend
+therefore has slots that overlap, and it is the caller who sorts.
 
 `ticks(count)` is a request, never a promise of `count` values. Code
 that needs exactly n divisions wants `Band` or `Quantize` with
