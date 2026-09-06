@@ -9,10 +9,10 @@ host's copy looks exactly like a correct one until someone edits the file
 and nothing moves.
 
 So this drives the difference. A copy of a registry sketch is written
-with its ground colour replaced by one the original does not use, taken
-through `--frame`, and the corner pixel of the result must be that
-colour. The control is the same sketch drawn from the registry, whose
-corner must NOT be it: without that, a sketch whose ground already
+with a ground colour the original does not use written into its own
+theme, taken through `--frame`, and the corner pixel of the result must
+be that colour. The control is the same sketch drawn from the registry,
+whose corner must NOT be it: without that, a sketch whose ground already
 happened to be the fixture colour would pass while proving nothing.
 
 Usage (invoked by the build; the paths are all absolute):
@@ -32,12 +32,19 @@ from pathlib import Path
 # which no sketch in the registry uses as a ground and which survives the
 # encoder exactly.
 FIXTURE_RGBA = (255, 0, 0, 255)
-FIXTURE_LITERAL = "{1, 0, 0, 1}"
 
-# The constant the sketch's `ctx.background` names and its sheet grounds
-# with, matched by its declaration so a fixture that stops substituting
-# fails loudly here rather than silently rendering the original.
-GROUND_DECLARATION = re.compile(r"(SkColor4f\s+kGround)\{[^}]*\}")
+# Where the sketch builds its own theme. Its canvas and its page both
+# take their ground from that theme, so writing one colour into the
+# palette here grounds the whole picture. Matched by the line that opens
+# the theme, so a fixture that stops substituting fails loudly here
+# rather than silently rendering the original.
+THEME_OPENING = re.compile(
+    r"( *)sketch::kit::Theme (\w+) = sketch::kit::houseTheme\(\);"
+)
+FIXTURE_GROUND = (
+    r"\1sketch::kit::Theme \2 = sketch::kit::houseTheme();"
+    r"\n\1\2.palette.ground = {1, 0, 0, 1};"
+)
 
 
 def corner_pixel(png: Path) -> tuple[int, int, int, int]:
@@ -100,14 +107,13 @@ def main() -> None:
     # copy stands in a directory of its own, which is also the shape a
     # sketch outside this checkout has.
     original = args.source.read_text()
-    fixture_text, substitutions = GROUND_DECLARATION.subn(
-        r"\1" + FIXTURE_LITERAL, original
-    )
+    fixture_text, substitutions = THEME_OPENING.subn(FIXTURE_GROUND, original)
     if substitutions != 1:
         sys.exit(
-            f"{args.source}: expected one kGround declaration to ground the "
-            f"fixture with, found {substitutions} — the fixture needs a "
-            "sketch whose whole canvas is one named colour"
+            f"{args.source}: expected one theme built from houseTheme() to "
+            f"ground the fixture through, found {substitutions} — the "
+            "fixture needs a sketch whose whole canvas takes one theme's "
+            "ground"
         )
     fixture = work / args.source.name
     fixture.write_text(fixture_text)

@@ -48,16 +48,19 @@ constexpr float kCell = 250;        // the drawn square of one cell
 constexpr float kReach = 15;        // a strand's full mark width, px
 constexpr float kPatchRadius = 30;  // the cap on one patch's reach, px
 
-/** What the whole sheet stands on. It is the house ground stated as a
- *  constant because a hot-reload fixture grounds a copy of this file in
- *  a colour of its own and reads the corner pixel back: the file has to
- *  name that colour once and use it for both the canvas and the page. */
+/** Behind one cell's specimen, a shade off the sheet's own ground. */
 constexpr SkColor4f kCellGround{0.11f, 0.11f, 0.13f, 1};
 constexpr SkColor4f kCasing{0.05f, 0.05f, 0.06f, 1};
 constexpr SkColor4f kCore{0.86f, 0.80f, 0.66f, 1};
 constexpr SkColor4f kPin{0.92f, 0.36f, 0.30f, 1};
 
-/** The house sheet, in this one's own look. */
+/** The house sheet, in this one's own look.
+ *
+ *  A hot-reload fixture grounds a copy of this file in a colour of its
+ *  own by writing one into this theme's palette and reads the corner
+ *  pixel back, so the canvas and the page must both take their ground
+ *  from here — which they do, because the theme is bound before
+ *  `stage()` runs. */
 sketch::kit::Theme sheetTheme() {
   sketch::kit::Theme look = sketch::kit::houseTheme();
   look.type.captionLabel = {.size = 11.5f, .track = 0.6f};
