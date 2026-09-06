@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""
-Setup and build script for spell-circle-canvas.
+"""Setup and build script for spell-circle-canvas.
 
-Locates Qt and vcpkg, writes CMakeUserPresets.json, then configures and builds.
+Locates Qt and vcpkg, writes CMakeUserPresets.json, then configures and
+builds.
 
 Usage:
     python scripts/setup.py [--config Release|Debug] [--build-only] [--configure-only]
@@ -11,7 +11,9 @@ Besides the primary `main` preset (build/), the file carries one
 configure, build and test preset for each secondary tree — `coverage`,
 `asan`, `tsan` — so coverage.py and sanitize.py configure with
 `cmake --preset <name>` and CMake composes the toolchain, the Qt prefix
-and the instrumentation flags itself.
+and the instrumentation flags itself. What each search root is, what the
+composed presets carry and why each instrumentation flag is set is
+scripts/README.md.
 """
 
 import argparse
@@ -163,57 +165,15 @@ def find_substance() -> Path | None:
 # reading the primary tree's vcpkg_installed/ as-is with the manifest
 # install disabled so it never writes there and never duplicates the
 # dependency archives. Their test presets carry the runtime options the
-# tools need. Switching a tree's flags recompiles every object in it,
-# which is why each lane is a tree of its own; and vcpkg archives arrive
-# prebuilt and uninstrumented, so a coverage report covers this
-# repository's sources and a check that needs both sides instrumented
-# misfires across that boundary.
-#
-# Only the C++ flags are set. Every .mm in this tree compiles through the
-# C++ compiler, and SpellCircleMac's Swift sources go through swiftc,
-# which rejects these; src/spellcircle/mac/CMakeLists.txt takes them back
-# off that one executable's link line.
-#
-# -fno-omit-frame-pointer: reports unwind through frame pointers, and
-# without them the stacks in a report degrade to unusable fragments.
-#
-# -fno-sanitize-recover=undefined: UBSan's default is print-and-continue,
-# which lets a finding scroll past inside a passing test. Aborting makes a
-# UBSan finding fail the test that triggered it.
+# tools need. What each flag and each runtime option is for is
+# scripts/README.md.
 #
 # workaround: -include cmake/SkiaSanitizerAbi.h, for instrumented Skia
 # headers meeting an uninstrumented archive. The header states what the
 # pin is and what it costs.
-#
-# ASan runtime options:
-#   detect_leaks=0 — LeakSanitizer does not support macOS on Apple
-#     Silicon; with it left on the runtime aborts at startup before any
-#     test runs.
-#   detect_container_overflow=0 — the container-overflow check compares
-#     a container's size against annotations the contained memory only
-#     gets when the code that grew it was instrumented. vcpkg archives
-#     are not, so a std::string or vector that crossed the dependency
-#     boundary reports false overflows. Every other ASan check is
-#     unaffected by mixed instrumentation and stays on.
 # workaround: detect_container_overflow=0, for the uninstrumented vcpkg
 # archives. detect_leaks=0 beside it is a platform limitation, not a
 # dependency one.
-#
-# UBSan: stacks on every line, not just the first frame; without this a
-# report names a file:line and nothing about how execution got there.
-#
-# TSan runtime options:
-#   halt_on_error=1 — first race fails the test instead of accumulating a
-#     scroll of reports from the same root cause.
-#   second_deadlock_stack=1 — lock-inversion reports show both
-#     acquisition stacks, without which one side is a guess.
-#   suppressions — the dependencies whose ordering this lane cannot see,
-#     each with its reason written in the file. Nothing of this
-#     repository's own is in it.
-#
-# Coverage: %p (process id) keeps concurrently running tests from
-# clobbering one profile; %m (module signature) keeps profiles from
-# differently instrumented binaries apart so the merge stays well-formed.
 def instrumented(compile_flags: str, link_flags: str) -> dict[str, str]:
     """The cache variables that carry one instrumentation into a tree: the
     compile flags on C++, the link flags on every kind of binary."""

@@ -1,19 +1,12 @@
 #!/usr/bin/env python3
-"""
-Puts a downloaded archive into the vcpkg asset cache.
+"""Puts a downloaded archive into the vcpkg asset cache.
 
 Usage:
     python scripts/stage_asset.py <archive> [<archive> ...]
 
-vcpkg looks in the asset cache before it fetches anything, and finds a
-file there by the SHA-512 of its contents — the file's own name in the
-cache. That is what lets a port name an archive nobody can download
-without an account: the port declares the file name and the hash, the
-archive is staged here once per machine, and every configure after that
-resolves it locally.
-
 The hash this prints is the SHA512 the port's vcpkg_download_distfile
-declares.
+declares. Why the cache resolves a file by that hash is
+scripts/README.md.
 """
 
 import argparse

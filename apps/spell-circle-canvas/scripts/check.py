@@ -15,12 +15,8 @@ Usage (from anywhere in the repository):
                                # remains
   scripts/check.py FILE...     # check exactly these files
 
-Exit status is non-zero when any tool reports a finding. Every tool is
-required: a tool that is missing fails the run rather than passing it.
-
-Tool provenance, macOS: clang-format comes from the Xcode toolchain via
-xcrun; qmllint from the Qt prefix recorded in CMakeUserPresets.json by
-scripts/setup.py; ruff from PATH (brew install ruff).
+Exit status is non-zero when any tool reports a finding. Where each tool
+comes from and why every one of them is required is scripts/README.md.
 """
 
 import argparse

@@ -3,12 +3,10 @@
 binaries, compared against a committed baseline.
 
 Runs every `*_bench` binary the build produced — one per library, under
-bin/<config>/benches — (or the subset named with
---benches), each with Google Benchmark's JSON reporter and a fixed number
-of repetitions, takes the MEDIAN real time of every benchmark, and
-compares it against the baseline stored for the build configuration —
-printing IDENTICAL / FASTER / SLOWER rows and one verdict. The plate
-ledger does this for bytes; this does it for time.
+bin/<config>/benches — (or the subset named with --benches), each with
+Google Benchmark's JSON reporter and a fixed number of repetitions,
+takes the MEDIAN real time of every benchmark, and compares it against
+the baseline stored for the build configuration.
 
 Usage (from apps/spell-circle-canvas):
   scripts/bench_ledger.py --rebase              # bake the baseline
@@ -16,40 +14,8 @@ Usage (from apps/spell-circle-canvas):
   scripts/bench_ledger.py --benches weave_bench geometry_bench
   scripts/bench_ledger.py --config Release --repetitions 7 --min-time 0.2
 
-HOW A NUMBER IS TAKEN. Each benchmark runs --repetitions times (default
-5), every repetition long enough to satisfy --min-time (default 0.1 s)
-after a warm-up period (--warmup, default 0.1 s) that is never timed.
-The first repetition is discarded as well — it is the one that pays for
-page faults, lazily built caches and frequency ramp — and the median of
-the remaining repetitions is the number. Real (wall-clock) time is what
-is compared, since it is what a frame budget is spent in; CPU time is
-kept in the baseline for reference but never judged.
-
-HOW A NUMBER IS JUDGED. Each benchmark has a tolerance band, ±10 % by
-default; a benchmark whose noise is honestly wider is given its own band
-by name in TOLERANCES below rather than widening everyone's. Within the
-band a row is IDENTICAL, below it FASTER, above it SLOWER, and any SLOWER
-row fails the run. A benchmark the baseline has never seen is NEW and a
-baseline entry no run produced is MISSING; neither fails the run, since
-the fix for both is --rebase.
-
-THE MACHINE MUST BE QUIET. Timing wants the opposite conditions from
-hashing: the binaries run one at a time (--jobs 1, the default, and the
-only setting whose numbers mean anything), and a build, a browser or a
-sync client running beside them corrupts every number. A SLOWER row on a
-busy machine is the machine, not the code — rerun the bench alone before
-reading it as a finding.
-
-THE BASELINE IS COMMITTED under bench/baseline_<config>.json. --rebase
-writes the file from this sweep, and A NARROWED SWEEP MERGES: with
---benches it keeps the binaries it did not run, with --filter it keeps
-the arms of a binary it did not select, and with both it keeps both.
-Adopting one deliberately changed number never discards a number this
-run did not take — those would come back as `new`, judged against
-nothing, which is worse than the change being visible. The rebase says
-per binary how many arms it adopted and how many it kept. Only an
-unnarrowed sweep writes the file wholesale, which is what drops a
-benchmark that no longer exists.
+How a number is taken, how it is judged, why each widened band stands
+where it does and what a narrowed rebase keeps is scripts/README.md.
 """
 
 import argparse

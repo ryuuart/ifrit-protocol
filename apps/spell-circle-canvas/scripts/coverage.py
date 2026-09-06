@@ -2,14 +2,10 @@
 """Source-based code coverage, as ONE command: build, test, merge, report.
 
 Configures a dedicated instrumented tree (build-coverage/) through the
-`coverage` preset that scripts/setup.py writes into CMakeUserPresets.json
-(the `main` composition plus the coverage flags), builds the test
-targets, runs ctest through the matching test preset — whose environment
-points every test process at its own raw profile — merges the raw
-profiles with llvm-profdata, and prints the llvm-cov summary plus an HTML
-report under build/coverage/html/ — in the PRIMARY build directory,
-beside the other build artifacts. Each run replaces the report wholesale,
-and RUN.txt beside it records the invocation and scope that produced it.
+`coverage` preset that scripts/setup.py writes into CMakeUserPresets.json,
+builds the test targets, runs ctest through the matching test preset,
+merges the raw profiles with llvm-profdata, and prints the llvm-cov
+summary plus an HTML report under build/coverage/html/.
 
 Usage (from apps/spell-circle-canvas):
   scripts/coverage.py                                # full suite
@@ -17,28 +13,8 @@ Usage (from apps/spell-circle-canvas):
   scripts/coverage.py --export-lcov coverage.lcov    # for CI consumers
   scripts/coverage.py --open                         # open the HTML index
 
-The primary build/ tree is never touched. Instrumented objects live only
-in build-coverage/, and the preset reads the primary tree's
-vcpkg_installed/ as-is with the manifest install disabled, so the
-coverage tree never duplicates the dependency archives. Prebuilt
-dependencies carry no coverage mapping, which is deliberate — the report
-covers this repository's sources.
-
-With --filter, only the targets those tests need are built (derived from
-the filtered test list; override with --targets). A full run builds
-everything, so the first one costs a complete instrumented build; later
-runs rebuild incrementally. Coverage of test sources themselves is
-excluded by default (test code exercising test code is noise); pass
---include-tests to count it.
-
-The pipeline is Clang's, not Apple's. A Windows port built with clang-cl
-keeps it unchanged — the same instrumentation flags, the same
-llvm-profdata/llvm-cov from an LLVM distribution; only the tool locator
-differs (xcrun pins the Xcode toolchain on macOS, LLVM_ROOT or PATH
-resolves the tools elsewhere). MSVC's cl.exe has no source-based
-coverage; the alternative there is OpenCppCoverage, PDB-based binary
-instrumentation of an ordinary build — deliberately not integrated until
-Windows binaries exist to run it on.
+Why the tree is its own, what the report leaves out and how the llvm
+tools are resolved is scripts/README.md.
 """
 
 import argparse
@@ -69,11 +45,8 @@ IGNORE_ALWAYS = [
     r"SpellCircle_generated\.h",
 ]
 
-# Test sources live in directories named test/ or tests/; excluded from
-# the report unless --include-tests asks for them. Both spellings are
-# matched because a directory that moved or was named the other way would
-# otherwise start counting toward coverage silently, and a regression
-# that shows up as a BETTER number is one nobody goes looking for.
+# Test sources, left out of the report unless --include-tests asks for
+# them. Both spellings are matched.
 IGNORE_TEST_SOURCES = [r"/tests?/"]
 
 

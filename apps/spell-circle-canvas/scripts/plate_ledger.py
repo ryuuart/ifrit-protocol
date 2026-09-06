@@ -3,14 +3,9 @@
 
 Renders every sketch through `Sketchbook --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time, hashes the plates,
-and compares against a stored baseline manifest. One binary renders
-both tiers; what separates them is which rasteriser a sketch draws
-through.
-
-Thumbnails are not this script's to write. Sketchbook owns the stills it
-shows — it renders them on demand into its own cache and warms them with
-`Sketchbook --thumbnails` — so the ledger renders plates for the verdict
-and nothing else.
+and compares against a stored baseline manifest. One binary renders all
+three tiers; what separates them is which rasteriser a sketch draws
+through and what the runtime's promoter is allowed to do.
 
 Usage (from apps/spell-circle-canvas):
   scripts/plate_ledger.py --rebase           # bake the baseline manifest
@@ -22,153 +17,13 @@ Usage (from apps/spell-circle-canvas):
                                              # separate flappers from code
   scripts/plate_ledger.py --tier device      # the same sketches on the GPU
   scripts/plate_ledger.py --tier promotion   # …and with the promoter let go
-  scripts/plate_ledger.py --jobs 6 --config Release
 
-THREE TIERS (--tier):
-
-  cpu (default) — every sketch stepped from t=0 to its DECLARED capture
-  moment and rasterised on the CPU: a canvas sketch through Skia's CPU
-  backend, a set through SigilGeometry's CPU mesh executor. A plate is
-  then a function of the declaration alone, so BYTE IDENTITY IS THE BAR:
-  a clean sweep is the byte-neutrality verdict, against ONE manifest,
-  build/plate_baseline_<config>.sha256, keyed by registry name and
-  covering both kinds. `--rebase` adopts. A sweep narrowed by --kind,
-  --sketch or --scenes merges into the manifest rather than truncating
-  it: adopting one deliberately changed plate must not discard the
-  baseline for every scene the sweep did not render. Only an unnarrowed
-  sweep writes the file wholesale, which is what drops a scene that no
-  longer exists.
-
-  device — the same sketches rendered through the device (--gpu) and
-  judged against the CPU plate of the same run, per colour channel
-  within stated ceilings. It has no baseline: both plates are made in
-  this run, so nothing is kept between runs and --rebase is refused.
-
-  WHY A DISTANCE AND NOT A HASH. A device plate is not a function of
-  the drawing code alone. For a set the two tiers are two rasterisers:
-  the host paints shaded vertices through a per-triangle sort with
-  Skia's antialiasing; the device rasterises the same shading through a
-  depth buffer with none. They agree about what the scene is and they
-  differ along every edge, and a post pass's blur is a box approximation
-  on one side and a separable Gaussian on the other. Asking for equal
-  bytes would fail on the first pixel and tell no one anything.
-
-  WHAT IS MEASURED, per colour channel in 0..255 over every pixel:
-
-    mean   the average absolute difference. This is the number that says
-           the two pictures ARE the same picture — a scene drawn wrong
-           on one tier moves it immediately.
-    p99    the value 99 channels in a hundred stay under, which says the
-           disagreement is CONFINED rather than spread.
-    max    the worst channel anywhere. It is an edge, or a body a
-           centroid sort ranked wrongly on the host and a depth buffer
-           ranked rightly on the device, and it is reported rather than
-           judged.
-
-  A sketch names its own mean and p99 ceilings in GPU_TOLERANCE below,
-  set from what the two tiers actually do rather than from a wish. A
-  sketch with no entry there is judged by DEFAULT_GPU_TOLERANCE.
-
-  It SKIPS cleanly with no device: `--gpu` reports that it found none,
-  the tier says so and exits 0, because a machine with no device runtime
-  has nothing to disagree about.
-
-  promotion — the same scenes rendered twice on the CPU, once with
-  automatic texture promotion held off and once with it on, judged
-  against each other. It has no baseline either: the held-off render of
-  the same run is the reference.
-
-  THE BAR IS ONE CODE VALUE, and it is not a tolerance anyone chose. A
-  promoted node is baked under the live matrix post-translated by an
-  integer; inverting that matrix to find a shader's local coordinates
-  does not cancel the integer to the last bit at a scale whose
-  reciprocal is inexact, so a shaded pixel can land one code value from
-  the live paint and nothing may land further. A worst channel over 1
-  is a picture that MOVED — a bake somewhere else, rasterised against
-  another clip, or gone stale — and it is a defect to file against the
-  promoter rather than a plate to adopt.
-
-  IT EXISTS BECAUSE NOTHING ELSE EXERCISES THE PROMOTER. A headless
-  session is opened deterministic and a deterministic session holds
-  promotion off, so every other tier renders the one renderer feature
-  with the feature switched out.
-
-  IT PROMOTES EAGERLY, so the tier tests THE SAME NODE SET ON EVERY
-  MACHINE. The runtime's own promotion rule is a stopwatch — a node is
-  baked once its paint has measured over a millisecond for eight
-  consecutive frames — so left to itself this tier reports whatever the
-  machine's load happened to promote, which on an idle one is nothing at
-  all. `--promotion` asks the runtime to bake every node its rules admit,
-  from the first frame, whatever the node costs. Nothing about what a
-  bake may do changes; the numbers below are therefore a measurement of
-  the scene rather than a floor on it, and they reproduce.
-
-The manifest lives in build/ (machine-local on purpose: plates are
-AA-deterministic per machine, not across machines), so a fresh checkout
-runs `--rebase` once before a sweep can judge anything.
-
-THE PLATES THEMSELVES ARE KEPT, beside the manifest, under
-build/plates_<config>/ — one directory per tier, one PNG per scene,
-overwritten rather than accumulated, and never committed because build/
-is ignored. `baseline/` holds what the manifest was baked from and is
-overwritten on rebase; `cpu/` holds what the last judging sweep
-rendered; the two comparing tiers keep both of their halves
-(`device/cpu`, `device/gpu`, `promotion/off`, `promotion/on`). A hash
-says a scene MOVED and stops there, so the two plates behind the two
-hashes have to survive the run for anyone to see WHERE it moved:
-`Sketchbook --compare build/plates_<config>/baseline
-build/plates_<config>/cpu` differences them channel by channel, and the
-verdict prints that line under the movers together with each mover's two
-files. Every render a
-hash judges carries --no-promotion: automatic texture promotion re-bakes
-by a measured per-frame cost, which load can tip either way, so it is
-the one renderer feature a byte-identity gate must hold off — with it
-off, hashes are load-immune. The promotion tier is the one that turns it
-back on, and it judges by distance for exactly that reason.
-
-EVERY SCENE PRINTS ONE LINE AS IT FINISHES — its running count, how it
-stands against the baseline, its name and what it took — in COMPLETION
-order, so the scene the sweep is still waiting on is the one that has not
-printed yet. The summary and the VERDICT below them are the report; the
-per-scene lines are the sweep saying what it is doing while it does it.
-
-Every scene render runs under a per-scene ceiling (--timeout-seconds,
-default 300 s). A scene still running at the ceiling is killed and
-reported FAILED-TIMEOUT by name while the rest of the sweep continues:
-one runaway scene must not hang the verdict that protects everything
-else. There is no per-scene override: a scene over the budget fails by
-name, because an exception would assert that one scene's cost cannot be
-reduced, which a declared cache and an earlier settled capture moment
-almost always disprove.
-
-A SKETCH THIS MACHINE CANNOT RENDER IS SKIPPED BY NAME. A sketch written
-over an optional SDK is only compiled in where that SDK was found, and
-the data the SDK needs at run time — a resource folder, the SDK's own
-sample archives — can still be absent on the machine running the binary.
-The registry answers for that rather than the sweep guessing: `--list`
-marks such a sketch with what it is missing, both tiers print SKIPPED
-and the reason, and no plate is rendered, hashed or judged. A skip is
-not a failure and not a mover.
-
-SO THE PLATES FOR THOSE SCENES EXIST ONLY WHERE THE SDK DOES. A baseline
-holding one was rebased on a machine that had the SDK; a machine without
-it skips the scene rather than reporting a plate it is missing. A rebase
-that could not ask a scene anything keeps the baseline line already
-there instead of discarding it, so running --rebase on the smaller
-machine does not delete what the larger one recorded.
-
-THERE IS NO LIST OF SCENES ALLOWED TO MOVE. Every mover is a finding
-until it is shown to be one, and the showing is `--stability N`: a scene
-that disagrees with ITSELF across N+1 renders is attributed to the scene
-rather than to the change under test. A list would have to be believed;
-this is measured on the machine in front of you, every time.
-
-A sketch that draws a number it measured about its own execution — a
-build time, a bake cost, a live node count — would be a scene like that
-by construction, so the renderer pins those: a headless session is opened
-with `ctx.deterministic` set, and `ctx.measured(value, pinned)` returns
-the pinned number. A sketch that reads a clock and does not go through
-`measured()` is the one thing `--stability` still has to catch.
+What each tier judges, what it refuses and why each ceiling stands where
+it does is scripts/README.md; this refuses to keep a second copy of it.
+The judgement is here because a ceiling is a tolerance about a machine
+and not a fact about two files: the manifest, the tolerances, the
+promotion ceiling and --stability are what this owns, and decoding,
+differencing and thumbnailing plates is Sketchbook's.
 """
 
 import argparse
@@ -195,73 +50,32 @@ RENDER_ARGS = ("--ledger",)
 PROMOTION_OFF = ("--no-promotion",)
 PROMOTION_ON = ("--promotion",)
 
-# HOW FAR A SKETCH'S DEVICE PLATE MAY STAND FROM ITS CPU PLATE: (mean,
+# How far a sketch's device plate may stand from its CPU plate: (mean,
 # p99) per colour channel in 0..255. Set from what the two tiers actually
 # do, and tightened when one of them gets closer to the other rather than
-# loosened when a change moves them apart.
-#
-# first_light is the looser of the two, for two reasons its picture makes
-# unusually large. A comet of twelve hundred stamped beads is nothing but
-# silhouettes, and the host antialiases those edges where the device does
-# not. And a broad ground plate is FOUR vertices wide: the host clamps
-# each shaded vertex to a byte and interpolates the bytes, the device
-# interpolates the shading and clamps per pixel, and across a quad that
-# large the two readings drift mildly apart everywhere at once.
-# glow_trail's picture has neither, and the two tiers stand a per-channel
-# unit or two apart over almost all of it — its worst channel is where a
-# centroid sort puts a far post behind the plate on the host and the
-# depth buffer puts it in front on the device, which is the host being
-# wrong rather than the device.
+# loosened when a change moves them apart. What each entry is answering
+# is the table in scripts/README.md.
 DEFAULT_GPU_TOLERANCE = (12.0, 128)
 GPU_TOLERANCE = {
     "first_light": (10.0, 96),
     "glow_trail": (4.0, 32),
-    # material_lab is the loosest entry here, and it is the one study
-    # whose two tiers are MEANT to disagree. Its five cards are chosen
-    # because the device shades them — a stack composed through a mask, a
-    # normal map, a packed roughness-and-metallic map, an emission — and
-    # the CPU tier can read a base colour and a base-colour map and
-    # nothing else, so on four of the five the two pictures are simply
-    # different pictures. That is what puts the p99 where it is: at the
-    # 99th channel the disagreement is the study's whole subject. The
-    # mean is still the number that says a card landed where it belongs,
-    # and it is held near what the two tiers actually produce. On top of
-    # that the study carries the drift every 3D scene here has: a broad
-    # ground plane, where the two tiers' vertex-versus-pixel clamping
-    # parts company (see first_light above), wearing a check repeated
-    # five times across itself and seen nearly edge on, which the two
-    # tiers minify differently everywhere at once.
     "material_lab": (10.0, 192),
-    # A still set under a ramping key is nearly all interior: the two
-    # tiers agree to a channel or two everywhere but the silhouettes.
     "key_light": (3.0, 32),
-    # A swept rail, a few gates and a dart on it are almost entirely
-    # smooth interior over an empty background, which is where the two
-    # tiers agree most closely of anything in this registry.
     "dart_flight": (2.0, 24),
-    # …and a densely packed cloud of flakes reads the same way for the
-    # opposite reason: every flake stands against its neighbour rather
-    # than against the background, so there is hardly a silhouette in the
-    # picture to disagree about.
     "deformed_cloud": (2.0, 24),
-    # A scatter thin enough to see through is the other extreme: nearly
-    # every lit pixel of it IS a silhouette edge, one rasteriser
-    # antialiases those and the other does not, and the p99 says so
-    # while the mean says the two are the same picture.
     "scattered_model": (4.0, 128),
-    # Four coloured lamps read as directions on the host and as
-    # attenuated emitters on the device, so the bodies between them are
-    # shaded from slightly different strengths — a low mean over a
-    # picture that is mostly dark, and a p99 at the lit edges.
     "lantern_room": (4.0, 64),
 }
 
 
-# HOW FAR A PROMOTED PLATE MAY STAND FROM THE SAME SCENE RENDERED WITH THE
-# PROMOTER HELD OFF: one code value on any channel of any pixel. It is not a
-# tolerance anyone chose — it is the whole of what an integer translation
-# under an inexact scale can cost a shaded pixel, so anything past it is a
-# picture that moved rather than a picture that rounded.
+# How far a promoted plate may stand from the same scene rendered with the
+# promoter held off: one code value on any channel of any pixel. It is not
+# a tolerance anyone chose. A promoted node is baked under the live matrix
+# post-translated by an integer, and inverting that matrix to find a
+# shader's local coordinates does not cancel the integer to the last bit at
+# a scale whose reciprocal is inexact — so a shaded pixel can land one code
+# value from the live paint and nothing may land further. Anything past it
+# is a picture that moved rather than a picture that rounded.
 PROMOTION_DRIFT_CEILING = 1
 
 
@@ -565,24 +379,10 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     one IS the reference, because the question is not what a sketch draws
     but whether the runtime's own re-baking changes it.
 
-    THE PROMOTED SET IS THE SCENE'S, NOT THE MACHINE'S. The `on` half
-    renders with the runtime's promotion policy set EAGER: every node the
-    rules admit is baked from its first frame, whatever it costs, instead
-    of whatever a stopwatch happened to find expensive under this run's
-    load. So the tier tests the same nodes on every machine, and all of
-    the promotable ones rather than the few slow ones.
-
-    THE BAR IS ONE CODE VALUE ANYWHERE. A promoted node is baked under the
-    live matrix post-translated by an integer, and inverting that matrix to
-    find a shader's local coordinates does not cancel the integer to the
-    last bit at a scale whose reciprocal is inexact — so a shaded pixel can
-    land one code value from the live paint and nothing may land further.
-    A worst channel over 1 is a picture that MOVED: the bake landed
-    somewhere else, or was rasterised against a different clip, or went
-    stale. That is a defect to file against the promoter, never a plate to
-    rebase — there is no baseline here to rebase into. Both halves are
-    kept, so a scene reported MOVED can be opened beside the plate it was
-    meant to match."""
+    THE BAR IS ONE CODE VALUE ANYWHERE, and a scene past it is a defect to
+    file against the promoter, never a plate to rebase — there is no
+    baseline here to rebase into. Both halves are kept, so a scene reported
+    MOVED can be opened beside the plate it was meant to match."""
 
     print("[promotion off]")
     _, off_errors = sweep(

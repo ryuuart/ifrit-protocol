@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Lifts the compiler flags for the sketch anchor TU into a response file.
 
-The single source of truth for how a sketch builds is the target graph
-itself, not a hand-maintained flag list: this reads the compilation
-database CMake writes, finds the entry for the anchor translation unit,
-strips the per-object bookkeeping, and writes what is left as a clang
-response file — one argument per line.
+Reads the compilation database CMake writes, finds the entry for the
+anchor translation unit, strips the per-object bookkeeping, and writes
+what is left as a clang response file — one argument per line. Why the
+database is the right seam is scripts/README.md.
 
 Usage (invoked by the build; the paths are all absolute):
   scripts/extract_sketch_flags.py --compdb build/compile_commands.json \\

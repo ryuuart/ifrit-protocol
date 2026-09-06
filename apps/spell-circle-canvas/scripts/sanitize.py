@@ -5,10 +5,7 @@ Configures a dedicated tree — build-asan/ for the default ASan+UBSan
 lane, build-tsan/ with --thread — through the `asan` or `tsan` preset
 that scripts/setup.py writes into CMakeUserPresets.json, builds the test
 targets, and runs ctest through the matching test preset, whose
-environment carries the sanitizer runtime options. The two lanes are
-separate trees because ASan and TSan cannot share a process, and
-separate from build-coverage/ because each cache variable change
-recompiles everything it touches.
+environment carries the sanitizer runtime options.
 
 Usage (from apps/spell-circle-canvas):
   scripts/sanitize.py                                # ASan+UBSan, full suite
@@ -19,35 +16,12 @@ Usage (from apps/spell-circle-canvas):
 ONE LANE ON DISK AT A TIME. A sanitized tree is a whole second build of
 everything the tests reach, and it is worth nothing once the tests have
 had their verdict: the run deletes its own tree as its last act, pass or
-fail. --keep holds it — for rerunning one test under a debugger, or
-reading a report against the objects that produced it — at the price of
-carrying that tree until it is removed by hand. So a lane REFUSES TO
-START while the other lane's tree stands: the two never share the
-machine, and a tree that outlived its run is always a --keep somebody
-has to decide about rather than something to silently build beside.
+fail, and refuses to start while the other lane's tree stands. --keep
+holds one for a debugger, at the price of carrying it until it is
+removed by hand. A configure or build failure leaves the tree standing.
 
-A configure or build failure leaves the tree standing on purpose. Only a
-finished ctest run is a verdict, and only a verdict makes the tree
-disposable; a build that did not get that far is one to look at.
-
-The primary build/ tree is never touched, and no dependency is added:
-the sanitizer runtimes ship with the compiler, and the preset reads the
-primary tree's vcpkg_installed/ as-is with the manifest install
-disabled. Those archives are uninstrumented, which still catches this
-repository's bugs (the interceptors wrap every allocation and libc call
-regardless of who compiled the caller); the casualties are three, all
-of them the same boundary: a check that needs both sides instrumented,
-disabled in the test preset's ASAN_OPTIONS; dependency headers that
-change their own layout under instrumentation, which the build pins
-back to what the archives were compiled with; and a dependency whose
-headers this tree instantiates too, whose accesses the thread lane
-therefore sees while the ordering compiled into its archive stays
-invisible — those go in ThreadSanitizerSuppressions.txt, one entry per
-dependency, each stating why the ordering is real.
-
-With --filter, only the targets those tests need are built (derived from
-the filtered test list; override with --targets). A failing test prints
-its full output, sanitizer report included, and the run exits nonzero.
+What the uninstrumented vcpkg archives cost this lane, and why each
+runtime option is set, is scripts/README.md.
 """
 
 import argparse

@@ -7,9 +7,7 @@ size and device pixel ratio, presents each registry sketch for a stretch
 after a warm-up, and prints one WINDOW line per sketch. This reads those
 lines and judges the PRESENTED frame rate against the baseline stored for
 the build configuration, printing IDENTICAL / FASTER / SLOWER rows and
-one verdict. The plate ledger does this for bytes and the bench ledger
-for isolated timings; this does it for what the window actually put on
-screen.
+one verdict.
 
 Usage (from apps/spell-circle-canvas):
   scripts/app_fps_ledger.py --rebase          # bake the baseline
@@ -17,34 +15,8 @@ Usage (from apps/spell-circle-canvas):
   scripts/app_fps_ledger.py --sketch first_light
   scripts/app_fps_ledger.py --kind set --seconds 4
 
-WHAT THIS MEASURES THAT `--bench` CANNOT. The frame-time gate renders
-onto a raster surface at the sketch's declared size and presents nothing
-— it is the sketch's own cost isolated, which is what makes it a gate.
-Here the frame is drawn through the surface the window presents, at the
-window's pixels and its device pixel ratio, and the numbers carry the
-host's own overhead: the submit or texture upload that puts the frame on
-screen, and for a set the device readback and blit its paint phase
-performs. So the two answer different questions and neither replaces the
-other.
-
-WHAT A PRESENTED RATE IS BOUNDED BY. The compositor, which means the
-display. A sketch comfortably inside its budget reads at the refresh
-rate and says nothing more; the interesting rows are the ones BELOW it,
-and `work` beside them says how much of the frame was the sketch. A
-baseline is therefore per machine AND per display mode, and the file
-records the window size and scale it was taken at so a mismatch is
-visible rather than silently compared.
-
-THE MACHINE MUST BE QUIET, and the window must be able to present: this
-lane opens a real window and a compositor that is busy compositing
-something else is measured along with the sketch.
-
-THE BASELINE IS COMMITTED under bench/app_fps_<config>.json. --rebase
-writes it from this sweep, and A NARROWED SWEEP MERGES: with --sketch or
---kind it keeps the sketches it did not present, so adopting one
-deliberately changed number never discards a number this run did not
-take. Only an unnarrowed sweep writes the file wholesale, which is what
-drops a sketch that no longer exists.
+What this measures that a raster --bench cannot, what a presented rate
+is bounded by, and why the machine must be quiet is scripts/README.md.
 """
 
 import argparse

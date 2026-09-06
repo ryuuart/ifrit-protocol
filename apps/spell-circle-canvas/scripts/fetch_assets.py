@@ -17,17 +17,9 @@ The result lands in build/assets/, which the sketch host reads with
 compile definition. No build tree is needed: the script only writes
 files.
 
-Rules for anything added to the manifest below:
- * an OPEN licence, and the licence file is fetched alongside the asset;
- * pinned to an immutable commit, never a branch, so the URL cannot
-   change under the hash;
- * a sha256, so a changed byte is a hard failure and not a silent
-   substitution;
- * no game, film or museum rips. The studies reproduce GEOMETRY and
-   PALETTES, which are facts about a design; they do not ship its art.
-
-The downloader is shared: scripts/build_docs.py fetches the Doxygen
-theme through fetch() with a manifest of its own.
+The rules anything added to the manifest below has to meet are
+scripts/README.md. The downloader is shared: scripts/build_docs.py
+fetches the Doxygen theme through fetch() with a manifest of its own.
 """
 
 import argparse

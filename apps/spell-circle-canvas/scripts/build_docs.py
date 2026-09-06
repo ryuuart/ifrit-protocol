@@ -10,13 +10,8 @@ Usage (the `docs` and `docs-<Lib>` targets call it):
   scripts/build_docs.py --manifest build/docs-manifest.txt
   scripts/build_docs.py --manifest build/docs-manifest.txt --library SigilWeave
 
-Generation runs in TWO PASSES because the libraries reference each
-other's types in both directions — SigilWorld takes SigilGeometry's
-meshes, SigilCompose takes SigilMotion's animatables — and a Doxygen tag
-file can only be read after it has been written. The first pass writes
-every tag file and no HTML; the second reads all of them and writes the
-HTML. A single pass would resolve only the edges that happen to run in
-the order the libraries were registered.
+Why generation takes two passes, where the theme comes from and why the
+HTML header is generated rather than checked in is scripts/README.md.
 
 Everything used to produce a site — the rendered Doxyfiles, the tag
 files, the theme, the generated header — lands in the work directory,
