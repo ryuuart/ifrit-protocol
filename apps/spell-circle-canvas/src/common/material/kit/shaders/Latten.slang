@@ -5,9 +5,9 @@ float4 surface(float2 uv) {
   float3 c = along < 0.5 ? lerp(shadow.rgb, body.rgb, along * 2.0)
                          : lerp(body.rgb, light.rgb, (along - 0.5) * 2.0);
   float2 q = uv + seed * 37.0;
-  float t = fbm3G(q * toothScale);
-  c = grainedG(c, t, tooth);
-  float2 f = fleckG(q, max(patinaCell, 2.0), patina, seed);
+  float t = fbm(q * toothScale);
+  c = grained(c, t, tooth);
+  float2 f = fleck(q, max(patinaCell, 2.0), patina, seed);
   c = lerp(c, patinaColor.rgb, f.x * patinaColor.a);
   return float4(clamp(c, 0.0, 1.0), 1.0);
 }

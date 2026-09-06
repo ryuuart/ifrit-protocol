@@ -31,12 +31,25 @@
 #include <sigilmaterial/core/Target.h>
 
 #include <string>
+#include <string_view>
 
 namespace sigil::material {
 
 /** The terms as source in @p target, ready to be prepended to a body.
  *  Empty for a target that has no spelling of them. */
 const std::string& termsSource(Target target);
+
+/** ONE TEXT, TWO LANGUAGES: @p slang read as SkSL. The module line and
+ *  the export qualifiers come off, since SkSL has neither, and the two
+ *  intrinsics the languages spell differently — `frac` and `lerp` — are
+ *  written the way SkSL spells them. Everything else has to be spelled
+ *  the same in both, which is the constraint a source written for this
+ *  crossing accepts in exchange for being one source: no texture
+ *  sampling, no library transcendental whose two implementations could
+ *  part company, no construct one language has and the other does not.
+ *
+ *  Whole identifiers only, so a `fraction` or a `lerped` is left alone. */
+std::string skSLFromSlang(std::string_view slang);
 
 /** The names the terms answer to, so a composition can be read without
  *  opening the source: `lambert`, `blinn`, `specularColor`, `fresnel`,

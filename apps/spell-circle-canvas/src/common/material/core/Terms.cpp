@@ -6,6 +6,9 @@
 
 #include <sigilshaders/MaterialCore.h>
 
+#include <string>
+#include <string_view>
+
 namespace sigil::material {
 
 namespace {
@@ -16,12 +19,10 @@ namespace {
  *  renderer's scaffold and every material body compiled beside it. */
 std::string slangSource() { return std::string(shaderSource("Shading.slang")); }
 
-/** THE SAME TEXT AS A 2D PAINT TAKES IT. SkSL has no modules and no
- *  export qualifier; everything else in the term source is spelled the
- *  same in both languages, which is the constraint the source is written
- *  under and the whole reason two renderers can share one arithmetic. */
-std::string skSLSource() {
-  std::string out = slangSource();
+}  // namespace
+
+std::string skSLFromSlang(std::string_view slang) {
+  std::string out(slang);
   const auto strip = [&out](std::string_view what) {
     for (size_t at = out.find(what); at != std::string::npos;
          at = out.find(what, at))
@@ -29,14 +30,33 @@ std::string skSLSource() {
   };
   strip("module Shading;");
   strip("public ");
+
+  const auto isWord = [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_';
+  };
+  const auto rename = [&](std::string_view from, std::string_view to) {
+    for (size_t at = out.find(from); at != std::string::npos;
+         at = out.find(from, at)) {
+      const bool before = at > 0 && isWord(out[at - 1]);
+      const size_t after = at + from.size();
+      const bool behind = after < out.size() && isWord(out[after]);
+      if (before || behind) {
+        at = after;
+        continue;
+      }
+      out.replace(at, from.size(), to);
+      at += to.size();
+    }
+  };
+  rename("frac", "fract");
+  rename("lerp", "mix");
   return out;
 }
 
-}  // namespace
-
 const std::string& termsSource(Target target) {
   static const std::string kSlang = slangSource();
-  static const std::string kSkSL = skSLSource();
+  static const std::string kSkSL = skSLFromSlang(kSlang);
   switch (target) {
     case Target::Slang:
       return kSlang;

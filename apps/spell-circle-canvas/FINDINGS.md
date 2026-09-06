@@ -293,14 +293,7 @@ at front, middle and end, and the dropped `Blend.OklabMidGrayIsPerceptual`.
 
 ## SigilMaterial (findings/review-material.md)
 
-Should-fix (duplicates, docs): `core/shaders/Shading.slang:124` the
-shading terms duplicated line for line in `sigilgeometry/mesh/render/
-Shading.h` with no parity test; `kit/shaders/GrainedPrelude.slang`,
-`kit/shaders/NoisePrelude.sksl`, `field/shaders/Grain.sksl` three value
-noises in one library; `kit/shaders/Surface.sksl` ignores seven
-parameters the Slang body honours and the header says nothing. Files by
-subject: `texture/test/TextureTest.cpp` (690) and `kit/test/KitTest.cpp`
-(686).
+Should-fix: `texture/test/TextureTest.cpp` (690) split by subject.
 
 Tests missing: `Paint::sweep`, `Paint::conical`, `Paint::buffer` and
 `PixelBuffer`, MedianCut on degenerate input, harmonies across the 360/0

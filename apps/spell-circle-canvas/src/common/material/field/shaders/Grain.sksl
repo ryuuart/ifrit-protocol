@@ -1,4 +1,9 @@
-float valueNoise(float2 q) {
+// A SEEDED value noise, which is what makes it its own function rather
+// than the kit's: the seed enters the lattice hash, so two grains that
+// differ only by seed are different noise rather than the same noise
+// read at an offset — the fields a caller dials a seed on are exactly
+// the ones where an offset reads as the same texture slid sideways.
+float seededValueNoise(float2 q) {
   float2 c = floor(q);
   float2 f = fract(q);
   float2 w = f * f * (3.0 - 2.0 * f);
@@ -21,7 +26,7 @@ half4 main(float2 pos) {
   float total = 0.0;
   float amplitude = 0.5;
   for (int octave = 0; octave < kOctaves; ++octave) {
-    sum += amplitude * valueNoise(q);
+    sum += amplitude * seededValueNoise(q);
     total += amplitude;
     q *= 2.0;
     amplitude *= 0.5;

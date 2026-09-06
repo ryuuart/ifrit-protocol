@@ -1,18 +1,27 @@
 /** @file
- * The four grained bodies in each language a renderer speaks — the
- * shared prelude of hash, value noise, the luminance fold and the
- * lattice fleck, then the stone's bed, the timber's arrises and grain
- * lines, the latten's ladder and sheen, and the board's tooth and wear.
+ * The four grained bodies in each language a renderer speaks — the one
+ * prelude of hash, value noise, the luminance fold and the lattice
+ * fleck, then the stone's bed, the timber's arrises and grain lines, the
+ * latten's ladder and sheen, and the board's tooth and wear.
  */
 
 #include "sigilmaterial/kit/Grained.h"
 
+#include <sigilmaterial/core/Terms.h>
 #include <sigilshaders/MaterialKit.h>
 
 #include <string>
 #include <string_view>
 
+#include "NoisePrelude.h"
+
 namespace sigil::material::kit {
+
+const std::string& noisePrelude(Target target) {
+  static const std::string kSlang = std::string(shaderSource("Noise.slang"));
+  static const std::string kSkSL = skSLFromSlang(kSlang);
+  return target == Target::Slang ? kSlang : kSkSL;
+}
 
 namespace {
 
@@ -22,11 +31,10 @@ std::shared_ptr<const Recipe> define(const char* name,
   return std::make_shared<const Recipe>(
       Recipe::of<P>(name)
           .body(Target::SkSL,
-                std::string(shaderSource("NoisePrelude.sksl"))
-                    .append(shaderSource("GrainedPrelude.sksl"))
+                std::string(noisePrelude(Target::SkSL))
                     .append(shaderSource(std::string(shaderName) + ".sksl")))
           .body(Target::Slang,
-                std::string(shaderSource("GrainedPrelude.slang"))
+                std::string(noisePrelude(Target::Slang))
                     .append(shaderSource(std::string(shaderName) + ".slang"))));
 }
 

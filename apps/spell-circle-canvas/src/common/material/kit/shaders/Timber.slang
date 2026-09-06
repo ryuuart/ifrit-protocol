@@ -16,7 +16,7 @@ float4 surface(float2 uv) {
   c = lerp(c, dark.rgb, fig * figure);
   c = lerp(c, light.rgb, drift * 0.07);
   float k = max(stretch, 0.01);
-  float t = fbm3G((xy + s * 53.0) * float2(toothScale / k, toothScale * k));
-  c = grainedG(c, t, tooth);
+  float t = fbm((xy + s * 53.0) * float2(toothScale / k, toothScale * k));
+  c = grained(c, t, tooth);
   return float4(clamp(c, 0.0, 1.0), 1.0);
 }

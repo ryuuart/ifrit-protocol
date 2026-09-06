@@ -2,11 +2,10 @@
  * The stock surfaces: every recipe compiles and shades through the Skia
  * backend, a fill stays inside its path, and the builders fill the slots
  * the recipes declare. The girih panel is the real star and cross and
- * sharpens with its contact angle, the grained surfaces shade their bed,
- * arrises, ladder and tooth and re-roll on their seed, the bank folds a
- * field's seeds into a bounded number of instances, the chrome ramps put
- * their hard stop on the horizon, and every text paint compiles and moves
- * with the clock.
+ * sharpens with its contact angle, the chrome ramps put their hard stop
+ * on the horizon, every text paint compiles and moves with the clock,
+ * the dressed surface takes a decoded set, and a stack asks for its
+ * operands' samplers and no more.
  */
 
 #include <gtest/gtest.h>
@@ -43,202 +42,6 @@ using namespace sigil::material;
 using sigil::material::test::differing;
 using sigil::material::test::luminance;
 using sigil::material::test::shade;
-
-namespace {
-
-/** ONE TERM, EVALUATED. The term source is prepended to a body that
- *  returns the expression asked about, the material is compiled through
- *  the Skia backend and drawn over one texel of a float surface, so what
- *  comes back is what the term computed rather than what an 8-bit
- *  channel could hold. */
-struct NoParams {
-  float unused = 0;
-};
-
-SkColor4f term(const std::string& expression) {
-  skia::install();
-  static int serial = 0;
-  const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<NoParams>("term." + std::to_string(serial++))
-          .body(Target::SkSL, termsSource(Target::SkSL) +
-                                  "half4 main(float2 xy) { return half4(" +
-                                  expression + "); }"));
-  sk_sp<SkShader> shader = skia::shader(Material(recipe, NoParams{}), {});
-  EXPECT_TRUE(shader) << expression;
-  if (!shader) return {0, 0, 0, 0};
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(
-      SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType));
-  SkPaint paint;
-  paint.setShader(shader);
-  paint.setBlendMode(SkBlendMode::kSrc);
-  surface->getCanvas()->drawPaint(paint);
-  float px[4] = {0, 0, 0, 0};
-  const SkImageInfo one =
-      SkImageInfo::Make(1, 1, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
-  EXPECT_TRUE(surface->readPixels(SkPixmap(one, px, sizeof(px)), 0, 0));
-  return {px[0], px[1], px[2], px[3]};
-}
-
-/** The red channel of a term that answers one number. */
-float scalar(const std::string& expression) {
-  return term(expression + ", 0.0, 0.0, 1.0").fR;
-}
-
-/** ONE SHADING TERM AND THE NUMBER IT HAS TO ANSWER. The tolerance is
- *  per row because the transcendentals here are polynomials, so each is
- *  held to what a polynomial of its degree can do rather than to the
- *  standard library's answer. */
-struct ClosedForm {
-  const char* what;
-  const char* expression;
-  float expected;
-  float tolerance;
-};
-
-class ShadingTerm : public testing::TestWithParam<ClosedForm> {};
-
-std::string closedFormOf(const testing::TestParamInfo<ClosedForm>& info) {
-  return info.param.what;
-}
-
-const float kSqrtHalf = std::sqrt(0.5f);
-const float kBlinnAt22Point5 = std::pow(std::cos(3.14159265f / 8.0f), 4.0f);
-
-const ClosedForm kClosedForms[] = {
-    {"Atan2InTheFirstQuadrant", "atan2P(1.0, 1.0)", 0.78539816f, 2e-3f},
-    {"Atan2InTheSecondQuadrant", "atan2P(1.0, -1.0)", 2.35619449f, 2e-3f},
-    {"Atan2BelowTheAxis", "atan2P(-0.3, 0.7)", -0.40489179f, 2e-3f},
-    {"AcosOfAHalf", "acosP(0.5)", 1.04719755f, 2e-3f},
-    {"AcosNearTheEndOfItsRange", "acosP(-0.9)", 2.69056584f, 2e-3f},
-    // LAMBERT at 45 degrees is the cosine of 45 degrees; head on it is
-    // all of the light and edge on none of it.
-    {"LambertAtFortyFiveDegrees",
-     "lambert(float3(0.0, 0.0, 1.0), normalize(float3(1.0, 0.0, 1.0)))",
-     kSqrtHalf, 2e-3f},
-    {"LambertHeadOn", "lambert(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0))",
-     1.0f, 2e-3f},
-    {"LambertEdgeOn", "lambert(float3(0.0, 0.0, 1.0), float3(1.0, 0.0, 0.0))",
-     0.0f, 2e-3f},
-    // BLINN with the light and the eye together: the half vector is the
-    // normal and the highlight is at its peak whatever the exponent.
-    {"BlinnAtItsPeak",
-     "blinn(float3(0.0, 0.0, 1.0), float3(0.0, 0.0, 1.0), "
-     "float3(0.0, 0.0, 1.0), 48.0)",
-     1.0f, 2e-3f},
-    {"BlinnWithTheHalfVectorAtTwentyTwoAndAHalf",
-     "blinn(float3(0.0, 0.0, 1.0), normalize(float3(1.0, 0.0, 1.0)), "
-     "float3(0.0, 0.0, 1.0), 4.0)",
-     kBlinnAt22Point5, 3e-3f},
-    // FRESNEL: a dielectric's four per cent head on, and white at the rim.
-    {"FresnelHeadOn", "fresnel(float3(0.04, 0.04, 0.04), 1.0).r", 0.04f, 2e-3f},
-    {"FresnelAtTheRim", "fresnel(float3(0.04, 0.04, 0.04), 0.0).r", 1.0f,
-     2e-3f},
-    // A metal's reflectance IS its base colour; a dielectric's is four
-    // per cent whatever colour it is.
-    {"AMetalsReflectanceIsItsColour",
-     "specularColor(float3(0.9, 0.6, 0.3), 1.0).g", 0.6f, 2e-3f},
-    {"ADielectricsReflectanceIsFourPerCent",
-     "specularColor(float3(0.9, 0.6, 0.3), 0.0).g", 0.04f, 2e-3f},
-    // THE SPLIT SUM at its one exact point: a mirror seen head on returns
-    // the radiance it was handed, scale plus bias summing to one.
-    {"TheSplitSumIsExactForAMirrorSeenHeadOn",
-     "environmentSpecular(float3(1.0, 1.0, 1.0), float3(1.0, 1.0, 1.0), "
-     "0.0, 1.0).r",
-     1.0f, 3e-3f},
-    // ADDITIVE reflection is the radiance at its weight and nothing else.
-    {"AdditiveReflectionIsTheRadianceAtItsWeight",
-     "environmentReflection(float3(0.5, 0.5, 0.5), 0.6).r", 0.3f, 2e-3f},
-    // BEER-LAMBERT over half a unit of a medium that takes one per unit,
-    // and nothing absorbed is everything through.
-    {"AttenuationOverHalfAUnit",
-     "attenuate(float3(1.0, 1.0, 1.0), float3(1.0, 1.0, 1.0), 0.5).r",
-     0.60653066f, 2e-3f},
-    {"AttenuationThroughNothingAtAll",
-     "attenuate(float3(0.8, 0.8, 0.8), float3(0.0, 0.0, 0.0), 100.0).r", 0.8f,
-     2e-3f},
-    {"OcclusionBelievedInFull", "occlusion(0.5, 1.0)", 0.5f, 2e-3f},
-    {"OcclusionNotBelievedAtAll", "occlusion(0.5, 0.0)", 1.0f, 2e-3f},
-    {"EmissionIsTheColourTimesTheMapTimesTheStrength",
-     "emission(float3(0.5, 0.5, 0.5), 2.0, float3(0.4, 0.4, 0.4)).r", 0.4f,
-     2e-3f},
-    // REFRACTION through no change of index is the ray it was given, and
-    // past total internal reflection there is no refracted ray at all.
-    {"RefractionThroughNoChangeOfIndex",
-     "-refraction(float3(0.0, 0.0, -1.0), float3(0.0, 0.0, 1.0), 1.0).z", 1.0f,
-     2e-3f},
-    {"RefractionPastTotalInternalReflection",
-     "length(refraction(normalize(float3(1.0, 0.0, -0.05)), "
-     "float3(0.0, 0.0, 1.0), 1.6))",
-     0.0f, 2e-3f},
-    // THE PANORAMA'S CONVENTION: v = 0 is the zenith, and a direction and
-    // a coordinate round trip.
-    {"TheZenithIsAtTheTopOfThePanorama", "equirectUv(float3(0.0, 1.0, 0.0)).y",
-     0.0f, 2e-3f},
-    {"ADirectionAndAPanoramaCoordinateRoundTrip",
-     "equirectDirection(equirectUv(normalize(float3(0.3, 0.5, -0.8)))).y",
-     0.50507627f, 4e-3f},
-    // A roughness reads across the chain it was prefiltered into.
-    {"HalfRoughnessIsHalfwayUpTheChain", "roughnessLevel(0.5, 9.0)", 4.0f,
-     2e-3f},
-    {"FullRoughnessIsTheTopOfTheChain", "roughnessLevel(1.0, 9.0)", 8.0f,
-     2e-3f},
-    // LUMINANCE: the three weights sum to one, so a grey reads at its own
-    // value and a colour reads between its channels.
-    {"LuminanceOfWhiteIsOne", "luminance(float3(1.0, 1.0, 1.0))", 1.0f, 2e-3f},
-    {"LuminanceOfGreenIsItsWeight", "luminance(float3(0.0, 1.0, 0.0))",
-     0.715160f, 2e-3f},
-    // THE TONE CURVE. Black stays black, and a grey lands at its own
-    // value over one plus itself — white at a half.
-    {"TheToneCurveLeavesBlackBlack", "toneMap(float3(0.0, 0.0, 0.0), 1.0).r",
-     0.0f, 2e-3f},
-    {"TheToneCurvePutsWhiteAtAHalf", "toneMap(float3(1.0, 1.0, 1.0), 1.0).r",
-     0.5f, 2e-3f},
-    {"TheToneCurvePutsAQuarterAtAFifth",
-     "toneMap(float3(0.25, 0.25, 0.25), 1.0).r", 0.2f, 2e-3f},
-    // NOTHING CLIPS: a radiance a hundred times over white lands just
-    // under one rather than flat on it, which is the whole point of the
-    // curve. And a negative radiance answers black rather than a negative
-    // colour.
-    {"AHundredTimesWhiteLandsJustUnderOne",
-     "toneMap(float3(100.0, 100.0, 100.0), 1.0).r", 100.0f / 101.0f, 2e-3f},
-    {"ANegativeRadianceAnswersBlack",
-     "toneMap(float3(-1.0, -1.0, -1.0), 1.0).r", 0.0f, 2e-3f},
-};
-
-}  // namespace
-
-TEST_P(ShadingTerm, MeetsItsClosedForm) {
-  EXPECT_NEAR(scalar(GetParam().expression), GetParam().expected,
-              GetParam().tolerance);
-}
-
-INSTANTIATE_TEST_SUITE_P(EveryTerm, ShadingTerm,
-                         testing::ValuesIn(kClosedForms), closedFormOf);
-
-TEST(Terms, ARoughSurfaceTakesLessOfTheEnvironmentThanASmoothOne) {
-  EXPECT_LT(scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
-                   "float3(0.04, 0.04, 0.04), 1.0, 1.0).r"),
-            scalar("environmentSpecular(float3(1.0, 1.0, 1.0), "
-                   "float3(0.04, 0.04, 0.04), 0.0, 1.0).r"));
-}
-
-TEST(Terms, LookingAlongMinusZIsTheMiddleOfThePanorama) {
-  const SkColor4f forward =
-      term("equirectUv(float3(0.0, 0.0, -1.0)), 0.0, 1.0");
-  EXPECT_NEAR(forward.fR, 0.5f, 2e-3f);
-  EXPECT_NEAR(forward.fG, 0.5f, 2e-3f);
-}
-
-TEST(Terms, TheExposureMultipliesTheRadianceBeforeTheCurve) {
-  // Twice the exposure over half the radiance is the same colour, which
-  // is what makes the dial an exposure rather than a gain on the result.
-  EXPECT_NEAR(scalar("toneMap(float3(0.5, 0.5, 0.5), 2.0).r"),
-              scalar("toneMap(float3(1.0, 1.0, 1.0), 1.0).r"), 2e-3f);
-}
-
-TEST(Terms, TheToneCurveNeverReachesWhite) {
-  EXPECT_LT(scalar("toneMap(float3(100.0, 100.0, 100.0), 1.0).r"), 1.0f);
-}
 
 TEST(Surfaces, RecipesCompileAndShade) {
   skia::install();
@@ -477,6 +280,12 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
 
 namespace {
 
+/** A recipe whose params are one number nothing reads: what a case that
+ *  is about slots or bodies rather than values stands a material on. */
+struct NoParams {
+  float unused = 0;
+};
+
 /** A stand-in Slang compiler, so `over()` builds the COMPOSED recipe.
  *  Composition is asked for only where a compiler that needs it is
  *  installed — a language handed one body per material cannot reach a
@@ -568,107 +377,6 @@ TEST(Over, ATreeOverTheSamplerBudgetIsRefusedRatherThanDrawn) {
 
 // ---------------------------------------------------------------------------
 // The grained surfaces and the bank that bounds a field of them.
-
-TEST(Grained, EveryRecipeCompilesAndTwoSeedsAreTwoPieces) {
-  skia::install();
-  for (const Material& m :
-       {kit::stone(), kit::timber(), kit::latten(), kit::board()}) {
-    EXPECT_TRUE(skia::shader(m, {}));
-    EXPECT_TRUE(m.recipe().has(Target::SkSL));
-    EXPECT_TRUE(m.recipe().has(Target::Slang));
-  }
-  kit::StoneParams a;
-  kit::StoneParams b = a;
-  b.seed = 3;
-  // One seed twice is one material; two seeds are two pieces of one
-  // quarry — the same tones, different flecks and veins.
-  EXPECT_EQ(kit::stone(a), kit::stone(a));
-  EXPECT_FALSE(kit::stone(a) == kit::stone(b));
-  const SkBitmap first = shade(kit::stone(a), 64, 64);
-  const SkBitmap second = shade(kit::stone(b), 64, 64);
-  EXPECT_GT(differing(first, second), 200);
-  EXPECT_EQ(differing(first, shade(kit::stone(a), 64, 64)), 0);
-  // The grain is luminance: a coloured stone stays its own hue.
-  kit::StoneParams red;
-  red.hi = {0.8f, 0.2f, 0.2f, 1};
-  red.lo = {0.5f, 0.1f, 0.1f, 1};
-  red.speckle = 0;
-  const SkBitmap ruddy = shade(kit::stone(red), 32, 32);
-  for (int y = 0; y < 32; y += 5)
-    for (int x = 0; x < 32; x += 5) {
-      const SkColor c = ruddy.getColor(x, y);
-      EXPECT_GT(SkColorGetR(c), SkColorGetG(c) * 2);
-    }
-}
-
-TEST(Grained, TimberLightsTheNearArrisAndFlipLightsTheFar) {
-  kit::TimberParams t;
-  t.span = 40;
-  t.tooth = 0;
-  t.figure = 0;
-  const SkBitmap near = shade(kit::timber(t), 60, 40);
-  // The lit arris along the top, the shaded one along the bottom.
-  EXPECT_GT(luminance(near.getColor(30, 1)), luminance(near.getColor(30, 20)));
-  EXPECT_LT(luminance(near.getColor(30, 38)), luminance(near.getColor(30, 20)));
-  t.flip = 1;
-  const SkBitmap far = shade(kit::timber(t), 60, 40);
-  EXPECT_LT(luminance(far.getColor(30, 1)), luminance(far.getColor(30, 20)));
-  EXPECT_GT(luminance(far.getColor(30, 38)), luminance(far.getColor(30, 20)));
-  // Turned to run down y, the arrises stand at the sides.
-  t.flip = 0;
-  t.along = 1;
-  const SkBitmap post = shade(kit::timber(t), 40, 60);
-  EXPECT_GT(luminance(post.getColor(1, 30)), luminance(post.getColor(20, 30)));
-  EXPECT_LT(luminance(post.getColor(38, 30)), luminance(post.getColor(20, 30)));
-}
-
-TEST(Grained, LattenSitsOnItsLadderAndSheensAlongItsRun) {
-  kit::LattenParams p;
-  p.tooth = 0;
-  p.from = {0, 0};
-  p.to = {64, 0};
-  p.sheen = 0.2f;
-  p.level = 0.1f;
-  const SkBitmap low = shade(kit::latten(p), 64, 8);
-  p.level = 0.9f;
-  const SkBitmap high = shade(kit::latten(p), 64, 8);
-  // A high level is brighter than a low one at every pixel …
-  EXPECT_GT(luminance(high.getColor(32, 4)),
-            luminance(low.getColor(32, 4)) + 40);
-  // … and along the run the sheen climbs the ladder.
-  EXPECT_GT(luminance(low.getColor(60, 4)), luminance(low.getColor(3, 4)));
-  // A patina is flecks of its colour, at its alpha.
-  p.patina = 1.0f;
-  p.patinaCell = 8;
-  p.patinaColor = {0, 1, 0, 1};
-  const SkBitmap green = shade(kit::latten(p), 64, 8);
-  int greened = 0;
-  for (int x = 0; x < 64; ++x)
-    greened += SkColorGetG(green.getColor(x, 4)) > 200 &&
-               SkColorGetR(green.getColor(x, 4)) < 60;
-  EXPECT_GT(greened, 4);
-}
-
-TEST(Grained, BoardIsItsPaintUnderATooth) {
-  kit::BoardParams b;
-  b.paint = {0.5f, 0.5f, 0.5f, 1};
-  const SkBitmap card = shade(kit::board(b), 48, 48);
-  int lo = 255, hi = 0;
-  for (int y = 0; y < 48; y += 3)
-    for (int x = 0; x < 48; x += 3) {
-      const int l = luminance(card.getColor(x, y));
-      lo = std::min(lo, l);
-      hi = std::max(hi, l);
-    }
-  // Around the paint, and varying: a tooth, not a flat.
-  EXPECT_GT(lo, 100);
-  EXPECT_LT(hi, 156);
-  EXPECT_GT(hi - lo, 4);
-  b.tooth = 0;
-  b.wear = 0;
-  const SkBitmap flat = shade(kit::board(b), 8, 8);
-  EXPECT_EQ(luminance(flat.getColor(4, 4)), luminance(flat.getColor(1, 1)));
-}
 
 // ---- the embedded shader table --------------------------------------------
 

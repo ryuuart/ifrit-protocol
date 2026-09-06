@@ -28,11 +28,17 @@ sigil_shader_sources(SigilMaterialKit
 # The test draws, so it links the Skia backend beside the kit. The
 # shader directory is named for the case that asks whether the embedded
 # table holds every file in it.
+# The terms suite links SigilGeometryMeshRender for the one case that
+# asks whether the C++ a host tier shades with answers what this
+# library's shader text answers. It is the only edge from a test here to
+# another library, and it is the point of the case: two spellings of one
+# arithmetic cannot be compared from inside one of them.
 sigil_test(material_test
-  SOURCES test/KitTest.cpp test/RampsTest.cpp
+  SOURCES test/KitTest.cpp test/TermsTest.cpp test/GrainedTest.cpp
+          test/RampsTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_KIT_SHADER_DIR="${SIGIL_MATERIAL_KIT_SHADER_DIR}"
-  LIBRARIES SigilMaterialKit SigilMaterialSkia)
+  LIBRARIES SigilMaterialKit SigilMaterialSkia SigilGeometryMeshRender)
 
 sigil_bench(material_bench
   SOURCES bench/KitBench.cpp

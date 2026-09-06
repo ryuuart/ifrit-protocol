@@ -14,11 +14,15 @@
  * `unlit()` is its own light — a screen, a decal that must not be shaded.
  *
  * The SkSL bodies are what a device-space shader can answer honestly:
- * there is no surface normal, no view vector and no light in a 2D paint,
- * so metallic, roughness, the normal map and the glass terms have no
- * effect there. `surface()` shades the albedo attenuated by occlusion
- * plus its emission — the ambient-only evaluation of the model — and
- * `unlit()` shades the albedo alone.
+ * there is no surface normal, no view vector and no light in a 2D paint.
+ * `surface()` there reads `baseColor` and its map, `occlusionStrength`
+ * with `occlusionChannel`, `emissive` with `emissiveStrength` and its
+ * map, and `alphaCutoff` with `opacityChannel` — the albedo attenuated
+ * by occlusion plus its emission, which is the ambient-only evaluation
+ * of the model — and `unlit()` shades the albedo alone. Every other
+ * param is Slang-only and has no effect on a 2D paint: `roughness`,
+ * `metallic`, `normalScale` and `normalDirectX` with the normal map,
+ * `transmission`, `ior`, `thickness` and `absorption`.
  *
  * The Slang bodies read the same params and the same slots, and say more
  * than a colour, because the renderer that compiles them shades. Every
@@ -30,7 +34,7 @@
  * per vertex cannot carry, and the renderer re-evaluates the pixel where
  * it can be seen.
  *
- * The bodies are composed from the shading TERMS in `Terms.h`, so what a
+ * The bodies are composed from the library's shading TERMS, so what a
  * surface does can be read off the terms it calls.
  */
 
