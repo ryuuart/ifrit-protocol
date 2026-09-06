@@ -121,6 +121,54 @@ TEST(VideoEncode, CpuDecodeReadsBackTheColourItWasGiven) {
       << SkColorGetB(read);
 }
 
+TEST(VideoEncode, FinishingIsTerminal) {
+  constexpr int kWidth = 64;
+  constexpr int kHeight = 64;
+  auto encoder = sigil::video::Encoder::make(
+      sigil::video::Format::Mp4,
+      {.width = kWidth,
+       .height = kHeight,
+       .framesPerSecond = 10,
+       .bitRate = 1'000'000,
+       .hardware = sigil::video::HardwarePreference::Disabled});
+  ASSERT_NE(encoder, nullptr);
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
+  bitmap.eraseColor(SK_ColorGREEN);
+  ASSERT_TRUE(encoder->append(bitmap.pixmap())) << encoder->error();
+  ASSERT_NE(encoder->finish(), nullptr) << encoder->error();
+  EXPECT_EQ(encoder->frameCount(), 1);
+
+  // The muxed bytes are already handed out, so neither another frame nor
+  // another trailer can join them.
+  EXPECT_FALSE(encoder->append(bitmap.pixmap()));
+  EXPECT_FALSE(encoder->error().empty());
+  EXPECT_EQ(encoder->frameCount(), 1);
+  EXPECT_EQ(encoder->finish(), nullptr);
+  EXPECT_FALSE(encoder->error().empty());
+}
+
+TEST(VideoEncode, RefusesToFinishWithNoFrames) {
+  auto encoder = sigil::video::Encoder::make(
+      sigil::video::Format::Mp4,
+      {.width = 64,
+       .height = 64,
+       .framesPerSecond = 10,
+       .bitRate = 1'000'000,
+       .hardware = sigil::video::HardwarePreference::Disabled});
+  ASSERT_NE(encoder, nullptr);
+  EXPECT_EQ(encoder->finish(), nullptr);
+  EXPECT_FALSE(encoder->error().empty());
+  EXPECT_EQ(encoder->frameCount(), 0);
+
+  // A refused finish is still a finish: the encoder is closed either way.
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(64, 64));
+  bitmap.eraseColor(SK_ColorGREEN);
+  EXPECT_FALSE(encoder->append(bitmap.pixmap()));
+  EXPECT_EQ(encoder->frameCount(), 0);
+}
+
 TEST(VideoEncode, RejectsOddDimensions) {
   EXPECT_EQ(sigil::video::Encoder::make(
                 sigil::video::Format::Mp4,

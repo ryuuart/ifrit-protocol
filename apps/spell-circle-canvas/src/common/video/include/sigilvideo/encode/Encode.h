@@ -44,10 +44,17 @@ class Encoder {
   static std::unique_ptr<Encoder> make(Format format,
                                        const EncodeOptions& options);
 
+  /** Encodes one frame. False when the pixels cannot be read or converted,
+   *  when the codec refuses them, or when the encoder has already
+   *  finished; `error()` says which. */
   bool append(const SkPixmap& pixels);
   bool append(const SkImage& image);
 
-  /** Flushes the codec and muxer. May be called once. */
+  /** Flushes the codec and muxer and answers the container bytes. Null
+   *  when nothing was appended, because a video is at least one frame.
+   *  Finishing is terminal on either outcome: a second `finish()` and
+   *  every later `append()` are refused and leave `frameCount()` where it
+   *  stood. */
   sk_sp<SkData> finish();
 
   const std::string& error() const;
