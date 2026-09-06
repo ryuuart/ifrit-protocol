@@ -190,12 +190,15 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/testing/Checks.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/reconcile/Env.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmotion/bind/Bind.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -206,7 +209,6 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -217,6 +219,7 @@ namespace measure = sigil::measure;
 namespace test = sigil::compose::test;
 namespace env = sigil::core::env;
 namespace motion = sigil::motion;
+namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace pattern = sigil::material::pattern;
 namespace weave = sigil::weave;
@@ -587,35 +590,19 @@ inline MotifShadow bevelFg(float T) {
   return MotifShadow{T, false, false, s.fg, s.fg};
 }
 
-/** XmeDrawHighlight: four plain rectangles, a square ring of
- *  `highlightThickness`. No mitre, no shading — it is not a shadow. */
-struct MotifHighlight {
-  float thickness = 2;
-  SkColor4f color{0, 0, 0, 1};
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
-    const SkRect b = ctx.outline.getBounds();
-    const float t = thickness;
-    SkPaint p;
-    p.setAntiAlias(false);
-    p.setColor(color, nullptr);
-    canvas.drawRect(SkRect::MakeLTRB(b.left(), b.top(), b.right(), b.top() + t),
-                    p);
-    canvas.drawRect(
-        SkRect::MakeLTRB(b.left(), b.bottom() - t, b.right(), b.bottom()), p);
-    canvas.drawRect(
-        SkRect::MakeLTRB(b.left(), b.top() + t, b.left() + t, b.bottom() - t),
-        p);
-    canvas.drawRect(
-        SkRect::MakeLTRB(b.right() - t, b.top() + t, b.right(), b.bottom() - t),
-        p);
-  }
-  bool operator==(const MotifHighlight&) const = default;
-};
-
-/** highlightThickness 2 [MEAS], in the widget's foreground — Motif's
- *  default highlightColor. Only the focused widget shows one. */
-inline MotifHighlight highlight(float T) {
-  return MotifHighlight{T, ambient().fg};
+/** XmeDrawHighlight: a square ring of `highlightThickness` inside the
+ *  widget's own edge. No mitre, no shading — it is not a shadow, which is
+ *  why it is a plain stroke where `MotifShadow` below is a paint program.
+ *
+ *  highlightThickness 2 [MEAS], in the widget's foreground — Motif's
+ *  default highlightColor. Only the focused widget shows one. The ring is
+ *  drawn UNSMOOTHED, which the general stroke carries: a smoothed edge on
+ *  an axis-aligned 2 px ring reads as a blur rather than as a line. */
+inline PathFormat highlight(float T) {
+  return PathFormat{.width = T,
+                    .strokeFill = Fill::color(ambient().fg),
+                    .align = PathFormat::Align::Inner,
+                    .antiAlias = false};
 }
 
 /** Motif's insensitive treatment: the label is painted through a 50%
@@ -1114,18 +1101,15 @@ struct CdeMotifSketch : sketch::Sketch {
         {"switch btn", 0x63639C, 0xB7B7D1, 0x2F2F4A},
     };
     auto hexOf = [](cde::Rgb c) {
-      char buf[16];
-      std::snprintf(buf, sizeof buf, "#%06X", cde::toHex(c));
-      return std::string(buf);
+      return kit::formatted("#%06X", cde::toHex(c));
     };
     measure::Table t;
     for (const Case& c : cases) {
       const cde::Derived d = cde::calculate(cde::from8(c.bg));
-      char want[16];
-      std::snprintf(want, sizeof want, "#%06X", c.ts);
-      t.add(measure::check(std::string(c.what) + " ts", want, hexOf(d.ts)));
-      std::snprintf(want, sizeof want, "#%06X", c.bs);
-      t.add(measure::check(std::string(c.what) + " bs", want, hexOf(d.bs)));
+      t.add(measure::check(std::string(c.what) + " ts",
+                           kit::formatted("#%06X", c.ts), hexOf(d.ts)));
+      t.add(measure::check(std::string(c.what) + " bs",
+                           kit::formatted("#%06X", c.bs), hexOf(d.bs)));
     }
     // The five LITE colours CDE ships are all colour-set 4, and the top
     // shadow comes out DARKER than the background on every one — which is
@@ -1512,8 +1496,7 @@ struct CdeMotifSketch : sketch::Sketch {
     const cde::Derived d = cde::calculate(bgv);
 
     auto swatch = [&](const char* name, cde::Rgb c) {
-      char hex[16];
-      std::snprintf(hex, sizeof(hex), "#%06X", cde::toHex(c));
+      const std::string hex = kit::formatted("#%06X", cde::toHex(c));
       return box()
           .column()
           .gap(3)
@@ -1530,10 +1513,9 @@ struct CdeMotifSketch : sketch::Sketch {
     const char* branch = d.branch == cde::Branch::Dark   ? "DARK"
                          : d.branch == cde::Branch::Lite ? "LITE"
                                                          : "MEDIUM";
-    char line[128];
-    std::snprintf(line, sizeof(line),
-                  "B = %5d      branch %-6s      f = (%d, %d, %d)",
-                  d.brightness, branch, d.fSel, d.fBs, d.fTs);
+    const std::string line =
+        kit::formatted("B = %5d      branch %-6s      f = (%d, %d, %d)",
+                       d.brightness, branch, d.fSel, d.fBs, d.fTs);
 
     Element proof = box().column().gap(1).justify(Justify::Center);
     for (const measure::Check& c : derivation().rows)
@@ -1571,17 +1553,22 @@ struct CdeMotifSketch : sketch::Sketch {
 
   /** The end handles: a 1-px alternating bottomShadow/topShadow texture,
    *  period 2 in y [MEAS at x = 60, y = 700..761, perfect alternation].
-   *  The only texture on the panel. */
+   *  The only texture on the panel.
+   *
+   *  A BAND EVERY OTHER ROW IS `styles::Scanlines`, which is one fill over
+   *  the bottom-shadow ground rather than thirty-one boxes a flexbox has
+   *  to lay out — the phase puts the light rows on the odd ones. */
   Element handle() {
     const Set s = cde::ambient();
-    Element h = box().width(Dim(18)).column();
-    for (int i = 0; i < 31; ++i)
-      h.child(box().height(Dim(1)).fill(((unsigned)i & 1u) ? s.ts : s.bs));
     return box()
         .width(Dim(18))
         .alignItems(Align::Center)
         .justify(Justify::Center)
-        .child(std::move(h));
+        .child(box()
+                   .width(Dim(18))
+                   .height(Dim(31))
+                   .fill(s.bs)
+                   .overlay(styles::Scanlines{s.ts, 2, 1, 1}));
   }
 
   Element panelSeparator() {
@@ -1591,7 +1578,13 @@ struct CdeMotifSketch : sketch::Sketch {
 
   /** A Front Panel control: a 48 x 48 icon, 4 px either side, with the
    *  small chevron above it that marks a subpanel [SRC: Text Editor,
-   *  Printer, Applications and Help have subpanels]. */
+   *  Printer, Applications and Help have subpanels].
+   *
+   *  THE CHEVRON IS NOT `shapes::polygon(3)`, which the scrollbar stepper
+   *  below is. A stepper arrow is one smoothed triangle inscribed in its
+   *  box; this is four stacked rows of 1, 3, 5 and 7 px, and the steps
+   *  are what a 1993 pixmap arrow is made of. An inscribed triangle would
+   *  draw a smaller shape with a smoothed hypotenuse. */
   Element control(Element icon, float w, bool subpanelArrow) {
     const Set s = cde::ambient();
     Element chev = box()
@@ -1626,12 +1619,14 @@ struct CdeMotifSketch : sketch::Sketch {
                    .strokeFill = Fill::color(cde::C(cde::kIconGray[6])),
                    .align = PathFormat::Align::Inner}));
     face.child(box().inset(4).corners({20}).fill(cde::C(cde::kIconGray[0])));
-    // Twelve ticks, placed by arithmetic.
+    // Twelve ticks, entered at twelve o'clock and swept the whole way
+    // round. `arrange::onRing` is the ring arithmetic's origin; a sketch
+    // that respells it with its own sin and cos rounds differently.
     for (int i = 0; i < 12; ++i) {
-      const float a = (float)i * 30.0f * (float)M_PI / 180.0f;
-      const float r = 18.0f;
-      const float cx = 24.0f + std::sin(a) * r;
-      const float cy = 24.0f - std::cos(a) * r;
+      const SkPoint c = arrange::onRing(
+          (size_t)i, 12, {24.0f, 24.0f}, {18.0f, 18.0f},
+          -(float)M_PI * 0.5f, 2.0f * (float)M_PI, arrange::Turn::Closed);
+      const float cx = c.fX, cy = c.fY;
       const float sz = (i % 3 == 0) ? 4.0f : 2.0f;
       face.child(box()
                      .left(Dim(cx - sz * 0.5f))
