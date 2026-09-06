@@ -129,8 +129,8 @@ TEST(ParagraphLayout, ExclusionShapeSplitsText) {
       u8"text flows around the shape and continues on the far side of it, "
       "filling both fragments of every interrupted line with words");
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
-  flow.shapes().push_back(
-      {ExclusionFlow::Shape::kCircle, SkRect::MakeXYWH(140, 40, 120, 120), 6});
+  flow.exclusions().push_back(
+      {silhouette::circle(SkRect::MakeXYWH(140, 40, 120, 120)), 6});
   flow.setMinIntervalWidth(40);
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 

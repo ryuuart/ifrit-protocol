@@ -62,9 +62,12 @@ void sceneShapes(FontContext& fontContext,
   donut.setFillType(SkPathFillType::kEvenOdd);
 
   ExclusionFlow flow(SkRect::MakeXYWH(40, 40, 920, 800));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(star.detach(), 10));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(heart.detach(), 10));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(donut.detach(), 8));
+  const SkPath starPath = star.detach();
+  const SkPath heartPath = heart.detach();
+  const SkPath donutPath = donut.detach();
+  flow.exclusions().push_back({silhouette::path(starPath), 10});
+  flow.exclusions().push_back({silhouette::path(heartPath), 10});
+  flow.exclusions().push_back({silhouette::path(donutPath), 8});
   flow.setMinIntervalWidth(46);
 
   ParagraphLayoutOptions options;
@@ -83,8 +86,8 @@ void sceneShapes(FontContext& fontContext,
   SkPaint shapePaint;
   shapePaint.setAntiAlias(true);
   shapePaint.setColor(kShape);
-  for (const auto& shape : flow.shapes())
-    canvas->drawPath(shape.path, shapePaint);
+  for (const SkPath& shape : {starPath, heartPath, donutPath})
+    canvas->drawPath(shape, shapePaint);
   layout.draw(canvas, paragraph);
 
   writePng(surface.get(), outputDirectory / "shapes.png");

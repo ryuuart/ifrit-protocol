@@ -39,14 +39,13 @@ namespace {
  *  alternative to refusing outright. */
 constexpr int kMaxTraceRaster = 2048;
 
-/** A pixel is COVERED when the node's paint reached at least half of it —
- *  the rule an unantialiased rasteriser uses, which puts the traced edge
- *  where the drawn edge is rather than half a pixel outside it. Paint
- *  that never reaches half coverage (a wash, a faint glow) is not a
- *  silhouette and traces to nothing. */
-constexpr uint8_t kCovered = 128;
-
-/** THE ALPHA, AS A REGION.
+/** THE ALPHA, AS A REGION, at the tolerance the node declared: a pixel is
+ *  inside when its coverage reaches `covered`, which
+ *  `Element::threshold` states as a fraction of full opacity and which
+ *  defaults to the rule an unantialiased rasteriser uses — the paint
+ *  reached at least half the pixel, so the traced edge is where the drawn
+ *  edge is rather than half a pixel outside it. Raise it and a wash or a
+ *  soft glow stops being a silhouette; lower it and it starts being one.
  *
  *  Skia carries no alpha-raster-to-path tracer, and it does carry
  *  everything a region needs: covered pixels become horizontal runs, runs
@@ -55,7 +54,7 @@ constexpr uint8_t kCovered = 128;
  *  answer is exact for the raster it was given — every edge axis-aligned,
  *  every step one pixel — which is the honest shape of a traced raster and
  *  not an approximation of a smooth curve. */
-SkRegion regionOfCoveredPixels(const SkPixmap& alpha) {
+SkRegion regionOfCoveredPixels(const SkPixmap& alpha, uint8_t covered) {
   const int width = alpha.width(), height = alpha.height();
   std::vector<SkIRect> rects;
   std::vector<SkIRect> row, previous;  // the runs of this row, and the last
@@ -70,9 +69,9 @@ SkRegion regionOfCoveredPixels(const SkPixmap& alpha) {
     const uint8_t* pixels = alpha.addr8(0, y);
     int runStart = -1;
     for (int x = 0; x < width; ++x) {
-      const bool covered = pixels[x] >= kCovered;
-      if (covered && runStart < 0) runStart = x;
-      if (!covered && runStart >= 0) {
+      const bool inside = pixels[x] >= covered;
+      if (inside && runStart < 0) runStart = x;
+      if (!inside && runStart >= 0) {
         row.push_back(SkIRect::MakeLTRB(runStart, 0, x, 1));
         runStart = -1;
       }
@@ -105,19 +104,23 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   // The device scale is part of the answer, not just of its cost: the
   // staircase is one device pixel a step, so a node that moves to a denser
   // display traces a finer boundary and must be traced again.
+  const float threshold = inst.description->coverageThreshold;
   const bool stale = inst.paintDirty || inst.subtreeVolatile ||
                      inst.coverageOutlineSize != size ||
-                     inst.coverageOutlineScale != contentScale;
+                     inst.coverageOutlineScale != contentScale ||
+                     inst.coverageOutlineThreshold != threshold;
   if (!stale || !sized) {
     if (!sized) {
       inst.coverageOutline.reset();
       inst.coverageOutlineSize = size;
       inst.coverageOutlineScale = contentScale;
+      inst.coverageOutlineThreshold = threshold;
     }
     return inst.coverageOutline;
   }
   inst.coverageOutlineSize = size;
   inst.coverageOutlineScale = contentScale;
+  inst.coverageOutlineThreshold = threshold;
   inst.coverageOutline.reset();
 
   const float longer = std::max(size.width(), size.height());
@@ -160,7 +163,8 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
 
   SkPixmap alpha;
   if (!surface->peekPixels(&alpha)) return inst.coverageOutline;
-  const SkRegion covered = regionOfCoveredPixels(alpha);
+  const SkRegion covered = regionOfCoveredPixels(
+      alpha, (uint8_t)std::clamp(std::lround(threshold * 255.0f), 0L, 255L));
   if (covered.isEmpty()) return inst.coverageOutline;
   inst.coverageOutline =
       covered.getBoundaryPath().makeScale(1.0f / scale, 1.0f / scale);

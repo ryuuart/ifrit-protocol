@@ -193,8 +193,8 @@ TEST(LineClamp, WorksUnderKnuthPlassAndExclusions) {
       u8"text flows around the circle while the clamp limits how far down "
       "the exclusion geometry the paragraph is allowed to travel at all");
   ExclusionFlow flow(SkRect::MakeWH(300, 1000));
-  flow.shapes().push_back(
-      ExclusionFlow::Shape::fromCircle(SkRect::MakeXYWH(100, 20, 90, 90), 4));
+  flow.exclusions().push_back(
+      {silhouette::circle(SkRect::MakeXYWH(100, 20, 90, 90)), 4});
   ParagraphLayoutOptions options;
   options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
   options.alignment = TextAlignment::kJustify;

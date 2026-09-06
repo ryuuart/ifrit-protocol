@@ -337,10 +337,10 @@ void BM_Update_MovingExclusions_300w(benchmark::State& state) {
   Paragraph paragraph;
   paragraph.appendText(makeText(300, /*mixed=*/true), basicStyle());
   ExclusionFlow flow(SkRect::MakeWH(700, 3000));
-  flow.shapes().push_back(
-      {ExclusionFlow::Shape::kCircle, SkRect::MakeXYWH(100, 100, 160, 160), 8});
-  flow.shapes().push_back(
-      {ExclusionFlow::Shape::kRect, SkRect::MakeXYWH(400, 600, 180, 120), 8});
+  flow.exclusions().push_back(
+      {silhouette::circle(SkRect::MakeXYWH(100, 100, 160, 160)), 8});
+  flow.exclusions().push_back(
+      {silhouette::rectangle(SkRect::MakeXYWH(400, 600, 180, 120)), 8});
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
 
   ParagraphLayoutOptions options;
@@ -348,12 +348,11 @@ void BM_Update_MovingExclusions_300w(benchmark::State& state) {
   float animationTime = 0;
   for ([[maybe_unused]] auto iteration : state) {
     animationTime += 0.03f;
-    flow.shapes()[0].bounds = SkRect::MakeXYWH(
-        100 + 200 * std::sin(animationTime),
-        100 + 900 * (0.5f + 0.5f * std::sin(animationTime * 0.7f)), 160, 160);
-    flow.shapes()[1].bounds =
-        SkRect::MakeXYWH(400 - 150 * std::cos(animationTime),
-                         600 + 300 * std::sin(animationTime * 1.3f), 180, 120);
+    flow.exclusions()[0].offset = {
+        200 * std::sin(animationTime),
+        900 * (0.5f + 0.5f * std::sin(animationTime * 0.7f))};
+    flow.exclusions()[1].offset = {-150 * std::cos(animationTime),
+                                   300 * std::sin(animationTime * 1.3f)};
     ParagraphLayout layout =
         layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
     benchmark::DoNotOptimize(layout.runs.data());
@@ -388,8 +387,8 @@ void BM_Update_MovingPathExclusions_300w(benchmark::State& state) {
   donut.setFillType(SkPathFillType::kEvenOdd);
 
   ExclusionFlow flow(SkRect::MakeWH(700, 3000));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(star.detach(), 8));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(donut.detach(), 8));
+  flow.exclusions().push_back({silhouette::path(star.detach()), 8});
+  flow.exclusions().push_back({silhouette::path(donut.detach()), 8});
   layoutParagraph(sigil::test::fonts(), paragraph, flow);
 
   ParagraphLayoutOptions options;
@@ -397,10 +396,10 @@ void BM_Update_MovingPathExclusions_300w(benchmark::State& state) {
   float animationTime = 0;
   for ([[maybe_unused]] auto iteration : state) {
     animationTime += 0.03f;
-    flow.shapes()[0].pathOffset = {
+    flow.exclusions()[0].offset = {
         200 * std::sin(animationTime),
         900 * (0.5f + 0.5f * std::sin(animationTime * 0.7f))};
-    flow.shapes()[1].pathOffset = {-150 * std::cos(animationTime),
+    flow.exclusions()[1].offset = {-150 * std::cos(animationTime),
                                    300 * std::sin(animationTime * 1.3f)};
     ParagraphLayout layout =
         layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
@@ -438,8 +437,8 @@ void BM_Update_MovingColumnExclusions_300w(benchmark::State& state) {
   donut.setFillType(SkPathFillType::kEvenOdd);
 
   ExclusionFlow flow(SkRect::MakeWH(3000, 700), FlowAxis::kColumns);
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(star.detach(), 8));
-  flow.shapes().push_back(ExclusionFlow::Shape::fromPath(donut.detach(), 8));
+  flow.exclusions().push_back({silhouette::path(star.detach()), 8});
+  flow.exclusions().push_back({silhouette::path(donut.detach()), 8});
   ParagraphLayoutOptions options;
   options.lineMetrics.height = 26;  // column pitch
   layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
@@ -447,10 +446,10 @@ void BM_Update_MovingColumnExclusions_300w(benchmark::State& state) {
   float animationTime = 0;
   for ([[maybe_unused]] auto iteration : state) {
     animationTime += 0.03f;
-    flow.shapes()[0].pathOffset = {
+    flow.exclusions()[0].offset = {
         900 * (0.5f + 0.5f * std::sin(animationTime * 0.7f)),
         200 * std::sin(animationTime)};
-    flow.shapes()[1].pathOffset = {300 * std::sin(animationTime * 1.3f),
+    flow.exclusions()[1].offset = {300 * std::sin(animationTime * 1.3f),
                                    -150 * std::cos(animationTime)};
     ParagraphLayout layout =
         layoutParagraph(sigil::test::fonts(), paragraph, flow, options);

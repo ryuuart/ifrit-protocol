@@ -4,7 +4,9 @@
 # metrics derived from the placed runs, with Story — a text and the block
 # styles it is set under — the value a chain of frames is filled from.
 # SigilGeometryPath is public — a contour interval carries a
-# geometry::path::Contour. The Unicode leaf is
+# geometry::path::Contour. SigilImageField is private: a silhouette asked
+# for a standoff measures an exact distance field over its own coverage,
+# and that primitive belongs where image meaning lives. The Unicode leaf is
 # private: a reading set beside its base is split at grapheme boundaries
 # in one source file and nowhere in a header.
 find_package(ICU REQUIRED COMPONENTS i18n uc data)
@@ -18,7 +20,8 @@ sigil_library(SigilWeaveLayout
           ParagraphLayout.h
           Story.h
   PUBLIC SigilWeaveParagraph SigilGeometryPath
-  PRIVATE SigilWeaveUnicode harfbuzz::harfbuzz ICU::uc Boost::unordered)
+  PRIVATE SigilWeaveUnicode SigilImageField harfbuzz::harfbuzz ICU::uc
+          Boost::unordered)
 
 # Everything that places runs and reads where they landed, one subject to a
 # file named for it: both breakers and the live composer over them, the
@@ -34,7 +37,7 @@ sigil_library(SigilWeaveLayout
 sigil_test(weave_test
   SOURCES test/LayoutTest.cpp test/KnuthPlassTest.cpp
           test/LiveComposerTest.cpp test/OverflowTest.cpp
-          test/VerticalTest.cpp test/FlowTest.cpp test/PathTextTest.cpp
+          test/VerticalTest.cpp test/FlowTest.cpp test/SilhouetteTest.cpp test/PathTextTest.cpp
           test/PlaceholderTest.cpp test/IncrementalTest.cpp
           test/JustificationTest.cpp test/LeadingTest.cpp test/TabStopTest.cpp
           test/FrameTest.cpp test/HyphenationTest.cpp test/LineEdgesTest.cpp

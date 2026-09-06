@@ -201,6 +201,25 @@ bool Composer::Impl::resolveThreads() {
   return moved;
 }
 
+SkPath Composer::Impl::boundaryOutlineOf(Instance& target, float width,
+                                         float height) {
+  const ElementNode& node = *target.description;
+  if (node.boundary == Boundary::Glyphs && node.kind == Kind::Text &&
+      target.paragraph) {
+    if (target.glyphOutlineRev != target.measuredRev) {
+      target.glyphOutline = target.textLayout.glyphOutline(*target.paragraph);
+      target.glyphOutlineRev = target.measuredRev;
+    }
+    if (!target.glyphOutline.isEmpty()) return target.glyphOutline;
+  } else if (node.boundary == Boundary::Coverage && width > 0 && height > 0) {
+    // Traced at the SAME device scale the painter traces at, so the two
+    // readings are one cached answer and neither invalidates the other.
+    const SkPath& traced = coverageOutline(target, {width, height}, hostScale);
+    if (!traced.isEmpty()) return traced;
+  }
+  return hasResolvedSilhouette(target) ? resolvedShapeOf(target) : SkPath();
+}
+
 bool Composer::Impl::deriveFlow(Instance& inst) {
   bool relayout = false;
   const DeriveData* derive = &*inst.description->deriveData;
@@ -216,14 +235,20 @@ bool Composer::Impl::deriveFlow(Instance& inst) {
       const SkRect box = absoluteRect(target);
       Exclusion exclusion;
       exclusion.bounds = box.makeOffset(-own.left(), -own.top());
-      // The target's own SILHOUETTE when it declares one, its box when it
-      // does not. The margin means the same thing either way — a standoff
-      // measured from whatever edge is being subtracted — so the shaped
-      // case is the boxed case with a truer edge, not a second rule.
-      if (hasResolvedSilhouette(target)) {
-        exclusion.path =
-            resolvedShapeOf(target).makeTransform(SkMatrix::Translate(
-                box.left() - own.left(), box.top() - own.top()));
+      // WHAT THE TARGET SAYS ITS EDGE IS — the one property it already
+      // carries for its own decorations, read here for the same answer:
+      // its glyph outlines on a text leaf under `Boundary::Glyphs`, the
+      // silhouette of what it DREW under `Boundary::Coverage` (a cut-out,
+      // a clip, a mask, a photograph's alpha, at the tolerance
+      // `Element::threshold` set), its declared shape otherwise, and its
+      // box when it declares none. The margin means the same thing in
+      // every case — a disc of that radius round whatever edge is being
+      // subtracted — so a truer edge is never a second rule.
+      SkPath boundaryPath = boundaryOutlineOf(target, box.width(),
+                                              box.height());
+      if (!boundaryPath.isEmpty()) {
+        exclusion.path = boundaryPath.makeTransform(SkMatrix::Translate(
+            box.left() - own.left(), box.top() - own.top()));
         SkRect oval = SkRect::MakeEmpty();
         // A round silhouette is subtracted ANALYTICALLY: the same answer,
         // at one square root per line band instead of a walk of a

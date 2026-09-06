@@ -614,6 +614,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkPath coverageOutline;
   SkSize coverageOutlineSize = {-1.0f, -1.0f};
   float coverageOutlineScale = -1.0f;  ///< the device scale it was traced at
+  float coverageOutlineThreshold = -1.0f;  ///< the tolerance it was cut at
   // The silhouette a custom shape resolved to, and the shape VALUE it came
   // from. The description it was read off is not an identity: a
   // description freed and rebuilt can land on the address the old one

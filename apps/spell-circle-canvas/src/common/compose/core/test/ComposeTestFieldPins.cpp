@@ -260,16 +260,16 @@ TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {
   //  - `children` are reconciled BY KEY, not compared. A node that prunes
   //    still walks them — that is the whole point of the structural prune.
   static const char* const kNames[] = {
-      "kind",        "key",         "layout",     "paint",
-      "corners",     "shapeFn",     "boundary",   "clipContent",
-      "hitTestable", "cacheMode",   "bakeScale",  "nodeTransition",
-      "backgrounds", "foregrounds", "textData",   "imageData",
-      "customData",  "deriveData",  "fxData",     "materialData",
-      "strokeData",  "memoData",    "motionData", "depthData",
-      "children"};
+      "kind",          "boundary",     "coverageThreshold", "key",
+      "layout",        "paint",        "corners",           "shapeFn",
+      "clipContent",   "hitTestable",  "cacheMode",         "bakeScale",
+      "nodeTransition","backgrounds",  "foregrounds",       "textData",
+      "imageData",     "customData",   "deriveData",        "fxData",
+      "materialData",  "strokeData",   "memoData",          "motionData",
+      "depthData",     "children"};
   static const bool kParticipates[] = {
       true,  true, true, true, true, true, true, true, true, true, true,
-      true,  true, true, true, true, true, true, true, true, true,
+      true,  true, true, true, true, true, true, true, true, true, true,
       false,  // memoData — resolveMemo owns it, and it never lands in description
       true,  true,
       false,  // children — reconciled by key, never compared

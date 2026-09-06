@@ -40,12 +40,12 @@ TEST(Incremental, MovingAnExclusionCostsNoCallToTheShaper) {
       u8"the shape moves through the paragraph and every frame the words "
       "reflow around it without any reshaping at all, just new positions");
   ExclusionFlow flow(SkRect::MakeWH(360, 400));
-  flow.shapes().push_back(
-      {ExclusionFlow::Shape::kCircle, SkRect::MakeXYWH(50, 30, 90, 90), 4});
+  flow.exclusions().push_back(
+      {silhouette::circle(SkRect::MakeXYWH(50, 30, 90, 90)), 4});
 
   ParagraphLayout first = layoutParagraph(fontContext, paragraph, flow);
   fontContext.resetStats();
-  flow.shapes()[0].bounds.offset(60, 25);
+  flow.exclusions()[0].offset = {60, 25};
   ParagraphLayout second = layoutParagraph(fontContext, paragraph, flow);
 
   EXPECT_EQ(fontContext.stats().shapeCalls, 0u)

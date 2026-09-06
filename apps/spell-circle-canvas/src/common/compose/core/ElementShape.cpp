@@ -5,6 +5,8 @@
 
 #include "ComposeInternal.h"
 
+#include <algorithm>
+
 namespace sigil::compose {
 
 Element& Element::corners(Corners c) {
@@ -41,6 +43,11 @@ Element& Element::clip(bool on) {
 
 Element& Element::boundary(Boundary source) {
   m_node->boundary = source;
+  return *this;
+}
+
+Element& Element::threshold(float coverage) {
+  m_node->coverageThreshold = std::clamp(coverage, 0.0f, 1.0f);
   return *this;
 }
 

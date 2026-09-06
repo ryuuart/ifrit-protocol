@@ -308,6 +308,43 @@ TEST(ComposeBoundary, CoverageFollowsAnImagesAlphaCutOut) {
   EXPECT_NE(drawn.pixel(100, 100), SK_ColorGREEN);
 }
 
+TEST(ComposeBoundary, TheThresholdIsHowMuchPaintCountsAsInk) {
+  // Two bands under one node: one opaque, one a wash. The tolerance is the
+  // whole of what decides whether the wash is silhouette.
+  const auto describe = [](float threshold) {
+    Element node =
+        positioned()
+            .left(20)
+            .top(20)
+            .width(100)
+            .height(100)
+            .child(box().left(0).top(0).width(100).height(40).fill(red()))
+            .child(box()
+                       .left(0)
+                       .top(60)
+                       .width(100)
+                       .height(40)
+                       .fill(red())
+                       .opacity(0.3f))
+            .foreground(flooding(SK_ColorGREEN))
+            .boundary(Boundary::Coverage);
+    if (threshold > 0) node.threshold(threshold);
+    return positioned().inset(0, 0, 0, 0).child(std::move(node));
+  };
+  Host strict, lenient;
+  strict.composer.render(describe(0));  // the default: half the pixel
+  strict.frame();
+  lenient.composer.render(describe(0.2f));
+  lenient.frame();
+
+  // The opaque band is ink under either tolerance.
+  EXPECT_EQ(strict.pixel(70, 40), SK_ColorGREEN);
+  EXPECT_EQ(lenient.pixel(70, 40), SK_ColorGREEN);
+  // The wash is ink only under the lower one.
+  EXPECT_NE(strict.pixel(70, 100), SK_ColorGREEN);
+  EXPECT_EQ(lenient.pixel(70, 100), SK_ColorGREEN);
+}
+
 TEST(ComposeBoundary, ANodeThatDrewNothingKeepsItsShapeUnderCoverage) {
   // A node whose own marks are all it paints has no silhouette to trace —
   // the marks are what dress the boundary and are never in it — so the

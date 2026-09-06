@@ -186,8 +186,8 @@ TEST(Vertical, ColumnsFlowAroundASilhouette) {
 
   constexpr float kPitch = 30;
   ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
-  flow.shapes().push_back(
-      ExclusionFlow::Shape::fromCircle(SkRect::MakeXYWH(90, 140, 120, 120), 6));
+  flow.exclusions().push_back(
+      {silhouette::circle(SkRect::MakeXYWH(90, 140, 120, 120)), 6});
   ParagraphLayoutOptions options;
   options.lineMetrics.height = kPitch;
   ParagraphLayout layout =

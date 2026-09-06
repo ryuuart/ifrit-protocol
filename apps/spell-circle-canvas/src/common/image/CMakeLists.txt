@@ -23,6 +23,7 @@ sigil_library_root(SigilImage
 add_subdirectory(asset)
 add_subdirectory(decode)
 add_subdirectory(encode)
+add_subdirectory(field)
 
 sigil_library(SigilImage
-  INTERFACE SigilImageAsset SigilImageDecode SigilImageEncode)
+  INTERFACE SigilImageAsset SigilImageDecode SigilImageEncode SigilImageField)
