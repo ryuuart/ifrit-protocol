@@ -343,7 +343,9 @@ is what keeps a plate with a guest in it reproducible.
 src/common/draw/
   include/sigildraw/
     Draw.h        the umbrella
-    Pen.h         the pen, Frame, and the Retainable and Silhouette concepts
+    Pen.h         the pen
+    PenTypes.h    Frame, ClipOptions, and the Retainable and Silhouette
+                  concepts
     Constants.h   p5's words and angles
     Color.h       ColorMode, colorFrom(), parseColor()
     Noise.h       NoiseField
@@ -377,7 +379,13 @@ src/common/draw/
                      loadBrush over any byte source
         Photoshop.h  the .abr reader and what it honours
         Procreate.h  the .brush reader and what it honours
-  Pen.cpp         the frame, the style, the shapes, the transform, the streams
+  Pen.cpp         the frame, the style, the colour model, the modes, the
+                  random stream
+  PenShapes.cpp   every shape, and the dash the outlines wear
+  PenClip.cpp     the clip
+  PenImage.cpp    images in p5's image modes
+  PenTransform.cpp  translate, rotate, scale, shear, push, pop
+  PenInternal.h   what more than one of those reads (PenInternal.cpp)
   Graphics.cpp    the offscreen buffer
   Text.cpp        text through SigilWeave
   Color.cpp       the colour models and the CSS string
@@ -389,10 +397,10 @@ src/common/draw/
                   own files; the private seams DabStyle.h, Executors.h,
                   HatchLines.h, PenUnits.h, PolygonMath.h; test/ and bench/
   brush/format/   the native reader and writer (Native), the two importers
-                  (Photoshop, Procreate), and the private Zip and Images;
-                  test/
+                  (Photoshop, Procreate), and the private Import; test/
   shaders/        Subtract.sksl, the ground SUBTRACT is laid with
-  test/           the pen's cases and the Paper fixture in support/
+  test/           the pen's cases, one file per subject, and the Paper
+                  fixture in support/
   bench/          draw_bench
 ```
 
