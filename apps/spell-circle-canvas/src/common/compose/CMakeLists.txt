@@ -141,8 +141,9 @@ add_custom_command(
 
 # The generator's own fixtures (--self-test): a real name must yield a
 # probe, an unreal one must fail the run, an operator spelling must be
-# exempted AND reported by name, and an EXTERNAL_CLASSES member must take
-# the class-scope probe path. One Python invocation, no C++ — and the only
+# exempted AND reported by name, the bare names of a header listing must be
+# checked against the header it names, and an EXTERNAL_CLASSES member must
+# take the class-scope probe path. One Python invocation, no C++ — and the only
 # check that notices the EXTRACTOR narrowing, since a generator that
 # silently probes less still emits a probe TU that compiles green.
 add_test(NAME compose_api_doc_probes_self_test

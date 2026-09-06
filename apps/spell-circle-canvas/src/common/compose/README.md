@@ -40,12 +40,19 @@ the argument.
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmotion/Animation.h>
 
 #include <ranges>
 #include <vector>
 
+// Compose re-exports nothing: the motion words (`animate`, `to`,
+// `Transition`, `bind`) are SigilMotion's and the text style is
+// SigilWeave's, each spelled from its own library.
 using namespace sigil::compose;
+using namespace sigil::motion;
 using namespace std::chrono_literals;
+namespace motion = sigil::motion;
+namespace weave = sigil::weave;
 
 /// Your data. Copyable and equality-comparable — that is the whole contract.
 struct Channel {
@@ -110,8 +117,14 @@ composer.render(dashboard(model));
 const double dt = clock.tick();
 const bool moving = ticker.tick(dt);
 composer.draw(canvas);
-const bool again = moving || composer.dirty() || ticker.active();
+const bool again = moving || composer.active();
 ```
+
+`Composer::active()` is the whole gate: it answers `dirty()` — a
+description or a layout that changed — and, beyond it, whether a motion
+is running or a retained binding can still move without another
+`render()`, which is the one thing a host polling `dirty()` alone would
+miss on a scene driven from outside.
 
 SigilSketch bundles exactly those three lines behind its own session, so
 a sketch declares a scene and never a loop. That is a convenience of a
@@ -238,7 +251,8 @@ forms on `zIndex`, opacity below 1, a blend mode, a transform, a clip, or a
 layer effect, and children cannot interleave outside it: a component cannot
 escape the z-order of the site it was composed into. The one order that is not
 tree order is a shared space's: the children of a node that opens one
-are painted back to front by depth (see "3D, the CSS way").
+are painted back to front by depth, whatever order they are declared
+in.
 
 ### Type
 
@@ -419,13 +433,17 @@ CSS's model over it.
 Everything lives in `namespace sigil::compose` under
 `include/sigilcompose/<feature>/`, one directory per feature target, and
 the include spelling is the feature's: `<sigilcompose/core/Element.h>`,
-`<sigilcompose/kit/Layouts.h>`. The public include root is `include/`
-and nothing else — the internal headers beside each feature's sources are
-not reachable from outside it. Each feature has an umbrella named after
-it (`core/Core.h`, `kit/Kit.h`, `brush/Brush.h`,
-`typography/Typography.h`) over its public headers, and
-`<sigilcompose/Compose.h>` at the root is the umbrella over the kernel —
-exactly `core/Core.h`. Each header stands on its own; include
+`<sigilcompose/kit/Layouts.h>`. There are two public include roots and
+no others: `include/`, and `testing/include/`, which the testing target
+adds and which carries the harness a consumer's own tests reach for. The
+internal headers beside each feature's sources are not reachable from
+outside it. Each feature has an umbrella named after it (`core/Core.h`,
+`kit/Kit.h`, `brush/Brush.h`, `typography/Typography.h`) over its public
+headers — over MOST of them: an umbrella is a convenience and not an
+index, so `core/Feed.h` and `core/Pattern.h`, and the kit's `Grid.h`,
+`Ground.h`, `Layouts.h`, `Placers.h` and `Routers.h`, are included by
+name. `<sigilcompose/Compose.h>` at the root is the umbrella over the
+kernel — exactly `core/Core.h`. Each header stands on its own; include
 the one a translation unit needs, from the feature whose target the
 translation unit links.
 
@@ -434,8 +452,8 @@ sound model; nothing below them changes kernel semantics.
 
 - `core/Paint.h` — the paint values: `Fill`, `Corners`, `Backface`,
   `PaintContext`,
-  `StampCache`, and the colour spellings `hex`, `alpha`, `mul`, `lift`,
-  `mix` over `SkColor4f`.
+  `StampCache`, and the colour spellings `hexColor`, `hex`, `alpha`,
+  `scaleRgb`, `lighten`, `mix` over `SkColor4f`.
 - `core/TextPainter.h` — the seam the kernel draws dressed type through:
   `TextPainterOps`, the operations the composer asks of text that is not
   resting on its own straight baseline, and `TextPainter`, that engine
@@ -549,9 +567,10 @@ eased transition in float milliseconds; `motion::phase`, a wrapping
 `[0, 1)` over a period; `motion::quantizeTime` and its integer
 counterpart `motion::stepIndex`; `motion::decay`, the open-ended settle a
 duration-based curve cannot be. So is the whole of "is this value
-moving": `motion::isLive` is the one body every volatility walk in this
-library asks, and what it can and cannot say is stated in that library's
-README.
+moving": `motion::isLive`, declared in
+`<sigilmotion/values/Animated.h>`, is the one body every volatility walk
+in this library asks, and what it can and cannot say is stated in that
+library's README.
 
 What compose OWNS is resolution, not the value. An `Animatable` is
 resolved against a `PaintContext`, taking node transitions, stagger,
@@ -568,7 +587,7 @@ SigilGeometry's, spelled `geometry::shapes::` from
 needs nothing of a component tree, and every one of them prunes a shaped
 node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement schemes for the `layout()`
 seam (`layouts::Radial`, `AlongPath`, `ModularGrid`, `Diagonal`,
-`BaselineGrid`, `Scatter`) — each one a placement FUNCTION an author
+`BaselineGrid`, `Jittered`) — each one a placement FUNCTION an author
 could have written out. `core/Table.h` stands beside the seam instead,
 because the auto table is an algorithm and not a formula, and so does
 `kit/Grid.h`.
@@ -580,7 +599,7 @@ rather than a width. There are four of them: `layouts::px`, a length
 that neither grows nor shrinks; `layouts::content`, as wide as the widest
 thing in the track and no wider; `layouts::fr`, a weighted share of what
 is left over and no floor of its own; and `layouts::minmax`, one under
-the other. `layouts::repeat` is n copies of one track, which is how "four
+the other. `layouts::repeatTrack` is n copies of one track, which is how "four
 equal columns" is spelled.
 
 The rule, per axis, is initialize from the floors, resolve the content
@@ -744,7 +763,8 @@ with every field open. The finished ones over them, whose constants are
 chosen (`cased`, `triple`, `arrow`, `railway`, `wavy`, `rails(n, …)`,
 `quad`, `hatch`, `crosshatch`, `radialHatch`, `concentric`), stand a
 namespace apart as `lines::presets::` in `kit/Strokes.h`, which — with
-`kit/Plate.h` — ships with this tier because it is spelled in its types.
+`kit/Plate.h`, `kit/Ornament.h` and `kit/Flourish.h` — ships with this
+tier because each is spelled in its types.
 
 **Fills.** The paint vocabulary is SigilMaterial's and is spelled there:
 `material::skia::Paint` is what `Element::fill` takes, and
@@ -831,7 +851,8 @@ Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
 `texture/Texture.h` is the door OUT of this library: a scene painted into
 a surface and handed over as a SigilMaterial texture value, in its own
-target `SigilComposeTexture` — see Boundaries. `draw/Draw.h` is the door
+target `SigilComposeTexture`, which links the Graphite context and the
+hardware device its GPU path stands on. `draw/Draw.h` is the door
 to the imperative pen, both ways, in its own target `SigilComposeDraw`:
 `compose::pen` takes a `PenProgram` — a function of a `draw::Pen` — and
 makes the node `custom()` would, at `Cache::None`, with the pen's width
@@ -894,13 +915,18 @@ at a `geometry::path::Frame`'s — a braced pair is the centre, and a
 frame is spelled as one) and `kit::at` (a box pinned at absolute
 coordinates, for the plate that has no layout at all), `kit::dotSprite`
 (the round stamp a point sink draws each point with),
-`kit::PixFont` (aliased bitmap-font bakes), `kit::Scrim` and the
+`kit::PixFont` (aliased bitmap-font bakes, in `kit/PixelType.h`, with
+`kit/Sprites.h`'s sprite sheets and `kit/Frame.h`'s nine-slice frame
+beside it), `kit::Scrim` and the
 halo/shade legibility helpers, the stock text effects over the
-`Element::fx` seam in `kit/Kinetic.h` — `fx::rise`, `fx::slide`,
-`fx::pop`, `fx::spinIn`, `fx::typeOn`, `fx::waveLoop`, `fx::scatter`,
-`fx::variableAxisSweep` and `fx::tint`, each a comparable `TextEffect`
-built from the constructor any caller may use — with `kit::marquee`,
-the seamless ticker built from a clipped strip and a wrapping phase,
+`Element::fx` seam in `kit/Kinetic.h` — `fx::enter`, the one entrance
+every unit-offset reveal is a setting of, with `fx::rise`, `fx::slide`,
+`fx::pop`, `fx::spinIn` and `fx::scatter` over it, and `fx::typeOn`,
+`fx::waveLoop`, `fx::variableAxisSweep` and `fx::tint` beside them, each
+a comparable `TextEffect` built from the constructor any caller may use —
+with `kit/Marquee.h`'s `kit::marquee`, the seamless ticker built from a
+clipped strip and a wrapping phase, whose every dial is one options
+struct,
 `kit/Placers.h`'s `place::grid`, `place::ring` and `place::repeat`, the
 fillers of an instanced leaf's pool — the first two over the same ring
 and grid arithmetic the layout schemes use, which is SigilGeometry's —
@@ -1130,7 +1156,7 @@ one code value above: a scene whose worst channel exceeds it is a
 promoted node painting a different picture, and it is filed against this
 library. Because the on half is eager rather than measured, that sweep
 covers every promotable node in the registry and reports the same numbers
-on any machine. It is `scripts/plate_ledger.py --tier promotion`, and it
+on any machine. It is `sigil.py plates --tier promotion`, and it
 is the only run in the repository that photographs this library with
 promotion switched on.
 
@@ -1250,10 +1276,11 @@ The kernel links `SigilCoreReconcile`, `SigilCoreCache`,
 `SigilCoreComparable`, `SigilCoreCompute`, `SigilGeometryPath`,
 `SigilImage`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
 `SigilSkiaDraw` (the direct draws the instanced leaf stamps through),
-`SigilWeave` and Skia publicly, and Yoga privately. The brush tier adds
-`SigilGeometryKit`, the silhouette shelf a brush is applied to; the kit
-tier links the brush tier — the arrow between
-those two points one way. Each tier also names, on its own link line,
+`SigilWeave` and Skia publicly, and Yoga and Boost's container and
+unordered targets privately. The brush tier adds `SigilGeometryKit`, the
+silhouette shelf a brush is applied to, and the typography tier, whose
+vocabulary its text decorations are spelled in; the kit tier links the
+brush tier — the arrow between those two points one way. Each tier also names, on its own link line,
 every library its headers include, so no tier reaches a library through
 the kernel's.
 
@@ -1369,7 +1396,8 @@ the host of SigilCore's reconciler),
 `SigilComposeTypography` (`typography/` — the text vocabulary and the
 engine behind dressed type), `SigilComposeBrush`
 (`brush/` — decorations, lines, brushes, the stroke grammar's engine and
-the mask gates, with `kit/Strokes.h` and `kit/Plate.h`),
+the mask gates, with `kit/Flourish.h`, `kit/Ornament.h`, `kit/Plate.h`
+and `kit/Strokes.h`),
 `SigilComposeTexture` (`texture/` — a scene
 painted into a surface and handed out as a texture value),
 `SigilComposeVideo` (`video/` — a streaming SigilVideo clip sampled from the
@@ -1390,18 +1418,20 @@ stated fact.
 `SigilCompose` remains as the whole-library name for a consumer outside
 this tree, the way `SigilWeave`, `SigilMotion` and `SigilGeometry` each
 keep one: it is Kit, Brush and Typography, which between them reach
-Core, never the web leaf, and nothing here
-links it. From `apps/spell-circle-canvas`:
+Core, never the web leaf. The sketch library links it — a sketch draws
+with the whole vocabulary and names no tier — and every other consumer
+here names the feature targets it draws with. From
+`apps/spell-circle-canvas`:
 
 ```sh
-python3 scripts/setup.py --config Release
+python3 scripts/sigil.py setup --config Release
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
 Registered tests. The library has ONE test binary, `compose_test`, built
 from every feature's `test/` directory; ctest discovers one entry per
-CASE out of it, so `ctest -R 'ComposeKinetic\.'` selects a suite and
+CASE out of it, so `ctest -R 'KitGrid\.'` selects a suite and
 `ctest -R 'ComposeContent.AKeyedShapeSettlesOnTheValueItClosesOver'` one
 case, with no target behind either. What locates a case is that a suite
 is named for the feature it covers and its file sits in that feature's
@@ -1461,7 +1491,7 @@ cost GROWS lives in it rather than in a ctest wall-clock ceiling, because
 a single size cannot show a rate. Its arms sit in each feature's `bench/`
 over the shared `bench/BenchSupport.h`; it is built by the `benches`
 target, lands in `bin/<config>/benches/` and is run by
-`scripts/bench_ledger.py`. Anything resembling a performance claim
+`sigil.py bench`. Anything resembling a performance claim
 belongs to it and to the plate ledger, never to prose.
 
 **Looking at any of it** goes through SigilSketch, which is where every
@@ -1485,6 +1515,15 @@ those names that way. A member is probed through a `requires` expression, a
 namespace-scope entity through a using-declaration, and a designated
 initialiser through the initialiser itself, which is a stricter question
 than whether the name resolves.
+
+A BARE name is checked too wherever the document says which header owns
+it: every backticked name in a bullet that opens with a header path — the
+header map above is nothing else — is looked up in that header's own text,
+and a name no header of the library spells fails the run exactly as a
+qualified one does. A name some other header spells is reported as
+misfiled rather than missing. Outside such a bullet an unqualified name is
+still invisible to the guard, because resolving one would mean resolving
+it the way a compiler does.
 
 The consequence is the point: a name written here that drifts out from
 under the prose is a build break, not a confident wrong answer. Names the
