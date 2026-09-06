@@ -48,7 +48,9 @@ The table below is every sketch filed under a `Study ·` category — the
 studies that rebuild a REFERENCE — with what each one puts under load.
 Every other sketch here carries its own line in its own `SIGIL_SKETCH`
 declaration, which is what the application shows beside it — so there
-is one place to read and one place to change.
+is one place to read and one place to change. A `Catalog ·` folder holds
+reconstructions too, filed by what they are rather than by what they
+were read off; the rule above is written for all of them.
 
 | Sketch | Subject | What it puts under load |
 |---|---|---|
@@ -73,7 +75,6 @@ is one place to read and one place to change.
 | `twoadvanced_v3` | 2Advanced Studios "V3 Expansions Reboot" (2024), the live Rive/React rebuild of the 2001 v3 site | The production art itself — embedded PNGs lifted from the site's own `mainstage.riv` over SigilIO's https path, the 62-frame cloud loop composited through a soft mask, and the section cycle replaying the stepped shape-wipe |
 | `twoadvanced_v4` | 2Advanced Studios v4 "Prophecy" (2003–06) | Chamfered Flash chrome at four nesting depths, the real shell GIFs fetched from the studio's restoration host — and the MAINFRAME hero as what it was, a 3D render: a world scene of pods on water in front of a teal city, baked once and composited into the page |
 | `vagrant_story_target` | *Vagrant Story*'s battle-mode targeting screen (Square, 2000) | The only study that is a SET: a lit 3D scene with a wireframe reach sphere in real space, and the whole overlay — gauges, target card, the six-limb strip — baked aliased into one texture on a quad that fills the frustum |
-| `world_hud` | Veloren's HUD (github.com/veloren/veloren, voxygen/src/hud/) | Every dimension and colour read out of the source, over the thing a HUD has to stay legible on: a lit voxel valley in the same frame, with the whole HUD baked into one texture on a quad that fills the frustum |
 | `bg3_dice_roll` | Baldur's Gate 3's dialogue ability check, the instant after the die lands | The engine's own type surface as a picture — the SkillId ordinals in the engine's grouping, the ResolvedRollBonus row schema, and the thing that dates the UI: the modifiers are added AFTER the natural roll |
 | `xcom_battlescape` | X-COM: UFO Defense (1994), the Battlescape, at 4× | 115 colours and 115 of them in the palette; a 4× round trip with 0 mismatching pixels of 1,024,000 |
 | `vertigo_titles` | Saul Bass / John Whitney's *Vertigo* titles (1958) | The precessing Lissajous derived from Whitney's M-5 gun director; hollow display type |
@@ -95,9 +96,11 @@ is one place to read and one place to change.
 | `thaumonomicon` | Thaumcraft 6's research browser (2018) | Edges that are stamped art, not strokes |
 | `thunder_fulu` | A Thunder-Rite talisman, WRITTEN | Real stroke medians, and the foot at 7.1× the body's tempo |
 
-Two are not studies:
+These are not studies. They are named here because something outside the
+directory reaches for them, so a rename has somewhere to be noticed:
 
 | Sketch | Why it exists |
 |---|---|
 | `hello` | The starter. Copy it. |
+| `crossing_rule` | What `sketch_reload_runs_the_file` copies with its ground colour replaced, so the entry can tell a picture drawn by the file on disk from one drawn by the host's own compiled-in copy of it. |
 | `stock_materials` | One of every stock material, painted from a sketch dylib and wired up as the `sketch_reload_materials` test — so a helper added to a shader fails the build instead of failing someone's sketch three weeks later. |
