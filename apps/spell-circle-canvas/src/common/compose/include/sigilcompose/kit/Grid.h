@@ -361,59 +361,9 @@ struct Grid {
         out[i].declared = false;  // an unknown name is silent; the child flows
       }
     }
-    const int cols = std::max(columnCount(out, picture), 1);
-    std::vector<char> taken;
-    const auto held = [&](int column, int row) {
-      if (column < 0 || column >= cols || row < 0) return true;
-      const size_t at = (size_t)row * (size_t)cols + (size_t)column;
-      return at < taken.size() && taken[at] != 0;
-    };
-    const auto claim = [&](int column, int row, int wide, int tall) {
-      for (int r = row; r < row + tall; ++r)
-        for (int c = column; c < column + wide; ++c) {
-          if (c < 0 || c >= cols || r < 0) continue;
-          const size_t at = (size_t)r * (size_t)cols + (size_t)c;
-          if (taken.size() <= at) taken.resize(at + 1, 0);
-          taken[at] = 1;
-        }
-    };
-    for (const CellSpan& s : out)
-      if (s.declared) claim(s.column, s.row, s.columns, s.rows);
-    size_t cursor = 0;
-    for (CellSpan& s : out) {
-      if (s.declared) continue;
-      // A span wider than the grid is as wide as the grid: there is no
-      // cell a wider one could ever be free at, and the search below has
-      // no way out but to find one.
-      const int wide = std::clamp(s.columns, 1, cols);
-      const int tall = std::max(s.rows, 1);
-      // Sparse flow never looks back past the cursor, so a child cannot
-      // land on a cell an explicit span already claimed and the run stays
-      // in declaration order. Dense flow starts every search at cell zero,
-      // which fills the holes a wide span left beside it — and is the one
-      // difference between the two.
-      size_t at = dense ? 0 : cursor;
-      for (;; ++at) {
-        const int c = (int)(at % (size_t)cols);
-        const int r = (int)(at / (size_t)cols);
-        if (c + wide > cols) continue;  // a span may not straddle the edge
-        bool free = true;
-        for (int dr = 0; dr < tall && free; ++dr)
-          for (int dc = 0; dc < wide && free; ++dc)
-            free = !held(c + dc, r + dr);
-        if (!free) continue;
-        s.column = c;
-        s.row = r;
-        // The span it was placed at is the span it gets: a child that
-        // asked for more columns than the grid has is laid out over the
-        // cells it actually holds.
-        s.columns = wide;
-        s.rows = tall;
-        claim(c, r, wide, tall);
-        if (!dense) cursor = at + 1;
-        break;
-      }
-    }
+    // The kernel's flow: the declared spans are claimed, and what said
+    // nothing lands in what is left, in this grid's own order.
+    flowCells(out, columnCount(out, picture), dense);
     return out;
   }
 

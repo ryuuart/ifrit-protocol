@@ -184,6 +184,24 @@ struct CellSpan {
   bool operator==(const CellSpan&) const = default;
 };
 
+/** WHERE THE CHILDREN THAT CLAIMED NOTHING LAND, in @p spans, over a grid
+ *  @p columns wide: the ONE flow every cell-shaped scheme uses.
+ *
+ *  The spans a scheme resolved are its own — a name looked up in a picture
+ *  of areas, or the numbers a child stated — and every one whose
+ *  `declared` is true is taken as it stands. What is left flows into the
+ *  cells nothing claimed, left to right and then down, each child at the
+ *  span it asked for (clamped to the grid: there is no cell a child wider
+ *  than the grid could ever be free at). A flowed child's resolved
+ *  `column`, `row`, `columns` and `rows` are written back.
+ *
+ *  @p dense is the one difference between the two orders CSS names. Sparse
+ *  never looks back past the last cell it filled, so the run stays in
+ *  declaration order; dense starts every search at cell zero, which fills
+ *  the holes a wide span left beside it and lets a later child land before
+ *  an earlier one. */
+void flowCells(std::vector<CellSpan>& spans, int columns, bool dense = false);
+
 /** What a custom layout sees: the container's resolved size, each child's
  *  measured size (text children measured by SigilWeave), each child's
  *  first-baseline offset from its own top (NaN for children without one) —

@@ -38,7 +38,7 @@ sigil_library(SigilComposeCore
     ElementLayout.cpp ElementShape.cpp ElementMask.cpp ElementPaint.cpp
     ElementMarks.cpp ElementTransform.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
-    ElementNode.cpp Diagnostics.cpp
+    ElementNode.cpp Diagnostics.cpp CellFlow.cpp
     # the composer and its phases
     Composer.cpp Reconcile.cpp ReconcileHost.cpp Layout.cpp Derive.cpp
     Transitions.cpp Query.cpp
@@ -78,10 +78,15 @@ sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)
 # inheritance — and ComposeRuntime.h includes <yoga/Yoga.h>. Listed for
 # the INCLUDE PATH; the archive itself was already in the link closure.
 sigil_test(compose_test
-  SOURCES test/ComposeTestKernel.cpp test/ComposeTestMask.cpp
-          test/ComposeTestFieldPins.cpp test/ComposeTestContentCore.cpp
-          test/ComposeTestDepth.cpp test/ComposeTestInstances.cpp
-          test/ComposeTestTether.cpp test/ComposeTestTable.cpp
+  SOURCES test/ComposeTestLayout.cpp test/ComposeTestContent.cpp
+          test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
+          test/ComposeTestPromotion.cpp test/ComposeTestMotion.cpp
+          test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
+          test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
+          test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
+          test/ComposeTestContentCore.cpp test/ComposeTestDepth.cpp
+          test/ComposeTestInstances.cpp test/ComposeTestTether.cpp
+          test/ComposeTestTable.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
   LIBRARIES SigilComposeCore SigilComposeTesting SigilWeavePorts
             yoga::yogacore)

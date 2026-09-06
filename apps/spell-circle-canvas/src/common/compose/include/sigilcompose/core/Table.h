@@ -172,37 +172,13 @@ struct Table {
 
  private:
   /** Every child's cells, with the ones that said nothing flowed into the
-   *  free cells left over — left to right, then down. */
+   *  free cells left over — the kernel's own flow, which every
+   *  cell-shaped scheme fills its grid with. */
   std::vector<CellSpan> flowed(const LayoutInput& in) const {
     std::vector<CellSpan> out(in.childSizes.size());
     for (size_t i = 0; i < out.size(); ++i)
       if (i < in.childCells.size()) out[i] = in.childCells[i];
-    const int cols = std::max(columnCount(out), 1);
-    std::vector<char> taken;
-    const auto claim = [&](int column, int row, int wide, int tall) {
-      for (int r = row; r < row + tall; ++r)
-        for (int c = column; c < column + wide; ++c) {
-          if (c < 0 || c >= cols || r < 0) continue;
-          const size_t at = (size_t)r * (size_t)cols + (size_t)c;
-          if (taken.size() <= at) taken.resize(at + 1, 0);
-          taken[at] = 1;
-        }
-    };
-    for (const CellSpan& s : out)
-      if (s.declared) claim(s.column, s.row, s.columns, s.rows);
-    size_t next = 0;
-    for (CellSpan& s : out) {
-      if (s.declared) continue;
-      // The next cell NO declared child claimed, so an explicit span and a
-      // flowing child cannot land on each other — the failure a scheme
-      // that counts flow from zero has, where child four of eight lands
-      // back on top of the one placed at (0,0).
-      while (next < taken.size() && taken[next]) ++next;
-      s.column = (int)(next % (size_t)cols);
-      s.row = (int)(next / (size_t)cols);
-      claim(s.column, s.row, 1, 1);
-      ++next;
-    }
+    flowCells(out, columnCount(out));
     return out;
   }
 
