@@ -952,28 +952,38 @@ composition's axes rather than the reading direction's, which is the whole
 difference between the two values.
 
 `kit::rules` cuts a rule or a shade to the extent a block's lines actually
-occupy, `kit::bullets` hangs markers in a hanging indent, and
-`kit::dropCap` is an initial with the body flowing around it — an ordinary
-exclusion, resolved in the ordinary pass. Its first argument may be the
-letter and its style, or a caller-built `Element`: an illuminated frame,
-flourish or combined ornament can therefore declare a silhouette and have
-the opening lines follow that outline rather than its box.
+occupy and `kit::bullets` hangs markers in a hanging indent.
+
+A BLOCK'S OPENING LETTER is not kit at all: `Element::initialLetter` states
+how many lines of cap the initial spans and the layout derives the size
+from the block's own pitch and the face's own cap height, then seats the
+letter's baseline on the line it sinks to and cuts the notch the following
+lines wrap. An ORNAMENT — an illuminated frame, a flourish, a combined
+letter — is the other case and stays an ordinary exclusion: a keyed element
+with a silhouette, and a body that flows around that key, so the opening
+lines follow that outline rather than its box.
+
+```cpp
+text(passage, bodyType).initialLetter({.lines = 3, .margin = 6.0f});
+
+ornament.key("versal").absolute().left(Dim(0.0f)).top(Dim(0.0f));
+text(rest, bodyType).flowAround("versal", 6.0f);
+```
 
 A NESTED STYLE — the opening of a paragraph set differently from the rest
 of it — is a selector and a span restyle, and `kit::NestedStyle` is the
 statement of where it stops: `kit::NestedStyle::Until::Words` counts the
 paragraph's own words, `Until::Characters` counts a character range, and
 `Until::Delimiter` runs through the first occurrence of a mark, inclusive.
-`kit::nestedRun` answers the `weave::Selector` that means, `Element::spanStyle`
-does the work, and `kit::dropCap` takes one so an initial and the small
-caps that carry a paragraph out of it are written together.
+`kit::nestedRun` answers the `weave::Selector` that means and
+`Element::spanStyle` does the work, so an initial and the small caps that
+carry a paragraph out of it are two properties of one leaf.
 
 ```cpp
-kit::dropCap(u8"W", capType, rest, bodyType, "dropcap", 6.0f,
-             kit::NestedStyle{.count = 3, .style = smallCaps});
-
-kit::dropCap(box().width(72).height(88).shape(ornament).child(initial),
-             rest, bodyType, "ornament", 6.0f);
+const kit::NestedStyle opening{.count = 3, .style = smallCaps};
+text(passage, bodyType)
+    .initialLetter({.lines = 3, .margin = 6.0f})
+    .spanStyle(kit::nestedRun(opening), opening.style);
 ```
 
 Because it is a selector, the run re-resolves with the text: an edit that

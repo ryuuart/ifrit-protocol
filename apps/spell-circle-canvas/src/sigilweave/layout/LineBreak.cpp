@@ -1635,10 +1635,10 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   using namespace detail;
 
   LineLimitedGeometry clampedGeometry(geometry, options.overflow.maxLines);
-  FlowGeometry& effectiveGeometry =
+  FlowGeometry* effectiveGeometry =
       options.overflow.maxLines > 0
-          ? static_cast<FlowGeometry&>(clampedGeometry)
-          : geometry;
+          ? static_cast<FlowGeometry*>(&clampedGeometry)
+          : &geometry;
 
   // Whether a soft hyphen is a break opportunity is decided during
   // segmentation, so the option reaches the paragraph before it analyzes;
@@ -1686,13 +1686,16 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   // block. What changes is where the fill begins — the blocks already
   // placed are dropped and the one the cursor sits in starts at the
   // cursor.
+  bool openingBlockResumed = false;
   if (firstWord > 0) {
     size_t firstBlock = 0;
     while (firstBlock < blocks.size() && blocks[firstBlock].endWord <= firstWord)
       ++firstBlock;
     if (firstBlock >= blocks.size()) return result;
     blocks.erase(blocks.begin(), blocks.begin() + (long)firstBlock);
+    const uint32_t blockStart = blocks.front().firstWord;
     blocks.front().firstWord = std::max(blocks.front().firstWord, firstWord);
+    openingBlockResumed = blocks.front().firstWord != blockStart;
     // A block resumed part-way opens no air of its own: the gap it asked
     // for was spent where it began, in the frame before this one.
     blocks.front().lead = 0;
@@ -1703,13 +1706,42 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
           ? words[blocks.front().firstWord].textBegin
           : 0);
 
+  // THE INITIAL LETTER, resolved before a line is asked for, because the
+  // notch it cuts is part of the geometry every line is broken against.
+  // One per pass: a block whose opening a frame before this one already
+  // set is resumed and never re-opened, and the initial belongs to the
+  // frame the block began in.
+  InitialLetterPlan initialPlan;
+  for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
+    const Block& candidate = blocks[blockIndex];
+    if (candidate.style.initial.lines <= 0) continue;
+    if (blockIndex == 0 && openingBlockResumed) break;
+    if (candidate.firstWord >= words.size()) break;
+    initialPlan = planInitialLetter(
+        fontContext, paragraph, candidate,
+        paragraph.strutAt(fontContext, words[candidate.firstWord].textBegin));
+    break;
+  }
+  std::optional<InitialLetterGeometry> initialGeometry;
+  if (initialPlan.active()) {
+    initialGeometry.emplace(*effectiveGeometry, initialPlan);
+    effectiveGeometry = &*initialGeometry;
+    // The initial took the head of its block's opening word, so the fill
+    // starts past it; what is left of that word is the initial's to place.
+    for (Block& initialBlock : blocks)
+      if (initialBlock.index == initialPlan.blockIndex)
+        initialBlock.firstWord = initialPlan.wordIndex + 1;
+  }
+
   IntervalSequence intervalSequence(
-      effectiveGeometry, blocks.front().pitch, blocks.front().ascent,
+      *effectiveGeometry, blocks.front().pitch, blocks.front().ascent,
       options.lineBreakStrategy == LineBreakStrategy::kKnuthPlass
           ? options.knuthPlass.minimumIntervalWidth
           : 0.0f);
-  intervalSequence.seatFirstBand(firstBandStart(
-      options.frame, strut, blocks.front().ascent, blocks.front().pitch));
+  const float firstBand = firstBandStart(options.frame, strut,
+                                        blocks.front().ascent,
+                                        blocks.front().pitch);
+  intervalSequence.seatFirstBand(firstBand);
 
   // The geometry a caller needs to re-place a transformed run at draw time:
   // the intervals the layout actually consumed, in the numbering the runs
@@ -1854,6 +1886,18 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   }
   if (!options.overflow.ellipsis.empty() && result.overflowed())
     applyEllipsis(fontContext, paragraph, intervalSequence, options, result);
+  if (initialGeometry) {
+    // A block whose whole opening the initial took places no line of its
+    // own, so the band it stands on has to be asked for outright.
+    if (!initialGeometry->seated()) {
+      static thread_local std::vector<LineInterval> seatScratch;
+      initialGeometry->lineIntervals(
+          LineRequest{0, firstBand, blocks.front().pitch,
+                      blocks.front().ascent, initialPlan.blockIndex, 0},
+          seatScratch);
+    }
+    placeInitialLetter(initialPlan, *initialGeometry, paragraph, result);
+  }
   recordGeometry(result);
   distributeInFrame(options.frame, intervalSequence.bandCursor() - depthFreed,
                     result.lineCount, result);

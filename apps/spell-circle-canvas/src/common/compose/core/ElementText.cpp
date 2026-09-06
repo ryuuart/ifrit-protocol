@@ -134,6 +134,17 @@ Element& Element::paragraph(sigil::weave::ParagraphStyle style) {
       std::vector<sigil::weave::ParagraphStyle>{std::move(style)});
 }
 
+Element& Element::initialLetter(sigil::weave::InitialLetter initial) {
+  detail::TextOptions& options = m_node->textData.ensure().options;
+  // The initial belongs to the passage's first block, so it lands on the
+  // first entry of whatever block styling this leaf already carries rather
+  // than replacing it.
+  if (options.blocks.empty()) options.blocks.emplace_back();
+  options.blocks.front().initial = std::move(initial);
+  options.set |= detail::TextOptions::kBlocks;
+  return *this;
+}
+
 Element& Element::firstBaseline(sigil::weave::FrameOptions::FirstBaseline rule,
                                 float offset) {
   detail::TextOptions& options = m_node->textData.ensure().options;

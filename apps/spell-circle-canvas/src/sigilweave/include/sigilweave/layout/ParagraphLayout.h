@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "sigilweave/layout/Flow.h"
+#include "sigilweave/layout/InitialLetter.h"
 #include "sigilweave/layout/LayoutOptions.h"
 #include "sigilweave/layout/PositionedRun.h"
 #include "sigilweave/paragraph/Paragraph.h"
@@ -82,6 +83,11 @@ struct ParagraphLayout {
   /// only its fill: a frame that reports as many reused blocks as it holds
   /// made no break decision at all.
   int reusedBlocks = 0;
+  /// Where the initial letter landed, when a block declared one
+  /// (ParagraphStyle::initial). Its glyphs are ordinary runs of this
+  /// layout and draw with the rest; this is the report, not a second thing
+  /// to draw.
+  PlacedInitial initial;
 
   /** Returns whether geometry ended before all paragraph words were placed. */
   [[nodiscard]] bool overflowed() const noexcept {

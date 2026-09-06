@@ -147,6 +147,20 @@ class Element {
    *  an inserted or reordered child silently shifts every entry after it
    *  onto the wrong cell. */
   Element& cells(int column, int row, int columns = 1, int rows = 1);
+  /** WHICH NAMED REGION of the `layout()` scheme above it this child
+   *  claims — the same statement as `cells()` with the numbers left to the
+   *  scheme's own picture of itself (`layouts::Grid::areas`).
+   *
+   *      layout(layouts::Grid{.areas = {"head head", "nav  main"}})
+   *          .child(masthead().area("head"))
+   *          .child(sidebar().area("nav"))
+   *
+   *  A name survives what four integers do not: insert a row into the
+   *  picture and every child stays in the region it named, where every
+   *  numbered child after the insertion would have moved one cell up. A
+   *  name the picture does not carry is silent, and the child flows into
+   *  the next free cell like any child that claimed nothing. */
+  Element& area(std::string name);
   /** Where this child sits INSIDE the cell box its span makes.
    *  `Align::Stretch` sizes it to the box instead of placing it in one. */
   Element& cellAlign(Align across, Align down);
@@ -853,6 +867,22 @@ class Element {
   Element& paragraphs(std::span<const std::string_view> names);
   /** Every block of this passage set alike. */
   Element& paragraph(sigil::weave::ParagraphStyle style);
+  /** Text leaves only: THIS PASSAGE'S OPENING SET LARGE — a versal sized so
+   *  its cap height spans the lines it is given, seated on the baseline it
+   *  sinks to, with the lines under it wrapping the notch it cuts.
+   *
+   *      text(body, bodyStyle).initialLetter({.lines = 3})
+   *      text(body, bodyStyle).initialLetter({.lines = 3, .sink = 1})
+   *
+   *  No key, no second element and no split string: the letter is part of
+   *  the passage, and the two numbers it is made of — the size that makes a
+   *  cap span three lines, and the baseline it lands on — are answered
+   *  where the block's pitch and the face's own metrics are, which is
+   *  inside the layout. `sigil::weave::InitialLetter` carries how many
+   *  letters, which metric the alignment is made on, whether the following
+   *  lines wrap the box or the glyph, the standoff, and the style it is set
+   *  in. It applies to the FIRST block of this passage. */
+  Element& initialLetter(sigil::weave::InitialLetter initial);
 
   /** Text leaves only: WHERE THE FIRST BASELINE SITS below the top of this
    *  leaf's box — the first line's own ascent (the default), its cap

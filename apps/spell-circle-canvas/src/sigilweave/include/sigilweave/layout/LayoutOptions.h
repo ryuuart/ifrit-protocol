@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilweave/layout/InitialLetter.h"
 #include "sigilweave/paragraph/Hyphenation.h"
 
 namespace sigil::weave {
@@ -536,6 +537,11 @@ struct ParagraphStyle {
   /// gave, so a centred block stays centred on the real one. Ignored by the
   /// greedy breaker, which takes the first break that fits.
   bool balanceRaggedLines = false;
+  /// The block's OPENING SET LARGE — sized so its reference metric spans
+  /// the lines it is given, seated on the baseline it sinks to, with the
+  /// lines under it wrapping the notch it cuts (InitialLetter.h). Zero
+  /// lines, the default, declares none and costs nothing.
+  InitialLetter initial;
 
   std::optional<TextAlignment> alignment;
   std::optional<JustificationOptions> justification;

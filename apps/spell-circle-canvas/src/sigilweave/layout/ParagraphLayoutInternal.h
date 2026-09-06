@@ -408,5 +408,74 @@ void knuthPlassBlock(FontContext& fontContext, Paragraph& paragraph,
                      size_t& lastIntervalUsed, uint32_t& overflowWord,
                      bool& outOfBudget);
 
+// THE INITIAL LETTER THIS PASS IS SETTING: what the sizing rule answered,
+// the glyphs it shaped, and the pen travel it takes out of the head of each
+// band it covers. Inactive — and free — for a text that declares none.
+// Defined in InitialLetter.cpp.
+struct InitialLetterPlan {
+  int blockIndex = -1;  // < 0: no initial in this pass
+  int bands = 0;        // bands the notch cuts
+  float notch = 0;      // pen travel it takes from each of them
+  float tail = 0;       // pen travel the split word's remainder takes on band 0
+  float fontSize = 0;   // the size the rule derived
+  float capSpan = 0;    // the reference metric that size was derived from
+  float sinkOffset = 0;  // px from the first baseline to the initial's own
+  ShapedWordRef glyphs;     // the initial itself
+  ShapedWordRef remainder;  // what is left of the word it split
+  uint32_t styleIndex = 0;
+  uint32_t wordIndex = 0;
+  uint32_t textEnd = 0;  // one past the last unit the initial took
+  InitialLetter::Wrap wrap = InitialLetter::Wrap::kBox;
+  SkPath outline;              // kGlyph: the initial's own contours
+  std::vector<float> perBand;  // kGlyph: the notch band by band
+
+  [[nodiscard]] bool active() const { return blockIndex >= 0 && bands > 0; }
+  /** The pen travel the notch takes out of band @p band. */
+  [[nodiscard]] float notchAt(int band) const;
+};
+
+// Resolves the sizing rule against the block's own pitch and strut and
+// shapes the initial. Answers an inactive plan when the block declares
+// none, or when its opening has nothing to give one.
+InitialLetterPlan planInitialLetter(FontContext& fontContext,
+                                    const Paragraph& paragraph,
+                                    const Block& block,
+                                    const Paragraph::Strut& strut);
+
+// Cuts an initial's notch out of any FlowGeometry: the bands the initial
+// covers lose that much pen travel off their head, which is the one thing a
+// line, a column and a contour all answer in. It also keeps the head of the
+// block's first band as the geometry handed it over, since that is where
+// the initial itself stands and nothing downstream can recover it.
+class InitialLetterGeometry final : public FlowGeometry {
+ public:
+  InitialLetterGeometry(FlowGeometry& inner, const InitialLetterPlan& plan)
+      : m_inner(inner), m_plan(plan) {}
+
+  using FlowGeometry::lineIntervals;
+  bool lineIntervals(const LineRequest& request,
+                     std::vector<LineInterval>& intervals) override;
+  // The bands the notch cuts are shorter than the rest, so no two lines of
+  // this geometry may be assumed to share a measure.
+  bool uniformIntervals() const override { return false; }
+
+  /** Whether the block's first band has been asked for yet. */
+  [[nodiscard]] bool seated() const { return m_seated; }
+  /** That band as the inner geometry gave it, notch not yet taken. */
+  [[nodiscard]] const LineInterval& seat() const { return m_seat; }
+
+ private:
+  FlowGeometry& m_inner;
+  const InitialLetterPlan& m_plan;
+  LineInterval m_seat;
+  bool m_seated = false;
+};
+
+// Places the initial's glyphs, and the remainder of the word it split, as
+// runs of `layout`, and fills in ParagraphLayout::initial.
+void placeInitialLetter(const InitialLetterPlan& plan,
+                        const InitialLetterGeometry& geometry,
+                        const Paragraph& paragraph, ParagraphLayout& layout);
+
 }  // namespace detail
 }  // namespace sigil::weave

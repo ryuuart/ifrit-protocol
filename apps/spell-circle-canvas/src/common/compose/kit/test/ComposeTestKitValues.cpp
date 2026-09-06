@@ -370,9 +370,9 @@ TEST(KitAt, TheElementOverloadPlacesANodeItDidNotBuild) {
 }
 
 // ---------------------------------------------------------------------------
-// kit/Typeset.h — the dropped initial and the opening run.
+// kit/Typeset.h — the ornamented opening and the opening run.
 
-TEST(KitDropCap, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
+TEST(KitOrnament, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
   const std::u8string passage =
       u8"small words keep moving through the opening measure until the "
       u8"ornament has passed and the full line becomes available again "
@@ -381,13 +381,15 @@ TEST(KitDropCap, AnOrnamentKeepsItsSilhouetteAsTheOpeningExclusion) {
     Element ornament =
         box().width(90).height(90).fill(Fill::color({0, 1, 0, 1}));
     if (silhouette) ornament.shape(geometry::shapes::circle());
-    kit::DroppedCap made = kit::dropCap(std::move(ornament), passage,
-                                        pixelStyle(12), "ornament", 4);
+    ornament.key("ornament").absolute().left(Dim(0.0f)).top(Dim(0.0f));
     return box()
         .width(220)
         .height(260)
-        .child(std::move(made.initial))
-        .child(std::move(made.body).key("body").width(220));
+        .child(std::move(ornament))
+        .child(text(passage, pixelStyle(12))
+                   .key("body")
+                   .width(220)
+                   .flowAround("ornament", 4));
   };
 
   Host boxed(220, 260), round(220, 260);

@@ -343,17 +343,15 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
   EXPECT_FALSE(anyGreenIn(missing, SkIRect::MakeXYWH(0, 0, 400, 300)));
 }
 
-TEST(ComposeTypeset, ADropCapCarriesANestedOpeningIntoItsBody) {
-  // The case the two pieces exist for: an initial, and the words after it
-  // set in a style of their own. The cap is its own leaf in its own type,
-  // so the nested run is stated over the body that flows around it.
+TEST(ComposeTypeset, AnInitialLetterCarriesANestedOpeningIntoItsBlock) {
+  // The case the two pieces exist for: an initial the layout sizes and
+  // seats, and the words after it set in a style of their own. Both are
+  // properties of ONE text leaf — the initial is not a second element — so
+  // the nested run is stated over the same block the initial opens.
   Host host(400, 300);
   const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Words,
                                  .count = 2,
                                  .style = colouredStyle(16, SK_ColorGREEN)};
-  auto [initial, body] =
-      kit::dropCap(toU8("W"), whiteStyle(48), toU8("hale alpha beta gamma"),
-                   whiteStyle(16), "dropcap", 6.0f, opening);
   host.composer.render(box().child(
       box()
           .absolute()
@@ -361,8 +359,11 @@ TEST(ComposeTypeset, ADropCapCarriesANestedOpeningIntoItsBody) {
           .top(Dim(40.0f))
           .width(Dim(340.0f))
           .height(Dim(200.0f))
-          .child(std::move(initial))
-          .child(std::move(body).key("body").width(Dim(240.0f)))));
+          .child(text(toU8("Whale alpha beta gamma"), whiteStyle(16))
+                     .key("body")
+                     .width(Dim(240.0f))
+                     .initialLetter({.lines = 3, .margin = 6.0f})
+                     .spanStyle(kit::nestedRun(opening), opening.style))));
   host.frame();
   const std::vector<TextUnit> words = host.composer.units(
       "body", sigil::weave::sel::each(sigil::weave::unit::Word),

@@ -3,23 +3,23 @@
 /** @file
  * SigilCompose KIT — the furniture a page of set text carries, as stock
  * values over the seams underneath: readings beside the type (`ruby`,
- * `kenten`), a block's opening letter dropped into its first lines
- * (`dropCap`) with the opening words set in a style of their own
+ * `kenten`), a block's opening words set in a style of their own
  * (`NestedStyle`), a list whose markers hang in the indent (`bullets`),
  * and rules and shading cut to what a block actually occupies (`rules`).
  *
  * None of these is a mechanism. Ruby and kenten are `Annotation` values —
  * a selector, a unit, a reading and a type — and the whole of what
- * distinguishes mono, group and jukugo ruby is which unit is named. A drop
- * cap is an exclusion the body flows around, which is the same exclusion a
- * photograph gets. A list is a hanging indent with a marker in the hang.
- * A rule is a box at the extent `Composer::units` reports.
+ * distinguishes mono, group and jukugo ruby is which unit is named. A list
+ * is a hanging indent with a marker in the hang. A rule is a box at the
+ * extent `Composer::units` reports. A block's opening letter set large is
+ * not here at all: it is `Element::initialLetter`, because the size that
+ * makes a cap span three lines is answerable only where the block's pitch
+ * and the face's own metrics are.
  *
- * NOTHING HERE DECIDES A RATIO. A reading's size is its own style's, a
- * drop cap's depth is stated in lines, a marker's inset is stated in
- * pixels: the library carries no fraction of a base's size anywhere,
- * because which fraction is right is a decision and decisions are the
- * caller's.
+ * NOTHING HERE DECIDES A RATIO. A reading's size is its own style's and a
+ * marker's inset is stated in pixels: the library carries no fraction of a
+ * base's size anywhere, because which fraction is right is a decision and
+ * decisions are the caller's.
  */
 
 #include <include/core/SkColor.h>
@@ -103,7 +103,7 @@ namespace sigil::compose::kit {
  *  text it covers is set in.
  *
  *  A nested style is the opening of a paragraph set differently from the
- *  rest of it — small caps for the first three words after a drop cap, a
+ *  rest of it — small caps for the first three words after an initial, a
  *  bold lead-in up to the em dash, an initial phrase in the display face.
  *  What makes it a nested style rather than a hand-cut restyle is that the
  *  author states WHERE IT STOPS in the text's own terms and the text
@@ -155,57 +155,6 @@ struct NestedStyle {
   if (nested.delimiter.empty()) return sigil::weave::sel::words(0, 0);
   return sigil::weave::sel::regex(u8"\\A[\\s\\S]*?\\Q" + nested.delimiter +
                                   u8"\\E");
-}
-
-/** A BLOCK'S OPENING LETTER OR ORNAMENT, dropped into the lines beneath it.
- *
- *      const auto [initial, body] =
- *          kit::dropCap(u8"W", capType, rest, bodyType);
- *      root.child(box().child(initial).child(body.width(measure)));
- *
- *  There is no drop-cap facility under this, and there does not need to
- *  be: the initial is a keyed element, and the body is a text leaf that
- *  flows around it — the same exclusion a photograph in a column gets,
- *  resolved in the same pass. A text initial is sized by its own type; an
- *  ornament is any element the caller sized and painted. When that element
- *  declares a silhouette, the body follows the silhouette rather than its
- *  box. `margin` is how far the text stands off it.
- *
- *  The caller splits the string, because where a "letter" ends is a
- *  question about the text: one grapheme usually, two for a digraph, a
- *  whole word for an opening word set large.
- *
- *  `nested` sets the opening of the BODY in a style of its own — the small
- *  caps that carry a paragraph out of its initial. The cap is a leaf of
- *  its own in its own type, so the nested run is stated over what follows
- *  it, and it is applied as an ordinary span restyle over the selector
- *  `nestedRun` answers: nothing about a drop cap is required for one, and
- *  a paragraph with no initial takes the same two lines. */
-struct DroppedCap {
-  Element initial;  ///< the letter or ornament, keyed and absolutely placed
-  Element body;     ///< the rest, flowing around it
-};
-
-/** Drops a caller-built initial or ornament into the opening lines. */
-[[nodiscard]] inline DroppedCap dropCap(
-    Element initial, std::u8string rest, sigil::weave::TextStyle bodyStyle,
-    std::string key = "dropcap", float margin = 6.0f,
-    std::optional<NestedStyle> nested = {}) {
-  initial.key(key).absolute().left(Dim(0.0f)).top(Dim(0.0f));
-  Element body =
-      text(std::move(rest), std::move(bodyStyle)).flowAround(key, margin);
-  if (nested) body.spanStyle(nestedRun(*nested), nested->style);
-  return {std::move(initial), std::move(body)};
-}
-
-/** Builds the initial as a text leaf, then drops it like any other element. */
-[[nodiscard]] inline DroppedCap dropCap(
-    std::u8string letter, sigil::weave::TextStyle capStyle, std::u8string rest,
-    sigil::weave::TextStyle bodyStyle, std::string key = "dropcap",
-    float margin = 6.0f, std::optional<NestedStyle> nested = {}) {
-  return dropCap(text(std::move(letter), std::move(capStyle)), std::move(rest),
-                 std::move(bodyStyle), std::move(key), margin,
-                 std::move(nested));
 }
 
 /** A LIST WHOSE MARKERS HANG IN THE INDENT.

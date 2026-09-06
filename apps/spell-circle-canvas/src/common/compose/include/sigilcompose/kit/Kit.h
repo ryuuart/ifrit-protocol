@@ -35,7 +35,7 @@
  * | `kit/Kinetic.h` | the `fx::` presets over the effect seam, and `marquee()`
  * | | `kit/Annotations.h` | `annotate()` — an element per unit, `Beside` it |
  * | `kit/Annotations.h` | …or `Anchored`, where the caller says |
- * | `kit/Typeset.h` | ruby, kenten, drop cap, `NestedStyle` |
+ * | `kit/Typeset.h` | ruby, kenten, `NestedStyle` |
  * | `kit/Typeset.h` | bullets, block rules |
  * | `kit/Specimen.h` | `cell()`, `well()`, `format()`, `cells()`, `sheet()` —
  * specimen furniture |

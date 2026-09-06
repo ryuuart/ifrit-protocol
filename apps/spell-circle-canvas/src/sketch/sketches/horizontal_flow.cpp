@@ -5,8 +5,10 @@
  * The left passage crosses a star in the middle of its measure. Each
  * horizontal band receives the intervals on both sides of the silhouette,
  * then becomes a full line again below it. The right passage begins with a
- * caller-built ornament passed to `kit::dropCap`; the ornament is the keyed
- * exclusion, so the same line-flow rule follows its outline.
+ * caller-built ORNAMENT — an element with a key and a silhouette — and the
+ * paragraph flows around that key, so the same line-flow rule follows its
+ * outline. (A plain letter needs none of this: `initialLetter` sizes and
+ * seats one from the block's own pitch.)
  *
  * EDIT THESE FIRST
  *   kShapeSize — how much of the left passage the central shape interrupts.
@@ -15,7 +17,6 @@
  */
 
 #include <sigilcompose/core/Core.h>
-#include <sigilcompose/kit/Typeset.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -112,21 +113,24 @@ Element droppedPassage() {
           .shape(shapes::rounded(shapes::star(8, 0.58f, 0.12f), 5))
           .fill(Fill::color(kCinnabar))
           .child(text(u8"H", serif(50, kPaper)).absolute().left(29).top(29));
-  kit::DroppedCap made = kit::dropCap(
-      std::move(ornament),
-      u8"orizontal setting needs no drop-cap mechanism. The ornament is an "
-      u8"element with a key and a silhouette, while this paragraph is an "
-      u8"ordinary text leaf flowing around that key. The opening lines take "
-      u8"the changing room beside the points; the later lines return to the "
-      u8"whole measure. A photograph, seal, flourish, or illustrated letter "
-      u8"uses exactly the same relationship.",
-      serif(15, kInk), "illuminated-h", kWrapMargin);
+  ornament.key("illuminated-h").absolute().left(Dim(0.0f)).top(Dim(0.0f));
 
   return box()
       .width(430)
       .height(350)
-      .child(std::move(made.initial))
-      .child(std::move(made.body).key("drop-passage").width(430));
+      .child(std::move(ornament))
+      .child(text(u8"orizontal setting needs no drop-cap mechanism when the "
+                  u8"initial is an ornament. The ornament is an element with "
+                  u8"a key and a silhouette, while this paragraph is an "
+                  u8"ordinary text leaf flowing around that key. The opening "
+                  u8"lines take the changing room beside the points; the "
+                  u8"later lines return to the whole measure. A photograph, "
+                  u8"seal, flourish, or illustrated letter uses exactly the "
+                  u8"same relationship.",
+                  serif(15, kInk))
+                 .key("drop-passage")
+                 .width(430)
+                 .flowAround("illuminated-h", kWrapMargin));
 }
 
 Element panel(float left, const char* title, const char* note, Element body) {

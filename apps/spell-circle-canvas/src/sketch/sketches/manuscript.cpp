@@ -28,14 +28,15 @@
 // ruled to 38 long lines, a 6.32 mm pitch. Both fall where a Livy of this
 // format falls; neither is a measurement of Plut. 63.10.
 //
-// THE VERSAL. `kit::dropCap` is the drop cap: an initial keyed and placed,
-// and a body that FLOWS AROUND it — the same exclusion the marginal note
-// and the vine sprig get, resolved in the same pass. Its depth is its own
-// type's size and nothing else, which is why six lines is spelled here as
-// six times the pitch. `kit::NestedStyle` carries the paragraph out of the
-// initial: the opening words run on in the rubricator's red small capitals
-// through the first full stop, stated as a DELIMITER so an edit to the
-// copy moves the run with it.
+// THE VERSAL is an ORNAMENT and not a letter: a cobalt panel with the
+// initial reserved in gold inside it. So it is a keyed element the prose
+// FLOWS AROUND — the same exclusion the marginal note and the vine sprig
+// get, resolved in the same pass — and its depth is the panel's own, six
+// times the pitch. (A bare initial needs none of that: `initialLetter`
+// sizes and seats one from the block's own pitch.) `kit::NestedStyle`
+// carries the paragraph out of the initial: the opening words run on in
+// the rubricator's red small capitals through the first full stop, stated
+// as a DELIMITER so an edit to the copy moves the run with it.
 //
 // The body is set in a humanist old-style, because the hand of the codex
 // is HUMANIST MINUSCULE — the letter the Florentine scribes cut from
@@ -233,15 +234,21 @@ struct Manuscript final : sketch::Sketch {
     capitals.shaping.fontFeatures = {weave::features::smallCaps,
                                      weave::features::capitalsToSmallCaps};
 
-    auto [initial, prose] = kit::dropCap(
-        letter,
-        weave::textStyle({.face = book,
+    const kit::NestedStyle opening{.until = kit::NestedStyle::Until::Delimiter,
+                                  .delimiter = u8".",
+                                  .style = capitals};
+    Element initial =
+        text(letter, weave::textStyle(
+                         {.face = book,
                           .size = px(kPitch * (float)kCapLines * 0.74f),
-                          .color = pal.gold}),
-        rest, body(kBodySize, pal.ink), "versal", px(2.4f),
-        kit::NestedStyle{.until = kit::NestedStyle::Until::Delimiter,
-                         .delimiter = u8".",
-                         .style = capitals});
+                          .color = pal.gold}))
+            .key("versal")
+            .absolute()
+            .left(Dim(0.0f))
+            .top(Dim(0.0f));
+    Element prose = text(rest, body(kBodySize, pal.ink))
+                        .flowAround("versal", px(2.4f))
+                        .spanStyle(kit::nestedRun(opening), opening.style);
 
     // The versal is a PANEL: a square field of cobalt with the letter
     // reserved in gold and a gold fillet round it. Six lines deep by

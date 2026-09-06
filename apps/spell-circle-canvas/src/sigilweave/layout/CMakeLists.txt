@@ -11,9 +11,11 @@ find_package(ICU REQUIRED COMPONENTS i18n uc data)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(harfbuzz CONFIG REQUIRED COMPONENTS icu)
 sigil_library(SigilWeaveLayout
-  SOURCES Beside.cpp Flow.cpp LineBreak.cpp KnuthPlass.cpp LayoutMetrics.cpp
+  SOURCES Beside.cpp Flow.cpp InitialLetter.cpp LineBreak.cpp
+          KnuthPlass.cpp LayoutMetrics.cpp
           ParagraphLayoutInternal.h
-  HEADERS Beside.h Flow.h LayoutOptions.h PositionedRun.h ParagraphLayout.h
+  HEADERS Beside.h Flow.h InitialLetter.h LayoutOptions.h PositionedRun.h
+          ParagraphLayout.h
           Story.h
   PUBLIC SigilWeaveParagraph SigilGeometryPath
   PRIVATE SigilWeaveUnicode harfbuzz::harfbuzz ICU::uc Boost::unordered)
@@ -37,6 +39,7 @@ sigil_test(weave_test
           test/JustificationTest.cpp test/LeadingTest.cpp test/TabStopTest.cpp
           test/FrameTest.cpp test/HyphenationTest.cpp test/LineEdgesTest.cpp
           test/BesideTest.cpp test/MojikumiTest.cpp test/BalanceTest.cpp
+          test/InitialLetterTest.cpp
           test/StoryTest.cpp
   LIBRARIES SigilWeaveLayout SigilWeaveKit SigilWeavePorts
             Boost::unordered

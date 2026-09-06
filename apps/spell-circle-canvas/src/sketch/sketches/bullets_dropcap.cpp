@@ -2,13 +2,17 @@
  * bullets_dropcap — the furniture a page of set text carries, and how
  * little of it is a mechanism.
  *
- * A DROP CAP is an exclusion: the initial is an ordinary keyed element,
- * absolutely placed, and the body is an ordinary text leaf that flows
- * around that key — the same exclusion a photograph in a column gets,
- * resolved in the same pass. A letter can stand alone, or stand inside an
- * illuminated ornament whose silhouette the opening lines follow. How deep
- * a plain cap goes is its own type's SIZE; no ratio of the body size is
- * written anywhere.
+ * AN INITIAL LETTER is a property of the block: `initialLetter({.lines =
+ * 3})` says how many lines of cap, and the layout derives the size from
+ * the block's own pitch and the face's own cap height, then seats the
+ * letter's baseline on the line it sinks to. Nothing is sized by eye and
+ * nothing is placed by hand, which is what makes the same declaration
+ * right in a face whose cap is tall and in one whose cap is short.
+ *
+ * AN ORNAMENT is the other case and stays an exclusion: an illuminated
+ * letter is a keyed element with a silhouette, and the body is an ordinary
+ * text leaf that flows around that key — the same exclusion a photograph
+ * in a column gets, resolved in the same pass.
  *
  * A NESTED STYLE is the opening of a paragraph set differently from the
  * rest of it. What makes it nested rather than a hand-cut restyle is that
@@ -30,7 +34,7 @@
  * is two calls.
  *
  * EDIT THESE FIRST
- *   kCapSize — the initial's type size, which IS the cap's depth.
+ *   kCapLines — how many lines of cap the initial spans.
  *   kMargin — how far the body stands off the initial, px.
  *   kHang — the indent a marker hangs in, px, per level.
  */
@@ -60,14 +64,14 @@ constexpr SkSize kCanvas = {1100, 496};
 constexpr float kCell = 250;
 constexpr float kPicture = 252;
 
-constexpr float kCapSize = 46;  // the initial's size, which IS its depth
+constexpr float kCapLines = 3;  // lines of cap the initial spans
 constexpr float kMargin = 7;    // the body's stand-off from the initial
 constexpr float kHang = 16;     // the indent a marker hangs in, px
 
 constexpr SkColor4f kBody{0.82f, 0.83f, 0.86f, 1};
 
 const char* kPassage =
-    "hen the measure changes the opening keeps its treatment, because "
+    "When the measure changes the opening keeps its treatment, because "
     "the run was stated in the text's own terms and not in a range of "
     "characters somebody counted once. That is the whole difference "
     "between a nested style and a restyle by hand.";
@@ -86,16 +90,20 @@ Element cell(const char* call, const char* note, Element body) {
           .child(std::move(body)));
 }
 
-/** One dropped cap over the same passage; `nested`, when given, sets the
- *  opening of the BODY — the cap is a leaf of its own, so the run is
- *  stated over what follows it. */
+/** One initial letter over the passage; `nested`, when given, sets the
+ *  opening of the block in a style of its own. Both are properties of the
+ *  one text leaf: the initial is not a second element. */
 Element dropped(const char* key, std::optional<kit::NestedStyle> nested) {
-  kit::DroppedCap made = kit::dropCap(
-      u8"W", serif(kCapSize, sketch::kit::theme().palette.figure),
-      toU8(kPassage), serif(11.5f, kBody), key, kMargin, std::move(nested));
-  return box()
-      .child(std::move(made.initial))
-      .child(std::move(made.body).width(Dim(kCell - 28)));
+  Element block =
+      text(toU8(kPassage), serif(11.5f, kBody))
+          .key(key)
+          .width(Dim(kCell - 28))
+          .initialLetter(
+              {.lines = kCapLines,
+               .margin = kMargin,
+               .style = serif(11.5f, sketch::kit::theme().palette.figure)});
+  if (nested) block.spanStyle(kit::nestedRun(*nested), nested->style);
+  return block;
 }
 
 /** A caller-built initial: the star is both the ornament that paints and
@@ -111,12 +119,12 @@ Element illuminated(const char* key, std::optional<kit::NestedStyle> nested) {
                                     .absolute()
                                     .left(15)
                                     .top(14));
-  kit::DroppedCap made =
-      kit::dropCap(std::move(ornament), toU8(kPassage), serif(11.5f, kBody),
-                   key, kMargin, std::move(nested));
-  return box()
-      .child(std::move(made.initial))
-      .child(std::move(made.body).width(Dim(kCell - 28)));
+  ornament.key(key).absolute().left(Dim(0.0f)).top(Dim(0.0f));
+  Element body = text(toU8(kPassage).substr(1), serif(11.5f, kBody))
+                     .width(Dim(kCell - 28))
+                     .flowAround(key, kMargin);
+  if (nested) body.spanStyle(kit::nestedRun(*nested), nested->style);
+  return box().child(std::move(ornament)).child(std::move(body));
 }
 
 }  // namespace
@@ -153,27 +161,28 @@ struct BulletsDropCap final : sketch::Sketch {
                                   .margin(kHang, 0, 0, 0));
 
     ctx.composer.render(sketch::kit::page(
-        {.title = toU8("BULLETS AND THE DROPPED CAP \xc2\xb7 kit::"
-                       "dropCap, kit::NestedStyle, kit::bullets"),
-         .subtitle = toU8("dials \xc2\xb7 the cap's type size (46 px, "
-                          "which IS its depth) \xc2\xb7 the body's "
-                          "stand-off (7 px) \xc2\xb7 where the nested "
-                          "run stops \xc2\xb7 the hang (16 px per "
-                          "level)"),
-         .footer = toU8("none of these is a mechanism: the cap is an "
-                        "exclusion the body flows around, the nested "
+        {.title = toU8("BULLETS AND THE INITIAL LETTER \xc2\xb7 "
+                       "initialLetter, kit::NestedStyle, kit::bullets"),
+         .subtitle = toU8("dials \xc2\xb7 the cap's depth in LINES (3, "
+                          "and the size follows from the face) \xc2\xb7 "
+                          "the body's stand-off (7 px) \xc2\xb7 where "
+                          "the nested run stops \xc2\xb7 the hang (16 "
+                          "px per level)"),
+         .footer = toU8("the initial is a property of the block and the "
+                        "layout derives its size; an ornament is still "
+                        "an exclusion the body flows around; the nested "
                         "style is a span restyle over a selector the "
-                        "vocabulary could already name, and a list is "
+                        "vocabulary could already name; and a list is "
                         "an indent with the marker standing in the room "
                         "it opened")},
         kit::cells(
             {.cells =
-                 {cell("kit::dropCap(\"W\", capType, rest, bodyType)",
-                       "the initial is a keyed leaf placed absolutely "
-                       "and the body flowAround()s it \xc2\xb7 no "
-                       "drop-cap facility underneath",
+                 {cell("text(passage).initialLetter({.lines = 3})",
+                       "the size is derived from the block's pitch and "
+                       "the face's cap height \xc2\xb7 one property, no "
+                       "second element",
                        dropped("cap-plain", {})),
-                  cell("dropCap(ornament, rest, bodyType)",
+                  cell("ornament.key(k) + text.flowAround(k)",
                        "the star is the painted initial AND the "
                        "silhouette subtracted from each horizontal "
                        "line \xc2\xb7 type enters its notches",
