@@ -94,8 +94,7 @@ sketch::kit::Theme sheetTheme() {
  *  dispatch across that boundary faults on pointer authentication. A
  *  helper function here is a crash, not a style choice. */
 sk_sp<SkRuntimeEffect> paletteEffect() {
-  static const sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, error] = SkRuntimeEffect::MakeForShader(
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(
         SkString("uniform shader uIndex;"
                  "uniform shader uPalette;"
                  "uniform float uShade;"
@@ -104,9 +103,7 @@ sk_sp<SkRuntimeEffect> paletteEffect() {
                  "  i = min(i + uShade, 15.0);"
                  "  return uPalette.eval(float2(i + 0.5, 0.5));"
                  "}"));
-    return effect;
-  }();
-  return fx;
+  return effect;
 }
 
 /** A 1-row LUT. No colour space, like every compose surface — the byte
@@ -122,53 +119,59 @@ sk_sp<SkImage> lut(const std::vector<SkColor>& entries) {
 
 SkColor grey(int v) { return SkColorSetARGB(255, v, v, v); }
 
-/** The three LUTs. Held as process-wide singletons because Material::image
- *  compares by image POINTER — minting a fresh SkImage per describe would
- *  make every material unequal to every other and defeat every prune. */
-const sk_sp<SkImage>& greyLut() {
-  static const sk_sp<SkImage> img = [] {
-    std::vector<SkColor> v;
-    v.reserve(16);
-    for (int i = 0; i < 16; ++i) v.push_back(grey(17 * i));
-    return lut(v);
-  }();
-  return img;
+/** The three LUTs. Built ONCE and HELD FOR THE SKETCH'S LIFE, because
+ *  Material::image compares by image POINTER — minting a fresh SkImage
+ *  per describe would make every material unequal to every other and
+ *  defeat every prune. The sketch is what holds them, not a
+ *  function-local static: this file is compiled into a dylib a reload
+ *  unloads, and the tables must not outlive it. */
+sk_sp<SkImage> greyLut() {
+  std::vector<SkColor> v;
+  v.reserve(16);
+  for (int i = 0; i < 16; ++i) v.push_back(grey(17 * i));
+  return lut(v);
 }
-const sk_sp<SkImage>& fireLut() {
-  static const sk_sp<SkImage> img = lut(
-      {0xff100005, 0xff2a0410, 0xff450a16, 0xff62111a, 0xff7f1a1c, 0xff9c261b,
-       0xffb8351a, 0xffd04718, 0xffe25c17, 0xffee7419, 0xfff58f26, 0xfff9a840,
-       0xfffcc063, 0xfffdd68e, 0xfffee8bd, 0xffffffff});
-  return img;
+sk_sp<SkImage> fireLut() {
+  return lut({0xff100005, 0xff2a0410, 0xff450a16, 0xff62111a, 0xff7f1a1c,
+              0xff9c261b, 0xffb8351a, 0xffd04718, 0xffe25c17, 0xffee7419,
+              0xfff58f26, 0xfff9a840, 0xfffcc063, 0xfffdd68e, 0xfffee8bd,
+              0xffffffff});
 }
-const sk_sp<SkImage>& iceLut() {
-  static const sk_sp<SkImage> img = lut(
-      {0xff03060f, 0xff071228, 0xff0b1f42, 0xff102c5c, 0xff143a76, 0xff17498f,
-       0xff1a59a7, 0xff1f6bbc, 0xff2a7fcd, 0xff3d93da, 0xff56a7e4, 0xff74baec,
-       0xff96cdf2, 0xffbadff7, 0xffdceffb, 0xffffffff});
-  return img;
+sk_sp<SkImage> iceLut() {
+  return lut({0xff03060f, 0xff071228, 0xff0b1f42, 0xff102c5c, 0xff143a76,
+              0xff17498f, 0xff1a59a7, 0xff1f6bbc, 0xff2a7fcd, 0xff3d93da,
+              0xff56a7e4, 0xff74baec, 0xff96cdf2, 0xffbadff7, 0xffdceffb,
+              0xffffffff});
 }
 
 /** THE INDEX TEXTURE — a kCells x kCells chart whose red byte is 0..15 in
  *  reading order. It is DATA, so it is sampled NEAREST everywhere: an index
  *  read at kLinear is a blend of two unrelated palette entries, which is
  *  the trap this whole texture kind carries. */
-const sk_sp<SkImage>& indexChart() {
-  static const sk_sp<SkImage> img = [] {
-    SkBitmap bm;
-    bm.allocN32Pixels(kCells, kCells);
-    for (int y = 0; y < kCells; ++y)
-      for (int x = 0; x < kCells; ++x)
-        *bm.getAddr32(x, y) =
-            SkPreMultiplyColor(SkColorSetARGB(255, y * kCells + x, 0, 0));
-    bm.setImmutable();
-    return bm.asImage();
-  }();
-  return img;
+sk_sp<SkImage> indexChart() {
+  SkBitmap bm;
+  bm.allocN32Pixels(kCells, kCells);
+  for (int y = 0; y < kCells; ++y)
+    for (int x = 0; x < kCells; ++x)
+      *bm.getAddr32(x, y) =
+          SkPreMultiplyColor(SkColorSetARGB(255, y * kCells + x, 0, 0));
+  bm.setImmutable();
+  return bm.asImage();
 }
 
-mskia::Paint indexSource() {
-  return mskia::Paint::image(indexChart(), SkTileMode::kClamp,
+/** EVERY TABLE THIS SHEET DRAWS WITH, held together for the sketch's
+ *  life: the index chart, the three palettes and the one effect that
+ *  reads them. One value, so nothing below has to be handed five. */
+struct Tables {
+  sk_sp<SkImage> index = indexChart();
+  sk_sp<SkImage> greyTable = greyLut();
+  sk_sp<SkImage> fireTable = fireLut();
+  sk_sp<SkImage> iceTable = iceLut();
+  sk_sp<SkRuntimeEffect> palette = paletteEffect();
+};
+
+mskia::Paint indexSource(const Tables& tables) {
+  return mskia::Paint::image(tables.index, SkTileMode::kClamp,
                              SkTileMode::kClamp,
                              SkMatrix::Scale(kPanel / kCells, kPanel / kCells),
                              SkSamplingOptions(SkFilterMode::kNearest));
@@ -182,10 +185,11 @@ mskia::Paint lutSource(const sk_sp<SkImage>& table) {
 
 /** THE CALL SITE, in one place: one effect, two children, one uniform.
  *  Everything compiles to ONE shader — no saveLayer, no second node. */
-mskia::Paint paletted(const sk_sp<SkImage>& table, float shade) {
-  return mskia::Paint::sksl(paletteEffect())
+mskia::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
+                      float shade) {
+  return mskia::Paint::sksl(tables.palette)
       .uniform("uShade", shade)
-      .child("uIndex", indexSource())
+      .child("uIndex", indexSource(tables))
       .child("uPalette", lutSource(table));
 }
 
@@ -197,8 +201,8 @@ Element lutStrip(const sk_sp<SkImage>& table) {
                           SkSamplingOptions(SkFilterMode::kNearest)));
 }
 
-Element panel(const char* call, const char* note, const sk_sp<SkImage>& table,
-              float shade, std::string key) {
+Element panel(const Tables& tables, const char* call, const char* note,
+              const sk_sp<SkImage>& table, float shade, std::string key) {
   return sketch::kit::caption(
       kPanel, toU8(call), toU8(note),
       box()
@@ -208,7 +212,7 @@ Element panel(const char* call, const char* note, const sk_sp<SkImage>& table,
                      .key(std::move(key))
                      .width(kPanel)
                      .height(kPanel)
-                     .fill(paletted(table, shade))
+                     .fill(paletted(tables, table, shade))
                      .stroke(stroke(1.0f, Fill::color(kFrame))))
           .child(lutStrip(table)));
 }
@@ -260,15 +264,16 @@ Element stacked(const char* call, const char* note, mat::Blend blend,
 
 struct MaterialChild final : sketch::Sketch {
   int live = 0;
+  const Tables tables;
 
   const sk_sp<SkImage>& liveLut() const {
     switch (live % 3) {
       case 0:
-        return greyLut();
+        return tables.greyTable;
       case 1:
-        return fireLut();
+        return tables.fireTable;
       default:
-        return iceLut();
+        return tables.iceTable;
     }
   }
 
@@ -278,21 +283,19 @@ struct MaterialChild final : sketch::Sketch {
     // lane, and a scope that ended with setup would not be there.
     const sketch::kit::Provide look(sheetTheme());
     Element slots = kit::cells(
-        {.cells = {panel("child(\"uPalette\", grey)",
-                         "the indices themselves: a 0..15 staircase", greyLut(),
-                         0.0f, "grey"),
-                   panel("child(\"uPalette\", fire)",
-                         "the SAME index texture, another table", fireLut(),
-                         0.0f, "fire"),
-                   panel("child(\"uPalette\", ice)",
+        {.cells = {panel(tables, "child(\"uPalette\", grey)",
+                         "the indices themselves: a 0..15 staircase", tables.greyTable, 0.0f, "grey"),
+                   panel(tables, "child(\"uPalette\", fire)",
+                         "the SAME index texture, another table", tables.fireTable, 0.0f, "fire"),
+                   panel(tables, "child(\"uPalette\", ice)",
                          "\xe2\x80\xa6"
                          "and another",
-                         iceLut(), 0.0f, "ice"),
-                   panel("uniform(\"uShade\", 6)",
+                         tables.iceTable, 0.0f, "ice"),
+                   panel(tables, "uniform(\"uShade\", 6)",
                          "min(i + 6, 15): the top cells flatten onto the "
                          "last entry \xe2\x80\x94 index arithmetic, drawn",
-                         iceLut(), kShade, "shade"),
-                   panel("the LUT swapped by update()",
+                         tables.iceTable, kShade, "shade"),
+                   panel(tables, "the LUT swapped by update()",
                          "door 3: data changes, the tree is described again, "
                          "one node patches",
                          liveLut(), 0.0f, "live")},

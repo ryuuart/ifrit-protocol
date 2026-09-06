@@ -34,8 +34,7 @@ struct Lobe {
 };
 
 sk_sp<SkRuntimeEffect> lineFieldEffect() {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
+  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform float2 uResolution;
       uniform float uTime;
       half4 main(float2 xy) {
@@ -59,14 +58,11 @@ sk_sp<SkRuntimeEffect> lineFieldEffect() {
         return half4(half3(colour * vignette), 1.0);
       }
     )"));
-    return built;
-  }();
-  return effect;
+  return built;
 }
 
 sk_sp<SkRuntimeEffect> glassEffect() {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
+  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform shader uSource;
       uniform float4 uBall0;
       uniform float4 uBall1;
@@ -129,14 +125,11 @@ sk_sp<SkRuntimeEffect> glassEffect() {
         return half4(half3(colour * alpha), half(alpha));
       }
     )"));
-    return built;
-  }();
-  return effect;
+  return built;
 }
 
 sk_sp<SkRuntimeEffect> tendrilEffect() {
-  static const sk_sp<SkRuntimeEffect> effect = [] {
-    auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
+  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
       uniform float2 uResolution;
       uniform float uTime;
       half4 main(float2 xy) {
@@ -151,9 +144,7 @@ sk_sp<SkRuntimeEffect> tendrilEffect() {
         return half4(half3(colour), 0.86);
       }
     )"));
-    return built;
-  }();
-  return effect;
+  return built;
 }
 
 mskia::Paint lineField() {
@@ -168,10 +159,14 @@ std::array<float, 4> uniform(const Lobe& lobe) {
   return {lobe.centre.x(), lobe.centre.y(), lobe.radius, 0.0f};
 }
 
-mskia::Paint glass(const mskia::Paint& source,
+/** THE REFRACTION, over @p source. The effect is handed in rather than
+ *  built here: this is asked for on every frame, and a compiled shader
+ *  held in a function-local static is held in a dylib a reload unloads. */
+mskia::Paint glass(const sk_sp<SkRuntimeEffect>& effect,
+                   const mskia::Paint& source,
                    const std::array<Lobe, kLobeCount>& lobes) {
   mskia::Paint paint =
-      mskia::Paint::sksl(glassEffect(),
+      mskia::Paint::sksl(effect,
                          {{"uThreshold", kThreshold}, {"uStrength", 42.0f}})
           .child("uSource", source)
           .quantizeTime(30.0f);
@@ -202,6 +197,8 @@ void drawTendril(Pen& pen, SkPoint from, SkPoint to, int index, float clock,
 struct P5RefractiveMetaballs final : sketch::DrawSketch {
   const mskia::Paint source = lineField();
   const mskia::Paint filament = tendrilInk();
+  /** Compiled once and held on the sketch: the frame asks for it. */
+  const sk_sp<SkRuntimeEffect> refraction = glassEffect();
 
   void setup(sketch::DrawContext& context) override {
     context.canvas(720, 720);
@@ -276,7 +273,7 @@ struct P5RefractiveMetaballs final : sketch::DrawSketch {
 
     pen.blendMode(BLEND);
     pen.noStroke();
-    pen.fill(glass(source, balls), CANVAS);
+    pen.fill(glass(refraction, source, balls), CANVAS);
     pen.rect(0.0f, 0.0f, pen.width, pen.height);
 
     drawTendrils(pen, balls, clock);
