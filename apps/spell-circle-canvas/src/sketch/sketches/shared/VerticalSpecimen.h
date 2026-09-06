@@ -23,6 +23,7 @@
 #include <include/core/SkSize.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
 #include <sigilweave/style/Type.h>
@@ -100,14 +101,15 @@ inline sigil::compose::Element specimen(std::string_view caption,
                                         sigil::compose::Element column,
                                         float captionWidth = 0.0f,
                                         float gap = 8.0f) {
-  sigil::compose::Element head =
-      sigil::compose::text(sigil::compose::toU8(caption), style);
-  if (captionWidth > 0.0f) head.width(sigil::compose::Dim(captionWidth));
-  return sigil::compose::box()
-      .column()
-      .gap(gap)
-      .child(std::move(head))
-      .child(std::move(column));
+  // A caption stacked over its body is the compose kit's cell in its
+  // type-specimen reading; only the register and the measure are this
+  // plate's, and both are props.
+  return sigil::compose::kit::cell(
+      {.where = sigil::compose::kit::Caption::Where::Above,
+       .label = style,
+       .gap = gap,
+       .labelMeasure = captionWidth},
+      sigil::compose::toU8(caption), {}, std::move(column));
 }
 
 }  // namespace vertical

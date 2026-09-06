@@ -37,6 +37,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/core/Factories.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilweave/kit/Labels.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Style.h>
@@ -129,10 +130,13 @@ struct SectionCycle {
     At a;
     if (elapsed < start) return a;
     a.running = true;
-    const double u = std::fmod(elapsed - start, (double)stops * hold);
-    a.stop = (int)(u / hold);
+    // The stop is a STEP INDEX at one step per hold, taken round the run
+    // of stops; the change is how far into that step the clock stands.
+    const long long step =
+        sigil::motion::stepIndex(elapsed - start, 1.0 / hold);
+    a.stop = (int)(step % stops);
     a.previous = a.stop == 0 ? -1 : a.stop - 1;
-    const double within = u - (double)a.stop * hold;
+    const double within = (elapsed - start) - (double)step * hold;
     if (within < transition) a.phase = (float)(within / transition);
     return a;
   }

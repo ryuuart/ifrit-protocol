@@ -19,10 +19,10 @@
  * constant does not fail a build — it re-rolls every stored render and
  * desynchronizes the two ends of every operator chain that runs on both.
  *
- * `hash`, `lattice`, `pcgHash` and `xorshiftNext` are different mixers
- * with different outputs, kept side by side because each seeds work that
- * is compared byte-for-byte against stored renders. Pick by what the
- * caller already uses; new code takes `pcgHash`.
+ * `hash`, `lattice`, `pcgHash`, `xorshiftNext` and `xorshift64Next` are
+ * different mixers with different outputs, kept side by side because each
+ * seeds work that is compared byte-for-byte against stored renders. Pick
+ * by what the caller already uses; new code takes `pcgHash`.
  */
 
 #include <cstdint>
@@ -156,6 +156,27 @@ inline constexpr uint32_t xorshiftNext(uint32_t& state) {
  *  end an xorshift word mixes best. */
 inline constexpr float xorshiftUnitNext(uint32_t& state) {
   return (float)(xorshiftNext(state) >> 8u) * (1.0f / 16777216.0f);
+}
+
+/** THE 64-BIT XORSHIFT STREAM — the 13/7/17 schedule, which is the one a
+ *  field seeded from a 64-bit word is usually written over, and a
+ *  DIFFERENT mixer from the 32-bit one above rather than a wider version
+ *  of it: the two visit different sequences, so a render stored from one
+ *  cannot be reproduced by the other. A caller picks by which sequence
+ *  its stored pixels came from. */
+inline constexpr uint64_t xorshift64Next(uint64_t& state) {
+  state ^= state << 13u;
+  state ^= state >> 7u;
+  state ^= state << 17u;
+  return state;
+}
+
+/** `xorshift64Next` squeezed to [0, 1) through 24 bits taken from above
+ *  the low eleven — the 24 a float's mantissa holds exactly, off the end
+ *  a 64-bit xorshift mixes best. */
+inline constexpr float xorshift64UnitNext(uint64_t& state) {
+  return (float)((xorshift64Next(state) >> 11u) & 0xffffffu) *
+         (1.0f / 16777216.0f);
 }
 
 /** THE LATTICE MIXER: three integer coordinates and a seed to one

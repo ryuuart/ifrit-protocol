@@ -112,6 +112,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Frame.h>
@@ -387,16 +388,14 @@ const std::vector<Label>& labelsOf(int num) {
 
 // ---------------------------------------------------------------------------
 
+/** THE FIGURE'S OWN SEEDED STREAM: one 64-bit state stepped through the
+ *  origin's xorshift, and the two draws this plate asks of it. The seed
+ *  is spread once so two figures a row apart do not begin correlated. */
 struct Xorshift {
   uint64_t s;
   explicit Xorshift(uint64_t seed)
       : s(seed * 0x9e3779b97f4a7c15ull + 0xda3e39cbu) {}
-  float next() {
-    s ^= s << 13u;
-    s ^= s >> 7u;
-    s ^= s << 17u;
-    return (float)((s >> 11u) & 0xffffffu) / (float)0x1000000u;
-  }
+  float next() { return sigil::core::noise::xorshift64UnitNext(s); }
   float range(float a, float b) { return a + (b - a) * next(); }
 };
 
