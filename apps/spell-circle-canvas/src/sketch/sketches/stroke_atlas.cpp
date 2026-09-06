@@ -115,21 +115,20 @@ Fill soft() { return Fill::color(kInkSoft); }
 // ---------------------------------------------------------------------------
 // type
 
-/** The three faces the sheet is set in. Resolved on first use and never
- *  written again — walking the system font list per call is what the
- *  fallback chain is memoised against, and a value nothing mutates is a
- *  memo rather than state two sessions of this sketch could share. */
-struct Faces {
-  sk_sp<SkTypeface> mono, roman, romanBold;
-};
-const Faces& faces() {
-  static const Faces f{
-      .mono = weave::ports::face({"Menlo", "Courier New"}),
-      .roman = weave::ports::face({"Palatino", "Georgia"}),
-      .romanBold = weave::ports::face({"Palatino", "Georgia"},
-                                      SkFontStyle::kBold_Weight),
-  };
-  return f;
+/** The three faces the sheet is set in. `ports::face` is the held
+ *  resolution — it walks the system font list once for the process and
+ *  answers the same face afterwards — so each of these is the ASK and
+ *  nothing here holds the answer. A memo in front of it would hold one
+ *  answer per site in a dylib that a reload unloads, where the host
+ *  already holds one for the whole process. */
+sk_sp<SkTypeface> monoFace() {
+  return weave::ports::face({"Menlo", "Courier New"});
+}
+sk_sp<SkTypeface> romanFace() {
+  return weave::ports::face({"Palatino", "Georgia"});
+}
+sk_sp<SkTypeface> romanBoldFace() {
+  return weave::ports::face({"Palatino", "Georgia"}, SkFontStyle::kBold_Weight);
 }
 
 /** The caption IS the call: monospaced, small, and set in the same ink as
@@ -137,18 +136,18 @@ const Faces& faces() {
 Element call(const char* words, float size = 9.5f, SkColor4f c = kInk) {
   return text(
       toU8(words),
-      weave::textStyle({.face = faces().mono, .size = size, .color = c, .track = 0.1f}));
+      weave::textStyle({.face = monoFace(), .size = size, .color = c, .track = 0.1f}));
 }
 Element roman(const char* words, float size, SkColor4f c = kInk,
               float tracking = 0) {
-  return text(toU8(words), weave::textStyle({.face = faces().roman,
+  return text(toU8(words), weave::textStyle({.face = romanFace(),
                                  .size = size,
                                  .color = c,
                                  .track = tracking}));
 }
 Element romanBold(const char* words, float size, SkColor4f c = kInk,
                   float tracking = 0) {
-  return text(toU8(words), weave::textStyle({.face = faces().romanBold,
+  return text(toU8(words), weave::textStyle({.face = romanBoldFace(),
                                  .size = size,
                                  .color = c,
                                  .track = tracking}));
