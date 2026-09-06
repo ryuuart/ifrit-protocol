@@ -123,9 +123,9 @@ SkColor toSkColor(NSColor *color) {
 
   SyphonMetalServer *_syphon;
 
-  // Shared transport (src/net): the same ASIO receiver the Qt app's
-  // NetworkManager wraps. Datagrams arrive on its I/O thread and are
-  // marshalled onto the main queue here.
+  // The same ASIO receiver the Qt app's NetworkManager wraps, so both
+  // frontends have one transport. Datagrams arrive on its I/O thread and
+  // are marshalled onto the main queue here.
   std::unique_ptr<spellcircle::UdpReceiver> _receiver;
   NSDateFormatter *_timestampFormatter;
   CFTimeInterval _lastPacketTime;
@@ -297,7 +297,8 @@ SkColor toSkColor(NSColor *color) {
 
   const spellcircle::SceneStats stats = _document.decode(payload, size);
   _hasScene = stats.hasGeometry();
-  // Rendering happens through the paced governor (see drainSocket).
+  // Decoding never draws: a packet only marks the scene pending, and the
+  // render clock draws it at the configured rate.
 
   SCKFeedEntry *entry = [[SCKFeedEntry alloc]
       initWithTimestamp:[_timestampFormatter stringFromDate:[NSDate date]]
@@ -408,8 +409,9 @@ SkColor toSkColor(NSColor *color) {
                                     kCheckerCellPixels),
                    light);
     bitmap.setImmutable();
-    // Graphite does not auto-upload raster-backed shader images the way
-    // Ganesh did — a raster tile silently draws nothing. Upload explicitly.
+    // workaround: Graphite draws nothing, and reports nothing, from a
+    // shader over a raster-backed image; the tile has to reach the GPU as a
+    // texture before it becomes a shader.
     sk_sp<SkImage> tile = bitmap.asImage();
     if (sk_sp<SkImage> uploaded = SkImages::TextureFromImage(_graphite->recorder(), tile.get(), {}))
       tile = std::move(uploaded);
