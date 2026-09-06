@@ -190,9 +190,11 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcore/compute/Noise.h>
+#include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilio/IO.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -217,6 +219,7 @@
 #include "Catalogue.h"
 
 namespace sketch = sigil::sketch;
+namespace data = sigil::data;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
 namespace arrange = sigil::geometry::arrange;
@@ -465,107 +468,67 @@ Departure stereoVsEquidistant(float lo, float hi, float resid, float degPerCm,
 // dataset above; 'M' in `col` is a mixed-colour asterism.
 
 struct M5Row {
-  const char *cid, *pinyin, *native, *gloss;
-  char col;
-  int nSxc, nMap, conf;
-  const char* defect;
-};
-const M5Row kMap5[20] = {
-    {"19H", "Wuche + Sanzhu",
-     "\xe4\xba\x94\xe8\xbb\x8a+\xe4\xb8\x89\xe6\x9f\xb1",
-     "five chariots + three poles", 'R', 14, 14, 5, nullptr},
-    {"19E", "Zhuwang", "\xe8\xab\xb8\xe7\x8e\x8b", "several princes", 'R', 6, 5,
-     5, nullptr},
-    {"20C", "Zuoqi", "\xe5\xb7\xa6\xe6\x97\x97", "left banner", 'B', 9, 8, 5,
-     "Table 4 writes \xe5\xb7\xa6\xe6\x97\x97; Chen Zhuo writes "
-     "\xe5\x9d\x90\xe6\x97\x97"},
-    {"22E", "Tianzun", "\xe5\xa4\xa9\xe6\xa8\xbd", "celestial wine cup", 'B', 3,
-     3, 1, nullptr},
-    {"19F", "Tiangao", "\xe5\xa4\xa9\xe9\xab\x98", "celestial high terrace",
-     'W', 4, 4, 4, "reference mansion Bi is on MAP 4, not this one"},
-    {"22A", "Jing", "\xe4\xba\x95", "eastern well", 'W', 8, 8, 5, nullptr},
-    {"19O", "Shenqi", "\xe5\x8f\x83\xe6\x97\x97", "Shen banner", 'R', 9, 6, 5,
-     nullptr},
-    {"20A", "Zui", "\xe8\xa7\x9c", "bird beak", 'W', 3, 3, 5, nullptr},
-    {"22I", "Shuifu", "\xe6\xb0\xb4\xe5\xba\x9c", "water palace", 'B', 4, 4, 4,
-     "labels INTERCHANGED with Sidu"},
-    {"22K", "Sidu", "\xe5\x9b\x9b\xe7\x80\x86", "four rivers", 'B', 4, 4, 4,
-     "labels INTERCHANGED with Shuifu"},
-    {"21A", "Shen", "\xe5\x8f\x83", "warrior-hunter", 'M', 10, 10, 5,
-     "NO LABEL on the map; Fa the dagger unlabelled too"},
-    {"19P", "Jiuliu", "\xe4\xb9\x9d\xe6\x96\x9a", "nine flags", 'B', 9, 9, 5,
-     "NO LABEL on the map"},
-    {"21C", "Yujing", "\xe7\x8e\x89\xe4\xba\x95", "jade well", 'R', 4, 4, 5,
-     nullptr},
-    {"22M", "Yeji", "\xe9\x87\x8e\xe9\x9b\x9e", "pheasant cock", 'R', 1, 1, 5,
-     nullptr},
-    {"22L", "Junshi", "\xe8\xbb\x8d\xe5\xb8\x82", "soldiers' market", 'R', 13,
-     11, 5, nullptr},
-    {"21D", "Ping", "\xe5\xb1\x8f", "toilet screen", 'W', 2, 2, 2,
-     "labelled but NOT AT ITS PLACE; should be S of Junjing"},
-    {"21E", "Junjing", "\xe8\xbb\x8d\xe4\xba\x95", "soldiers' well", 'B', 4, 4,
-     2, nullptr},
-    {"21F", "Ce", "\xe5\x8e\x95", "toilet with a shed", 'W', 4, 4, 5, nullptr},
-    {"22P", "Zhangren", "\xe4\xb8\x88\xe4\xba\xba", "husband man", 'B', 2, 2, 5,
-     "should be more S of Ce and Junjing"},
-    {"22O", "Zi", "\xe5\xad\x90", "son", 'W', 2, 2, 5,
-     "should be more S of Ce and Junjing"},
+  std::string cid, pinyin, native, gloss;
+  char school = ' ';
+  int sxc = 0, map = 0, confidence = 0;
+  std::string defect;
 };
 
-// TABLE 5 — the circumpolar disc, the rows that carry a colour or a defect.
 struct M13Row {
-  const char *cid, *pinyin, *native;
-  char col;
-  int nSxc, nMap;
-  const char* note;
+  std::string cid, pinyin, native;
+  char school = ' ';
+  int sxc = 0, map = 0;
+  std::string note;
 };
-const M13Row kMap13[] = {
-    {"P22", "Tianchu", "\xe5\xa4\xa9\xe5\x8e\xa8", 'B', 5, 6, nullptr},
-    {"P17", "Wudizuo", "\xe4\xba\x94\xe5\xb8\x9d\xe5\x86\x85\xe5\xba\xa7", 'B',
-     5, 5, nullptr},
-    {"P20", "Chuanshe", "\xe4\xbc\xa0\xe8\x88\x8d", 'B', 9, 7, nullptr},
-    {"P12", "Tianzhu", "\xe5\xa4\xa9\xe6\x9f\xb1", 'B', 5, 5, nullptr},
-    {"P15", "Liujia", "\xe5\x85\xad\xe7\x94\xb2", 'B', 6, 5, nullptr},
-    {"P18", "Huagai", "\xe8\x8f\xaf\xe8\x93\x8b", 'B', 7, 7,
-     "+6 UNACCOUNTED \xc2\xb7 \"is it Gang? the character is absent\""},
-    {"P19", "Gang", "\xe6\x9d\xa0", 'B', 9, 0,
-     "Chen Zhuo HAS it, appended to Huagai \xc2\xb7 9 vs the map's 6"},
-    {"P14", "Gouchen", "\xe9\x92\xa9\xe9\x99\x88", 'R', 5, 6, nullptr},
-    {"", "NI 1", "\xe2\x80\x94", 'R', 0, 1,
-     "one star, NO CHARACTER, east of Gouchen"},
-    {"P16", "Tianhuang", "\xe5\xa4\xa9\xe7\x9a\x87\xe5\xa4\xa7\xe5\xb8\x9d",
-     'B', 1, 4, nullptr},
-    {"P05", "Ziwei E wall", "\xe7\xb4\xab\xe5\xbe\xae\xe6\x9d\xb1\xe5\x9e\xa3",
-     'M', 8, 8, "14 R + 1 B over both walls \xc2\xb7 8 + 7 = 15, closes"},
-    {"P06", "Ziwei W wall", "\xe7\xb4\xab\xe5\xbe\xae\xe8\xa5\xbf\xe5\x9e\xa3",
-     'M', 7, 7, nullptr},
-    {"P10", "Zhuxiashi", "\xe6\x9f\xb1\xe5\x8f\xb2", 'R', 1, 1, nullptr},
-    {"P09", "Nushi", "\xe5\xa5\xb3\xe5\x8f\xb2", 'R', 1, 1, nullptr},
-    {"P24", "Tianpei", "\xe5\xa4\xa9\xe6\xa3\x93", 'M', 5, 5,
-     "\"5 R, 1 B?\" \xe2\x80\x94 the SECOND mixed asterism"},
-    {"P08", "Shangshu", "\xe5\xb0\x9a\xe4\xb9\xa6", 'B', 5, 5, nullptr},
-    {"P01", "Beiji", "\xe5\x8c\x97\xe6\x9e\x81", 'R', 5, 4,
-     "+3 black unlabelled \xc2\xb7 a RED NON-ENCIRCLED star, erased"},
-    {"P02", "Sifu", "\xe5\x9b\x9b\xe8\xbe\x85", 'B', 4, 4, nullptr},
-    {"P21", "Neijie", "\xe5\x86\x85\xe9\x98\xb6", 'B', 6, 6, nullptr},
-    {"P23", "Bagu", "\xe5\x85\xab\xe8\xb0\xb7", 'B', 8, 8, nullptr},
-    {"P25", "Tianchuang", "\xe5\xa4\xa9\xe5\xba\x8a", 'B', 6, 4, nullptr},
-    {"P04", "Taiyi", "\xe5\xa4\xaa\xe4\xb8\x80", 'B', 1, 1, nullptr},
-    {"P03", "Tianyi", "\xe5\xa4\xa9\xe4\xb8\x80", 'B', 1, 1, nullptr},
-    {"P28", "Sangong (Wuxian)", "\xe4\xb8\x89\xe5\x85\xac", 'B', 3, 3,
-     "Chen Zhuo files it under WU XIAN (white); the map draws it BLACK"},
-    {"P34", "Sangong (Gan)", "\xe4\xb8\x89\xe5\x85\xac", 'B', 3, 3, nullptr},
-    {"P39", "Tianqiang", "\xe5\xa4\xa9\xe6\x9e\xaa", 'R', 3, 3, nullptr},
-    {"P37", "Beidou", "\xe5\x8c\x97\xe6\x96\x97", 'R', 8, 7, nullptr},
-    {"P36", "Tianli", "\xe5\xa4\xa9\xe7\x90\x86", 'B', 4, 4, nullptr},
-    {"P27", "Wenchang", "\xe6\x96\x87\xe6\x98\x8c", 'R', 6, 5, nullptr},
-    {"P35", "Xuange", "\xe7\x8e\x84\xe6\x88\x88", 'R', 1, 1, nullptr},
-    {"P33", "Xiang", "\xe7\x9b\xb8", 'R', 1, 1, nullptr},
-    {"P31", "Taiyangshou", "\xe5\xa4\xaa\xe9\x98\xb3\xe5\xae\x88", 'R', 1, 1,
-     nullptr},
-    {"P32", "Shi", "\xe5\x8a\xbf", 'B', 4, 4, nullptr},
-    {"P30", "Tianlao", "\xe5\xa4\xa9\xe7\x89\xa2", 'R', 6, 6, nullptr},
+
+/** The two concordances, read from the files beside this sketch: what
+ *  the paper writes against what Chen Zhuo's catalogue holds, one row
+ *  per asterism the published table lists. */
+struct Concordance {
+  std::vector<M5Row> map5;
+  std::vector<M13Row> map13;
 };
+
+Concordance readConcordance(sigil::io::Hub& hub) {
+  Concordance c;
+  const auto file = [&hub](const char* name) {
+    return hub.load<data::Table>("res://data/dunhuang/" + std::string(name));
+  };
+  const auto letter = [](const std::string& text) {
+    return text.empty() ? ' ' : text[0];
+  };
+
+  if (const auto t = file("map5.csv")) {
+    const auto cid = t->column<std::string>("cid");
+    const auto pinyin = t->column<std::string>("pinyin");
+    const auto native = t->column<std::string>("native");
+    const auto gloss = t->column<std::string>("gloss");
+    const auto school = t->column<std::string>("school");
+    const auto sxc = t->column<double>("sxc");
+    const auto map = t->column<double>("map");
+    const auto confidence = t->column<double>("confidence");
+    const auto defect = t->column<std::string>("defect");
+    for (size_t i = 0; i < cid.size(); ++i)
+      c.map5.push_back({cid[i], pinyin[i], native[i], gloss[i],
+                        letter(school[i]), (int)sxc[i], (int)map[i],
+                        (int)confidence[i], defect[i]});
+  }
+
+  if (const auto t = file("map13.csv")) {
+    const auto cid = t->column<std::string>("cid");
+    const auto pinyin = t->column<std::string>("pinyin");
+    const auto native = t->column<std::string>("native");
+    const auto school = t->column<std::string>("school");
+    const auto sxc = t->column<double>("sxc");
+    const auto map = t->column<double>("map");
+    const auto note = t->column<std::string>("note");
+    for (size_t i = 0; i < cid.size(); ++i)
+      c.map13.push_back({cid[i], pinyin[i], native[i], letter(school[i]),
+                         (int)sxc[i], (int)map[i], note[i]});
+  }
+
+  return c;
+}
 
 /** Distinct stars in an asterism. `AstRec::stars` is the VERTEX count and a
  *  Chen Zhuo polyline revisits stars (東井 is 14 vertices over 9 stars), so
@@ -692,6 +655,7 @@ struct DunhuangStarChart : sketch::Sketch {
 
   // --- the joins, counted -------------------------------------------------
   Catalogue cat;
+  Concordance conc;
   int nStars = 0, nAst = 0;
   int nOnDisc = 0, nOnMaps = 0, nInGap = 0, nTooSouth = 0, nUnattested = 0;
   int nSchooled = 0;
@@ -841,19 +805,19 @@ struct DunhuangStarChart : sketch::Sketch {
     astMap.assign((size_t)nAst, 0);
     astRa.assign((size_t)nAst, 0.0f);
 
-    for (const M5Row& r : kMap5) {
+    for (const M5Row& r : conc.map5) {
       for (int a = 0; a < nAst; ++a)
         if (cat.ast(a).id == r.cid) {
-          astSchool[(size_t)a] = r.col;
+          astSchool[(size_t)a] = r.school;
           astMap[(size_t)a] = 5;
         }
-      m5Sxc += r.nSxc;
-      m5Map += r.nMap;
+      m5Sxc += r.sxc;
+      m5Map += r.map;
     }
-    for (const auto& r : kMap13) {
+    for (const M13Row& r : conc.map13) {
       for (int a = 0; a < nAst; ++a)
         if (cat.ast(a).id == r.cid) {
-          astSchool[(size_t)a] = r.col;
+          astSchool[(size_t)a] = r.school;
           astMap[(size_t)a] = 13;
         }
     }
@@ -1496,7 +1460,7 @@ struct DunhuangStarChart : sketch::Sketch {
   }
 
   /** Where an asterism's stars land on the paper, and its own box. */
-  bool astCentroid(const char* cid, SkPoint& out, int& region) const {
+  bool astCentroid(std::string_view cid, SkPoint& out, int& region) const {
     for (int a = 0; a < nAst; ++a) {
       if (cat.ast(a).id != cid) continue;
       const Mat3 M = precMatrix(-13.0f);
@@ -1535,14 +1499,15 @@ struct DunhuangStarChart : sketch::Sketch {
     for (int i = 0; i < 20; ++i) {
       m5Region[(size_t)i] = 0;
       m5Cent[(size_t)i] = {0, 0};
-      astCentroid(kMap5[(size_t)i].cid, m5Cent[(size_t)i], m5Region[(size_t)i]);
+      astCentroid(conc.map5[(size_t)i].cid, m5Cent[(size_t)i],
+                  m5Region[(size_t)i]);
     }
   }
 
   Element map5Labels() {
     auto g = box().left(0).top(0).width(Dim(kW)).height(Dim(kH)).key("m5lab");
     for (int i = 0; i < 20; ++i) {
-      const M5Row& r = kMap5[(size_t)i];
+      const M5Row& r = conc.map5[(size_t)i];
       const SkPoint c = m5Cent[(size_t)i];
       const int region = m5Region[(size_t)i];
       if (region != 5) continue;
@@ -1563,22 +1528,23 @@ struct DunhuangStarChart : sketch::Sketch {
                   .width(Dim(60))
                   .height(Dim(60))
                   .shape(shapes::circle())
-                  .opacity(r.defect ? gate(t, t + 0.3f)
-                                    : flash(t, t + 0.3f, t + 3.0f))
+                  .opacity(!r.defect.empty() ? gate(t, t + 0.3f)
+                                             : flash(t, t + 0.3f, t + 3.0f))
                   .stroke(PathFormat{
                       .width = 1.1f,
-                      .strokeFill = Fill::color(r.defect ? hex(0xb4531f, 0.85f)
-                                                         : hex(0x2f6d86, 0.7f)),
+                      .strokeFill =
+                          Fill::color(!r.defect.empty() ? hex(0xb4531f, 0.85f)
+                                                        : hex(0x2f6d86, 0.7f)),
                       .dashIntervals = {4, 4}}));
 
       // WHAT IS WRITTEN ON THE PAPER, defects included
-      const char* written = r.native;
+      std::string written = r.native;
       float lx = c.fX + 6, ly = c.fY - 30;
       bool none = false;
       const std::string cid = r.cid;
-      if (cid == "21A" || cid == "19P") none = true;  // Shen, Jiuliu
-      if (cid == "22I") written = kMap5[9].native;    // Shuifu <- Sidu
-      if (cid == "22K") written = kMap5[8].native;    // Sidu <- Shuifu
+      if (cid == "21A" || cid == "19P") none = true;    // Shen, Jiuliu
+      if (cid == "22I") written = conc.map5[9].native;  // Shuifu <- Sidu
+      if (cid == "22K") written = conc.map5[8].native;  // Sidu <- Shuifu
       if (cid == "21D") {
         ly = c.fY - 96;
         lx = c.fX + 26;
@@ -2423,7 +2389,7 @@ struct DunhuangStarChart : sketch::Sketch {
                   .top(y0 - 13)
                   .width(Dim(120)));
     for (int i = 0; i < 20; ++i) {
-      const M5Row& r = kMap5[(size_t)i];
+      const M5Row& r = conc.map5[(size_t)i];
       const float y = y0 + (float)i * rowH;
       const float t = tAudit + (float)i * tAuditEach;
       auto row = box().left(0).top(y).width(Dim(880)).height(Dim(rowH)).opacity(
@@ -2441,7 +2407,7 @@ struct DunhuangStarChart : sketch::Sketch {
                     .top(0)
                     .width(Dim(126)));
       row.child(text(toU8(r.native), type(faceHan ? faceHan : faceSerif, 10.4f,
-                                          schoolInk(r.col)))
+                                          schoolInk(r.school)))
                     .left(160)
                     .top(-2)
                     .width(Dim(64)));
@@ -2451,25 +2417,26 @@ struct DunhuangStarChart : sketch::Sketch {
                     .width(Dim(8))
                     .height(Dim(8))
                     .shape(shapes::circle())
-                    .fill(Fill::color(schoolInk(r.col)))
+                    .fill(Fill::color(schoolInk(r.school)))
                     .stroke(PathFormat{.width = 0.8f,
                                        .strokeFill = Fill::color(kInk)}));
-      row.child(text(toU8(fmt("%4d %4d %4d", r.nSxc, r.nMap, cz)),
+      row.child(text(toU8(fmt("%4d %4d %4d", r.sxc, r.map, cz)),
                      type(faceMono, 9.4f,
-                          r.nSxc == r.nMap ? hex(0x9a8a68) : hex(0xcf6a4a)))
+                          r.sxc == r.map ? hex(0x9a8a68) : hex(0xcf6a4a)))
                     .left(250)
                     .top(0)
                     .width(Dim(94)));
       // the confidence index, as five cells
       for (int c = 0; c < 5; ++c)
-        row.child(box()
-                      .left(356 + (float)c * 7.0f)
-                      .top(3.6f)
-                      .width(Dim(5.2f))
-                      .height(Dim(7.0f))
-                      .fill(Fill::color(c < r.conf ? hex(0xc9a35c, 0.85f)
+        row.child(
+            box()
+                .left(356 + (float)c * 7.0f)
+                .top(3.6f)
+                .width(Dim(5.2f))
+                .height(Dim(7.0f))
+                .fill(Fill::color(c < r.confidence ? hex(0xc9a35c, 0.85f)
                                                    : hex(0x6d6249, 0.28f))));
-      if (r.defect)
+      if (!r.defect.empty())
         row.child(text(toU8(r.defect), type(faceMono, 9.0f, hex(0xb4531f)))
                       .left(400)
                       .top(0)
@@ -2815,6 +2782,7 @@ struct DunhuangStarChart : sketch::Sketch {
     paperSpeck.seed(649);
 
     cat = catalogue(ctx.assets.hub());
+    conc = readConcordance(ctx.assets.hub());
     nStars = cat.stars();
     nAst = cat.asterisms();
 
