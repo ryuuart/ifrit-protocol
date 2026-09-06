@@ -14,6 +14,45 @@ those reports, condensed, so that a fix pass can work from this file and
 delete lines as it goes. The second part is the standing entries from
 before the review, rewritten to what the tree holds now.
 
+## Rulings for the fix pass
+
+- The bar is everything in this file, nits included, except the two
+  deferrals below, which are campaigns of their own after the merge.
+- Deferred: the library extractions the sketch review names (pixel
+  sprites and an atlas packer, the HTML auto-table layout, an
+  icosahedron and a face-up pose, the conic generator, the chart
+  projections, the tartan weave, the pentagrid, Reeves particles), and
+  the big file splits (`material/skia/Paint.cpp`, `mesh/pop/Pop.h`,
+  `book/main.cpp`, `book/SketchbookView.cpp`, the 1380-line
+  `Composer::Impl::paint`). Test files split by subject only where they
+  pass about 700 lines; one binary per library stands.
+- `rota_convocationis` loses its `ctx.plate()` mark, keeps its look, and
+  the emissive stack's cost is filed against the compositor.
+- The plate ledger sweeps draw sketches too and takes their baselines.
+- `SigilGeometryMeshPopDevice` is split out the way the mesh renderer's
+  device executor is.
+- The device mesh painter carries the environment, metallic and
+  roughness terms the host applies, with a conformance case.
+- The zip reader becomes an archive byte source in SigilIO; `Hub::probe`
+  answers bytes and a registered `probe<T>()` answers meaning, with the
+  image prober registered by SigilImage.
+- Path and ellipse silhouettes take their exclusion margin from Skia
+  path ops; the distance field stays for pixel coverage.
+- Kit spellings: `swatchSide` for the length, an optional `Fill` for
+  every ink, `column` on the scrollbar.
+- `routes_probe` is rebased with commit 7a3ed160 named as the cause.
+- The three long READMEs get chapter files beside them (material:
+  colour and paint; core and motion: one per feature).
+- Before the merge, on the fresh tree: the device tier, the promotion
+  tier (which reports rather than gates until the glyph-edge cause is
+  found), ASan and TSan over the suite, and the bench and app-FPS
+  retake on an idle machine.
+- Rules of the pass: a library pass builds its own targets and never
+  edits a sketch; the sketch pass comes last and brings every sketch
+  onto the new vocabulary; no agent runs the plate ledger — each names
+  the scenes its change should move, and the closing pass rebases them
+  with the causes.
+
 ## Verification state at the review
 
 Taken on a fresh build directory (the old tree removed, `sigil.py setup
@@ -166,8 +205,8 @@ Should-fix:
   `--video` and `--bench` run a different simulation from the sweep; use
   `addFixed` with an interpolant as the other simulations do.
 - `rota_convocationis.cpp:2093` — `ctx.plate()` on a looping animation to
-  pass `--bench` by declaration; remove the mark and cut the emissive
-  stack or file the cost against the compositor.
+  pass `--bench` by declaration; remove the mark, keep the look, and
+  file the emissive stack's cost as a compose entry here.
 - `xcom_battlescape.cpp:1690-1814,1963-1974` and
   `spacejam_1996.cpp:1376-1408,1507`, `eva_magi_interior.cpp:687-708,
   1601-1623`, `eva_magi_defense.cpp:935-983`, `penrose_paving.cpp:
