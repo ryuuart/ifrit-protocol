@@ -16,18 +16,19 @@
 # every stock shader takes, `sigil_shader_sources`, which carries a whole
 # directory rather than a module at a time.
 #
-# The float model is set downstream of `slangc`, not by it: `-fp-mode` is
-# a no-op for these targets, and the model is pinned where the code is
-# finally generated — `-ffp-contract=off` on generated C++,
-# `-fmetal-math-mode=safe -ffp-contract=off` on Metal, and
-# MVK_CONFIG_FAST_MATH_ENABLED=0 for MoltenVK at run time.
+# The float model is pinned at every end one piece of arithmetic passes
+# through. `-fp-mode precise` is the slangc end: it decorates every
+# scalar, vector and matrix float arithmetic result of the SPIR-V with
+# `NoContraction`, which is what tells a driver that a multiply and the
+# add after it are two operations and forbids it fusing them into one
+# that rounds once. `-ffp-contract=off` is the generated C++'s end,
+# `-fmetal-math-mode=safe -ffp-contract=off` Metal's, and
+# MVK_CONFIG_FAST_MATH_ENABLED=0 MoltenVK's at run time.
 #
-# workaround: at the slangc this tree pins, 2026.7.1, `-fp-mode precise`
-# emits a SPIR-V module byte-identical to the one `default` and `fast`
-# emit, with no NoContraction decoration on any arithmetic, so a driver
-# is free to fuse a multiply-add inside a module compiled here; a kernel
-# that needs the unfused answer has to reach the same result without
-# depending on the flag.
+# Only the SINGLE-SOURCE KERNEL lane asks for it. Bit identity with the
+# C++ executor is what a kernel is held to; a material or a painter
+# module is held to nothing of the kind and would only lose the
+# optimisation.
 
 find_package(slang CONFIG REQUIRED)
 
@@ -81,6 +82,7 @@ function(sigil_slang_module)
     list(APPEND _includeFlags -I "${_dir}")
   endforeach()
 
+  set(_fpFlags "")
   if((ARG_CPP_VAR OR ARG_SPIRV_VAR))
     list(LENGTH ARG_ENTRIES _entryCount)
     if(NOT _entryCount EQUAL 1)
@@ -88,6 +90,7 @@ function(sigil_slang_module)
               "sigil_slang_module: ${ARG_NAME} asks for a host or an embedded "
               "build and names ${_entryCount} entry points; it wants one")
     endif()
+    set(_fpFlags -fp-mode precise)
   endif()
 
   # The host build, when one is asked for: the same invocation that emits
@@ -97,11 +100,13 @@ function(sigil_slang_module)
   set(_cpp "")
   if(ARG_CPP_VAR)
     set(_cpp "${SIGIL_SLANG_GENERATED_DIR}/${ARG_NAME}.cpp")
-    set(_cppFlags -target cpp -o "${_cpp}")
+    set(_cppFlags -target cpp ${_fpFlags} -o "${_cpp}")
   endif()
 
   # One slangc invocation per entry point: the driver names its output
-  # per -o, and one file per entry keeps the failure specific.
+  # per -o, and one file per entry keeps the failure specific. A float
+  # model is a TARGET option, so it is named again after each -target it
+  # applies to; named once ahead of them the driver rejects the line.
   set(_spvFiles "")
   set(_spvCommands "")
   foreach(_entry IN LISTS ARG_ENTRIES)
@@ -109,7 +114,7 @@ function(sigil_slang_module)
     list(APPEND _spvFiles "${_spv}")
     list(APPEND _spvCommands COMMAND slang::slangc "${_source}"
          -entry ${_entry} ${_includeFlags} ${_cppFlags}
-         -target spirv -profile ${ARG_PROFILE} -o "${_spv}")
+         -target spirv ${_fpFlags} -profile ${ARG_PROFILE} -o "${_spv}")
     # A -o binds to the target before it, so the host build is named once
     # and only alongside the first (and only) entry.
     set(_cppFlags "")

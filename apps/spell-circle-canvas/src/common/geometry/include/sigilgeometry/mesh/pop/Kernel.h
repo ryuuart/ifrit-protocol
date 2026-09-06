@@ -106,16 +106,17 @@ void run(const OpDispatch& dispatch, glm::vec4* dst, glm::vec4* a, glm::vec4* b,
          glm::vec4* c, glm::vec4* mask);
 
 /** THE KERNEL AS A DEVICE RUNS IT: the SPIR-V this build compiled from
- *  the same source `run` came out of, with one `NoContraction`
- *  decoration per arithmetic result.
+ *  the same source `run` came out of, under the precise float model.
  *
- *  The decoration is not optional and is not the emitter's: nothing in
- *  the words it produces tells a driver that a multiply and the add
- *  after it are two operations, so a driver is free to fuse them and
- *  round once where the source rounds twice. It is added here rather
- *  than by a runtime, so a second backend cannot forget it.
+ *  That model is what makes the two ends agree in their last place: it
+ *  puts a `NoContraction` decoration on every float arithmetic result,
+ *  which tells a driver that a multiply and the add after it are two
+ *  operations and forbids it fusing them into one that rounds once. It
+ *  is asked for where the module is compiled, so a second backend has
+ *  nothing to remember.
  *
- *  The words stand for the life of the process. */
+ *  The words are the build's own and stand for the life of the
+ *  process. */
 std::span<const uint32_t> opSpirv();
 
 }  // namespace sigil::geometry::mesh::kernel

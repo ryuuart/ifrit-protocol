@@ -22,7 +22,6 @@
 #include <cstdint>
 #include <utility>
 
-#include "sigilgeometry/mesh/pop/Spirv.h"
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
  *  opaque parameters are the group range and the global bindings, whose
@@ -101,10 +100,7 @@ void run(const SweepDispatch& dispatch, glm::vec4* positions,
 }
 
 std::span<const uint32_t> sweepSpirv() {
-  static const std::vector<uint32_t> module = noContraction(
-      {slangmodule::Sweep::kSpirv, sizeof(slangmodule::Sweep::kSpirv) /
-                                       sizeof(slangmodule::Sweep::kSpirv[0])});
-  return {module.data(), module.size()};
+  return slangmodule::Sweep::kSpirv;
 }
 
 }  // namespace sigil::geometry::mesh::kernel

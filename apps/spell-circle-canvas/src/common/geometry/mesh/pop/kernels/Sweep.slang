@@ -21,11 +21,11 @@
 //
 // THE PORTABLE SUBSET. Every operation below is arithmetic or a
 // conversion IEEE 754 pins exactly, so both targets answer alike as
-// written; no library intrinsic is called. The float model is set
-// downstream — `-ffp-contract=off` on the generated C++, and one
-// `NoContraction` decoration per arithmetic result in the SPIR-V,
-// because the emitter puts none there and a driver is otherwise free to
-// fuse a multiply-add and round once where the source rounds twice.
+// written; no library intrinsic is called. The float model is set where
+// this is compiled — `-ffp-contract=off` on the generated C++, and
+// `-fp-mode precise` on the SPIR-V, which puts a `NoContraction`
+// decoration on every arithmetic result so a driver cannot fuse a
+// multiply-add and round once where this rounds twice.
 
 /** ONE SWEEP'S PARAMETERS. Every member is a four-component vector, so
  *  the block's bytes stand at the same offsets in a uniform buffer as

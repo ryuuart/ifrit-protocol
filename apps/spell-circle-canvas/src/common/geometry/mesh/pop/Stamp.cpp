@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "sigilgeometry/mesh/pop/Points.h"
-#include "sigilgeometry/mesh/pop/Spirv.h"
 
 /** THE KERNEL ITSELF, as the build's C++ emitter names it. Its two
  *  opaque parameters are the group range and the global bindings, whose
@@ -108,10 +107,7 @@ void run(const StampDispatch& dispatch, glm::vec4* positions,
 }
 
 std::span<const uint32_t> stampSpirv() {
-  static const std::vector<uint32_t> module = noContraction(
-      {slangmodule::Stamp::kSpirv, sizeof(slangmodule::Stamp::kSpirv) /
-                                       sizeof(slangmodule::Stamp::kSpirv[0])});
-  return {module.data(), module.size()};
+  return slangmodule::Stamp::kSpirv;
 }
 
 }  // namespace sigil::geometry::mesh::kernel

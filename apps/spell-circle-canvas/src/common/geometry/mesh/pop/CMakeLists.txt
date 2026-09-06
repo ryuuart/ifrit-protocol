@@ -54,13 +54,13 @@ find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilGeometryMeshPop
   SOURCES device/Cook.cpp device/Stamp.cpp device/Sweep.cpp
           Billboards.cpp Cloud.cpp Cook.cpp Fields.cpp Generators.cpp
-          Kernel.cpp Modifiers.cpp Sinks.cpp Spirv.cpp Stamp.cpp
+          Kernel.cpp Modifiers.cpp Sinks.cpp Stamp.cpp
           Sweep.cpp
           ${SIGIL_POP_KERNEL_CPP} ${SIGIL_POP_KERNEL_SPV_H}
           ${SIGIL_STAMP_KERNEL_CPP} ${SIGIL_STAMP_KERNEL_SPV_H}
           ${SIGIL_SWEEP_KERNEL_CPP} ${SIGIL_SWEEP_KERNEL_SPV_H}
           kernels/Pop.slang kernels/Stamp.slang kernels/Sweep.slang
-  HEADERS Kernel.h Points.h Pop.h Spirv.h Stamp.h Sweep.h
+  HEADERS Kernel.h Points.h Pop.h Stamp.h Sweep.h
   PUBLIC SigilGeometryMeshCurve SigilGeometryDevice SigilCoreComparable
          Boost::container
   PRIVATE SigilCoreCompute SigilCoreSchedule)

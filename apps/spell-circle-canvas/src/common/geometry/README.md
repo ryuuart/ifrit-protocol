@@ -255,12 +255,10 @@ ring vertex. The build compiles each twice — to C++, which the executor
 behind the built-in runtime calls, and to SPIR-V, which a runtime that
 owns a device dispatches. Neither side re-derives a formula, which is
 what lets two tiers be held to bit identity rather than to a tolerance.
-`mesh/pop/Spirv.h` is the one thing both kernels' words go through:
-`noContraction()` adds the decoration the emitter leaves out, in one
-place rather than once per kernel. `kernel::has(op)` is the one
-answer to whether an operator has a kernel, `kernel::describe()` packs
-one into the argument block both ends read, `kernel::run()` is the host
-call, and `kernel::opSpirv()` is the module a device runs.
+`kernel::has(op)` is the one answer to whether an operator has a kernel,
+`kernel::describe()` packs one into the argument block both ends read,
+`kernel::run()` is the host call, and `kernel::opSpirv()` is the module a
+device runs.
 
 **One namespace holds every kernel here.** `mesh::kernel` is where the
 point operators' arithmetic, the swept ring's and the stamping's are all
@@ -292,11 +290,12 @@ exactly, with a lerp, a dot, a length and a smoothstep written out
 because a library intrinsic is two different pieces of code on two
 targets. Two things outside the source decide the rest. The generated C++
 is compiled with `-ffp-contract=off`, which is also what makes a Debug
-build and a Release one produce the same bits; and the SPIR-V carries one
-`NoContraction` decoration per arithmetic result, added by
-`kernel::opSpirv()` because the emitter puts none there — without it a
-driver fuses a multiply and the add after it and rounds once where the
-source rounds twice.
+build and a Release one produce the same bits; and the SPIR-V is compiled
+under `-fp-mode precise`, which puts a `NoContraction` decoration on
+every float arithmetic result — without it a driver fuses a multiply and
+the add after it and rounds once where the source rounds twice. Both
+flags are set in one place, `sigil_slang_module`'s single-source kernel
+lane, so a third kernel gets them by being one.
 
 **A SWEEP runs on one as well, and its executor's whole contract is the
 RING VERTICES.** `SweepOptions::runtime` carries a `pop::SweepRuntime`,
@@ -706,7 +705,7 @@ implementations of the same dispatch seams.
   uniform buffer), `kernel::OpDispatch` (which lane fills each binding
   role), `has()`, `describe()`, `run()` and `opSpirv()`. It also names
   the namespace every kernel here shares. `Kernel.cpp` packs
-  and calls; `Spirv.cpp` decorates the module.
+  and calls.
 - **`mesh/pop/Sweep.h`** — the swept operator as a subject: the
   door from an arbitrary outline, `pop::profile::fromPath()` (the two
   unit cross-sections a sweep is usually given are the kit's
@@ -767,11 +766,6 @@ implementations of the same dispatch seams.
   stamp with no normals forms none, because a lane is present on a mesh
   when it is sized to the positions and every consumer reads that as the
   presence bit.
-- **`mesh/pop/Spirv.h`** — `mesh::noContraction()`, a compiled module
-  given one `NoContraction` decoration per arithmetic result. It stands
-  here once rather than beside each kernel's own words, because a module
-  that means one thing in one feature and another in the next is not a
-  single source.
 - **`mesh/pop/kernels/Pop.slang`** — the point operators themselves, one
   entry point with the operator chosen by a uniform: one dispatch runs one
   operator over every point, so the branch is uniform across it, and one

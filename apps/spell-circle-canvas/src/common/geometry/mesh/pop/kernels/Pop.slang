@@ -28,9 +28,10 @@
 // for the other would change what a chain cooks rather than where it
 // cooks.
 //
-// The float model is set downstream: `-ffp-contract=off` on the
-// generated C++, and nothing in the SPIR-V forbids a driver to fuse a
-// multiply-add, so nothing here may depend on the unfused answer.
+// The float model is set where this is compiled: `-ffp-contract=off` on
+// the generated C++, and `-fp-mode precise` on the SPIR-V, which puts a
+// `NoContraction` decoration on every arithmetic result so a driver
+// cannot fuse a multiply-add and round once where this rounds twice.
 
 /** ONE DISPATCH'S PARAMETERS. Every member is a four-component vector,
  *  so the block's bytes stand at the same offsets in a uniform buffer as

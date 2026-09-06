@@ -100,10 +100,11 @@ void run(const StampDispatch& dispatch, glm::vec4* positions,
          glm::vec4* normals, glm::vec4* colors);
 
 /** THE KERNEL AS A DEVICE RUNS IT: the SPIR-V this build compiled from
- *  the same source `run` came out of, with one `NoContraction`
- *  decoration per arithmetic result — see `pop/Spirv.h` for why that
- *  decoration is not optional. The words stand for the life of the
- *  process. */
+ *  the same source `run` came out of, under the precise float model —
+ *  every float arithmetic result decorated `NoContraction`, so a driver
+ *  cannot fuse a multiply and the add after it and round once where the
+ *  source rounds twice. The words are the build's own and stand for the
+ *  life of the process. */
 std::span<const uint32_t> stampSpirv();
 
 /** How many vertices one dispatched group covers. It is the kernel's own

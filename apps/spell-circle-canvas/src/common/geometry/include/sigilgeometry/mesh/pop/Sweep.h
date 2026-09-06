@@ -128,10 +128,11 @@ void run(const SweepDispatch& dispatch, glm::vec4* positions,
          glm::vec4* normals);
 
 /** THE KERNEL AS A DEVICE RUNS IT: the SPIR-V this build compiled from
- *  the same source `run` came out of, with one `NoContraction`
- *  decoration per arithmetic result — see `mesh/Spirv.h` for why that
- *  decoration is not optional. The words stand for the life of the
- *  process. */
+ *  the same source `run` came out of, under the precise float model —
+ *  every float arithmetic result decorated `NoContraction`, so a driver
+ *  cannot fuse a multiply and the add after it and round once where the
+ *  source rounds twice. The words are the build's own and stand for the
+ *  life of the process. */
 std::span<const uint32_t> sweepSpirv();
 
 /** How many vertices one dispatched group covers. It is the kernel's own
@@ -224,8 +225,9 @@ bool describe(const std::vector<curve::Frame3>& rail,
  * THE TWO TIERS ARE HELD TO BIT IDENTITY, not to a distance. That is
  * possible because the ring arithmetic is one piece of Slang compiled
  * twice under a float model pinned at both ends: the generated C++ is
- * compiled with contraction off, the SPIR-V carries one `NoContraction`
- * decoration per arithmetic result, and the device's driver is told not
+ * compiled with contraction off, the SPIR-V is compiled precise and so
+ * carries one `NoContraction` decoration per arithmetic result, and the
+ * device's driver is told not
  * to relax its floating point before the instance exists.
  *
  * Two runtimes made by one call to this compare equal; two separate

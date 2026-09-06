@@ -893,8 +893,8 @@ the one place in this library where two backends are, and it is possible
 only because the operators are one piece of arithmetic compiled twice
 under a float model pinned at both ends. Three things pin it, and each of
 them is load-bearing: the generated C++ is compiled with
-`-ffp-contract=off`; the SPIR-V carries one `NoContraction` decoration per
-arithmetic result, which the emitter does not put there; and
+`-ffp-contract=off`; the SPIR-V is compiled under `-fp-mode precise`, so
+it carries one `NoContraction` decoration per arithmetic result; and
 `MVK_CONFIG_FAST_MATH_ENABLED` is set to 0 before the Vulkan instance
 exists, because this driver otherwise takes a square root as an
 approximation and a divide as a reciprocal and a multiply. Remove any one
