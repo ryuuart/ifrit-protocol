@@ -3,12 +3,10 @@
 A specimen sheet in this repository is a page with a title, a subtitle
 and a footer, ruled off from a run of captioned cells, each cell a
 picture in a grounded well with the call over it and the remark under.
-Spelled out, that sheet is fifty lines before its subject: five colours,
-a two-line style helper, a five-line monospaced one, a seven-line caption
-value, three calls declaring the canvas, and nine fields of margins and
-rules inside the sheet literal. **This library is those fifty lines,
-stated once**, so the file someone opens to study `Border`'s four modes
-is a file about `Border`'s four modes.
+**This library is that sheet, stated once.** The colours, the registers,
+the margins and the rules come from one theme value, and the arrangement
+from one call each, so the file someone opens to study `Border`'s four
+modes is a file about `Border`'s four modes and not about furniture.
 
 What it is not is a place a look is decided. `Theme` is a **seam** — a
 plain comparable struct — and `houseTheme()` is one **stock value** over
@@ -51,7 +49,7 @@ sketch::kit::Theme sheetTheme() {
   return paper;
 }
 
-const sketch::kit::Provide look(sheetTheme());   // five lines, not forty
+const sketch::kit::Provide look(sheetTheme());   // bound for this scope
 ctx.composer.render(sketch::kit::page({…}, content));
 ```
 
@@ -100,8 +98,9 @@ as a thousand lines of furniture.
 **A GROUND IS EITHER OF TWO THINGS.** Every field here that paints an
 area — `Well::ground`, `Frame::shell` and `Frame::screen`, `Page::ground`,
 `Console::ground`, `Backdrop::ground`, a meter's track and its bar, a
-chip's ground, a legend's swatches — is a `Ground`: one value holding a
-`compose::Fill` **or** a material, converting from either, so
+scrollbar's track, a ticker's rail, a chip's ground, a legend's swatches —
+is a `Ground`: one value holding a `compose::Fill` **or** a material,
+converting from either, so
 `Fill::color(kPlate)`, a `material::skia::Paint` and a bare
 `material::Material` are each written where the ground is asked for and
 none of them is wrapped. A fill goes onto the node as it always did; a
@@ -113,7 +112,7 @@ quarried stone is the reason for the second form: the picture holds a
 recipe, and a component that took only a `Fill` would turn that half of
 the tree away.
 
-### The surface — `Page.h`, `Cells.h`
+### The surface — `Page.h`, `Cells.h`, `Passage.h`
 
 | | |
 | --- | --- |
@@ -124,7 +123,7 @@ the tree away.
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `columns(Columns)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is |
 | `panelGrid(PanelGrid)` | the same, wrapped every N, with a short last row keeping its share |
-| `passage(ctx, name)` | the prose at `res://passages/<name>`, minus the newlines a file ends with — the two thousand words a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
+| `passage(ctx, name)` | the prose at `res://passages/<name>`, minus the newlines a file ends with — the prose a sheet about setting a page is SET IN, kept beside the sketch rather than typed into it |
 
 ```cpp
 sketch::kit::page({.title = toU8("THE STROKE ATLAS")},
@@ -139,8 +138,8 @@ paint something else passes that.
 
 **A PLATE IS A WELL WITH TWO MORE FIELDS.** A grounded panel with rounded
 corners and one hairline round it is what a page puts a heading, a rack of
-pills or a warning strip on, and it is four calls every time it is written
-by hand:
+pills or a warning strip on, and spelling it by hand is a box, a fill, a
+corner radius and a stroke every time:
 
 ```cpp
 sketch::kit::well({.ground = Fill::color(kPlate), .padding = 13,
