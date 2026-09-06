@@ -193,7 +193,11 @@ const SkVector kSunTo{0.48f, 0.877f};  // the light's direction of travel
 // ---------------------------------------------------------------------------
 // Timeline. Every delay is a continuous function of a tile's own centre
 // distance from the pentagrid origin, so the radial stagger falls out of the
-// geometry and no tile carries a schedule of its own.
+// geometry and no tile carries a schedule of its own. It is NOT
+// `Spread::rankBy`: a rank ladder spaces its units evenly in rank order,
+// where a ring twice as far out here waits twice as long — which is what
+// makes the sweep read as one wave crossing the paving rather than as a
+// queue of tiles.
 
 constexpr double kPeriod = 9.2;
 constexpr double kTileT0 = 0.05, kTileSweep = 1.35, kTileDur = 0.52;
@@ -767,7 +771,7 @@ struct PenrosePaving : sketch::Sketch {
             .top(bb.top())
             .width(bb.width())
             .height(bb.height())
-            .shape([shape](SkSize) { return shape; })
+            .shape(heldPath(shape))
             .fill(bank.get(t.fat ? kRoyalWhite : kKobraGrey, t.seed, t.fat))
             .foreground(Decoration(PaintProgram(chamfer)))
             // the saw cut: a hairline of the joint's own colour just
@@ -825,10 +829,7 @@ struct PenrosePaving : sketch::Sketch {
         .top(bb.top() - parentOrg.y())
         .width(bb.width())
         .height(bb.height())
-        // the callable is invoked on every layout, so its capture must survive
-        // each return
-        // NOLINTNEXTLINE(performance-no-automatic-move)
-        .shape([local](SkSize) { return local; })
+        .shape(heldPath(local))
         .stroke(spans::upTo(&arcT[i]),
                 Brush{}  // the milled slot the insert sits in — a hairline of
                          // occlusion either side, not an outline
@@ -886,7 +887,7 @@ struct PenrosePaving : sketch::Sketch {
               .top(bb.top())
               .width(bb.width())
               .height(bb.height())
-              .shape([p](SkSize) { return p; })
+              .shape(heldPath(p))
               .fill(Fill::color(g.type == 1 ? hex(0xB6B2A7) : hex(0x76797E)))
               // NO per-piece scale: scaling each half about its own
               // centre pulls a subdivision apart, and a deflation
@@ -902,21 +903,25 @@ struct PenrosePaving : sketch::Sketch {
     // shares, so a Robinson triangle's two real rhomb edges are exactly the
     // two this run does draw. Close the path and the diagram claims a tiling
     // by triangles, which is the one thing it must not say.
+    // The generation names the drawing: a generation's triangles are
+    // settled before it is described, so the program is a value the
+    // node can compare rather than a callable that never matches.
     auto edges = tri;
-    group.child(custom([edges](SkCanvas& c, const PaintContext&) {
-                  SkPaint p;
-                  p.setAntiAlias(true);
-                  p.setStyle(SkPaint::kStroke_Style);
-                  p.setStrokeWidth(1.0f);
-                  p.setColor4f(hex(0x1B1D1E, 0.85f), nullptr);
-                  for (const Tri& g : edges) {
-                    SkPathBuilder b;
-                    b.moveTo(g.b);
-                    b.lineTo(g.a);
-                    b.lineTo(g.c);
-                    c.drawPath(b.detach(), p);
-                  }
-                })
+    group.child(custom(kit::formatted("rhomb-edges-%d", gen),
+                       [edges](SkCanvas& c, const PaintContext&) {
+                         SkPaint p;
+                         p.setAntiAlias(true);
+                         p.setStyle(SkPaint::kStroke_Style);
+                         p.setStrokeWidth(1.0f);
+                         p.setColor4f(hex(0x1B1D1E, 0.85f), nullptr);
+                         for (const Tri& g : edges) {
+                           SkPathBuilder b;
+                           b.moveTo(g.b);
+                           b.lineTo(g.a);
+                           b.lineTo(g.c);
+                           c.drawPath(b.detach(), p);
+                         }
+                       })
                     .inset(0, 0, 0, 0)
                     .cache(Cache::None));
     return group;
