@@ -152,7 +152,8 @@ target_link_libraries(SigilSketches PUBLIC
   SigilGeometry SigilMaterial
   SigilWeave SigilWeaveKit SigilWeavePorts
   SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
-  SigilCoreCompute SigilImage SigilVideo SigilMotion SigilIO SigilMeasure
+  SigilCoreCompute SigilData SigilImage SigilVideo SigilMotion SigilIO
+  SigilMeasure
   Boost::container Boost::unordered
   ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})
 # This directory is on the include path for one reason: a module under
