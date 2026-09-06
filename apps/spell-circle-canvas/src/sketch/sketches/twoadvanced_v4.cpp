@@ -121,6 +121,8 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -207,13 +209,13 @@ inline sigil::weave::TextStyle prose(float size, SkColor4f c) {
 
 /** An OPEN hairline across the node — the trim() reveal primitive: a
  *  stroked open outline draws itself on when trim's end ramps 0→1. */
-inline std::function<SkPath(SkSize)> ray(float dirX, float dirY) {
-  return [dirX, dirY](SkSize s) {
+inline Shape ray(float dirX, float dirY) {
+  return keyedShape(std::pair{dirX, dirY}, [dirX, dirY](SkSize s) {
     SkPathBuilder b;
     b.moveTo(dirX < 0 ? s.width() : 0, dirY < 0 ? s.height() : 0);
     b.lineTo(dirX < 0 ? 0 : s.width(), dirY < 0 ? 0 : s.height());
     return b.detach();
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -401,8 +403,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
    *  bars STEP rather than slide — the era's digital readout feel, and the
    *  same reason a stylised meter animates on a beat instead of smoothly. */
   static sk_sp<SkRuntimeEffect> spectrumFx() {
-    static const sk_sp<SkRuntimeEffect> fx = [] {
-      auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
         uniform float2 uResolution;
         uniform float  uTime;
         uniform float  uBars;
@@ -436,18 +437,15 @@ struct TwoAdvancedV4 : sketch::Sketch {
           return half4(half3(acc.rgb), 1.0);
         }
       )"));
-      if (!e) SkDebugf("twoadvanced spectrum: %s\n", err.c_str());
-      return e;
-    }();
-    return fx;
+    if (!e) SkDebugf("twoadvanced spectrum: %s\n", err.c_str());
+    return e;
   }
 
   /** The diagonal hazard stripe as a LIVE material so every header bar can
    *  run its slow conveyor pan — 20 px per 8 s — off ONE bound uniform.
    *  This exact value is reused by the nav bar and four panel headers. */
   static sk_sp<SkRuntimeEffect> stripeFx() {
-    static const sk_sp<SkRuntimeEffect> fx = [] {
-      auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
         uniform float  uPan;
         uniform float  uOn;
         uniform float  uPeriod;
@@ -461,16 +459,13 @@ struct TwoAdvancedV4 : sketch::Sketch {
           return half4(half3(c.rgb), 1.0);
         }
       )"));
-      if (!e) SkDebugf("twoadvanced stripe: %s\n", err.c_str());
-      return e;
-    }();
-    return fx;
+    if (!e) SkDebugf("twoadvanced stripe: %s\n", err.c_str());
+    return e;
   }
 
   /** Horizontal streak water, dark teal-black, drifting slowly. */
   static sk_sp<SkRuntimeEffect> waterFx() {
-    static const sk_sp<SkRuntimeEffect> fx = [] {
-      auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
+    auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
         uniform float2 uResolution;
         uniform float  uTime;
         half4 main(float2 xy) {
@@ -483,10 +478,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
           return half4(half3(c), 1.0);
         }
       )"));
-      if (!e) SkDebugf("twoadvanced water: %s\n", err.c_str());
-      return e;
-    }();
-    return fx;
+    if (!e) SkDebugf("twoadvanced water: %s\n", err.c_str());
+    return e;
   }
 
   // =========================================================================
@@ -1514,14 +1507,16 @@ struct TwoAdvancedV4 : sketch::Sketch {
             copy);
     // the hazard wedge, bottom-left — the STATIC baked-tile pattern path
     bodyArea.child(at(box()
-                          .shape([](SkSize s) {
-                            SkPathBuilder b;
-                            b.moveTo(0, 0);
-                            b.lineTo(s.width(), s.height());
-                            b.lineTo(0, s.height());
-                            b.close();
-                            return b.detach();
-                          })
+                          .shape(keyedShape(
+                              std::string_view("hazard-wedge"),
+                              [](SkSize s) {
+                                SkPathBuilder b;
+                                b.moveTo(0, 0);
+                                b.lineTo(s.width(), s.height());
+                                b.lineTo(0, s.height());
+                                b.close();
+                                return b.detach();
+                              }))
                           .fill(hazard.material())
                           .opacity(0.45f),
                       0, 316 - 46, 150, 46));
@@ -2504,15 +2499,19 @@ struct TwoAdvancedV4 : sketch::Sketch {
     dockAtlas = std::make_shared<instancing::Atlas>(2.0f);
     const int chev =
         dockAtlas->cell(box()
-                            .shape([](SkSize s) {
-                              SkPathBuilder b;
-                              b.moveTo(0, 0);
-                              b.lineTo(s.width() * 0.62f, s.height() * 0.5f);
-                              b.lineTo(0, s.height());
-                              b.lineTo(s.width() * 0.30f, s.height() * 0.5f);
-                              b.close();
-                              return b.detach();
-                            })
+                            .shape(keyedShape(
+                                std::string_view("dock-chevron"),
+                                [](SkSize s) {
+                                  SkPathBuilder b;
+                                  b.moveTo(0, 0);
+                                  b.lineTo(s.width() * 0.62f,
+                                           s.height() * 0.5f);
+                                  b.lineTo(0, s.height());
+                                  b.lineTo(s.width() * 0.30f,
+                                           s.height() * 0.5f);
+                                  b.close();
+                                  return b.detach();
+                                }))
                             .fill(kD6),
                         {12, 10});
     dockPool = std::make_shared<instancing::Pool>();
