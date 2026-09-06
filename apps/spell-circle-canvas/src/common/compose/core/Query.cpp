@@ -7,6 +7,7 @@
  */
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <cmath>
 
@@ -101,8 +102,8 @@ std::optional<std::string> Composer::Impl::hitInstance(
     NodeTransform safe = tf;
     if (tf.scl * tf.sx == 0 || tf.scl * tf.sy == 0)
       safe.scl = safe.sx = safe.sy = 1;
-    const float kx = std::tan(tf.skx * 0.017453293f);
-    const float ky = std::tan(tf.sky * 0.017453293f);
+    const float kx = std::tan(geometry::path::radians(tf.skx));
+    const float ky = std::tan(geometry::path::radians(tf.sky));
     if (std::abs(1.0f - kx * ky) <= 1e-6f) safe.skx = safe.sky = 0;
     SkMatrix inv;
     if (safe.matrix({0, 0}, node.paint, rect.width(), rect.height())

@@ -49,12 +49,12 @@ namespace sigil::compose::detail {
  *  `empty()` is the state of every bake that was never scanned — a GPU
  *  surface whose pixels cannot be read back, an image too small to be
  *  worth the arithmetic, one whose ink fills it anyway — and it means
- *  "draw the whole rect", which is what the blit did before this existed.
+ *  "draw the whole rect".
  */
 struct InkGrid {
-  int tile = 0;   ///< tile side in texels; 0 when there is no grid
-  int cols = 0;   ///< tiles across the image
-  int rows = 0;   ///< tiles down the image
+  int tile = 0;  ///< tile side in texels; 0 when there is no grid
+  int cols = 0;  ///< tiles across the image
+  int rows = 0;  ///< tiles down the image
   std::vector<uint8_t> covered;  ///< row-major, 1 where the tile carries ink
   bool empty() const { return tile <= 0; }
   bool at(int col, int row) const {
@@ -124,8 +124,8 @@ inline InkGrid inkGridOf(const SkPixmap& px) {
         }
     }
   grid.covered.swap(grown);
-  const size_t lit = (size_t)std::count(grid.covered.begin(),
-                                        grid.covered.end(), (uint8_t)1);
+  const size_t lit =
+      (size_t)std::count(grid.covered.begin(), grid.covered.end(), (uint8_t)1);
   if ((float)lit > kInkMaxCoverage * (float)grid.covered.size()) return {};
   return grid;
 }
@@ -187,16 +187,16 @@ inline void drawInkedImage(SkCanvas& canvas, const sk_sp<SkImage>& image,
   const auto inked = [&](const SkIRect& patch) {
     SkRect back = toLocal.mapRect(SkRect::Make(patch));
     back.offset(-dst.left(), -dst.top());
-    const int c0 = std::max(0, (int)std::floor((back.left() * sx - 1.0f) /
-                                               (float)ink.tile));
-    const int c1 = std::min(ink.cols - 1,
-                            (int)std::floor((back.right() * sx + 1.0f) /
-                                            (float)ink.tile));
-    const int r0 = std::max(0, (int)std::floor((back.top() * sy - 1.0f) /
-                                               (float)ink.tile));
-    const int r1 = std::min(ink.rows - 1,
-                            (int)std::floor((back.bottom() * sy + 1.0f) /
-                                            (float)ink.tile));
+    const int c0 = std::max(
+        0, (int)std::floor((back.left() * sx - 1.0f) / (float)ink.tile));
+    const int c1 =
+        std::min(ink.cols - 1,
+                 (int)std::floor((back.right() * sx + 1.0f) / (float)ink.tile));
+    const int r0 = std::max(
+        0, (int)std::floor((back.top() * sy - 1.0f) / (float)ink.tile));
+    const int r1 = std::min(
+        ink.rows - 1,
+        (int)std::floor((back.bottom() * sy + 1.0f) / (float)ink.tile));
     for (int r = r0; r <= r1; ++r)
       for (int c = c0; c <= c1; ++c)
         if (ink.at(c, r)) return true;

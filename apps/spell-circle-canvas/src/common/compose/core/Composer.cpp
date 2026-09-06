@@ -321,7 +321,7 @@ void Composer::declareInputSpace(InputSpace space) {
   // Warned once per process, not once per composer: the mismatch is a fact
   // about the program's colour handling, and a line per composer would bury
   // the one sentence that matters.
-  static bool warned = false;
+  static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   const char* name =
@@ -366,7 +366,7 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
     // name in `key`, so any later `.key(...)` on that element renames the
     // slot with no type error and no second field to disagree with itself.
     // Listing the names that DO exist turns the diagnosis into one read.
-    static boost::unordered_flat_set<std::string> warned;
+    static thread_local boost::unordered_flat_set<std::string> warned;
     if (warned.insert(std::string(name)).second) {
       std::string have;
       for (const auto& [key, inst] : impl.bySlot)
@@ -526,11 +526,11 @@ void Composer::draw(SkCanvas& canvas) {
   // moved by a change that moved nothing. A label is the node's key, so
   // the tie-break is a fact of the description.
   if (impl.profileEnabled)
-    std::sort(impl.profileRows.begin(), impl.profileRows.end(),
-              [](const NodeCost& a, const NodeCost& b) {
-                if (a.selfMs != b.selfMs) return a.selfMs > b.selfMs;
-                return a.label < b.label;
-              });
+    std::stable_sort(impl.profileRows.begin(), impl.profileRows.end(),
+                     [](const NodeCost& a, const NodeCost& b) {
+                       if (a.selfMs != b.selfMs) return a.selfMs > b.selfMs;
+                       return a.label < b.label;
+                     });
 }
 
 void Composer::setProfiling(bool on) {
@@ -578,6 +578,10 @@ void Composer::setBakeDensity(float devicePixelsPerUnit) {
   const float density = devicePixelsPerUnit > 0 ? devicePixelsPerUnit : 0.0f;
   if (density == m_impl->bakeDensity) return;
   m_impl->bakeDensity = density;
+  // The next draw has work to do, and a host that gates its draw on
+  // dirty() reads exactly this flag: without it the scene keeps showing
+  // rasters taken at the old density until something else moves.
+  m_impl->contentDirty = true;
   // Every bake standing was taken at the old density, and none of them
   // will be re-taken by a scale change any more — so they go now, or the
   // scene keeps rasters nothing will ever revise.

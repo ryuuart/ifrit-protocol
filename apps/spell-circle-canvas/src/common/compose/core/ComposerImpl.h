@@ -12,6 +12,7 @@
 #include <sigilcore/cache/Volatility.h>
 #include <sigilcore/reconcile/Phases.h>
 #include <sigilcore/reconcile/Reconciler.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <optional>
@@ -45,6 +46,11 @@ struct PictureBakeTarget {
    *  the "holding still" verdict those bakes cannot observe for themselves,
    *  being painted only when the recording is. */
   bool matrixStable = true;
+  /** The device clip the recording's ops were cut to. An ink clip inside
+   *  one names whole device pixels, so a recording holding a device bake
+   *  is exact for the clip it was made under and is remade under
+   *  another. */
+  SkIRect deviceClip = SkIRect::MakeEmpty();
 };
 
 /** THE RECORDED-COMMAND-LIST TIER, behind the kernel's bake seam. Taking
@@ -387,8 +393,8 @@ struct Composer::Impl {
    *  leaf blend and opacity into it and stamping the values it was
    *  recorded from. The bake half of the picture tier. */
   void recordPicture(detail::Instance& inst, const SkMatrix& deviceMatrix,
-                     bool matrixStable, float hostScale, SkBlendMode leafBlend,
-                     float leafOpacity,
+                     const SkIRect& deviceClip, bool matrixStable,
+                     float hostScale, SkBlendMode leafBlend, float leafOpacity,
                      detail::Instance::ContentScalars&& scalars);
 
   // ---- layout (Layout.cpp) ----
@@ -521,7 +527,8 @@ struct Composer::Impl {
         if (rot != 0) m.preRotate(rot);
         if (scl != 1 || sx != 1 || sy != 1) m.preScale(scl * sx, scl * sy);
         if (skx != 0 || sky != 0)
-          m.preSkew(std::tan(skx * 0.017453293f), std::tan(sky * 0.017453293f));
+          m.preSkew(std::tan(geometry::path::radians(skx)),
+                    std::tan(geometry::path::radians(sky)));
         m.preTranslate(-origin.x(), -origin.y());
       }
       return m;
@@ -550,8 +557,9 @@ struct Composer::Impl {
         if (scl != 1 || sx != 1 || sy != 1 || sz != 1)
           m.preScale(scl * sx, scl * sy, sz);
         if (skx != 0 || sky != 0)
-          m.preConcat(detail::skewMatrix(std::tan(skx * 0.017453293f),
-                                         std::tan(sky * 0.017453293f)));
+          m.preConcat(
+              detail::skewMatrix(std::tan(geometry::path::radians(skx)),
+                                 std::tan(geometry::path::radians(sky))));
         m.preTranslate(-origin.x(), -origin.y(), -oz);
       }
       return m;
@@ -576,8 +584,8 @@ struct Composer::Impl {
         if (rot != 0) canvas.rotate(rot);
         if (scl != 1 || sx != 1 || sy != 1) canvas.scale(scl * sx, scl * sy);
         if (skx != 0 || sky != 0)
-          canvas.skew(std::tan(skx * 0.017453293f),
-                      std::tan(sky * 0.017453293f));
+          canvas.skew(std::tan(geometry::path::radians(skx)),
+                      std::tan(geometry::path::radians(sky)));
         canvas.translate(-origin.x(), -origin.y());
       }
     }

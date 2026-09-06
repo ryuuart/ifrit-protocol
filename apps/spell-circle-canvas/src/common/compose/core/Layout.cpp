@@ -441,14 +441,22 @@ bool Composer::Impl::applyCenterPins(Instance& inst) {
  *  smaller number to give for a box: reporting zero would let a content
  *  track collapse under content that cannot in fact shrink. */
 SkSize Composer::Impl::minimumSizeOf(Instance& child) {
-  SkSize least{YGNodeLayoutGetWidth(child.yoga),
-               YGNodeLayoutGetHeight(child.yoga)};
+  const SkSize box{YGNodeLayoutGetWidth(child.yoga),
+                   YGNodeLayoutGetHeight(child.yoga)};
+  SkSize least = box;
   if (!child.paragraph) return least;
   const float wasWidth = child.measuredForWidth;
   const float wasHeight = child.measuredForHeight;
   layoutText(child, 0.0f, 1.0e6f);
   least.fWidth = child.measuredSize.width;
-  if (wasWidth >= 0) layoutText(child, wasWidth, wasHeight);
+  // THE PROBE IS PUT BACK WHATEVER IT ANSWERED. A child that carries no
+  // previous measure — the first pass, or a layout that degraded — is
+  // laid out at the box it resolved to, because the alternative is
+  // leaving it wrapped at nil width for the frame the probe ran in.
+  if (wasWidth >= 0)
+    layoutText(child, wasWidth, wasHeight);
+  else
+    layoutText(child, box.width(), box.height());
   return least;
 }
 
@@ -529,26 +537,28 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     const bool heightPinned = l.hasInsets &&
                               l.insets.top.unit != Dim::Unit::Auto &&
                               l.insets.bottom.unit != Dim::Unit::Auto;
-    // …and it keeps sizing an axis it once sized: with `width`/`height`
-    // left auto by the author, a point value in the STYLE on that axis can
-    // only be the one written below, so the test survives the round that
-    // made the collapse go away and the container still tracks its content.
+    // …and it keeps sizing an axis it once sized. WHICH IT REMEMBERS: the
+    // point width in the style is not evidence, because the placement loop
+    // above writes point widths on every child, so a scheme nested in a
+    // scheme would read its parent's placement as its own and override it.
     const bool sizesWidth = l.absolute ||
                             YGNodeLayoutGetWidth(inst.yoga) <= 0.25f ||
-                            YGNodeStyleGetWidth(inst.yoga).unit == YGUnitPoint;
-    const bool sizesHeight =
-        l.absolute || YGNodeLayoutGetHeight(inst.yoga) <= 0.25f ||
-        YGNodeStyleGetHeight(inst.yoga).unit == YGUnitPoint;
+                            inst.schemeSizedWidth;
+    const bool sizesHeight = l.absolute ||
+                             YGNodeLayoutGetHeight(inst.yoga) <= 0.25f ||
+                             inst.schemeSizedHeight;
     if (l.width.unit == Dim::Unit::Auto && !widthPinned && sizesWidth &&
         extent.right() > 0 &&
         std::abs(YGNodeLayoutGetWidth(inst.yoga) - extent.right()) > 0.25f) {
       YGNodeStyleSetWidth(inst.yoga, extent.right());
+      inst.schemeSizedWidth = true;
       applied = true;
     }
     if (l.height.unit == Dim::Unit::Auto && !heightPinned && sizesHeight &&
         extent.bottom() > 0 &&
         std::abs(YGNodeLayoutGetHeight(inst.yoga) - extent.bottom()) > 0.25f) {
       YGNodeStyleSetHeight(inst.yoga, extent.bottom());
+      inst.schemeSizedHeight = true;
       applied = true;
     }
   }
@@ -581,7 +591,7 @@ void warnUnknownTextSlot(const Instance& text, const std::string& key) {
   for (const std::string& declared : text.textSlotKeys)
     if (declared == key)
       return;  // declared; the layout just could not place it
-  static boost::unordered_flat_set<std::string> warned;
+  static thread_local boost::unordered_flat_set<std::string> warned;
   if (!warned.insert(key).second) return;
   std::string have;
   for (const std::string& declared : text.textSlotKeys)

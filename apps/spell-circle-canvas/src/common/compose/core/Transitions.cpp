@@ -7,10 +7,7 @@
  * cascade order a stagger deals its units in.
  */
 
-#include <algorithm>
 #include <chrono>
-#include <numeric>
-#include <span>
 
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
@@ -304,8 +301,9 @@ float detail::Instance::resolvePathAt() const {
 std::vector<float> detail::Instance::resolveTrackValues() const {
   std::vector<float> values;
   const std::span<const Track> tracks =
-      description->textData ? std::span<const Track>(description->textData->tracks)
-                     : std::span<const Track>();
+      description->textData
+          ? std::span<const Track>(description->textData->tracks)
+          : std::span<const Track>();
   values.reserve(tracks.size());
   for (size_t i = 0; i < tracks.size(); ++i) {
     const AnimatedFloat* a =

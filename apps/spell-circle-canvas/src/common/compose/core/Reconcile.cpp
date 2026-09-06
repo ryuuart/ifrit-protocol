@@ -280,8 +280,8 @@ bool strokeEqual(const Box<StrokeData>& a, const Box<StrokeData>& b) {
 
 static_assert(kFieldCount<FxData> == 8 && kFieldCount<Mask> == 2,
               "FxData/Mask gained or lost a field — rule on it in fxEqual() "
-              "below (Mask::operator== is in Compose.h), then bump this "
-              "count.");
+              "below, where a mask compares by its own operator, then bump "
+              "this count.");
 bool fxEqual(const Box<FxData>& a, const Box<FxData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
@@ -765,8 +765,8 @@ void Composer::Impl::materializeText(
     // reshaping restyle covers the same text: a track deviates whatever
     // the paragraph shaped, and a later style must be the one that stands.
     std::vector<std::pair<std::string, float>> folded;
-    if (painter->foldable(inst, restyle.style, ranges, *inst.paragraph,
-                          carriedRanges, folded)) {
+    if (painter && painter->foldable(inst, restyle.style, ranges,
+                                     *inst.paragraph, carriedRanges, folded)) {
       bool coveredLater = false;
       for (size_t j = i + 1; j < restyleCount && !coveredLater; ++j) {
         if (text.spanRestyles[j].paintOnly) continue;
@@ -855,8 +855,8 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // extent as explicit W/H onto auto-dim absolute containers — releasing
   // those here would zero the container every re-describe and feed
   // place() a degenerate input for a pass.
-  const bool autoSized =
-      inst.description->deriveData && inst.description->deriveData->placeFn && l.absolute;
+  const bool autoSized = inst.description->deriveData &&
+                         inst.description->deriveData->placeFn && l.absolute;
   if (!autoSized || l.width.unit != Dim::Unit::Auto)
     applyDim(n, l.width, &YGNodeStyleSetWidth, &YGNodeStyleSetWidthPercent);
   if (!autoSized || l.height.unit != Dim::Unit::Auto)
@@ -882,18 +882,19 @@ void Composer::Impl::applyLayoutProps(Instance& inst) {
   // the parent — through untouched.
   Align self = l.alignSelf;
   if (inst.description->kind == Kind::Text) {
-    const Align resolved = self != Align::Auto
-                               ? self
-                               : (inst.parent && inst.parent->description
-                                      ? inst.parent->description->layout.alignItems
-                                      : Align::Stretch);
+    const Align resolved =
+        self != Align::Auto ? self
+                            : (inst.parent && inst.parent->description
+                                   ? inst.parent->description->layout.alignItems
+                                   : Align::Stretch);
     if (resolved == Align::Stretch) self = Align::Start;
   }
   YGNodeStyleSetAlignSelf(n, toYogaAlign(self));
   YGNodeStyleSetJustifyContent(n, toYogaJustify(l.justify));
 
   // The node's OWN position type. A stack child's is overwritten right
-  // after this, in patchChildren() — see the note there.
+  // after this: every child of a stack is placed absolutely whatever it
+  // asked for, which is what makes a stack a stack.
   YGNodeStyleSetPositionType(
       n, l.absolute ? YGPositionTypeAbsolute : YGPositionTypeRelative);
   if (l.hasInsets) {
@@ -945,7 +946,8 @@ void Composer::Impl::rebuildKeyIndex() {
   // the derive order.
   if (root)
     reconciler.indexKeys(*root, byKey, [this](Instance& inst) {
-      if (inst.description->kind == Kind::Slot && !inst.description->key.empty())
+      if (inst.description->kind == Kind::Slot &&
+          !inst.description->key.empty())
         bySlot[inst.description->key] = &inst;
       const ElementNode& node = *inst.description;
       if (node.deriveData) {
@@ -979,6 +981,9 @@ void Composer::Impl::rebuildKeyIndex() {
               routesByAnchor[derive.connectTo].push_back(&inst);
           }
           for (const Anchor& anchor : derive.railAnchors) {
+            // A waypoint that names no node is a free point: nothing
+            // resolves it, so it belongs under no anchor's key.
+            if (anchor.nodeKey.empty()) continue;
             auto& at = routesByAnchor[anchor.nodeKey];
             if (at.empty() || at.back() != &inst)  // rails revisit anchors
               at.push_back(&inst);
@@ -1023,7 +1028,8 @@ void Composer::Impl::orderDerivedByReads() {
     keys.reserve(list.size());
     reads.reserve(list.size());
     for (const Instance* inst : list) {
-      keys.push_back(inst->description ? inst->description->key : std::string());
+      keys.push_back(inst->description ? inst->description->key
+                                       : std::string());
       if (inst->description && inst->description->deriveData)
         reads.push_back(inst->description->deriveData->reads);
       else

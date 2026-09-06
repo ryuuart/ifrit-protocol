@@ -220,7 +220,10 @@ class Atlas {
    *  deliberately blocky art — where it softens every edge; pass
    *  kNearest for those. */
   Atlas& filter(SkFilterMode mode) {
-    m_filter = mode;
+    if (mode != m_filter) {
+      m_filter = mode;
+      ++m_revision;
+    }
     return *this;
   }
   SkFilterMode filter() const { return m_filter; }
@@ -233,6 +236,11 @@ class Atlas {
    *  known rectangle for the sheet to pack it and for the stamp to place
    *  it, so intrinsic sizing is not an option here. */
   int cell(Element tree, SkSize logicalSize);
+
+  /** WHAT THE ATLAS HAS BECOME, counted. A registration or a filter
+   *  change makes the sheet a different picture, and a memo that keyed on
+   *  the pool alone would replay the picture recorded from the old one. */
+  uint64_t revision() const { return m_revision; }
 
   /** VARIANTS: several BAKES of one recipe. `make(v)` is called for
    *  v ∈ [0, count) and each result is registered as its own frame; the
@@ -278,6 +286,7 @@ class Atlas {
     return frame >= 0 && (size_t)frame < m_cells.size();
   }
   static constexpr float kMaxSheetWidth = 2048.0f;
+  uint64_t m_revision = 0;
   float m_oversample;
   std::vector<Cell> m_cells;
   std::vector<SkRect> m_tex;  // baked-pixel rects, parallel to m_cells
@@ -305,6 +314,10 @@ struct DataProps {
   std::shared_ptr<Atlas> atlas;
   std::shared_ptr<const Pool> pool;
   uint64_t revision = 0;
+  /** The atlas's own count, beside the pool's: a cell registered after the
+   *  first describe leaves the pool where it was, and the node would
+   *  replay the picture it recorded from the sheet before that cell. */
+  uint64_t atlasRevision = 0;
   SkBlendMode blend = SkBlendMode::kSrcOver;
   bool operator==(const DataProps&) const = default;  // ptr identity + rev
 };

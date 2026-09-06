@@ -11,6 +11,7 @@
 
 #include <include/core/SkM44.h>
 #include <include/core/SkScalar.h>
+#include <sigilgeometry/path/Numeric.h>
 
 #include <cmath>
 #include <optional>
@@ -34,8 +35,6 @@ namespace sigil::compose::detail {
 // bakes, the local-scale estimate, the node→root accumulation, the hit
 // test) on the one matrix type they already read.
 
-constexpr float kDegreesToRadians = 0.017453293f;
-
 // The sine and cosine of a lane's angle SNAP TO ZERO within Skia's own
 // tolerance, exactly as SkMatrix::setRotate snaps them for the 2D rotate:
 // a quarter turn is then a plane that is edge-on in fact — its flattening
@@ -44,9 +43,9 @@ constexpr float kDegreesToRadians = 0.017453293f;
 
 /** CSS `rotateX(deg)`: positive tips the bottom edge toward the viewer. */
 inline SkM44 rotateXMatrix(float degrees) {
-  const float r = degrees * kDegreesToRadians;
+  const float r = geometry::path::radians(degrees);
   const float c = SkScalarCosSnapToZero(r), s = SkScalarSinSnapToZero(r);
-  return SkM44(1, 0, 0, 0,  //
+  return SkM44(1, 0, 0, 0,   //
                0, c, -s, 0,  //
                0, s, c, 0,   //
                0, 0, 0, 1);
@@ -54,7 +53,7 @@ inline SkM44 rotateXMatrix(float degrees) {
 
 /** CSS `rotateY(deg)`: positive tips the left edge toward the viewer. */
 inline SkM44 rotateYMatrix(float degrees) {
-  const float r = degrees * kDegreesToRadians;
+  const float r = geometry::path::radians(degrees);
   const float c = SkScalarCosSnapToZero(r), s = SkScalarSinSnapToZero(r);
   return SkM44(c, 0, s, 0,   //
                0, 1, 0, 0,   //
@@ -66,7 +65,7 @@ inline SkM44 rotateYMatrix(float degrees) {
  *  same [cos −sin; sin cos] SkMatrix::setRotate writes, so the 2D lane
  *  turns the same way whichever producer builds it. */
 inline SkM44 rotateZMatrix(float degrees) {
-  const float r = degrees * kDegreesToRadians;
+  const float r = geometry::path::radians(degrees);
   const float c = SkScalarCosSnapToZero(r), s = SkScalarSinSnapToZero(r);
   return SkM44(c, -s, 0, 0,  //
                s, c, 0, 0,   //
@@ -134,10 +133,10 @@ inline SkRect projectRect(const SkMatrix& flat, const SkRect& local) {
   if (!flat.hasPerspective()) return flat.mapRect(local);
   SkRect out = SkRect::MakeEmpty();
   bool any = false;
-  for (SkPoint corner : {SkPoint{local.left(), local.top()},
-                         SkPoint{local.right(), local.top()},
-                         SkPoint{local.right(), local.bottom()},
-                         SkPoint{local.left(), local.bottom()}}) {
+  for (SkPoint corner :
+       {SkPoint{local.left(), local.top()}, SkPoint{local.right(), local.top()},
+        SkPoint{local.right(), local.bottom()},
+        SkPoint{local.left(), local.bottom()}}) {
     const std::optional<SkPoint> q = projectPoint(flat, corner);
     if (!q) continue;
     if (!any) {

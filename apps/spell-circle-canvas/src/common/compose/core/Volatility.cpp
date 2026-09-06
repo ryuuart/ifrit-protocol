@@ -4,37 +4,14 @@
  * re-declares a node the moment an external output moves it.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkFontMetrics.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathEffect.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkPictureRecorder.h>
-#include <include/core/SkRRect.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/core/SkSurface.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/effects/SkTrimPathEffect.h>
+#include <include/core/SkTypes.h>  // SkDebugf
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilweave/choreograph/Choreograph.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/fonts/Shaper.h>  // makeFont — textFill's cap-height metrics
 
-#include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <ranges>
-#include <tuple>
 #include <utility>
 
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
-#include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 
@@ -420,7 +397,6 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const material::skia::Effect* backdropFx = backdropEffectOf(node);
   const bool liveLayerEffect = layerFx && layerFx->isAnimated();
   const bool liveBackdropEffect = backdropFx && backdropFx->isAnimated();
-  const bool liveEffect = liveLayerEffect || liveBackdropEffect;
   // A LIVE pass material on an fx() track — uTime, a bound uniform, a
   // bound block — repaints the pass's output every frame with no float the
   // scalar lane could compare, so it is opaque volatility, exactly as a

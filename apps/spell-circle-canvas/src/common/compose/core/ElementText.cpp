@@ -18,7 +18,7 @@ namespace sigil::compose {
 
 namespace {
 void warnAtRestOfNonText() {
-  static bool warned = false;
+  static thread_local bool warned = false;
   if (warned) return;
   warned = true;
   SkDebugf(

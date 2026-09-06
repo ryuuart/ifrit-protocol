@@ -7,20 +7,17 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathEffect.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <include/core/SkRRect.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkStrokeRec.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <include/effects/SkTrimPathEffect.h>
+#include <sigilgeometry/path/Numeric.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilshaders/ComposeCore.h>
@@ -30,17 +27,15 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
+#include <cstdio>   // std::snprintf, on a keyless node's profile label
+#include <cstdlib>  // std::getenv, std::strtod — the profile threshold
 #include <optional>
 #include <string>
 #include <string_view>
-#include <tuple>
 #include <utility>
 
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
-#include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 
@@ -50,8 +45,9 @@ using namespace detail;
 // The picture tier, behind the bake seam
 
 void PictureBake::take(PictureBakeTarget& t) const {
-  t.painter->recordPicture(*t.inst, t.deviceMatrix, t.matrixStable, t.hostScale,
-                           t.leafBlend, t.leafOpacity, std::move(*t.scalars));
+  t.painter->recordPicture(*t.inst, t.deviceMatrix, t.deviceClip,
+                           t.matrixStable, t.hostScale, t.leafBlend,
+                           t.leafOpacity, std::move(*t.scalars));
 }
 void PictureBake::replay(PictureBakeTarget& t) const {
   t.canvas->drawPicture(t.inst->picture);
@@ -67,8 +63,9 @@ bool PictureBake::held(const PictureBakeTarget& t) const {
 }
 
 void Composer::Impl::recordPicture(Instance& inst, const SkMatrix& deviceMatrix,
-                                   bool matrixStable, float hostScale,
-                                   SkBlendMode leafBlend, float leafOpacity,
+                                   const SkIRect& deviceClip, bool matrixStable,
+                                   float hostScale, SkBlendMode leafBlend,
+                                   float leafOpacity,
                                    Instance::ContentScalars&& scalars) {
   // The same rect the layers and bakes use. Its job HERE is only to be an
   // honest bounds advertisement (SkPicture::cullRect) — this path attaches
@@ -120,6 +117,7 @@ void Composer::Impl::recordPicture(Instance& inst, const SkMatrix& deviceMatrix,
   --recordingDepth;
   inst.picture = recorder.finishRecordingAsPicture();
   inst.pictureMatrix = deviceMatrix;
+  inst.pictureDeviceClip = deviceClip;
   inst.pictureDeviceBakes = recordingDeviceBakes;
   inst.pictureDeviceDeferred = recordingDeviceDeferred;
   // What this recording holds, the enclosing one now holds too.
@@ -285,11 +283,10 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
 
   // Geometry-dependent materials resolve against a UNIT box here, not the
   // node's. The local matrix below already maps the shader's [0,1]² onto
-  // the metric band, so uResolution baked from the node's layout size would
-  // divide a second time: a `linearUnit` ramp came out at t ≈ 0.003 and
-  // every glyph painted the first stop, flat and silently. Material.h
-  // advertises textFill and the Unit ramps as the same trick, and this is
-  // what makes that true.
+  // the metric band, so uResolution baked from the node's layout size
+  // would divide a second time and a unit-space ramp would collapse onto
+  // its first stop, flat and silently. A ramp authored in [0,1]² crosses
+  // the type because the band is what it is mapped onto.
   PaintContext metricCtx = paintCtx;
   metricCtx.size = {1.0f, 1.0f};
   const Fill f = (metricMat->isAnimated() || metricMat->geometryDependent())
@@ -310,12 +307,15 @@ std::optional<sigil::weave::PaintStyle> Composer::Impl::metricTextStyle(
     havePaint = true;
   } else if (f.kind == Fill::Kind::Shader && f.shaderValue &&
              !inst.lines.empty()) {
+    // The first run that carries glyphs is the face the cap band is read
+    // from — the runs in draw order, and no walk of every glyph in the
+    // passage to reach the first one.
     const sigil::weave::ShapedWord* firstFont = nullptr;
-    sigil::weave::forEachPlacedGlyph(
-        inst.textLayout, paragraph,
-        [&](const sigil::weave::PlacedGlyph& placed) {
-          if (!firstFont) firstFont = placed.shaped;
-        });
+    for (const sigil::weave::PositionedRun& run : inst.textLayout.runs)
+      if (run.shaped) {
+        firstFont = run.shaped;
+        break;
+      }
     float capH = 0;
     if (firstFont && firstFont->typeface) {
       SkFontMetrics fm;
@@ -632,7 +632,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
    *  {p : (p - mid)·d <= edge}. */
   const auto edgeRegion = [&](float angleDeg, float t01) {
     const float t = std::clamp(t01, 0.0f, 1.0f);
-    const float rad = angleDeg * SK_FloatPI / 180.0f;
+    const float rad = geometry::path::radians(angleDeg);
     const float c = std::cos(rad), s = std::sin(rad);
     const SkPoint mid{bounds.centerX(), bounds.centerY()};
     const float reach =
@@ -831,8 +831,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       paintMark(node.backgrounds[i], detail::MarkSlot::Background, i);
     // Span-qualified BACKGROUND passes land here, in the background half,
     // under the fill and therefore under the content and the children —
-    // the z-slot the deleted trim() revealed and a stroke pass could not
-    // reach.
+    // a z-slot a stroke pass cannot reach: under the fill, and therefore
+    // under the content and the children.
     paintSpanHalf(detail::StrokePass::Half::Background);
   }
 
@@ -1153,16 +1153,27 @@ std::string profileLabel(const detail::Instance& inst, const SkRect& rect) {
 struct BakeLayerScope {
   Composer::Impl* impl;
   SkMatrix replay, inverse;
+  uint32_t bakes;
+  bool deferred;
   explicit BakeLayerScope(Composer::Impl* i)
       : impl(i),
         replay(i->recordingReplay),
-        inverse(i->recordingReplayInverse) {
+        inverse(i->recordingReplayInverse),
+        bakes(i->recordingDeviceBakes),
+        deferred(i->recordingDeviceDeferred) {
     impl->recordingReplay = SkMatrix::I();
     impl->recordingReplayInverse = SkMatrix::I();
+    // The blits taken inside the layer are the LAYER's, not the enclosing
+    // recording's: the layer is blitted as one image wherever the node is,
+    // so what it holds pins nothing above it.
+    impl->recordingDeviceBakes = 0;
+    impl->recordingDeviceDeferred = false;
   }
   ~BakeLayerScope() {
     impl->recordingReplay = replay;
     impl->recordingReplayInverse = inverse;
+    impl->recordingDeviceBakes = bakes;
+    impl->recordingDeviceDeferred = deferred;
   }
 };
 
@@ -2506,7 +2517,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       // A DEFERRED EFFECT IS NOT ADMITTED BY THE INK. The filter spreads
       // the content OUTSIDE the pixels that carry it — that is what a glow
       // is — and the grid describes where the ink is, not where the filter
-      // will put it. Blitted whole, as it was before the grid existed.
+      // will put it. Blitted whole.
       //
       // AND THE INK CLIP IS A DEVICE-SPACE CLIP, so it obeys the device
       // bake's rule rather than the picture tier's. A region names whole
@@ -2571,13 +2582,15 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                              .leafOpacity = leafOpacity,
                              .scalars = &scalarsNow,
                              .deviceMatrix = totalM,
-                             .matrixStable = matrixStable};
+                             .matrixStable = matrixStable,
+                             .deviceClip = deviceClipOf()};
     // …and the pin: a recording holding device blits is exact under the
     // matrix it was made under and is remade under any other; one that
     // deferred a device bake for matrix motion is remade once the matrix
     // has held still for a frame.
-    const bool pinMoved =
-        inst.pictureDeviceBakes > 0 && totalM != inst.pictureMatrix;
+    const bool pinMoved = inst.pictureDeviceBakes > 0 &&
+                          (totalM != inst.pictureMatrix ||
+                           deviceClipOf() != inst.pictureDeviceClip);
     const bool deferredDue = inst.pictureDeviceDeferred && matrixStable;
     if (core::decideBake({.cacheable = true,
                           .held = pictureBake->held(target),
@@ -2589,9 +2602,8 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
       pictureBake->take(target);
     if (profileScope.row != SIZE_MAX)
       profileRows[profileScope.row].cacheState = Composer::CacheState::Picture;
-    // The measurement that drives promotion. Two clock reads per candidate
-    // node per frame, against a full rasterisation — the overhead is not
-    // close to material.
+    // The measurement that drives promotion: what the replay of this
+    // node's recording cost, which is what the tier is choosing against.
     const measure::Stopwatch replayWatch;
     profDraw("replay", [&] { pictureBake->replay(target); });
     accrue(replayWatch.elapsedMs());

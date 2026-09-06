@@ -37,10 +37,14 @@
 namespace sigil::skia::draw {
 
 /** One promoted texture, keyed by (source image, recorder) — hold one per
- *  owning value (a Slice, an Atlas) so re-draws reuse the upload. */
+ *  owning value (a Slice, an Atlas) so re-draws reuse the upload.
+ *
+ *  THE SOURCE IS ITS IDENTITY, never its address: an owner that re-bakes
+ *  its image frees the old one, and a fresh image at the recycled address
+ *  would be answered with the texture of the picture before it. */
 struct Promoted {
   sk_sp<SkImage> image;
-  const SkImage* source = nullptr;
+  uint32_t sourceId = 0;
   const void* recorder = nullptr;
 };
 
@@ -51,12 +55,13 @@ inline sk_sp<SkImage> ready(Promoted& cache, sk_sp<SkImage> img,
                             SkCanvas& canvas) {
   skgpu::graphite::Recorder* recorder = canvas.recorder();
   if (!recorder || !img || img->isTextureBacked()) return img;
-  if (cache.image && cache.source == img.get() && cache.recorder == recorder)
+  if (cache.image && cache.sourceId == img->uniqueID() &&
+      cache.recorder == recorder)
     return cache.image;
   sk_sp<SkImage> texture = SkImages::TextureFromImage(recorder, img.get(), {});
   if (!texture) return img;
   cache.image = texture;
-  cache.source = img.get();
+  cache.sourceId = img->uniqueID();
   cache.recorder = recorder;
   return texture;
 }

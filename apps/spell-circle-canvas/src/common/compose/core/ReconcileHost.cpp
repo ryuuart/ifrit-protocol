@@ -87,17 +87,16 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
   const Probe probes[] = {
       {"a layout property",
        only([&](ElementNode& n) { n.layout = shell.layout; })},
-      {"a fill, opacity, blend, transform or zIndex",
-       only([&](ElementNode& n) {
+      {"a fill, opacity, blend, transform or zIndex", only([&](ElementNode& n) {
          n.paint = shell.paint;
          n.materialData = shell.materialData;
        })},
-      {"corners or a shape",
-       only([&](ElementNode& n) {
+      {"corners or a shape", only([&](ElementNode& n) {
          n.corners = shell.corners;
          n.shapeFn = shell.shapeFn;
        })},
-      {"a decoration", !shell.backgrounds.empty() || !shell.foregrounds.empty()},
+      {"a decoration",
+       !shell.backgrounds.empty() || !shell.foregrounds.empty()},
       {"a transition", shell.nodeTransition.has_value()},
       {"a child", !shell.children.empty()},
       {"a mask, overlay, effect or stagger", (bool)shell.fxData},
@@ -108,7 +107,7 @@ void warnIgnoredMemoShellProps(const ElementNode& shell) {
       {"hitTestable(false)", !shell.hitTestable},
       {"a boundary", shell.boundary != Boundary::Auto},
   };
-  static boost::unordered_flat_set<std::string> warned;
+  static thread_local boost::unordered_flat_set<std::string> warned;
   for (const Probe& probe : probes) {
     if (!probe.set || !warned.insert(probe.what).second) continue;
     SkDebugf(
@@ -178,8 +177,8 @@ std::unique_ptr<Instance> Composer::Impl::create(const Description& node,
     // staggerMs > 0 only when parent->description->fxData exists: the ternary
     // above yields 0 for a null parent, so this dereference is guarded.
     // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
-    motion::cascadeOrder(parent->description->fxData->staggerFrom, (uint32_t)count, 0u,
-                         order);
+    motion::cascadeOrder(parent->description->fxData->staggerFrom,
+                         (uint32_t)count, 0u, order);
     if (ordinal < order.size()) mountDelayCarryMs += staggerMs * order[ordinal];
   }
   auto inst = std::make_unique<Instance>();
@@ -307,7 +306,8 @@ void Composer::Impl::onPatched(Instance& inst, const ElementNode* prev,
       prev->textData &&
       prev->textData->paragraphOverride == next.textData->paragraphOverride) {
     inst.contentRev++;
-    YGNodeMarkDirty(inst.yoga);
+    // A text node placed absolutely by a scheme has no Yoga node to dirty.
+    if (inst.yoga) YGNodeMarkDirty(inst.yoga);
     needsLayout = true;
   }
 

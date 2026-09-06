@@ -154,8 +154,8 @@ sk_sp<SkImage> wrapNativeFrame(const NativeFrame& frame, skgpu::graphite::Record
   // them is the pixel buffer they were made from, which the release
   // frees once the image is gone — on every path out, including a wrap
   // that never happened.
-  return skia::wrapImage(*recorder, textures, info, SkColorSpace::MakeSRGB(), releasePlanes,
-                         planes);
+  return skia::wrapPlanarImage(*recorder, textures, info, SkColorSpace::MakeSRGB(), releasePlanes,
+                               planes);
 }
 
 }  // namespace sigil::video::device

@@ -127,8 +127,8 @@ struct TextState {
   std::vector<Track> spanAxisTracks;
 };
 
-/** The retained node. The tree skeleton — `parent`, `description` (the resolved,
- *  post-memo description), `memoShell` (the memo element, if any) and
+/** The retained node. The tree skeleton — `parent`, `description` (the
+ * resolved, post-memo description), `memoShell` (the memo element, if any) and
  *  `children` — is SigilCore's Node, which is what the reconciler walks;
  *  everything below it is what this kernel retains per node. */
 // fields are grouped by what they belong to, not by size
@@ -174,6 +174,13 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // its own depth. The links before the last are known by their own
   // thread(), and the last is known only by this.
   bool threadedInto = false;
+  // Which axes a layout SCHEME sized on this container, so that it keeps
+  // sizing an axis it once sized. Remembered rather than read back off
+  // Yoga: a scheme writes a point size on every child it places, so the
+  // style alone cannot tell a container's own answer from its parent's
+  // placement of it.
+  bool schemeSizedWidth = false;
+  bool schemeSizedHeight = false;
   uint32_t contentRev = 0;     // bumped on text/exclusion change
   uint32_t measuredRev = ~0u;  // rev the cached measurement belongs to
   // weave::rich().slot(): the slot names in the order the content declares them
@@ -293,6 +300,11 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // held still for a frame, so the node takes the device bake then rather
   // than keeping the resampled local one until its content next changes.
   SkMatrix pictureMatrix = SkMatrix::I();
+  // …and the device clip the blits inside it were cut to. An ink clip is
+  // a set of device pixels, so a recording holding one is exact for the
+  // clip it was made under and stale under a wider one: a window that
+  // grew would replay the region it held when it was smaller.
+  SkIRect pictureDeviceClip = SkIRect::MakeEmpty();
   uint32_t pictureDeviceBakes = 0;
   bool pictureDeviceDeferred = false;
   sk_sp<SkImage> textureImage;
@@ -596,8 +608,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   SkRect lastLayoutRect = SkRect::MakeLTRB(-1, -1, -1, -1);
 
   // Resolved custom-outline cache: generators (blobs, rounded stars) can be
-  // arbitrarily expensive — resolve once per (description, size). Description pointer
-  // identity keys invalidation: every patch swaps the description.
+  // arbitrarily expensive — resolve once per (description, size). Description
+  // pointer identity keys invalidation: every patch swaps the description.
   // Element::boundary(Boundary::Glyphs): the union of this text's glyph
   // outlines at the placement its layout produced, resolved once per
   // layout because a decoration asked for it and never otherwise.
@@ -718,7 +730,8 @@ inline TextState& textStateOf(Instance& inst) {
 }
 
 inline bool childrenCarryYoga(const Instance& inst) {
-  return inst.yoga != nullptr && inst.description && !inst.description->layout.positioned &&
+  return inst.yoga != nullptr && inst.description &&
+         !inst.description->layout.positioned &&
          inst.description->kind != Kind::Text;
 }
 
@@ -732,7 +745,8 @@ inline bool childrenCarryYoga(const Instance& inst) {
                        !inst.description->textData->threadTo.empty();
   return {inst.threadLineOffset, inst.threadStoryLines,
           threads || inst.threadLineOffset > 0,
-          inst.description ? std::string_view(inst.description->key) : std::string_view{}};
+          inst.description ? std::string_view(inst.description->key)
+                           : std::string_view{}};
 }
 
 }  // namespace sigil::compose::detail

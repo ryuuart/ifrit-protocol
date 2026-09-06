@@ -5,14 +5,14 @@
  * and the makers behind layout() and memo().
  */
 
+#include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
-#include <include/core/SkCanvas.h>
 #include <sigilcore/reconcile/Env.h>
 
 #include <any>
-#include <string>
 #include <functional>
+#include <string>
 
 #include "ComposeInternal.h"
 
@@ -113,18 +113,22 @@ Element custom(std::string_view key, PaintProgram program) {
 Element picture(sk_sp<SkPicture> recorded, SkSize native) {
   if (!recorded) return box();
   const SkSize recordedAt = native;
-  // The picture's own id is the identity: a recording cannot change, so
-  // two describes handing over the same one are the same drawing.
-  Element e = custom(
-      "picture:" + std::to_string(recorded->uniqueID()),
-      [pic = std::move(recorded), recordedAt](SkCanvas& canvas,
-                                              const PaintContext& ctx) {
-        SkAutoCanvasRestore restore(&canvas, true);
-        if (recordedAt.width() > 0 && recordedAt.height() > 0)
-          canvas.scale(ctx.size.width() / recordedAt.width(),
-                       ctx.size.height() / recordedAt.height());
-        canvas.drawPicture(pic.get());
-      });
+  // The picture's own id and the size it was recorded at are the
+  // identity: a recording cannot change, so two describes handing over
+  // the same one at the same native size are the same drawing — and a
+  // keyed custom is compared by its key alone, so a native size left out
+  // of it would prune two different scalings together.
+  Element e = custom("picture:" + std::to_string(recorded->uniqueID()) + ":" +
+                         std::to_string(native.width()) + "x" +
+                         std::to_string(native.height()),
+                     [pic = std::move(recorded), recordedAt](
+                         SkCanvas& canvas, const PaintContext& ctx) {
+                       SkAutoCanvasRestore restore(&canvas, true);
+                       if (recordedAt.width() > 0 && recordedAt.height() > 0)
+                         canvas.scale(ctx.size.width() / recordedAt.width(),
+                                      ctx.size.height() / recordedAt.height());
+                       canvas.drawPicture(pic.get());
+                     });
   return e.width(Dim(native.width())).height(Dim(native.height()));
 }
 

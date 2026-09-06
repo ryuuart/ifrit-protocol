@@ -17,6 +17,7 @@
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
+#include <sigilgeometry/path/Numeric.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -195,7 +196,7 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
     // last good one rather than reading atan2(0, 0).
     if (chord.length() <= 1e-6f) chord = here - walk(t - spec.lookAhead);
     if (chord.length() > 1e-6f)
-      orient = std::atan2(chord.y(), chord.x()) * 180.0f / SK_FloatPI;
+      orient = geometry::path::degrees(std::atan2(chord.y(), chord.x()));
   }
   return std::make_pair(here, orient);
 }

@@ -31,12 +31,13 @@ size_t Pool::add(SkPoint position, int frame, float rotateRadians, float scale,
   if (!m_sizes.empty()) m_sizes.push_back({1.0f, 1.0f});
   if (!m_alphas.empty()) m_alphas.push_back(1.0f);
   if (!m_texWindows.empty()) m_texWindows.push_back(SkRect::MakeWH(1.0f, 1.0f));
-  if (!m_flights.empty()) m_flights.push_back({.from = position,
-                                               .to = position,
-                                               .rotateFrom = rotateRadians,
-                                               .rotateTo = rotateRadians,
-                                               .scaleFrom = scale,
-                                               .scaleTo = scale});
+  if (!m_flights.empty())
+    m_flights.push_back({.from = position,
+                         .to = position,
+                         .rotateFrom = rotateRadians,
+                         .rotateTo = rotateRadians,
+                         .scaleFrom = scale,
+                         .scaleTo = scale});
   ++m_revision;
   return m_positions.size() - 1;
 }
@@ -63,7 +64,20 @@ void Pool::resize(size_t n) {
   if (!m_sizes.empty()) m_sizes.resize(n, {1.0f, 1.0f});
   if (!m_alphas.empty()) m_alphas.resize(n, 1.0f);
   if (!m_texWindows.empty()) m_texWindows.resize(n, SkRect::MakeWH(1.0f, 1.0f));
-  if (!m_flights.empty()) m_flights.resize(n, {});
+  // A flight lane grown with default flights would fly every appended
+  // instance from the origin: an appended instance is at rest where it
+  // stands, exactly as add() and flights() leave one.
+  if (!m_flights.empty()) {
+    const size_t was = m_flights.size();
+    m_flights.resize(n, {});
+    for (size_t i = was; i < m_flights.size(); ++i)
+      m_flights[i] = Flight{.from = m_positions[i],
+                            .to = m_positions[i],
+                            .rotateFrom = m_rotations[i],
+                            .rotateTo = m_rotations[i],
+                            .scaleFrom = m_scales[i],
+                            .scaleTo = m_scales[i]};
+  }
   ++m_revision;
 }
 
@@ -128,7 +142,11 @@ void Pool::fly(float seconds, const std::function<float(float)>& ease) {
 int Atlas::cell(Element tree, SkSize logicalSize) {
   tree.width(logicalSize.width()).height(logicalSize.height());
   m_cells.push_back({std::move(tree), logicalSize});
+  // The sheet is now a different picture, so the texture promoted from
+  // the old one names nothing this atlas draws.
   m_sheet.reset();
+  gpuCache = {};
+  ++m_revision;
   return (int)m_cells.size() - 1;
 }
 
@@ -333,7 +351,8 @@ Element instances(std::shared_ptr<Atlas> atlas,
         .inset(0)
         .cache(Cache::None);
   }
-  detail::DataProps props{atlas, pool, pool->revision(), blend};
+  detail::DataProps props{atlas, pool, pool->revision(), atlas->revision(),
+                          blend};
   return memo(std::move(props), [](const detail::DataProps& p) {
     return custom([atlas = p.atlas, pool = p.pool, blend = p.blend](
                       SkCanvas& canvas, const PaintContext& ctx) {
