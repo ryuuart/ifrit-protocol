@@ -853,8 +853,10 @@ struct Ds2Bench : sketch::Sketch {
 
   void entrySocket(Element& root, SkPoint at, bool big) {
     if (!big) {
+      // A pure function of the node's size: it closes over nothing, so its
+      // own name is the whole of its identity.
       root.child(
-          custom([](SkCanvas& canvas, const PaintContext& ctx) {
+          custom("socket.arrow", [](SkCanvas& canvas, const PaintContext& ctx) {
             const float w = ctx.size.width(), h = ctx.size.height();
             SkPaint p;
             p.setAntiAlias(true);
@@ -872,7 +874,7 @@ struct Ds2Bench : sketch::Sketch {
       return;
     }
     root.child(
-        custom([](SkCanvas& canvas, const PaintContext& ctx) {
+        custom("socket.housing", [](SkCanvas& canvas, const PaintContext& ctx) {
           const float w = ctx.size.width(), h = ctx.size.height();
           SkPaint p;
           p.setAntiAlias(true);
@@ -1224,6 +1226,8 @@ struct Ds2Bench : sketch::Sketch {
                     .alignItems(Align::Center)
                     .gap(8)
                     .child(
+                        // KEYLESS, and it has to be: the inner disc breathes
+                        // off the paint's own clock, which no key can name.
                         custom([](SkCanvas& canvas, const PaintContext& ctx) {
                           const float r = ctx.size.width() * 0.5f;
                           SkPaint p;

@@ -56,6 +56,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -170,7 +171,10 @@ struct HitSlots final : sketch::Sketch {
    *  slot is re-rendered on every frame. */
   Element probeDot() const {
     const SkPoint p = probe;
-    return custom([p](SkCanvas& c, const PaintContext&) {
+    // The probe MOVES, so the point it closes over is folded into the key:
+    // a constant one would name two marks in two places.
+    return custom(kit::formatted("probe %.2f %.2f", p.x(), p.y()),
+                  [p](SkCanvas& c, const PaintContext&) {
              SkPaint paint;
              paint.setAntiAlias(true);
              paint.setColor(0xffffffff);
@@ -192,7 +196,9 @@ struct HitSlots final : sketch::Sketch {
 
     if (hitBounds) {
       const SkRect rect = *hitBounds;
-      root.child(custom([rect](SkCanvas& canvas, const PaintContext&) {
+      root.child(custom(kit::formatted("hit %.2f %.2f %.2f %.2f", rect.fLeft,
+                                       rect.fTop, rect.fRight, rect.fBottom),
+                        [rect](SkCanvas& canvas, const PaintContext&) {
                    SkPaint ring;
                    ring.setAntiAlias(true);
                    ring.setStyle(SkPaint::kStroke_Style);

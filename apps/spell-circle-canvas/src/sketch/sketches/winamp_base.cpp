@@ -1051,6 +1051,7 @@ struct WinampBase : sketch::Sketch {
    *  left-to-right reveal, since there is no trim to animate on a path that
    *  does not exist until it is drawn. */
   Element eqCurve() {
+    // KEYLESS: the curve is read off ten live Outputs at paint time.
     return custom([this](SkCanvas& canvas, const PaintContext& ctx) {
       const float w = ctx.size.width(), h = ctx.size.height();
       const float mid = h * 0.5f;

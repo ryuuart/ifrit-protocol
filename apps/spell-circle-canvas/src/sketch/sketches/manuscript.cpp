@@ -53,6 +53,7 @@
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Ornament.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -156,7 +157,12 @@ struct Manuscript final : sketch::Sketch {
           .inset(px(l), px(t), kSceneSize.width() - px(l + w),
                  kSceneSize.height() - px(t + h))
           .zIndex(2)
-          .child(custom(edgeFlourish(pal, quadrant, vertical)).inset(0));
+          // Keyed on the two numbers that tell the eight bands apart; the
+          // palette is the leaf's one palette and does not vary.
+          .child(custom(kit::formatted("flourish %d %d", quadrant,
+                                       vertical ? 1 : 0),
+                        edgeFlourish(pal, quadrant, vertical))
+                     .inset(0));
     };
     const float halfW = kLeafW * 0.5f;
     const float halfH = kLeafH * 0.5f;
@@ -305,7 +311,7 @@ struct Manuscript final : sketch::Sketch {
                       .height(Dim(px(kPitch * 5.0f)))
                       .zIndex(3)
                       .rotate(90.0f)
-                      .child(custom(sprig(pal)).inset(0)));
+                      .child(custom("sprig", sprig(pal)).inset(0)));
 
     // Everything static lives in one texture-baked stack: the page is
     // dense — a noise ground, hundreds of vine stamps, prose flowed around

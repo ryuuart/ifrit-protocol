@@ -72,6 +72,7 @@ struct HelloSketch : sketch::Sketch {
                    .clip()
                    .inset(90, 280, 690, 240))
         // A custom leaf riding the bound Output.
+        // KEYLESS: the wave reads the paint's clock and a bound Output.
         .child(custom([this](SkCanvas& canvas, const PaintContext& paint) {
                  SkPaint brush;
                  brush.setAntiAlias(true);

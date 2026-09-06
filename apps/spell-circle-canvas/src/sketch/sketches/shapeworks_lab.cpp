@@ -196,7 +196,8 @@ struct ShapeworksLab : sketch::Sketch {
     // the frame's, and a live paint here would re-run one shader over
     // every pixel of the badge for a picture that never changes.
     Element outlineLab =
-        custom([this](SkCanvas& canvas, const PaintContext& paint) {
+        custom("lab.outline", [this](SkCanvas& canvas,
+                                     const PaintContext& paint) {
           canvas.save();
           canvas.translate(paint.size.width() * 0.5f,
                            paint.size.height() * 0.5f);
@@ -209,7 +210,8 @@ struct ShapeworksLab : sketch::Sketch {
     // SURFACES — the literal recipes (materials prebuilt in setup), and
     // static for the same reason, so the same bake is asked for.
     Element materialLab =
-        custom([this](SkCanvas& canvas, const PaintContext& paint) {
+        custom("lab.materials", [this](SkCanvas& canvas,
+                                       const PaintContext& paint) {
           (void)paint;
           if (backdrop) canvas.drawImage(backdrop, 0, 0);
           if (gold) material::skia::fill(canvas, goldPath, *gold);
@@ -222,6 +224,7 @@ struct ShapeworksLab : sketch::Sketch {
     // WIRE — one curve, four sinks. A steel tube swept over it, its own
     // projection stroked on top, a wider sibling loop wearing the
     // Fibonacci band, and a point chain cooked along it.
+    // KEYLESS: the wire is swept at the paint's own clock.
     Element flight =
         custom([this](SkCanvas& canvas, const PaintContext& paint) {
           const SkSize viewport = paint.size;

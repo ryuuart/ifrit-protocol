@@ -854,7 +854,9 @@ struct Minard1869 : sketch::Sketch {
     }
 
     auto g = box().inset(0);
-    g.child(custom([sea, rings](SkCanvas& c, const PaintContext&) {
+    // Keyed: the two cooked paths are the whole of what the program closes
+    // over, and both are a function of the coast this file states once.
+    g.child(custom("seahatch", [sea, rings](SkCanvas& c, const PaintContext&) {
               SkPaint p;
               p.setAntiAlias(true);
               p.setStyle(SkPaint::kStroke_Style);
@@ -896,7 +898,10 @@ struct Minard1869 : sketch::Sketch {
                   float y0, float x1, float y1, const char* key, float t0) {
     // copying the captures can fail only on allocation
     // NOLINTNEXTLINE(bugprone-exception-escape)
-    return custom([ridges, x0, y0, x1, y1](SkCanvas& c, const PaintContext&) {
+    // Keyed on the caller's own name for the field, which is what names the
+    // ridge table and the four bounds the program closes over.
+    return custom(key, [ridges, x0, y0, x1, y1](SkCanvas& c,
+                                                const PaintContext&) {
              auto height = [&](float x, float y) {
                float h = 0;
                for (const auto& r : ridges) {
@@ -1464,7 +1469,7 @@ struct Minard1869 : sketch::Sketch {
                 .mask(by::edge(180.0f, beat(tTemp + 0.4f, tTemp + 1.1f)))
                 .key("tcurve"));
     // the hatched underside: short ticks hanging off the curve
-    g.child(custom([curvePath](SkCanvas& c, const PaintContext&) {
+    g.child(custom("thatch", [curvePath](SkCanvas& c, const PaintContext&) {
               SkPaint p;
               p.setAntiAlias(true);
               p.setStyle(SkPaint::kStroke_Style);

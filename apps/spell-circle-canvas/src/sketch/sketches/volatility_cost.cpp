@@ -289,6 +289,9 @@ struct VolatilityCost final : sketch::Sketch {
    *  canvas, because it is a reading of the tree and not a part of it —
    *  a node per outline would change what it is measuring. */
   Element tierMap() const {
+    // KEYLESS, and it has to be: the marks ARE the reading, and they change
+    // with the tree this measures — a key naming them would spell the
+    // picture twice.
     return custom([marks = marks](SkCanvas& canvas, const PaintContext&) {
              SkPaint edge;
              edge.setAntiAlias(true);

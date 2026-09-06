@@ -145,9 +145,12 @@ struct PathBooleans final : sketch::Sketch {
                        {.size = {1240, 720},
                         .captureAt = 1.0,
                         .background = SkColor4f{0.063f, 0.063f, 0.078f, 1}});
-    ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
-                          draw(canvas);
-                        }).inset(0));
+    // Keyed on the sink's own name: everything `draw` reads is cooked
+    // above, in this setup, and nothing after it moves.
+    ctx.composer.render(
+        custom("path.booleans", [this](SkCanvas& canvas, const PaintContext&) {
+          draw(canvas);
+        }).inset(0));
   }
 };
 

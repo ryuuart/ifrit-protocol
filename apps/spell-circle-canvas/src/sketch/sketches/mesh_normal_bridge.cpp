@@ -208,9 +208,13 @@ struct MeshNormalBridge final : sketch::Sketch {
     };
     ctx.composer.render(
         stack()
-            .child(custom([this](SkCanvas& canvas, const PaintContext&) {
-                     draw(canvas);
-                   }).inset(0))
+            // Keyed on the sink's own name: everything `draw` reads is
+            // cooked above, in this setup, and nothing after it moves.
+            .child(custom("mesh.normal.bridge",
+                          [this](SkCanvas& canvas, const PaintContext&) {
+                            draw(canvas);
+                          })
+                       .inset(0))
             .child(text(toU8("NORMAL MAPS \xc2\xb7 two sources, one recipe"),
                         label(15, kInk, 2.0f))
                        .left(30)

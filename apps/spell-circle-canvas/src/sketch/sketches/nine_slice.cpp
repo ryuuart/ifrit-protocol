@@ -117,7 +117,10 @@ Element nativeLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
       .height(Dim(kPanelH))
       .alignItems(Align::Center)
       .justify(Justify::Center)
-      .child(custom([asset = std::move(asset)](SkCanvas& canvas,
+      // Keyed: the asset is the whole of what the program closes over, and
+      // the sheet shows exactly one native lattice.
+      .child(custom("lattice.native",
+                    [asset = std::move(asset)](SkCanvas& canvas,
                                                const PaintContext& ctx) {
         const sk_sp<SkImage> image =
             asset ? asset->frameAt(0).image : nullptr;

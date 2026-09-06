@@ -95,7 +95,10 @@ Element cell(Shape shape, const char* call, const char* note,
              bool closed = true) {
   return sketch::kit::caption(
       kCell, toU8(call), toU8(note),
-      custom([shape, closed](SkCanvas& canvas, const PaintContext& paint) {
+      // The call IS the identity: it spells the generator and every number
+      // handed to it, which is the whole of what the program closes over.
+      custom(call, [shape, closed](SkCanvas& canvas,
+                                   const PaintContext& paint) {
         SkPaint fill;
         fill.setAntiAlias(true);
         fill.setColor4f(closed ? kBody : SkColor4f{0, 0, 0, 0});

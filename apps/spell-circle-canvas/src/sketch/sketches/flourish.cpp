@@ -408,6 +408,7 @@ struct Flourish final : sketch::Sketch {
   // ---- draw-on scrollwork sweeps (Cache::None, read reveal live) ----------
 
   Element scrollworkCorner(int q) const {
+    // KEYLESS: the sweep reads the reveal live, at Cache::None.
     return custom([this, q](SkCanvas& c, const PaintContext& ctx) {
              const float rev = reveal.value();
              const float local =
@@ -485,6 +486,8 @@ struct Flourish final : sketch::Sketch {
 
   Element goldDust() const {
     const SkColor4f g = st.goldBright;
+    // KEYLESS: every mote's place and alpha is a function of the paint's own
+    // clock, which no key can name.
     return custom([g](SkCanvas& c, const PaintContext& ctx) {
              SkPaint p;
              p.setAntiAlias(true);
@@ -511,6 +514,7 @@ struct Flourish final : sketch::Sketch {
 
   Element shimmer() const {
     const SkColor4f g = st.goldBright;
+    // KEYLESS: the sweep's position is the paint's own clock.
     return custom([g](SkCanvas& c, const PaintContext& ctx) {
              const float w = ctx.size.width(), h = ctx.size.height();
              const float t = (float)ctx.elapsedSeconds;

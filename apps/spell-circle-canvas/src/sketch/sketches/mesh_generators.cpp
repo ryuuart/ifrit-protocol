@@ -207,9 +207,12 @@ struct MeshGenerators final : sketch::Sketch {
     options.tintLane = "tint";
     stations = points::quads(cloud, 96, 64, options);
 
-    ctx.composer.render(custom([this](SkCanvas& canvas, const PaintContext&) {
-                          draw(canvas);
-                        }).inset(0));
+    // Keyed on the sink's own name: everything `draw` reads is cooked
+    // above, in this setup, and nothing after it moves.
+    ctx.composer.render(
+        custom("mesh.generators", [this](SkCanvas& canvas, const PaintContext&) {
+          draw(canvas);
+        }).inset(0));
   }
 };
 

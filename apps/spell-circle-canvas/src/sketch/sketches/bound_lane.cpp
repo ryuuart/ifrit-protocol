@@ -130,8 +130,11 @@ void strokePath(SkCanvas& canvas, const SkPath& path, SkColor4f color,
  *  and @p hi as the plot's own range so a stage that overshoots shows
  *  the overshoot instead of clipping it. This is exactly the value the
  *  runtime hands a bound property. */
-Element stage(const BoundFloat& lane, float lo, float hi) {
-  return custom([lane, lo, hi](SkCanvas& canvas, const PaintContext& paint) {
+Element stage(const char* key, const BoundFloat& lane, float lo, float hi) {
+  // Keyed on the panel's own name for the lane, which is what the plotted
+  // chain, the range and nothing else are a function of.
+  return custom(key,
+                [lane, lo, hi](SkCanvas& canvas, const PaintContext& paint) {
            const float pw = paint.size.width(), ph = paint.size.height();
            const auto y = [&](float v) {
              return ph - 6.0f - (v - lo) / (hi - lo) * (ph - 12.0f);
@@ -155,8 +158,8 @@ Element stage(const BoundFloat& lane, float lo, float hi) {
 
 /** THE WIGGLE STAGE, on its own axes: the ±amount rails drawn in red,
  *  because the bound is the claim worth seeing. */
-Element wiggleStage(const BoundFloat& lane) {
-  return custom([lane](SkCanvas& canvas, const PaintContext& paint) {
+Element wiggleStage(const char* key, const BoundFloat& lane) {
+  return custom(key, [lane](SkCanvas& canvas, const PaintContext& paint) {
            const float pw = paint.size.width(), ph = paint.size.height();
            const float cy = ph * 0.5f;
            const float k = (ph * 0.5f - 6.0f) / kAmount;
@@ -182,8 +185,10 @@ Element wiggleStage(const BoundFloat& lane) {
 /** THE 2-D LOCUS: (x(p), y(p)) traced over the window, which is the path
  *  a two-axis shake actually walks. Shared seeds put x == y, so the locus
  *  IS the line y = x — the layer slides on a diagonal and never shakes. */
-Element locus(const BoundFloat& wx, const BoundFloat& wy, SkColor4f color) {
-  return custom([wx, wy, color](SkCanvas& canvas, const PaintContext& paint) {
+Element locus(const char* key, const BoundFloat& wx, const BoundFloat& wy,
+              SkColor4f color) {
+  return custom(key,
+                [wx, wy, color](SkCanvas& canvas, const PaintContext& paint) {
            const float w = paint.size.width(), h = paint.size.height();
            const float cx = w * 0.5f, cy = h * 0.5f;
            const float k = std::min(w, h) * 0.5f / (kAmount * 1.15f);
@@ -297,22 +302,29 @@ struct BoundLane : sketch::Sketch {
 
     Element chain = kit::cells(
         {.cells = {panel(190, 128, "bare", "bind(&phase)",
-                         stage(bind(&phase).value(), -0.15f, 1.15f)),
+                         stage("lane.bare", bind(&phase).value(), -0.15f,
+                               1.15f)),
                    panel(190, 128, "envelope", ".pingPong()",
-                         stage(bind(&phase).pingPong().value(), -0.15f, 1.15f)),
+                         stage("lane.pingPong",
+                               bind(&phase).pingPong().value(), -0.15f,
+                               1.15f)),
                    panel(190, 128, "curve", ".map(ease::outBack())",
-                         stage(bind(&phase).map(ease::outBack()).value(),
+                         stage("lane.curve",
+                               bind(&phase).map(ease::outBack()).value(),
                                -0.15f, 1.15f)),
                    panel(
                        190, 128, "quantize", ".quantize(8)",
-                       stage(bind(&phase).quantize(8).value(), -0.15f, 1.15f)),
+                       stage("lane.quantize",
+                             bind(&phase).quantize(8).value(), -0.15f, 1.15f)),
                    panel(190, 128, "wrap", ".scale(3).wrap(1)",
-                         stage(bind(&phase).scale(3.0f).wrap(1.0f).value(),
+                         stage("lane.wrap",
+                               bind(&phase).scale(3.0f).wrap(1.0f).value(),
                                -0.15f, 1.15f)),
                    panel(190, 128, "wiggle \xc2\xb7 3 octaves",
                          "rails are \xc2\xb1"
                          "amount",
-                         wiggleStage(wiggle(&seconds, kAmount, kFrequency,
+                         wiggleStage("lane.wiggle",
+                                     wiggle(&seconds, kAmount, kFrequency,
                                             kSeedX, kOctaves, kFalloff)
                                          .value()))},
          .gap = 12});
@@ -320,10 +332,12 @@ struct BoundLane : sketch::Sketch {
     Element locusRow = kit::cells(
         {.cells = {panel(230, 230, "SHARED SEED \xc2\xb7 broken",
                          "x and y both seed 1 \xe2\x86\x92 y = x",
-                         locus(shakeX.value(), sameY.value(), kTraceB)),
+                         locus("locus.shared", shakeX.value(), sameY.value(),
+                               kTraceB)),
                    panel(230, 230, "SEEDS 1 / 2 \xc2\xb7 a shake",
                          "two independent lanes",
-                         locus(shakeX.value(), shakeY.value(), kTrace)),
+                         locus("locus.split", shakeX.value(),
+                               shakeY.value(), kTrace)),
                    panel(230, 230, "the same lanes, LIVE",
                          "amber = shared seed, teal = 1 / 2",
                          stack()

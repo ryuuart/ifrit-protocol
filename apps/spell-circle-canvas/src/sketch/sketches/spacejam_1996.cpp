@@ -1158,6 +1158,7 @@ struct SpaceJam1996 : sketch::Sketch {
     // a partial image, which nothing in the picture can express.
     if (!inFlight)
       return picture(p, SkSize::Make(artW[i], artH[i]));
+    // KEYLESS: the scanline edge is read off the arrival's live fraction.
     Element e = custom([p, h, g](SkCanvas& canvas, const PaintContext& ctx) {
                   const float frac = g->value();
                   if (frac <= 0.0f || !p) return;
