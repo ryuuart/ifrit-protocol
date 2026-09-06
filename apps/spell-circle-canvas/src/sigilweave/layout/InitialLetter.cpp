@@ -22,8 +22,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <glm/vec2.hpp>
 
 #include "ParagraphLayoutInternal.h"
+#include "sigilgeometry/path/Polyline.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/unicode/Unicode.h"
 
@@ -138,9 +140,14 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
   sk_sp<SkTypeface> typeface = fontContext.resolveTypeface(
       capStyle.shaping.typeface, firstCodepoint, languageTag);
   if (!typeface) typeface = fontContext.defaultTypeface();
+  // A COLUMN'S INITIAL IS SET DOWN THE COLUMN. The notch a column loses is
+  // pen travel off its head, which for an upright cap is its vertical
+  // advance, so the cap is shaped the way the text around it is set.
+  const bool vertical = paragraph.writingMode() == WritingMode::kVerticalRL;
+  plan.vertical = vertical;
   plan.glyphs =
       shapeWord(fontContext, capStyle.shaping, typeface, capText,
-                static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, false);
+                static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, vertical);
   if (!plan.glyphs || plan.glyphs->glyphs.empty()) return plan;
 
   // WHAT IS LEFT OF THE WORD THE INITIAL SPLIT is set at the body's size
@@ -163,14 +170,19 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
     if (!restFace) restFace = fontContext.defaultTypeface();
     plan.remainder =
         shapeWord(fontContext, bodyStyle.shaping, restFace, rest,
-                  static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, false);
+                  static_cast<ScriptTag>(HB_SCRIPT_COMMON), false, vertical);
     if (plan.remainder)
       plan.tail = plan.remainder->advance + opening.spaceWidth;
   }
 
-  const int sink = asked.sink.value_or(
-      std::max(0, static_cast<int>(std::floor(asked.lines)) - 1));
+  // A sink of its own is how many lines BELOW the first baseline the
+  // initial sits, so a negative one would lift the cap off the top of the
+  // frame; the first baseline is as high as it goes.
+  const int sink = std::max(
+      0, asked.sink.value_or(static_cast<int>(std::floor(asked.lines)) - 1));
   plan.blockIndex = block.index;
+  plan.pitch = block.pitch;
+  plan.ascent = block.ascent;
   plan.bands = std::max(1, sink + 1);
   plan.notch = plan.glyphs->advance + asked.margin;
   plan.fontSize = fontSize;
@@ -200,6 +212,17 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
     SkPath outline = builder.detach();
     if (!outline.isEmpty()) {
       plan.perBand.assign(static_cast<size_t>(plan.bands), 0.0f);
+      // The reach is read off the FLATTENED outline: a curve's control
+      // points lie outside the curve, so a bowl measured to its control
+      // polygon would push the lines further off than the ink does.
+      constexpr float kFlattenTolerance = 0.5f;
+      static thread_local std::vector<std::vector<glm::vec2>> contours;
+      contours.clear();
+      for (geometry::path::Polyline& polyline :
+           geometry::path::flatten(outline, kFlattenTolerance))
+        if (polyline.points.size() >= 2)
+          contours.push_back(std::move(polyline.points));
+
       // Band b of the block spans [b·pitch, (b+1)·pitch) below the first
       // band's near edge; the initial's baseline sits `sinkOffset` below
       // the first baseline, which is `ascent` below that near edge.
@@ -207,30 +230,19 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
         const float top = static_cast<float>(band) * block.pitch -
                           block.ascent - plan.sinkOffset;
         const float bottom = top + block.pitch;
+        // How far the outline gets into this band: the rightmost point
+        // inside it, and the ends of every segment crossing it, so a long
+        // straight stem is not missed between its two ends.
         float reach = 0;
-        // The reach is how far the outline gets into this band: the
-        // rightmost of its control points inside the band, and of the ends
-        // of every segment crossing it, so a long straight stem is not
-        // missed between its two ends.
-        SkPath::Iter iter(outline, true);
-        SkPoint points[4];
-        SkPath::Verb verb;
-        SkPoint previous = {0, 0};
-        while ((verb = iter.next(points)) != SkPath::kDone_Verb) {
-          const int count = verb == SkPath::kMove_Verb    ? 1
-                            : verb == SkPath::kLine_Verb  ? 2
-                            : verb == SkPath::kQuad_Verb  ? 3
-                            : verb == SkPath::kConic_Verb ? 3
-                            : verb == SkPath::kCubic_Verb ? 4
-                                                          : 0;
-          for (int index = 0; index < count; ++index) {
-            const SkPoint point = points[index];
-            if (point.y() >= top && point.y() <= bottom)
-              reach = std::max(reach, point.x());
-            if ((previous.y() < top) != (point.y() < top) ||
-                (previous.y() < bottom) != (point.y() < bottom))
-              reach = std::max(reach, std::max(previous.x(), point.x()));
-            previous = point;
+        for (const std::vector<glm::vec2>& contour : contours) {
+          for (size_t index = 0; index < contour.size(); ++index) {
+            const glm::vec2& point = contour[index];
+            const glm::vec2& previous = contour[index == 0 ? 0 : index - 1];
+            if (point.y >= top && point.y <= bottom)
+              reach = std::max(reach, point.x);
+            if ((previous.y < top) != (point.y < top) ||
+                (previous.y < bottom) != (point.y < bottom))
+              reach = std::max(reach, std::max(previous.x, point.x));
           }
         }
         plan.perBand[static_cast<size_t>(band)] =
@@ -242,104 +254,177 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
   return plan;
 }
 
-bool InitialLetterGeometry::lineIntervals(
-    const LineRequest& request, std::vector<LineInterval>& intervals) {
-  if (!m_inner.lineIntervals(request, intervals)) return false;
-  if (!m_plan.active() || request.blockIndex != m_plan.blockIndex) return true;
-  const int band = request.lineInBlock;
-  if (band < 0 || band >= m_plan.bands || intervals.empty()) return true;
-  if (band == 0 && !m_seated) {
-    // The head of the block's first band, BEFORE anything is taken out of
-    // it — where the initial itself stands, and the one fact the placement
-    // cannot recover once the notch has been cut.
-    m_seat = intervals.front();
-    m_seated = true;
-  }
-  float remaining = m_plan.notchAt(band) + (band == 0 ? m_plan.tail : 0.0f);
-  while (remaining > 0 && !intervals.empty()) {
+void InitialLetterGeometry::cutFromHead(std::vector<LineInterval>& intervals,
+                                        float travel) {
+  while (travel > 0 && !intervals.empty()) {
     LineInterval& first = intervals.front();
-    const float take = std::min(remaining, first.length);
+    const float take = std::min(travel, first.length);
     if (first.contour.valid())
       first.contourStart += take * first.advanceScale;
     else
       first.origin +=
           SkVector{first.direction.x() * take, first.direction.y() * take};
     first.length -= take;
-    remaining -= take;
+    travel -= take;
     if (first.length <= 0) intervals.erase(intervals.begin());
+  }
+}
+
+bool InitialLetterGeometry::lineIntervals(
+    const LineRequest& request, std::vector<LineInterval>& intervals) {
+  if (!m_inner.lineIntervals(request, intervals)) return false;
+  if (!m_plan.active() || m_inert) return true;
+  if (request.blockIndex == m_plan.blockIndex && request.lineInBlock == 0 &&
+      !m_seated && !intervals.empty()) {
+    // The head of the block's first band, BEFORE anything is taken out of
+    // it — where the initial itself stands, and the one fact the placement
+    // cannot recover once the notch has been cut.
+    m_seat = intervals.front();
+    m_seated = true;
+    m_seatBandStart = request.bandStart;
+    const SkVector direction = m_seat.direction;
+    m_inert = !m_seat.contour.valid() &&
+              !(direction.x() == 1 && direction.y() == 0) &&
+              !(direction.x() == 0 && direction.y() == 1);
+    // Nothing upright can stand in a notch cut out of a slanted band, so a
+    // seat that runs in no axis direction keeps its whole band rather than
+    // opening a hole no cap fills.
+    if (m_inert) return true;
+  }
+
+  // WHICH BAND OF THE INITIAL THIS IS. Inside the initial's own block the
+  // band is counted; past its end it is measured, because a block shorter
+  // than the sink hands the rest of the initial's depth to the block after
+  // it and the cap has to stay clear of that one too.
+  int band = -1;
+  if (request.blockIndex == m_plan.blockIndex)
+    band = request.lineInBlock;
+  else if (m_seated && m_plan.pitch > 0 &&
+           request.bandStart >= m_seatBandStart) {
+    constexpr float kBandEpsilon = 0.001f;
+    band = (int)std::floor(
+        (request.bandStart - m_seatBandStart) / m_plan.pitch + kBandEpsilon);
+  }
+  if (band < 0 || band >= m_plan.bands || intervals.empty()) return true;
+
+  cutFromHead(intervals, m_plan.notchAt(band));
+  if (band == 0 && m_plan.tail > 0) {
+    // Where the notch actually ended is where the remainder of the split
+    // word goes: an exclusion beside the initial can carry the cut into
+    // the next interval of the band, and the remainder belongs there.
+    if (!intervals.empty()) {
+      m_tailSeat = intervals.front();
+      m_tailSeated = true;
+    }
+    cutFromHead(intervals, m_plan.tail);
   }
   return true;
 }
 
 void placeInitialLetter(const InitialLetterPlan& plan,
                         const InitialLetterGeometry& geometry,
-                        const Paragraph& paragraph, ParagraphLayout& layout) {
+                        ParagraphLayout& layout) {
   if (!plan.active() || !plan.glyphs || !geometry.seated()) return;
   const LineInterval& seat = geometry.seat();
   SkPoint origin = seat.origin;
-  SkVector direction = seat.direction;
+  const SkVector direction = seat.direction;
+  const bool downTheColumn = direction.x() == 0 && direction.y() == 1;
   if (seat.contour.valid()) {
     // A CONTOUR HAS NO BASELINE TO SINK TO: a loop's bands are one line
     // wound round, so the initial stands upright where the pen enters the
     // contour and the notch it cut is the room it stands in.
     SkVector tangent = {1, 0};
     seat.placeAt(0, 0, 0, &origin, &tangent);
-    direction = tangent;
+  } else if (downTheColumn) {
+    // A COLUMN'S INITIAL HANGS FROM THE COLUMN HEAD, which is where the
+    // seat already is, and the glyphs stack down from there. It sinks
+    // ACROSS the columns instead, and its ink is centred on the axis it
+    // stands on, so half the sink carries it over the columns it cut.
+    origin += SkVector{-plan.sinkOffset * 0.5f, 0};
+  } else if (direction.x() == 1 && direction.y() == 0) {
+    // Lines stack down the page and the initial sinks with them.
+    origin += SkVector{0, plan.sinkOffset};
   } else {
-    // Bands stack across the pen's travel: lines down the page, columns
-    // right to left. The initial sinks along that stack.
-    SkVector stack{0, 1};
-    if (direction.x() == 0 && direction.y() == 1)
-      stack = {-1, 0};
-    else if (direction.x() != 1 || direction.y() != 0)
-      return;
-    origin +=
-        SkVector{stack.x() * plan.sinkOffset, stack.y() * plan.sinkOffset};
+    return;
   }
+
+  // WHICH LINE THE INITIAL IS ON. Its block's first line — which is the
+  // line of the first run of the word after the one the initial split, and
+  // the line after everything already placed when the initial took the
+  // block's whole opening.
+  int lineIndex = -1;
+  size_t insertAt = layout.runs.size();
+  int lastLine = -1;
+  for (size_t index = 0; index < layout.runs.size(); ++index) {
+    const PositionedRun& run = layout.runs[index];
+    if (run.wordIndex >= plan.wordIndex) {
+      lineIndex = run.lineIndex;
+      insertAt = index;
+      break;
+    }
+    lastLine = std::max(lastLine, run.lineIndex);
+  }
+  if (lineIndex < 0) lineIndex = lastLine + 1;
+
   PositionedRun cap;
   cap.shaped = plan.glyphs.get();
   cap.blob = wordBlob(*plan.glyphs);
   cap.origin = origin;
   cap.styleIndex = plan.styleIndex;
   cap.wordIndex = plan.wordIndex;
-  cap.lineIndex = 0;
+  cap.lineIndex = lineIndex;
   cap.advance = plan.glyphs->advance;
   if (!cap.blob) return;
   layout.shapedByTheLayout.push_back(plan.glyphs);
-  layout.runs.insert(layout.runs.begin(), std::move(cap));
+  // In logical order: the initial opens its own block and never stands
+  // before the words of the blocks above it.
+  layout.runs.insert(layout.runs.begin() + (long)insertAt, std::move(cap));
 
-  // The remainder of the split word stands at the head of the first band,
-  // in the room the notch left for it.
+  // The remainder of the split word stands where the notch ended, in the
+  // room the cut left for it on the initial's own band.
   if (plan.remainder && !plan.remainder->glyphs.empty()) {
+    const LineInterval& tail =
+        geometry.tailSeated() ? geometry.tailSeat() : seat;
     PositionedRun rest;
     rest.shaped = plan.remainder.get();
     rest.blob = wordBlob(*plan.remainder);
-    rest.origin = seat.origin + SkVector{seat.direction.x() * plan.notchAt(0),
-                                         seat.direction.y() * plan.notchAt(0)};
+    rest.origin =
+        geometry.tailSeated()
+            ? tail.origin
+            : seat.origin + SkVector{seat.direction.x() * plan.notchAt(0),
+                                     seat.direction.y() * plan.notchAt(0)};
     rest.styleIndex = plan.styleIndex;
     rest.wordIndex = plan.wordIndex;
-    rest.lineIndex = 0;
+    rest.lineIndex = lineIndex;
     rest.advance = plan.remainder->advance;
     if (rest.blob && !seat.contour.valid()) {
       layout.shapedByTheLayout.push_back(plan.remainder);
-      layout.runs.insert(layout.runs.begin() + 1, std::move(rest));
+      layout.runs.insert(layout.runs.begin() + (long)insertAt + 1,
+                         std::move(rest));
     }
   }
 
-  const SkFont font = makeFont(plan.glyphs->typeface, plan.glyphs->fontSize,
-                               plan.glyphs->scaleX, plan.glyphs->aliased);
-  SkFontMetrics metrics;
-  font.getMetrics(&metrics);
   layout.initial.placed = true;
   layout.initial.baseline = origin;
   layout.initial.fontSize = plan.fontSize;
   layout.initial.bands = plan.bands;
   layout.initial.notch = plan.notch;
   layout.initial.textEnd = plan.textEnd;
-  layout.initial.box = SkRect::MakeXYWH(
-      origin.x(), origin.y() + metrics.fAscent, plan.glyphs->advance,
-      -metrics.fAscent + metrics.fDescent);
-  (void)paragraph;
+  if (plan.glyphs->vertical) {
+    // A vertical cap hangs from its origin: the em box across the column,
+    // its own pen travel down it.
+    layout.initial.box =
+        SkRect::MakeXYWH(origin.x() - plan.fontSize * 0.5f, origin.y(),
+                         plan.fontSize, plan.glyphs->advance);
+  } else {
+    const SkFont font = makeFont(plan.glyphs->typeface, plan.glyphs->fontSize,
+                                 plan.glyphs->scaleX, plan.glyphs->aliased);
+    SkFontMetrics metrics;
+    font.getMetrics(&metrics);
+    layout.initial.box = SkRect::MakeXYWH(
+        origin.x(), origin.y() + metrics.fAscent, plan.glyphs->advance,
+        -metrics.fAscent + metrics.fDescent);
+  }
 }
 
 }  // namespace detail

@@ -100,7 +100,7 @@ class ExclusionsScene final : public Scene {
             std::cos(static_cast<float>(elapsedSeconds) * 0.45f)};
     flow.exclusions().push_back(
         {silhouette::path(donutPath), fontSize * 0.4f, donutOffset});
-    flow.setMinIntervalWidth(fontSize * 3);
+    flow.setMinimumIntervalWidth(fontSize * 3);
 
     ParagraphLayoutOptions options;
     options.alignment = params.alignment;

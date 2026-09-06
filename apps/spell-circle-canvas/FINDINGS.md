@@ -199,28 +199,6 @@ tests it asks for.
 
 Should-fix:
 
-- `src/sigilweave/layout/InitialLetter.cpp:245-272` — the notch is cut
-  only on the initial's own block's bands, so a block with fewer lines
-  than the sink runs the next block under the cap; carry the cut on or
-  clamp the sink and report it.
-- `InitialLetter.cpp:299-309`, `LineBreak.cpp:1889` — an initial on any
-  block but the first gets `lineIndex = 0`, is inserted at `runs.begin()`
-  (breaking logical order) and seats on the first block's metrics; carry
-  the block's first line index and pitch on the plan.
-- `InitialLetter.cpp:288-298` — in a column flow the initial is a
-  horizontal blob whose baseline is the column's top edge; shape it
-  vertically and seat its top at the column head.
-- `layout/test/InitialLetterTest.cpp` — no case for the three above,
-  `Wrap::kGlyph`, a negative sink, `graphemes` of 2 or more than the
-  word holds, or a resumed pass not re-opening the initial.
-- `sigilweave/layout/Flow.cpp:314-404` — a path silhouette's margin is
-  answered by rasterising to A8 and a distance field with a 2048 px
-  ceiling, and the comment never says what Skia offered; Skia path ops
-  give the exact disc offset (fill ∪ round-stroked outline of width
-  2·margin); keep the field for pixel coverage only.
-- `sigilweave/include/sigilweave/layout/Flow.h:305` vs
-  `LayoutOptions.h:186` — `setMinIntervalWidth` / `minimumIntervalWidth`;
-  one spelling, no abbreviation.
 - Unused parameters kept alive by casts: `InitialLetter.cpp:342`,
   `LineBreak.cpp:380`, `LayoutMetrics.cpp:94` (`glyphOutline(const
   Paragraph&)`, two compose callers), `examples/demo/weave_demo.cpp:26`.

@@ -1,12 +1,14 @@
 /** @file
  * The ready-made flow geometries and the stock silhouettes a block
- * subtracts: a rectangle and a circle answered analytically, a filled path
- * answered off its flattened outline, an image answered off its own alpha,
- * and — wherever a standoff is asked for — all of them answered off an
- * exact distance field, so the margin is a disc and not a square. Plus the
- * band scan itself, turned a quarter turn by its FlowAxis so a column meets
- * a silhouette through the same code a line does, the vertical block, the
- * explicit line set, one line per path contour, and the placement of a pen
+ * subtracts: a rectangle and a circle answered analytically, a filled
+ * path answered off its flattened outline — and, at a standoff, off the
+ * outline of everything within the margin of it, which Skia's path ops
+ * give exactly — and an image answered off its own alpha, at a standoff
+ * off a distance field, since pixels have no outline to grow. The margin
+ * is a disc either way and never a square. Plus the band scan itself,
+ * turned a quarter turn by its FlowAxis so a column meets a silhouette
+ * through the same code a line does, the vertical block, the explicit
+ * line set, one line per path contour, and the placement of a pen
  * coordinate on a contour interval with its tangent snapped.
  */
 
@@ -18,8 +20,10 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathTypes.h>
+#include <include/core/SkPathUtils.h>
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSurface.h>
+#include <include/pathops/SkPathOps.h>
 
 #include <algorithm>
 #include <cmath>
@@ -290,7 +294,7 @@ class CircleSilhouette final : public Silhouette {
                  std::vector<Span>& spans) override {
     // A disc offset of a circle IS a circle, so the margin is a larger
     // radius and the answer stays one square root a band.
-    const float radius = m_radius + std::max(margin, 0.0f);
+    const float radius = m_radius + margin;
     const float centerAlong = alongOf(axis, m_center);
     const float centerAcross = acrossOf(axis, m_center);
     // Widest chord within the band: at the centre when the band contains
@@ -311,14 +315,14 @@ class CircleSilhouette final : public Silhouette {
   float m_radius = 0;
 };
 
-/// THE ANSWER FOR ANYTHING THAT IS PIXELS OR BECOMES THEM: a coverage
-/// raster of the shape, an exact Euclidean distance field over it, and a
-/// run-length scan of everything within the margin of ink.
+/// THE ANSWER FOR ANYTHING THAT IS PIXELS: a coverage raster of the shape,
+/// an exact Euclidean distance field over it, and a run-length scan of
+/// everything within the margin of ink.
 ///
-/// It is the only honest way to offset an arbitrary outline by a disc.
-/// Offsetting the polygon itself has to decide what a self-intersecting
-/// corner becomes; a field decides nothing, because "within m of the
-/// shape" is already the answer.
+/// An image's coverage has no outline to grow, so "within m of the ink"
+/// is the only meaning a standoff has here, and a field answers it
+/// deciding nothing. Anything that IS an outline takes the exact answer
+/// instead: see PathSilhouette.
 class DilatedCoverage {
  public:
   /// Rebuilds when the raster does not already cover this margin. The
@@ -403,53 +407,102 @@ class DilatedCoverage {
   float m_threshold = 0.5f;
 };
 
+/// A PATH'S SILHOUETTE, AT ANY STANDOFF, AS A PATH.
+///
+/// The disc offset of a filled path is the union of the fill with its own
+/// outline stroked at twice the margin, round join and round cap — which
+/// is exactly what a disc rolled around the outline sweeps, and which
+/// Skia's path ops answer exactly. So a standoff costs one path op and
+/// one flatten, and the band scan that already answers the zero-margin
+/// case answers every other one, corners rounded and holes kept.
+///
+/// The distance field beside this class stays for a coverage silhouette,
+/// whose input is pixels: an image has no outline to stroke, and "within
+/// m of the ink" is the only meaning available there.
 class PathSilhouette final : public Silhouette {
  public:
   explicit PathSilhouette(const SkPath& path) : m_path(path) {
-    const SkPathFillType fill = path.getFillType();
-    m_evenOdd = fill == SkPathFillType::kEvenOdd ||
-                fill == SkPathFillType::kInverseEvenOdd;
-    m_bounds = path.computeTightBounds();
-    // Layout avoidance needs a couple of pixels of fidelity, not rendering
-    // accuracy, and every contour is treated as closed: an open sub-path of
-    // an exclusion is filled as if its ends were joined, exactly as the
-    // fill rule fills it.
-    constexpr float kFlattenTolerance = 0.5f;
-    for (geometry::path::Polyline& polyline :
-         geometry::path::flatten(path, kFlattenTolerance))
-      if (polyline.points.size() >= 3)
-        m_contours.push_back(std::move(polyline.points));
+    // An inverse fill means everything the path does not enclose, which as
+    // a silhouette is the frame with a hole in it. One meaning is kept:
+    // the enclosed region, which is what the band scan reads and what the
+    // ink is drawn as.
+    switch (m_path.getFillType()) {
+      case SkPathFillType::kInverseWinding:
+        m_path.setFillType(SkPathFillType::kWinding);
+        break;
+      case SkPathFillType::kInverseEvenOdd:
+        m_path.setFillType(SkPathFillType::kEvenOdd);
+        break;
+      default:
+        break;
+    }
+    m_evenOdd = m_path.getFillType() == SkPathFillType::kEvenOdd;
+    m_bounds = m_path.computeTightBounds();
+    flattenInto(m_path, m_contours);
   }
 
   void bandSpans(FlowAxis axis, float bandStart, float bandEnd, float margin,
                  std::vector<Span>& spans) override {
     if (m_contours.empty()) return;
-    if (margin <= 0) {
-      // No standoff: the flattened outline answers exactly, fill rule and
-      // all, so holes and concavities stay available to text.
-      static thread_local std::vector<std::pair<float, float>> occupied;
-      occupied.clear();
-      bandOccupancy(m_contours, m_evenOdd, axis, bandStart, bandEnd, occupied);
-      mergeSpans(occupied);
-      for (const auto& [start, end] : occupied) spans.push_back({start, end});
-      return;
-    }
-    m_dilated.ensure(m_bounds, margin, [&](SkCanvas& canvas) {
-      SkPaint paint;
-      paint.setAntiAlias(true);
-      canvas.drawPath(m_path, paint);
-    });
-    m_dilated.spans(axis, bandStart, bandEnd, margin, spans);
+    const std::vector<std::vector<glm::vec2>>& contours =
+        margin > 0 ? dilatedContours(margin) : m_contours;
+    if (contours.empty()) return;
+    const bool evenOdd = margin > 0 ? m_dilatedEvenOdd : m_evenOdd;
+    static thread_local std::vector<std::pair<float, float>> occupied;
+    occupied.clear();
+    bandOccupancy(contours, evenOdd, axis, bandStart, bandEnd, occupied);
+    mergeSpans(occupied);
+    for (const auto& [start, end] : occupied) spans.push_back({start, end});
   }
 
   SkRect bounds() const override { return m_bounds; }
 
  private:
+  // Layout avoidance needs a couple of pixels of fidelity, not rendering
+  // accuracy, and every contour is treated as closed: an open sub-path of
+  // an exclusion is filled as if its ends were joined, exactly as the fill
+  // rule fills it.
+  static void flattenInto(const SkPath& path,
+                          std::vector<std::vector<glm::vec2>>& contours) {
+    constexpr float kFlattenTolerance = 0.5f;
+    contours.clear();
+    for (geometry::path::Polyline& polyline :
+         geometry::path::flatten(path, kFlattenTolerance))
+      if (polyline.points.size() >= 3)
+        contours.push_back(std::move(polyline.points));
+  }
+
+  /// The outline of everything within @p margin of the fill, flattened.
+  /// Held for the margin it was built at, so a standoff that does not
+  /// change costs nothing after the first band.
+  const std::vector<std::vector<glm::vec2>>& dilatedContours(float margin) {
+    if (margin == m_dilatedMargin) return m_dilated;
+    m_dilatedMargin = margin;
+
+    SkPaint stroke;
+    stroke.setStyle(SkPaint::kStroke_Style);
+    stroke.setStrokeWidth(margin * 2.0f);
+    stroke.setStrokeJoin(SkPaint::kRound_Join);
+    stroke.setStrokeCap(SkPaint::kRound_Cap);
+    const SkPath rim = skpathutils::FillPathWithPaint(m_path, stroke);
+    SkPath grown;
+    if (!Op(m_path, rim, SkPathOp::kUnion_SkPathOp, &grown)) {
+      m_dilated = m_contours;
+      m_dilatedEvenOdd = m_evenOdd;
+      return m_dilated;
+    }
+    m_dilatedEvenOdd = grown.getFillType() == SkPathFillType::kEvenOdd;
+    flattenInto(grown, m_dilated);
+    return m_dilated;
+  }
+
   SkPath m_path;
   std::vector<std::vector<glm::vec2>> m_contours;
+  std::vector<std::vector<glm::vec2>> m_dilated;
   SkRect m_bounds = SkRect::MakeEmpty();
   bool m_evenOdd = false;
-  DilatedCoverage m_dilated;
+  bool m_dilatedEvenOdd = false;
+  float m_dilatedMargin = -1;
 };
 
 class CoverageSilhouette final : public Silhouette {
@@ -586,7 +639,7 @@ bool ExclusionFlow::lineIntervals(const LineRequest& request,
   }
 
   for (const auto& [spanStart, spanEnd] : availableSpans) {
-    if (spanEnd - spanStart < m_minIntervalWidth) continue;
+    if (spanEnd - spanStart < m_minimumIntervalWidth) continue;
     LineInterval interval;
     interval.origin =
         columns ? SkPoint{penAxis, spanStart} : SkPoint{spanStart, penAxis};

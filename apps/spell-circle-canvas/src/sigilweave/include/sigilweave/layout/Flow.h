@@ -9,8 +9,9 @@
  * a FlowGeometry. Ready-made geometries below cover the common cases:
  *   - BlockFlow          a single rectangle.
  *   - ExclusionFlow      a rectangle minus moving Silhouettes (a rect, a
- *                        circle, any filled SkPath, an image's own alpha,
- *                        or one a caller writes), in lines or in columns.
+ *                        circle, an ellipse, any filled SkPath, an image's
+ *                        own alpha, or one a caller writes), in lines or in
+ *                        columns.
  *   - VerticalBlockFlow  top-to-bottom CJK columns advancing right to left.
  *   - LineSetFlow        an explicit set of intervals (any origin/direction).
  *   - PathFlow           each SkPath contour becomes a line; glyphs ride the
@@ -232,7 +233,8 @@ class Silhouette {
 /// photograph — where a rebuilt shape re-answers from scratch.
 struct Exclusion {
   std::shared_ptr<Silhouette> shape;
-  float margin = 0;         ///< the standoff, px, as a disc
+  float margin = 0;         ///< the standoff, px, as a disc; never negative,
+                            ///< and a negative one is read as none
   SkPoint offset = {0, 0};  ///< translation applied per layout pass
 };
 
@@ -252,10 +254,13 @@ namespace silhouette {
 [[nodiscard]] std::shared_ptr<Silhouette> ellipse(const SkRect& bounds);
 /** Any filled SkPath — several contours, curves, winding or even-odd fill,
  * so holes and concavities stay available to text. Flattened once and kept.
+ * An inverse fill type is read as its own non-inverse self: a silhouette is
+ * the region the path encloses.
  *
- * With NO margin the answer is read off the flattened outline exactly. With
- * one it is read off the path's own coverage dilated by a disc, which is
- * the only way a diagonal edge stands the text off by what was asked. */
+ * The answer is read off a flattened outline exactly, at any margin: with a
+ * standoff the outline is the path unioned with itself stroked at twice the
+ * margin, round join and round cap, which is what a disc rolled around the
+ * shape sweeps. */
 [[nodiscard]] std::shared_ptr<Silhouette> path(const SkPath& path);
 /** AN IMAGE'S OWN ALPHA, resolved inside `box` in flow coordinates: a pixel
  * is inside where its alpha is greater than `threshold`, a fraction of full
@@ -302,8 +307,8 @@ class ExclusionFlow : public FlowGeometry {
    * `minimumWidth` of pen travel, in px) that would otherwise appear
    * between shapes. Defaults to 8 px.
    */
-  void setMinIntervalWidth(float minimumWidth) {
-    m_minIntervalWidth = minimumWidth;
+  void setMinimumIntervalWidth(float minimumWidth) {
+    m_minimumIntervalWidth = minimumWidth;
   }
 
   using FlowGeometry::lineIntervals;
@@ -315,7 +320,7 @@ class ExclusionFlow : public FlowGeometry {
   SkRect m_bounds;
   FlowAxis m_axis = FlowAxis::kLines;
   std::vector<Exclusion> m_exclusions;
-  float m_minIntervalWidth = 8;
+  float m_minimumIntervalWidth = 8;
 };
 
 /// Vertical-RL block (CJK book layout): each "line" is a top-to-bottom

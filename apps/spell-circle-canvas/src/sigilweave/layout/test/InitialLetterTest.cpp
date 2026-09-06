@@ -169,3 +169,183 @@ TEST(InitialLetter, APathFlowGetsTheNotchAsArcLengthOffItsContour) {
   EXPECT_GT(layout.intervals[0].contourStart, 0.0f);
   EXPECT_TRUE(layout.initial.placed);
 }
+
+TEST(InitialLetter, AnInitialOnALaterBlockOpensThatBlockAndNotTheFirst) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = twoBlocks();
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+  ParagraphLayoutOptions options;
+  ParagraphStyle plain;
+  ParagraphStyle dropped;
+  dropped.initial = {.lines = 2, .margin = 4.0f};
+  options.blocks = {plain, dropped};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.initial.placed);
+  const std::vector<float> lines = baselines(layout);
+  ASSERT_GE(lines.size(), 3u);
+  // The initial belongs to the second block, so it sits on that block's
+  // first baseline and not on the paragraph's.
+  EXPECT_GT(layout.initial.baseline.y(), lines.front() + 1.0f);
+
+  // The runs stay in logical order: the second block's cap never stands
+  // before the first block's words.
+  ASSERT_FALSE(layout.runs.empty());
+  EXPECT_EQ(layout.runs.front().wordIndex, 0u);
+  for (size_t index = 1; index < layout.runs.size(); ++index)
+    EXPECT_LE(layout.runs[index - 1].wordIndex, layout.runs[index].wordIndex)
+        << "run " << index;
+
+  // And it reports the line it is on, which is a line of its own block.
+  int capLine = -1;
+  for (const PositionedRun& run : layout.runs)
+    if (run.origin == layout.initial.baseline) capLine = run.lineIndex;
+  ASSERT_GE(capLine, 1) << "the cap is not on the paragraph's first line";
+}
+
+TEST(InitialLetter, ABlockShorterThanTheSinkKeepsTheNextBlocksLinesClear) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(
+      u8"Ah.\n"
+      u8"The second block runs on for long enough to wrap several times "
+      u8"under the cap the block above it opened with.",
+      16.0f);
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+  ParagraphLayoutOptions options;
+  ParagraphStyle dropped;
+  dropped.initial = {.lines = 3, .margin = 6.0f};
+  options.blocks = {dropped, ParagraphStyle{}};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.initial.placed);
+  EXPECT_EQ(layout.initial.bands, 3);
+  const std::vector<float> starts = lineStarts(layout);
+  ASSERT_GE(starts.size(), 4u);
+  // The block the initial opened has one line; the two bands the cap still
+  // stands in belong to the block after it, and they stand off it exactly
+  // as its own line would have.
+  EXPECT_NEAR(starts[1], layout.initial.notch, 0.5f);
+  EXPECT_NEAR(starts[2], layout.initial.notch, 0.5f);
+  EXPECT_NEAR(starts[3], 0.0f, 0.5f);
+}
+
+TEST(InitialLetter, AGlyphWrapMeasuresTheOutlineAndNotTheAdvanceBox) {
+  FontContext& fonts = sigil::test::fonts();
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+
+  const auto startsUnder = [&](InitialLetter::Wrap wrap) {
+    Paragraph paragraph = makeParagraph(passage(), 14.0f);
+    ParagraphLayoutOptions options;
+    ParagraphStyle style;
+    style.initial = {.lines = 3, .wrap = wrap, .margin = 4.0f};
+    options.blocks = {style};
+    return lineStarts(layoutParagraph(fonts, paragraph, flow, options));
+  };
+
+  const std::vector<float> box = startsUnder(InitialLetter::Wrap::kBox);
+  const std::vector<float> glyph = startsUnder(InitialLetter::Wrap::kGlyph);
+  ASSERT_GE(box.size(), 4u);
+  ASSERT_GE(glyph.size(), 4u);
+  // The ink of a letter stops short of its advance, so a line tucks in
+  // closer under the outline than under the box on every band the initial
+  // covers — and neither cuts the band below it.
+  EXPECT_LT(glyph[1], box[1]);
+  EXPECT_LT(glyph[2], box[2]);
+  EXPECT_NEAR(glyph[3], 0.0f, 0.5f);
+  EXPECT_NEAR(box[3], 0.0f, 0.5f);
+}
+
+TEST(InitialLetter, ANegativeSinkLeavesTheCapOnTheFirstBaseline) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(passage(), 14.0f);
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 3, .sink = -2};
+  options.blocks = {style};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.initial.placed);
+  const std::vector<float> lines = baselines(layout);
+  ASSERT_FALSE(lines.empty());
+  // Nothing sits above the first baseline: a sink is how far DOWN the cap
+  // goes, and the first line is as high as the frame goes.
+  EXPECT_NEAR(layout.initial.baseline.y(), lines.front(), 0.5f);
+  EXPECT_EQ(layout.initial.bands, 1);
+}
+
+TEST(InitialLetter, TheInitialTakesTheGraphemesItAsksForAndNoMoreThanTheWord) {
+  FontContext& fonts = sigil::test::fonts();
+  BlockFlow flow(SkRect::MakeWH(300, 400));
+
+  const auto takenBy = [&](uint32_t graphemes) {
+    Paragraph paragraph = makeParagraph(passage(), 14.0f);
+    ParagraphLayoutOptions options;
+    ParagraphStyle style;
+    style.initial = {.lines = 2, .graphemes = graphemes};
+    options.blocks = {style};
+    return layoutParagraph(fonts, paragraph, flow, options).initial.textEnd;
+  };
+
+  EXPECT_EQ(takenBy(1), 1u);
+  EXPECT_EQ(takenBy(2), 2u);
+  // "Whale" is five letters, and an initial asked for more takes the word
+  // and never the space after it.
+  EXPECT_EQ(takenBy(9), 5u);
+}
+
+TEST(InitialLetter, AResumedPassDoesNotOpenTheInitialAgain) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(passage(), 14.0f);
+  BlockFlow shallow(SkRect::MakeWH(300, 60));
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 2, .margin = 4.0f};
+  options.blocks = {style};
+
+  const ParagraphLayout first =
+      layoutParagraph(fonts, paragraph, shallow, options);
+  ASSERT_TRUE(first.initial.placed);
+  ASSERT_TRUE(first.overflowed());
+
+  // The frame after it resumes the same block, and the initial belongs to
+  // the frame the block began in.
+  const ParagraphLayout resumed = layoutParagraph(
+      fonts, paragraph, shallow, options, first.firstUnplacedWord);
+  EXPECT_FALSE(resumed.initial.placed);
+  const std::vector<float> starts = lineStarts(resumed);
+  ASSERT_FALSE(starts.empty());
+  EXPECT_NEAR(starts.front(), 0.0f, 0.5f) << "no notch is cut a second time";
+}
+
+TEST(InitialLetter, AColumnsInitialStandsUprightAtTheHeadOfItsColumn) {
+  FontContext& fonts = sigil::test::fonts();
+  Paragraph paragraph = makeParagraph(passage(), 14.0f);
+  paragraph.setWritingMode(WritingMode::kVerticalRL);
+  ExclusionFlow flow(SkRect::MakeWH(300, 400), FlowAxis::kColumns);
+  ParagraphLayoutOptions options;
+  ParagraphStyle style;
+  style.initial = {.lines = 2, .margin = 4.0f};
+  options.blocks = {style};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+
+  ASSERT_TRUE(layout.initial.placed);
+  // The cap is set down the column, like everything around it, so its top
+  // is the column's head and its box runs down the column and not across
+  // the page.
+  const PositionedRun* cap = nullptr;
+  for (const PositionedRun& run : layout.runs)
+    if (run.origin == layout.initial.baseline) cap = &run;
+  ASSERT_NE(cap, nullptr);
+  ASSERT_NE(cap->shaped, nullptr);
+  EXPECT_TRUE(cap->shaped->vertical);
+  EXPECT_NEAR(layout.initial.box.top(), flow.bounds().top(), 1.0f);
+  EXPECT_NEAR(layout.initial.box.height(), cap->shaped->advance, 0.5f);
+  EXPECT_NEAR(layout.initial.box.width(), layout.initial.fontSize, 0.5f);
+  // The notch a column loses is that same pen travel, plus the standoff.
+  EXPECT_NEAR(layout.initial.notch, cap->shaped->advance + 4.0f, 0.5f);
+}

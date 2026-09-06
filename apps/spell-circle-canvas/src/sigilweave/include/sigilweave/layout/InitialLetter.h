@@ -11,8 +11,14 @@
  * exist only where the block's pitch and the cap face's own metrics are, so
  * they are answered here rather than guessed by a caller. Declare one on
  * ParagraphStyle::initial; the layout sizes it, cuts the notch out of the
- * bands it covers, shapes its glyphs, and reports where it put them in
- * ParagraphLayout::initial.
+ * bands it covers — the bands of the block after it too, when its own
+ * block has fewer lines than it sinks — shapes its glyphs, and reports
+ * where it put them in ParagraphLayout::initial.
+ *
+ * A COLUMN'S INITIAL is set down the column, like the text around it: the
+ * cap hangs from the head of the column it opens, the notch it cuts is its
+ * own vertical advance, and it sinks across the columns rather than down
+ * them.
  */
 
 #include <include/core/SkPoint.h>
@@ -56,10 +62,11 @@ struct InitialLetter {
   /// Fractional sizes are legal — 2.5 is two and a half lines of cap.
   float lines = 0;
   /// How many lines BELOW THE FIRST BASELINE the initial's own baseline
-  /// sits: 1 puts it on the second line's baseline, 0 leaves it on the
-  /// first (a raised initial), and a negative number lifts it above the
-  /// first. Unset drops it by `lines` rounded down less one, which lands
-  /// the baseline on the last line the initial spans — the dropped cap.
+  /// sits: 1 puts it on the second line's baseline and 0 leaves it on the
+  /// first, which is a raised initial and as high as one goes — a negative
+  /// sink is read as none. Unset drops it by `lines` rounded down less
+  /// one, which lands the baseline on the last line the initial spans —
+  /// the dropped cap.
   std::optional<int> sink;
   /// How many GRAPHEME CLUSTERS of the block's opening the initial takes.
   /// A cluster is what a reader calls a letter, so an accented capital and
@@ -106,7 +113,9 @@ struct PlacedInitial {
                                      ///< excluded, in flow coordinates
   SkPoint baseline = {0, 0};         ///< where the initial's pen sat
   float fontSize = 0;                ///< the size the rule derived
-  int bands = 0;                     ///< how many bands the notch cut
+  int bands = 0;    ///< how many bands the notch cut, which runs on into
+                    ///< the block after this one when this one is shorter
+                    ///< than the initial sinks
   float notch = 0;  ///< pen travel the notch took on those bands
   /// One past the last UTF-16 unit of the text the initial took.
   uint32_t textEnd = 0;

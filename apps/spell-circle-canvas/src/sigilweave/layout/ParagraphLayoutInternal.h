@@ -420,6 +420,9 @@ struct InitialLetterPlan {
   float fontSize = 0;   // the size the rule derived
   float capSpan = 0;    // the reference metric that size was derived from
   float sinkOffset = 0;     // px from the first baseline to the initial's own
+  float pitch = 0;          // the initial's own block's band depth
+  float ascent = 0;         // and its ascent, for the band it is seated on
+  bool vertical = false;    // shaped down a column rather than along a line
   ShapedWordRef glyphs;     // the initial itself
   ShapedWordRef remainder;  // what is left of the word it split
   uint32_t styleIndex = 0;
@@ -463,19 +466,36 @@ class InitialLetterGeometry final : public FlowGeometry {
   [[nodiscard]] bool seated() const { return m_seated; }
   /** That band as the inner geometry gave it, notch not yet taken. */
   [[nodiscard]] const LineInterval& seat() const { return m_seat; }
+  /** Whether the split word's remainder has a seat of its own. */
+  [[nodiscard]] bool tailSeated() const { return m_tailSeated; }
+  /** Where the notch ended on the first band — which is not the head of
+   *  that band plus the notch when an exclusion stood in the way and the
+   *  cut ran on into the next interval. */
+  [[nodiscard]] const LineInterval& tailSeat() const { return m_tailSeat; }
 
  private:
+  /** Takes @p travel off the head of the band, interval by interval. */
+  static void cutFromHead(std::vector<LineInterval>& intervals, float travel);
+
   FlowGeometry& m_inner;
   const InitialLetterPlan& m_plan;
   LineInterval m_seat;
+  LineInterval m_tailSeat;
+  // Where the initial's own band began, measured the way the bands stack,
+  // so a band of a LATER block is still known to be under the initial.
+  float m_seatBandStart = 0;
   bool m_seated = false;
+  bool m_tailSeated = false;
+  // A seat that runs in no axis direction has no upright cap to stand in
+  // the notch, so nothing is cut and the block opens whole.
+  bool m_inert = false;
 };
 
 // Places the initial's glyphs, and the remainder of the word it split, as
 // runs of `layout`, and fills in ParagraphLayout::initial.
 void placeInitialLetter(const InitialLetterPlan& plan,
                         const InitialLetterGeometry& geometry,
-                        const Paragraph& paragraph, ParagraphLayout& layout);
+                        ParagraphLayout& layout);
 
 }  // namespace detail
 }  // namespace sigil::weave

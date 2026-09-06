@@ -16,7 +16,7 @@
  * ParagraphLayoutOptions::blocks lists them in block order. Every field is
  * defaulted and every nested group is inert unless its stage runs. Settings
  * that belong to the geometry stay on the geometry
- * (ExclusionFlow::setMinIntervalWidth, for instance).
+ * (ExclusionFlow::setMinimumIntervalWidth, for instance).
  */
 
 #include <cstdint>

@@ -68,7 +68,7 @@ void sceneShapes(FontContext& fontContext,
   flow.exclusions().push_back({silhouette::path(starPath), 10});
   flow.exclusions().push_back({silhouette::path(heartPath), 10});
   flow.exclusions().push_back({silhouette::path(donutPath), 8});
-  flow.setMinIntervalWidth(46);
+  flow.setMinimumIntervalWidth(46);
 
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;

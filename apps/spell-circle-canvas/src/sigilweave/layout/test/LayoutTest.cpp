@@ -131,7 +131,7 @@ TEST(ParagraphLayout, ExclusionShapeSplitsText) {
   ExclusionFlow flow(SkRect::MakeWH(400, 300));
   flow.exclusions().push_back(
       {silhouette::circle(SkRect::MakeXYWH(140, 40, 120, 120)), 6});
-  flow.setMinIntervalWidth(40);
+  flow.setMinimumIntervalWidth(40);
   ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
 
   // Some line must have runs both left and right of the circle.

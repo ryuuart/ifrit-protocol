@@ -1771,7 +1771,20 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
   float lastMeasure = 0;
   for (size_t blockIndex = 0; blockIndex < blocks.size(); ++blockIndex) {
     const Block& block = blocks[blockIndex];
-    if (block.firstWord >= block.endWord) continue;
+    if (block.firstWord >= block.endWord) {
+      // A block whose whole opening the initial took sets no line of its
+      // own. Its band is still asked for, here where the fill has reached
+      // it, so the initial stands where its block begins rather than at
+      // the head of the frame.
+      if (initialGeometry && !initialGeometry->seated() &&
+          block.index == initialPlan.blockIndex) {
+        intervalSequence.openBlock(block.index, block.pitch, block.ascent,
+                                   block.lead, block.gridStep,
+                                   block.style.indent);
+        intervalSequence.intervalAt(nextInterval);
+      }
+      continue;
+    }
     // A block that must start a frame ends one it did not start: the fill
     // stops here and the block arrives at the head of the next.
     if (block.style.keep.startInNextFrame && !result.runs.empty()) {
@@ -1886,11 +1899,11 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
     if (!initialGeometry->seated()) {
       static thread_local std::vector<LineInterval> seatScratch;
       initialGeometry->lineIntervals(
-          LineRequest{0, firstBand, blocks.front().pitch, blocks.front().ascent,
+          LineRequest{0, firstBand, initialPlan.pitch, initialPlan.ascent,
                       initialPlan.blockIndex, 0},
           seatScratch);
     }
-    placeInitialLetter(initialPlan, *initialGeometry, paragraph, result);
+    placeInitialLetter(initialPlan, *initialGeometry, result);
   }
   recordGeometry(result);
   distributeInFrame(options.frame, intervalSequence.bandCursor() - depthFreed,

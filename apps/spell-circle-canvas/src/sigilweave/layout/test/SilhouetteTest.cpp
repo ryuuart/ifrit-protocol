@@ -141,3 +141,75 @@ TEST(Silhouette, AMovingShapeIsAnsweredWhereItStandsThisPass) {
   flow.exclusions()[0].offset = {-30, 0};
   EXPECT_NEAR(freeEndAt(flow, 25, 4), atRest - 30.0f, 0.5f);
 }
+
+TEST(Silhouette, ACirclesMarginIsExactHoweverLargeTheCircleIs) {
+  // A circle answered as a path, against the same circle answered
+  // analytically. The path answer is the union of the fill with its own
+  // outline stroked at twice the margin, so it is exact at any size; an
+  // answer measured off a raster is quantised by whatever pixel the
+  // raster could afford, which on a shape this large is several units.
+  constexpr float kFrame = 6000;
+  constexpr float kRadius = 2400;
+  constexpr float kMargin = 60;
+  const SkPoint centre{kFrame * 0.5f, kFrame * 0.5f};
+
+  SkPathBuilder round;
+  round.addCircle(centre.x(), centre.y(), kRadius);
+
+  ExclusionFlow exact(SkRect::MakeWH(kFrame, kFrame));
+  exact.exclusions().push_back({silhouette::circle(SkRect::MakeXYWH(
+                                    centre.x() - kRadius, centre.y() - kRadius,
+                                    kRadius * 2, kRadius * 2)),
+                                kMargin});
+  ExclusionFlow drawn(SkRect::MakeWH(kFrame, kFrame));
+  drawn.exclusions().push_back({silhouette::path(round.detach()), kMargin});
+
+  constexpr float kPitch = 40;
+  for (int band = 40; band < 110; band += 10) {
+    const float wanted = freeEndAt(exact, band, kPitch);
+    const float given = freeEndAt(drawn, band, kPitch);
+    ASSERT_GT(wanted, 0) << "band " << band;
+    EXPECT_NEAR(given, wanted, 2.0f) << "band " << band;
+  }
+}
+
+TEST(Silhouette, AnOvalGrowsByTheMarginOnBothOfItsAxes) {
+  // A disc offset of an oval is not an oval: scaling the two axes until
+  // the long one has grown by the margin grows the short one by less.
+  // Both have to grow by exactly the margin.
+  constexpr float kMargin = 25;
+  const SkRect oval = SkRect::MakeXYWH(100, 200, 400, 100);
+  ExclusionFlow flow(SkRect::MakeWH(800, 600));
+  flow.exclusions().push_back({silhouette::ellipse(oval), kMargin});
+
+  std::vector<LineInterval> out;
+  // The band through the oval's middle: the free room ahead of it is the
+  // long axis grown by the whole margin.
+  ASSERT_TRUE(flow.lineIntervals(50, 5, 4, out));  // band [250, 255]
+  ASSERT_FALSE(out.empty());
+  EXPECT_NEAR(out.front().length, oval.left() - kMargin, 1.0f);
+
+  // And the bands above it: occupied until the margin above the top of
+  // the oval has run out, and clear beyond it.
+  const auto takesFromTheBand = [&](float bandStart) {
+    if (!flow.lineIntervals((int)(bandStart / 2.0f), 2, 1, out)) return false;
+    float free = 0;
+    for (const LineInterval& interval : out) free += interval.length;
+    return free < 800.0f - 1.0f;
+  };
+  EXPECT_TRUE(takesFromTheBand(oval.top() - kMargin + 4));
+  EXPECT_FALSE(takesFromTheBand(oval.top() - kMargin - 6));
+}
+
+TEST(Silhouette, ARectanglesFlatSideStandsOffByExactlyTheMargin) {
+  constexpr float kMargin = 18;
+  const SkRect block = SkRect::MakeXYWH(240, 100, 80, 120);
+  ExclusionFlow flow(SkRect::MakeWH(kSide, kSide));
+  flow.exclusions().push_back({silhouette::rectangle(block), kMargin});
+
+  std::vector<LineInterval> out;
+  ASSERT_TRUE(flow.lineIntervals(30, 5, 4, out));  // band [150, 155]
+  ASSERT_EQ(out.size(), 2u);
+  EXPECT_FLOAT_EQ(out.front().length, block.left() - kMargin);
+  EXPECT_FLOAT_EQ(out.back().origin.x(), block.right() + kMargin);
+}

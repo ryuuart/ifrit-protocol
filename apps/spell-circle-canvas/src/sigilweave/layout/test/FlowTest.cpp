@@ -5,6 +5,9 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkBitmap.h>
+#include <include/core/SkImage.h>
+#include <include/core/SkImageInfo.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <cmath>
@@ -356,4 +359,46 @@ TEST(Flow, ASilhouetteSplitsAColumn) {
   ASSERT_TRUE(flow.lineIntervals(0, 20, 0, out));
   ASSERT_EQ(out.size(), 1u);
   EXPECT_FLOAT_EQ(out[0].length, 400);
+}
+
+TEST(Flow, AnExclusionWiderThanTheFrameLeavesTheBandWithNothing) {
+  // The band is handed out — the flow has not run out of room — and every
+  // interval on it is gone, which is a different answer from "no band".
+  ExclusionFlow flow(SkRect::MakeWH(300, 200));
+  flow.exclusions().push_back(
+      {silhouette::rectangle(SkRect::MakeXYWH(-500, 40, 1300, 40)), 10});
+
+  std::vector<LineInterval> out;
+  ASSERT_TRUE(flow.lineIntervals(2, 20, 15, out));  // band [40, 60]
+  EXPECT_TRUE(out.empty());
+  // And the band above it, past the margin, is whole.
+  ASSERT_TRUE(flow.lineIntervals(0, 20, 15, out));
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_FLOAT_EQ(out[0].length, 300);
+}
+
+TEST(Flow, AnImagesAlphaIsReadTheColumnsWayToo) {
+  // The same picture, the same silhouette, a quarter turn: an image's
+  // coverage answers a column exactly as it answers a line.
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(20, 20));
+  for (int y = 0; y < 20; ++y)
+    for (int x = 0; x < 20; ++x)
+      *bitmap.getAddr32(x, y) = y < 10 ? 0xff000000u : 0u;
+  bitmap.setImmutable();
+  const sk_sp<SkImage> half = SkImages::RasterFromBitmap(bitmap);
+  ASSERT_TRUE(half);
+
+  // Ink over the top half of a 200-tall box, read as columns: every
+  // column starts below it.
+  ExclusionFlow columns(SkRect::MakeWH(200, 400), FlowAxis::kColumns);
+  columns.exclusions().push_back(
+      {silhouette::coverage(half, SkRect::MakeXYWH(0, 0, 200, 200), 0.5f)});
+
+  std::vector<LineInterval> out;
+  ASSERT_TRUE(columns.lineIntervals(2, 20, 0, out));
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_FLOAT_EQ(out[0].direction.y(), 1);
+  EXPECT_NEAR(out[0].origin.y(), 100.0f, 2.0f) << "the ink ends halfway down";
+  EXPECT_NEAR(out[0].length, 300.0f, 2.0f);
 }
