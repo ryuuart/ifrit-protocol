@@ -7,7 +7,7 @@ file when it is empty.
 
 The queue is in two parts. The first is the merge-readiness review of
 branch `sigil/library-campaigns` against `main` (merge base
-`aabd3fe1b224`): six read-only passes, one per library group, whose full
+`aabd3fe1b224`): nine read-only passes over the library groups, whose full
 reports with every nit and every line number are the files under
 `findings/`. What is listed here is every blocker and should-fix from
 those reports, condensed, so that a fix pass can work from this file and
@@ -39,9 +39,51 @@ Taken on a fresh build directory (the old tree removed, `sigil.py setup
   bench and app-FPS ledgers (both baselines still want an idle-machine
   retake), the sanitizer lanes, a manual Sketchbook launch.
 
-Not yet reviewed: `src/common/compose`, `src/common/skia`,
-`src/common/scry`, whose pass is still running; its report is appended
-when it lands.
+Every library group has a report; SigilMaterial's and the two geometry
+sub-passes arrived as delegated passes and are listed with the rest.
+
+## SigilCompose, SigilSkia, SigilScry (findings/review-compose.md)
+
+Blockers:
+
+- `src/common/skia/graphite/TextureImageMetal.mm:39,68` — on a failed
+  `WrapTexture` the code releases the retained `MTLTexture` itself, but
+  Skia builds its release callback before validating and runs it on
+  every null return, so the texture is released twice; `refuse()` after
+  `TextureFromYUVATextures` runs the caller's release a second time the
+  same way. Delete line 39; return the image at 68. Assert: a refused
+  wrap leaves the texture's retain count where it was.
+- `src/common/compose/include/sigilcompose/kit/Grid.h:383-389` — the
+  flow search `for (;; ++at)` never exits when an undeclared child's
+  span is wider than the column count; layout hangs. Clamp the span to
+  the columns. Assert: a five-wide child in a three-column grid lays out.
+- `src/common/compose/brush/Brushes.cpp:121-123,252-255,265-268` — three
+  `PaintContext` aggregate initialisers supply 7 of 10 members, so every
+  brush nested in `Weave`, `Brush` or `Restyled` loses `stamps` (and
+  re-rasterises each frame), `toRoot` and `rootSize`. Copy the context
+  and override the outline.
+
+Should-fix (correctness): `compose/typography/TextAnnotations.cpp:61-84`
+readings indexed by the per-line unit list, so a base broken across a
+line takes the next reading; `typography/TextFxPainting.cpp:301-304` the
+fx selection cache keyed on width alone while layout keys on width and
+height; `skia/draw/Direct.h:43,54` with `compose/core/Instances.cpp:131`
+promoted textures keyed on a bare `SkImage*` that a re-baked sheet can
+reuse; `core/Derive.cpp:239-246` the thread guard compares the raw
+measure but stores the sanitised one, so Yoga's NaN moves every round
+until the budget is spent; `core/Coverage.cpp:72,167` a legal
+`threshold(0)` traces the whole box; `scry/engine/CMakeLists.txt:56`
+`SUITES SlotFillingTest` cannot match the instantiated
+`SlotDoors/SlotFillingTest`, so those cases lose the `gpu` label and fail
+on a device-less machine.
+
+The remaining 78 should-fix items and 96 nits are in the report by
+category. Two beyond the top ten bear on the merge: the README's compile
+guard (`test/docs/api_doc_probes.py:83-88`) probes only qualified names,
+which is why `compose/README.md:437` names `mul`/`lift` (which do not
+exist), `:1397` names `scripts/setup.py`, and `:1133`/`:1464` name two
+ledger scripts that do not exist; and `Composer::Impl::paint` is one
+1380-line function (`core/StackingPainter.cpp:1200-2580`).
 
 ## Sketch framework (findings/review-sketch-framework.md)
 
