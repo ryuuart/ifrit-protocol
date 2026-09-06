@@ -59,8 +59,8 @@ advancing right to left from the bounds' right edge, and reads every
 silhouette's extent DOWN the column instead of across the line. A column is
 a line turned a quarter turn — a shape shortens one, or splits it in two,
 exactly as it shortens or splits the other — so the band scan, the fill
-rule, the distance field and the sliver threshold are one implementation
-read through two coordinates. Pair `kColumns` with
+rule, the disc offset and the sliver threshold are one implementation read
+through two coordinates. Pair `kColumns` with
 `Paragraph::setWritingMode(WritingMode::kVerticalRL)`, exactly as
 `VerticalBlockFlow` is paired.
 
@@ -365,7 +365,9 @@ the one thing every geometry answers in, so a block minus exclusions, a
 column and a line riding a contour all wrap an initial with nothing written
 for any of them; `InitialLetter::Wrap` says whether that notch is the
 initial's advance box or the outline of its own glyphs, so a line can tuck
-under the diagonal of an A. The initial's glyphs are ordinary runs of the
+under the diagonal of an A. A block with fewer lines than the initial
+sinks hands the rest of the cut to the block after it, and a column's
+initial is set down the column and hangs from its head. The initial's glyphs are ordinary runs of the
 layout and draw with everything else — `ParagraphLayout::initial` is the
 report a caller rules a page against, not a second thing to draw. One
 initial per layout pass: a block a frame before this one already opened is
@@ -922,7 +924,8 @@ straight horizontal left-to-right intervals.
 **Geometry is re-queried on every layout pass and never cached between
 passes**, so an implementation may depend freely on animated state. For
 exclusion flows, animate through `Exclusion::offset`: a silhouette caches
-what answering costs it — a flattening, a raster, a distance field — and
+what answering costs it — a flattening, a grown outline, a distance field
+— and
 rigid motion reuses all of it, while a rebuilt shape (a morphing `SkPath`,
 a new video frame) re-measures from scratch.
 

@@ -197,8 +197,12 @@ tests it asks for.
 
 ## SigilWeave and SigilDraw (findings/review-weave-draw.md)
 
-Should-fix:
-
+Every blocker, should-fix and nit of this group is fixed except three,
+which are decisions rather than defects and are named in the fix pass's
+report: merging `Selector::Kind::Words` into `Word` (the switch that reads
+it is SigilCompose's), choosing one spelling of `Unit` against `unit::`,
+and lifting the Knuth-Plass prefix tables out of the DP function (the
+lambdas over them are stated to inline).
 
 ## SigilCore, SigilData, SigilMeasure, SigilMotion, SigilIO, SigilVideo, the product, the build (findings/review-core-io-build.md)
 

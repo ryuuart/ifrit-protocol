@@ -147,11 +147,16 @@ which is the answer for a photograph, a video frame or a rendered node.
 
 **The margin is a disc.** It asks for the set of points within that
 distance of the shape, which is what makes a diagonal edge stand the text
-off by exactly the margin and a corner come out round. A silhouette that
-cannot answer that analytically measures an exact Euclidean distance
-field over its own coverage and reads the answer off it —
-`image::distanceField`, in SigilImage, because a distance transform is a
-question about pixels and belongs where image meaning lives.
+off by exactly the margin and a corner come out round. A rectangle and a
+circle answer it in closed form; a path answers it exactly through Skia's
+path ops, as the union of its fill with its own outline stroked at twice
+the margin, round join and round cap — which is what a disc rolled around
+the shape sweeps — and the band scan then reads that outline as it reads
+any other. Coverage is the one silhouette with no outline to grow, so it
+measures an exact Euclidean distance field over its pixels and reads the
+answer off that — `image::distanceField`, in SigilImage, because a
+distance transform is a question about pixels and belongs where image
+meaning lives.
 
 **Motion is the offset.** `Exclusion::offset` is rigid motion: the band
 arrives moved back by it and the spans come out moved forward by it, so
@@ -177,11 +182,14 @@ geometry answers in. So a block minus exclusions, a column and a line
 riding a contour all wrap an initial with nothing written for any of
 them. `InitialLetter::wrap` reads the notch off the letter's own contours
 instead of its box, so a line tucks under the diagonal of an A;
-`InitialLetter::sink` drops the baseline further, or lifts it above the
-first line; `InitialLetter::align` picks the reference metric — the cap
-height, the em box, or the ascent a script hangs from. The initial's
-glyphs are runs of the layout and draw with the rest;
-`ParagraphLayout::initial` reports where they landed.
+`InitialLetter::sink` drops the baseline further, and 0 is as high as it
+goes; `InitialLetter::align` picks the reference metric — the cap
+height, the em box, or the ascent a script hangs from. A block with fewer lines
+than the initial sinks hands the rest of the cut to the block after it,
+so nothing runs under the cap; a column's initial is set down the column
+and hangs from its head. The initial's glyphs are runs of the layout and
+draw with the rest; `ParagraphLayout::initial` reports where they
+landed.
 
 ## The seams
 
