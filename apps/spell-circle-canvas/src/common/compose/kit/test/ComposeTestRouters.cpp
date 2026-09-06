@@ -1,6 +1,9 @@
 // The routers: how a derived route gets from one node to another, and
 // which layout scheme a router's own bends belong to.
 
+#include <include/core/SkPathBuilder.h>
+#include <sigilcompose/brush/Decorations.h>
+
 #include "support/ShapeTestSupport.h"
 
 TEST(ComposeRouters, OrbitFollowsTheRing) {
@@ -17,6 +20,84 @@ TEST(ComposeRouters, OrbitFollowsTheRing) {
   SkPoint mid;
   ASSERT_TRUE(contour->getPosTan(contour->length() / 2, &mid, nullptr));
   EXPECT_NEAR(SkPoint::Distance(mid, center), 100.0f, 1.5f);
+}
+
+TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
+  // A router is a VALUE: two describes that mint the same stock router
+  // are the same description, so the connector prunes and replays the
+  // recording it already made. Minted afresh each describe on purpose —
+  // that is the shape every author writes, and the shape a callable
+  // could never settle from.
+  const auto page = [] {
+    return box()
+        .width(300)
+        .height(200)
+        .child(box().key("a").absolute().left(Dim(10.0f)).top(Dim(10.0f))
+                   .width(20).height(20).fill(red()))
+        .child(box().key("b").absolute().left(Dim(200.0f)).top(Dim(150.0f))
+                   .width(20).height(20).fill(blue()))
+        .child(connector("a", "b", routers::orthogonal(routers::Bend::VFirst,
+                                                       6.0f))
+                   .key("wire")
+                   .absolute()
+                   .inset(0)
+                   .foreground(PathFormat{.width = 2,
+                                          .strokeFill = green()}));
+  };
+  Host host;
+  host.composer.render(page());
+  host.frame();
+  const unsigned recorded = host.composer.stats().picturesRecorded;
+  EXPECT_GE(recorded, 1u);  // the first describe drew it
+  host.composer.render(page());
+  host.frame();
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
+      << "an unchanged router re-patched the connector";
+  EXPECT_EQ(host.composer.stats().picturesRecorded, 0u)
+      << "an unchanged router re-recorded the route";
+  // …and a router with different parameters is a different description.
+  host.composer.render(
+      box()
+          .width(300)
+          .height(200)
+          .child(box().key("a").absolute().left(Dim(10.0f)).top(Dim(10.0f))
+                     .width(20).height(20).fill(red()))
+          .child(box().key("b").absolute().left(Dim(200.0f)).top(Dim(150.0f))
+                     .width(20).height(20).fill(blue()))
+          .child(connector("a", "b", routers::orthogonal(routers::Bend::VFirst,
+                                                         18.0f))
+                     .key("wire")
+                     .absolute()
+                     .inset(0)
+                     .foreground(PathFormat{.width = 2,
+                                            .strokeFill = green()})));
+  host.frame();
+  EXPECT_GE(host.composer.stats().patchedNodes, 1u)
+      << "a router with a different radius pruned";
+}
+
+TEST(ComposeRouters, ARawRouteCallableNeverSettles) {
+  // The escape hatch, stated as a test so the difference is visible: a
+  // lambda re-minted each describe compares equal to nothing.
+  Router held = [](const SkRect& from, const SkRect& to) {
+    SkPathBuilder b;
+    b.moveTo(from.centerX(), from.centerY());
+    b.lineTo(to.centerX(), to.centerY());
+    return b.detach();
+  };
+  EXPECT_FALSE(held.comparable());
+  EXPECT_EQ(held, held);  // copies of ONE value share state
+  EXPECT_TRUE(routers::straight().comparable());
+  EXPECT_EQ(routers::straight(), routers::straight());
+  EXPECT_NE(routers::arc(0.2f), routers::arc(0.3f));
+  EXPECT_NE(routers::straight(), routers::arc(0.2f));
+  EXPECT_EQ(routers::octilinear(8), routers::octilinear(8));
+  EXPECT_NE(routers::octilinear(8), routers::polyline(8));
+  EXPECT_EQ(routers::fromPairwise(routers::arc(0.2f)),
+            routers::fromPairwise(routers::arc(0.2f)));
+  EXPECT_NE(routers::fromPairwise(routers::arc(0.2f)),
+            routers::fromPairwise(routers::arc(0.4f)));
+  EXPECT_EQ(RailRouter{}, RailRouter{});  // the default: rail()'s polyline
 }
 
 TEST(ComposeLayouts, AbsoluteDiagonalAutoSizes) {

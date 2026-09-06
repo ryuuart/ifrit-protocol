@@ -3,10 +3,15 @@
 /** @file
  * The connector routers — Router values for connector().
  *
- * A Router is a plain function of the two endpoint rects returning the
- * routed path, and a RailRouter the same over an ordered run of anchor
- * points. There is no enum of route kinds: these are the stock values, and
- * a caller's own function is a peer of them.
+ * A Router answers the routed path between two endpoint rects, and a
+ * RailRouter the same over an ordered run of anchor points. There is no
+ * enum of route kinds: these are the stock values, and a caller's own
+ * value — or its own callable — is a peer of them.
+ *
+ * Every value here is COMPARABLE: two routers built from the same
+ * parameters compare equal, so a re-described connector or rail prunes
+ * and keeps the recording it already made. A raw callable handed to
+ * `connector()` or `rail()` is the escape hatch and never prunes.
  *
  * The routed path arrives as the connector's `PaintContext::outline`, so
  * any PathFormat or ContourWalk foreground dresses it.

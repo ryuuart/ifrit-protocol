@@ -576,7 +576,14 @@ reproducing a published table can print what it resolved and diff it
 against what the original measured — numbers no placed rect carries,
 since a column nothing fills leaves no trace in the rects at all. `kit/Routers.h` holds the stock connector and
 rail routers (`routers::straight`, `orthogonal`, `polyline`,
-`octilinear`, `orbit`).
+`octilinear`, `orbit`). Every one of them is a comparable VALUE, the
+same seam a `Shape` rides: `Router` and `RailRouter` hold either a
+scheme — a value with `route(...)` and `==`, which is what each stock
+factory answers — or a raw callable. Two routers built from the same
+parameters are equal, so a connector or rail re-described with an
+unchanged route prunes and replays the recording it already made; a
+raw callable compares equal to nothing but its own copies and
+re-patches every describe, which is what the escape hatch costs.
 
 Neither the schemes nor the pool fillers of `kit/Placers.h` derive a ring
 or a grid for themselves. Where item i of n falls on a ring, and which

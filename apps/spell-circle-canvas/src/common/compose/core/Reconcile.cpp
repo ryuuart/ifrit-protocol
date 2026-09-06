@@ -20,8 +20,8 @@
  *
  * The conservative rule that makes this tractable: anything holding a
  * callable the library cannot compare (custom programs, raw outline
- * lambdas, routers, custom layouts) compares UNEQUAL and never prunes.
- * Memoization is the tool for those.
+ * lambdas, raw route lambdas, custom layouts) compares UNEQUAL and never
+ * prunes. Memoization is the tool for those.
  */
 
 #include <sigilcore/reconcile/Reads.h>
@@ -95,7 +95,7 @@ void applyDim(YGNodeRef node, const Dim& d, void (*setPx)(YGNodeRef, float),
 
 // ---- structural equality ---------------------------------------------------
 // Equal only when provably identical. Anything carrying a callable the
-// library cannot compare (custom programs, decorations, outlines, routers,
+// library cannot compare (custom programs, decorations, outlines, routes,
 // custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
 
@@ -216,13 +216,14 @@ static_assert(kFieldCount<DeriveData> == 16,
 bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
-  // Incomparable callables → conservative inequality. A band's authored
-  // SPINE rides the Shape seam instead (same rule as shapeFn): comparable
-  // generators prune, raw callables stay conservative. A band borrowed by
-  // key was always a comparable value.
-  if (a->placeFn || b->placeFn || a->router || b->router || a->railRouter ||
-      b->railRouter)
-    return false;
+  // Incomparable callables → conservative inequality. Custom layout is
+  // the one left: a band's authored SPINE rides the Shape seam and both
+  // ROUTERS ride seams of their own (same rule as shapeFn), so a
+  // comparable value prunes and only a raw callable stays conservative.
+  // A band borrowed by key was always a comparable value.
+  if (a->placeFn || b->placeFn) return false;
+  if (!(a->router == b->router)) return false;
+  if (!(a->railRouter == b->railRouter)) return false;
   if (!(a->bandSpine == b->bandSpine)) return false;
   if (a->bandWidth.has_value() != b->bandWidth.has_value()) return false;
   if (a->bandWidth && !(*a->bandWidth == *b->bandWidth)) return false;

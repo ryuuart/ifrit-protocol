@@ -13,6 +13,9 @@
 // names the documents also use, and the probe's candidate set spans every
 // type of a given name.
 #include <sigilgeometry/path/blend/Blend.h>
+// …and the scatter header for the same reason again: `path::Spread` shares
+// its simple name with `motion::Spread`, which the type chapter documents.
+#include <sigilgeometry/path/Scatter.h>
 // …and the one SigilCore header in the same position: a derivation
 // declares what it reads in core's vocabulary, and the declaration is
 // carried on a block only the library's own translation units see.

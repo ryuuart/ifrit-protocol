@@ -23,10 +23,14 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 
+#include <any>
+#include <concepts>
 #include <functional>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace sigil::compose {
@@ -44,7 +48,104 @@ namespace sigil::compose {
  *  be much larger than its visible shape — under `sdf::` chrome, for
  *  instance — so the gap is how a wire stops at the glow instead of
  *  piercing it. */
-using Router = std::function<SkPath(const SkRect& from, const SkRect& to)>;
+/** A route scheme: `SkPath route(const SkRect& from, const SkRect& to)
+ *  const`, plus equality — the same seam-value convention a `Shape`
+ *  takes, and for the same reason. A routed node can only prune if the
+ *  reconciler can prove the route is the same one, so a router is a
+ *  VALUE whose equality is its parameters (the rails it bends at, the
+ *  radii, the phases) and never a callable's identity. A scheme's
+ *  equality is a contract on the author: equal values must route
+ *  identical paths between every pair of rects. */
+template <typename R>
+concept RouteScheme =
+    std::equality_comparable<R> &&
+    requires(const R& r, const SkRect& from, const SkRect& to) {
+      { r.route(from, to) } -> std::convertible_to<SkPath>;
+    };
+
+/** THE ROUTE BETWEEN TWO RECTS, type-erased: what `connector()` holds.
+ *
+ *  Two constructions, one value:
+ *
+ *  - a COMPARABLE scheme (any `routers::` value, or your own value with
+ *    `route(from, to)` + `==`) — the node prunes while the value and the
+ *    rects are unchanged;
+ *  - a raw callable (`[](const SkRect&, const SkRect&) -> SkPath`) — the
+ *    escape hatch. It never compares equal to a separately-constructed
+ *    Router, so the node re-patches on every describe and can never
+ *    prune. Copies of ONE Router do compare equal (they share state), so
+ *    holding the Router and re-using it — rather than re-minting the
+ *    lambda each describe — restores pruning.
+ *
+ *  Held as one shared immutable pointer, so a node carrying a router
+ *  costs a pointer and a copy-on-write node copy is a refcount bump. */
+class Router {
+ public:
+  Router() = default;
+
+  template <RouteScheme R>
+    requires(!std::same_as<std::remove_cvref_t<R>, Router>)
+  Router(R scheme) {  // NOLINT: implicit by design (connector(a, b, arc()))
+    State state;
+    state.held = scheme;
+    state.equals = [](const std::any& a, const std::any& b) {
+      return std::any_cast<const R&>(a) == std::any_cast<const R&>(b);
+    };
+    state.generate = [s = std::move(scheme)](const SkRect& from,
+                                             const SkRect& to) {
+      return s.route(from, to);
+    };
+    m_state = std::make_shared<const State>(std::move(state));
+  }
+
+  /** The escape hatch: any callable over the two endpoint rects. Never
+   *  compares equal to a separately-constructed Router. */
+  template <typename F>
+    requires(!RouteScheme<std::remove_cvref_t<F>> &&
+             !std::same_as<std::remove_cvref_t<F>, Router> &&
+             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
+                                   const SkRect&, const SkRect&>)
+  Router(F fn) {  // NOLINT: implicit by design (connector(a, b, [](…){…}))
+    State state;
+    state.generate = std::move(fn);
+    m_state = std::make_shared<const State>(std::move(state));
+  }
+
+  explicit operator bool() const { return m_state && (bool)m_state->generate; }
+  SkPath operator()(const SkRect& from, const SkRect& to) const {
+    return m_state && m_state->generate ? m_state->generate(from, to)
+                                        : SkPath();
+  }
+  /** A Router is itself a scheme, so it NESTS: a wrapper that asks for a
+   *  scheme takes one, and the equality it then uses is the one below —
+   *  which refuses a callable, where a compiler-written equality over an
+   *  empty closure type would vacuously accept it. */
+  SkPath route(const SkRect& from, const SkRect& to) const {
+    return (*this)(from, to);
+  }
+  /** Does this value participate in structural equality? (False for the
+   *  callable escape hatch.) */
+  bool comparable() const { return m_state && (bool)m_state->equals; }
+
+  /** Shared state (copies of one Router) is equal; comparable schemes of
+   *  one type compare their values; anything else is conservative. */
+  bool operator==(const Router& o) const {
+    if (m_state == o.m_state) return true;
+    if (!m_state || !o.m_state) return false;
+    if (!m_state->equals || !o.m_state->equals) return false;
+    return m_state->held.type() == o.m_state->held.type() &&
+           m_state->equals(m_state->held, o.m_state->held);
+  }
+
+ private:
+  struct State {
+    std::function<SkPath(const SkRect&, const SkRect&)> generate;
+    std::any held;
+    bool (*equals)(const std::any&, const std::any&) = nullptr;
+  };
+  std::shared_ptr<const State> m_state;
+};
+
 Element connector(std::string_view fromKey, std::string_view toKey,
                   Router router = {}, float gap = 0.0f);
 
@@ -78,10 +179,88 @@ struct Anchor {
   bool operator==(const Anchor&) const = default;
 };
 
-/** Routes an ordered run of resolved anchor points into the rail's path —
- *  stock ones in <sigilcompose/Routers.h> (polyline, octilinear); write your
- *  own for anything else. Straight polyline when omitted. */
-using RailRouter = std::function<SkPath(std::span<const SkPoint>)>;
+/** A rail-route scheme: `SkPath route(std::span<const SkPoint>) const`,
+ *  plus equality — the pointwise seam's half of the same convention
+ *  `RouteScheme` states. Equal values must route identical paths through
+ *  every anchor run. */
+template <typename R>
+concept RailScheme =
+    std::equality_comparable<R> &&
+    requires(const R& r, std::span<const SkPoint> anchors) {
+      { r.route(anchors) } -> std::convertible_to<SkPath>;
+    };
+
+/** THE PATH THROUGH AN ORDERED RUN OF ANCHORS, type-erased: what
+ *  `rail()` holds. Stock values in <sigilcompose/kit/Routers.h>
+ *  (polyline, octilinear, orbit, manhattan); write your own for anything
+ *  else, and a straight polyline is what an empty one draws.
+ *
+ *  Comparable exactly as `Router` is: a `routers::` value or your own
+ *  value with `route(anchors)` + `==` prunes; a raw callable
+ *  (`[](std::span<const SkPoint>) -> SkPath`) is the escape hatch that
+ *  compares equal to nothing but its own copies. */
+class RailRouter {
+ public:
+  RailRouter() = default;
+
+  template <RailScheme R>
+    requires(!std::same_as<std::remove_cvref_t<R>, RailRouter>)
+  RailRouter(R scheme) {  // NOLINT: implicit by design (rail(a, polyline()))
+    State state;
+    state.held = scheme;
+    state.equals = [](const std::any& a, const std::any& b) {
+      return std::any_cast<const R&>(a) == std::any_cast<const R&>(b);
+    };
+    state.generate = [s = std::move(scheme)](std::span<const SkPoint> anchors) {
+      return s.route(anchors);
+    };
+    m_state = std::make_shared<const State>(std::move(state));
+  }
+
+  /** The escape hatch: any callable over the resolved anchor run. Never
+   *  compares equal to a separately-constructed RailRouter. */
+  template <typename F>
+    requires(!RailScheme<std::remove_cvref_t<F>> &&
+             !std::same_as<std::remove_cvref_t<F>, RailRouter> &&
+             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
+                                   std::span<const SkPoint>>)
+  RailRouter(F fn) {  // NOLINT: implicit by design (rail(a, [](auto p){…}))
+    State state;
+    state.generate = std::move(fn);
+    m_state = std::make_shared<const State>(std::move(state));
+  }
+
+  explicit operator bool() const { return m_state && (bool)m_state->generate; }
+  SkPath operator()(std::span<const SkPoint> anchors) const {
+    return m_state && m_state->generate ? m_state->generate(anchors) : SkPath();
+  }
+  /** A RailRouter is itself a scheme, so it NESTS — same reason a Router
+   *  and a Shape do. */
+  SkPath route(std::span<const SkPoint> anchors) const {
+    return (*this)(anchors);
+  }
+  /** Does this value participate in structural equality? (False for the
+   *  callable escape hatch.) */
+  bool comparable() const { return m_state && (bool)m_state->equals; }
+
+  /** Shared state (copies of one RailRouter) is equal; comparable schemes
+   *  of one type compare their values; anything else is conservative. */
+  bool operator==(const RailRouter& o) const {
+    if (m_state == o.m_state) return true;
+    if (!m_state || !o.m_state) return false;
+    if (!m_state->equals || !o.m_state->equals) return false;
+    return m_state->held.type() == o.m_state->held.type() &&
+           m_state->equals(m_state->held, o.m_state->held);
+  }
+
+ private:
+  struct State {
+    std::function<SkPath(std::span<const SkPoint>)> generate;
+    std::any held;
+    bool (*equals)(const std::any&, const std::any&) = nullptr;
+  };
+  std::shared_ptr<const State> m_state;
+};
 
 /** The component that IS a line: a path threaded through an ordered span of
  *  anchors (a transit line through its stations, a wire through ports),
