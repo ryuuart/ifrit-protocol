@@ -33,6 +33,17 @@ struct LineFit {
   T rmsResidual = 0;
   size_t samples = 0;
 
+  /** HOW STRONGLY THE TWO RUN TOGETHER, -1 to 1: the correlation, which
+   *  is the square root of `r2` carrying the slope's sign. It says the
+   *  same thing `r2` says about how much was explained, and one thing
+   *  more that a drawing usually wants stated — the DIRECTION, so that
+   *  "they move together" and "one falls as the other rises" are told
+   *  apart without reading the slope in the ordinate's own units. */
+  [[nodiscard]] T correlation() const {
+    const T magnitude = std::sqrt(r2);
+    return slope < 0 ? -magnitude : magnitude;
+  }
+
   /** The fitted y at @p x — the line, evaluated. */
   [[nodiscard]] constexpr T at(T x) const { return intercept + slope * x; }
   /** How far (@p x, @p y) stands off the line, signed. */

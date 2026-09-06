@@ -30,6 +30,34 @@ inline double quantile(std::span<const double> samples, double p) {
   return sorted[lo] + (sorted[hi] - sorted[lo]) * t;
 }
 
+/** SEVERAL QUANTILES OF ONE RUN, for ONE sort. `quantile()` sorts a copy
+ *  every time it is called, so a summary that reports a median and two
+ *  tails sorts the same numbers three times; this sorts once and reads
+ *  every fraction off the one order. Each answer is the one `quantile()`
+ *  would have given, and the fractions are read in the order they were
+ *  asked for rather than in sorted order. */
+[[nodiscard]] inline std::vector<double> quantiles(
+    std::span<const double> samples, std::span<const double> fractions) {
+  std::vector<double> answers(fractions.size(), 0.0);
+  if (samples.empty() || fractions.empty()) return answers;
+  std::vector<double> sorted(samples.begin(), samples.end());
+  std::sort(sorted.begin(), sorted.end());
+  for (size_t i = 0; i < fractions.size(); ++i) {
+    const double p = std::clamp(fractions[i], 0.0, 1.0);
+    const double rank = p * (double)(sorted.size() - 1);
+    const size_t lo = (size_t)rank;
+    const size_t hi = std::min(lo + 1, sorted.size() - 1);
+    answers[i] = sorted[lo] + (sorted[hi] - sorted[lo]) * (rank - (double)lo);
+  }
+  return answers;
+}
+
+/** The middle of the run: `quantile(samples, 0.5)`, under the name a
+ *  reader of the caption will use. */
+[[nodiscard]] inline double median(std::span<const double> samples) {
+  return quantile(samples, 0.5);
+}
+
 /** The last `capacity` samples, oldest dropping first. The summaries
  *  read every sample the ring holds; none is cached, so a ring that is
  *  read every frame costs a pass over its contents each time, and a
