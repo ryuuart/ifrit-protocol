@@ -1,10 +1,10 @@
 # Scripts
 
 The build's administration lives here as Python, each script with a
-considered interface and a one-word mise task wrapping it (the
-repository-root `mise.toml`; anything after `--` is forwarded). This
-README is the canon for how the checks and ledgers work; `--help` on
-each script is the canon for its flags.
+considered interface and a mise task wrapping it (the repository-root
+`mise.toml`; anything after `--` is forwarded). This README is the canon
+for how the checks and ledgers work; `--help` on each script is the canon
+for its flags.
 
 ## Tests
 

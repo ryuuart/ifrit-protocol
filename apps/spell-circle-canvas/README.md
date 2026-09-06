@@ -118,18 +118,18 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 
 | Library | What it does |
 | --- | --- |
-| [SigilCore](src/common/core/README.md) | The kernels a retained runtime hosts: the reconciler, the caching proof, the hardware device seam |
+| [SigilCore](src/common/core/README.md) | The kernels a retained runtime hosts: the reconciler, the caching proof, the hardware device seam, and the compute values a drawing is drawn from |
 | [SigilSkia](src/common/skia/README.md) | Skia Graphite on a device someone else owns |
 | [Ifrit.Ui](src/common/ui/README.md) | Reusable Qt Quick controls |
-| [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding |
+| [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding, and signed distance fields over a coverage mask |
 | [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
 | [SigilData](src/common/data/README.md) | Tabular data and scales: typed columns, and the one value that maps a domain onto a range |
 | [SigilScry](src/common/scry/README.md) | HTML and CSS rendered to Skia images |
 | [SigilMeasure](src/common/measure/README.md) | Timing, statistics and check reporting |
-| [SigilMotion](src/common/motion/README.md) | Animation clock and animatable values |
+| [SigilMotion](src/common/motion/README.md) | Animation: the clock, animatable values, bindings, and the physics steppers |
 | [SigilGeometry](src/common/geometry/README.md) | Higher-level drawing over Skia: paths, contours, meshes, splines, point operators |
-| [SigilMaterial](src/common/material/README.md) | Recipes, textures, environment maps |
+| [SigilMaterial](src/common/material/README.md) | Recipes, textures, environment maps, and colour: ramps, palettes, harmonies, dithering |
 | [SigilDraw](src/common/draw/README.md) | An immediate-mode pen with p5's verbs |
 | [SigilWorld](src/common/world/README.md) | 3D surfaces on Diligent Engine |
 | [SigilSubstance](src/common/substance/README.md) | Adobe Substance 3D materials rendered to images, where the SDK is installed |

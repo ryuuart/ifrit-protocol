@@ -35,11 +35,15 @@ do not reconstruct a library's rules from another library's document.
 - `src/common/geometry/README.md` — higher-level drawing over Skia, the
   geometry kit, the point operators
 - `src/common/world/README.md` — 3D surfaces on Diligent Engine
-- `src/common/material/README.md` — recipes, textures, environment maps
-- `src/common/motion/README.md` — animation: clock, values, bindings
+- `src/common/material/README.md` — recipes, textures, environment maps,
+  and colour: ramps, palettes, harmonies, dithering
+- `src/common/motion/README.md` — animation: clock, values, bindings,
+  physics
 - `src/common/core/README.md` — the kernels a retained runtime hosts:
-  the reconciler and the caching proof
-- `src/common/image/README.md` — image decoding and encoding
+  the reconciler, the caching proof, the device seam, and the compute
+  values a drawing is drawn from
+- `src/common/image/README.md` — image decoding, encoding and distance
+  fields
 - `src/common/video/README.md` — SigilVideo: streaming decode, GPU
   composition, MP4 encode
 - `src/common/io/README.md` — SigilIO: resource access: URIs, mounts,
@@ -86,11 +90,12 @@ reader who has never opened any other document.
 
 **Consult what exists before writing anything.** The dependencies
 (Diligent with DiligentFX and DiligentTools, Skia, choreograph, glm,
-HarfBuzz, ICU, OpenImageIO, OpenUSD, Slang), the code already in this
-tree, and how other engines solved it. DiligentFX carries a PBR
+HarfBuzz, ICU, OpenImageIO, OpenUSD, Slang, CDT, Yoga), the code already
+in this tree, and how other engines solved it. DiligentFX carries a PBR
 renderer with image-based lighting, an environment-map renderer and
 post-processing; Skia carries path ops, contour measures, runtime
-effects and encoders. Read the dependency's headers and the docs under
+effects and encoders; CDT carries the constrained Delaunay
+triangulation. Read the dependency's headers and the docs under
 `build/vcpkg_installed/.../share` first. A library that has what is
 needed but is not in vcpkg gets a port in the sigil-vcpkg-registry,
 never a vendored copy. What is still written here says in its comment
@@ -206,7 +211,12 @@ real window, `--shot <png>` captures the app. `--video <out.mp4>
 encodes the selection into one vertical montage, and needs `--gpu` for a
 selection holding a set exactly as the sweep does. `--compare <dir-a>
 <dir-b>` differences two directories of plates channel by channel, which
-is how the plate ledger's device tier judges. `--thumbnails [--sketch
+is how the plate ledger's device tier judges. A headless sweep is opened
+deterministic and a deterministic session holds automatic texture
+promotion off, so `--promotion` is the one door that lets the promoter
+go with every other pin standing, and `--no-promotion` pins it off on a
+backend whose default would not; the plate ledger's promotion tier
+renders each scene both ways and judges the pair. `--thumbnails [--sketch
 <name>] [--kind canvas|set|draw]` renders the browser's missing or stale
 thumbnails headless and exits non-zero naming any that failed — the app
 owns its thumbnails, rendering them on demand into a cache under the

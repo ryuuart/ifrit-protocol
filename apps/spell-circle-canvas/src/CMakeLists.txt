@@ -9,11 +9,10 @@
 #                (SigilGeometry), material/ (SigilMaterial), draw/
 #                (SigilDraw), world/ (SigilWorldElement, SigilWorldFrame,
 #                SigilWorldGraph, SigilWorldScene, SigilWorldLight,
-#                SigilWorldKit, SigilWorldDiligent), compose/
-#                (SigilCompose), and
-#                substance/ (SigilSubstance) and usd/ (SigilUsd), each
-#                of which leaves itself out where its SDK is not
-#                installed. Each library carries its
+#                SigilWorldKit, SigilWorldDiligent), substance/
+#                (SigilSubstance) and usd/ (SigilUsd), each of which
+#                leaves itself out where its SDK is not installed, and
+#                compose/ (SigilCompose) last. Each library carries its
 #                own features as its own archives, and a build module
 #                only one library needs stands in that library's cmake/.
 #   sketch/      SigilSketch: every renderable thing in this repository as
