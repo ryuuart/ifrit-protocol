@@ -45,6 +45,8 @@ qt_add_qml_module(WeaveGallery
     qml/SceneParameterControl.qml
     qml/EffectsControls.qml
   SOURCES
+    src/GalleryFallback.cpp src/GalleryFallback.h
+    src/GalleryRenderer.cpp src/GalleryRenderer.h
     src/GalleryView.cpp include/GalleryView.h
     include/GalleryScenes.h
     src/SceneRegistry.cpp include/SceneRegistry.h
