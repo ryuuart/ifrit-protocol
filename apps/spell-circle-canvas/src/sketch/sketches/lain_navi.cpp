@@ -136,9 +136,9 @@
 //   Paint::linearUnit              each chrome bar's INVERSE bevel, its
 //                                     six stops read off the bar's own rows
 //   a sampled ellipse path            every ellipse: the rims, the waist and
-//                                     the tilted orbit, as real curves — the
-//                                     arcs are cut by parameter, which an
-//                                     oval cannot express
+//                                     the tilted orbit, as chords rather than
+//                                     conics, because a DASH walks the
+//                                     flattened path and every rim is dotted
 //   LayeredBrush{blend = kPlus}       THE ADDITIVE TRICK. kPlus on a NODE
 //                                     allocates a saveLayer; kPlus on a
 //                                     stroke PASS is just a path draw
@@ -281,6 +281,8 @@
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -301,9 +303,6 @@ namespace lain {
 // THE FRAME. 1016x720 — both reference plates' own size, so a capture diffs.
 
 constexpr float kW = 1016.0f, kH = 720.0f;
-
-using sigil::compose::hex;  // the same four lines as twenty-three other files
-using sigil::compose::mix;
 
 // ---------------------------------------------------------------------------
 // PALETTE — every entry is a CONTRIBUTION, i.e. what this stratum ADDS to the
@@ -493,6 +492,12 @@ inline SkPath generatrices(float phiDeg, int n) {
 constexpr SkPoint kOrbit2C{491.0f + kWireShift.fX, 266.0f + kWireShift.fY};
 constexpr float kOrbit2A = 373.0f, kOrbit2B = 187.0f, kOrbit2Tilt = -17.4f;
 
+/** IT IS NOT `shapes::arc` ON A ROTATED BOX, which draws the same curve —
+ *  Skia's oval angles are parametric, so the cut this needs is expressible
+ *  there. What differs is the PATH: 168 chords against Skia's conics. Every
+ *  rim on this frame is a DOTTED hairline and a dash walks the flattened
+ *  path, so the dots land where the chords put them and land elsewhere on a
+ *  conic. Converting moves the plate; it is not a cleanup. */
 inline SkPath ellipsePath(SkPoint c, float a, float b, float tiltDeg,
                           float t0 = 0.0f, float t1 = 6.2831853f) {
   const float th = tiltDeg * 0.01745329f;
@@ -699,8 +704,7 @@ constexpr int kPhraseN = (int)(sizeof(kPhrases) / sizeof(kPhrases[0]));
 // shots, both beats present. Baked once, crept by whole pixels.
 
 inline sk_sp<SkRuntimeEffect> crtEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
         "uniform float2 uResolution;\n"
         "half4 main(float2 xy) {\n"
         // Lottes: a raised-cosine beam profile about the scanline centre.
@@ -717,11 +721,9 @@ inline sk_sp<SkRuntimeEffect> crtEffect() {
         "            * 43758.5453) - 0.5;\n"
         "  dark = clamp(dark + gr * 0.055, 0.0, 1.0);\n"
         "  return half4(0.0, 0.0, 0.0, half(clamp(dark + vig, 0.0, 1.0)));\n"
-        "}\n"));
-    if (!effect) SkDebugf("lain crt shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
+      "}\n"));
+  if (!effect) SkDebugf("lain crt shader: %s\n", err.c_str());
+  return effect;
 }
 
 /** The base plate: a photographed city at night, defocused past recognition.
@@ -729,8 +731,7 @@ inline sk_sp<SkRuntimeEffect> crtEffect() {
  *  about it is that it has NO edges anywhere: its 8x6 tile floor is flat to
  *  sd 10.8 and every lift is a stratum above it, not a feature in it. */
 inline sk_sp<SkRuntimeEffect> plateEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
+  auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
         "uniform float2 uResolution;\n"
         "float h(float2 p){return fract(sin(dot(p,float2(12.9898,78.233)))"
         "*43758.5453);}\n"
@@ -751,10 +752,8 @@ inline sk_sp<SkRuntimeEffect> plateEffect() {
         "  half3 c = half3(half(0.0235 + b*0.34), half(0.0275 + b*0.40),\n"
         "                  half(0.098 + b*0.72));\n"
         "  return half4(c, 1.0);\n}\n"));
-    if (!effect) SkDebugf("lain plate shader: %s\n", err.c_str());
-    return effect;
-  }();
-  return fx;
+  if (!effect) SkDebugf("lain plate shader: %s\n", err.c_str());
+  return effect;
 }
 
 /** An additive stroke pass. THE load-bearing call of the whole sketch: kPlus
@@ -845,7 +844,10 @@ struct LainNavi : sketch::Sketch {
     // the ruling — straight, and stopping 7% short of both rims
     g.child(box()
                 .inset(0)
-                .shape([phi](SkSize) { return generatrices(phi, 7); })
+                .shape(keyedShape(phi,
+                                  [phi](SkSize) {
+                                    return generatrices(phi, 7);
+                                  }))
                 .foreground(add(1.5f, scaleRgb(kWire, 0.44f), 0.0f))
                 .key("ruling"));
 
@@ -856,9 +858,11 @@ struct LainNavi : sketch::Sketch {
                       float w, float t0, float t1, const char* key) {
       g.child(box()
                   .inset(0)
-                  .shape([c, a, b, tilt, t0, t1](SkSize) {
-                    return ellipsePath(c, a, b, tilt, t0, t1);
-                  })
+                  .shape(keyedShape(
+                      std::tuple{c.fX, c.fY, a, b, tilt, t0, t1},
+                      [c, a, b, tilt, t0, t1](SkSize) {
+                        return ellipsePath(c, a, b, tilt, t0, t1);
+                      }))
                   .foreground(add(w, col, 0.0f, dot))
                   .key(key));
     };
@@ -881,12 +885,15 @@ struct LainNavi : sketch::Sketch {
     // waist centred on 498.
     g.child(box()
                 .inset(0)
-                .shape([](SkSize) {
-                  SkPathBuilder b;
-                  b.moveTo(503 + kWireShift.fX, 28 + kWireShift.fY);
-                  b.lineTo(503 + kWireShift.fX, 524 + kWireShift.fY);
-                  return b.detach();
-                })
+                .shape(keyedShape(std::string_view("wire-axis"),
+                                  [](SkSize) {
+                                    SkPathBuilder b;
+                                    b.moveTo(503 + kWireShift.fX,
+                                             28 + kWireShift.fY);
+                                    b.lineTo(503 + kWireShift.fX,
+                                             524 + kWireShift.fY);
+                                    return b.detach();
+                                  }))
                 .foreground(add(2.4f, scaleRgb(kWire, 0.72f), 0.7f)));
 
     // `make me feel alright?` stands UPRIGHT beside the orbit's lower-left
@@ -1016,10 +1023,12 @@ struct LainNavi : sketch::Sketch {
     root.child(
         box()
             .rect(SkRect::MakeXYWH(370, 150, 376, 400))
-            .shape([](SkSize s) {
-              return eyeFurniture({s.width() * 0.5f, s.height() * 0.46f},
-                                  92.0f);
-            })
+            .shape(keyedShape(std::string_view("eye-furniture"),
+                              [](SkSize s) {
+                                return eyeFurniture(
+                                    {s.width() * 0.5f, s.height() * 0.46f},
+                                    92.0f);
+                              }))
             .foreground(LayeredBrush{
                 {{24.0f, hex(0x070C17), 13.0f, {}, 0, SkBlendMode::kPlus, true},
                  {9.0f, hex(0x0A1120), 5.0f, {}, 0, SkBlendMode::kPlus, true}}})
@@ -1031,14 +1040,15 @@ struct LainNavi : sketch::Sketch {
     // the bars. No corner anywhere — the bars simply overhang them.
     root.child(box()
                    .inset(0)
-                   .shape([](SkSize) {
-                     SkPathBuilder b;
-                     b.moveTo(kBodyL, kBarTopB - 4);
-                     b.lineTo(kBodyL + 8, kBarBotT + 4);
-                     b.moveTo(kBodyR, kBarTopB - 4);
-                     b.lineTo(kBodyR - 6, kBarBotT + 4);
-                     return b.detach();
-                   })
+                   .shape(keyedShape(std::string_view("side-rails"),
+                                     [](SkSize) {
+                                       SkPathBuilder b;
+                                       b.moveTo(kBodyL, kBarTopB - 4);
+                                       b.lineTo(kBodyL + 8, kBarBotT + 4);
+                                       b.moveTo(kBodyR, kBarTopB - 4);
+                                       b.lineTo(kBodyR - 6, kBarBotT + 4);
+                                       return b.detach();
+                                     }))
                    .foreground(add(2.0f, kRail, 0.8f))
                    .key("rails"));
 
@@ -1174,10 +1184,6 @@ struct LainNavi : sketch::Sketch {
           ctx.measure(text(toU8(probe), type(monoFace(), 100.0f, kConsoleInk)));
       const float advAt100 = m.width() / 40.0f;
       monoSize = advAt100 > 1.0f ? 100.0f * kAdvance / advAt100 : 22.0f;
-      std::printf(
-          "  lain: mono advance %.3f px at 100pt -> size %.2f "
-          "(target advance %.2f)\n",
-          (double)advAt100, (double)monoSize, (double)kAdvance);
     }
     // and the prose size from the measured 48.5 px leading (CJK sets solid at
     // roughly 1.0 em, so the body size is the leading less the gap)
