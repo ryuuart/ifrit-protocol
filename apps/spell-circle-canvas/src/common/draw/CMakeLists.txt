@@ -32,17 +32,17 @@ sigil_shader_sources(SigilDraw DIR ${_shaders} NAMESPACE sigil::draw)
 
 add_subdirectory(brush)
 
-# The pen's tests link the system font manager its text is shaped
-# against. The text cases stand in their own binary under the `fonts`
-# label, since what they measure depends on the machine's default face.
+# The pen's tests link the system font manager, which is both what loads
+# the instrument face every text case sets in and what resolves a family
+# when no face is named. Only the case that names none reads the
+# machine's own families, so it alone carries the `fonts` label.
 sigil_test(draw_test
-  SOURCES test/DrawTest.cpp
+  SOURCES test/DrawTest.cpp test/DrawTextTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_DRAW_SHADER_DIR="${_shaders}"
   LIBRARIES SigilDraw SigilWeavePorts)
 sigil_test(draw_test
-  SOURCES test/DrawTextTest.cpp
-  LIBRARIES SigilDraw SigilWeavePorts
+  SUITES PenMachineFace
   LABELS fonts)
 
 sigil_bench(draw_bench

@@ -1,6 +1,10 @@
 /** @file
- * The pen's text, shaped by the text engine against the machine's system
- * fonts: what these pin are relations no face changes.
+ * The pen's text, shaped by the text engine and set in the instrument
+ * face: every letter on an advance of 0.6 em, the space on 0.3, a
+ * capital's ink standing 0.7 em over the baseline and a lowercase
+ * letter's 0.5, so a seat and a width are arithmetic here rather than a
+ * property of the machine's installed families. The one case whose claim
+ * IS that resolution takes the instrument back off.
  */
 
 #include <gtest/gtest.h>
@@ -14,6 +18,10 @@ using namespace sigil::draw;
 using sigil::draw::testing::Paper;
 
 TEST(Pen, TextIsShapedAndCentredByTheAlignment) {
+  // "Hello" at 20 px: five advances of 12, each letter's ink inset 2 into
+  // its own cell and 2 short of the next, so the ink runs 12..68 from a
+  // pen set down at 10. The H stands 14 over the baseline and the
+  // lowercase letters 10, none of them descends, so the band is 46..60.
   Paper left;
   left.begin();
   left.pen.textSize(20);
@@ -21,10 +29,15 @@ TEST(Pen, TextIsShapedAndCentredByTheAlignment) {
   left.end();
   const SkIRect ink = left.inked();
   ASSERT_FALSE(ink.isEmpty());
-  EXPECT_GE(ink.left(), 9);
-  EXPECT_LT(ink.top(), 60);  // the ascent stands above the baseline
-  EXPECT_GE(ink.bottom(), 44);
+  EXPECT_EQ(ink.left(), 12);
+  EXPECT_EQ(ink.right(), 68);
+  EXPECT_EQ(ink.top(), 46);
+  EXPECT_EQ(ink.bottom(), 60);
 
+  // CENTER on both axes seats the same block about the point instead: the
+  // natural width is 60, so it starts at 20 and the ink runs 22..78, and
+  // the baseline is the point plus half of what the ascent stands over
+  // the descent — 50 + (16 - 4) / 2 — so the band is 42..56.
   Paper centred;
   centred.begin();
   centred.pen.textSize(20);
@@ -33,8 +46,10 @@ TEST(Pen, TextIsShapedAndCentredByTheAlignment) {
   centred.end();
   const SkIRect box = centred.inked();
   ASSERT_FALSE(box.isEmpty());
-  EXPECT_NEAR((box.left() + box.right()) / 2.0, 50.0, 4.0);
-  EXPECT_NEAR((box.top() + box.bottom()) / 2.0, 50.0, 6.0);
+  EXPECT_EQ(box.left(), 22);
+  EXPECT_EQ(box.right(), 78);
+  EXPECT_EQ(box.top(), 42);
+  EXPECT_EQ(box.bottom(), 56);
 }
 
 TEST(Pen, TheBoxIsTheExtentTheVerticalAlignmentDistributesOver) {
@@ -42,7 +57,11 @@ TEST(Pen, TheBoxIsTheExtentTheVerticalAlignmentDistributesOver) {
   // what the alignment places, and only the box says how much room that
   // is — a distribution over an extent of nobody said has none to place
   // and seats the middle and the foot where the top would be.
-  constexpr float kX = 4, kY = 4, kW = 92;
+  //
+  // At 12 px the passage sets 86.4 wide (eleven letters of 7.2 and two
+  // spaces of 3.6), so a measure of 60 breaks it after "two" and the
+  // block is two lines of the 15 px leading.
+  constexpr float kX = 4, kY = 4, kW = 60;
   const auto ink = [](Constant vertical, float height) {
     Paper paper(100, 140);
     paper.begin();
@@ -79,6 +98,8 @@ TEST(Pen, TheBoxIsTheExtentTheVerticalAlignmentDistributesOver) {
 }
 
 TEST(Pen, TextIsBlackUntilAFillIsSet) {
+  // A capital at 30 px is a solid bar 12 wide and 21 deep, so the middle
+  // of the ink box is ink and the colour read there is the glyph's.
   Paper paper;
   paper.begin();
   paper.pen.textSize(30);
@@ -91,6 +112,26 @@ TEST(Pen, TextIsBlackUntilAFillIsSet) {
   EXPECT_EQ(SkColorGetR(c), 0u);
   EXPECT_EQ(SkColorGetG(c), 0u);
   EXPECT_EQ(SkColorGetB(c), 0u);
+}
+
+TEST(PenMachineFace, TextIsSetInTheMachinesDefaultUntilAFaceIsNamed) {
+  // Every case above hands the pen the instrument, which is the pen's
+  // face-was-named path. This is the other one: no face and no family,
+  // so the font context's default typeface answers and the machine's
+  // families are what the text is set in. It measures nothing that face
+  // decides — only that a pen given nothing still has something to set
+  // with, which is what a runner without faces cannot supply.
+  Paper paper;
+  paper.begin();
+  paper.useMachineFace();
+  paper.pen.textSize(20);
+  paper.pen.text("Hello", 10, 60);
+  const float width = paper.pen.textWidth("Hello");
+  const float ascent = paper.pen.textAscent();
+  paper.end();
+  EXPECT_FALSE(paper.inked().isEmpty());
+  EXPECT_GT(width, 0.0f);
+  EXPECT_GT(ascent, 0.0f);
 }
 
 }  // namespace

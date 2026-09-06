@@ -2,8 +2,10 @@
 
 /** @file
  * A pen over a raster surface with the pixels readable back: the fixture
- * every test of this library draws on. Text is shaped against the
- * machine's system fonts.
+ * every test of this library draws on. Its pen sets text in the
+ * instrument face, so a width or a seat read off the ink is the same on
+ * every machine; `useMachineFace()` gives that up for the one case whose
+ * claim is the resolution itself.
  */
 
 #include <gtest/gtest.h>
@@ -12,6 +14,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
+#include <include/core/SkTypeface.h>
 #include <sigildraw/Pen.h>
 
 #include "Fonts.h"
@@ -29,6 +32,10 @@ struct Paper {
     surface->getCanvas()->clear(ground);
   }
 
+  /** Opens the frame with the pen set in the instrument that puts every
+   *  letter on one known advance, punctuation on another and the space on
+   *  a third, so what the ink measures is arithmetic rather than whatever
+   *  face the machine has installed. */
   void begin(int frame = 1, double seconds = 0.0) {
     Frame f;
     f.width = (float)width;
@@ -38,7 +45,16 @@ struct Paper {
     f.frameCount = frame;
     f.fonts = &fonts();
     pen.begin(*surface->getCanvas(), f);
+    pen.textFont(sigil::test::instrument::sans());
   }
+
+  /** Takes the instrument back off, leaving the pen naming no face at
+   *  all: the font context resolves the machine's default and the pen
+   *  matches families through the machine's manager. For a case whose
+   *  claim IS that resolution, which carries the `fonts` label because a
+   *  runner without faces has nothing for it. */
+  void useMachineFace() { pen.textFont(sk_sp<SkTypeface>()); }
+
   void end() { pen.end(); }
 
   /** Every pixel, read back once. */
