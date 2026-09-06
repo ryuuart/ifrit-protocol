@@ -40,17 +40,6 @@ QT_SEARCH_ROOTS = [
     Path("/opt/Qt"),
 ]
 
-# Search roots for the Adobe Substance 3D SDK (the "substance-<os>-<arch>-
-# v<version>-<hash>" download, unpacked). Each root holds one directory
-# per version; the highest wins. Optional: without it the SigilSubstance
-# library and everything that links it are left out of the build.
-SUBSTANCE_SEARCH_ROOTS = [
-    Path.home() / ".local" / "opt" / "substance",
-    Path("/usr/local/opt/substance"),
-    Path("/opt/homebrew/opt/substance"),
-    Path("/opt/substance"),
-]
-
 # Where vcpkg looks for a download before it fetches one, and where
 # scripts/stage_asset.py puts an archive that cannot be fetched at all —
 # an SDK behind an account. Consulted first and written back to, so a
@@ -131,33 +120,6 @@ def find_vcpkg() -> Path | None:
             return candidate
 
     return None
-
-
-def find_substance() -> Path | None:
-    """Return the Substance 3D SDK directory (the one holding
-    substance-config.cmake), or None when it is not installed."""
-    environment_dir = os.environ.get("SUBSTANCE_SDK_DIR")
-    if environment_dir:
-        environment_path = Path(environment_dir)
-        if (environment_path / "substance-config.cmake").exists():
-            print(f"  Substance SDK: found via env var at {environment_path}")
-            return environment_path
-
-    best: tuple[tuple[int, ...], Path] | None = None
-    for root in SUBSTANCE_SEARCH_ROOTS:
-        if not root.is_dir():
-            continue
-        for candidate in root.iterdir():
-            if not (candidate / "substance-config.cmake").exists():
-                continue
-            version = _version_tuple(candidate.name.lstrip("v").split("-")[0])
-            if best is None or version > best[0]:
-                best = (version, candidate)
-    if best is None:
-        print("  Substance SDK: not found (optional; SigilSubstance skipped)")
-        return None
-    print(f"  Substance SDK: {best[1]}")
-    return best[1]
 
 
 # The secondary trees: each is the `main` composition plus the compile and
@@ -274,14 +236,15 @@ def secondary_presets(presets: dict) -> None:
         )
 
 
-def write_user_presets(
-    qt_installation: Path, vcpkg_root: Path, substance_sdk: Path | None
-) -> None:
-    """Writes the local Qt/vcpkg(/Substance) CMake preset composition."""
-    ASSET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    main_inherits = ["vcpkg", "qt"] + (
-        ["substance"] if substance_sdk is not None else []
-    )
+def user_presets(qt_installation: Path, vcpkg_root: Path) -> dict:
+    """The local Qt/vcpkg CMake preset composition.
+
+    No library is named here. A library whose dependency needs finding
+    carries its own find module (src/common/substance/cmake, and
+    src/common/scry/cmake beside it), so this file composes the toolchain,
+    the Qt prefix, the asset cache and the instrumented trees and nothing
+    about what is built with them."""
+    main_inherits = ["vcpkg", "qt"]
     presets = {
         "version": 4,
         "configurePresets": [
@@ -333,18 +296,25 @@ def write_user_presets(
         "testPresets": [],
     }
     secondary_presets(presets)
-    if substance_sdk is not None:
-        presets["configurePresets"].insert(
-            2,
-            {
-                "name": "substance",
-                "cacheVariables": {"SUBSTANCE_SDK_DIR": str(substance_sdk)},
-            },
-        )
-    USER_PRESETS.write_text(json.dumps(presets, indent=2) + "\n")
-    print(
-        f"  Wrote {USER_PRESETS.relative_to(Path.cwd()) if USER_PRESETS.is_relative_to(Path.cwd()) else USER_PRESETS}"
-    )
+    return presets
+
+
+def write_user_presets(qt_installation: Path, vcpkg_root: Path) -> None:
+    """Writes the preset file when what it would say has moved.
+
+    The file is generated, so an edit to what generates it — another
+    secondary tree, a different instrumentation flag — has to reach the
+    tree on the next run. Rewriting it unconditionally would reconfigure
+    on every invocation, so the content is compared first and an unchanged
+    file keeps its timestamp.
+    """
+    ASSET_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(user_presets(qt_installation, vcpkg_root), indent=2) + "\n"
+    if USER_PRESETS.exists() and USER_PRESETS.read_text() == text:
+        print(f"  {USER_PRESETS.name} is current")
+        return
+    USER_PRESETS.write_text(text)
+    print(f"  Wrote {USER_PRESETS}")
 
 
 def run(command: list[str], working_directory: Path) -> int:
@@ -395,45 +365,38 @@ def main() -> int:
         action="store_true",
         help="Stop after cmake configure, skip build",
     )
-    argument_parser.add_argument(
-        "--force",
-        action="store_true",
-        help=("Overwrite existing CMakeUserPresets.json even if it already exists"),
-    )
     arguments = argument_parser.parse_args()
 
     print(f"spell-circle-canvas setup — project: {PROJECT_DIR}\n")
 
     if not arguments.build_only:
-        if USER_PRESETS.exists() and not arguments.force:
-            print("CMakeUserPresets.json already exists (use --force to regenerate).")
-        else:
-            print("Locating dependencies...")
-            qt_installation = find_qt()
-            if qt_installation is None:
-                print(
-                    "\nERROR: No Qt >= "
-                    f"{'.'.join(str(component) for component in QT_MINIMUM_VERSION)} "
-                    "installation found.\n"
-                    f"Install Qt via the Qt Installer and place it under one of:\n"
-                    + "\n".join(f"  {path}" for path in QT_SEARCH_ROOTS)
-                    + "\nOr set Qt6_DIR / QT_DIR in your environment.",
-                    file=sys.stderr,
-                )
-                return 1
+        print("Locating dependencies...")
+        qt_installation = find_qt()
+        if qt_installation is None:
+            print(
+                "\nERROR: No Qt >= "
+                f"{'.'.join(str(component) for component in QT_MINIMUM_VERSION)} "
+                "installation found.\n"
+                "Install Qt via the Qt Installer and place it under one of:\n"
+                + "\n".join(f"  {path}" for path in QT_SEARCH_ROOTS)
+                + "\nOr set Qt6_DIR / QT_DIR in your environment.",
+                file=sys.stderr,
+            )
+            return 1
 
-            vcpkg_root = find_vcpkg()
-            if vcpkg_root is None:
-                print(
-                    "\nERROR: vcpkg not found.\n"
-                    "Clone https://github.com/microsoft/vcpkg and bootstrap it, then place it at one of:\n"
-                    + "\n".join(f"  {path}" for path in VCPKG_SEARCH_ROOTS)
-                    + "\nOr set VCPKG_ROOT in your environment.",
-                    file=sys.stderr,
-                )
-                return 1
+        vcpkg_root = find_vcpkg()
+        if vcpkg_root is None:
+            print(
+                "\nERROR: vcpkg not found.\n"
+                "Clone https://github.com/microsoft/vcpkg and bootstrap it, "
+                "then place it at one of:\n"
+                + "\n".join(f"  {path}" for path in VCPKG_SEARCH_ROOTS)
+                + "\nOr set VCPKG_ROOT in your environment.",
+                file=sys.stderr,
+            )
+            return 1
 
-            write_user_presets(qt_installation, vcpkg_root, find_substance())
+        write_user_presets(qt_installation, vcpkg_root)
 
         return_code = configure()
         if return_code != 0:

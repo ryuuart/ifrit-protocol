@@ -1,11 +1,11 @@
 # SigilSubstance — .sbsar procedural materials rendered to SkImages
 # through the Adobe Substance 3D SDK's framework and CPU engine. The SDK
-# is a licensed download that is never vendored; scripts/setup.py finds an
-# installed copy and writes the directory into CMakeUserPresets.json.
+# is a licensed download that is never vendored and has no vcpkg port, so
+# the find module beside this file is what locates an installed copy.
 # Without one the whole library is left out of the build.
-set(SUBSTANCE_SDK_DIR "" CACHE PATH
-    "Adobe Substance 3D SDK directory (holds substance-config.cmake)")
-if(NOT EXISTS "${SUBSTANCE_SDK_DIR}/substance-config.cmake")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
+find_package(Substance)
+if(NOT Substance_FOUND)
   message(STATUS "Substance SDK not found -- SigilSubstance is left out")
   return()
 endif()

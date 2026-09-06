@@ -154,9 +154,11 @@ ctest --test-dir build -C Release --output-on-failure
 ```
 
 Every workflow is also a mise task (`mise tasks`; arguments after `--`
-are forwarded); mise is optional. `setup.py` discovers Qt 6.11+, vcpkg
-and the optional SDKs under `~/.local/opt/<name>/<version>/` and writes
-the uncommitted `CMakeUserPresets.json`. Ports for `choreograph`,
+are forwarded); mise is optional. `setup.py` discovers Qt 6.11+ and
+vcpkg and writes the uncommitted `CMakeUserPresets.json`; a library
+whose SDK is a licensed download carries its own find module
+(`src/common/substance/cmake`, `src/common/scry/cmake`), which looks
+under `~/.local/opt/<name>/<version>/`. Ports for `choreograph`,
 `skia` and `diligent-engine` come from
 https://github.com/ryuuart/sigil-vcpkg-registry (checked out at
 `~/REI/sigil-vcpkg-registry`); a port change is pushed there and the

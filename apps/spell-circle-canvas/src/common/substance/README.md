@@ -124,14 +124,14 @@ SDK is vendored into this repository.
 ## The SDK
 
 The Substance 3D SDK is a licensed Adobe download. Unpack it under a
-versioned directory in one of the roots `scripts/setup.py` searches —
-`~/.local/opt/substance/<version>/` is the one the development machines
-use — or point `SUBSTANCE_SDK_DIR` at the directory holding
-`substance-config.cmake`. `setup.py` writes the location into
-`CMakeUserPresets.json`; without an SDK the top-level configure warns and
-leaves this library, `substance_test` and `substance_bench` out of the
-build, and the sketch that draws a package is left out of the sketch
-registry. Executables that link SigilSubstance
+versioned directory in one of the roots `cmake/FindSubstance.cmake`
+beside this file searches — `~/.local/opt/substance/<version>/` is the
+one the development machines use — or point `SUBSTANCE_SDK_DIR` at the
+directory holding `substance-config.cmake`, on the command line or in
+the environment. The highest version found wins; without an SDK the
+configure says so and leaves this library, `substance_test` and
+`substance_bench` out of the build, and the sketch that draws a package
+is left out of the sketch registry. Executables that link SigilSubstance
 carry the SDK's `bin/release` in their runtime search path, which is
 where the engine dylib lives.
 
