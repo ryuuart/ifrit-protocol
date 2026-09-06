@@ -21,6 +21,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkTypeface.h>
+#include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -40,75 +41,25 @@ enum CutCorner : uint8_t {
 
 /** A rectangular UI panel whose corners follow one rule.
  *
- *  Unmasked corners use the configured radius. Masked corners replace that
- *  arc with a straight horizontal-by-vertical clip, so a panel may express a
- *  non-square
- *  chamfer without baking its final size into a path. A zero radius produces
- *  a square corner. */
+ *  Unmasked corners take the configured radius; masked corners replace
+ *  that arc with a straight horizontal-by-vertical cut, so a panel
+ *  expresses a non-square chamfer without baking its final size into a
+ *  path. A zero radius is a square corner.
+ *
+ *  The mask's bits are the geometry kit's, corner for corner, so the two
+ *  spellings are one value. */
 struct PanelCorners {
   float radius = 0.0f;
   SkVector cut{0.0f, 0.0f};
   uint8_t cutMask = CutNone;
 };
 
-inline sigil::geometry::shapes::OutlineFn panel(PanelCorners corners) {
-  return [corners](SkSize size) {
-    const float width = size.width();
-    const float height = size.height();
-    const float radius =
-        std::clamp(corners.radius, 0.0f, std::min(width, height) * 0.5f);
-    const float cutX = std::clamp(corners.cut.fX, 0.0f, width * 0.5f);
-    const float cutY = std::clamp(corners.cut.fY, 0.0f, height * 0.5f);
-    const float diameter = radius * 2.0f;
-
-    SkPathBuilder path;
-    if (corners.cutMask & CutTopLeft) {
-      path.moveTo(cutX, 0.0f);
-    } else if (radius > 0.0f) {
-      path.moveTo(0.0f, radius);
-      path.arcTo(SkRect::MakeXYWH(0, 0, diameter, diameter), 180, 90, false);
-    } else {
-      path.moveTo(0.0f, 0.0f);
-    }
-
-    if (corners.cutMask & CutTopRight) {
-      path.lineTo(width - cutX, 0.0f);
-      path.lineTo(width, cutY);
-    } else if (radius > 0.0f) {
-      path.lineTo(width - radius, 0.0f);
-      path.arcTo(SkRect::MakeXYWH(width - diameter, 0, diameter, diameter), 270,
-                 90, false);
-    } else {
-      path.lineTo(width, 0.0f);
-    }
-
-    if (corners.cutMask & CutBottomRight) {
-      path.lineTo(width, height - cutY);
-      path.lineTo(width - cutX, height);
-    } else if (radius > 0.0f) {
-      path.lineTo(width, height - radius);
-      path.arcTo(SkRect::MakeXYWH(width - diameter, height - diameter, diameter,
-                                  diameter),
-                 0, 90, false);
-    } else {
-      path.lineTo(width, height);
-    }
-
-    if (corners.cutMask & CutBottomLeft) {
-      path.lineTo(cutX, height);
-      path.lineTo(0.0f, height - cutY);
-    } else if (radius > 0.0f) {
-      path.lineTo(radius, height);
-      path.arcTo(SkRect::MakeXYWH(0, height - diameter, diameter, diameter), 90,
-                 90, false);
-    } else {
-      path.lineTo(0.0f, height);
-    }
-
-    if (corners.cutMask & CutTopLeft) path.lineTo(0.0f, cutY);
-    path.close();
-    return path.detach();
-  };
+inline sigil::geometry::shapes::Chamfered panel(PanelCorners corners) {
+  return sigil::geometry::shapes::Chamfered{
+      .cut = corners.cut.fX,
+      .cutRise = corners.cut.fY,
+      .radius = corners.radius,
+      .mask = sigil::geometry::shapes::Corner(corners.cutMask)};
 }
 
 /** The one three-cell MAGI module used at every network site. */
