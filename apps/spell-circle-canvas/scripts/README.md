@@ -46,7 +46,7 @@ rather than passing it. clang-format rides the Xcode toolchain through
 
 ## Plates — `plate_ledger.py`
 
-Two tiers, one binary. `--tier cpu` (the default) steps every sketch —
+Three tiers, one binary. `--tier cpu` (the default) steps every sketch —
 canvas and set alike — to its declared moment and rasterises it on the
 CPU, so a plate is a function of the declaration alone and the tier is
 judged on byte identity against one manifest,
@@ -71,6 +71,21 @@ exits 0. The two directories of plates are differenced by
 `Sketchbook --compare <dir-a> <dir-b>`, which decodes and reports the
 distances; what stays here is the judgement, because a ceiling is a
 tolerance about a machine and not a fact about two files.
+
+`--tier promotion` renders the same sketches twice on the CPU — once
+with automatic texture promotion held off, once with it on — and judges
+the pair within ONE code value on any channel of any pixel. It exists
+because nothing else exercises the promoter: a headless session is
+opened deterministic and a deterministic session holds promotion off, so
+every other tier renders the runtime with that feature switched out. The
+ceiling is not a tolerance anyone chose. A promoted node is baked under
+the live matrix post-translated by an integer, and inverting that matrix
+to find a shader's local coordinates does not cancel the integer to the
+last bit at a scale whose reciprocal is inexact, so a shaded pixel can
+land one code value from the live paint and nothing may land further. A
+worst channel over one is a picture that MOVED, which is a defect to
+file against the promoter — the tier keeps no baseline and refuses
+`--rebase`, because there is nothing here to adopt.
 
 The manifest is machine-local by design (plates are deterministic per
 machine, not across machines), so a fresh checkout runs

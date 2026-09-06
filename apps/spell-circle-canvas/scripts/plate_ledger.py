@@ -21,9 +21,10 @@ Usage (from apps/spell-circle-canvas):
   scripts/plate_ledger.py --stability 3      # re-render movers 3x to
                                              # separate flappers from code
   scripts/plate_ledger.py --tier device      # the same sketches on the GPU
+  scripts/plate_ledger.py --tier promotion   # …and with the promoter let go
   scripts/plate_ledger.py --jobs 6 --config Release
 
-TWO TIERS (--tier):
+THREE TIERS (--tier):
 
   cpu (default) — every sketch stepped from t=0 to its DECLARED capture
   moment and rasterised on the CPU: a canvas sketch through Skia's CPU
@@ -72,13 +73,34 @@ TWO TIERS (--tier):
   the tier says so and exits 0, because a machine with no device runtime
   has nothing to disagree about.
 
+  promotion — the same scenes rendered twice on the CPU, once with
+  automatic texture promotion held off and once with it on, judged
+  against each other. It has no baseline either: the held-off render of
+  the same run is the reference.
+
+  THE BAR IS ONE CODE VALUE, and it is not a tolerance anyone chose. A
+  promoted node is baked under the live matrix post-translated by an
+  integer; inverting that matrix to find a shader's local coordinates
+  does not cancel the integer to the last bit at a scale whose
+  reciprocal is inexact, so a shaded pixel can land one code value from
+  the live paint and nothing may land further. A worst channel over 1
+  is a picture that MOVED — a bake somewhere else, rasterised against
+  another clip, or gone stale — and it is a defect to file against the
+  promoter rather than a plate to adopt.
+
+  IT EXISTS BECAUSE NOTHING ELSE EXERCISES THE PROMOTER. A headless
+  session is opened deterministic and a deterministic session holds
+  promotion off, so every other tier renders the one renderer feature
+  with the feature switched out.
+
 The manifest lives in build/ (machine-local on purpose: plates are
 AA-deterministic per machine, not across machines), so a fresh checkout
-runs `--rebase` once before a sweep can judge anything. Both tiers
-render with --no-promotion: automatic texture promotion re-bakes by a
-measured per-frame cost, which load can tip either way, so it is the
-one renderer feature a byte-identity gate must hold off — with it off,
-hashes are load-immune.
+runs `--rebase` once before a sweep can judge anything. Every render a
+hash judges carries --no-promotion: automatic texture promotion re-bakes
+by a measured per-frame cost, which load can tip either way, so it is
+the one renderer feature a byte-identity gate must hold off — with it
+off, hashes are load-immune. The promotion tier is the one that turns it
+back on, and it judges by distance for exactly that reason.
 
 EVERY SCENE PRINTS ONE LINE AS IT FINISHES — its running count, how it
 stands against the baseline, its name and what it took — in COMPLETION
@@ -142,9 +164,14 @@ BINARY = "Sketchbook.app/Contents/MacOS/Sketchbook"
 PLATE_PREFIX = "plate_"
 KINDS = ("canvas", "set")
 
-# The flags every render carries: the benchmark-free exact-stepped
-# capture, with cost-based texture promotion held off.
-RENDER_ARGS = ("--no-promotion", "--ledger")
+# The flag every render carries: the benchmark-free exact-stepped capture.
+RENDER_ARGS = ("--ledger",)
+# …and what each tier says about the promoter. Held off wherever a hash is
+# the verdict, because cost-based re-baking decides by a measured per-frame
+# cost that load tips either way; turned on for the tier whose whole subject
+# it is.
+PROMOTION_OFF = ("--no-promotion",)
+PROMOTION_ON = ("--promotion",)
 
 # HOW FAR A SKETCH'S DEVICE PLATE MAY STAND FROM ITS CPU PLATE: (mean,
 # p99) per colour channel in 0..255. Set from what the two tiers actually
@@ -206,6 +233,14 @@ GPU_TOLERANCE = {
     # picture that is mostly dark, and a p99 at the lit edges.
     "lantern_room": (4.0, 64),
 }
+
+
+# HOW FAR A PROMOTED PLATE MAY STAND FROM THE SAME SCENE RENDERED WITH THE
+# PROMOTER HELD OFF: one code value on any channel of any pixel. It is not a
+# tolerance anyone chose — it is the whole of what an integer translation
+# under an inexact scale can cost a shaded pixel, so anything past it is a
+# picture that moved rather than a picture that rounded.
+PROMOTION_DRIFT_CEILING = 1
 
 
 def read_manifest(path):
@@ -294,7 +329,7 @@ def registry(binary, kinds):
     return scenes, unavailable
 
 
-def render_scene(binary, scene, outdir, timeout, extra_args=()):
+def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
     """Render one scene; returns (scene, digest, error, elapsed seconds).
 
     The elapsed time is reported for every outcome, so a sweep can name
@@ -351,10 +386,18 @@ def compared(binary, first, second):
     distances, unusable = {}, {}
     for line in r.stdout.splitlines():
         words = line.split()
-        if len(words) == 8 and words[0] == "compared":
-            distances[words[1]] = (float(words[3]), int(words[5]), int(words[7]))
-        elif words and words[0] in ("missing", "unreadable", "size"):
-            unusable[words[1]] = " ".join(words[0:1] + words[2:])
+        # A registry name CAN CARRY SPACES, so every row is read from its
+        # ends inward: the verb is the first word, the fixed-width tail is
+        # the last, and whatever lies between them is the name.
+        if len(words) >= 8 and words[0] == "compared" and words[-6] == "mean":
+            name = " ".join(words[1:-6])
+            distances[name] = (float(words[-5]), int(words[-3]), int(words[-1]))
+        elif words and words[0] == "size" and len(words) >= 4:
+            name = " ".join(words[1:-2])
+            unusable[name] = "size " + " ".join(words[-2:])
+        elif words and words[0] in ("missing", "unreadable") and len(words) >= 3:
+            name = " ".join(words[1:-1])
+            unusable[name] = f"{words[0]} {words[-1]}"
     if not distances and not unusable:
         unusable["--compare"] = (r.stderr or r.stdout).strip()[-300:]
     return distances, unusable
@@ -422,11 +465,23 @@ def device_sweep(binary, scenes, timeout, jobs):
 
     print("[cpu]")
     _, cpu_errors = sweep(
-        binary, scenes, host_dir, timeout, jobs, (), lambda s, d: "rendered"
+        binary,
+        scenes,
+        host_dir,
+        timeout,
+        jobs,
+        PROMOTION_OFF,
+        lambda s, d: "rendered",
     )
     print("[gpu]")
     _, gpu_errors = sweep(
-        binary, scenes, device_dir, timeout, jobs, ("--gpu",), lambda s, d: "rendered"
+        binary,
+        scenes,
+        device_dir,
+        timeout,
+        jobs,
+        PROMOTION_OFF + ("--gpu",),
+        lambda s, d: "rendered",
     )
     errors = len(cpu_errors) + len(gpu_errors)
 
@@ -456,6 +511,82 @@ def device_sweep(binary, scenes, timeout, jobs):
     return verdict or (1 if errors else 0)
 
 
+def promotion_sweep(binary, scenes, timeout, jobs):
+    """The promotion tier: every sketch rendered with the promoter held off
+    and again with it on, and the two plates differenced.
+
+    It has no baseline. Both plates are made in this run and the held-off
+    one IS the reference, because the question is not what a sketch draws
+    but whether the runtime's own re-baking changes it.
+
+    THE BAR IS ONE CODE VALUE ANYWHERE. A promoted node is baked under the
+    live matrix post-translated by an integer, and inverting that matrix to
+    find a shader's local coordinates does not cancel the integer to the
+    last bit at a scale whose reciprocal is inexact — so a shaded pixel can
+    land one code value from the live paint and nothing may land further.
+    A worst channel over 1 is a picture that MOVED: the bake landed
+    somewhere else, or was rasterised against a different clip, or went
+    stale. That is a defect to file against the promoter, never a plate to
+    rebase — there is no baseline here to rebase into."""
+    off_dir = discard_later(tempfile.mkdtemp(prefix="plate_nopromo_"))
+    on_dir = discard_later(tempfile.mkdtemp(prefix="plate_promo_"))
+
+    print("[promotion off]")
+    _, off_errors = sweep(
+        binary,
+        scenes,
+        off_dir,
+        timeout,
+        jobs,
+        PROMOTION_OFF,
+        lambda s, d: "rendered",
+    )
+    print("[promotion on]")
+    _, on_errors = sweep(
+        binary,
+        scenes,
+        on_dir,
+        timeout,
+        jobs,
+        PROMOTION_ON,
+        lambda s, d: "rendered",
+    )
+    errors = len(off_errors) + len(on_errors)
+
+    verdict = 0
+    within = 0
+    print()
+    distances, unusable = compared(binary, off_dir, on_dir)
+    for scene in scenes:
+        if scene in unusable:
+            print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")
+            verdict = 1
+            continue
+        if scene not in distances:
+            verdict = 1
+            continue
+        mean, p99, worst = distances[scene]
+        if worst <= PROMOTION_DRIFT_CEILING:
+            within += 1
+            # A scene the promoter never fired on differs in nothing at
+            # all, and one it did fire on differs by a code value on the
+            # shaded pixels. Both are within the rule; the count of
+            # differing pixels is what tells them apart, so max is
+            # printed for every scene rather than only for the movers.
+            print(f"  WITHIN {scene:<24} max {worst:3d}  mean {mean:6.2f}")
+            continue
+        print(
+            f"  MOVED  {scene:<24} max {worst:3d} (> "
+            f"{PROMOTION_DRIFT_CEILING})  mean {mean:6.2f}  p99 {p99:4d}"
+            f"   <-- FINDING"
+        )
+        verdict = 1
+    print(f"\n{within} of {len(scenes)} within one code value, {errors} failed")
+    if verdict == 0 and not errors:
+        print("VERDICT: the promoter moves no picture by more than one code value")
+    return verdict or (1 if errors else 0)
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="plate sweep over the sketch registry, judged against a "
@@ -465,12 +596,15 @@ def main():
     ap.add_argument("--jobs", type=int, default=max(2, (os.cpu_count() or 8) // 2))
     ap.add_argument(
         "--tier",
-        choices=("cpu", "device"),
+        choices=("cpu", "device", "promotion"),
         default="cpu",
         help="cpu (default): CPU renders to each scene's declared capture "
         "moment, judged on byte identity against the baseline manifest. "
         "device: the same scenes on the GPU, judged per colour channel "
-        "against the CPU plate of the same run; no baseline",
+        "against the CPU plate of the same run; no baseline. promotion: "
+        "the same scenes rendered with automatic texture promotion held "
+        "off and again with it on, judged within one code value; no "
+        "baseline",
     )
     ap.add_argument(
         "--kind",
@@ -551,6 +685,21 @@ def main():
         )
         return device_sweep(binary, list(scenes), args.timeout_seconds, args.jobs)
 
+    if args.tier == "promotion":
+        if args.rebase:
+            sys.exit(
+                "--tier promotion has no baseline to rebase: it is judged "
+                "against the same scenes rendered with the promoter held off, "
+                "in the same run. A scene past the ceiling is a defect in the "
+                "promoter, not a plate to adopt."
+            )
+        print(
+            f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, "
+            f"tier promotion: each rendered with automatic texture promotion "
+            f"held off and again with it on"
+        )
+        return promotion_sweep(binary, list(scenes), args.timeout_seconds, args.jobs)
+
     print(f"{len(scenes)} scenes, {args.jobs} jobs, config {args.config}, tier cpu")
 
     # Read BEFORE the sweep so a scene can be judged the moment it lands.
@@ -563,7 +712,13 @@ def main():
 
     outdir = discard_later(tempfile.mkdtemp(prefix="plate_ledger_"))
     results, errors = sweep(
-        binary, list(scenes), outdir, args.timeout_seconds, args.jobs, (), standing
+        binary,
+        list(scenes),
+        outdir,
+        args.timeout_seconds,
+        args.jobs,
+        PROMOTION_OFF,
+        standing,
     )
 
     if args.rebase or not os.path.exists(manifest):

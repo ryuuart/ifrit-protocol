@@ -8,7 +8,8 @@
  *                                              object per line
  *   Sketchbook --compare <dir-a> <dir-b>       two sweeps' plates, differenced
  *   Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
- *              [--ledger] [--no-promotion] [--capture-at <s>]
+ *              [--ledger] [--no-promotion | --promotion]
+ *              [--capture-at <s>]
  *              [--timing-json <path>]          plates, and the timing table
  *   Sketchbook --video <out.mp4> [--video-frames <n>] [--fps <n>]
  *              [--video-size <WxH>] [--video-bitrate <bits>]
@@ -864,6 +865,8 @@ int main(int argc, char* argv[]) {
       sweepOptions.ledger = true;
     } else if (arg == "--no-promotion") {
       sweepOptions.noPromotion = true;
+    } else if (arg == "--promotion") {
+      sweepOptions.promotion = true;
     } else if (arg == "--capture-at" && i + 1 < argc) {
       sweepOptions.captureAt = std::strtod(argv[++i], nullptr);
     } else if (arg == "--timing-json" && i + 1 < argc) {

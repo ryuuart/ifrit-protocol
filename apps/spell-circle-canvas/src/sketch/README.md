@@ -530,7 +530,7 @@ Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
 Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
-           [--ledger] [--no-promotion] [--capture-at <s>]
+           [--ledger] [--no-promotion | --promotion] [--capture-at <s>]
            [--timing-json <path>]
 Sketchbook --video out.mp4 [--video-frames <n>] [--video-size <WxH>]
            [--video-bitrate <bits>] [--fps <n>] [--sketch <name>]
@@ -902,12 +902,41 @@ forms its frame at that many pixels, and puts the result back on the
 declared canvas — which on a plate's canvas is the identity, and is why
 the two hosts agree to the byte.
 
-`scripts/plate_ledger.py` drives this: two tiers over one binary. The
+### The promoter, and the one lane that exercises it
+
+A headless session is opened DETERMINISTIC, and a deterministic session
+holds the composer's automatic texture promotion off. The promoter
+decides by a stopwatch — a node whose paint measures over a millisecond
+for eight frames is baked and blitted thereafter — so whether it fires
+depends on how busy the machine is, and with it on the same binary draws
+two different plates. Holding it off is what makes a hash a verdict.
+
+The cost is that the whole sweep renders the runtime with one of its
+features switched out. `--promotion` is the door back: it opens every
+session with promotion ON and changes nothing else — same clock, same
+fixed step, same declared capture moment, same `ctx.measured()` pins —
+so the only difference between the two renders of a scene is the
+promoter. `--no-promotion` and `--promotion` ask for opposite runs and
+naming both is refused.
+
+What comes out is not byte-comparable and is not meant to be. A promoted
+node is baked under the live matrix post-translated by an integer, and
+inverting that matrix to find a shader's local coordinates does not
+cancel the integer to the last bit at a scale whose reciprocal is
+inexact, so a shaded pixel can land ONE code value from the live paint
+and nothing may land further. A worst channel over one is a picture that
+moved — a bake somewhere else, rasterised against another clip, or gone
+stale — and that is a defect in the promoter rather than a plate to
+adopt.
+
+`scripts/plate_ledger.py` drives this: three tiers over one binary. The
 CPU tier judges every sketch, canvas and set alike, on byte identity
 against one baseline manifest; the device tier renders the same sketches
 through the device and judges each against the CPU plate of the same
-run, per colour channel, so it keeps no baseline at all. The judgement
-itself is `scripts/README.md`'s.
+run, per colour channel; the promotion tier renders each scene with the
+promoter held off and again with it on and judges the pair within one
+code value. Only the CPU tier keeps a baseline. The judgement itself is
+`scripts/README.md`'s.
 
 ## The live host
 

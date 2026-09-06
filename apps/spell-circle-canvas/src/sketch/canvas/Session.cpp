@@ -45,6 +45,11 @@ class CanvasSession final : public Session {
     // depends on how busy the machine is, so with it on the same binary
     // draws two different plates. The sketch's own measurements are pinned
     // by ctx.measured(); this pins the runtime's.
+    //
+    // It is the session's DEFAULT rather than a property of determinism:
+    // setAutoPromotion() lifts it afterwards, which is how a run that
+    // means to exercise the promoter keeps every other pin in place. Such
+    // a run is judged by distance from a plate, never by hash.
     if (deterministic) m_composer->setAutoTexturePromotion(false);
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
