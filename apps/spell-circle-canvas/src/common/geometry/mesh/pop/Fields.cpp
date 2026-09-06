@@ -172,7 +172,8 @@ std::optional<float> pop::getField(const pop::Op& op, std::string_view field) {
 std::string_view pop::opName(const pop::Op& op) {
   // One arm per alternative, spelled as the operator's own type name, so
   // a chain printed on a control surface and a runtime's complaint about
-  // an operator it cannot run say the same word.
+  // an operator it cannot run say the same word. An alternative with no
+  // arm fails to compile rather than borrowing another's name.
   return std::visit(
       [](const auto& o) -> std::string_view {
         using T = std::decay_t<decltype(o)>;
@@ -224,8 +225,15 @@ std::string_view pop::opName(const pop::Op& op) {
           return "Delete";
         else if constexpr (std::is_same_v<T, pop::Normal>)
           return "Normal";
-        else
+        else if constexpr (std::is_same_v<T, pop::PointSet>)
           return "PointSet";
+        else
+          // NO CATCH-ALL. An alternative added to `Op` without an arm
+          // here would otherwise be reported under whichever name the
+          // last arm carried, in the one message a runtime writes when
+          // it cannot run an operator.
+          static_assert(sizeof(T) == 0,
+                        "pop::opName has no arm for this operator");
       },
       op);
 }

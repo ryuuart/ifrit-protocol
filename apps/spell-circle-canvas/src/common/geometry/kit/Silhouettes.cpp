@@ -163,13 +163,17 @@ SkPath Sector::path(SkSize s) const {
 }
 
 SkPath Parallelogram::path(SkSize s) const {
+  // One signed lean drives both ends: the top edge slides right by it and
+  // the bottom left by it, or the reverse when the skew is negative. So
+  // either sign inscribes a parallelogram of width w - |lean| in the box
+  // rather than running one edge past it.
   const float lean = std::tan(skewDeg * 0.017453293f) * s.height();
-  const float l = std::max(0.0f, -lean), r = std::max(0.0f, lean);
+  const float top = std::max(0.0f, lean), bottom = std::max(0.0f, -lean);
   SkPathBuilder b;
-  b.moveTo(l, 0);
-  b.lineTo(s.width() - r + l, 0);  // top edge (shifted)
-  b.lineTo(s.width() - l, s.height());
-  b.lineTo(r - l >= 0 ? r : 0, s.height());
+  b.moveTo(top, 0);
+  b.lineTo(s.width() - bottom, 0);
+  b.lineTo(s.width() - top, s.height());
+  b.lineTo(bottom, s.height());
   b.close();
   return b.detach();
 }

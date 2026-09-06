@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/Vec.h"
@@ -21,6 +22,12 @@ Mesh grid(int nu, int nv, const std::function<glm::vec3(float, float)>& fn) {
   out.uvs.reserve((size_t)nu * nv);
   out.normals.reserve((size_t)nu * nv);
   const float eps = 1e-3f;
+  // A pole is where the sheet's two parameter directions collapse onto
+  // one point: the cross product there has no length and so no direction
+  // to normalize. Which entries those are has to be recorded while the
+  // raw product is still in hand — once normalized, a pole is
+  // indistinguishable from the unit fallback that replaced it.
+  std::vector<size_t> degenerate;
   for (int j = 0; j < nv; ++j) {
     const float v = (float)j / (float)(nv - 1);
     for (int i = 0; i < nu; ++i) {
@@ -28,14 +35,16 @@ Mesh grid(int nu, int nv, const std::function<glm::vec3(float, float)>& fn) {
       out.positions.push_back(fn(u, v));
       // Image-convention UVs: (0,0) samples the texture's TOP-left, so
       // v runs opposite the parameter (v param 0 is the sheet's bottom
-      // in y-up space). Both renderers (Space.h texs, SigilWorld)
-      // assume this.
+      // in y-up space). Every renderer that samples one of these sheets
+      // assumes it.
       out.uvs.emplace_back(u, 1.0f - v);
       const glm::vec3 du =
           fn(std::min(u + eps, 1.0f), v) - fn(std::max(u - eps, 0.0f), v);
       const glm::vec3 dv =
           fn(u, std::min(v + eps, 1.0f)) - fn(u, std::max(v - eps, 0.0f));
-      out.normals.push_back(normalized(cross(du, dv)));
+      const glm::vec3 raw = cross(du, dv);
+      if (glm::dot(raw, raw) < 1e-16f) degenerate.push_back(out.normals.size());
+      out.normals.push_back(normalized(raw));
     }
   }
   for (int j = 0; j + 1 < nv; ++j) {
@@ -47,17 +56,32 @@ Mesh grid(int nu, int nv, const std::function<glm::vec3(float, float)>& fn) {
       out.indices.insert(out.indices.end(), {a, b, d, a, d, c});
     }
   }
-  // Degenerate-partial fallback (poles): borrow the nearest valid normal.
-  for (size_t i = 0; i < out.normals.size(); ++i)
-    if (glm::dot(out.normals[i], out.normals[i]) < 0.5f) {
-      for (size_t j = 1; j < out.normals.size(); ++j) {
-        const size_t k = (i + j) % out.normals.size();
-        if (glm::dot(out.normals[k], out.normals[k]) > 0.5f) {
-          out.normals[i] = out.normals[k];
-          break;
-        }
-      }
+  // The poles borrow the nearest normal that had a direction of its own,
+  // nearest measured in vertex order. One sweep each way carries the last
+  // such normal, and every pole takes whichever of the two is closer, so
+  // the borrow costs one pass however many poles a sheet has. A sheet
+  // with no valid normal anywhere keeps the unit fallback.
+  if (!degenerate.empty() && degenerate.size() < out.normals.size()) {
+    const size_t n = out.normals.size();
+    std::vector<bool> pole(n, false);
+    for (const size_t i : degenerate) pole[i] = true;
+    std::vector<size_t> before(n, n), after(n, n);
+    size_t last = n;
+    for (size_t i = 0; i < n; ++i) {
+      if (!pole[i]) last = i;
+      before[i] = last;
     }
+    last = n;
+    for (size_t i = n; i-- > 0;) {
+      if (!pole[i]) last = i;
+      after[i] = last;
+    }
+    for (const size_t i : degenerate) {
+      const size_t b = before[i], a = after[i];
+      const size_t take = b == n ? a : (a == n ? b : (i - b <= a - i ? b : a));
+      out.normals[i] = out.normals[take];
+    }
+  }
   return out;
 }
 

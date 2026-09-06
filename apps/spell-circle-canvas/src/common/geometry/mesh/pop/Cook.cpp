@@ -221,9 +221,21 @@ size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
   if (given && given->cloud.positions.empty()) return 0;
   if (!scatter && !surface && !given) return 0;
 
-  const size_t count = (size_t)(scatter   ? scatter->count
-                                : surface ? surface->count
-                                          : (int)given->cloud.size());
+  // THE SURFACE SCATTER IS RUN FIRST, because how many points it made
+  // is how many this chain has. `points::onMesh` answers an empty cloud
+  // for a mesh of no area, and returning the requested count over it
+  // would cook a chain of points nothing ever placed — every one of them
+  // at the origin.
+  Cloud seeds;
+  if (surface) {
+    seeds = points::onMesh(surface->mesh, surface->count, surface->seed);
+    if (seeds.positions.empty()) return 0;
+  }
+
+  const size_t count = scatter ? (size_t)scatter->count
+                       : surface
+                           ? std::min((size_t)surface->count, seeds.size())
+                           : given->cloud.size();
   const auto lane = [&](const std::string& name) -> auto& {
     auto [it, inserted] = lanes->try_emplace(name);
     if (inserted) it->second.assign(count, pop::laneFill(name));
@@ -238,12 +250,9 @@ size_t pop::seedLanes(const pop::Chain& chain, pop::Lanes* lanes) {
   if (given) pop::seedAttrs(given->cloud, *lanes);
 
   if (surface) {
-    const Cloud seeds =
-        points::onMesh(surface->mesh, (int)count, surface->seed);
     const std::vector<glm::vec3>* normals = seeds.vectorIf("normal");
-    const size_t copied = std::min(count, seeds.size());
     core::schedule::parallelFor(
-        copied, kLaneGrain, [&](size_t first, size_t last) {
+        count, kLaneGrain, [&](size_t first, size_t last) {
           for (size_t i = first; i < last; ++i) {
             const glm::vec3& p = seeds.positions[i];
             laneP[i] = {p.x, p.y, p.z, 0};

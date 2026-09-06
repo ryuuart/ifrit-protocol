@@ -327,3 +327,48 @@ TEST(DevicePop, TheKernelAndTheRuntimeAgreeOnWhatHasOne) {
   EXPECT_EQ(runtime->supports(jitter), kernel::has(jitter));
   EXPECT_EQ(runtime->supports(relax), kernel::has(relax));
 }
+
+TEST(DevicePop, TwoChainsThroughOneRuntimeEachMatchTheHost) {
+  // A RUNTIME OUTLIVES A CHAIN. The lane buffers a cook made are kept
+  // while their size still fits, so the next chain through the same
+  // runtime meets buffers holding the last one's answer — including
+  // lanes it never names. What it exports must be its own lanes and
+  // their values, not whatever the cook before left behind.
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const pop::Runtime runtime = pop::deviceRuntime(*on);
+
+  const int n = 512;
+  // The first chain writes a mask lane and a colour the second never
+  // asks for; the second is the same seed and count, so the buffers are
+  // the right size and are kept.
+  const pop::Chain first = pop::on(loop())
+                               .count(n)
+                               .select("core", {20, 0, 0}, 90.0f, 0.35f)
+                               .masked("core")
+                               .fade({1, 0.9f, 0.4f, 1}, {0.1f, 0.2f, 0.8f, 1});
+  const pop::Chain second = pop::on(loop()).count(n).jitter(9.0f);
+
+  const Cloud firstDevice = pop::cook(first, runtime);
+  const Cloud secondDevice = pop::cook(second, runtime);
+  ASSERT_FALSE(firstDevice.positions.empty());
+  ASSERT_FALSE(secondDevice.positions.empty());
+
+  EXPECT_EQ(
+      compare(pop::cook(first, pop::Runtime::cpu()), firstDevice).differing,
+      0u);
+  const Difference after =
+      compare(pop::cook(second, pop::Runtime::cpu()), secondDevice);
+  EXPECT_EQ(after.differing, 0u)
+      << after.differing << " of " << after.values << " values differ, first "
+      << "in \"" << after.first << "\" at " << after.at;
+  // The mask lane the FIRST chain named is in the first chain's answer
+  // and in nothing else. A custom lane leaves a cook as a colour, so
+  // that is where a stale one would surface.
+  EXPECT_NE(firstDevice.colorIf("core"), nullptr);
+  EXPECT_EQ(secondDevice.colorIf("core"), nullptr);
+
+  // The other order too: a chain that names no custom lane, then one
+  // that does, on the same runtime.
+  const Cloud again = pop::cook(first, runtime);
+  EXPECT_EQ(compare(firstDevice, again).differing, 0u);
+}

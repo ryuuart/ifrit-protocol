@@ -71,6 +71,7 @@ INSTANTIATE_TEST_SUITE_P(
         Generator{"Squircle", squircle()}, Generator{"Blob", blob(7)},
         Generator{"Sector", sector(0, 90)},
         Generator{"Parallelogram", parallelogram(12)},
+        Generator{"ParallelogramLeaningBack", parallelogram(-12)},
         Generator{"Arrow", arrow()}, Generator{"Chamfered", chamfered(8)},
         Generator{"Notched", notched(10, 6)}),
     [](const ::testing::TestParamInfo<Generator>& info) {

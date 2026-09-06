@@ -27,6 +27,13 @@ namespace sigil::geometry::mesh::render {
  * carries — so a mesh lands where the host executor would have put it
  * whatever surface the canvas is.
  *
+ * THE SKY IS SHADED HERE TOO, on the same terms: the metal split, the
+ * cosine convolution as the ambient a surface receives, and the
+ * prefiltered chain mirrored off the reflected view vector through the
+ * split-sum weights. One panorama at a time — a style crossfading
+ * between two skies is read at the first of them, which is the one
+ * shading difference between the two executors.
+ *
  * A PANEL DRAW IS THE CANVAS'S OWN. `drawPanel` concats the perspective
  * transform and runs the caller's 2D content, which is what the host
  * executor does, because that content is Skia's to draw and a device has
@@ -34,11 +41,12 @@ namespace sigil::geometry::mesh::render {
  * the GPU. The two executors therefore agree about a panel exactly,
  * which is what the parity test asserts.
  *
- * WHAT DIFFERS FROM THE HOST, and neither is a shading disagreement:
+ * WHAT DIFFERS FROM THE HOST, and none of it is a shading disagreement:
  * the host sorts triangles back to front and antialiases their edges,
- * while this depth-tests them and does not. So the two draw the same
- * picture and not the same bytes, and what they disagree about is a
- * silhouette.
+ * while this depth-tests them and does not; and the host reads a
+ * panorama's texels itself where this reads them through a sampler. So
+ * the two draw the same picture and not the same bytes, and what they
+ * disagree about is a silhouette and a texel's worth of sky.
  *
  * WHAT THIS COSTS, said plainly: one readback per mesh draw. A canvas
  * does not name the texture behind it, so there is nothing to compare

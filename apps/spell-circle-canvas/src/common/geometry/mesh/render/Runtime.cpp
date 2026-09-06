@@ -115,7 +115,7 @@ struct CpuExecutor : Executor {
           const glm::vec3 nrm = hasNormals
                                     ? normalized(normalM * mesh.normals[i])
                                     : glm::vec3{0, 0, 1};
-          // Materials.h G-buffer convention: DEVICE-space normals, +y down.
+          // The G-buffer convention: DEVICE-space normals, +y down.
           shaded[i] = rgba(
               {nrm.x * 0.5f + 0.5f, -nrm.y * 0.5f + 0.5f, nrm.z * 0.5f + 0.5f},
               1);
@@ -226,6 +226,11 @@ struct CpuExecutor : Executor {
     for (size_t t = 0; t + 2 < mesh.indices.size(); t += 3) {
       const uint32_t i0 = mesh.indices[t], i1 = mesh.indices[t + 1],
                      i2 = mesh.indices[t + 2];
+      // A triangle naming a vertex the mesh does not have is dropped
+      // before anything is read through it. The indices are whatever the
+      // caller built or an importer read, and the arrays below are sized
+      // to the vertex count alone.
+      if (i0 >= n || i1 >= n || i2 >= n) continue;
       if (!valid[i0] || !valid[i1] || !valid[i2]) continue;
       if (style.backfaceCull) {
         const SkPoint a = screen[i0], b = screen[i1], c = screen[i2];

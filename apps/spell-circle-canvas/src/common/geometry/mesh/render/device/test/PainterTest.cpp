@@ -23,6 +23,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/device/Painter.h>
 
+#include <cmath>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -167,4 +168,128 @@ TEST(Painter, APanelIsTheSamePixelsOnBothExecutors) {
   // NOT a tolerance: a panel's content is Skia's to rasterise on either
   // executor, so the two must be the same bytes.
   EXPECT_TRUE(identical(host, device));
+}
+
+namespace {
+
+/** One level of a panorama: a sky that is bright overhead and dim below,
+ *  warm on one side and cool on the other, so a normal turned anywhere
+ *  reads a different colour and a reflection has something to say. Every
+ *  level is half the one before it, which is what a prefiltered chain
+ *  is — one texture the device reads a fractional level of, and a list
+ *  the host reads two of and mixes. */
+sk_sp<SkImage> panoramaLevel(int width, int height, float scale) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::Make(width, height, kRGBA_F32_SkColorType,
+                                       kPremul_SkAlphaType));
+  for (int y = 0; y < height; ++y) {
+    const float v = ((float)y + 0.5f) / (float)height;
+    for (int x = 0; x < width; ++x) {
+      const float u = ((float)x + 0.5f) / (float)width;
+      const float sky = (1.0f - v) * 2.0f * scale;
+      float* texel = (float*)bitmap.getAddr(x, y);
+      texel[0] = sky * (0.4f + 0.6f * u);
+      texel[1] = sky * 0.7f;
+      texel[2] = sky * (1.0f - 0.6f * u);
+      texel[3] = 1.0f;
+    }
+  }
+  bitmap.setImmutable();
+  return bitmap.asImage();
+}
+
+/** A sky as both executors take it: a chain of halving levels and the
+ *  cosine convolution beside it. */
+geometry::mesh::render::Environment sky() {
+  geometry::mesh::render::Environment out;
+  out.levels = {panoramaLevel(64, 32, 1.0f), panoramaLevel(32, 16, 0.9f),
+                panoramaLevel(16, 8, 0.8f), panoramaLevel(8, 4, 0.7f)};
+  out.irradiance = panoramaLevel(16, 8, 0.6f);
+  return out;
+}
+
+/** How far apart two pictures stand, as the mean absolute difference per
+ *  channel over every pixel — the measure a shading disagreement shows
+ *  up in and a silhouette barely does. */
+double meanChannelDistance(const SkBitmap& a, const SkBitmap& b) {
+  double total = 0;
+  for (int y = 0; y < a.height(); ++y)
+    for (int x = 0; x < a.width(); ++x) {
+      const SkColor4f p = a.getColor4f(x, y), q = b.getColor4f(x, y);
+      total +=
+          std::abs(p.fR - q.fR) + std::abs(p.fG - q.fG) + std::abs(p.fB - q.fB);
+    }
+  return total / (double)(a.width() * a.height() * 3);
+}
+
+double meanBrightness(const SkBitmap& b) {
+  double total = 0;
+  for (int y = 0; y < b.height(); ++y)
+    for (int x = 0; x < b.width(); ++x) {
+      const SkColor4f c = b.getColor4f(x, y);
+      total += c.fR + c.fG + c.fB;
+    }
+  return total / (double)(b.width() * b.height() * 3);
+}
+
+}  // namespace
+
+TEST(Painter, TheSkyAndTheMetalSplitReadTheSameOnBothExecutors) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  const geometry::mesh::render::Runtime device =
+      geometry::mesh::render::deviceRuntime(*on);
+  const geometry::mesh::render::Runtime host =
+      geometry::mesh::render::Runtime::cpu();
+
+  geometry::mesh::render::MeshStyle flat = litStyle();
+  geometry::mesh::render::MeshStyle skied = litStyle();
+  skied.environment = sky();
+
+  // A SKY CHANGES THE PICTURE, and by about as much on either executor.
+  // The environment is the ambient a surface receives and the radiance
+  // it mirrors, so a body under one cannot look like a body under a flat
+  // constant.
+  const double hostLift = meanBrightness(drawnWith(host, skied)) -
+                          meanBrightness(drawnWith(host, flat));
+  const double deviceLift = meanBrightness(drawnWith(device, skied)) -
+                            meanBrightness(drawnWith(device, flat));
+  EXPECT_GT(hostLift, 0.01);
+  EXPECT_GT(deviceLift, 0.01);
+  EXPECT_NEAR(deviceLift, hostLift, 0.05)
+      << "host " << hostLift << ", device " << deviceLift;
+
+  // …and the two pictures themselves stand within a shading distance
+  // rather than a silhouette's. Not bit identity: the host sorts and
+  // antialiases where this depth-tests and does not, and it reads the
+  // panorama's texels itself where this reads them through a sampler.
+  EXPECT_LT(
+      meanChannelDistance(drawnWith(host, skied), drawnWith(device, skied)),
+      0.06);
+
+  // THE METAL SPLIT: light stops reaching the diffuse and the highlight
+  // takes the surface's own colour, so a metal under this sky is a
+  // different picture from a dielectric — on both executors, in the same
+  // direction.
+  geometry::mesh::render::MeshStyle metal = skied;
+  metal.metallic = 1.0f;
+  metal.roughness = 0.15f;
+  EXPECT_GT(meanChannelDistance(drawnWith(host, skied), drawnWith(host, metal)),
+            0.01);
+  EXPECT_GT(
+      meanChannelDistance(drawnWith(device, skied), drawnWith(device, metal)),
+      0.01);
+  EXPECT_LT(
+      meanChannelDistance(drawnWith(host, metal), drawnWith(device, metal)),
+      0.06);
+
+  // ROUGHNESS PICKS A LEVEL of the chain on both, so a mirror and a
+  // rough metal are two pictures and the two executors agree which is
+  // which.
+  geometry::mesh::render::MeshStyle rough = metal;
+  rough.roughness = 0.95f;
+  EXPECT_GT(meanChannelDistance(drawnWith(host, metal), drawnWith(host, rough)),
+            0.005);
+  EXPECT_LT(
+      meanChannelDistance(drawnWith(host, rough), drawnWith(device, rough)),
+      0.06);
 }

@@ -282,7 +282,14 @@ void PopGpu::dispatch(const OpDispatch& work, size_t count) {
 void PopGpu::readBack(pop::Lanes& into, size_t count) {
   dg::IDeviceContext* context = device->context();
   const size_t stride = count * sizeof(glm::vec4);
-  const size_t wanted = stride * lanes.size();
+  // ONLY THE LANES THIS COOK TOUCHED. A buffer kept from an earlier
+  // chain still holds that chain's answer, and pouring it into the
+  // export would hand the caller a custom lane no operator in this chain
+  // ever named. The stamp is what says which is which.
+  size_t mine = 0;
+  for (const auto& [name, held] : lanes)
+    if (held.stamp == cooks) ++mine;
+  const size_t wanted = stride * mine;
   if (wanted == 0) return;
   if (!staging || stagingCapacity < wanted) {
     staging.Release();
@@ -302,6 +309,7 @@ void PopGpu::readBack(pop::Lanes& into, size_t count) {
   // together and waited on once.
   size_t at = 0;
   for (auto& [name, held] : lanes) {
+    if (held.stamp != cooks) continue;
     context->CopyBuffer(held.buffer, 0,
                         dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION, staging,
                         (dg::Uint64)at, (dg::Uint64)stride,
@@ -315,6 +323,7 @@ void PopGpu::readBack(pop::Lanes& into, size_t count) {
   if (!mapped) return;
   at = 0;
   for (auto& [name, held] : lanes) {
+    if (held.stamp != cooks) continue;
     std::vector<glm::vec4>& values = into[name];
     values.resize(count);
     std::memcpy(values.data(), static_cast<const std::byte*>(mapped) + at,

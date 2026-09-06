@@ -21,8 +21,6 @@ namespace sigil::geometry::mesh {
 using curve::Spline3;
 using path::Polyline;
 
-namespace {}  // namespace
-
 Mesh pop::cookMesh(const pop::Chain& chain, const Mesh& stamp,
                    const pop::Runtime& runtime) {
   const Cloud cloud = cook(chain, runtime);
@@ -86,6 +84,10 @@ std::vector<glm::uvec2> pop::connectAdjacent(const Cloud& cloud,
 
   const std::vector<float>* pieces =
       connect.pieceLane.empty() ? nullptr : cloud.scalarIf(connect.pieceLane);
+  // A lane is one value per point or it is not this cloud's lane. A
+  // hand-built cloud can carry a short one, and it is read below by the
+  // point's own index.
+  if (pieces && pieces->size() != cloud.positions.size()) pieces = nullptr;
   const path::Neighbours index(cloud.positions, connect.radius);
   std::vector<uint32_t> found;
   std::vector<uint32_t> keep;

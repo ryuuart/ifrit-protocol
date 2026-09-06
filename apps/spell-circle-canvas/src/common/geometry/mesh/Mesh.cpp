@@ -91,7 +91,7 @@ void Mesh::append(const Mesh& other) {
     // `other` lane holding fewer entries than other.triangleCount()
     // leaves `mine` under newTris after the insert, and this resize
     // tops it up by name. (A too-LONG lane is truncated by the same
-    // call.) Verified by Mesh.AppendRepairsShortIncomingLanes.
+    // call.)
     for (auto& [name, lane] : prims) lane.resize(newTris, primDefault(name));
   }
   // Color lanes get the same coherence dance as normals and uvs below,
@@ -149,7 +149,14 @@ void Mesh::transform(const glm::mat4& m) {
 
 void Mesh::computeNormals() {
   normals.assign(positions.size(), {0, 0, 0});
+  const uint32_t count = (uint32_t)positions.size();
   for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+    // A triangle naming a vertex this mesh does not have is skipped
+    // rather than accumulated: the index arrives from whatever built the
+    // mesh, an importer included, and the accumulation below is a WRITE.
+    if (indices[i] >= count || indices[i + 1] >= count ||
+        indices[i + 2] >= count)
+      continue;
     const glm::vec3& p0 = positions[indices[i]];
     const glm::vec3& p1 = positions[indices[i + 1]];
     const glm::vec3& p2 = positions[indices[i + 2]];

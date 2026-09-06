@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace Diligent {
@@ -66,6 +67,13 @@ struct MeshBuffers {
   Diligent::RefCntAutoPtr<Diligent::IBuffer> indices;
   size_t vertexCount = 0;
   uint32_t indexCount = 0;
+  /** The PRIMITIVE LANE these buffers were packed for. It is part of
+   *  what they are and not only of how they were made: a lane unshares
+   *  the vertices and writes a value per triangle, so the same artefact
+   *  asked for once with a lane and once without is two different pairs
+   *  of buffers. Answering the held pair for the other request would
+   *  hand a draw the wrong vertex count and the wrong tints. */
+  std::string primColorLane;
   /** The frame this was last drawn in, so a mesh nobody names any more
    *  is let go. */
   uint64_t used = 0;
@@ -93,10 +101,11 @@ class MeshResidency {
   MeshResidency& operator=(const MeshResidency&) = delete;
 
   /** @p mesh's buffers, uploaded the first time @p artefact is asked
-   *  for. A caller cooking a mesh of its own — the stamps of a point
-   *  set — has no artefact to name, and passes an id of its own that no
-   *  frame after it repeats. Null when the mesh has no triangles or the
-   *  device refused the buffers. */
+   *  for with @p primColorLane, and repacked when a later call names a
+   *  different lane. A caller cooking a mesh of its own — the stamps of
+   *  a point set — has no artefact to name, and passes an id of its own
+   *  that no frame after it repeats. Null when the mesh has no triangles
+   *  or the device refused the buffers. */
   const MeshBuffers* upload(uint64_t artefact, const mesh::Mesh& mesh,
                             std::string_view primColorLane = {});
 

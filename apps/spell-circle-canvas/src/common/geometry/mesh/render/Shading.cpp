@@ -11,6 +11,7 @@
 #include <boost/unordered/unordered_node_map.hpp>
 #include <cstdint>
 #include <glm/matrix.hpp>
+#include <memory>
 #include <mutex>
 
 namespace sigil::geometry::mesh::render {
@@ -45,7 +46,12 @@ struct Pixels {
 struct Entry {
   int width = 0;
   int height = 0;
-  Pixels pixels;
+  /** HELD BY SHARE, NOT BY THE MAP ALONE. A caller reads texels after
+   *  the lock is released, and another thread reaching the cap below
+   *  clears the map while it does; a reference into the map would then
+   *  name freed storage. A share keeps the read alive for exactly as
+   *  long as someone is reading it. */
+  std::shared_ptr<const Pixels> pixels;
 };
 
 /** How many panoramas' texels are held before the map is dropped whole.
@@ -59,10 +65,11 @@ struct Entry {
  *  still in use and nothing after that. */
 inline constexpr size_t kKeptPanoramas = 64;
 
-const Pixels& pixelsOf(const sk_sp<SkImage>& image) {
+std::shared_ptr<const Pixels> pixelsOf(const sk_sp<SkImage>& image) {
   static std::mutex lock;
   static boost::unordered_node_map<uint32_t, Entry> cache;
-  static const Pixels empty;
+  static const std::shared_ptr<const Pixels> empty =
+      std::make_shared<const Pixels>();
   if (!image) return empty;
   const std::lock_guard<std::mutex> held(lock);
   const uint32_t id = image->uniqueID();
@@ -86,14 +93,17 @@ const Pixels& pixelsOf(const sk_sp<SkImage>& image) {
           SkPixmap(info, read.px.data(), (size_t)read.w * 4 * sizeof(float)), 0,
           0))
     read = Pixels{};
-  entry.pixels = std::move(read);
-  return cache.insert_or_assign(id, std::move(entry)).first->second.pixels;
+  entry.pixels = std::make_shared<const Pixels>(std::move(read));
+  std::shared_ptr<const Pixels> answer = entry.pixels;
+  cache.insert_or_assign(id, std::move(entry));
+  return answer;
 }
 
 }  // namespace
 
 glm::vec3 samplePanorama(const sk_sp<SkImage>& panorama, glm::vec2 uv) {
-  const Pixels& p = pixelsOf(panorama);
+  const std::shared_ptr<const Pixels> kept = pixelsOf(panorama);
+  const Pixels& p = *kept;
   if (p.w <= 0 || p.h <= 0) return {0, 0, 0};
   const float fx = uv.x * (float)p.w - 0.5f;
   const float fy = uv.y * (float)p.h - 0.5f;

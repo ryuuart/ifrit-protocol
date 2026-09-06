@@ -1058,7 +1058,8 @@ mask lane from a sphere or box region, feathered at its edge and combined
 into what the lane already holds (replace, union, intersect, subtract),
 and `Delete` is its other half — it drops the points a mask names, which
 is the one operator that changes the count. Four operators read points
-they do not own, each over `path::Neighbours`: `Smooth` eases a lane
+they do not own, and two of them — `Relax` and `Transfer` — go through
+`path::Neighbours` to find which: `Smooth` eases a lane
 toward the midpoint of the two beside it IN THE CHAIN, `Relax` pushes
 every point out of the way of the points within its radius IN SPACE
 (they share Houdini's word and are different operators, which is why they

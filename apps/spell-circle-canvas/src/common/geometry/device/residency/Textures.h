@@ -25,6 +25,7 @@
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <boost/container/map.hpp>
 #include <cstdint>
+#include <vector>
 
 namespace sigil::geometry::device {
 
@@ -61,8 +62,10 @@ struct SampledImage {
  * The maps standing on one device, and what it takes to put one there.
  *
  * `endFrame()` closes the frame and lets go of what no draw has named
- * lately. The panoramas are not aged: a sky is expensive to prefilter
- * and a scene keeps the same one.
+ * lately — the panoramas among them, on the same beat as everything
+ * else. A prefiltered sky is the largest thing here, and a residency
+ * that kept every one a scene ever sampled would grow for as long as the
+ * scene ran.
  */
 class TextureResidency {
  public:
@@ -87,6 +90,14 @@ class TextureResidency {
   /** …and the cosine convolution beside it, one small texture a normal
    *  reads directly. */
   Diligent::ITexture* irradiance(const material::EnvironmentMap& map);
+
+  /** THE SAME TWO for a caller holding a panorama as images rather than
+   *  as a map: @p levels is the prefiltered chain, sharpest first, and
+   *  @p lobe the cosine convolution. Each is held under the id of the
+   *  image it was built from, which is the same key the two above use,
+   *  so a sky reaching this residency both ways crosses once. */
+  Diligent::ITexture* panorama(const std::vector<sk_sp<SkImage>>& levels);
+  Diligent::ITexture* convolution(const sk_sp<SkImage>& lobe);
 
   /** Closes the frame: the maps no draw has named lately are released. */
   void endFrame();

@@ -171,10 +171,16 @@ void bindDraw(Resources& shared, const Pipeline& pipeline,
                           shared.panoramaSampler() != nullptr;
     view->SetSampler(panorama ? shared.panoramaSampler()
                               : shared.samplerFor(filter, tile));
-    if (dg::IShaderResourceVariable* variable =
-            pipeline.binding->GetVariableByName(dg::SHADER_TYPE_PIXEL,
-                                                program.textures[i].c_str()))
-      variable->Set(view);
+    // BOTH STAGES, the way the uniform buffer is bound to both: a
+    // program that shades per VERTEX reads its maps there, and a slot
+    // the vertex stage declared and nothing bound is a draw the backend
+    // refuses.
+    for (const dg::SHADER_TYPE stage :
+         {dg::SHADER_TYPE_PIXEL, dg::SHADER_TYPE_VERTEX})
+      if (dg::IShaderResourceVariable* variable =
+              pipeline.binding->GetVariableByName(stage,
+                                                  program.textures[i].c_str()))
+        variable->Set(view);
   }
   context->CommitShaderResources(pipeline.binding,
                                  dg::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);

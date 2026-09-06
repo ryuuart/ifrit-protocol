@@ -76,6 +76,32 @@ TEST(MeshResidency, UploadsAMeshOnceUnderTheNameItsArtefactWasGiven) {
   EXPECT_EQ(again->vertices.RawPtr(), vertices);
 }
 
+TEST(MeshResidency, UploadsAgainWhenAnAskNamesADifferentPrimitiveLane) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  device::MeshResidency resident(*on);
+
+  mesh::Mesh tinted = quad();
+  tinted.prim("Color") = {{1, 0, 0, 1}, {0, 1, 0, 1}};
+
+  // WITHOUT A LANE the mesh's own indices stand and its four vertices
+  // are shared. WITH ONE they cannot be: the value belongs to a
+  // triangle, and a vertex two triangles meet at cannot hold two of
+  // them, so each triangle carries its own three.
+  const device::MeshBuffers* shared = resident.upload(11, tinted);
+  ASSERT_NE(shared, nullptr);
+  EXPECT_EQ(shared->vertexCount, 4u);
+
+  const device::MeshBuffers* unwelded = resident.upload(11, tinted, "Color");
+  ASSERT_NE(unwelded, nullptr);
+  EXPECT_EQ(unwelded->vertexCount, 6u);
+
+  // …and back, so the lane is part of the key in both directions rather
+  // than a one-way repack.
+  const device::MeshBuffers* again = resident.upload(11, tinted);
+  ASSERT_NE(again, nullptr);
+  EXPECT_EQ(again->vertexCount, 4u);
+}
+
 TEST(MeshResidency, LetsGoOfAMeshNoDrawHasNamedLately) {
   SIGIL_ON_DEVICE_OR_SKIP(on);
   device::MeshResidency resident(*on);

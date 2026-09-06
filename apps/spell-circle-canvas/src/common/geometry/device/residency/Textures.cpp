@@ -20,6 +20,7 @@
 #include <sigilskia/graphite/Pixels.h>
 
 #include <Graphics/GraphicsAccessories/interface/GraphicsAccessories.hpp>
+#include <algorithm>
 #include <cstdint>
 #include <vector>
 
@@ -151,27 +152,44 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map) {
 
 dg::ITexture* TextureResidency::environment(
     const material::EnvironmentMap& map) {
-  if (!m_device->renderDevice() || !map.valid()) return nullptr;
-  const sk_sp<SkImage> base = map.image(0);
-  if (!base) return nullptr;
-  SampledImage& held = m_environments[base->uniqueID()];
+  if (!map.valid()) return nullptr;
+  return panorama(map.chain());
+}
+
+dg::ITexture* TextureResidency::panorama(
+    const std::vector<sk_sp<SkImage>>& levels) {
+  if (!m_device->renderDevice()) return nullptr;
+  if (levels.empty() || !levels.front()) return nullptr;
+  SampledImage& held = m_environments[levels.front()->uniqueID()];
   held.used = m_frame;
   if (held.texture) return held.texture;
 
-  const std::vector<sk_sp<SkImage>> levels = map.chain();
-  if (levels.empty() || !levels.front()) return nullptr;
+  // A CHAIN IS A MIP PYRAMID here — level k half of level k-1 — which is
+  // what lets one texture hold the whole prefiltered set and a
+  // fractional level read across two of them. A caller that assembled
+  // its levels some other way is taken at its sharpest one alone rather
+  // than refused by the device, which will not take a level whose size
+  // is not the size the chain says.
+  size_t usable = 1;
+  for (size_t i = 1; i < levels.size(); ++i) {
+    if (!levels[i] ||
+        levels[i]->width() != std::max(1, levels[i - 1]->width() / 2) ||
+        levels[i]->height() != std::max(1, levels[i - 1]->height() / 2))
+      break;
+    ++usable;
+  }
 
   // Half floats keep the range a sky needs and are filterable
   // everywhere; the thirty-two-bit form the panorama was blurred in is
   // not, on an Apple GPU.
   std::vector<std::vector<uint16_t>> pixels;
   std::vector<dg::TextureSubResData> subresources;
-  pixels.reserve(levels.size());
-  subresources.reserve(levels.size());
-  for (const sk_sp<SkImage>& level : levels) {
-    pixels.push_back(skia::halfFloatPixels(level));
+  pixels.reserve(usable);
+  subresources.reserve(usable);
+  for (size_t i = 0; i < usable; ++i) {
+    pixels.push_back(skia::halfFloatPixels(levels[i]));
     if (pixels.back().empty()) return nullptr;
-    subresources.push_back(halfFloatLevel(pixels.back(), level->width()));
+    subresources.push_back(halfFloatLevel(pixels.back(), levels[i]->width()));
   }
 
   dg::TextureDesc desc;
@@ -179,7 +197,7 @@ dg::ITexture* TextureResidency::environment(
   desc.Type = dg::RESOURCE_DIM_TEX_2D;
   desc.Width = (dg::Uint32)levels.front()->width();
   desc.Height = (dg::Uint32)levels.front()->height();
-  desc.MipLevels = (dg::Uint32)levels.size();
+  desc.MipLevels = (dg::Uint32)usable;
   desc.Format = dg::TEX_FORMAT_RGBA16_FLOAT;
   desc.BindFlags = dg::BIND_SHADER_RESOURCE;
   desc.Usage = dg::USAGE_IMMUTABLE;
@@ -192,15 +210,16 @@ dg::ITexture* TextureResidency::environment(
 
 dg::ITexture* TextureResidency::irradiance(
     const material::EnvironmentMap& map) {
-  if (!m_device->renderDevice() || !map.valid()) return nullptr;
-  const sk_sp<SkImage> base = map.image(0);
-  if (!base) return nullptr;
-  SampledImage& held = m_irradiances[base->uniqueID()];
+  if (!map.valid()) return nullptr;
+  return convolution(map.irradiance());
+}
+
+dg::ITexture* TextureResidency::convolution(const sk_sp<SkImage>& lobe) {
+  if (!m_device->renderDevice() || !lobe) return nullptr;
+  SampledImage& held = m_irradiances[lobe->uniqueID()];
   held.used = m_frame;
   if (held.texture) return held.texture;
 
-  const sk_sp<SkImage> lobe = map.irradiance();
-  if (!lobe) return nullptr;
   const std::vector<uint16_t> pixels = skia::halfFloatPixels(lobe);
   if (pixels.empty()) return nullptr;
   dg::TextureSubResData level = halfFloatLevel(pixels, lobe->width());
@@ -220,18 +239,21 @@ dg::ITexture* TextureResidency::irradiance(
 
 void TextureResidency::endFrame() {
   ++m_frame;
-  for (auto it = m_wrapped.begin(); it != m_wrapped.end();) {
-    if (m_frame - it->second.used > kMapLifetime)
-      it = m_wrapped.erase(it);
-    else
-      ++it;
-  }
-  for (auto it = m_uploaded.begin(); it != m_uploaded.end();) {
-    if (m_frame - it->second.used > kMapLifetime)
-      it = m_uploaded.erase(it);
-    else
-      ++it;
-  }
+  // ALL FOUR MAPS AGE ON THE SAME BEAT. A panorama is the largest thing
+  // this residency holds, so leaving the two environment maps out would
+  // keep every sky a scene ever sampled for the residency's life.
+  const auto age = [this](auto& held) {
+    for (auto it = held.begin(); it != held.end();) {
+      if (m_frame - it->second.used > kMapLifetime)
+        it = held.erase(it);
+      else
+        ++it;
+    }
+  };
+  age(m_wrapped);
+  age(m_uploaded);
+  age(m_environments);
+  age(m_irradiances);
 }
 
 }  // namespace sigil::geometry::device

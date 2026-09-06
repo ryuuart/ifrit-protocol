@@ -24,6 +24,12 @@
 // host sorts triangles back to front and antialiases their edges; this
 // depth-tests them and does not. Those are the two differences a parity
 // test measures, and neither is a shading disagreement.
+//
+// The environment terms are here too, and are the same arithmetic: the
+// cosine convolution as the ambient a surface receives, and the
+// prefiltered chain mirrored off the reflected view vector through the
+// split-sum weights. One panorama at a time — a crossfade between two
+// skies is a host-side mix and no draw here carries the second.
 
 import Portable;
 import Shading;
@@ -70,6 +76,30 @@ uniform float4x4 uTextureUv;
  *  one white texel, so a colour multiplied by a map it does not have is
  *  that colour. */
 uniform Sampler2D uTexture;
+/** THE SKY'S OWN FRAME, folded once: takes a direction out of the space
+ *  the shading is written in and into the panorama's, so both the
+ *  camera's placement and the sky's orientation are one matrix here
+ *  rather than two multiplies in the shader. Its upper-left 3x3 is the
+ *  whole of it. */
+uniform float4x4 uEnvMatrix;
+/** rgb: what a DIFFUSE sample off the sky is multiplied by — the
+ *  environment's tint, its intensity and its diffuse dial, folded; a: 1
+ *  when a cosine convolution is bound and 0 when the flat ambient
+ *  stands instead. */
+uniform float4 uEnvDiffuse;
+/** rgb: the same three folded for a MIRRORED sample; a: how many levels
+ *  the prefiltered chain carries, 0 when no chain is bound. */
+uniform float4 uEnvSpecular;
+/** x: how metal the surface is; y: how rough; z: the bias added to the
+ *  roughness a reflection reads the chain at. */
+uniform float4 uSurface;
+/** THE PREFILTERED CHAIN a reflection reads, level 0 sharpest, and the
+ *  cosine convolution a diffuse term reads. Both are equirect
+ *  panoramas, read through the sampler that wraps in azimuth and clamps
+ *  at the poles. A draw with no sky reads the white texel and is told so
+ *  by the alphas above. */
+uniform Sampler2D uEnvironment;
+uniform Sampler2D uIrradiance;
 
 struct VSIn {
   float3 position : ATTRIB0;
@@ -116,18 +146,52 @@ float4 shadeVertex(VSIn input) {
 
   let viewPos = mul(uModelView, float4(input.position, 1.0)).xyz;
   let v = normalizeP(-viewPos);
-  float3 accum = uAmbient.rgb * base;
+
+  // WHAT A METAL IS: the light stops reaching the diffuse and the
+  // highlight takes the surface's own colour. At metal zero — every
+  // surface that says nothing — this is the arithmetic that was already
+  // here, term for term.
+  let metal = saturateP(uSurface.x);
+  let rough = saturateP(uSurface.y);
+  let albedo = base * (1.0 - metal);
+  let f0 = specularColor(base, metal);
+  let highlight = float3(1.0, 1.0, 1.0) + (base - float3(1.0, 1.0, 1.0)) * metal;
+
+  // THE AMBIENT TERM IS THE ENVIRONMENT where there is one: what
+  // actually falls on a surface facing this way from every direction,
+  // rather than one constant for the whole set.
+  float3 ambient = uAmbient.rgb;
+  if (uEnvDiffuse.w > 0.5) {
+    let skyN = mul(uEnvMatrix, float4(n, 0.0)).xyz;
+    ambient = uIrradiance.SampleLevel(equirectUv(skyN), 0.0).rgb *
+              uEnvDiffuse.rgb;
+  }
+  float3 accum = albedo * ambient;
   let count = int(uShading.w);
   for (int i = 0; i < 8; ++i) {
     if (i >= count) break;
     let l = normalizeP(mul(uLightMatrix, float4(-uLightDir[i].xyz, 0.0)).xyz);
     let lambert = max(dotP(n, l), 0.0);
-    accum = accum + base * uLightColor[i].rgb * lambert;
+    accum = accum + albedo * uLightColor[i].rgb * lambert;
     if (uShading.x > 0.0 && lambert > 0.0) {
-      let h = normalizeP(l + v);
-      let blinn = powiP(max(dotP(n, h), 0.0), int(uShading.y)) * uShading.x;
-      accum = accum + uLightColor[i].rgb * blinn;
+      // The exponent is a FLOAT, because the style's is: one field must
+      // not mean one highlight on the host and a narrower one here.
+      let spec = blinn(n, l, v, uShading.y) * uShading.x;
+      accum = accum + uLightColor[i].rgb * spec * highlight;
     }
+  }
+  // …and what the surface MIRRORS, off the reflected view vector, at the
+  // level its roughness picks. The chain was prefiltered linearly in
+  // roughness, so a fractional level is read across two of them.
+  if (uEnvSpecular.w > 0.5) {
+    let nDotV = max(dotP(n, v), 0.0);
+    let r = n * (2.0 * nDotV) - v;
+    let skyR = mul(uEnvMatrix, float4(r, 0.0)).xyz;
+    let level = roughnessLevel(rough + uSurface.z, uEnvSpecular.w);
+    let radiance =
+        uEnvironment.SampleLevel(equirectUv(skyR), level).rgb *
+        uEnvSpecular.rgb;
+    accum = accum + environmentSpecular(radiance, f0, rough, nDotV);
   }
   if (uShading.z > 0.0) {
     let facing = 1.0 - max(dotP(n, v), 0.0);

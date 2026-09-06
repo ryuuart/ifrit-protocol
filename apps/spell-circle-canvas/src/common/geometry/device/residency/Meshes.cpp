@@ -109,11 +109,17 @@ const MeshBuffers* MeshResidency::upload(uint64_t artefact,
   if (mesh.positions.empty() || mesh.indices.size() < 3) return nullptr;
   MeshBuffers& buffers = m_meshes[artefact];
   buffers.used = m_frame;
-  if (buffers.vertices) return &buffers;
+  // The lane is half the key. One artefact drawn once with a primitive
+  // lane and once without is two packings — unshared vertices carrying a
+  // tint per triangle, and the mesh's own shared ones — so the held pair
+  // answers only the lane it was packed for.
+  if (buffers.vertices && buffers.primColorLane == primColorLane)
+    return &buffers;
 
   std::vector<MeshVertex> vertices;
   std::vector<uint32_t> indices;
   fillVertices(mesh, primColorLane, &vertices, &indices);
+  buffers.primColorLane = primColorLane;
 
   buffers.vertices.Release();
   buffers.indices.Release();

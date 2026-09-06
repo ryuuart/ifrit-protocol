@@ -138,3 +138,43 @@ TEST(Pop, ImportedModelsJoinTheSystem) {
   const Mesh cubes = pop::on(loop).count(24).vary(0.4f).stamps(cube);
   EXPECT_EQ(cubes.triangleCount(), 24u * cube.triangleCount());
 }
+
+// A GENERATOR THAT MADE NO POINTS ANSWERS NONE. Each of these is a way
+// of asking for a cloud there is nothing to make: a loop with no area to
+// scatter along, a count of none, a point set that is empty, and a mesh
+// whose triangles have no area between them. A chain over any of them
+// must cook to an empty cloud rather than to `count` points sitting on
+// top of one another at the origin.
+TEST(Pop, ADegenerateGeneratorCooksToAnEmptyCloud) {
+  const auto empty = [](const pop::Chain& chain) {
+    const Cloud cooked = pop::cook(chain);
+    EXPECT_TRUE(cooked.positions.empty()) << cooked.positions.size();
+  };
+
+  // Fewer than three points is not a loop, so there is nothing to
+  // scatter along.
+  pop::SplineScatter twoPoints;
+  twoPoints.loop = {{0, 0, 0}, {100, 0, 0}};
+  twoPoints.count = 64;
+  empty({twoPoints});
+
+  // A count of none: the chain is well formed and asks for nothing.
+  pop::SplineScatter none;
+  none.loop = flatRing(8, 200.0);
+  none.count = 0;
+  empty({none, pop::Jitter{}});
+
+  // An empty point set: the caller's own cloud, with no points in it.
+  empty({pop::PointSet{}, pop::Jitter{}});
+
+  // A mesh of no area — three vertices at one place — scatters nowhere.
+  // This is the case that used to cook `count` points at the origin,
+  // because the requested count was answered whatever the scatter made.
+  Mesh flat;
+  flat.positions = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+  flat.indices = {0, 1, 2};
+  pop::MeshScatter over;
+  over.mesh = flat;
+  over.count = 128;
+  empty({over, pop::Jitter{}});
+}

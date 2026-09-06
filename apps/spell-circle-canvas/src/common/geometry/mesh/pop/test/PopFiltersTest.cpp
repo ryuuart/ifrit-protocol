@@ -176,3 +176,66 @@ TEST(Pop, DeformersTwistTaperAndBend) {
     EXPECT_NEAR(glm::length(unbent.positions[i] - spineBase.positions[i]), 0.0f,
                 1e-4f);
 }
+
+// VARY writes one hashed value into EVERY component of its lane: a
+// scale that reads .x alone still varies, and a colour varies its alpha
+// with its channels. The value is base times one plus spread times a
+// number in [-1, 1], so it stays inside base*(1 ± spread) — which is the
+// whole promise, since which point gets which is a hash.
+TEST(Pop, VaryScatteresALaneAroundItsBaseWithinItsSpread) {
+  const std::vector<glm::vec3> loop = flatRing(8, 200);
+  const Cloud cooked = pop::cook(
+      pop::on(loop).count(256).vary(0.4f, 0.5f, pop::Lane::Color).chain());
+  const std::vector<glm::vec4>* tint = cooked.colorIf("tint");
+  ASSERT_NE(tint, nullptr);
+  ASSERT_EQ(tint->size(), 256u);
+  float lo = 1e9f, hi = -1e9f;
+  for (const glm::vec4& c : *tint) {
+    // One value in all four, which is what "every component" means.
+    EXPECT_FLOAT_EQ(c.y, c.x);
+    EXPECT_FLOAT_EQ(c.z, c.x);
+    EXPECT_FLOAT_EQ(c.w, c.x);
+    EXPECT_GE(c.x, 0.5f * (1.0f - 0.4f) - 1e-5f);
+    EXPECT_LE(c.x, 0.5f * (1.0f + 0.4f) + 1e-5f);
+    lo = std::min(lo, c.x);
+    hi = std::max(hi, c.x);
+  }
+  // …and it really scatters: a spread that produced one value would
+  // satisfy every bound above.
+  EXPECT_GT(hi - lo, 0.5f * 0.4f);
+}
+
+// FILL writes one constant into every point of a lane, masked or not. It
+// is how a chain says "this attribute, this value" without a formula.
+TEST(Pop, FillWritesOneValueIntoEveryPointOfALane) {
+  const std::vector<glm::vec3> loop = flatRing(8, 200);
+  const Cloud cooked = pop::cook(
+      pop::on(loop).count(64).fill("Tex", {0.25f, 0.5f, 0.125f, 2}).chain());
+  const std::vector<glm::vec4>* tex = cooked.colorIf("Tex");
+  ASSERT_NE(tex, nullptr);
+  ASSERT_EQ(tex->size(), 64u);
+  for (const glm::vec4& v : *tex) {
+    EXPECT_FLOAT_EQ(v.x, 0.25f);
+    EXPECT_FLOAT_EQ(v.y, 0.5f);
+    EXPECT_FLOAT_EQ(v.z, 0.125f);
+    EXPECT_FLOAT_EQ(v.w, 2.0f);
+  }
+}
+
+// LOOK AT points every direction at one place: Dir = normalize(target -
+// P). It is what turns a set of stamps into a set of gazes, and it is
+// the direction a billboard is built from.
+TEST(Pop, LookAtPointsEveryDirectionAtOnePlace) {
+  const std::vector<glm::vec3> loop = flatRing(12, 220);
+  const glm::vec3 target{0, 400, 0};
+  const Cloud cooked =
+      pop::cook(pop::on(loop).count(96).lookAt(target).chain());
+  const std::vector<glm::vec3>* dir = cooked.vectorIf("dir");
+  ASSERT_NE(dir, nullptr);
+  ASSERT_EQ(dir->size(), cooked.positions.size());
+  for (size_t i = 0; i < dir->size(); ++i) {
+    const glm::vec3 wanted = glm::normalize(target - cooked.positions[i]);
+    EXPECT_NEAR(glm::length((*dir)[i]), 1.0f, 1e-4f);
+    EXPECT_NEAR(glm::dot((*dir)[i], wanted), 1.0f, 1e-4f);
+  }
+}

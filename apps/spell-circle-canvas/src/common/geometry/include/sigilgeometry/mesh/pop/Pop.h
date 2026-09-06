@@ -118,7 +118,9 @@ struct Ramp {
   std::string mask;
   bool operator==(const Ramp&) const = default;
 };
-/** Filter: lane.x = base * (1 + spread * (hash * 2 - 1)). */
+/** Filter: EVERY COMPONENT of the lane = base * (1 + spread * (hash * 2
+ *  - 1)). The one value goes into all four, so a `Vary` on a colour
+ *  varies its alpha with its channels. */
 struct Vary {
   AttrRef lane = Lane::Scale;
   float base = 1;
