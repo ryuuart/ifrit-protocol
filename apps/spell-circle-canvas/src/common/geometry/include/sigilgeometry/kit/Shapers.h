@@ -119,7 +119,9 @@ struct Offset {
   float step = 4.0f;
   bool operator==(const Offset&) const = default;
   float bleed() const { return std::abs(px); }
-  SkPath shape(const SkPath& p) const { return path::parallel(p, px, step); }
+  SkPath shape(const SkPath& p) const {
+    return path::ops::offset(p, px, {.position = 0, .step = step});
+  }
 };
 
 /** ROUND EVERY CORNER of the mark (SkCornerPathEffect). Not
@@ -130,12 +132,7 @@ struct Rounded {
   float radius = 6.0f;
   bool operator==(const Rounded&) const = default;
   SkPath shape(const SkPath& p) const {
-    SkPathBuilder out;
-    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
-    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
-        fx && fx->filterPath(&out, p, &rec))
-      return out.detach();
-    return p;
+    return path::ops::roundCorners(p, radius);
   }
 };
 

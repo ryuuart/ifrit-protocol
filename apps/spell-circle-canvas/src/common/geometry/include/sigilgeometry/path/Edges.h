@@ -52,9 +52,9 @@ SkPath edges(const SkPath& outline, Edge mask, float step = 3.0f);
  *  silhouette — a chamfered panel, a star, a blob — not just rectangles,
  *  and MITRED, so a straight edge stays parallel to the one it came from.
  *
- *  `ops::offset` is the other spelling of the same idea, rounding its
- *  joins and simplifying the result: that one is the drawing operator,
- *  this one is the frame six pixels in. */
+ *  It is `ops::offset` mitred and butt-capped with the sign the other
+ *  way round, and stands here rather than there because "the frame six
+ *  pixels in" is the thing a caller asks for by name. */
 SkPath insetOutline(const SkPath& outline, float px);
 
 /** THE VERTICES OF A POLYGON MOVED INWARD by @p distance, one for one:

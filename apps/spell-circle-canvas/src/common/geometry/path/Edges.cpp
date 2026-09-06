@@ -16,6 +16,7 @@
 #include <glm/geometric.hpp>
 
 #include "sigilgeometry/path/Numeric.h"
+#include "sigilgeometry/path/Ops.h"
 
 namespace sigil::geometry::path {
 
@@ -72,21 +73,10 @@ SkPath edges(const SkPath& outline, Edge mask, float step) {
 }
 
 SkPath insetOutline(const SkPath& outline, float px) {
-  if (px == 0) return outline;
-  SkPaint offset;
-  offset.setStyle(SkPaint::kStroke_Style);  // the RING, not the grown shape
-  offset.setStrokeWidth(std::abs(px) * 2.0f);
-  offset.setStrokeJoin(SkPaint::kMiter_Join);
-  // The stroke-and-fill of the outline is the RING of width 2|px|
-  // straddling it. Subtracting that ring shrinks the silhouette;
-  // unioning it grows the silhouette by the same amount.
-  const SkPath ring = skpathutils::FillPathWithPaint(outline, offset);
-  SkPath result;
-  if (Op(outline, ring,
-         px > 0 ? SkPathOp::kDifference_SkPathOp : SkPathOp::kUnion_SkPathOp,
-         &result))
-    return result;
-  return outline;
+  // The mitred, butt-capped offset with the sign the other way round:
+  // positive px shrinks. The arithmetic is the operator's.
+  return ops::offset(outline, -px,
+                     {.join = ops::Join::Miter, .cap = ops::Cap::Butt});
 }
 
 std::vector<glm::vec2> insetPolygon(std::span<const glm::vec2> polygon,

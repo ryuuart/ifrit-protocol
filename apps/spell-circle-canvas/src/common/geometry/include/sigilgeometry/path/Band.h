@@ -24,7 +24,13 @@ enum class Formation : uint8_t { Centered, Outward, Inward };
 
 /** Displace a path in its own (along, across) frame — the primitive
  *  behind a relative strand, and exactly the band's frame. A constant
- *  profile delegates to `parallel`, which means the same side. */
+ *  profile delegates to `parallel`, which means the same side.
+ *
+ *  It is `ops::offset` under a WIDTH LAW rather than a distance, which
+ *  is a different axis of generality and not a case of it: the operator
+ *  takes one number and this takes a function of arc length, so neither
+ *  can be written as the other with a prop. Where the law is constant
+ *  the two walk the same rail. */
 SkPath profileOffset(const SkPath& spine, const Profile& profile);
 
 /** THE REGION a band occupies: the spine walked at both profile rails,

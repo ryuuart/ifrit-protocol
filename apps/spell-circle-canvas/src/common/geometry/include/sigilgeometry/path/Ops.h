@@ -46,16 +46,100 @@ SkPath unite(const std::vector<SkPath>& paths);
  *  even-odd-equivalent outline (Pathfinder's Merge, roughly). */
 SkPath simplify(const SkPath& path);
 
-/** Offset Path: grow (delta > 0) or shrink (delta < 0) a CLOSED shape
- *  by delta px, round joins. Implemented as stroke-expansion + boolean,
- *  which is robust for UI-scale geometry; a polygon-clipper backend can
- *  slot in later for cartography-grade needs. */
-SkPath offset(const SkPath& path, float delta);
+/** How two pieces of an offset mark meet at a corner. */
+enum class Join : uint8_t { Round, Miter, Bevel };
+/** How an offset mark ends where the source has an end. */
+enum class Cap : uint8_t { Butt, Round, Square };
+
+/** THE DIALS OF ONE OFFSET.
+ *
+ *  `position` is the one that makes this a single operator rather than a
+ *  family. It is CONTINUOUS: at 0 the offset is the single curve a
+ *  distance to the LEFT of travel, at 1 the single curve the same
+ *  distance to the right, and at 0.5 it is both at once — the band that
+ *  straddles the source, which for a filled shape is that shape grown by
+ *  the distance (or shrunk, at a negative one). Everything between is
+ *  the band slid across the source, its two rails at
+ *  `distance·(1 ± 2·position ∓ 1)`. A three-valued side enum would be
+ *  three operators wearing one name. */
+struct OffsetOptions {
+  Join join = Join::Round;
+  Cap cap = Cap::Round;
+  /** How many distances a mitred corner's point may stand from the
+   *  corner it came from before it is cut off. */
+  float miterLimit = 4.0f;
+  /** Where the offset sits across the source: 0 is wholly left of
+   *  travel, 0.5 straddles it, 1 is wholly right. Clamped. */
+  float position = 0.5f;
+  /** MOVE THE SOURCE'S OWN NODES rather than form a new outline: every
+   *  node travels along its corner bisector and every handle along its
+   *  segment's normal, so the answer has the nodes the source had, in
+   *  the same order and of the same kinds, and the two still
+   *  interpolate. Which way "out" is comes from the contour's own
+   *  winding, so this is the one spelling whose sign follows the
+   *  drawing rather than the boolean. A needle-sharp corner's mitre is
+   *  capped by `miterLimit`, blunting the corner rather than dropping
+   *  the node. */
+  bool keepCompatible = false;
+  /** The stride the sideways walk takes where a walk is used — away
+   *  from `position` 0.5, where Skia's stroker answers instead. */
+  float step = 4.0f;
+  bool operator==(const OffsetOptions&) const = default;
+};
+
+/** OFFSET: the mark `path` becomes a distance to the side of itself.
+ *
+ *  ONE operator for what an outline offset, a concentric frame, a
+ *  parallel rail and a bolder silhouette all are. A positive @p distance
+ *  offsets to the LEFT of travel, which for a filled shape at the
+ *  default `position` is outward — the library-wide sign convention,
+ *  shared with `parallel` and `profile::offset`.
+ *
+ *  A band that STRADDLES the source encloses the source's own edge, so
+ *  what is answered there is the source with the band added (a positive
+ *  distance) or taken away (a negative one) — the grown or shrunk area,
+ *  which is what an outline offset means. A band that lies to one side
+ *  touches no interior and is answered as itself.
+ *
+ *  Implemented as stroke-expansion plus a boolean where the band
+ *  straddles, which is robust for UI-scale geometry, and as the
+ *  contour walk `parallel` elsewhere; a polygon-clipper backend can slot
+ *  in later for cartography-grade needs. */
+SkPath offset(const SkPath& path, float distance,
+              const OffsetOptions& options = {});
+
+/** WHICH CORNERS A ROUNDING TAKES, AND HOW HARD.
+ *
+ *  Every dial here is off by default, and with all of them off the
+ *  rounding is Skia's own corner effect over every corner of the path —
+ *  which is the common case and stays exactly as cheap as it was. */
+struct CornerOptions {
+  /** Only corners that turn by more than this many degrees. Zero rounds
+   *  every corner there is. */
+  float minTurnDeg = 0.0f;
+  /** Round only the corners that turn OUTWARD, read off the contour's
+   *  own winding — a reflex corner is left as it is. */
+  bool outwardOnly = false;
+  /** SCALE EACH RADIUS BY THE CORNER'S ANGLE so that every corner's arc
+   *  stands the same distance out from the vertex it replaced: an acute
+   *  corner takes a smaller radius and an obtuse one a larger. Without
+   *  it a shallow corner reads as barely rounded beside a sharp one cut
+   *  by the same number. */
+  bool visual = false;
+  bool operator==(const CornerOptions&) const = default;
+};
 
 /** Round Corners: every sharp corner of the path replaced by an arc of
  *  @p radius. Non-positive radius returns the path unchanged, and a path
- *  the effect refuses comes back unchanged rather than empty. */
-SkPath roundCorners(const SkPath& path, float radius);
+ *  the effect refuses comes back unchanged rather than empty.
+ *
+ *  WITH ANY OPTION SET this is a POLYLINE treatment: the selection and
+ *  the visual correction are read off the two straight legs meeting at a
+ *  corner, so a joint where either side is a curve passes through
+ *  untouched. Skia's corner effect, which the default options use, has
+ *  no such limit and no such dials. */
+SkPath roundCorners(const SkPath& path, float radius,
+                    const CornerOptions& options = {});
 
 /** CUT EVERY LINE-LINE CORNER of @p path with a straight bevel @p cut px
  *  along each leg — on an orthogonal route's right angles that is the
@@ -134,8 +218,8 @@ using PathOp = std::function<SkPath(const SkPath&)>;
 PathOp chain(std::vector<PathOp> steps);
 
 /** offset() as a recipe step. */
-inline PathOp offsetBy(float delta) {
-  return [delta](const SkPath& p) { return offset(p, delta); };
+inline PathOp offsetBy(float delta, const OffsetOptions& options = {}) {
+  return [delta, options](const SkPath& p) { return offset(p, delta, options); };
 }
 
 }  // namespace sigil::geometry::path::ops

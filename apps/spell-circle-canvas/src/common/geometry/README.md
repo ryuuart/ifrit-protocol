@@ -560,12 +560,44 @@ in no header.
   on a plinth) keeps the correspondence an outline offset cannot give;
   a needle-sharp corner's mitre is capped at a stated number of
   distances, blunting the corner rather than dropping the vertex.
-- **`path/Ops.h`** — path operators. Booleans over Skia's pathops (`unite`,
-  `subtract`, `intersect`, `exclude`, `simplify`, and a stroke-expansion
-  `offset`, and `roundCorners`), and four distortions as parameter structs
-  you apply on demand: `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`.
-  `PathOp` and `chain()` compose them, `offsetBy()` adapts `offset` into a
-  step.
+- **`path/Ops.h`** — path operators. Booleans over Skia's pathops
+  (`unite`, `subtract`, `intersect`, `exclude`, `simplify`), the OFFSET
+  and the CORNER ROUNDING, and four distortions as parameter structs you
+  apply on demand: `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`. `PathOp`
+  and `chain()` compose them, `offsetBy()` adapts `offset` into a step.
+
+  **`offset(path, distance, OffsetOptions)` is one operator for what an
+  outline offset, a concentric frame, a parallel rail and a bolder
+  silhouette all are.** `join`, `cap` and `miterLimit` are Skia's stroker
+  dials, carried rather than hardcoded. `position` is the dial that makes
+  this one operator instead of a family, and it is CONTINUOUS: at 0 the
+  answer is the single curve a distance to the LEFT of travel — which is
+  `parallel`, exactly — at 1 the curve the same distance to the right,
+  and at 0.5 the band that straddles the source, which for a filled
+  shape is that shape grown by the distance (or shrunk, at a negative
+  one). A band that reaches across the source encloses the source's own
+  edge, so what is answered there is the source with the band added or
+  taken away; a band lying to one side encloses nothing and is answered
+  as itself. `keepCompatible` is the other spelling entirely: the
+  source's own nodes are moved along their corner bisectors and their
+  handles along their normals, so the answer has the nodes the source
+  had, of the same kinds in the same order, and `compatible()` still
+  answers `Yes` — which is what an outline offset in a set of masters
+  needs and what an outline rebuilt by a stroker can never give. A
+  needle-sharp corner's mitre is capped by `miterLimit`, blunting the
+  corner rather than dropping the node.
+
+  **`roundCorners(path, radius, CornerOptions)`** is Skia's corner effect
+  with nothing set, and with any dial set it is the walk that effect
+  cannot do: `minTurnDeg` leaves the shallow corners alone, `outwardOnly`
+  reads the contour's own winding and leaves the reflex ones alone, and
+  `visual` scales each radius by its corner's angle so every arc stands
+  the same distance out from the vertex it replaced — an acute corner
+  taking a smaller radius and an obtuse one a larger, which is what stops
+  a shallow corner reading as barely rounded beside a sharp one cut by
+  the same number. With a dial set it is a POLYLINE treatment: the
+  selection and the correction are read off two straight legs, so a joint
+  where either side is a curve passes through untouched.
 - **`path/Shaper.h`** — `Shaper`, the COMPARABLE `SkPath -> SkPath` value,
   over the `ShaperScheme` concept (`shape()`, equality, an optional
   `bleed()` declaring how far the deviation reaches). It bends one

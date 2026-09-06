@@ -19,8 +19,11 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 
+#include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Segments.h"
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::geometry::path::ops {
 
@@ -57,6 +60,229 @@ SkPath overSamples(const SkPath& path, float segmentPx, bool smooth,
   return out.detach();
 }
 
+
+SkPaint::Join skJoin(Join join) {
+  switch (join) {
+    case Join::Round:
+      return SkPaint::kRound_Join;
+    case Join::Miter:
+      return SkPaint::kMiter_Join;
+    case Join::Bevel:
+      return SkPaint::kBevel_Join;
+  }
+  return SkPaint::kRound_Join;
+}
+
+SkPaint::Cap skCap(Cap cap) {
+  switch (cap) {
+    case Cap::Butt:
+      return SkPaint::kButt_Cap;
+    case Cap::Round:
+      return SkPaint::kRound_Cap;
+    case Cap::Square:
+      return SkPaint::kSquare_Cap;
+  }
+  return SkPaint::kButt_Cap;
+}
+
+/** The unit vector 90 degrees to the LEFT of travel, in Skia's y-down
+ *  space — the library-wide across-the-path direction. */
+glm::vec2 leftOf(glm::vec2 direction) { return {direction.y, -direction.x}; }
+
+glm::vec2 unitOr(glm::vec2 v, glm::vec2 fallback) {
+  const float len = glm::length(v);
+  return len > 1e-9f ? v / len : fallback;
+}
+
+/** Which way a piece leaves the node it starts at, and arrives at the
+ *  node it ends at: the first and last chord that is not degenerate. */
+glm::vec2 leavingAlong(const Segment& piece) {
+  for (int i = 1; i < piece.size(); ++i) {
+    const glm::vec2 chord = piece.points[(size_t)i] - piece.points[0];
+    if (glm::length(chord) > 1e-9f) return chord / glm::length(chord);
+  }
+  return {1, 0};
+}
+glm::vec2 arrivingAlong(const Segment& piece) {
+  const int last = piece.size() - 1;
+  for (int i = last - 1; i >= 0; --i) {
+    const glm::vec2 chord = piece.points[(size_t)last] - piece.points[(size_t)i];
+    if (glm::length(chord) > 1e-9f) return chord / glm::length(chord);
+  }
+  return {1, 0};
+}
+
+/** THE OFFSET THAT MOVES THE SOURCE'S OWN NODES. Each node travels along
+ *  the bisector of the two edges meeting there, far enough that both
+ *  offset edges pass through it — `distance / sin(theta/2)` — capped at
+ *  `miterLimit` distances so a needle-sharp corner blunts rather than
+ *  shoots off. Each handle travels along its own chord's normal. The
+ *  node count, their order and their kinds are untouched, which is the
+ *  whole point: the answer still interpolates against the source. */
+SkPath movedNodes(const SkPath& path, float distance,
+                  const OffsetOptions& options) {
+  std::vector<SegmentContour> contours = segments(path);
+  const float cap = std::max(options.miterLimit, 1.0f);
+  for (SegmentContour& contour : contours) {
+    const size_t pieces = contour.segments.size();
+    if (pieces == 0) continue;
+    const bool spelled =
+        contour.closed && contour.segments.back().end() != contour.start();
+    const size_t nodes = (contour.closed && !spelled) ? pieces : pieces + 1;
+
+    std::vector<glm::vec2> shift(nodes, glm::vec2{0, 0});
+    for (size_t j = 0; j < nodes; ++j) {
+      const glm::vec2 out =
+          j < pieces ? leavingAlong(contour.segments[j])
+                     : (contour.closed
+                            ? unitOr(contour.start() - contour.segments.back().end(),
+                                     arrivingAlong(contour.segments.back()))
+                            : arrivingAlong(contour.segments.back()));
+      glm::vec2 in;
+      if (j > 0) {
+        in = arrivingAlong(contour.segments[j - 1]);
+      } else if (contour.closed) {
+        in = spelled ? unitOr(contour.start() - contour.segments.back().end(),
+                              arrivingAlong(contour.segments.back()))
+                     : arrivingAlong(contour.segments.back());
+      } else {
+        in = out;
+      }
+      const glm::vec2 bisector = unitOr(leftOf(in) + leftOf(out), leftOf(out));
+      const float reach = std::max(glm::dot(bisector, leftOf(in)), 1.0f / cap);
+      shift[j] = bisector * (distance / reach);
+    }
+
+    for (size_t j = 0; j < pieces; ++j) {
+      Segment& piece = contour.segments[j];
+      const int last = piece.size() - 1;
+      const glm::vec2 start = piece.points[0];
+      const glm::vec2 end = piece.points[(size_t)last];
+      for (int i = 1; i < last; ++i) {
+        const glm::vec2 chord =
+            i * 2 <= last ? unitOr(piece.points[(size_t)i] - start, leavingAlong(piece))
+                          : unitOr(end - piece.points[(size_t)i], arrivingAlong(piece));
+        piece.points[(size_t)i] += leftOf(chord) * distance;
+      }
+      piece.points[0] += shift[j];
+      piece.points[(size_t)last] += shift[(j + 1) % nodes];
+    }
+  }
+  return toPath(contours, path.getFillType());
+}
+
+void appendCurve(SkPathBuilder& out, const Segment& piece) {
+  switch (piece.kind) {
+    case SegmentKind::Line:
+      out.lineTo(toSk(piece.points[1]));
+      break;
+    case SegmentKind::Quad:
+      out.quadTo(toSk(piece.points[1]), toSk(piece.points[2]));
+      break;
+    case SegmentKind::Conic:
+      out.conicTo(toSk(piece.points[1]), toSk(piece.points[2]), piece.weight);
+      break;
+    case SegmentKind::Cubic:
+      out.cubicTo(toSk(piece.points[1]), toSk(piece.points[2]),
+                  toSk(piece.points[3]));
+      break;
+  }
+}
+
+/** How far along each of its two legs one corner is cut, or nothing
+ *  where the corner is not one this selection rounds. */
+struct Cut {
+  bool rounds = false;
+  float step = 0;
+};
+
+/** ROUNDING THE CORNERS A SELECTION NAMES. A corner here is two straight
+ *  legs meeting at a node: the arc is the quadratic through the two
+ *  points a step along each leg with the node as its control, which is
+ *  the curve a corner effect lays down. `visual` holds the arc's
+ *  stand-off from the node constant rather than the step, taking a right
+ *  angle as the reference — so an acute corner takes a smaller step and
+ *  an obtuse one a larger, and every corner reads as the same weight. */
+SkPath selectedCorners(const SkPath& path, float radius,
+                       const CornerOptions& options) {
+  const float reference = std::cos(kPi * 0.25f);
+  SkPathBuilder out(path.getFillType());
+  for (const SegmentContour& contour : segments(path)) {
+    if (contour.segments.empty()) continue;
+    // The closing line is a leg like any other, so a rectangle rounds
+    // the corner its walk started at as well as the three it passes.
+    std::vector<Segment> legs = contour.segments;
+    const bool closure =
+        contour.closed && legs.back().end() != contour.start();
+    if (closure) {
+      Segment closing;
+      closing.kind = SegmentKind::Line;
+      closing.points[0] = legs.back().end();
+      closing.points[1] = contour.start();
+      legs.push_back(closing);
+    }
+    const size_t pieces = legs.size();
+    const bool ring = contour.closed;
+    const std::vector<Polyline> flat = flatten(toPath({&contour, 1}));
+    const float area = flat.empty() ? 0.0f : flat.front().signedArea();
+
+    // One cut per node that starts a piece; only a closed contour can
+    // round the node its walk starts at, since an open contour's first
+    // node is an end rather than a corner.
+    std::vector<Cut> cuts(pieces);
+    for (size_t j = 0; j < pieces; ++j) {
+      if (j == 0 && !ring) continue;
+      const Segment& before = legs[(j + pieces - 1) % pieces];
+      const Segment& after = legs[j];
+      if (before.kind != SegmentKind::Line || after.kind != SegmentKind::Line)
+        continue;
+      const glm::vec2 in = arrivingAlong(before);
+      const glm::vec2 leaving = leavingAlong(after);
+      const float turnDeg =
+          std::acos(std::clamp(glm::dot(in, leaving), -1.0f, 1.0f)) * kRadToDeg;
+      if (!(turnDeg > options.minTurnDeg)) continue;
+      const float cross = in.x * leaving.y - in.y * leaving.x;
+      const bool outward = area == 0 || (cross > 0) == (area > 0);
+      if (options.outwardOnly && !outward) continue;
+      const float halfAngle = (180.0f - turnDeg) * 0.5f * kDegToRad;
+      float step = options.visual
+                       ? radius * reference / std::max(std::cos(halfAngle), 1e-2f)
+                       : radius;
+      step = std::min({step, glm::length(before.end() - before.start()) * 0.5f,
+                       glm::length(after.end() - after.start()) * 0.5f});
+      if (!(step > 0)) continue;
+      cuts[j] = Cut{true, step};
+    }
+
+    const auto leaveOf = [&](size_t j) {
+      return legs[j].start() + leavingAlong(legs[j]) * cuts[j].step;
+    };
+    const auto arriveOf = [&](size_t j) {
+      const Segment& before = legs[(j + pieces - 1) % pieces];
+      return before.end() - arrivingAlong(before) * cuts[j].step;
+    };
+
+    out.moveTo(toSk(cuts[0].rounds ? leaveOf(0) : contour.start()));
+    for (size_t j = 0; j < pieces; ++j) {
+      const size_t nextNode = (j + 1) % pieces;
+      const bool cutAhead = (j + 1 < pieces || ring) && cuts[nextNode].rounds;
+      const bool implied = closure && j + 1 == pieces && !cutAhead;
+      if (legs[j].kind == SegmentKind::Line) {
+        // The closing leg with no arc on either side is the closure
+        // itself, and `close()` draws it.
+        if (!implied)
+          out.lineTo(toSk(cutAhead ? arriveOf(nextNode) : legs[j].end()));
+      } else {
+        appendCurve(out, legs[j]);
+      }
+      if (cutAhead)
+        out.quadTo(toSk(legs[nextNode].start()), toSk(leaveOf(nextNode)));
+    }
+    if (contour.closed) out.close();
+  }
+  return out.detach();
+}
+
 }  // namespace
 
 SkPath unite(const SkPath& a, const SkPath& b) {
@@ -86,25 +312,51 @@ SkPath simplify(const SkPath& path) {
   return out;
 }
 
-SkPath offset(const SkPath& path, float delta) {
-  if (std::abs(delta) < 1e-3f) return path;
+SkPath offset(const SkPath& path, float distance,
+              const OffsetOptions& options) {
+  if (options.keepCompatible) return movedNodes(path, distance, options);
+  if (std::abs(distance) < 1e-3f) return path;
+
+  const float position = std::clamp(options.position, 0.0f, 1.0f);
+  // The band's centreline slides from one side of the source to the
+  // other as `position` runs 0 to 1, and its half-width opens from
+  // nothing at either end to the whole distance in the middle.
+  const float centre = distance * (1.0f - 2.0f * position);
+  const float halfWidth =
+      std::abs(distance) * (1.0f - std::abs(1.0f - 2.0f * position));
+
+  const SkPath spine = centre == 0 ? path : parallel(path, centre, options.step);
+  if (halfWidth <= 0) return spine;
+
   SkPaint stroke;
   stroke.setStyle(SkPaint::kStroke_Style);
-  stroke.setStrokeWidth(std::abs(delta) * 2.0f);
-  stroke.setStrokeJoin(SkPaint::kRound_Join);
-  stroke.setStrokeCap(SkPaint::kRound_Cap);
-  const SkPath expanded = skpathutils::FillPathWithPaint(path, stroke);
-  return delta > 0 ? unite(path, expanded) : simplify(subtract(path, expanded));
+  stroke.setStrokeWidth(halfWidth * 2.0f);
+  stroke.setStrokeJoin(skJoin(options.join));
+  stroke.setStrokeCap(skCap(options.cap));
+  stroke.setStrokeMiter(options.miterLimit);
+  const SkPath band = skpathutils::FillPathWithPaint(spine, stroke);
+
+  // A band that reaches across the source encloses the source's own
+  // edge, so the source and the band together are the grown area and
+  // the source without it the shrunk one. A band to one side encloses
+  // nothing of the source and is the answer itself.
+  if (centre - halfWidth < 0 && centre + halfWidth > 0)
+    return distance > 0 ? unite(path, band) : simplify(subtract(path, band));
+  return band;
 }
 
-SkPath roundCorners(const SkPath& path, float radius) {
+SkPath roundCorners(const SkPath& path, float radius,
+                    const CornerOptions& options) {
   if (radius <= 0) return path;
-  SkPathBuilder dst;
-  SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
-  if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
-      fx && fx->filterPath(&dst, path, &rec))
-    return dst.detach();
-  return path;
+  if (options == CornerOptions{}) {
+    SkPathBuilder dst;
+    SkStrokeRec rec(SkStrokeRec::kFill_InitStyle);
+    if (sk_sp<SkPathEffect> fx = SkCornerPathEffect::Make(radius);
+        fx && fx->filterPath(&dst, path, &rec))
+      return dst.detach();
+    return path;
+  }
+  return selectedCorners(path, radius, options);
 }
 
 SkPath Roughen::apply(const SkPath& path) const {
