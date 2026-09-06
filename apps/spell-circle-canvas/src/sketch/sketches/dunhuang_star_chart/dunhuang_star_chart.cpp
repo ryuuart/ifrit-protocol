@@ -202,6 +202,7 @@
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -320,9 +321,8 @@ constexpr float tArch = 26.00f;
 constexpr float tSettle = 28.20f;
 constexpr float kLoop = 31.0f;
 
-inline float clamp01(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 inline float smooth(float v) {
-  v = clamp01(v);
+  v = std::clamp(v, 0.0f, 1.0f);
   return v * v * (3 - 2 * v);
 }
 inline float wrap360(float d) {
@@ -438,9 +438,9 @@ std::vector<float> abscissa(float lo, float hi, int n) {
  *  in DEGREES: the max residual divided by the fitted slope, which is the
  *  degrees of declination that residual is worth.
  *
- *  The fit is `measure::lineFit` in FLOAT, and the precision is the point
- *  — the same sums this file used to accumulate by hand, so the number
- *  printed and the curve drawn from it are the ones the plate has. */
+ *  The fit is `measure::lineFit` in FLOAT, and the precision is the point:
+ *  the number printed and the curve drawn from it come off one set of
+ *  sums, so they cannot report different fits of the same ordinate. */
 Departure departure(float lo, float hi, bool mercator, float resid,
                     float degPerCm, float r, int n) {
   const int N = 400;
@@ -2768,11 +2768,14 @@ struct DunhuangStarChart : sketch::Sketch {
     // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
-    // rather than silently at Normal.
-    faceSerif = weave::ports::face({"Hoefler Text", "Baskerville"});
-    faceItalic = weave::ports::face({"Hoefler Text", "Baskerville"},
-                                    SkFontStyle::Italic());
-    faceMono = weave::ports::face({"Menlo", "Courier New"});
+    // rather than silently at Normal. The book and the terminal runs are
+    // the house's, named by the voice they are asked for in, so this sheet
+    // and every other one asking for them share one resolved face; the
+    // display cut and the Han chain are this plate's own.
+    faceSerif = sketch::kit::houseFace(sketch::kit::Voice::Book);
+    faceItalic = sketch::kit::houseFace(sketch::kit::Voice::Book, 400,
+                                        SkFontStyle::kItalic_Slant);
+    faceMono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
     faceDisplay = weave::ports::face({"Optima", "Baskerville"},
                                      SkFontStyle::kBold_Weight);
     faceHan = weave::ports::face(
