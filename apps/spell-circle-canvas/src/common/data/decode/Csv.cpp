@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "UniqueName.h"
+
 namespace sigil::data {
 
 namespace {
@@ -85,6 +87,10 @@ std::optional<double> asNumber(std::string_view field) {
       if (c != ',') plain.push_back(c);
     field = plain;
   }
+  // A leading plus is a sign a file may write and `std::from_chars`
+  // does not read, so it is dropped before the digits are handed over.
+  if (field.front() == '+') field.remove_prefix(1);
+  if (field.empty()) return std::nullopt;
   const char* first = field.data();
   const char* last = first + field.size();
   double value = 0;
@@ -349,7 +355,7 @@ std::optional<Table> decodeCsv(std::string_view text, const CsvOptions& options,
 
   Table table;
   for (size_t i = 0; i < names.size(); ++i)
-    table.add(columnOf(rows, i, std::move(names[i])));
+    table.add(columnOf(rows, i, unusedName(table, std::move(names[i]))));
   return table;
 }
 

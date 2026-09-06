@@ -14,6 +14,7 @@
 
 #include <sigildata/table/Table.h>
 
+#include <concepts>
 #include <cstddef>
 #include <optional>
 #include <span>
@@ -30,7 +31,10 @@ namespace sigil::data {
  *  An object keeps its members in the order the document wrote them,
  *  because that order is the author's and a reader who prints the
  *  document back should not reorder it. Lookup by key is therefore a
- *  scan, which is what a record of a few fields wants.
+ *  scan, which is what a record of a few fields wants. A document that
+ *  writes one key twice keeps both members, and a lookup answers the
+ *  first, since dropping one would be an edit to somebody else's
+ *  document.
  *
  *  ```
  *  const Json doc = *decodeJson(text);
@@ -52,6 +56,12 @@ class Json {
   Json(std::nullptr_t) {}
   Json(bool value) : m_held(value) {}
   Json(double value) : m_held(value) {}
+  /** A whole number is a number. Without this one `Json(1)` is
+   *  ambiguous: an int converts to bool and to double at the same
+   *  rank. */
+  template <std::integral T>
+    requires(!std::same_as<T, bool>)
+  Json(T value) : m_held(static_cast<double>(value)) {}
   Json(std::string value) : m_held(std::move(value)) {}
   /** A literal is text. Without this one a `const char*` would pick the
    *  boolean constructor and a name would become `true`. */
@@ -92,7 +102,13 @@ class Json {
   Held m_held;
 };
 
-/** THE DOCUMENT IN @p text, or nothing when it is not JSON. */
+/** THE DOCUMENT IN @p text, or nothing when it is not JSON.
+ *
+ *  A lone number, string, boolean or null is a document, and so answers
+ *  a value that is not a list or a record; it holds no rectangle, so
+ *  `tableFromJson` answers nothing for it. Text that is not valid UTF-8,
+ *  and text nested deeper than the parser reads, are not documents at
+ *  all: nothing comes back rather than the part that parsed. */
 std::optional<Json> decodeJson(std::string_view text);
 
 /** THE RECTANGLE INSIDE @p document, in whichever of the three shapes it
@@ -101,7 +117,9 @@ std::optional<Json> decodeJson(std::string_view text);
  *  - a LIST OF RECORDS — one row each, columns being the union of their
  *    keys in first-appearance order, a record missing a key giving a
  *    missing cell;
- *  - a RECORD OF LISTS — one column each, named by its key;
+ *  - a RECORD OF LISTS — one column each, named by its key, a key
+ *    written twice keeping both columns with the later one numbered by
+ *    its occurrence (`name`, `name_2`);
  *  - a LIST OF LISTS — one row each, columns named by their 1-based
  *    position.
  *

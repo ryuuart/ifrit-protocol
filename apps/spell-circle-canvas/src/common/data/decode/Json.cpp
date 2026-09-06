@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "UniqueName.h"
+
 namespace sigil::data {
 
 namespace {
@@ -159,7 +161,7 @@ std::optional<Table> fromColumns(
     cells.reserve(values.size());
     for (const Json& cell : values.items())
       cells.push_back(cell.null() ? nullptr : &cell);
-    table.add(columnOf(name, cells));
+    table.add(columnOf(unusedName(table, name), cells));
   }
   if (table.columns().empty()) return std::nullopt;
   return table;
