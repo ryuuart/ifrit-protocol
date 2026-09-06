@@ -35,6 +35,19 @@ void readMesh(const UsdPrim& prim, ReadContext& context,
   usdMesh.GetFaceVertexCountsAttr().Get(&counts);
   usdMesh.GetFaceVertexIndicesAttr().Get(&indices);
   if (points.empty() || counts.empty()) return;
+  // A MESH WHOSE TOPOLOGY DOES NOT ADD UP is skipped like one with no
+  // points at all. The fan below reads one point per face-vertex in
+  // order, so the counts must account for exactly the face-vertices
+  // there are and every index must name a point this mesh carries;
+  // nothing downstream checks it again.
+  size_t faceVertices = 0;
+  for (int count : counts) {
+    if (count < 0) return;
+    faceVertices += (size_t)count;
+  }
+  if (faceVertices != indices.size()) return;
+  for (int index : indices)
+    if (index < 0 || (size_t)index >= points.size()) return;
   geometry::mesh::codec::decode::Part part;
   part.name = prim.GetName().GetString();
   geometry::mesh::Mesh& mesh = part.mesh;

@@ -73,10 +73,13 @@ class Targets {
    *  frame. Forming them in the draw would re-stamp a set that has not
    *  moved — the whole cloud times the stamp's vertices, on both tiers,
    *  however still the frame is — so the answer is held here under
-   *  `stampKey`, which is a fold over the two VALUES. A frame that asks
-   *  for one it already has pays the fold and nothing else, and the
-   *  device tier keys its upload by the same number, so a still set is
-   *  neither formed twice nor uploaded twice.
+   *  `stampKey`, which is a fold over the two VALUES. The fold buckets
+   *  the lookup and the pair itself decides it, so two pairs that fold
+   *  to one number are two stampings under two numbers and neither is
+   *  ever served the other's mesh. A frame that asks for one it already
+   *  has pays the fold and the confirmation and nothing else, and the
+   *  device tier keys its upload by the number this answers, so a still
+   *  set is neither formed twice nor uploaded twice.
    *
    *  What is not asked for in a frame is let go at the end of it.
    *
@@ -128,6 +131,10 @@ class Targets {
   /** A formed stamping and the frame it was last asked for in. */
   struct Stamping {
     geometry::mesh::Mesh mesh;
+    /** The pair it was formed from, kept so that a lookup landing on
+     *  this number is confirmed by value rather than by the fold. */
+    geometry::mesh::Cloud cloud;
+    geometry::mesh::Mesh stamp;
     uint64_t used = 0;
   };
   boost::container::map<uint64_t, Stamping> m_stamped;

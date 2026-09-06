@@ -26,6 +26,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "Gpu.h"
@@ -456,7 +457,10 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
     // therefore neither instanced again nor re-uploaded, however many
     // frames draw it.
     for (const std::string& name : pass.reads()) {
-      const geometry::mesh::Cloud* cloud = targets.points(name);
+      // Read without inserting: a stamped pass reads image names too,
+      // and the inserting overload would leave an empty cloud behind
+      // for each of them that nothing ever erases.
+      const geometry::mesh::Cloud* cloud = std::as_const(targets).points(name);
       if (!cloud || cloud->positions.empty()) continue;
       uint64_t key = 0;
       const geometry::mesh::Mesh* stamped =

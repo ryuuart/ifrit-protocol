@@ -9,6 +9,7 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 
 #include <glm/mat4x4.hpp>
+#include <utility>
 #include <vector>
 
 #include "Cpu.h"
@@ -16,17 +17,6 @@
 namespace sigil::world::cpu {
 
 namespace {
-
-/** An emitter as the mesh painter takes it: the one directional reading
- *  every tier that shades without a per-pixel position works from. */
-geometry::mesh::render::Light painterLight(const light::Light& light) {
-  const light::Directional value = light::directional(light);
-  geometry::mesh::render::Light out;
-  out.direction = value.direction;
-  out.color = SkColor4f{value.color.r, value.color.g, value.color.b, 1.0f};
-  out.intensity = value.intensity;
-  return out;
-}
 
 geometry::mesh::render::MeshStyle litStyle(const View& view) {
   geometry::mesh::render::MeshStyle style;
@@ -71,23 +61,6 @@ SkColor4f colourOf(const glm::vec4& colour) {
   return SkColor4f{colour.r, colour.g, colour.b, colour.a};
 }
 
-/** The map a body is dressed with and whether the emitters reach it, put
- *  on the style — and taken off it again for a body carrying neither,
- *  since one style is reused across the whole list. */
-void dress(geometry::mesh::render::MeshStyle& style, const Draw& draw) {
-  const Sampling sampling =
-      draw.texture ? samplingOf(*draw.texture) : Sampling{};
-  style.texture = sampling.image;
-  style.uvTransform = sampling.uv;
-  style.tileTexture = sampling.tile;
-  style.filter = sampling.filter;
-  style.lit = draw.lit;
-  style.backfaceCull = draw.backface == Backface::Hidden;
-  const SurfaceTerms terms = surfaceTermsOf(draw.material);
-  style.metallic = terms.metallic;
-  style.roughness = terms.roughness;
-}
-
 void drawSelection(SkCanvas& canvas, const View& view, const Selector& selector,
                    geometry::mesh::render::MeshStyle& style, bool flat) {
   for (const Draw& draw : view.draws) {
@@ -114,7 +87,10 @@ void drawStamps(SkCanvas& canvas, const Pass& pass, const View& view,
                 Targets& targets, geometry::mesh::render::MeshStyle& style) {
   if (pass.stamp().positions.empty()) return;
   for (const std::string& name : pass.reads()) {
-    const geometry::mesh::Cloud* cloud = targets.points(name);
+    // Read without inserting: a stamped pass reads image names too, and
+    // the inserting overload would leave an empty cloud behind for each
+    // of them that nothing ever erases.
+    const geometry::mesh::Cloud* cloud = std::as_const(targets).points(name);
     if (!cloud || cloud->positions.empty()) continue;
     const geometry::mesh::Mesh* stamped = targets.stamped(*cloud, pass.stamp());
     if (!stamped || stamped->indices.empty()) continue;

@@ -191,18 +191,9 @@ Deferred by the rulings: the file splits by subject — `Pop.h` (1131),
 
 ## SigilWorld, SigilUsd, SigilSubstance, SigilImage (findings/review-geometry-material-world.md)
 
-Should-fix: `usd/read/Mesh.cpp:97`, `Primvar.h:42` unchecked face
-indices and counts read out of bounds; `world/scene/Phases.cpp:356` a
-per-frame `fprintf`; `world/frame/CpuGeometry.cpp:117`,
-`world/diligent/Geometry.cpp:459` `targets.points(name)` inserts an empty
-cloud per image name read; `substance/graph/Inputs.cpp:63` held images
-never released; `substance/graph/Render.cpp:63,78` ignores the engine's
-run result and answers by output count; `usd/write/Stamps.cpp:63`,
-`Lights.cpp:48,64` normalise a zero direction into NaN orientations;
-`world/scene/Draw.cpp:25,37` = `frame/CpuGeometry.cpp:22,77` identical
-`painterLight()`/`dress()`; `world/frame/Targets.cpp:107` `stamped`
-decides by a 64-bit fold alone against the store's "a hash is a bucket"
-rule.
+Should-fix: `substance/graph/Inputs.cpp:63` held images never released;
+`substance/graph/Render.cpp:63,78` ignores the engine's run result and
+answers by output count.
 
 ## SigilWeave and SigilDraw (findings/review-weave-draw.md)
 

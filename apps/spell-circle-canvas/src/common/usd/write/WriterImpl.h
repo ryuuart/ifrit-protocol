@@ -15,6 +15,7 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <filesystem>
+#include <glm/vec3.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -29,6 +30,12 @@ namespace sigil::usd {
  *  alphanumeric or an underscore becomes an underscore, and a name that
  *  is empty or starts with a digit gains a leading underscore. */
 std::string identifier(std::string_view name);
+
+/** @p direction as a unit vector, or nothing when it has no direction to
+ *  speak of. A rotation taken from a zero vector is a NaN, which USD
+ *  authors as the prim's orientation and every reader then carries;
+ *  nothing stated instead leaves the prim facing its default way. */
+std::optional<glm::vec3> aimedAlong(const glm::vec3& direction);
 
 struct Writer::Impl {
   std::filesystem::path file;

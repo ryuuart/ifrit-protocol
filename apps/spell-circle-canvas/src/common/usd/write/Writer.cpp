@@ -14,6 +14,8 @@
 #include <pxr/usd/usdUtils/usdzPackage.h>
 
 #include <cctype>
+#include <glm/geometric.hpp>
+#include <optional>
 #include <string>
 #include <system_error>
 
@@ -29,6 +31,12 @@ std::string identifier(std::string_view name) {
     out += (std::isalnum((unsigned char)c) || c == '_') ? c : '_';
   if (out.empty() || std::isdigit((unsigned char)out[0])) out = "_" + out;
   return out;
+}
+
+std::optional<glm::vec3> aimedAlong(const glm::vec3& direction) {
+  const float length = glm::length(direction);
+  if (length < 1e-5f) return std::nullopt;
+  return direction / length;
 }
 
 std::string Writer::Impl::uniquePath(std::string_view parent,

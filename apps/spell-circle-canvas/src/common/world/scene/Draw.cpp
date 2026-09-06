@@ -18,37 +18,7 @@
 
 namespace sigil::world {
 
-namespace {
-
-/** An emitter as the mesh painter takes it: the one directional reading
- *  every tier that shades without a per-pixel position works from. */
-geometry::mesh::render::Light painterLight(const light::Light& light) {
-  const light::Directional value = light::directional(light);
-  geometry::mesh::render::Light out;
-  out.direction = value.direction;
-  out.color = SkColor4f{value.color.r, value.color.g, value.color.b, 1.0f};
-  out.intensity = value.intensity;
-  return out;
-}
-
-/** The map a body is dressed with and whether the emitters reach it, put
- *  on the style — and taken off it again for a body carrying neither,
- *  since one style is reused across the whole list. */
-void dress(geometry::mesh::render::MeshStyle& style, const Draw& body) {
-  const Sampling sampling =
-      body.texture ? samplingOf(*body.texture) : Sampling{};
-  style.texture = sampling.image;
-  style.uvTransform = sampling.uv;
-  style.tileTexture = sampling.tile;
-  style.filter = sampling.filter;
-  style.lit = body.lit;
-  style.backfaceCull = body.backface == Backface::Hidden;
-  const SurfaceTerms terms = surfaceTermsOf(body.material);
-  style.metallic = terms.metallic;
-  style.roughness = terms.roughness;
-}
-
-}  // namespace
+namespace {}  // namespace
 
 void Scene::draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
                  const geometry::mesh::render::Runtime& runtime) {

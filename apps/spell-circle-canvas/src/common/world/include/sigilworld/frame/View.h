@@ -12,6 +12,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
+#include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Shading.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilworld/element/Element.h>
@@ -97,6 +98,15 @@ struct SurfaceTerms {
   glm::vec3 absorption{0, 0, 0};
 };
 SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material);
+
+/** AN EMITTER AS THE MESH PAINTER TAKES IT: the one directional reading
+ *  every tier that shades without a per-pixel position works from. */
+::sigil::geometry::mesh::render::Light painterLight(const light::Light& light);
+
+/** The map @p body is dressed with and whether the emitters reach it,
+ *  put on @p style — and taken off it again for a body carrying
+ *  neither, since one style is reused across a whole list of them. */
+void dress(::sigil::geometry::mesh::render::MeshStyle& style, const Draw& body);
 
 /** THE ENVIRONMENT AS A MESH PAINTER TAKES IT: the prefiltered chain,
  *  the cosine convolution, and the orientation that carries a world

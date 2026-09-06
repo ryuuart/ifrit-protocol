@@ -192,6 +192,72 @@ TEST(UsdWrite, WritesStampsAsAPointInstancerOverOnePrototype) {
   EXPECT_TRUE(UsdGeomMesh(stage->GetPrimAtPath(prototypes[0])));
 }
 
+TEST(UsdWrite, ADirectionOfNoLengthLeavesTheDefaultOrientationStanding) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("aimless.usda");
+  geometry::mesh::Cloud cloud;
+  cloud.positions = {{0, 0, 0}, {1, 0, 0}};
+  cloud.vector("dir", {0, 1, 0})[1] = {0, 0, 0};  // a point aimed nowhere
+  {
+    usd::Writer writer(file);
+    writer.stamps("sparks", cloud, geometry::mesh::quad(1, 1), glm::mat4(1.0f),
+                  material::kit::surface());
+    // A sun and a spot with no direction either.
+    writer.light("sun", world::light::sun({0, 0, 0}));
+    writer.light("beam",
+                 world::light::spot({0, 80, 0}, {0, 0, 0}, 40.0f, 28.0f));
+    ASSERT_TRUE(writer.save());
+  }
+  UsdStageRefPtr stage = UsdStage::Open(file.string());
+  ASSERT_TRUE(stage);
+  VtQuathArray orientations;
+  UsdGeomPointInstancer(stage->GetPrimAtPath(SdfPath("/World/sparks")))
+      .GetOrientationsAttr()
+      .Get(&orientations);
+  ASSERT_EQ(orientations.size(), 2u);
+  // Not a rotation by NaN: the stamp stands the way it was modelled.
+  EXPECT_FLOAT_EQ((float)orientations[1].GetReal(), 1.0f);
+  EXPECT_FLOAT_EQ((float)orientations[1].GetImaginary()[0], 0.0f);
+  EXPECT_FLOAT_EQ((float)orientations[1].GetImaginary()[1], 0.0f);
+  EXPECT_FLOAT_EQ((float)orientations[1].GetImaginary()[2], 0.0f);
+  // And no orientation is authored on either light at all.
+  std::ifstream in(file);
+  const std::string text((std::istreambuf_iterator<char>(in)),
+                         std::istreambuf_iterator<char>());
+  EXPECT_EQ(text.find("xformOp:orient"), std::string::npos) << text;
+  EXPECT_EQ(text.find("nan"), std::string::npos) << text;
+}
+
+TEST(UsdWrite, AnEmptyMeshAndAnEmptyCloudAuthorPrimsWithNothingInThem) {
+  SKIP_WITHOUT_USD();
+  const std::filesystem::path file = scratch("empty.usda");
+  {
+    usd::Writer writer(file);
+    EXPECT_EQ(writer.mesh("void", geometry::mesh::Mesh(), glm::mat4(1.0f),
+                          material::kit::surface()),
+              "/World/void");
+    EXPECT_EQ(
+        writer.stamps("motes", geometry::mesh::Cloud(), geometry::mesh::Mesh(),
+                      glm::mat4(1.0f), material::kit::surface()),
+        "/World/motes");
+    ASSERT_TRUE(writer.save());
+  }
+  // The prims stand and hold nothing, which is what a reader can act on;
+  // the alternative is a stage that silently lost what it was given.
+  UsdStageRefPtr stage = UsdStage::Open(file.string());
+  ASSERT_TRUE(stage);
+  UsdGeomMesh empty(stage->GetPrimAtPath(SdfPath("/World/void")));
+  ASSERT_TRUE(empty);
+  VtVec3fArray points;
+  empty.GetPointsAttr().Get(&points);
+  EXPECT_TRUE(points.empty());
+  UsdGeomPointInstancer motes(stage->GetPrimAtPath(SdfPath("/World/motes")));
+  ASSERT_TRUE(motes);
+  VtVec3fArray positions;
+  motes.GetPositionsAttr().Get(&positions);
+  EXPECT_TRUE(positions.empty());
+}
+
 TEST(UsdWrite, WritesAsciiWhenTheExtensionAsksForIt) {
   SKIP_WITHOUT_USD();
   const std::filesystem::path file = scratch("scene.usda");

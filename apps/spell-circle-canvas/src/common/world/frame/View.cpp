@@ -5,6 +5,7 @@
 
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilworld/frame/View.h>
+#include <sigilworld/light/Light.h>
 
 namespace sigil::world {
 
@@ -37,6 +38,30 @@ Sampling samplingOf(const material::Texture& texture) {
 
 Subject subjectOf(const Draw& draw) {
   return Subject{draw.key, draw.tags, draw.ancestors, draw.material};
+}
+
+::sigil::geometry::mesh::render::Light painterLight(const light::Light& light) {
+  const light::Directional value = light::directional(light);
+  ::sigil::geometry::mesh::render::Light out;
+  out.direction = value.direction;
+  out.color = SkColor4f{value.color.r, value.color.g, value.color.b, 1.0f};
+  out.intensity = value.intensity;
+  return out;
+}
+
+void dress(::sigil::geometry::mesh::render::MeshStyle& style,
+           const Draw& body) {
+  const Sampling sampling =
+      body.texture ? samplingOf(*body.texture) : Sampling{};
+  style.texture = sampling.image;
+  style.uvTransform = sampling.uv;
+  style.tileTexture = sampling.tile;
+  style.filter = sampling.filter;
+  style.lit = body.lit;
+  style.backfaceCull = body.backface == Backface::Hidden;
+  const SurfaceTerms terms = surfaceTermsOf(body.material);
+  style.metallic = terms.metallic;
+  style.roughness = terms.roughness;
 }
 
 SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {

@@ -8,6 +8,7 @@
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/usd/usdGeom/camera.h>
 
+#include <algorithm>
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
@@ -31,8 +32,12 @@ std::string Writer::camera(std::string_view name,
   // A 24mm-tall aperture with the focal length that gives the vertical
   // fov; the horizontal aperture follows the aspect a consumer sets.
   const float aperture = 24.0f;
+  // A camera stating no field of view would author an infinite focal
+  // length, which no reader can open; the narrowest angle that still
+  // divides stands in for it.
+  const float fovYDeg = std::max(camera.fovYDeg, 1e-3f);
   const float focal =
-      aperture * 0.5f / std::tan(camera.fovYDeg * (float)M_PI / 360.0f);
+      aperture * 0.5f / std::tan(fovYDeg * (float)M_PI / 360.0f);
   cam.CreateFocalLengthAttr().Set(focal);
   cam.CreateVerticalApertureAttr().Set(aperture);
   cam.CreateHorizontalApertureAttr().Set(aperture * 16.0f / 9.0f);

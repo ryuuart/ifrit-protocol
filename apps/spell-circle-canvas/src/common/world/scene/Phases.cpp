@@ -12,10 +12,13 @@
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Animated.h>
 
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <cstdio>
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
+#include <mutex>
 #include <optional>
+#include <string>
 #include <utility>
 #include <variant>
 
@@ -26,6 +29,17 @@ namespace sigil::world {
 namespace {
 
 namespace gm = ::sigil::geometry::mesh;
+
+/** Says @p message the first time it is said and never again. The walk
+ *  this is called from visits every node of every frame, so a mistake
+ *  standing in a scene would otherwise be reported at frame rate. */
+void reportOnce(const std::string& message) {
+  static std::mutex mutex;
+  static boost::unordered_flat_set<std::string> said;
+  const std::lock_guard lock(mutex);
+  if (!said.insert(message).second) return;
+  std::fprintf(stderr, "[sigil::world] %s\n", message.c_str());
+}
 
 /** The surface a node wears: its own, or the first of its per-face
  *  slots. */
@@ -60,9 +74,12 @@ glm::vec4 baseColorOf(const material::Material* material) {
   return material->get<glm::vec4>("baseColor");
 }
 
-/** The emitter, carried by the placement of the node that declared it. */
+/** The emitter, carried by the placement of the node that declared it.
+ *  A direction is not carried the way a point is: under a non-uniform
+ *  scale the basis tilts it off the surfaces it was aimed at, and the
+ *  normal transform is what keeps the angle. */
 light::Light placeLight(light::Light light, const glm::mat4& world) {
-  const glm::mat3 basis(world);
+  const glm::mat3 basis = glm::inverseTranspose(glm::mat3(world));
   light.direction = basis * light.direction;
   if (glm::dot(light.direction, light.direction) > 0.0f)
     light.direction = glm::normalize(light.direction);
@@ -353,10 +370,8 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
       // tree order shades, and both keys are named, because a silent
       // no-op would be a set lit by whichever node happened to come
       // last and no way to see which.
-      fprintf(stderr,
-              "[world] two environment maps in one frame: \"%s\" shades "
-              "and \"%s\" is ignored\n",
-              environmentKey.c_str(), inst.description->key.c_str());
+      reportOnce("two environment maps in one frame: \"" + environmentKey +
+                 "\" shades and \"" + inst.description->key + "\" is ignored");
     } else {
       environment = *node.environment;
       environment.intensity = inst.intensity;

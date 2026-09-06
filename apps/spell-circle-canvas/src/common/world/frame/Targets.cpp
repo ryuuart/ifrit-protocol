@@ -104,18 +104,30 @@ const geometry::mesh::Mesh* Targets::stamped(const geometry::mesh::Cloud& cloud,
                                              const geometry::mesh::Mesh& stamp,
                                              uint64_t* key) {
   if (cloud.positions.empty() || stamp.positions.empty()) return nullptr;
-  const uint64_t folded = stampKey(cloud, stamp);
-  if (key) *key = folded;
-  const auto found = m_stamped.find(folded);
-  if (found != m_stamped.end()) {
-    found->second.used = m_frame;
-    return &found->second.mesh;
+  // A FOLD IS A BUCKET AND NEVER AN ANSWER, here as in the resource
+  // store: an entry holds the pair it was formed from and is confirmed
+  // by value, and a pair that folds onto another's number takes the
+  // next free one. The number is also what a device keys its upload by,
+  // so two pairs sharing one would hand a set the other's mesh.
+  uint64_t folded = stampKey(cloud, stamp);
+  while (true) {
+    const auto found = m_stamped.find(folded);
+    if (found == m_stamped.end()) break;
+    if (found->second.cloud == cloud && found->second.stamp == stamp) {
+      found->second.used = m_frame;
+      if (key) *key = folded;
+      return &found->second.mesh;
+    }
+    ++folded;
   }
+  if (key) *key = folded;
   Stamping made;
   // How the stamp rides its points is the point operators' own table —
   // one convention, so a cloud stands its stamps up the same way here
   // and through `pop::cookMesh`.
   made.mesh = cook(Stamped{cloud, stamp}).mesh;
+  made.cloud = cloud;
+  made.stamp = stamp;
   made.used = m_frame;
   ++m_stampings;
   return &m_stamped.emplace(folded, std::move(made)).first->second.mesh;

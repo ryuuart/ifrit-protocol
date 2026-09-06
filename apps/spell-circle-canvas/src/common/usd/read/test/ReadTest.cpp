@@ -511,6 +511,44 @@ TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {
   EXPECT_FLOAT_EQ(lens.zFar, 1000.0f);
 }
 
+TEST(UsdRead, SkipsAMeshWhoseTopologyDoesNotAddUp) {
+  SKIP_WITHOUT_USD();
+  // Two meshes no reader can fan: one names a point that is not there,
+  // the other's counts account for more face-vertices than it has. Both
+  // are skipped like a mesh with no points at all, and the sound one
+  // beside them still comes through.
+  const std::filesystem::path file = scratch("broken.usda");
+  {
+    std::ofstream out(file);
+    out << "#usda 1.0\n(\n    defaultPrim = \"World\"\n)\n\n"
+           "def Xform \"World\"\n{\n"
+           "    def Mesh \"past_the_points\"\n    {\n"
+           "        int[] faceVertexCounts = [3]\n"
+           "        int[] faceVertexIndices = [0, 1, 9]\n"
+           "        point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]\n"
+           "    }\n"
+           "    def Mesh \"counts_that_lie\"\n    {\n"
+           "        int[] faceVertexCounts = [3, 3]\n"
+           "        int[] faceVertexIndices = [0, 1, 2]\n"
+           "        point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]\n"
+           "    }\n"
+           "    def Mesh \"sound\"\n    {\n"
+           "        int[] faceVertexCounts = [3]\n"
+           "        int[] faceVertexIndices = [0, 1, 2]\n"
+           "        point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 1, 0)]\n"
+           "    }\n}\n";
+  }
+  std::string error;
+  const std::optional<geometry::mesh::codec::decode::Model> model =
+      usd::readModel(file, nullptr, &error);
+  ASSERT_TRUE(model) << error;
+  EXPECT_FALSE(named(*model, "past_the_points"));
+  EXPECT_FALSE(named(*model, "counts_that_lie"));
+  const geometry::mesh::codec::decode::Part* sound = named(*model, "sound");
+  ASSERT_TRUE(sound);
+  EXPECT_EQ(sound->mesh.triangleCount(), 1u);
+}
+
 TEST(UsdRead, RefusesWhatItCannotOpen) {
   SKIP_WITHOUT_USD();
   std::string error;
