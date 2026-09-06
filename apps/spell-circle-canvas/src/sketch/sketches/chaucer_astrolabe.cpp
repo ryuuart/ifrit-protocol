@@ -185,7 +185,9 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -854,6 +856,9 @@ struct ChaucerAstrolabe : sketch::Sketch {
       faceBold;
 
   feed::TextRing logA{64}, logB{64}, logC{64}, logD{64};
+  /** The look every kit component below this sketch is set in; built in
+   *  setup, once the faces it names have been resolved. */
+  sketch::kit::Theme sheetLook;
   std::string chaucerH, chaucerA, chaucerDelta;
 
   // =========================================================================
@@ -2486,25 +2491,28 @@ struct ChaucerAstrolabe : sketch::Sketch {
   }
 
   // --- the title strip ------------------------------------------------------
+  /** THE MASTHEAD: what the instrument is over where it was compowned,
+   *  with its museum provenance ranged at the far edge and the engraved
+   *  hairline under the block. The registers, the inks and the air between
+   *  them are the plate's theme's. */
   Element titleStrip() {
     auto g = box().rect(SkRect::MakeXYWH(0, 0, kW, kH));
-    g.child(text(toU8("ASTROLABIVM \xc2\xb7 ANNO DOMINI M CCC XXVI"),
-                 type(faceEngrave, 34, kInk, 2.4f))
-                .at({64, 44}));
-    g.child(text(toU8("compowned after the latitude of Oxenford \xc2\xb7 "
-                      "51\xc2\xb0 50\xe2\x80\xb2"),
-                 type(faceItalic, 19, kRubric))
-                .at({66, 90}));
-    g.child(text(toU8("British Museum 1909,0617.1 \xc2\xb7 brass \xc2\xb7 "
-                      "132 mm \xc2\xb7 the earliest dated astrolabe made in "
-                      "Europe"),
-                 type(faceSerif, 15, hex(0x6b5a44)))
-                .width(1240)
-                .textAlign(sigil::weave::TextAlignment::kEnd)
-                .at({1096, 62}));
-    g.child(box()
-                .rect(SkRect::MakeXYWH(64, 124, kW - 128, 1))
-                .fill(Fill::color(hex(0x241c15, 0.3f))));
+    g.child(sketch::kit::titleCard(
+                {.title = {toU8("ASTROLABIVM \xc2\xb7 ANNO DOMINI M CCC "
+                                "XXVI")},
+                 .subtitle = {toU8("compowned after the latitude of "
+                                   "Oxenford \xc2\xb7 51\xc2\xb0 "
+                                   "50\xe2\x80\xb2")},
+                 .notes = {{.words = toU8("British Museum 1909,0617.1 "
+                                          "\xc2\xb7 brass \xc2\xb7 132 "
+                                          "mm \xc2\xb7 the earliest "
+                                          "dated astrolabe made in "
+                                          "Europe"),
+                            .ink = Fill::color(hex(0x6b5a44))}},
+                 .ruled = true})
+                .left(64)
+                .top(44)
+                .width(Dim(kW - 128)));
     return g;
   }
 
@@ -2549,6 +2557,10 @@ struct ChaucerAstrolabe : sketch::Sketch {
   // =========================================================================
 
   Element describe(sketch::SketchContext&) {
+    // The plate's sheet stands for everything described below it, so a kit
+    // component four levels down is set in this plate's registers without
+    // being handed them.
+    sketch::kit::Provide look(sheetLook);
     auto root = stack().fill(Fill::color(kVellum));
 
     // vellum: grain at very low contrast, and a soft warm falloff.
@@ -3008,12 +3020,31 @@ struct ChaucerAstrolabe : sketch::Sketch {
     // rather than silently at Normal.
     faceEngrave = weave::ports::face({"Herculanum", "Optima", "Baskerville"});
     faceLimb = weave::ports::face({"Copperplate", "Optima", "Baskerville"});
-    faceSerif = weave::ports::face({"Hoefler Text", "Baskerville"});
-    faceItalic = weave::ports::face({"Hoefler Text", "Baskerville"},
-                                    SkFontStyle::Italic());
-    faceBold = weave::ports::face({"Hoefler Text", "Baskerville"},
-                                  SkFontStyle::Bold());
-    faceMono = weave::ports::face({"Menlo", "Courier New"});
+    faceSerif = sketch::kit::houseFace(sketch::kit::Voice::Book);
+    faceItalic = sketch::kit::houseFace(sketch::kit::Voice::Book, 400,
+                                        SkFontStyle::kItalic_Slant);
+    faceBold = sketch::kit::houseFace(sketch::kit::Voice::Book, 700);
+    faceMono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
+
+    // THE PLATE'S OWN SHEET, once the faces exist to name it with. Every
+    // kit component reads the theme in scope, and this plate is letterpress
+    // on vellum rather than the house sheet, so it binds its own: the three
+    // lettering systems it is set in, its ink and rubric, and the air the
+    // masthead's lines stand apart by.
+    sheetLook = {};
+    sheetLook.palette.ground = kVellum;
+    sheetLook.palette.ink = kInk;
+    sheetLook.palette.ash = kRubric;
+    sheetLook.palette.rule = hex(0x241c15, 0.3f);
+    sheetLook.palette.figure = kInk;
+    sheetLook.type.sans = faceSerif;
+    sheetLook.type.mono = faceMono;
+    sheetLook.type.title = {34, 2.4f, false, faceEngrave};
+    sheetLook.type.subtitle = {19, 0, false, faceItalic};
+    sheetLook.type.captionNote = {15, 0, false, faceSerif};
+    sheetLook.spacing.subtitleGap = 12;
+    sheetLook.spacing.contentGap = 28;
+    sheetLook.spacing.rowGap = 5;
 
     brassGrain = Paint::recipe(field::grain(0.9f, 3, 11.0f, 0.30f));
     verdigris = patterns::speckle(420, 16, 1.6f, 5.0f,
