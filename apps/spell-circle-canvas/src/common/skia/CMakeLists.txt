@@ -12,8 +12,9 @@
 # its handles and its fences know nothing of Skia, so a Diligent renderer
 # and Graphite stand on the same one. Both features here link it.
 #
-# <sigilskia/Skia.h> is the umbrella header over the Qt-free features.
-# Nothing here knows what is being drawn.
+# <sigilskia/Skia.h> is the umbrella header over the graphite feature;
+# the draw feature and the Qt adapters are each included by their own
+# header. Nothing here knows what is being drawn.
 sigil_library_root(SigilSkia
   BRIEF "Skia Graphite bring-up on a Metal or Vulkan device someone else owns")
 

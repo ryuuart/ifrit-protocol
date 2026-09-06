@@ -77,11 +77,16 @@ sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder, void* mtlTexture,
  * Null when a plane is missing, the description does not fit the planes,
  * or the wrap failed; the release runs either way, so a caller hands its
  * context over exactly once.
+ *
+ * Named apart from `wrapImage` because the ownership is the other way
+ * round: that one retains the texture it is given, this one retains
+ * nothing and hands the planes back through @p release.
  */
-sk_sp<SkImage> wrapImage(skgpu::graphite::Recorder& recorder,
-                         std::span<const TexturePlane> planes,
-                         const SkYUVAInfo& info, sk_sp<SkColorSpace> colorSpace,
-                         TextureRelease release, void* releaseContext);
+sk_sp<SkImage> wrapPlanarImage(skgpu::graphite::Recorder& recorder,
+                               std::span<const TexturePlane> planes,
+                               const SkYUVAInfo& info,
+                               sk_sp<SkColorSpace> colorSpace,
+                               TextureRelease release, void* releaseContext);
 #endif
 
 }  // namespace sigil::skia

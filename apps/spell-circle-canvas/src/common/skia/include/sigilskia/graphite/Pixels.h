@@ -23,11 +23,11 @@ namespace sigil::skia {
  *  produces, and the one a device sampler may refuse to filter. */
 bool isFloatImage(const sk_sp<SkImage>& image);
 
-/** @p image's pixels as tightly packed half-float RGBA, four values a
- *  texel, row after row with no padding: what a device texture in a
- *  16-bit float format is uploaded from. Empty when the image cannot be
- *  read. Values above one survive, which is the whole point of asking
- *  for halves rather than bytes. */
+/** @p image's pixels as tightly packed premultiplied half-float RGBA,
+ *  four values a texel, row after row with no padding: what a device
+ *  texture in a 16-bit float format is uploaded from. Empty when the
+ *  image cannot be read. Values above one survive, which is the whole
+ *  point of asking for halves rather than bytes. */
 std::vector<uint16_t> halfFloatPixels(const sk_sp<SkImage>& image);
 
 /** @p image's pixels as tightly packed premultiplied 8-bit RGBA — the

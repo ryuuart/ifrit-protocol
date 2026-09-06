@@ -289,14 +289,16 @@ TEST(SigilSkiaGraphite, PlanarWrapReleasesThePlanesOnce) {
   int released = 0;
   const SkYUVAInfo info({8, 8}, SkYUVAInfo::PlaneConfig::kY_UV, SkYUVAInfo::Subsampling::k420,
                         kRec709_Limited_SkYUVColorSpace);
-  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), {}, info, nullptr, count, &released), nullptr);
+  EXPECT_EQ(sigil::skia::wrapPlanarImage(*ctx->recorder(), {}, info, nullptr, count, &released),
+            nullptr);
   EXPECT_EQ(released, 1);
 
   int missing = 0;
   const std::array<sigil::skia::TexturePlane, 2> noTexture{
       sigil::skia::TexturePlane{nullptr, 8, 8}, sigil::skia::TexturePlane{nullptr, 4, 4}};
-  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), noTexture, info, nullptr, count, &missing),
-            nullptr);
+  EXPECT_EQ(
+      sigil::skia::wrapPlanarImage(*ctx->recorder(), noTexture, info, nullptr, count, &missing),
+      nullptr);
   EXPECT_EQ(missing, 1);
 
   // Planes of the right shape that no shader may sample: the refusal is
@@ -309,8 +311,9 @@ TEST(SigilSkiaGraphite, PlanarWrapReleasesThePlanesOnce) {
   const std::array<sigil::skia::TexturePlane, 2> planes{
       sigil::skia::TexturePlane{(__bridge void *)luma, 8, 8},
       sigil::skia::TexturePlane{(__bridge void *)chroma, 4, 4}};
-  EXPECT_EQ(sigil::skia::wrapImage(*ctx->recorder(), planes, info, nullptr, count, &unsampleable),
-            nullptr);
+  EXPECT_EQ(
+      sigil::skia::wrapPlanarImage(*ctx->recorder(), planes, info, nullptr, count, &unsampleable),
+      nullptr);
   EXPECT_EQ(unsampleable, 1);
 }
 
@@ -345,7 +348,7 @@ TEST(SigilSkiaGraphite, WrapsPlanesAsOneImage) {
       sigil::skia::TexturePlane{(__bridge void *)chroma, 4, 4}};
   int released = 0;
   sk_sp<SkImage> image =
-      sigil::skia::wrapImage(*ctx->recorder(), planes, info, nullptr, count, &released);
+      sigil::skia::wrapPlanarImage(*ctx->recorder(), planes, info, nullptr, count, &released);
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 8);
   EXPECT_EQ(image->height(), 8);

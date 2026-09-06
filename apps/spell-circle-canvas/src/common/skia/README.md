@@ -122,14 +122,15 @@ the last image naming it is gone, so an image outliving the view or the
 frame that owned its texture still samples pixels rather than whatever
 now holds the slot.
 
-**Several planes are one image.** The overload taking a span of
-`TexturePlane` and an `SkYUVAInfo` wraps a frame that arrived as
+**Several planes are one image.** `wrapPlanarImage`, taking a span of
+`TexturePlane` and an `SkYUVAInfo`, wraps a frame that arrived as
 separate luma and chroma textures, so the shader that samples it does
-the colour arithmetic and nothing is converted on the way in. That one
-retains nothing: the planes live as long as the release context the
-caller hands over — one buffer every plane was made from, rather than
-each plane in turn — and the release runs on every path out, including a
-wrap that never happened.
+the colour arithmetic and nothing is converted on the way in. It carries
+its own name because the ownership is the other way round: it retains
+nothing, the planes live as long as the release context the caller hands
+over — one buffer every plane was made from, rather than each plane in
+turn — and the release runs on every path out, including a wrap that
+never happened.
 
 Only the Metal arm is built: it is what every caller of these wraps
 holds. A Vulkan arm stands beside it the day something asks for one, the
