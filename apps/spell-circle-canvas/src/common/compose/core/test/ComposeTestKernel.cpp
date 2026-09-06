@@ -1,3 +1,5 @@
+#include <sigilcompose/core/Pattern.h>
+
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeLayout, FlexRowPositionsAndFills) {
@@ -739,12 +741,13 @@ struct PromotionDrift {
   bool promoted = false;
 };
 
-PromotionDrift promotionDrift(const SkMatrix& hostMatrix, int w, int h) {
+PromotionDrift promotionDriftOf(const std::function<Element()>& page,
+                                const SkMatrix& hostMatrix, int w, int h) {
   const auto render = [&](bool promotion, bool* promotedOut) {
     Host host(w, h);
     host.composer.setAutoTexturePromotion(promotion);
     host.composer.setProfiling(true);
-    host.composer.render(profiledUnder(promotablePage().key("page")));
+    host.composer.render(profiledUnder(page().key("page")));
     for (int i = 0; i < 30; ++i) {
       SkCanvas& canvas = *host.surface->getCanvas();
       canvas.clear(SK_ColorBLACK);
@@ -765,16 +768,21 @@ PromotionDrift promotionDrift(const SkMatrix& hostMatrix, int w, int h) {
   return out;
 }
 
+PromotionDrift promotionDrift(const SkMatrix& hostMatrix, int w, int h) {
+  return promotionDriftOf(promotablePage, hostMatrix, w, h);
+}
+
 /** The still a plate is photographed as: a scene warmed at one scale on one
  *  surface — long enough that the promoter has baked what it is going to —
  *  and then drawn ONCE at another, larger, fractional scale onto a surface
  *  of its own. Everything a bake was pinned to moved between the two. */
-std::vector<SkColor> warmThenStill(bool promotion, float stillScale, int w,
-                                   int h, bool* promotedOut) {
+std::vector<SkColor> warmThenStillOf(const std::function<Element()>& page,
+                                     bool promotion, float stillScale, int w,
+                                     int h, bool* promotedOut) {
   Host host(w, h);
   host.composer.setAutoTexturePromotion(promotion);
   host.composer.setProfiling(true);
-  host.composer.render(profiledUnder(promotablePage().key("page")));
+  host.composer.render(profiledUnder(page().key("page")));
   for (int i = 0; i < 30; ++i) host.frame();
   if (promotedOut)
     for (const Composer::NodeCost& row : host.composer.profile())
@@ -794,6 +802,12 @@ std::vector<SkColor> warmThenStill(bool promotion, float stillScale, int w,
   for (int y = 0; y < sh; ++y)
     for (int x = 0; x < sw; ++x) out.push_back(bm.getColor(x, y));
   return out;
+}
+
+std::vector<SkColor> warmThenStill(bool promotion, float stillScale, int w,
+                                   int h, bool* promotedOut) {
+  return warmThenStillOf(promotablePage, promotion, stillScale, w, h,
+                         promotedOut);
 }
 
 }  // namespace
@@ -852,6 +866,88 @@ TEST(ComposeCache, PromotionUnderAFractionalHostScaleChangesNoPixels) {
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
       << " code values, when the library promoted a node under a fractional "
          "host scale";
+}
+
+namespace {
+
+/** A repeating tile of hard-edged marks, magnified. A procedural ramp
+ *  answers a coordinate that moved an epsilon with a code value; a
+ *  MAGNIFIED TEXEL answers with whatever its two neighbours differ by,
+ *  which is the whole range. So this is the paint that reads back where
+ *  the bake sampled, rather than only how it rounded — and it is what a
+ *  background of repeated art is. */
+Pattern hardTile() {
+  return Pattern::tile(
+      {12, 12},
+      box()
+          .child(box().absolute().left(0).top(0).width(6).height(6).fill(
+              Fill::color({1, 1, 1, 1})))
+          .child(box().absolute().left(7).top(3).width(3).height(6).fill(
+              Fill::color({0.2f, 0.9f, 0.3f, 1}))));
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedTileSamplesWhereTheLivePaintSampled) {
+  // The pattern's tile is baked ONCE and held, so nothing about the image
+  // can differ between the two runs: what differs is where the shader read
+  // it. A tile shown four times its texel size turns any drift in that
+  // read into whole levels rather than a rounding — a texel's worth,
+  // wherever the sample crossed into its neighbour.
+  Pattern pattern = hardTile();
+  const auto page = [&] {
+    Element out = promotablePage();
+    out.child(box()
+                  .absolute()
+                  .left(10)
+                  .top(10)
+                  .width(160)
+                  .height(160)
+                  .fill(pattern.material(fonts())));
+    return out;
+  };
+  SkMatrix host = SkMatrix::Scale(1.875f, 1.875f);
+  host.postTranslate(0.37f, 0.61f);
+  const PromotionDrift drift = promotionDriftOf(page, host, 400, 400);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 1)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when a promoted node's paint SAMPLED an image";
+}
+
+TEST(ComposeCache, AStillAtANewScaleResamplesATileWhereTheLivePaintDoes) {
+  // The same paint on the plate path: warmed at one scale, where the
+  // promoter takes its bakes, then photographed ONCE at another. A bake
+  // held over that change is a picture of the tile read at the old sample
+  // positions, and a magnified texel makes that whole levels rather than a
+  // rounding — so this is where a stale bake shows up as the picture
+  // rather than as noise.
+  Pattern pattern = hardTile();
+  const auto page = [&] {
+    Element out = promotablePage();
+    out.child(box()
+                  .absolute()
+                  .left(10)
+                  .top(10)
+                  .width(160)
+                  .height(160)
+                  .fill(pattern.material(fonts())));
+    return out;
+  };
+  bool promoted = false;
+  const std::vector<SkColor> live =
+      warmThenStillOf(page, false, 1.875f, 200, 200, nullptr);
+  const std::vector<SkColor> baked =
+      warmThenStillOf(page, true, 1.875f, 200, 200, &promoted);
+  ASSERT_TRUE(promoted)
+      << "nothing was promoted during the warmup, so this compared two live "
+         "stills";
+  ASSERT_EQ(live.size(), baked.size());
+  size_t differing = 0;
+  const int worst = worstDrift(live, baked, &differing);
+  EXPECT_LE(worst, 1) << differing << " pixels of the still moved, worst "
+                      << worst << " code values";
 }
 
 TEST(ComposeCache, APromotedEdgeThatLeavesTheCanvasLandsWhereItLandedLive) {
