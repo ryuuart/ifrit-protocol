@@ -176,9 +176,11 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmeasure/check/Check.h>
 #include <sigilmotion/Animation.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilsketch/kit/Theme.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -187,7 +189,6 @@
 #include <array>
 #include <charconv>
 #include <cmath>
-#include <cstdio>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -631,6 +632,20 @@ struct ThunderFulu : sketch::Sketch {
   double clockT = 0;
 
   feed::TextRing logA{64}, logB{64}, logC{64}, logD{64};
+
+  /** WHAT THE CONSOLE'S PASS AND FAIL MARKS ARE READ OFF. A row's verdict
+   *  is COMPUTED from the two values it reports — the stroke count the
+   *  doctrine publishes and the one the median data carries — so a line
+   *  marked pass cannot disagree with the number printed in it, and
+   *  `failures()` is the run's verdict away from the screen. */
+  sigil::measure::Table verdict;
+
+  /** @p want against @p got, added to the table, and the console tag its
+   *  verdict spells. */
+  const char* claim(std::string label, long want, long got) {
+    verdict.add(sigil::measure::check(std::move(label), want, got));
+    return verdict.rows.back().pass ? "pass" : "fail";
+  }
 
   Paint ironGrain;
   Pattern ironSpeck;
@@ -1973,6 +1988,7 @@ struct ThunderFulu : sketch::Sketch {
   // THE CHECKS
 
   void runChecks() {
+    verdict = {};
     // --- panel A: the stroke data -----------------------------------------
     logA.append(
         {toU8("makemeahanzi graphics.txt \xe2\x80\x94 MEDIANS, 1024 em, "
@@ -1992,20 +2008,22 @@ struct ThunderFulu : sketch::Sketch {
                              "verbatim",
                              totalStrokes, totalPts)),
          "dim"});
+    const char* stems = claim("GANG U+7F61 strokes, the ten Heavenly Stems", 10,
+                              font.glyphs[GANG].strokes);
     logA.append({toU8(kit::formatted("  GANG U+7F61 has %d strokes",
                                      font.glyphs[GANG].strokes)),
-                 font.glyphs[GANG].strokes == 10 ? "pass" : "fail"});
+                 stems});
     logA.append(
         {toU8("  doctrine: 10 strokes = the ten Heavenly Stems"), "dim"});
     logA.append({toU8("  JIA YI BING DING WU JI GENG XIN REN GUI \xe2\x80\x94 "
                       "the count MATCHES"),
-                 font.glyphs[GANG].strokes == 10 ? "pass" : "fail"});
+                 stems});
     logA.append({toU8(kit::formatted(
                      "  foot JI+JI+RU+LU+LING = %d+%d+%d+%d+%d = %d strokes",
                      font.glyphs[JI].strokes, font.glyphs[JI].strokes,
                      font.glyphs[RU].strokes, font.glyphs[LV].strokes,
                      font.glyphs[LING].strokes, nFootStrokes)),
-                 nFootStrokes == 38 ? "pass" : "fail"});
+                 claim("foot JI+JI+RU+LU+LING strokes", 38, nFootStrokes)});
     logA.append({toU8(kit::formatted(
                      "    drawn as ONE contour: %d spans = %d strokes + "
                      "%d ligatures",
@@ -2014,7 +2032,7 @@ struct ThunderFulu : sketch::Sketch {
     logA.append(
         {toU8(kit::formatted("  body YU+WU / YUN / GUI = %d cloud-seal strokes",
                              nBody)),
-         nBody == 33 ? "pass" : "fail"});
+         claim("body YU+WU / YUN / GUI cloud-seal strokes", 33, nBody)});
     logA.append({toU8(kit::formatted("  ink strokes on the plate: %d nodes",
                                      (int)strokes.size())),
                  "number"});
@@ -2022,6 +2040,10 @@ struct ThunderFulu : sketch::Sketch {
     // --- panel B: the taxonomy --------------------------------------------
     logB.append({toU8("KanjiVG kvg:type \xe2\x80\x94 THE STROKE CLASS, FOR w0"),
                  "heading"});
+    // A statement about the SOURCE, not about this reconstruction: its
+    // verdict is printed as any claim's is and never counted against the run.
+    verdict.add(sigil::measure::finding(
+        sigil::measure::check("KanjiVG carries GANG U+7F61", false)));
     logB.append(
         {toU8("  kanji/07f61.svg (GANG) is a 14-byte 404. NOT A KANJI."),
          "fail"});
@@ -2032,7 +2054,14 @@ struct ThunderFulu : sketch::Sketch {
     logB.append({toU8(kit::formatted(
                      "  vs KanjiVG over the %d strokes it does carry: %d/%d",
                      kvgTotal, kvgAgree, kvgTotal)),
-                 kvgAgree * 10 >= kvgTotal * 8 ? "pass" : "fail"});
+                 [&] {
+                   verdict.add(sigil::measure::check(
+                       kit::formatted("classifier agrees with KanjiVG on %d "
+                                      "of %d strokes, at least 80%%",
+                                      kvgAgree, kvgTotal),
+                       kvgAgree * 10 >= kvgTotal * 8));
+                   return verdict.rows.back().pass ? "pass" : "fail";
+                 }()});
     for (size_t i = 0; i < kvgMiss.size() && i < 3; ++i)
       logB.append({toU8("    " + kvgMiss[i]), "dim"});
     logB.append(
@@ -2145,11 +2174,13 @@ struct ThunderFulu : sketch::Sketch {
     // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
     // library's own walk: the first installed family wins, and a machine
     // with none of them gets the default face AT THE WEIGHT ASKED FOR
-    // rather than silently at Normal.
-    faceSerif = weave::ports::face({"Hoefler Text", "Baskerville"});
-    faceItalic = weave::ports::face({"Hoefler Text", "Baskerville"},
-                                    SkFontStyle::Italic());
-    faceMono = weave::ports::face({"Menlo", "Courier New"});
+    // rather than silently at Normal. The three runs the house sheets share
+    // are named by VOICE rather than spelled again here, so two plates
+    // cannot end up in different faces by a typo.
+    faceSerif = sketch::kit::houseFace(sketch::kit::Voice::Book);
+    faceItalic = sketch::kit::houseFace(sketch::kit::Voice::Book, 400,
+                                        SkFontStyle::kItalic_Slant);
+    faceMono = sketch::kit::houseFace(sketch::kit::Voice::Terminal);
     faceDisplay = weave::ports::face({"Optima", "Baskerville"},
                                      SkFontStyle::kBold_Weight);
 
