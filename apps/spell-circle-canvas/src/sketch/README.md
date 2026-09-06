@@ -446,8 +446,8 @@ if (auto* on = sketch::device())
 
 Null is an answer, not a failure. A plate is taken on the CPU tier, so a
 sketch that reaches through this door says what it draws without one,
-and a sketch whose whole subject needs a device says so through
-`unavailable(...)` rather than drawing an empty set.
+and a sketch whose whole subject needs a device stands itself down
+through its own `available()` probe rather than drawing an empty set.
 
 ### Three paths for motion, and the order to reach for them
 
@@ -526,8 +526,10 @@ Sketchbook [--no-gpu]                       # the app
 Sketchbook --sketch <name>                  # the app, on that one
 Sketchbook <file.cpp>                       # the app, on that file
 Sketchbook --list [--kind canvas|set|draw]  # the registry, one per line
+Sketchbook --catalog [<file.cpp>]           # the browser's rows, one JSON each
 Sketchbook <file.cpp> --frame out.png [--at <sec>] [--scale <n>] [--gpu]
                                   [--frames <count>] [--fps <n>]
+                                  [--deterministic | --no-deterministic]
 Sketchbook <file.cpp> --bench [--bench-frames <n>] [--jitter-dt [amp]]
 Sketchbook --headless <outdir> [--gpu] [--sketch <name>] [--kind <k>]
            [--ledger] [--no-promotion | --promotion] [--capture-at <s>]
@@ -547,6 +549,20 @@ Sketchbook --thumbnails [--sketch <name>] [--kind canvas|set|draw]
 filed name or its file stem, which is the loop for visual iteration.
 `--shot <png>` captures the app window rather than a sketch, which is
 the only way to look at the browser and the inspector.
+
+`--catalog` prints the browser's rows without opening a window, one JSON
+object per line — the registry first, and a file this run was pointed at
+after it. What a script reads off them is what the browser reads before
+anything has been built: a compiled-in entry names the runtime it draws
+through, and a file opened by path has none until it has been compiled
+and says so rather than guessing.
+
+**A capture is deterministic and a live run is not.** Anything a sketch
+measured about its own execution is pinned when a still is being written
+and real everywhere else, so a `--frame` can be diffed while the app and
+`--bench` show the machine's own numbers. `--deterministic` and
+`--no-deterministic` name either regime for either, which is how a
+sketch's real figures are looked at in a written frame.
 
 The app brings a device up and every set draws through it, because a
 device is what runs a material's own body: the CPU mesh executor has no
@@ -631,8 +647,9 @@ The three distances are absolute differences of one 8-bit channel, in
 0..255, over every channel of every pixel. It opens no sketch, needs no
 fonts, no assets and no device, and it JUDGES NOTHING — how close is
 close enough is a tolerance about a machine, which is the plate ledger's
-to hold. The ledger's device tier is the caller: it renders both tiers
-and asks this which pictures moved.
+to hold. The ledger's device and promotion tiers are the callers: each
+renders two directories of plates in one run and asks this which
+pictures moved.
 
 ### `--frame`: the asset workflow
 
@@ -1124,6 +1141,7 @@ src/sketch/
   plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
   book/       Sketchbook: the app, and the headless entry point, with the browser's rows
   cmake/      SketchLinkSurface.cmake, the link surface a reloaded sketch is read against
+  test/       support/, the fixtures every feature's cases share
   sketches/   every sketch, one file or one directory each; shared/ beside them
 ```
 
@@ -1228,9 +1246,10 @@ beside the case that
 takes a page's still — two cases that must not meet in one process because
 the engine allows one renderer per process and the shared-engine case
 ends by shutting its one down for good. Both are labelled `ultralight`
-and are absent altogether without that SDK. The `sketch_*_bench` binaries
-beside them are Google Benchmark executables, not tests, built through
-the `benches` target.
+and are absent altogether without that SDK. Beside the test binary
+stands one bench binary, `sketch_bench`, built from every feature's
+`bench/` directory — a Google Benchmark executable rather than a test,
+reached through the `benches` target.
 
 A case asserts one behaviour a session or a host promises to a caller who
 has read only this page, and its name is that promise written as a
@@ -1322,12 +1341,16 @@ another.
 Within the dynamic entries, one per distinct surface: `shapeworks_lab`
 and `first_light` are the widest canvas and set sketches by the symbols
 they name, `stock_materials` paints one of every stock material,
-`world_hud` is the other registration form, `dunhuang_star_chart` is
-the directory form — several units compiled apart and linked once — and
-the entries behind an optional SDK or a device name symbols nothing
-else does. A starter
-sketch that names none of those adds no entry of its own: anything that
-stops it compiling and loading stops the wide ones too.
+`video_compose` reaches the decoder and encoder archives no
+geometry-heavy sketch names, `world_hud` is the other registration form,
+`dunhuang_star_chart` is the directory form — several units compiled
+apart and linked once — and the entries behind an optional SDK name
+symbols nothing else does. The archives only the HOST links, a device
+backend among them, stand behind a probe file beside that list rather
+than behind a sketch, because nothing in the registry names one and what
+it asserts is a dlopen and not a picture. A starter sketch that names
+none of those adds no entry of its own: anything that stops it compiling
+and loading stops the wide ones too.
 
 Every one of those judges a compile and a load, and none of them judges
 WHOSE code drew: a host that quietly ran its own copy of the sketch
