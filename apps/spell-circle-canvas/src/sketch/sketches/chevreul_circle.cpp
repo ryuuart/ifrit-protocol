@@ -1221,15 +1221,17 @@ struct ChevreulCircle : sketch::Sketch {
                   .height(Dim(2 * kRLimbOut))
                   .key("div" + std::to_string(n))
                   .fill(Fill::none())
-                  .shape([bd](SkSize s) {
-                    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-                    SkPathBuilder p;
-                    p.moveTo(cx + std::cos(bd) * kRLimbIn,
-                             cy + std::sin(bd) * kRLimbIn);
-                    p.lineTo(cx + std::cos(bd) * kRLimbOut,
-                             cy + std::sin(bd) * kRLimbOut);
-                    return p.detach();
-                  })
+                  .shape(keyedShape(bd,
+                                    [bd](SkSize s) {
+                                      const float cx = s.width() * 0.5f,
+                                                  cy = s.height() * 0.5f;
+                                      SkPathBuilder p;
+                                      p.moveTo(cx + std::cos(bd) * kRLimbIn,
+                                               cy + std::sin(bd) * kRLimbIn);
+                                      p.lineTo(cx + std::cos(bd) * kRLimbOut,
+                                               cy + std::sin(bd) * kRLimbOut);
+                                      return p.detach();
+                                    }))
                   .stroke(stroke(0.7f, Fill::color(kRule)))
                   .opacity(bind(&demo).window(0.18f, 0.21f)));
     }
@@ -1360,7 +1362,10 @@ struct ChevreulCircle : sketch::Sketch {
     const float x0 = 852, y0 = 136, S = 380;
     const float cx = x0 + S * 0.5f, cy = y0 + 24 + (S - 48) * 0.5f;
     const float scale = (S - 96) * 0.5f / 60.0f;  // a* b* -60..+60
-    auto P = [&](float a, float b) {
+    // BY VALUE: this mapping is copied into a paint program below, which
+    // the kernel invokes long after the frame that declared cx, cy and
+    // the scale has returned.
+    auto P = [cx, cy, scale](float a, float b) {
       return SkPoint{cx + a * scale, cy - b * scale};
     };
     Element g = box();
@@ -1373,32 +1378,32 @@ struct ChevreulCircle : sketch::Sketch {
 
     // axes and ticks, drawn on hand-built geometry through the brush
     // vocabulary — decorations::paintOn is the seam for that.
+    // The plot's frame is fixed, so the program is named and the node
+    // settles between describes.
+    auto axes = [=](SkCanvas& c, const PaintContext& pc) {
+      SkPathBuilder ax;
+      for (int t = -60; t <= 60; t += 20) {
+        const SkPoint a = P((float)t, -60), b = P((float)t, 60);
+        ax.moveTo(a.fX - x0, a.fY - y0);
+        ax.lineTo(b.fX - x0, b.fY - y0);
+        const SkPoint c0 = P(-60, (float)t), d0 = P(60, (float)t);
+        ax.moveTo(c0.fX - x0, c0.fY - y0);
+        ax.lineTo(d0.fX - x0, d0.fY - y0);
+      }
+      decorations::paintOn(c, pc, ax.detach(),
+                           stroke(0.5f, Fill::color(hex(0x8C8578, 0.35f))));
+      SkPathBuilder cross;
+      const SkPoint o = P(0, 0);
+      cross.moveTo(o.fX - x0 - 9, o.fY - y0);
+      cross.lineTo(o.fX - x0 + 9, o.fY - y0);
+      cross.moveTo(o.fX - x0, o.fY - y0 - 9);
+      cross.lineTo(o.fX - x0, o.fY - y0 + 9);
+      decorations::paintOn(c, pc, cross.detach(),
+                           stroke(1.2f, Fill::color(kInk)));
+    };
     g.child(at(x0, y0, S, S)
                 .fill(Fill::none())
-                .child(custom([=](SkCanvas& c, const PaintContext& pc) {
-                         SkPathBuilder ax;
-                         for (int t = -60; t <= 60; t += 20) {
-                           const SkPoint a = P((float)t, -60),
-                                         b = P((float)t, 60);
-                           ax.moveTo(a.fX - x0, a.fY - y0);
-                           ax.lineTo(b.fX - x0, b.fY - y0);
-                           const SkPoint c0 = P(-60, (float)t),
-                                         d0 = P(60, (float)t);
-                           ax.moveTo(c0.fX - x0, c0.fY - y0);
-                           ax.lineTo(d0.fX - x0, d0.fY - y0);
-                         }
-                         decorations::paintOn(
-                             c, pc, ax.detach(),
-                             stroke(0.5f, Fill::color(hex(0x8C8578, 0.35f))));
-                         SkPathBuilder cross;
-                         const SkPoint o = P(0, 0);
-                         cross.moveTo(o.fX - x0 - 9, o.fY - y0);
-                         cross.lineTo(o.fX - x0 + 9, o.fY - y0);
-                         cross.moveTo(o.fX - x0, o.fY - y0 - 9);
-                         cross.lineTo(o.fX - x0, o.fY - y0 + 9);
-                         decorations::paintOn(c, pc, cross.detach(),
-                                              stroke(1.2f, Fill::color(kInk)));
-                       }).inset(0)));
+                .child(custom(std::string_view("lab-axes"), axes).inset(0)));
 
     // the 36 chords, drawing in one at a time
     for (int n = 0; n < 36; ++n) {
@@ -1407,18 +1412,15 @@ struct ChevreulCircle : sketch::Sketch {
       SkRect bb = SkRect::MakeLTRB(std::min(A.fX, B.fX), std::min(A.fY, B.fY),
                                    std::max(A.fX, B.fX), std::max(A.fY, B.fY));
       bb.outset(2, 2);
-      const SkPoint a0{A.fX - bb.left(), A.fY - bb.top()};
-      const SkPoint b0{B.fX - bb.left(), B.fY - bb.top()};
+      SkPathBuilder cb;
+      cb.moveTo(A.fX - bb.left(), A.fY - bb.top());
+      cb.lineTo(B.fX - bb.left(), B.fY - bb.top());
+      const SkPath chord = cb.detach();
       const float lo = 0.19f + 0.0026f * (float)n;
       g.child(at(bb.left(), bb.top(), bb.width(), bb.height())
                   .key("chord" + std::to_string(n))
                   .fill(Fill::none())
-                  .shape([a0, b0](SkSize) {
-                    SkPathBuilder p;
-                    p.moveTo(a0);
-                    p.lineTo(b0);
-                    return p.detach();
-                  })
+                  .shape(heldPath(chord))
                   .stroke(spans::upTo(bind(&demo).window(lo, lo + 0.012f)),
                           stroke(0.8f, Fill::color(hex(0x8C8578, 0.85f)))));
     }
