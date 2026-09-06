@@ -217,6 +217,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilcore/compute/Chance.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Curves.h>
 #include <sigilgeometry/kit/Generators.h>
@@ -243,6 +244,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace chance = sigil::core::chance;
 namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 namespace arrange = sigil::geometry::arrange;
@@ -567,19 +569,14 @@ inline float frontFor(const Arrivals& A, float frac) {
 // generated as point runs and fed to lines::Rails, because the frame shows
 // DOUBLED runs and a single hairline is not the honest spelling.
 
-inline uint32_t hash32(uint32_t x) {
-  x ^= x >> 16u;
-  x *= 0x7feb352du;
-  x ^= x >> 15u;
-  x *= 0x846ca68bu;
-  x ^= x >> 16u;
-  return x;
-}
+/** One number in [0, 1) for a run, a step in it and a salt — the three
+ *  folded into one seed and read off the library's stream, so nothing
+ *  here carries a mixer. */
 inline float hashF(int a, int b, int salt) {
-  return (float)(hash32((uint32_t)(a * 73856093) ^ (uint32_t)(b * 19349663) ^
-                        (uint32_t)(salt * 83492791)) &
-                 0xffffffu) /
-         16777215.0f;
+  return chance::Stream::mix64((uint32_t)(a * 73856093) ^
+                               (uint32_t)(b * 19349663) ^
+                               (uint32_t)(salt * 83492791))
+      .unit();
 }
 // THE CELL IS THE TRACE'S WIDTH. At thirty-two pixels a finger is a slab
 // and the pour reads as a mask over the panel; the epigraph the whole
@@ -1427,25 +1424,28 @@ struct EvaMagiInterior : sketch::Sketch {
                      // The folds are a function of the card's size and of
                      // nothing else, so the drawing has one identity and the
                      // node settles on it.
-                     .shape(keyedShape(std::string_view("sulci"), [](SkSize s) {
-                       const float w = s.width(), h = s.height();
-                       SkPathBuilder b;
-                       // the longitudinal fissure
-                       b.moveTo(w * 0.54f, h * 0.03f);
-                       b.quadTo(w * 0.39f, h * 0.30f, w * 0.55f, h * 0.53f);
-                       b.quadTo(w * 0.71f, h * 0.77f, w * 0.49f, h * 0.97f);
-                       // gyri, each stopping short of the fissure and of the
-                       // rim
-                       const float ys[3] = {0.24f, 0.52f, 0.79f};
-                       for (float y : ys) {
-                         b.moveTo(w * 0.06f, h * y);
-                         b.quadTo(w * 0.24f, h * (y - 0.10f), w * 0.42f, h * y);
-                         b.moveTo(w * 0.62f, h * (y + 0.05f));
-                         b.quadTo(w * 0.80f, h * (y - 0.04f), w * 0.94f,
-                                  h * (y + 0.07f));
-                       }
-                       return b.detach();
-                     }))
+                     .shape(keyedShape(
+                         std::string_view("sulci"),
+                         [](SkSize s) {
+                           const float w = s.width(), h = s.height();
+                           SkPathBuilder b;
+                           // the longitudinal fissure
+                           b.moveTo(w * 0.54f, h * 0.03f);
+                           b.quadTo(w * 0.39f, h * 0.30f, w * 0.55f, h * 0.53f);
+                           b.quadTo(w * 0.71f, h * 0.77f, w * 0.49f, h * 0.97f);
+                           // gyri, each stopping short of the fissure and of
+                           // the rim
+                           const float ys[3] = {0.24f, 0.52f, 0.79f};
+                           for (float y : ys) {
+                             b.moveTo(w * 0.06f, h * y);
+                             b.quadTo(w * 0.24f, h * (y - 0.10f), w * 0.42f,
+                                      h * y);
+                             b.moveTo(w * 0.62f, h * (y + 0.05f));
+                             b.quadTo(w * 0.80f, h * (y - 0.04f), w * 0.94f,
+                                      h * (y + 0.07f));
+                           }
+                           return b.detach();
+                         }))
                      .stroke(lines::Line{.width = 1.6f,
                                          .fill = Fill::color(hex(0x4A2E1E)),
                                          .waveAmplitude = 1.5f,
@@ -1501,11 +1501,10 @@ struct EvaMagiInterior : sketch::Sketch {
             .child(text(u8"CASPER", magi::type(magi::latin(), 32.0f,
                                                hex(0x0B060B), 0.88f, 3.0f))
                        .inset(0)
-                       .onPath(TextPath{
-                           .path = heldPath(stencilArc),
-                           .at = 0.5f,
-                           .align = TextPath::Align::Center,
-                           .orient = TextPath::Orient::Tangent})));
+                       .onPath(TextPath{.path = heldPath(stencilArc),
+                                        .at = 0.5f,
+                                        .align = TextPath::Align::Center,
+                                        .orient = TextPath::Orient::Tangent})));
     return g;
   }
 

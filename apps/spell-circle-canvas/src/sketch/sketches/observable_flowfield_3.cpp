@@ -4,6 +4,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSpan.h>
+#include <sigilcore/compute/Chance.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <cmath>
@@ -11,18 +12,14 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
 namespace {
 
-float sample(uint32_t value) {
-  value ^= value >> 16;
-  value *= 0x7feb352du;
-  value ^= value >> 15;
-  value *= 0x846ca68bu;
-  value ^= value >> 16;
-  return static_cast<float>(value & 0x00ffffffu) / 16777216.0f;
-}
+/** One number in [0, 1) keyed on @p value. The stream is the library's,
+ *  so nothing here carries a mixer of its own. */
+float sample(uint32_t value) { return chance::Stream::mix64(value).unit(); }
 
 struct ObservableFlowfield3 final : sketch::DrawSketch {
   void setup(sketch::DrawContext& context) override {

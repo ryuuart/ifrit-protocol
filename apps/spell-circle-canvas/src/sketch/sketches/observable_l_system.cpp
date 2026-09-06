@@ -2,6 +2,7 @@
  * observable_l_system — a turtle interpreting a two-rule Lindenmayer word.
  */
 
+#include <sigilcore/compute/Chance.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <algorithm>
@@ -10,6 +11,7 @@
 #include <string>
 
 namespace sketch = sigil::sketch;
+namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
 namespace {
@@ -28,12 +30,10 @@ std::string rewrite(std::string_view source) {
   return result;
 }
 
+/** The leaf radius at @p index — 6 to 20 px, keyed on the index alone so
+ *  a leaf keeps its size for the whole growth. */
 float radiusFor(size_t index) {
-  uint32_t value = static_cast<uint32_t>(index) * 0x9e3779b9u + 0x1D6100A1u;
-  value ^= value >> 16;
-  value *= 0x7feb352du;
-  value ^= value >> 15;
-  return 6.0f + static_cast<float>(value & 1023u) / 1023.0f * 14.0f;
+  return chance::Stream::mix64(index).range(6.0f, 20.0f);
 }
 
 struct ObservableLSystem final : sketch::DrawSketch {

@@ -14,6 +14,7 @@
 //   kTurn          how far the noise may turn a bristle from the prevailing
 //   flow
 
+#include <sigilcore/compute/Chance.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <algorithm>
@@ -23,6 +24,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
 namespace {
@@ -68,15 +70,12 @@ struct BristleCurrent final : sketch::DrawSketch {
   NoiseField field{0xC011A6Eu};
   std::vector<Bristle> bristles;
   std::vector<Mark> pending;
-  uint32_t rng = 0x7F4A7C15u;
+  // The stream every placement draws from: one seeded value, so the whole
+  // sheet re-rolls by changing this number and nothing else.
+  chance::Stream rng = chance::Stream::xorshift(0x7F4A7C15u);
   float fieldTime = 0.0f;
 
-  float unit() {
-    rng ^= rng << 13;
-    rng ^= rng >> 17;
-    rng ^= rng << 5;
-    return (float)(rng & 0x00FFFFFFu) / 16777216.0f;
-  }
+  float unit() { return rng.unit(); }
 
   void placeRibbon(int ribbon, bool atLeft) {
     const float centerX =
@@ -148,7 +147,7 @@ struct BristleCurrent final : sketch::DrawSketch {
     ctx.background(244, 238, 221);
     ctx.captureAt(5.2);
 
-    rng = 0x7F4A7C15u;
+    rng = chance::Stream::xorshift(0x7F4A7C15u);
     fieldTime = 0.0f;
     field.seed(0xC011A6Eu);
     field.detail(4, 0.5f);

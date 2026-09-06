@@ -2,6 +2,7 @@
  * observable_random_walker — a four-direction walk constrained to the canvas.
  */
 
+#include <sigilcore/compute/Chance.h>
 #include <sigilsketch/draw/Draw.h>
 
 #include <algorithm>
@@ -9,17 +10,13 @@
 #include <cstdint>
 
 namespace sketch = sigil::sketch;
+namespace chance = sigil::core::chance;
 using namespace sigil::draw;
 
 namespace {
 
-uint32_t hash(uint32_t value) {
-  value ^= value >> 16;
-  value *= 0x7feb352du;
-  value ^= value >> 15;
-  value *= 0x846ca68bu;
-  return value ^ (value >> 16);
-}
+/** One word keyed on @p value, from the library's mixer. */
+uint32_t hash(uint32_t value) { return chance::Stream::mix64(value).bits(); }
 
 struct ObservableRandomWalker final : sketch::DrawSketch {
   void setup(sketch::DrawContext& context) override {
