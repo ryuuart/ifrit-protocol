@@ -78,30 +78,41 @@ read through two coordinates. Pair `kColumns` with
    force right-to-left, which is the overwhelmingly common case.
 3. **Strut and line metrics.** Line height and ascent come from the first
    span's font unless `lineMetrics` overrides them.
-4. **Geometry flattening.** Every line's intervals are flattened, lazily,
+4. **The initial letter.** When a block declares `ParagraphStyle::initial`,
+   its size is derived from that block's pitch and the cap face's own
+   metrics, and the caller's geometry is wrapped by one that takes the notch
+   off the head of every band the initial covers. It happens here because
+   the notch is part of the geometry every line is then broken against. One
+   per pass, and a block a frame before this one already opened is resumed
+   rather than opened again.
+5. **Geometry flattening.** Every line's intervals are flattened, lazily,
    into a single indexed `IntervalSequence`. Both breakers consume geometry
    *only* through it, so a break decision and the placement that follows can
    never disagree about which interval is which.
-5. **Line breaking.** Greedy or Knuth-Plass (see below).
-6. **Lazy shaping.** Breakers call `ensureShapedTo()` just ahead of their own
+6. **Line breaking.** Greedy or Knuth-Plass (see below).
+7. **Lazy shaping.** Breakers call `ensureShapedTo()` just ahead of their own
    frontier, so a paragraph far larger than its geometry only ever sends the
    words that can actually land through HarfBuzz. Words past the last
    interval are never shaped at all.
-7. **Shaping.** `shapeWord()` goes through the content-addressed shape cache.
+8. **Shaping.** `shapeWord()` goes through the content-addressed shape cache.
    The cache is probed with a borrowed view of the key, so a warm
    re-analysis allocates nothing; an owning key is materialized only on a
    miss.
-8. **Placement.** Words are reordered per UAX#9 rule L2 (reverse maximal runs
+9. **Placement.** Words are reordered per UAX#9 rule L2 (reverse maximal runs
    of each level, highest first), then positioned inside their interval with
    the requested alignment.
-9. **Blob emission.** One of four shapes per run: a straight horizontal run
-   reuses the word's shared origin-relative blob translated to its origin; an
-   upright vertical run does the same down a column; tate-chu-yoko reuses it
-   centred across the column axis; anything rotated or on a contour bakes
-   per-glyph `SkRSXform`s into a fresh blob.
-10. **Ellipsis.** When set and the layout overflowed, the final placed line
+10. **Blob emission.** One of four shapes per run: a straight horizontal run
+    reuses the word's shared origin-relative blob translated to its origin; an
+    upright vertical run does the same down a column; tate-chu-yoko reuses it
+    centred across the column axis; anything rotated or on a contour bakes
+    per-glyph `SkRSXform`s into a fresh blob.
+11. **Ellipsis.** When set and the layout overflowed, the final placed line
     is trimmed until a shaped marker fits.
-11. **Draw.** `draw()` emits one blob per word; `drawBatched()` merges
+12. **The initial's own glyphs.** The fill started past the graphemes the
+    initial took, so they are shaped and placed last, into the notch that was
+    cut for them. They are ordinary runs of the layout, and
+    `ParagraphLayout::initial` reports where they landed.
+13. **Draw.** `draw()` emits one blob per word; `drawBatched()` merges
     horizontal runs into one `drawGlyphs` call per (font, paint) bucket.
     Both resolve paint per span at draw time.
 
@@ -192,8 +203,15 @@ a contour interval carries a `geometry::path::Contour`:
   BORROWS its glyphs: `shaped` is a `const ShapedWord*` into the paragraph
   the layout was set from, exactly as `wordIndex` is an index into that
   paragraph's word list.
+- **`layout/InitialLetter.h`** — `InitialLetter`, the block's opening set
+  large enough to span several lines; `initialLetterSize()`, the size the
+  rule derives; and `PlacedInitial`, what the layout reports about where it
+  put one.
 - **`layout/ParagraphLayout.h`** — `ParagraphLayout`, `layoutParagraph()`
-  and `layoutSingleLine()`. Includes the three above.
+  and `layoutSingleLine()`. Includes the four above.
+- **`layout/Beside.h`** — setting a run beside another's extent:
+  `bandBeside()`, `layoutBeside()` and `shareOfReading()`, the three
+  questions a reading over or beside a base is made of.
 - **`layout/Story.h`** — `Story`: a `RichText` and the `ParagraphStyle`s
   its blocks are set under, the value a chain of frames is filled from.
 
@@ -202,8 +220,9 @@ a contour interval carries a `geometry::path::Contour`:
 - **`decoration/Decoration.h`** — a decoration resolved against a run's
   metrics: `detail::resolveDecorationBand()`, `decorationBandPaint()`,
   `decorationSegments()`. Skip-ink intercepts are memoized on the blob's
-  id and the band window, folded into a key with SigilCoreCompute's stir
-  so a hash is one body wherever it is accumulated.
+  id and the band window, folded into a key with Boost's stir: the table
+  lives inside one run and no bucket of it is ever seen from outside the
+  process, so the fold does not have to be one whose answer is pinned.
 - **`decoration/DecorationRects.h`** — the walk that turns a layout's
   decorations into rectangles with their paint, `detail::forEachDecorationRect()`,
   run by both draws.
@@ -322,6 +341,31 @@ hanging indent a bullet or a number hangs into. Because it is arithmetic on
 the interval, an indent composes with exclusions and columns without either
 knowing about it: a line an exclusion cut into three is inset at its
 outermost ends and nowhere in the middle.
+
+**A block's opening set large is the block's own property.**
+`ParagraphStyle::initial` declares an `InitialLetter`: how many lines its
+reference metric spans, how many grapheme clusters of the opening it takes,
+which metric that is (`InitialLetter::Align` — the cap height, the em box,
+or the ascent a script hangs from), how many lines below the first baseline
+its own baseline sinks, and how far the following lines stand off it.
+Nothing there is a font size, because the SIZE IS DERIVED: the initial's
+top reference point aligns with the first line's and its baseline with the
+baseline of the line it sinks to, so its reference metric must span
+`(lines - 1)` pitches plus the first line's own, and `initialLetterSize()`
+answers what size gives the face that span. A letter chosen by eye is wrong
+per typeface — ascent, descent and cap height differ between faces at one
+size — and a letter sized by the rule is right in every one. The notch the
+following lines wrap is pen travel taken off the head of a band, which is
+the one thing every geometry answers in, so a block minus exclusions, a
+column and a line riding a contour all wrap an initial with nothing written
+for any of them; `InitialLetter::Wrap` says whether that notch is the
+initial's advance box or the outline of its own glyphs, so a line can tuck
+under the diagonal of an A. The initial's glyphs are ordinary runs of the
+layout and draw with everything else — `ParagraphLayout::initial` is the
+report a caller rules a page against, not a second thing to draw. One
+initial per layout pass: a block a frame before this one already opened is
+resumed rather than opened again, and the initial belongs to the frame the
+block began in.
 
 **Keeps are settled at the frame boundary.** `KeepOptions` — widows,
 orphans, keep-with-next, all-lines-together, start-in-next-frame — is a
@@ -949,9 +993,10 @@ straight horizontal left-to-right intervals.
 
 **Geometry is re-queried on every layout pass and never cached between
 passes**, so an implementation may depend freely on animated state. For
-exclusion flows, animate through a shape's `pathOffset`: path flattening is
-cached by the path's generation ID, so translating is free while assigning a
-rebuilt `SkPath` changes the ID and re-flattens.
+exclusion flows, animate through `Exclusion::offset`: a silhouette caches
+what answering costs it — a flattening, a raster, a distance field — and
+rigid motion reuses all of it, while a rebuilt shape (a morphing `SkPath`,
+a new video frame) re-measures from scratch.
 
 **Lazy shaping is ascending and idempotent only.** `ensureShapedTo()` with a
 decreasing word count is not supported.

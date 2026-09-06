@@ -36,9 +36,16 @@ One header per utility under `include/sigilweave/kit/`, and
 | `LayoutGuard.h` | `LayoutGuard<Keys...>` | Re-laying text out every frame — or forgetting `revision()`/`needsShaping()` in a hand-rolled guard and freezing edits. Both are baked in; you declare only the inputs the library can't see. |
 | `GlyphBuckets.h` | `GlyphBuckets<Key, Placement>` | Per-glyph choreography turning into per-glyph draw calls; generalizes `sigil::weave::GlyphRSXformBatches` to arbitrary bucket keys and draw passes. |
 | `Labels.h` | `makeStyle()` / `tracked()` / `drawLabel()` | Ten-line single-span style and caption rituals, reinvented per tool, and tracking quoted in 1/1000 em carried across to a size it was never measured at. |
+| `Features.h` | `features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, the vertical set a column asks for, … | Hand-spelled four-cc tag lists, mistyped once per call site — including the vertical features a column needs a style to name because shaping does not take them by itself. |
+| `PaintLayers.h` | `dropShadow()` / `glow()` / `outline()` | Assembling the same three arrangements of `PaintLayer` by hand, each time re-picking the blur, spread and offset constants a shadow and a glow are usually asked for. |
 | `SampleText.h` | `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
 | `Hyphenation.h` | `PatternHyphenator`, `englishHyphenationPatterns()` | The engine growing an opinion about where a language's words break. |
 | `LineTables.h` | `kinsoku::japanese()`, `hanging::latin()`, `hanging::japanese()` | The engine growing an opinion about which marks may stand at a line's edge, and how far one may hang past it. |
+
+Everything here is `sigil::weave::kit` with one exception:
+`Features.h` spells `sigil::weave::features`, because a feature preset is a
+name for a four-cc tag rather than a piece of consumer discipline, and it
+reads as one where a style is written.
 
 `sigil::weave::SingleLineParagraphCache` (the engine's `cache` feature) is the companion for
 high-frequency short labels; `drawLabel()` documents when to graduate to it.

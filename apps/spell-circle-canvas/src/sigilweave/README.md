@@ -252,15 +252,15 @@ rest.
 | `SigilWeaveStyle` | the style vocabulary, header-only, with `Type` and `textStyle()` — the designated-init aggregate a call site names a style's numbers in | — |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
-| `SigilWeaveLayout` | flows, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); ICU and Boost.Unordered — private |
-| `SigilWeaveDecoration` | decoration bands | SigilCoreCompute (the stir the skip-ink cache keys with) — private |
+| `SigilWeaveLayout` | flows and silhouettes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilImageField (the distance field a silhouette measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
+| `SigilWeaveDecoration` | decoration bands | Boost.Unordered (the stir the skip-ink cache keys with) — private |
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
 | `SigilWeaveQuery` | range search and markers | ICU, private |
 | `SigilWeaveCache` | the label cache | Boost.Unordered, ICU — private |
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal | Skia platform ports |
-| `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the line-edge and hyphenation tables (see `kit/README.md`) | SigilWeaveUnicode — private |
+| `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
 Each feature links only the features beneath it — style, then fonts, then
@@ -336,12 +336,12 @@ cmake --build build --config Release
 ctest --test-dir build -C Release -R weave_ --output-on-failure
 ```
 
-The tests are one binary per feature, each under its feature's `test/`
-and linking that feature and what it rests on, so a test binary is also a
-statement of what its feature reaches. A binary exists only where it links
-a **strictly smaller** set of targets than its neighbours, or where what a
-runner must supply to run it differs — two binaries over one closure with
-one answer to that question are one binary.
+The library has ONE test binary, `weave_test`, built from every feature's
+own `test/` directory, and ctest discovers one entry per CASE out of it —
+so `ctest -R '^Flow\.'` selects a suite and `-R 'Flow.Case'` one case, with
+no target behind either. A feature's `test/` still states what that feature
+reaches: it names the targets its cases link, and a case that needs
+something a machine may not have carries a label on its suite.
 
 A case asserts one behaviour the library promises through its public
 headers to a caller who has read only this page, and its name is that
@@ -356,9 +356,7 @@ one breaking claim, every anchor of a decoration band, every preset text
 paint. One subject to a file, named for the subject: a case is found by
 opening the file its subject names.
 
-The library has one test binary, `weave_test`, built from every feature's
-`test/` directory, and ctest discovers one entry per case out of it, so a
-suite or a case is selected by name with no target behind it.
+What each feature's `test/` holds:
 
 - `unicode/test/` — the Unicode leaf, with no fonts at all.
 - `style/test/` — styles as plain values: fluent sugar, paint-layer
@@ -368,25 +366,29 @@ suite or a case is selected by name with no target behind it.
 - `fonts/test/` — the font service asked about faces this machine
   happens to have: the fallback memo keyed by language, the transient
   varied clone, and the pair a shaper sets by measuring outlines.
-- `fonts/test/VerticalFeaturesTest` — which vertical OpenType features a
-  column takes by itself and which a style must name, asked of the
-  constructed face committed under `test/assets/`.
+  `VerticalFeaturesTest.cpp` beside it asks which vertical OpenType
+  features a column takes by itself and which a style must name, of the
+  constructed face committed under `test/assets/` rather than of the
+  machine.
 - `paragraph/test/` — shaping as the paragraph drives it (the shape
   cache under edits and restyles, itemization, complex scripts), the
-  document model, and typographic correctness: cluster coverage across
+  document model, the same content said as a comparable value
+  (`RichTextTest`), and typographic correctness: cluster coverage across
   scripts, ZWNJ joining control, combining-mark attachment (NFC and NFD
   must measure alike), NBSP no-break, strut metrics, and the options that
   reach shaping.
 - `layout/test/` — everything that places runs and reads where they
   landed, one subject to a file: both breakers (`LayoutTest`,
   `KnuthPlassTest`) and the live composer over them
-  (`LiveComposerTest`), the flows (`FlowTest`), overflow and clamp
-  (`OverflowTest`), vertical writing (`VerticalTest`), placeholders,
-  relayout locality (`IncrementalTest`), text set on a geometry of its own
-  (`PathTextTest`), how a justified line is fitted
-  (`JustificationTest`), and each paragraph control — `LeadingTest`,
+  (`LiveComposerTest`), the flows (`FlowTest`) and the shapes text stands
+  off inside them (`SilhouetteTest`), overflow and clamp
+  (`OverflowTest`), vertical writing (`VerticalTest`), placeholders
+  (`PlaceholderTest`), relayout locality (`IncrementalTest`), text set on a
+  geometry of its own (`PathTextTest`), how a justified line is fitted
+  (`JustificationTest`), a chain of frames filled from one text
+  (`StoryTest`), and each paragraph control — `LeadingTest`,
   `TabStopTest`, `FrameTest`, `HyphenationTest`, `LineEdgesTest`,
-  `BesideTest`, `MojikumiTest`, `BalanceTest`.
+  `BesideTest`, `MojikumiTest`, `BalanceTest`, `InitialLetterTest`.
 - `decoration/test/` — bands resolved as geometry, without drawing:
   what a face's metrics fill in, where each kind and side anchors its
   band, and the walk both draws run over turning a paragraph's
@@ -403,7 +405,8 @@ suite or a case is selected by name with no target behind it.
   glyph on a contour it re-places from its pen (`ChoreographTest`), and
   the buckets a paint-complete batched draw collapses into
   (`GlyphBatchesTest`).
-- `query/test/` — the optional Query layer.
+- `query/test/` — the optional Query layer (`QueryTest`), and the same
+  question written down rather than asked (`SelectorTest`).
 - `kit/test/` — the SigilWeaveKit convenience layer, including the
   pattern hyphenator every table question is asked of.
 - `ports/test/` — the platform port on its own: one font manager for
