@@ -14,5 +14,6 @@
 #include <sigilsketch/kit/Panel.h>
 #include <sigilsketch/kit/Passage.h>
 #include <sigilsketch/kit/Rows.h>
+#include <sigilsketch/kit/Scrollbar.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilsketch/kit/Ticker.h>

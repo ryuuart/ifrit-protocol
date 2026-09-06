@@ -195,6 +195,38 @@ sketch::kit::meter({.fraction = load, .label = toU8("cache"),
 A live fraction is a re-describe rather than a binding: the filled part
 is a width, and a width is layout.
 
+### A window's share of what it scrolls — `Scrollbar.h`
+
+| | |
+| --- | --- |
+| `Scrolled::thumb()` | the length a thumb has to be, and the travel that leaves it, from the window, the whole strip and the track |
+| `scrollbar(Scrollbar)` | a stepper at each end, a track between them, and the thumb standing somewhere along it |
+
+```cpp
+sketch::kit::scrollbar({.leading = stepper(true), .trailing = stepper(false),
+                        .thumb = slider(),
+                        .scrolled = {.view = shown, .content = whole,
+                                     .track = trackH},
+                        .position = envelope().target(0.0f, travel)})
+    .width(Dim(19))
+    .padding(2)
+```
+
+A THUMB IS A READING. Its length is the window's share of the strip, so
+a bar drawn at one length while the content is scrolled over another is a
+thumb that slides off its own track, or one that stops short of the end
+and says the last rows are not there. `Scrolled::thumb()` is that
+arithmetic, and it is a value on its own because a caller that binds a
+live position needs the travel to map its envelope onto.
+
+Every part is the caller's Element — a bevelled Motif slider, a styled IE
+thumb, a pixel sprite — and what is returned is the bar's own box, so the
+shell's fill, its keyline, its padding and its gutter are chained onto it
+in the caller's own words. What the component keeps is the arithmetic and
+the placement: a thumb that positioned itself would be the second opinion
+this exists to remove. A thumb measured off an original rather than
+computed from anything states its `thumbLength` instead.
+
 ### What stands behind and around — `Panel.h`
 
 | | |

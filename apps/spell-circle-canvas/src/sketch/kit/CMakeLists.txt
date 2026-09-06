@@ -13,9 +13,9 @@
 # CanvasSpec, and links no device, no runtime and no sketch.
 sigil_library(SigilSketchKit
   SOURCES Cells.cpp Console.cpp Heading.cpp Legend.cpp Meter.cpp Page.cpp
-          Panel.cpp Passage.cpp Rows.cpp Theme.cpp Ticker.cpp
+          Panel.cpp Passage.cpp Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp
   HEADERS Cells.h Console.h Heading.h Kit.h Legend.h Meter.h Page.h Panel.h
-          Passage.h Rows.h Theme.h Ticker.h
+          Passage.h Rows.h Scrollbar.h Theme.h Ticker.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
          SigilGeometryKit SigilWeave
   PRIVATE SigilWeavePorts SigilIO)
