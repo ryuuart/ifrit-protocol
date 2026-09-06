@@ -13,21 +13,36 @@
 
 namespace sigil::measure {
 
-/** The value at fraction @p p of the sorted samples, interpolated
- *  linearly between the two ranks it falls between: `quantile(s, 0.5)` of
- *  {1, 2, 3, 4} is 2.5, not 2 or 3. An empty list reads 0, a single
- *  sample reads itself at every @p p, and @p p is clamped to [0, 1].
- *  Sorts a copy — the caller's order is untouched. */
-inline double quantile(std::span<const double> samples, double p) {
-  if (samples.empty()) return 0.0;
-  std::vector<double> sorted(samples.begin(), samples.end());
-  std::sort(sorted.begin(), sorted.end());
+namespace detail {
+
+/** The interpolation itself, over a run that is ALREADY SORTED and not
+ *  empty: the rank @p p falls at, and the linear blend of the two samples
+ *  it falls between. Every quantile in the library reads through this one
+ *  body, so the single-fraction call and the several-fractions call
+ *  cannot drift apart in what "the median" means. */
+[[nodiscard]] inline double interpolate(std::span<const double> sorted,
+                                        double p) {
   p = std::clamp(p, 0.0, 1.0);
   const double rank = p * (double)(sorted.size() - 1);
   const size_t lo = (size_t)rank;
   const size_t hi = std::min(lo + 1, sorted.size() - 1);
   const double t = rank - (double)lo;
   return sorted[lo] + (sorted[hi] - sorted[lo]) * t;
+}
+
+}  // namespace detail
+
+/** The value at fraction @p p of the sorted samples, interpolated
+ *  linearly between the two ranks it falls between: `quantile(s, 0.5)` of
+ *  {1, 2, 3, 4} is 2.5, not 2 or 3. An empty list reads 0, a single
+ *  sample reads itself at every @p p, and @p p is clamped to [0, 1].
+ *  Sorts a copy — the caller's order is untouched. */
+[[nodiscard]] inline double quantile(std::span<const double> samples,
+                                     double p) {
+  if (samples.empty()) return 0.0;
+  std::vector<double> sorted(samples.begin(), samples.end());
+  std::sort(sorted.begin(), sorted.end());
+  return detail::interpolate(sorted, p);
 }
 
 /** SEVERAL QUANTILES OF ONE RUN, for ONE sort. `quantile()` sorts a copy
@@ -42,13 +57,8 @@ inline double quantile(std::span<const double> samples, double p) {
   if (samples.empty() || fractions.empty()) return answers;
   std::vector<double> sorted(samples.begin(), samples.end());
   std::sort(sorted.begin(), sorted.end());
-  for (size_t i = 0; i < fractions.size(); ++i) {
-    const double p = std::clamp(fractions[i], 0.0, 1.0);
-    const double rank = p * (double)(sorted.size() - 1);
-    const size_t lo = (size_t)rank;
-    const size_t hi = std::min(lo + 1, sorted.size() - 1);
-    answers[i] = sorted[lo] + (sorted[hi] - sorted[lo]) * (rank - (double)lo);
-  }
+  for (size_t i = 0; i < fractions.size(); ++i)
+    answers[i] = detail::interpolate(sorted, fractions[i]);
   return answers;
 }
 
@@ -74,38 +84,38 @@ class Samples {
   }
   void clear() { m_count = m_next = 0; }
 
-  size_t size() const { return m_count; }
-  size_t capacity() const { return m_samples.size(); }
-  bool empty() const { return m_count == 0; }
+  [[nodiscard]] size_t size() const { return m_count; }
+  [[nodiscard]] size_t capacity() const { return m_samples.size(); }
+  [[nodiscard]] bool empty() const { return m_count == 0; }
 
   /** Arithmetic mean; 0 when empty. */
-  double mean() const {
+  [[nodiscard]] double mean() const {
     if (m_count == 0) return 0.0;
     double sum = 0.0;
     for (size_t i = 0; i < m_count; ++i) sum += m_samples[i];
     return sum / (double)m_count;
   }
   /** `quantile()` over the samples held. */
-  double percentile(double p) const {
+  [[nodiscard]] double percentile(double p) const {
     return quantile(std::span<const double>(m_samples.data(), m_count), p);
   }
-  double min() const {
+  [[nodiscard]] double min() const {
     return m_count == 0 ? 0.0
                         : *std::min_element(m_samples.begin(),
                                             m_samples.begin() + (long)m_count);
   }
-  double max() const {
+  [[nodiscard]] double max() const {
     return m_count == 0 ? 0.0
                         : *std::max_element(m_samples.begin(),
                                             m_samples.begin() + (long)m_count);
   }
   /** The most recently added sample; 0 when empty. */
-  double last() const {
+  [[nodiscard]] double last() const {
     if (m_count == 0) return 0.0;
     return m_samples[(m_next + m_samples.size() - 1) % m_samples.size()];
   }
   /** The samples oldest first, as a copy. */
-  std::vector<double> samples() const {
+  [[nodiscard]] std::vector<double> samples() const {
     std::vector<double> out;
     out.reserve(m_count);
     const size_t oldest =

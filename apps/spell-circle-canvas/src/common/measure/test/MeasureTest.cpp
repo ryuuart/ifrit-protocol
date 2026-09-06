@@ -4,7 +4,10 @@
 #include <chrono>
 #include <cmath>
 #include <string>
+#include <string_view>
 #include <thread>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace sigil::measure;
@@ -174,6 +177,37 @@ TEST(Laps, MarksAreNamedInOrderAndSumToTheTotal) {
   EXPECT_EQ(laps.size(), 2u);
   EXPECT_DOUBLE_EQ(sum, layout + paint);
   EXPECT_DOUBLE_EQ(laps.totalMs(), sum);
+}
+
+// Whether `laps.mark(x)` compiles at all, for an argument of type T.
+template <typename T, typename = void>
+struct Marks : std::false_type {};
+template <typename T>
+struct Marks<
+    T, std::void_t<decltype(std::declval<Laps&>().mark(std::declval<T>()))>>
+    : std::true_type {};
+
+TEST(Laps, RefuseANameThatWouldBeGoneBeforeItIsReadBack) {
+  // The laps borrow their names, so a name built into a temporary would be
+  // dangling by the time each() read it. That is a compile-time refusal,
+  // not a value to assert on: what a caller may hand mark() is exactly a
+  // name that outlives the timer.
+  static_assert(Marks<const char*>::value, "a literal names a phase");
+  static_assert(Marks<std::string_view>::value, "so does a view of one");
+  static_assert(Marks<const std::string&>::value, "and a string it keeps");
+  static_assert(!Marks<std::string>::value,
+                "a string built into the call dies at the semicolon");
+  static_assert(!Marks<std::string&&>::value,
+                "and so does one that was moved from");
+
+  // The borrowed name is read back, not a copy taken at the mark.
+  std::string phase = "layout";
+  Laps laps;
+  laps.mark(phase);
+  phase[0] = 'L';
+  std::string seen;
+  laps.each([&](std::string_view n, double) { seen = n; });
+  EXPECT_EQ(seen, "Layout");
 }
 
 TEST(Laps, ResetForgetsTheMarksAndStartsThePhaseThere) {
@@ -396,11 +430,18 @@ TEST(LineFit, WhatIsNotALineAnswersNoSlopeRatherThanADivideByZero) {
   EXPECT_NEAR(vertical.intercept, 3.0, 1e-12) << "the mean of the ordinates";
   EXPECT_EQ(vertical.r2, 0.0);
   EXPECT_NEAR(vertical.maxResidual, 6.0, 1e-12);
+  // The residuals off that flat answer are the spread of the ordinates:
+  // {1, 5, -3, 9} about 3 is {-2, 2, -6, 6}, so 80/4 under the root.
+  EXPECT_NEAR(vertical.rmsResidual, std::sqrt(20.0), 1e-12);
+  EXPECT_GT(vertical.rmsResidual, 0.0)
+      << "a run with no slope still has ordinates that stand apart";
 
   const std::vector<double> one{7};
   const LineFit<double> single = lineFit<double>(one, one);
   EXPECT_EQ(single.slope, 0.0);
   EXPECT_NEAR(single.intercept, 7.0, 1e-12);
+  EXPECT_DOUBLE_EQ(single.rmsResidual, 0.0)
+      << "one point stands exactly on the answer through it";
   EXPECT_EQ(lineFit<double>({}, {}).samples, 0u);
 }
 
@@ -414,16 +455,21 @@ TEST(LineFit, TheSumsAreAccumulatedInTheArgumentsOwnPrecision) {
     xs.push_back(v);
     ys.push_back(std::log(std::tan((45.0f + v * 0.5f) * 0.017453293f)));
   }
-  float sx = 0, sy = 0, sxx = 0, sxy = 0;
+  // The same accumulation the fit makes, written out: each point's
+  // deviation from the means so far, folded in as it arrives, never the
+  // sum of the squares less the square of the sum.
+  float mx = 0, my = 0, sxx = 0, sxy = 0;
   for (size_t i = 0; i < xs.size(); ++i) {
-    sx += xs[i];
-    sy += ys[i];
-    sxx += xs[i] * xs[i];
-    sxy += xs[i] * ys[i];
+    const float count = (float)(i + 1);
+    const float dx = xs[i] - mx;
+    const float dy = ys[i] - my;
+    mx += dx / count;
+    my += dy / count;
+    sxx += dx * (xs[i] - mx);
+    sxy += dx * (ys[i] - my);
   }
-  const float n = (float)xs.size();
-  const float b = (n * sxy - sx * sy) / (n * sxx - sx * sx);
-  const float a = (sy - b * sx) / n;
+  const float b = sxy / sxx;
+  const float a = my - b * mx;
   const LineFit<float> fit = lineFit<float>(xs, ys);
   EXPECT_EQ(fit.slope, b);
   EXPECT_EQ(fit.intercept, a);

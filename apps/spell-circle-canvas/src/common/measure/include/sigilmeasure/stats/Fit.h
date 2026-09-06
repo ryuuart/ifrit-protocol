@@ -6,6 +6,7 @@
  * proportional to another.
  */
 
+#include <algorithm>
 #include <cmath>
 #include <concepts>
 #include <cstddef>
@@ -60,10 +61,22 @@ struct LineFit {
  *
  *  Fewer than two points, or every point at one abscissa, is not a line:
  *  the answer is a zero slope through the mean, with `r2` at 0, which
- *  reads as "nothing was explained" rather than as a divide by zero.
+ *  reads as "nothing was explained" rather than as a divide by zero. The
+ *  residuals are still measured, off that flat answer, so a run that has
+ *  no slope still reports how far its ordinates stand apart.
  *
  *  The shorter of the two spans is what is read, so a caller with a
- *  ragged pair does not walk off the end of one of them. */
+ *  ragged pair does not walk off the end of one of them.
+ *
+ *  THE SPREAD OF THE ABSCISSAE IS ACCUMULATED, NOT SUBTRACTED. The
+ *  textbook denominator — n times the sum of the squares less the square
+ *  of the sum — is two large numbers differing in their last digits, and
+ *  for abscissae that are large and close together (a run of timestamps,
+ *  a run of coordinates on a wide sheet) the difference is nearly all
+ *  rounding, and in the caller's own float it can vanish or change sign
+ *  where there is a real spread to divide by. Each point's deviation from
+ *  the mean so far is folded in as it arrives instead, so the sum is of
+ *  small numbers and is zero only when the run really is vertical. */
 template <std::floating_point T>
 [[nodiscard]] LineFit<T> lineFit(std::span<const T> xs, std::span<const T> ys) {
   LineFit<T> fit;
@@ -71,34 +84,40 @@ template <std::floating_point T>
   fit.samples = n;
   if (n == 0) return fit;
 
-  T sx = 0, sy = 0, sxx = 0, sxy = 0;
+  T mx = 0, my = 0, sxx = 0, sxy = 0;
   for (size_t i = 0; i < n; ++i) {
-    sx += xs[i];
-    sy += ys[i];
-    sxx += xs[i] * xs[i];
-    sxy += xs[i] * ys[i];
+    const T count = (T)(i + 1);
+    const T dx = xs[i] - mx;
+    const T dy = ys[i] - my;
+    mx += dx / count;
+    my += dy / count;
+    sxx += dx * (xs[i] - mx);
+    sxy += dx * (ys[i] - my);
   }
-  const T nn = (T)n;
-  const T den = nn * sxx - sx * sx;
-  if (n < 2 || !(std::abs(den) > 0)) {
-    fit.intercept = sy / nn;
-    for (size_t i = 0; i < n; ++i)
-      fit.maxResidual =
-          std::max(fit.maxResidual, std::abs(ys[i] - fit.intercept));
+  if (n < 2 || !(sxx > 0)) {
+    // Not a line: the flat answer through the mean, and the residuals off
+    // that answer, which are the spread of the ordinates and not zero.
+    fit.intercept = my;
+    T ssRes = 0;
+    for (size_t i = 0; i < n; ++i) {
+      const T e = ys[i] - fit.intercept;
+      ssRes += e * e;
+      fit.maxResidual = std::max(fit.maxResidual, std::abs(e));
+    }
+    fit.rmsResidual = std::sqrt(ssRes / (T)n);
     return fit;
   }
-  fit.slope = (nn * sxy - sx * sy) / den;
-  fit.intercept = (sy - fit.slope * sx) / nn;
+  fit.slope = sxy / sxx;
+  fit.intercept = my - fit.slope * mx;
 
-  const T mean = sy / nn;
   T ssRes = 0, ssTot = 0;
   for (size_t i = 0; i < n; ++i) {
     const T e = ys[i] - fit.at(xs[i]);
     ssRes += e * e;
-    ssTot += (ys[i] - mean) * (ys[i] - mean);
+    ssTot += (ys[i] - my) * (ys[i] - my);
     fit.maxResidual = std::max(fit.maxResidual, std::abs(e));
   }
-  fit.rmsResidual = std::sqrt(ssRes / nn);
+  fit.rmsResidual = std::sqrt(ssRes / (T)n);
   // A run that is already one value has no variance to explain, and the
   // fit through it is exact — which reads as 1 rather than as 0/0.
   fit.r2 = ssTot > 0 ? (T)1 - ssRes / ssTot : (T)1;
