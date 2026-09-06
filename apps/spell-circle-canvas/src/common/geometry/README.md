@@ -15,8 +15,8 @@ and no scene graph — you hand it values, it hands you paths, meshes,
 clouds and pixels — and the one feature that owns a GPU device is named
 `device`, linked only by what wants one.
 
-It is **two tiers**, one per currency, and eight feature libraries under
-them. The `path` tier is 2D: an outline resampled, addressed by
+It is **two tiers**, one per currency, and twelve feature libraries
+across them. The `path` tier is 2D: an outline resampled, addressed by
 distance, operated on, and interpolated. The `mesh` tier is 3D: the
 triangle mesh, the camera that looks at it, the runtime that draws it,
 splines, point clouds and model interchange. Each feature is a static
@@ -403,10 +403,11 @@ in no header.
   inflections, the points of maximum curvature — and `minDepthPx` is the
   one dial that says how shallow a turn may be and still earn one, since
   a bulge of half a pixel is a rounding artefact rather than a feature of
-  the drawing and a node there is a node that will wander. The drawn
-  curve does not move: a node is inserted by splitting a piece into two
-  of its own kind. `extremeNodes()` answers where they would go without
-  putting them there. The solvers are Skia's own, in
+  the drawing and a node there is a node that will wander. `extremes()`
+  is the operation and the drawn curve does not move under it: a node is
+  inserted by splitting a piece into two of its own kind.
+  `extremeNodes()` answers where they would go without putting them
+  there. The solvers are Skia's own, in
   `src/core/SkGeometry.h` — a private header that ships beside the static
   archive, read in ONE translation unit and no other, because each of
   them is a page of well-known cubic arithmetic and a second spelling
@@ -421,12 +422,19 @@ in no header.
   half — setting each node's smooth-or-corner mode — because nothing here
   carries a node type and inventing one to serve one operator would put a
   font editor's model into a drawing library.
-- **`path/Fit.h`** — a dense RUN OF POINTS as few cubics, by Schneider's
-  rule: fit one cubic by least squares with the ends' own directions as
-  the tangents and the chord lengths as the first guess at each point's
-  parameter, improve those parameters against the fitted curve by
-  Newton-Raphson, and split at the worst point when it is still further
-  off than the tolerance. It is the opposite direction from
+- **`path/Fit.h`** — a dense RUN OF POINTS as few cubics.
+  `fitCurve(points, tolerance)` — and the same over a `Polyline`, fitted
+  as one loop when the polyline is closed, so its seam is a node like
+  any other — answers the fewest cubics that hold every point within the
+  tolerance, by Schneider's rule: fit one cubic by least squares with
+  the ends' own directions as the tangents and the chord lengths as the
+  first guess at each point's parameter, improve those parameters
+  against the fitted curve by Newton-Raphson, and split at the worst
+  point when it is still further off than the tolerance. Fewer than two
+  points is an empty path, exactly two is the line between them, and a
+  run that stands still is one point, since it has no direction to fit.
+  This is what a tracer, a stylus, a sampled field line or a decoded
+  stroke hands its points to, and it is the opposite direction from
   `toPath(sampled, smooth)`, `smoothThrough` and `catmullRom`, which
   build a curve through or around a set of controls one piece per
   control: there the point count IS the node count, here the point count
@@ -472,8 +480,10 @@ in no header.
   everything below it. `Neighbours` is built once from a set of points
   and copies them in, then answers `within()` (a radius, into a vector
   the caller owns so a loop of queries allocates once), `nearest()` (the
-  nearest, or the k nearest in distance order, or the nearest that is not
-  a named point), `cellPoints()` and the allocation-free
+  nearest, or the k nearest in distance order), `nearestOther()` (the
+  nearest that is not a named point — what every spacing measurement
+  wants, since a point indexed with the set it is measured against is
+  always its own nearest), `cellPoints()` and the allocation-free
   `forEachWithin()`. The cell size is the one dial and choosing none is
   the usual answer; the grid is bounded in cells, so a cell size given is
   a request the index may coarsen and `cell()` says what it used. The
@@ -606,10 +616,27 @@ in no header.
   a needle-sharp corner's mitre is capped at a stated number of
   distances, blunting the corner rather than dropping the vertex.
 - **`path/Ops.h`** — path operators. Booleans over Skia's pathops
-  (`unite`, `subtract`, `intersect`, `exclude`, `simplify`), the OFFSET
-  and the CORNER ROUNDING, and four distortions as parameter structs you
-  apply on demand: `Roughen`, `Zigzag`, `PuckerBloat`, `Twirl`. `PathOp`
-  and `chain()` compose them, `offsetBy()` adapts `offset` into a step.
+  (`unite` over a pair or over a whole stack, `subtract`, `intersect`,
+  `exclude`, `simplify`), the OFFSET and the CORNER ROUNDING — one
+  operator each, since every side, every join and every selection either
+  answers is a dial rather than a name of its own — and four distortions
+  as parameter structs you apply on demand: `Roughen` (seeded jitter
+  along the normal, each contour drawing from its own stream so adding
+  one does not re-roll the others), `Zigzag`, `PuckerBloat`, `Twirl`.
+  `PathOp` and `chain()` compose them, `offsetBy()` adapts `offset` into
+  a step. Beside them two treatments that are neither a boolean nor a
+  distortion. `chamferCorners()` cuts every line-line corner with a
+  straight bevel a stated distance along each leg — the 45-degree face a
+  right angle takes, which Skia's corner effect cannot spell because it
+  only rounds — clamping the cut to half of each leg so short legs
+  degenerate to a diagonal rather than crossing over. It is a POLYLINE
+  treatment: a contour holding any curve segment is copied through
+  untouched, so a chamfer over an arc is a silent no-op on that contour.
+  `displaceSquare()` walks a contour at a fixed wavelength and jumps it
+  either side of its normal with vertical steps between — a battlement,
+  a meander key, a stepped circuit trace — at a wavelength rounded so a
+  whole number of periods fits, which is what keeps a closed mark from
+  meeting itself mid-step.
 
   **`offset(path, distance, OffsetOptions)` is one operator for what an
   outline offset, a concentric frame, a parallel rail and a bolder
@@ -1344,10 +1371,11 @@ by dispatching the kernel this build compiled,
 `pop::sweepDeviceRuntime(device)` forms a sweep's rings by dispatching
 theirs, `points::deviceRuntime(device)` forms a stamping's vertices
 by dispatching the third, and `render::deviceRuntime(device)` rasterises
-a mesh draw. Neither computes an arithmetic of its own — the kernel is one
-Slang source compiled twice, to the C++ the host executor calls and to
-the SPIR-V dispatched here — which is what lets the two tiers be held to
-bit identity rather than to a tolerance. All three are absent from a build with no device feature, and
+a mesh draw. None of the first three computes an arithmetic of its own —
+the kernel is one Slang source compiled twice, to the C++ the host
+executor calls and to the SPIR-V dispatched here — which is what lets the
+two tiers be held to bit identity rather than to a tolerance. All four
+are absent from a build with no device feature, and
 `mesh/pop/test/DeviceCookTest.cpp`, `DeviceStampTest.cpp` and
 `DeviceSweepTest.cpp` are the conformance: every chain, every stamping
 and every sweep the device runtimes say they can do, done both ways and
@@ -1648,16 +1676,17 @@ that a suite's file sits in the feature it covers.
 
 | Files | Proves |
 | --- | --- |
-| `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, and how many steps a blend makes |
+| `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `SegmentsTest`, `NodesTest`, `NeighboursTest`, `ScatterTest`, `TriangulateTest`, `FieldsTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, an outline read verb for verb and rewritten to start elsewhere or run the other way, the node arithmetic (nodes put where a curve turns, nodes taken away where they say nothing, a run of points fitted as few cubics, the exact in-between of a pair that pairs), the uniform grid judged against the brute-force answer, what each rate and each spread of a scatter guarantees, a triangulation on sets whose answer is known by hand with the dual cells and the outline at a tightness beside it, the three things a field is walked, repeated or stepped by, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, and how many steps a blend makes |
 | `mesh/test/` — `MeshTest`, `CameraTest` | the mesh currency and the camera that places it: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, and the view-projection and billboard transforms carried through to viewport pixels |
-| `kit/test/` — `SilhouettesTest`, `ShapersTest`, `DivisionsTest`, `SolidsTest` | the four shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled |
+| `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back with the lattice and the offset behind it, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled |
 | `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
 | `mesh/render/test/` — `PainterTest`, `RuntimeTest`, `ShadingTest` | the mesh draw's pixels and the normals G-buffer's encoding; the draw's runtime seam; and each shading term against the closed form a device shader's own spelling of it is held to |
-| `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the lanes a chain carries and the dials that address them by name, naming a subset and acting on it, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
+| `mesh/pop/test/` — `PointsTest`, `PopChainsTest`, `PopFiltersTest`, `PopLanesTest`, `PopNeighboursTest`, `PopSelectionTest`, `PopSinksTest`, `PopFieldsTest`, `RuntimeTest`, `SweepTest`, `SweptShapesTest` | point clouds and the chains over them: the generators' conventional lanes, the modifiers that move points exactly as the operators of the same name do, the lanes a chain carries and the dials that address them by name, the operators that read points they do not own — a relaxation pushing a scatter apart and stopping, a clustering grouping it in the metric its weights name, a transfer carrying a lane over from another cloud, and the connection sink answering the pairs near enough to join — each declined by name on a device runtime, naming a subset and acting on it, the sinks a chain reaches by its own verb, the cook's and the sweep's runtime seams, and what a profile carried along a rail forms. Links the codec to seed chains from an imported model |
 | `mesh/codec/test/` — `ObjTest`, `GltfTest`, `StlTest`, `PlyTest`, `AlembicTest`, `GeoTest`, `ModelTest`, `EncodeTest` | one file per format, plus the Model operations over whatever reader made it and both writers' return leg. The only binary linking Alembic |
 | `device/test/DeviceTest` | one device end to end: Graphite draws on the very queue Diligent submits through, the adopted device names every Vulkan handle, and Diligent still drives it afterwards |
 | `device/residency/test/ResidencyTest` | what the device keeps between draws: a named mesh crossing once and drawn from after, a nameless one written through the streaming pair, the depth of an uploaded map's chain, and the letting go that keeps a scene from holding everything it ever cooked |
 | `mesh/pop/test/` — `DeviceCookTest`, `DeviceStampTest`, `DeviceSweepTest` | the CONFORMANCE of the device executors: every chain, stamping and sweep they say they can do compared with the host's bit for bit, the operators they decline by name, and a cook that reads back and cooks again with the backend's diagnostics collected |
+| `mesh/render/device/test/PainterTest` | the mesh painter's device executor: the runtime as a value, the style's own answers read the same way on either executor, and a panel as the same BYTES on both — which it is because a panel's content is Skia's to rasterise whichever executor holds it. How far two rasterisers stand apart on everything else is a picture, judged against a committed baseline rather than here |
 
 The device suites carry the `gpu` label: every case in them brings a
 Vulkan device up and skips, naming what is missing, when the machine has
