@@ -40,6 +40,8 @@
 //                    hairline rules, and the tube: a scanline tile crept by
 //                    a bound pan and a refresh band baked once and slid by
 //                    a bound translate — no per-pixel program runs per frame
+//   grade .......... the finished frame read back through an exponent, as
+//                    the composer's output view rather than as a node
 //
 // The scene is re-rendered on every append and every prompt keystroke, and
 // reconciliation touches a constant handful of nodes for each: the new row's
@@ -61,6 +63,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -80,6 +83,7 @@
 
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
+namespace ocio = sigil::material::ocio;
 namespace sdf = sigil::material::sdf;
 namespace weave = sigil::weave;
 namespace motion = sigil::motion;
@@ -185,6 +189,21 @@ inline Paint refreshBand() {
                         {0.5f, {kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, 0.045f}},
                         {1.0f, {kTubeInk.fR, kTubeInk.fG, kTubeInk.fB, 0.0f}}});
 }
+
+/** THE TUBE'S GRADE: the whole composited console read back through an
+ *  exponent, the way a phosphor's own response bends the midtones before
+ *  a camera ever sees them. It is the COMPOSER'S OUTPUT VIEW rather than
+ *  a node — one stage over the finished frame, after every cache, so no
+ *  part of the tree knows it is there and nothing in the tree pays for
+ *  it twice.
+ *
+ *  Its channels are independent, and that is what makes it affordable: a
+ *  transform each of whose output channels depends only on the same
+ *  input channel carries no more than one response curve per channel, so
+ *  it bakes to a row of samples and spends as a colour table on the
+ *  eight-bit surface the console is composited into. A view that mixed
+ *  channels would need the volume and a full-canvas program per frame. */
+constexpr float kGrade = 1.08f;
 
 /** Seeded pseudo-log: plausible ward-perimeter chatter with severities and
  *  running counters for the rail. */
@@ -359,6 +378,12 @@ struct DaemonConsole final : sketch::Sketch {
     faceMonoMed = weave::ports::face({"SF Mono", "Menlo", "Monaco"}, 700);
     faceChrome = weave::ports::face({"Helvetica Neue", "Arial"}, 400);
     faceChromeMed = weave::ports::face({"Helvetica Neue", "Arial"}, 600);
+
+    // The output view. Asked for rather than assumed: a build that found
+    // no OpenColorIO answers the same empty material from the same
+    // factory, and an empty view would be a stage that costs a layer and
+    // changes nothing.
+    if (ocio::available()) composer.setView(ocio::exponent(dc::kGrade));
 
     look = sketch::kit::houseTheme();
     look.type.mono = faceMono;
