@@ -200,7 +200,6 @@ void resolveInto(const sigil::weave::Selector& selector,
       std::fill(out.begin(), out.end(), (uint8_t)1);
       break;
     case sigil::weave::Selector::Kind::Word:
-    case sigil::weave::Selector::Kind::Words:
       byIndex([](const GlyphInfo& g) { return g.wordIndex; }, s->lo, s->hi);
       break;
     case sigil::weave::Selector::Kind::Line:
@@ -392,8 +391,7 @@ Ranges resolveTextRangesInto(
   switch (s->kind) {
     case sigil::weave::Selector::Kind::All:
       return {{0, length}};
-    case sigil::weave::Selector::Kind::Word:
-    case sigil::weave::Selector::Kind::Words: {
+    case sigil::weave::Selector::Kind::Word: {
       Ranges words = sigil::weave::wordRanges(paragraph, fonts);
       Ranges out;
       for (uint32_t i = s->lo; i < s->hi && i < words.size(); ++i)

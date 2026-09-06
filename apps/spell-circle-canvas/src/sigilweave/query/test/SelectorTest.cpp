@@ -31,9 +31,11 @@ TEST(Selector, AbsoluteFormsRecordTheirBounds) {
   const Selector someWords = sel::words(2, 5);
   const Selector::State* words = someWords.state();
   ASSERT_NE(words, nullptr);
-  EXPECT_EQ(words->kind, Selector::Kind::Words);
+  EXPECT_EQ(words->kind, Selector::Kind::Word)
+      << "one word and a run of words are one kind";
   EXPECT_EQ(words->lo, 2u);
   EXPECT_EQ(words->hi, 5u);
+  EXPECT_TRUE(sel::word(3) == sel::words(3, 4));
 
   // A single line and a run of lines are ONE kind: line(i) is lines(i, i+1),
   // so a resolver has one case to answer rather than two that must agree.
@@ -111,8 +113,10 @@ TEST(Selector, CombinatorsNestTheirOperands) {
 TEST(Selector, EqualityIsByState) {
   EXPECT_TRUE(sel::word(1) == sel::word(1));
   EXPECT_FALSE(sel::word(1) == sel::word(2));
-  EXPECT_FALSE(sel::word(1) == sel::words(1, 2))
+  EXPECT_FALSE(sel::word(1) == sel::line(1))
       << "a different kind is a different selector even at the same bounds";
+  EXPECT_TRUE(sel::word(1) == sel::words(1, 2))
+      << "one word is the same value as the run of one that contains it";
   EXPECT_TRUE((sel::word(0) | sel::word(1)) == (sel::word(0) | sel::word(1)));
   EXPECT_FALSE((sel::word(0) | sel::word(1)) == (sel::word(1) | sel::word(0)))
       << "operands are compared in order";

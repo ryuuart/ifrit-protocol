@@ -74,7 +74,6 @@ class Selector {
   enum class Kind : uint8_t {
     All,
     Word,
-    Words,
     Line,
     Sentence,
     Range,
@@ -93,7 +92,7 @@ class Selector {
    *  selector take part in a larger value's equality. */
   struct State {
     Kind kind = Kind::All;
-    uint32_t lo = 0, hi = 0;  ///< Word/Words/Line/Sentence/Range bounds
+    uint32_t lo = 0, hi = 0;  ///< Word/Line/Sentence/Range bounds
     /** Regex/Text needle, or the NAME a `Named` or `Scope` form carries —
      *  one slot, because no selector carries two of them and a second
      *  string would ride on every selector to serve one form. */
@@ -167,9 +166,11 @@ namespace sel {
   return Selector::of(
       {.kind = Selector::Kind::Word, .lo = index, .hi = index + 1});
 }
-/** Words `[lo, hi)`. */
+/** Words `[lo, hi)` — the same kind `word` builds, since `word(i)` is
+ *  `words(i, i + 1)` and a resolver answers one case rather than two that
+ *  have to agree. */
 [[nodiscard]] inline Selector words(uint32_t lo, uint32_t hi) {
-  return Selector::of({.kind = Selector::Kind::Words, .lo = lo, .hi = hi});
+  return Selector::of({.kind = Selector::Kind::Word, .lo = lo, .hi = hi});
 }
 /** The i-th FLOW LINE — a line as the breaker made it, so a narrower
  *  measure moves the selection with the break rather than leaving it on a
