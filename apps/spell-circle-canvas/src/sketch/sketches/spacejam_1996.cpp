@@ -129,6 +129,7 @@
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <array>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -247,9 +248,6 @@ inline Element sphere(SkPoint c, float r, mskia::Paint m) {
 // GIF's own 100 ms frame delay).
 
 inline sk_sp<SkRuntimeEffect> ballEffect(bool live) {
-  static sk_sp<SkRuntimeEffect> cached[2];
-  const int idx = live ? 1 : 0;
-  if (cached[idx]) return cached[idx];
   const std::string decl =
       live ? "uniform float uTime;\n" : "uniform float uSpin;\n";
   const std::string var = live ? "uTime" : "uSpin";
@@ -293,7 +291,6 @@ half4 main(float2 xy) {
 )";
   auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
   if (!effect) SkDebugf("spacejam ballEffect: %s\n", error.c_str());
-  cached[idx] = effect;
   return effect;
 }
 
@@ -404,8 +401,11 @@ struct Bands {
 struct Star {
   int x, y, peak;
 };
-inline const std::vector<Star>& starData() {
-  static const std::vector<Star> k = {
+/** THE FIELD, AS A CONSTANT. Not a function-local static holding a
+ *  vector: such a static has a dynamic initialiser and registers its
+ *  destructor with the process, and a hot-reloaded sketch's dylib is
+ *  unloaded out from under both. */
+inline constexpr auto kStarField = std::to_array<Star>({
       {96, 64, 253}, {69, 9, 244},  {59, 101, 238},  {44, 43, 235},
       {9, 104, 233}, {3, 66, 222},  {89, 79, 219},   {40, 105, 209},
       {14, 48, 205}, {16, 12, 194}, {50, 65, 188},   {52, 30, 161},
@@ -414,9 +414,7 @@ inline const std::vector<Star>& starData() {
       {11, 32, 129}, {85, 45, 128}, {32, 84, 127},   {61, 36, 125},
       {13, 5, 120},  {107, 1, 112}, {98, 46, 112},   {22, 70, 110},
       {86, 21, 109}, {68, 68, 97},  {48, 80, 97},    {40, 0, 72},
-      {107, 110, 68}};
-  return k;
-}
+      {107, 110, 68}});
 /** Anisotropy test at r = 7 said these carry axial (+) diffraction spikes. */
 inline bool axialSpike(int x, int y) {
   return (x == 94 && y == 22) || (x == 107 && y == 64) ||
@@ -446,7 +444,7 @@ inline Element starTile() {
                    .blend(SkBlendMode::kPlus));
 
   int bright = 0;
-  for (const Star& s : starData()) {
+  for (const Star& s : kStarField) {
     const float L = (float)s.peak / 255.0f;
     // Sampled off the tile: half-intensity radius 2-4 px for the brightest
     // stars, visible extent about 3x that. Most of the tile sits below L16
@@ -998,16 +996,15 @@ struct Asset {
   const char* name;
   int bytes;
 };
-inline const std::vector<Asset>& manifest() {
-  static const std::vector<Asset> k = {
+/** THE SIXTEEN REQUESTS AND THEIR BYTE COUNTS, as a constant for the same
+ *  reason the star field above is one. */
+inline constexpr auto kManifest = std::to_array<Asset>({
       {"bg_stars", 8452},    {"fast", 189},        {"fastbreak", 6756},
       {"break", 229},        {"pressbox", 4422},   {"jamcentral", 1908},
       {"bball", 1368},       {"lunartunes", 3538}, {"lineup", 1929},
       {"jamlogo", 15410},    {"jump", 2593},       {"junior", 1253},
       {"studiostore", 2745}, {"souvenirs", 3594},  {"sitemap", 3401},
-      {"behind", 1902}};
-  return k;
-}
+      {"behind", 1902}});
 enum Ix {
   kStars = 0,
   kFast,
@@ -1095,8 +1092,7 @@ constexpr Slot kSlotTable[] = {
 // would quantise each channel against a different scale.
 
 inline sk_sp<SkRuntimeEffect> viewEffect() {
-  static sk_sp<SkRuntimeEffect> fx = [] {
-    static constexpr char kSrc[] = R"(
+  static constexpr char kSrc[] = R"(
 uniform shader content;
 
 half4 main(float2 pos) {
@@ -1108,11 +1104,9 @@ half4 main(float2 pos) {
   return half4(half3(q * al), src.a);
 }
 )";
-    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
-    if (!effect) SkDebugf("spacejam view: %s\n", error.c_str());
-    return effect;
-  }();
-  return fx;
+  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
+  if (!effect) SkDebugf("spacejam view: %s\n", error.c_str());
+  return effect;
 }
 
 }  // namespace sj
@@ -1141,6 +1135,10 @@ struct SpaceJam1996 : sketch::Sketch {
 
   Pattern stars;
   mskia::Paint starsMat;
+  /** THE LIVE BALL'S MATERIAL, built once and held. Its shader steps its
+   *  own uTime at the GIF's frame rate, so the value is the same one every
+   *  describe — and describe runs again on every arrival. */
+  mskia::Paint fastballMat;
   // <TABLE WIDTH=500 CELLSPACING=2 CELLPADDING=1>, at this sketch's scale.
   // The columns and rows are the ones the children claim.
   Table table{.columns = 5,
@@ -1154,6 +1152,12 @@ struct SpaceJam1996 : sketch::Sketch {
     const sk_sp<SkPicture> p = pic[i];
     const float h = artH[i];
     const ch::Output<float>* g = &got[i];
+    // ARRIVED IS THE PICTURE ITSELF. A recorded picture's identity is its
+    // own, so the leaf compares equal between describes and the node goes
+    // static; the program below exists only for the hard scanline edge of
+    // a partial image, which nothing in the picture can express.
+    if (!inFlight)
+      return picture(p, SkSize::Make(artW[i], artH[i]));
     Element e = custom([p, h, g](SkCanvas& canvas, const PaintContext& ctx) {
                   const float frac = g->value();
                   if (frac <= 0.0f || !p) return;
@@ -1238,8 +1242,7 @@ struct SpaceJam1996 : sketch::Sketch {
       // 10 Hz — the GIF's own frame rate, six frames, forever.
       fastRow.child(rect(S(53), S(3), S(40), S(40))
                         .shape(shapes::circle())
-                        .fill(ballMaterial(true, C5(0xFF6B29), C5(0xC64210),
-                                           C5(0x521800), 0.050f))
+                        .fill(fastballMat)
                         .key("fastbreak"));
     } else {
       // Still arriving: a partially-downloaded animated GIF shows its first
@@ -1387,7 +1390,7 @@ struct SpaceJam1996 : sketch::Sketch {
       const float dx = px - refX[i], dy = py - refY[i];
       worst = std::max({worst, std::abs(dx), std::abs(dy)});
       SkDebugf("  %-14s %8.2f %8.2f   d %+.2f %+.2f\n",
-               manifest()[(size_t)s.asset].name, px, py, dx, dy);
+               kManifest[(size_t)s.asset].name, px, py, dx, dy);
     }
     SkDebugf("[spacejam] worst deviation from the browser: %.2f px\n", worst);
   }
@@ -1410,6 +1413,8 @@ struct SpaceJam1996 : sketch::Sketch {
 
     stars = Pattern::tile({S(111), S(111)}, starTile());
     starsMat = stars.material(*ctx.fonts);
+    fastballMat = ballMaterial(true, C5(0xFF6B29), C5(0xC64210), C5(0x521800),
+                               0.050f);
 
     // The 216-colour round, over the finished frame. It is a property of
     // the SCREEN, not of the artwork — which is exactly why it lives here
@@ -1439,7 +1444,7 @@ struct SpaceJam1996 : sketch::Sketch {
 
   void stepLoad(double dt) {
     using namespace sj;
-    const auto& m = manifest();
+    const auto& m = kManifest;
     dt *= kSpeedup;
 
     uint32_t done = 0;
