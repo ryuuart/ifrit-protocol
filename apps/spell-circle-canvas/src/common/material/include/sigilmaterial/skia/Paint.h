@@ -54,8 +54,10 @@
 #include <sigilmotion/values/Time.h>
 
 #include <array>
+#include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -722,6 +724,16 @@ class Paint {
    *  frameless form (asShader), non-null the per-draw one (shaderFor).
    *  One function so the two can never disagree. */
   sk_sp<SkShader> foldBlend(const PaintFrame* frame) const;
+  /** THE FOLD ITSELF, which blend()'s eager flatten and foldBlend's
+   *  deferred one both are: each layer after the first composited over
+   *  the accumulation with its mode, then mixed back toward it by its
+   *  `amount`. @p shaderOf resolves ONE layer, which is the whole of
+   *  what the two callers differ by — a frameless snapshot at
+   *  construction, a per-draw resolve against a frame — so the picture
+   *  cannot depend on which of them asked. */
+  static sk_sp<SkShader> foldLayers(
+      std::span<const std::pair<Paint, SkBlendMode>> layers,
+      const std::function<sk_sp<SkShader>(const Paint&)>& shaderOf);
   /** The image shader rebuilt with the bound pan's CURRENT values
    *  post-translated onto the recipe matrix — one construction shared by
    *  resolve() and asShader(), so a bound-offset material cannot look

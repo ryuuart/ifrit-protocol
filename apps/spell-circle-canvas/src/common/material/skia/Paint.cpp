@@ -940,26 +940,37 @@ sk_sp<SkShader> mixShaders(sk_sp<SkShader> a, sk_sp<SkShader> b, float t) {
 }
 }  // namespace
 
-Paint Paint::blend(std::vector<std::pair<Paint, SkBlendMode>> layers) {
-  if (layers.empty()) return {};
-  sk_sp<SkShader> acc = layers.front().first.asShader();
-  for (size_t i = 1; i < layers.size(); ++i) {
-    sk_sp<SkShader> src = layers[i].first.asShader();
-    if (!acc) {
+sk_sp<SkShader> Paint::foldLayers(
+    std::span<const std::pair<Paint, SkBlendMode>> layers,
+    const std::function<sk_sp<SkShader>(const Paint&)>& shaderOf) {
+  sk_sp<SkShader> acc;
+  bool first = true;
+  for (const auto& [layer, mode] : layers) {
+    sk_sp<SkShader> src = shaderOf(layer);
+    // The first layer IS the accumulation: it has nothing beneath it to
+    // composite with, so neither its mode nor its amount is read — there
+    // is nothing to mix back toward.
+    if (first || !acc) {
       acc = std::move(src);
+      first = false;
       continue;
     }
     if (!src) continue;
     // amount(): composite the layer in full, then mix the result back
     // toward the accumulation — Photoshop layer opacity, not src-alpha
     // thinning (the two differ on every non-porter-duff mode).
-    const float amt = layers[i].first.m_amount;
-    sk_sp<SkShader> blended =
-        SkShaders::Blend(layers[i].second, acc, std::move(src));
+    const float amt = layer.m_amount;
+    sk_sp<SkShader> blended = SkShaders::Blend(mode, acc, std::move(src));
     acc = amt >= 1.0f ? std::move(blended)
                       : mixShaders(std::move(acc), std::move(blended), amt);
   }
-  Paint m = shader(std::move(acc));
+  return acc;
+}
+
+Paint Paint::blend(std::vector<std::pair<Paint, SkBlendMode>> layers) {
+  if (layers.empty()) return {};
+  Paint m = shader(
+      foldLayers(layers, [](const Paint& layer) { return layer.asShader(); }));
   // Keep the layer materials as the comparable recipe (recursive equality) —
   // a blend containing a live layer compares by that layer's identity, so it
   // stays conservatively un-pruned, as it must (the snapshot sampled Outputs).
@@ -1517,26 +1528,9 @@ sk_sp<SkShader> Paint::resolvePass(const detail::PassInputs& in,
  *  flattened snapshot blend() built, which is the whole point — a live layer
  *  contributes its current value per call. */
 sk_sp<SkShader> Paint::foldBlend(const PaintFrame* ctx) const {
-  sk_sp<SkShader> acc;
-  bool first = true;
-  for (const auto& [mat, mode] : m_recipe->layers) {
-    sk_sp<SkShader> src = detail::childShader(mat, ctx);
-    if (first) {
-      acc = std::move(src);
-      first = false;
-      continue;
-    }
-    if (!acc) {
-      acc = std::move(src);
-      continue;
-    }
-    if (!src) continue;
-    const float amt = mat.m_amount;  // same rule as the eager flatten
-    sk_sp<SkShader> blended = SkShaders::Blend(mode, acc, std::move(src));
-    acc = amt >= 1.0f ? std::move(blended)
-                      : mixShaders(std::move(acc), std::move(blended), amt);
-  }
-  return acc;
+  return foldLayers(m_recipe->layers, [ctx](const Paint& layer) {
+    return detail::childShader(layer, ctx);
+  });
 }
 
 sk_sp<SkShader> Paint::asShader() const {

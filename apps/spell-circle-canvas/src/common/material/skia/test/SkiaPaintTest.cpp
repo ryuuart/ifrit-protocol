@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
@@ -161,6 +162,41 @@ TEST(SkiaPaint, ChildAndBlendInheritTheirLayersTier) {
        {skia::Paint::sksl(resolutionEffect()), SkBlendMode::kPlus}});
   EXPECT_FALSE(stack.isAnimated());
   EXPECT_TRUE(stack.geometryDependent());
+}
+
+TEST(SkiaPaint, TheFirstBlendLayerIsTheAccumulationAndItsLayerPropsAreNot) {
+  // The first layer has nothing beneath it, so neither of its layer
+  // properties is read: not its blend mode, which has no destination,
+  // and not its amount, which has nothing to mix back toward. Both folds
+  // — the eager flatten a static blend takes and the per-draw one a
+  // geometry-dependent layer defers to — are one body, so they cannot
+  // disagree about that.
+  skia::Paint base = skia::Paint::solid({1, 0, 0, 1});
+  base.amount(0.25f);
+  const skia::Paint top = skia::Paint::solid({0, 0, 1, 1});
+  const SkBitmap thinned =
+      render(skia::Paint::blend(
+                 {{base, SkBlendMode::kSrcOver}, {top, SkBlendMode::kPlus}})
+                 .staticShader());
+  const SkBitmap whole =
+      render(skia::Paint::blend(
+                 {{skia::Paint::solid({1, 0, 0, 1}), SkBlendMode::kSrcOver},
+                  {top, SkBlendMode::kPlus}})
+                 .staticShader());
+  EXPECT_TRUE(identical(thinned, whole));
+
+  // The SECOND layer's amount is read, and is the whole difference
+  // between the two pictures.
+  skia::Paint half = top;
+  half.amount(0.5f);
+  const SkBitmap mixed =
+      render(skia::Paint::blend(
+                 {{skia::Paint::solid({1, 0, 0, 1}), SkBlendMode::kSrcOver},
+                  {half, SkBlendMode::kPlus}})
+                 .staticShader());
+  EXPECT_FALSE(identical(mixed, whole));
+  EXPECT_NEAR(SkColorGetB(mixed.getColor(1, 1)),
+              SkColorGetB(whole.getColor(1, 1)) / 2, 2);
 }
 
 TEST(SkiaPaint, ASweepWindowPastTheCircleClampsRatherThanWraps) {
