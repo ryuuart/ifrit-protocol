@@ -66,10 +66,10 @@ struct TextEngine final : TextPainterOps {
     return reservedBandOf(*inst.owner, annotations);
   }
   std::vector<Beat> beats(Instance& inst, size_t trackIndex) const override {
-    return beatsOfTrack(*inst.owner, inst, trackIndex);
+    return beatsOfTrack(inst, trackIndex);
   }
   float cascadeSpanMs(Instance& inst, size_t trackIndex) const override {
-    return cascadeSpanOfTrack(*inst.owner, inst, trackIndex);
+    return cascadeSpanOfTrack(inst, trackIndex);
   }
 };
 

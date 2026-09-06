@@ -144,8 +144,12 @@ struct TrackCascade {
  *  drift apart. */
 void compose(GlyphMod& into, const GlyphMod& next);
 GlyphMod lerpMod(const GlyphMod& a, const GlyphMod& b, float w);
-/** FIELD PIN for GlyphMod (see the FIELD PINS block above) — defined beside
- *  the two functions it guards, never called. */
+/** FIELD PIN for GlyphMod: A FIELD ADDED TO IT IS A BUILD FAILURE until the
+ *  two functions above carry it. The definition binds every member by name,
+ *  so a new one breaks the count. What it closes is invisible otherwise — a
+ *  field left out of `compose` or `lerpMod` reads at rest for every stacked
+ *  track and never interpolates, so the effect appears to work and then
+ *  quietly does not move. Defined beside the two, never called. */
 void glyphModFieldPin(GlyphMod& v);
 /** The seed an effect's random stream is constructed from — the glyph's
  * identity plus the operand lane inside a composite. */
@@ -177,8 +181,7 @@ void ensurePathLayout(Composer::Impl& impl, Instance& inst,
  *  last draw() produced — the read-back behind Composer::beatsOf. Rects
  *  come out in the NODE's own space; the caller offsets them into the
  *  composer's, as the bounds query does. */
-std::vector<Beat> beatsOfTrack(Composer::Impl& impl, Instance& inst,
-                               size_t trackIndex);
+std::vector<Beat> beatsOfTrack(Instance& inst, size_t trackIndex);
 /** WHERE THE UNITS A SELECTOR ADDRESSES LANDED, one entry each, in draw
  *  order — the read-back behind Composer::units. Read off the same layout
  *  the letters are drawn from and built from the same pose and the same
@@ -201,8 +204,7 @@ void resolveTextAnnotations(Composer::Impl& impl, Instance& inst);
 /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms — the read-back behind
  *  Composer::cascadeSpanMs, resolved by the same body as beatsOfTrack.
  *  0 wherever beatsOfTrack answers empty. */
-float cascadeSpanOfTrack(Composer::Impl& impl, Instance& inst,
-                         size_t trackIndex);
+float cascadeSpanOfTrack(Instance& inst, size_t trackIndex);
 /** WHERE EACH mark() ANCHORS, refilling `textMarkRects` from the layout
  *  the letters are drawn from: one rect per anchor, the union of the
  *  advance boxes of the glyphs its selector addressed. A flow run's

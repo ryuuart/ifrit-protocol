@@ -20,13 +20,11 @@
 
 namespace sigil::compose {
 
-using namespace detail;
-
 /** The tracks a node's text draws with: the description's fx() tracks,
  *  then the axis tracks its span restyles folded into. Indexed as one
  *  list by the painter's selection cache; a folded track sits past the
  *  end of trackAnims and so reads its progress at rest. */
-inline std::span<const Track> paintedTracksOf(const Instance& inst,
+inline std::span<const Track> paintedTracksOf(const detail::Instance& inst,
                                               std::vector<Track>& joined) {
   const std::span<const Track> declared = tracksOf(*inst.description);
   if (!inst.textState || inst.textState->spanAxisTracks.empty())
@@ -42,7 +40,7 @@ int tangentLadderSteps(float pixelSize);
 
 /** Everything the pose depends on beyond the glyph itself. */
 struct PoseContext {
-  const Instance* inst = nullptr;
+  const detail::Instance* inst = nullptr;
   const sigil::weave::ParagraphLayout* layout = nullptr;
   const TextPath* onPath = nullptr;
   bool ridesPath = false;
@@ -79,5 +77,21 @@ GlyphBand bandOf(const sigil::weave::ShapedWord* shaped,
                  std::vector<std::pair<BandKey, GlyphBand>>& memo);
 SkRect glyphBox(const sigil::weave::PlacedGlyph& placed, const RestPose& pose,
                 const GlyphBand& band);
+
+/** WHERE @p key WAS LAST FILED in @p keys, or `keys.size()` for one that is
+ *  not filed yet — the join-or-append every per-unit walk does, in one
+ *  place, so the unit lists a mark, a beat and an annotation are numbered
+ *  against cannot be built two different ways.
+ *
+ *  Glyphs arrive in draw order and a unit's glyphs are contiguous in it, so
+ *  the entry a glyph joins is the one appended last: the scan runs backwards
+ *  and stops on the first hit, which is one comparison for every glyph but
+ *  the first of its unit. */
+template <class Key>
+size_t indexOfKey(const std::vector<Key>& keys, const Key& key) {
+  for (size_t i = keys.size(); i-- > 0;)
+    if (keys[i] == key) return i;
+  return keys.size();
+}
 
 }  // namespace sigil::compose

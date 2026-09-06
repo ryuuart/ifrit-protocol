@@ -35,19 +35,22 @@ namespace sigil::compose {
  *  units reports several entries — which is the whole difference from
  *  `mark()`, whose one rect is the union of them all. */
 struct TextUnit {
-  /** The unit's laid-out rect in the node's own space: the axis-aligned
-   *  bound of the advance boxes of the glyphs the selector addressed in
-   *  it. */
+  /** The unit's laid-out rect in the COMPOSER's space: the axis-aligned
+   *  bound of the advance boxes of the glyphs the selector addressed in it,
+   *  lifted through every node above the text, so a sibling placed from it
+   *  stands where the glyphs do. */
   SkRect rect = SkRect::MakeEmpty();
   /** The unit's ordinal among those the selector addressed, from 0 in draw
    *  order. */
   uint32_t index = 0;
   /** HORIZONTAL: the baseline the unit stands on, in y. VERTICAL: the
    *  central axis of the column it stands in, in x — a column has no
-   *  baseline, and its glyphs centre themselves across that axis. */
+   *  baseline, and its glyphs centre themselves across that axis. In the
+   *  composer's space, as `rect` is. */
   float axis = 0;
-  /** The flow's band depth: the line's pitch, which in a vertical setting
-   *  is the width of the column. */
+  /** The flow's band depth: the layout's line pitch, one number for the
+   *  whole passage, which in a vertical setting is the width of a
+   *  column. */
   float pitch = 0;
   /** The band the unit's own face occupies either side of its baseline,
    *  from the face's metrics rather than from its ink — so a unit of
