@@ -22,6 +22,7 @@
 #include <span>
 #include <vector>
 
+#include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
 
 namespace sigil::geometry::path {
@@ -48,7 +49,7 @@ struct Symmetry {
   float start = 0;
   /** How much of a whole turn the copies are spread over, in radians. A
    *  full turn is the rosette; less is a fan. */
-  float sweep = 6.28318531f;
+  float sweep = kTau;
   /** Reflect each rotated copy as well, doubling the count. */
   bool mirror = false;
   /** The axis reflected across, in radians from +x through the centre. */

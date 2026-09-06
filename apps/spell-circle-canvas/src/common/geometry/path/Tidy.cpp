@@ -56,12 +56,18 @@ bool tidyOnce(std::vector<Segment>& pieces, bool closed, float tolerance,
   if (options.duplicates && pieces.size() > 2) {
     std::vector<Segment> kept;
     kept.reserve(pieces.size());
-    for (const Segment& piece : pieces) {
+    for (size_t i = 0; i < pieces.size(); ++i) {
+      const Segment& piece = pieces[i];
       const bool nothing =
           glm::length(piece.end() - piece.start()) <= tolerance &&
           isChord(piece, tolerance);
-      if (nothing && kept.size() + 1 < pieces.size() && pieces.size() > 2)
-        continue;
+      // A contour keeps two pieces whatever it is made of, and the guard
+      // is on what would SURVIVE the walk rather than on how many have
+      // been kept so far: counting only the kept ones lets a degenerate
+      // piece through or not by where it happens to sit, so a trailing
+      // one never goes and an all-degenerate contour vanishes.
+      const size_t survivors = kept.size() + (pieces.size() - i);
+      if (nothing && survivors > 2) continue;
       kept.push_back(piece);
     }
     if (kept.size() != pieces.size()) {

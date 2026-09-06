@@ -168,4 +168,29 @@ TEST(CrossingPatch, TheLensIsBoundedByTheKnotsOwnTerritory) {
   EXPECT_LE(far.getBounds().width(), 13.0f);
 }
 
+// THE FIGURE'S OWN SCALE decides how finely a strand is sampled and how
+// near two reported meetings have to be to be one meeting. A fixed
+// number of pixels is not a measure of anything: the same two grids, one
+// a tenth the size, must answer the same number of crossings.
+TEST(Crossings, ATinyFigureAnswersTheSameCrossingsAsALargeOne) {
+  const auto grid = [](float side) {
+    std::vector<SkPath> strands;
+    for (int i = 1; i <= 3; ++i) {
+      SkPathBuilder row;
+      row.moveTo(0, side * (float)i / 4.0f);
+      row.lineTo(side, side * (float)i / 4.0f);
+      strands.push_back(row.detach());
+      SkPathBuilder column;
+      column.moveTo(side * (float)i / 4.0f, 0);
+      column.lineTo(side * (float)i / 4.0f, side);
+      strands.push_back(column.detach());
+    }
+    return strands;
+  };
+  const size_t large = discoverCrossings(grid(400.0f)).size();
+  EXPECT_EQ(large, 9u);
+  EXPECT_EQ(discoverCrossings(grid(40.0f)).size(), large);
+  EXPECT_EQ(discoverCrossings(grid(6.0f)).size(), large);
+}
+
 }  // namespace

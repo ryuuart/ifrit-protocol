@@ -242,8 +242,12 @@ Polyline sample(const std::function<glm::vec2(float)>& f, float t0, float t1,
   Polyline out;
   out.closed = closed;
   const int n = std::max(count, 2);
-  out.points.reserve((size_t)n + 1);
-  for (int i = 0; i <= n; ++i)
+  // A closed curve arrives back where it started, and a ring spells its
+  // closure rather than repeating that vertex — which is what `subdivide`
+  // and `catmullRom` answer with too.
+  const int last = closed ? n - 1 : n;
+  out.points.reserve((size_t)last + 1);
+  for (int i = 0; i <= last; ++i)
     out.points.push_back(f(t0 + (t1 - t0) * ((float)i / (float)n)));
   return out;
 }
@@ -459,12 +463,22 @@ Polyline catmullRom(const Polyline& controls, float spacing, float curvature) {
                    (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3);
   };
   Polyline out;
+  out.closed = controls.closed;
   const size_t n = controls.points.size();
-  for (size_t i = 0; i + 1 < n; ++i) {
-    const glm::vec2 p0 = controls.points[i == 0 ? 0 : i - 1];
+  // A closed run of controls is a RING: it carries a chord across its
+  // seam like any other, and its end controls take their tangents from
+  // the far side rather than from a duplicated neighbour.
+  const size_t chords = controls.closed ? n : n - 1;
+  const auto control = [&](size_t k) {
+    return controls.closed ? controls.points[k % n]
+                           : controls.points[std::min(k, n - 1)];
+  };
+  for (size_t i = 0; i < chords; ++i) {
+    const glm::vec2 p0 = controls.closed ? controls.points[(i + n - 1) % n]
+                                         : controls.points[i == 0 ? 0 : i - 1];
     const glm::vec2 p1 = controls.points[i];
-    const glm::vec2 p2 = controls.points[i + 1];
-    const glm::vec2 p3 = controls.points[std::min(i + 2, n - 1)];
+    const glm::vec2 p2 = control(i + 1);
+    const glm::vec2 p3 = control(i + 2);
     const float chord = distance(p1, p2);
     const int steps = std::max(1, (int)std::ceil(chord / spacing));
     // Every chord but the first starts where the one before it ended.
@@ -474,10 +488,18 @@ Polyline catmullRom(const Polyline& controls, float spacing, float curvature) {
                             basis(p0.y, p1.y, p2.y, p3.y, t)};
       const glm::vec2 chordAt = p1 + (p2 - p1) * t;
       out.points.push_back(chordAt + (curve - chordAt) * curvature);
-      if (laned)
-        out.lane.push_back(controls.lane[i] +
-                           (controls.lane[i + 1] - controls.lane[i]) * t);
+      if (laned) {
+        const float from = controls.lane[i];
+        const float to = controls.lane[(i + 1) % n];
+        out.lane.push_back(from + (to - from) * t);
+      }
     }
+  }
+  // The seam chord lands back on the first control, and a ring spells its
+  // closure rather than repeating that vertex.
+  if (controls.closed && out.points.size() > 1) {
+    out.points.pop_back();
+    if (laned) out.lane.pop_back();
   }
   return out;
 }

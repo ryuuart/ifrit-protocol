@@ -13,7 +13,6 @@
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <include/pathops/SkPathOps.h>
-#include <sigilcore/compute/Noise.h>
 
 #include <algorithm>
 #include <cmath>
@@ -367,10 +366,10 @@ SkPath roundCorners(const SkPath& path, float radius,
 }
 
 SkPath Roughen::apply(const SkPath& path) const {
-  uint32_t contourIndex = 0;
+  uint64_t contourIndex = 0;
   return overSamples(path, segmentPx, smooth, [&](Sampled& samples) {
-    core::chance::Stream stream =
-        core::chance::Stream::of(source, seed + contourIndex++ * 7919u);
+    core::chance::Stream stream = core::chance::Stream::of(
+        source, seed + contourIndex++ * 7919u, parameter);
     for (size_t i = 0; i < samples.points.size(); ++i) {
       const glm::vec2 n = normalAt(samples.points, i, samples.closed);
       samples.points[i] += n * (stream.signedUnit() * amplitude);
@@ -383,11 +382,18 @@ SkPath Zigzag::apply(const SkPath& path) const {
   const float segment = std::max(wavelengthPx * 0.25f, 0.5f);
   return overSamples(path, segment, smooth, [&](Sampled& samples) {
     const size_t n = samples.points.size();
+    if (n < 2) return;
     const float cycles =
         std::max(1.0f, std::round(samples.sourceLength / wavelengthPx));
+    // A closed contour's last sample is one step short of its first, so
+    // the phase runs over n steps; an open one's last sample IS its end,
+    // and a whole number of cycles over n − 1 steps puts the wave back at
+    // zero there — which is what keeps an open mark's endpoints on the
+    // curve they were displaced from.
+    const float denominator = samples.closed ? (float)n : (float)(n - 1);
     std::vector<glm::vec2> original = samples.points;
     for (size_t i = 0; i < n; ++i) {
-      const float phase = (float)i / (float)n * cycles * kTau;
+      const float phase = (float)i / denominator * cycles * kTau;
       const float wave =
           smooth ? std::sin(phase)
                  : (std::asin(std::sin(phase)) * (2.0f / kPi));  // triangle
@@ -501,7 +507,6 @@ SkPath chamferCorners(const SkPath& path, float cut) {
       out.lineTo(run.back());
     } else {  // every vertex is interior, the moveTo joint included
       bool started = false;
-      // NOT named `emit`: this header reaches Qt TUs, where that is a macro.
       const auto put = [&](SkPoint p) {
         if (started)
           out.lineTo(p);

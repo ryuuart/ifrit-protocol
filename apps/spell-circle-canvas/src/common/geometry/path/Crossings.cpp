@@ -8,7 +8,6 @@
 
 #include "sigilgeometry/path/Crossings.h"
 
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
@@ -17,6 +16,9 @@
 
 #include <algorithm>
 #include <cmath>
+
+#include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -70,36 +72,49 @@ void CrossingRule::prepare(std::span<const Crossing> all) const {
 
 namespace {
 
+/** The spacing a strand is sampled at, and the floor on how few samples
+ *  a contour may be reduced to. A fixed number of pixels alone is not a
+ *  measure of anything: a whole figure six pixels across would be three
+ *  samples per contour, and every crossing in it would land in one merge
+ *  box. So a short contour is sampled at a fraction of ITSELF instead,
+ *  and every distance below is taken from the step that came out. */
+constexpr float kSampleStep = 2.0f;
+constexpr int kMinSamples = 32;
+
+/** A strand as uniform arc-length samples with the length at each: the
+ *  currency every question below is asked in. */
 struct Flat {
   std::vector<SkPoint> points;
   std::vector<float> at;  // cumulative arc length at each point
   float length = 0;
+  float step = kSampleStep;             // the spacing the samples came out at
   SkRect bounds = SkRect::MakeEmpty();  // of `points` — the pair rejection
 };
 
-Flat flatten(const SkPath& path) {
+Flat flat(const SkPath& path) {
   Flat f;
-  SkContourMeasureIter iter(path, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
-    if (len <= 0) continue;
-    const int steps = std::max(2, (int)std::ceil(len / 2.0f));
+  for (const Polyline& contour : flatten(path)) {
+    const float len = contour.length();
+    if (!(len > 0)) continue;
+    const int steps = std::max(kMinSamples, (int)std::ceil(len / kSampleStep));
+    const Sampled samples =
+        resample(contour, contour.closed ? steps : steps + 1);
+    if (samples.points.empty()) continue;
+    f.step = std::min(f.step, len / (float)steps);
     for (int k = 0; k <= steps; ++k) {
-      const float d = len * (float)k / (float)steps;
-      SkPoint pos;
-      if (!contour->getPosTan(d, &pos, nullptr)) continue;
-      f.points.push_back(pos);
-      f.at.push_back(f.length + d);
+      // A closed contour's samples stop one step short of its seam; the
+      // seam edge is a strand like any other, so the walk comes back to
+      // the first point to spell it.
+      f.points.push_back(
+          toSk(samples.points[(size_t)k % samples.points.size()]));
+      f.at.push_back(f.length + len * (float)k / (float)steps);
     }
     f.length += len;
     // A break between contours: repeat the last point so the segment loop
     // below can skip the join (a chord between two contours is not a
-    // strand and must not manufacture crossings). Guarded because a
-    // contour whose every getPosTan failed appends nothing at all.
-    if (!f.points.empty()) {
-      f.points.push_back(f.points.back());
-      f.at.push_back(f.length);
-    }
+    // strand and must not manufacture crossings).
+    f.points.push_back(f.points.back());
+    f.at.push_back(f.length);
   }
   if (!f.points.empty()) f.bounds.setBounds({f.points.data(), f.points.size()});
   return f;
@@ -121,7 +136,10 @@ SkPoint pointAtArc(const Flat& f, float s) {
 
 /** Does one strand change sides of the other's local direction at `hit`? */
 bool changesSides(const Flat& other, float sOther, SkPoint hit, SkVector dir) {
-  const float delta = 3.0f;
+  // A step and a half either way along the strand being probed: less than
+  // one and the two samples are the crossing itself, more and a strand
+  // that turns between them answers about the turn.
+  const float delta = other.step * 1.5f;
   const SkPoint before = pointAtArc(other, sOther - delta);
   const SkPoint after = pointAtArc(other, sOther + delta);
   const auto side = [&](SkPoint q) {
@@ -153,7 +171,7 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath>& strands) {
   if (strands.size() < 2) return found;
   std::vector<Flat> flats;
   flats.reserve(strands.size());
-  for (const SkPath& p : strands) flats.push_back(flatten(p));
+  for (const SkPath& p : strands) flats.push_back(flat(p));
 
   for (size_t a = 0; a < strands.size(); ++a)
     for (size_t b = a + 1; b < strands.size(); ++b) {
@@ -212,12 +230,15 @@ std::vector<Crossing> discoverCrossings(const std::vector<SkPath>& strands) {
           x.alongA = fa.length > 0 ? sA / fa.length : 0.0f;
           x.alongB = fb.length > 0 ? sB / fb.length : 0.0f;
           // Sampling can report one meeting from two adjacent segment
-          // pairs; keep the first and drop its neighbours.
+          // pairs; keep the first and drop its neighbours. The box is
+          // three quarters of a sample step, so it covers the neighbour a
+          // meeting can be reported from twice and no more of the figure.
+          const float merge = std::max(fa.step, fb.step) * 0.75f;
           bool duplicate = false;
           for (const Crossing& seen : found)
             if (seen.a == x.a && seen.b == x.b &&
-                std::abs(seen.at.fX - x.at.fX) < 1.5f &&
-                std::abs(seen.at.fY - x.at.fY) < 1.5f) {
+                std::abs(seen.at.fX - x.at.fX) < merge &&
+                std::abs(seen.at.fY - x.at.fY) < merge) {
               duplicate = true;
               break;
             }
@@ -319,8 +340,8 @@ SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
     return lens;  // the point missed every component's box — repair it all
   }
   // Degenerate or non-overlapping: a disc sized for the perpendicular case
-  // is the best available answer and is what the exact form replaced. Still
-  // bounded by the knot's own territory.
+  // is the best available answer, still bounded by the knot's own
+  // territory.
   SkPathBuilder disc;
   disc.addCircle(at.fX, at.fY,
                  std::min(std::max({reachA, reachB, 3.0f}) + 1.0f,

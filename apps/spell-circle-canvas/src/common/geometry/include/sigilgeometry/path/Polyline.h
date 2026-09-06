@@ -71,9 +71,15 @@ std::vector<glm::vec2> edgeCrossings(const Polyline& line, glm::vec2 from,
  *  deviate from the chord by at most `tolerance` pixels. */
 std::vector<Polyline> flatten(const SkPath& path, float tolerance = 0.25f);
 
-/** `count` points spaced evenly by arc length along a parametric curve
- *  `f: [t0, t1] → point`. The polyline the generators in every catalog
- *  are built from. */
+/** `count + 1` points spaced evenly IN THE PARAMETER along a parametric
+ *  curve `f: [t0, t1] → point` — `count` of them when `closed`, since the
+ *  last would repeat the first. The polyline the generators in every
+ *  catalog are built from.
+ *
+ *  Evenly in the parameter is not evenly by arc length, and for a curve
+ *  whose speed varies it is a different set of points: `resample` is the
+ *  arc-length one, and it is taken over a polyline this has already
+ *  produced. A generator that wants both walks this and then that. */
 Polyline sample(const std::function<glm::vec2(float)>& f, float t0, float t1,
                 int count, bool closed);
 

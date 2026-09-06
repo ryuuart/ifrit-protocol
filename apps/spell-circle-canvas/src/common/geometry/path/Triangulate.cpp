@@ -137,8 +137,11 @@ std::vector<Polyline> voronoi(const Triangulation& triangulation,
     // the bounds down their bisector, and a row of collinear points cuts
     // it into slabs. With no triangles to read adjacency from, every
     // point is cut against every other — which is what the diagram is
-    // defined as, and is affordable exactly because a set this degenerate
-    // is the only one that reaches here.
+    // defined as, and is quadratic in the point count with a polygon clip
+    // per pair. So it is BOUNDED: past this many points a degenerate set
+    // answers nothing rather than spending the frame drawing a line.
+    constexpr size_t kDegenerateCap = 256;
+    if (triangulation.points.size() > kDegenerateCap) return cells;
     for (uint32_t i = 0; i < (uint32_t)triangulation.points.size(); ++i)
       for (uint32_t j = 0; j < (uint32_t)triangulation.points.size(); ++j)
         if (i != j) adjacency[i].push_back(j);

@@ -47,6 +47,8 @@ constexpr int kPoissonCandidates = 30;
  *  compares and copies, and this is a table built from one. */
 class Inside {
  public:
+  /** Held BY REFERENCE, so the region has to outlive the table. */
+  Inside(Region&&) = delete;
   explicit Inside(const Region& region) : m_region(&region) {
     const SkRect box = region.bounds();
     size_t edges = 0;
@@ -106,13 +108,20 @@ class Inside {
 /** The next base a Halton stream may take for a second axis: the smallest
  *  prime above the one given. Two Halton sequences share structure unless
  *  their bases are co-prime, and consecutive primes are the pair every
- *  implementation of it uses. */
+ *  implementation of it uses.
+ *
+ *  Above the table the answer is the next number co-prime to the base,
+ *  which still fills the rectangle rather than a line, but is not itself
+ *  prime and so is a worse sequence than any base inside the table. */
 uint32_t nextBase(uint32_t base) {
-  static constexpr uint32_t kPrimes[] = {2,  3,  5,  7,  11, 13, 17,
-                                         19, 23, 29, 31, 37, 41, 43};
+  static constexpr uint32_t kPrimes[] = {
+      2,   3,   5,   7,   11,  13,  17,  19,  23,  29,  31,  37,
+      41,  43,  47,  53,  59,  61,  67,  71,  73,  79,  83,  89,
+      97,  101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151,
+      157, 163, 167, 173, 179, 181, 191, 193, 197, 199};
   for (const uint32_t prime : kPrimes)
     if (prime > base) return prime;
-  return base + 2;
+  return base % 2 == 0 ? base + 1 : base + 2;
 }
 
 /** THE TWO STREAMS A PLANAR SCATTER DRAWS FROM, one per axis.
@@ -213,8 +222,13 @@ std::vector<glm::vec2> latticePoints(const Region& region, const Inside& inside,
   // asks for.
   const int columns = std::max((int)std::floor(box.width() / spacing), 1);
   const int rows = std::max((int)std::floor(box.height() / spacing), 1);
-  if ((double)columns * (double)rows > (double)cap * kAttemptsPerPoint)
-    return points;
+  // The WORK is bounded, not the answer: a thin diagonal sliver has far
+  // more cells in its bounding box than points in the shape, and giving
+  // up on it entirely would answer nothing where fewer points is the
+  // right answer. Cells are counted as they are visited and the walk
+  // stops when it has looked at as many as the cap allows attempts for.
+  const double budget = (double)cap * (double)kAttemptsPerPoint;
+  double visited = 0;
 
   // Whatever the cells do not cover is split between the two margins, so a
   // side that is not a whole multiple of the pitch is centred rather than
@@ -234,7 +248,7 @@ std::vector<glm::vec2> latticePoints(const Region& region, const Inside& inside,
         candidate.x += streamX.range(-0.5f, 0.5f) * jitter * spacing;
         candidate.y += streamY.range(-0.5f, 0.5f) * jitter * spacing;
       }
-      if ((int)points.size() >= cap) return points;
+      if ((int)points.size() >= cap || ++visited > budget) return points;
       if (inside(candidate)) points.push_back(candidate);
     }
   return points;
@@ -430,14 +444,16 @@ std::vector<glm::vec2> sample(const Region& region,
     relax(lifted, Relaxation{spacing, distribution.relaxIterations, 0.5f},
           [&](glm::vec3 moved) {
             const glm::vec2 flat{moved.x, moved.y};
-            // A point pushed out of the shape is put back where it was
-            // rather than clamped to an edge: a clamp would pile the
-            // overflow onto the boundary, which is the one place a relaxed
-            // scatter must not crowd.
+            // While the relaxation runs, a point pushed out of the shape
+            // is held inside the bounding box so that it goes on pushing
+            // its neighbours instead of wandering off.
             if (inside(flat)) return glm::vec3(flat, 0.0f);
             return glm::vec3(std::clamp(moved.x, box.fLeft, box.fRight),
                              std::clamp(moved.y, box.fTop, box.fBottom), 0.0f);
           });
+    // A point that FINISHED outside the shape keeps the place it started
+    // rather than the edge it was held at: piling the overflow onto the
+    // boundary is the one thing a relaxed scatter must not do.
     for (size_t i = 0; i < points.size(); ++i) {
       const glm::vec2 moved{lifted[i].x, lifted[i].y};
       if (inside(moved)) points[i] = moved;

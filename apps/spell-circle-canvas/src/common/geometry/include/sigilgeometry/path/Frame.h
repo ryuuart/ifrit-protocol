@@ -45,6 +45,8 @@
 #include <cmath>
 #include <vector>
 
+#include "sigilgeometry/path/Numeric.h"
+
 namespace sigil::geometry::path {
 
 /** The rect of size @p w × @p h centred on @p c — the `x - w * 0.5f`
@@ -123,11 +125,11 @@ struct Frame {
   constexpr float skiaSweep(float sweepDeg) const {
     return sense == Sense::CW ? sweepDeg : -sweepDeg;
   }
-  /** This frame's @p deg in radians about +x, ready for `std::cos`/`sin`
-   *  against a screen-space point. */
-  float radians(float deg) const {
-    return skiaDeg(deg) * 0.01745329251994329577f;
-  }
+  /** This frame's @p deg AS A SCREEN ANGLE in radians about +x, ready
+   *  for `std::cos`/`sin` against a screen-space point. Named apart from
+   *  the free `radians()`, which is the unit conversion alone: this one
+   *  carries the frame's zero and sense as well. */
+  float screenRadians(float deg) const { return radians(skiaDeg(deg)); }
 
   /** @p deg as the arc-length fraction of a circular baseline — the value
    *  `TextPath::at` wants.
@@ -179,13 +181,13 @@ struct Frame {
   /** `(angle, PX radius)` → a point, for a figure whose radii were
    *  measured in pixels rather than as fractions of one figure radius. */
   SkPoint px(float deg, float rPx) const {
-    const float a = radians(deg);
+    const float a = screenRadians(deg);
     return {centre.fX + rPx * std::cos(a), centre.fY + rPx * std::sin(a)};
   }
   /** The unit vector pointing out along @p deg — the direction a tick, a
    *  leader or a radial label runs. */
   SkVector dir(float deg) const {
-    const float a = radians(deg);
+    const float a = screenRadians(deg);
     return {std::cos(a), std::sin(a)};
   }
 

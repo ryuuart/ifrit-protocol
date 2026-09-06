@@ -93,6 +93,37 @@ TEST(PathExtremes, TheDepthDialSkipsAShallowTurnAndForcingItTakesIt) {
   EXPECT_EQ(extremeNodes(shallow, {.minDepthPx = 0.0f}).size(), 1u);
 }
 
+// A quadratic's curvature peaks where it is tightest, which for a
+// symmetric arch is its middle: the node lands at the apex and nowhere
+// else, and the split leaves two pieces.
+TEST(PathExtremes, MaxCurvatureNodesTheApexOfASymmetricQuad) {
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.quadTo(50, 100, 100, 0);
+  const SkPath arch = b.detach();
+  const std::vector<glm::vec2> nodes =
+      extremeNodes(arch, {.where = Where::MaxCurvature});
+  ASSERT_EQ(nodes.size(), 1u);
+  EXPECT_NEAR(nodes[0].x, 50.0f, 0.5f);
+  EXPECT_NEAR(nodes[0].y, 50.0f, 0.5f);  // the quad's own midpoint
+  EXPECT_EQ(nodeCount(extremes(arch, {.where = Where::MaxCurvature})), 2u);
+}
+
+// A cubic with one tight bend and one slack one peaks once, inside the
+// bend rather than at either end.
+TEST(PathExtremes, MaxCurvatureFindsTheTightBendOfACubic) {
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.cubicTo(0, 100, 100, 100, 100, 0);
+  const std::vector<glm::vec2> nodes =
+      extremeNodes(b.detach(), {.where = Where::MaxCurvature});
+  ASSERT_FALSE(nodes.empty());
+  for (const glm::vec2 node : nodes) {
+    EXPECT_GT(node.x, 0.0f);
+    EXPECT_LT(node.x, 100.0f);
+  }
+}
+
 TEST(PathExtremes, APathOfStraightLinesGainsNothing) {
   const SkPath square = rect(0, 0, 10, 10);
   EXPECT_TRUE(extremes(square) == square);
@@ -138,6 +169,44 @@ TEST(PathTidy, AClosedContourStaysClosedAndKeepsItsShape) {
   ASSERT_EQ(segments(tidied).size(), 1u);
   EXPECT_TRUE(segments(tidied)[0].closed);
   EXPECT_EQ(tidied.computeTightBounds(), square.computeTightBounds());
+}
+
+// A zero-length piece says nothing wherever it sits, and where it sits
+// must not decide whether it goes: guarding on how many pieces have been
+// KEPT so far leaves a trailing one and takes a leading one.
+TEST(PathTidy, ADuplicateNodeGoesFromTheFrontTheMiddleAndTheEnd) {
+  const auto withDuplicateAt = [](int position) {
+    SkPathBuilder b;
+    b.moveTo(0, 0);
+    if (position == 0) b.lineTo(0, 0);
+    b.lineTo(100, 0);
+    if (position == 1) b.lineTo(100, 0);
+    b.lineTo(100, 60);
+    if (position == 2) b.lineTo(100, 60);
+    b.lineTo(0, 60);
+    return b.detach();
+  };
+  for (int position = 0; position < 3; ++position) {
+    const SkPath source = withDuplicateAt(position);
+    EXPECT_EQ(nodeCount(source), 4u) << "position " << position;
+    const SkPath tidied = tidy(source, 0.1f, {.collinear = false});
+    EXPECT_EQ(nodeCount(tidied), 3u) << "position " << position;
+    EXPECT_EQ(tidied.computeTightBounds(), source.computeTightBounds())
+        << "position " << position;
+  }
+}
+
+// A contour that is nothing but duplicates keeps the two pieces every
+// contour keeps, rather than vanishing.
+TEST(PathTidy, AContourOfNothingButDuplicatesDoesNotVanish) {
+  SkPathBuilder b;
+  b.moveTo(10, 10);
+  b.lineTo(10, 10);
+  b.lineTo(10, 10);
+  b.lineTo(10, 10);
+  const SkPath tidied = tidy(b.detach());
+  ASSERT_EQ(segments(tidied).size(), 1u);
+  EXPECT_EQ(nodeCount(tidied), 2u);
 }
 
 TEST(PathTidy, ACurvedOutlineIsLeftAlone) {

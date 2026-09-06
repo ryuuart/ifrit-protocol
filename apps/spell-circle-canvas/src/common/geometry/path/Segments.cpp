@@ -196,8 +196,13 @@ SegmentContour reversed(const SegmentContour& contour) {
 }
 
 SegmentContour startedAt(const SegmentContour& contour, size_t at) {
-  if (!contour.closed || contour.segments.size() < 2) return contour;
+  if (!contour.closed || contour.segments.empty()) return contour;
   Cycle cycle = cycleOf(contour);
+  // The count that decides whether there is another node to start at is
+  // the CYCLE's: a closed contour whose walk stops short of its start
+  // carries the closing line as a piece of its own, so one spelled
+  // segment is two pieces and has a second node to begin from.
+  if (cycle.pieces.size() < 2) return contour;
   const size_t roll = at % cycle.pieces.size();
   std::rotate(cycle.pieces.begin(), cycle.pieces.begin() + (std::ptrdiff_t)roll,
               cycle.pieces.end());

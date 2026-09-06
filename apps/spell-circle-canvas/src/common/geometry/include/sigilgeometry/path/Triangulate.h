@@ -83,7 +83,10 @@ struct Triangulation {
  *
  *  A set too degenerate to triangulate — two points, or a row of them on
  *  one line — still has a diagram, and gets it: with no triangles to read
- *  adjacency from, every point is cut against every other. */
+ *  adjacency from, every point is cut against every other. That walk is
+ *  quadratic, so it is bounded: a degenerate set of more than 256 points
+ *  answers no cells at all rather than spending the frame on a picture
+ *  of a line. */
 [[nodiscard]] std::vector<Polyline> voronoi(const Triangulation& triangulation,
                                             SkRect bounds);
 /** The same, triangulating first. */

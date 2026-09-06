@@ -124,7 +124,7 @@ SkPath bandRegionImpl(const SkPath& spine, const Profile& width,
 
   // PER CONTOUR, and that is load-bearing: a single moveTo/lineTo chain
   // across all contours closed ONCE bridges between them with a filled
-  // chord, so two concentric ring spines came out as a filled disc.
+  // chord, which fills the gap between two concentric ring spines.
   //
   // BOTH RAILS GO THROUGH profileOffset, which is the other half: a
   // constant width then rides parallel's corner repair (real
@@ -195,9 +195,7 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
   // whose period is a simple fraction aligns with it) offset by half a
   // step (so a value read exactly at 0, 1/2, 1 cannot be the whole basis).
   // A profile that defeats this still gets a correct-shaped answer — the
-  // exact-corner parallel — just not the varying one it asked for. If that
-  // ever bites, the honest fix is a `constant()` query on the Profile
-  // seam, which is additive.
+  // exact-corner parallel — just not the varying one it asked for.
   {
     const float first = profile.acrossAt(0.5f / 97.0f, total);
     bool constant = true;

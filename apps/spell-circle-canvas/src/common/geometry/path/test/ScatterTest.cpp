@@ -207,3 +207,24 @@ TEST(Scatter, AnEmptyRegionAnswersNothing) {
   EXPECT_TRUE(sample(region, poisson(4.0f)).empty());
   EXPECT_TRUE(sample(region, grid(4.0f)).empty());
 }
+
+// A thin diagonal sliver has far more lattice cells in its bounding box
+// than it has room for points. The answer is FEWER points, never none:
+// giving up on the walk would empty a shape that has a perfectly good
+// fill.
+TEST(Scatter, ALatticeOverAThinDiagonalSliverAnswersFewerPointsNotNone) {
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.lineTo(400, 396);
+  b.lineTo(400, 400);
+  b.lineTo(4, 4);
+  b.close();
+  const Region sliver = Region::of(b.detach());
+  const std::vector<glm::vec2> points =
+      sample(sliver, Distribution{.spread = Spread::Lattice,
+                                  .rate = Rate::Count,
+                                  .amount = 12,
+                                  .seed = 7});
+  EXPECT_FALSE(points.empty());
+  for (const glm::vec2 point : points) EXPECT_TRUE(sliver.contains(point));
+}

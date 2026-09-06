@@ -186,3 +186,68 @@ TEST(Neighbours, ForEachWithinVisitsWhatWithinReturns) {
   index.forEachWithin(query, 15.0f, [&](uint32_t i) { visited.push_back(i); });
   EXPECT_EQ(sorted(visited), sorted(index.within(query, 15.0f)));
 }
+
+// ---------------------------------------------------------------------------
+// relax(), and what the grid does with a coordinate that is not a number.
+
+TEST(Neighbours, RelaxPushesACrowdApartAndLeavesASpreadSetAlone) {
+  std::vector<glm::vec3> crowd;
+  for (int i = 0; i < 9; ++i)
+    crowd.emplace_back((float)(i % 3) * 0.5f, (float)(i / 3) * 0.5f, 0.0f);
+  const std::vector<glm::vec3> before = crowd;
+  relax(crowd, Relaxation{.radius = 4.0f, .iterations = 8});
+  const auto closest = [](std::span<const glm::vec3> points) {
+    float least = std::numeric_limits<float>::infinity();
+    for (size_t i = 0; i < points.size(); ++i)
+      for (size_t j = i + 1; j < points.size(); ++j)
+        least = std::min(least, glm::length(points[i] - points[j]));
+    return least;
+  };
+  EXPECT_GT(closest(crowd), closest(before));
+}
+
+// Two points in the same place have no direction to separate along, and a
+// bearing invented for them would be an answer nobody measured.
+TEST(Neighbours, RelaxLeavesTwoCoincidentPointsExactlyWhereTheyAre) {
+  std::vector<glm::vec3> pair{{10, 10, 0}, {10, 10, 0}};
+  relax(pair, Relaxation{.radius = 5.0f, .iterations = 4});
+  EXPECT_EQ(pair[0], glm::vec3(10, 10, 0));
+  EXPECT_EQ(pair[1], glm::vec3(10, 10, 0));
+}
+
+// `hold` is applied to every moved point and its answer is where the
+// point lands — here, a plane the whole set is pinned to.
+TEST(Neighbours, RelaxLandsEveryPointWhereHoldPutsIt) {
+  std::vector<glm::vec3> points{{0, 0, 5}, {1, 0, 5}, {0, 1, 5}, {1, 1, 5}};
+  relax(points, Relaxation{.radius = 6.0f, .iterations = 6},
+        [](glm::vec3 moved) { return glm::vec3{moved.x, moved.y, 0.0f}; });
+  for (const glm::vec3 point : points) EXPECT_FLOAT_EQ(point.z, 0.0f);
+}
+
+// A non-finite coordinate would make the bounds NaN and the cell count a
+// floor of a division by it. The grid still answers about the points it
+// can place, and the bad one is simply never near anything.
+TEST(Neighbours, ANonFinitePointDoesNotBreakTheGrid) {
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const std::vector<glm::vec3> points{
+      {0, 0, 0}, {10, 0, 0}, {nan, nan, nan}, {20, 0, 0}};
+  const Neighbours index(points);
+  EXPECT_GE(index.dimensions().x, 1);
+  EXPECT_EQ(sorted(index.within({10, 0, 0}, 11.0f)),
+            (std::vector<uint32_t>{0, 1, 3}));
+  const std::optional<uint32_t> near = index.nearest(glm::vec3{21, 0, 0});
+  ASSERT_TRUE(near.has_value());
+  EXPECT_EQ(*near, 3u);
+}
+
+// The whole query family takes a flat point, not only `within`.
+TEST(Neighbours, EveryQueryTakesAFlatPointToo) {
+  const std::vector<glm::vec2> points{{0, 0}, {10, 0}, {20, 0}};
+  const Neighbours index(points);
+  EXPECT_EQ(index.nearest(glm::vec2{11, 0}),
+            index.nearest(glm::vec3{11, 0, 0}));
+  EXPECT_EQ(index.nearest(glm::vec2{11, 0}, 2),
+            index.nearest(glm::vec3{11, 0, 0}, 2));
+  EXPECT_EQ(index.nearestOther(glm::vec2{10, 0}, 1),
+            index.nearestOther(glm::vec3{10, 0, 0}, 1));
+}

@@ -18,7 +18,7 @@
  *    re-apply; the source path is never consumed. `chain()` composes
  *    any of them with ad-hoc lambdas.
  *
- * Distorts run over the Geometry.h resampling currency, so they respect
+ * Distorts run over the resampled-polyline currency, so they respect
  * contours and closure and compose with blend keys, extrude sources,
  * and pathfinder results alike.
  */
@@ -80,7 +80,9 @@ struct OffsetOptions {
    *  winding, so this is the one spelling whose sign follows the
    *  drawing rather than the boolean. A needle-sharp corner's mitre is
    *  capped by `miterLimit`, blunting the corner rather than dropping
-   *  the node. */
+   *  the node. It is the WHOLE offset when it is set: `position` and
+   *  `step`, which describe a band and a walk, say nothing about moving
+   *  a node and are not read. */
   bool keepCompatible = false;
   /** The stride the sideways walk takes where a walk is used — away
    *  from `position` 0.5, where Skia's stroker answers instead. */
@@ -178,11 +180,17 @@ SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength);
  *  wants an evenly spread jitter rather than an independent one says so
  *  with `source` — a low-discrepancy sequence roughens without the
  *  clumps independent draws leave. Each contour draws from its own
- *  stream, so adding one contour does not re-roll the others. */
+ *  stream, so adding one contour does not re-roll the others.
+ *
+ *  `seed` and `parameter` are the pair every seeded value in this tree
+ *  is described by, spelled the same way here as in `Distribution`: the
+ *  parameter is the sequence's own dial — a Halton base, a stratum
+ *  count — and a source that has none ignores it. */
 struct Roughen {
   float amplitude = 4;
   float segmentPx = 8;
-  uint32_t seed = 1;
+  uint64_t seed = 1;
+  uint32_t parameter = 0;
   bool smooth = true;
   core::chance::Source source = core::chance::Source::Pcg;
 
@@ -201,8 +209,11 @@ struct Zigzag {
   SkPath operator()(const SkPath& path) const { return apply(path); }
 };
 
-/** Pucker (amount < 0) & Bloat (amount > 0) — the radial power warp
- *  about the shape's centroid, ±1 full strength. */
+/** Pucker (amount < 0) & Bloat (amount > 0) — the radial power warp,
+ *  ±1 full strength. EACH CONTOUR WARPS ABOUT ITS OWN centroid, so a
+ *  donut's hole puckers about the hole and a word's letters each about
+ *  themselves; one centroid over the whole figure would drag the outer
+ *  contours across the inner ones. */
 struct PuckerBloat {
   float amount = 0.5f;
   float segmentPx = 6;
@@ -211,8 +222,8 @@ struct PuckerBloat {
   SkPath operator()(const SkPath& path) const { return apply(path); }
 };
 
-/** Twirl — rotation about the centroid, strongest at the middle and
- *  easing to zero at the silhouette radius. */
+/** Twirl — rotation about EACH CONTOUR'S OWN centroid, strongest at the
+ *  middle and easing to zero at that contour's silhouette radius. */
 struct Twirl {
   float angleDeg = 60;
   float segmentPx = 6;

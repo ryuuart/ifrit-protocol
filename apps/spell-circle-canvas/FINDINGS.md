@@ -83,27 +83,10 @@ sub-passes arrived as delegated passes and are listed with the rest.
 
 ## SigilCompose, SigilSkia, SigilScry (findings/review-compose.md)
 
-Should-fix (correctness): `compose/typography/TextAnnotations.cpp:61-84`
-readings indexed by the per-line unit list, so a base broken across a
-line takes the next reading; `typography/TextFxPainting.cpp:301-304` the
-fx selection cache keyed on width alone while layout keys on width and
-height; `skia/draw/Direct.h:43,54` with `compose/core/Instances.cpp:131`
-promoted textures keyed on a bare `SkImage*` that a re-baked sheet can
-reuse; `core/Derive.cpp:239-246` the thread guard compares the raw
-measure but stores the sanitised one, so Yoga's NaN moves every round
-until the budget is spent; `core/Coverage.cpp:72,167` a legal
-`threshold(0)` traces the whole box; `scry/engine/CMakeLists.txt:56`
-`SUITES SlotFillingTest` cannot match the instantiated
-`SlotDoors/SlotFillingTest`, so those cases lose the `gpu` label and fail
-on a device-less machine.
-
-The remaining 78 should-fix items and 96 nits are in the report by
-category. Two beyond the top ten bear on the merge: the README's compile
-guard (`test/docs/api_doc_probes.py:83-88`) probes only qualified names,
-which is why `compose/README.md:437` names `mul`/`lift` (which do not
-exist), `:1397` names `scripts/setup.py`, and `:1133`/`:1464` name two
-ledger scripts that do not exist; and `Composer::Impl::paint` is one
-1380-line function (`core/StackingPainter.cpp:1200-2580`).
+The blockers, the correctness should-fixes and the README guard are
+fixed; what is left of this group is `Composer::Impl::paint`, one
+1380-line function (`core/StackingPainter.cpp`), which the rulings above
+defer, and the nits the fix pass's report names as left.
 
 ## Sketch framework (findings/review-sketch-framework.md)
 
@@ -242,38 +225,9 @@ Should-fix:
 
 ## SigilGeometry path ops (findings/review-geometry-path-ops.md)
 
-Should-fix (correctness): `Extremes.cpp:164` a failed conic chop emits
-the curve twice; `Tidy.cpp:63` the duplicate guard is order-dependent
-(a trailing zero-length piece survives, an all-degenerate contour
-vanishes); `Polyline.cpp:482` `catmullRom` drops closure and never wraps
-the seam; `Ops.cpp:385` `Zigzag` displaces an open contour's endpoint;
-`Crossings.cpp:124,219` fixed 3 px probes and a 1.5 px merge box are not
-scaled to the figure; `Neighbours.cpp:79` a non-finite coordinate makes
-the bounds NaN and the floor undefined; `Scatter.cpp:216` a lattice over
-a thin region answers nothing instead of fewer points; `Hull.cpp:84` an
-open boundary chain is pushed as a closed ring; `Segments.cpp:199`
-`startedAt` guards on segments instead of cycle pieces.
-
-Should-fix (docs, comments, duplicates, API): `Polyline.cpp:246`
-`sample()` is parameter-uniform and emits `count + 1` while the header
-and README say arc length and `count`; `Fit.h:39` and README:427 claim a
-closed run is fitted as a loop, `Fit.cpp:229` fits it open; `Ops.h:205,
-214` `PuckerBloat`/`Twirl` warp per contour, not about the shape's
-centroid; `Scatter.cpp:433,115` comments contradict the code (the clamp;
-`nextBase` past 43 is not prime); `Band.cpp:127,199`, `Crossings.cpp:322`,
-`Ops.h:21` history, a prose TODO and a file citation; `Noise.cpp:12` is a
-byte copy of `core::noise::valueNoise`; `Crossings.cpp:80` re-flattens
-beside `path::flatten`; `Symmetry.cpp:37,52`, `Frame.h:129` hand-spelt
-`kTau`/`degrees()`/`kDegToRad`; `Polyline.cpp:93,485` `Polyline::
-centroid()` and `Sampled lerp` referenced by nothing; `Lattice.h:29` the
-one options struct without `operator==`; `Ops.h:186` `Roughen` cannot
-take a Halton or stratified source (no `parameter`, 32-bit seed);
-`Neighbours.h:80` only `within` has the `glm::vec2` overload; `Ops.cpp`
-(604) and `bench/PathBench.cpp` (766) split by subject.
-
-Tests missing: `chamferCorners`, `displaceSquare`, `Where::MaxCurvature`,
-`relax()` with coincident points and `hold`, `TidyOptions::duplicates`
-at front, middle and end, and the dropped `Blend.OklabMidGrayIsPerceptual`.
+Deferred by the rulings: the file split by subject — `path/Ops.cpp` (604:
+the pathops booleans, the offset family, the corner treatments, the
+resample distorts).
 
 ## SigilGeometry mesh, point operators, kit, device (findings/review-geometry-mesh-pop.md)
 

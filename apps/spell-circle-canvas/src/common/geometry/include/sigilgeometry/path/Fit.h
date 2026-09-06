@@ -35,8 +35,10 @@ namespace sigil::geometry::path {
  *  that stands still has no direction to fit. */
 SkPath fitCurve(std::span<const glm::vec2> points, float tolerance = 1.0f);
 
-/** The same over a polyline, closed when it is — a closed run is fitted
- *  as one loop, so the seam is a node like any other. */
+/** The same over a polyline, closed when it is. A closed run is fitted
+ *  from its seam back round to its seam and then closed, so the seam is
+ *  the one node the fit is pinned at: every other node falls where the
+ *  tolerance puts it, and the seam is a corner. */
 SkPath fitCurve(const Polyline& line, float tolerance = 1.0f);
 
 }  // namespace sigil::geometry::path

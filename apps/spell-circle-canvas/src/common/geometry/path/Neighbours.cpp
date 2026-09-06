@@ -43,12 +43,22 @@ void Neighbours::build(float cell) {
     return;
   }
 
-  glm::vec3 lo = m_points.front(), hi = m_points.front();
+  // A NON-FINITE COORDINATE TAKES NO PART IN THE BOUNDS. One NaN would
+  // spread through the extent, and the cell count is a floor of a
+  // division by it — undefined rather than merely wrong. Such a point
+  // still gets a bucket: `cellOf` puts anything it cannot place in the
+  // first cell, so every index the caller handed in is still answerable.
+  glm::vec3 lo{0, 0, 0}, hi{0, 0, 0};
+  bool anyFinite = false;
   for (const glm::vec3 point : m_points) {
-    lo = glm::min(lo, point);
-    hi = glm::max(hi, point);
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) ||
+        !std::isfinite(point.z))
+      continue;
+    lo = anyFinite ? glm::min(lo, point) : point;
+    hi = anyFinite ? glm::max(hi, point) : point;
+    anyFinite = true;
   }
-  const glm::vec3 extent = hi - lo;
+  const glm::vec3 extent = anyFinite ? hi - lo : glm::vec3{0, 0, 0};
 
   // A cell size nobody asked for: the edge of the cube that would hold
   // `kPointsPerCell` points if the set filled its own bounding box
@@ -76,7 +86,8 @@ void Neighbours::build(float cell) {
   for (int attempt = 0; attempt < 64; ++attempt) {
     double cells = 1.0;
     for (int axis = 0; axis < 3; ++axis) {
-      const auto span = (int)std::floor(extent[axis] / cell) + 1;
+      const float spread = extent[axis] / cell;
+      const auto span = std::isfinite(spread) ? (int)std::floor(spread) + 1 : 1;
       dimensions[axis] = std::max(span, 1);
       cells *= (double)dimensions[axis];
     }
@@ -140,6 +151,19 @@ std::vector<uint32_t> Neighbours::within(glm::vec3 p, float radius) const {
 
 std::vector<uint32_t> Neighbours::within(glm::vec2 p, float radius) const {
   return within(glm::vec3(p, 0.0f), radius);
+}
+
+std::optional<uint32_t> Neighbours::nearest(glm::vec2 p) const {
+  return nearest(glm::vec3(p, 0.0f));
+}
+
+std::vector<uint32_t> Neighbours::nearest(glm::vec2 p, int k) const {
+  return nearest(glm::vec3(p, 0.0f), k);
+}
+
+std::optional<uint32_t> Neighbours::nearestOther(glm::vec2 p,
+                                                 uint32_t skip) const {
+  return nearestOther(glm::vec3(p, 0.0f), skip);
 }
 
 std::optional<uint32_t> Neighbours::nearest(glm::vec3 p) const {

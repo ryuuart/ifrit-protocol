@@ -239,4 +239,24 @@ TEST(PathDirection, StartsEveryClosedContourAtItsBottomLeftNode) {
   EXPECT_EQ(segments(a)[0].start(), glm::vec2(0, 10));
 }
 
+// A closed contour whose walk stops short of its start carries the
+// closing line as a piece of its own, so ONE spelled segment is two
+// pieces and has a second node to begin from. Guarding on the spelled
+// segments alone refuses to restart it.
+TEST(PathSegments, AClosedContourOfOneSpelledSegmentIsStillRestartable) {
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.lineTo(100, 0);
+  b.close();
+  const std::vector<SegmentContour> read = segments(b.detach());
+  ASSERT_EQ(read.size(), 1u);
+  ASSERT_EQ(read[0].segments.size(), 1u);
+  ASSERT_TRUE(read[0].closed);
+
+  const SegmentContour rolled = startedAt(read[0], 1);
+  EXPECT_TRUE(rolled.closed);
+  EXPECT_EQ(rolled.start(), glm::vec2(100, 0));
+  EXPECT_EQ(rolled.segments.size(), 1u);
+}
+
 }  // namespace

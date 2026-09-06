@@ -48,8 +48,11 @@ sigil_test(geometry_test
           test/FramesTest.cpp test/BlendTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
+# One file per subject, over the one figure in bench/Figures.h.
 sigil_bench(geometry_bench
-  SOURCES bench/PathBench.cpp
+  SOURCES bench/PolylinesBench.cpp bench/NeighboursBench.cpp
+          bench/ScatterBench.cpp bench/TriangulateBench.cpp
+          bench/FieldsBench.cpp bench/NodesBench.cpp
   LIBRARIES SigilGeometryPath)
 
 add_subdirectory(blend)

@@ -362,8 +362,11 @@ on, and CDT, the Delaunay triangulator, read in one source file and named
 in no header.
 
 - **`path/Polyline.h`** — the resampling core. `Polyline` (its points, its
-  closure and its `lane`, one scalar riding each vertex) and `flatten()`,
-  `sample()` to walk a parametric curve evenly by arc length, `Sampled`
+  closure and its `lane`, one scalar riding each vertex) with `length()`,
+  `centroid()` (length-weighted over the edges), `signedArea()` and
+  `reverse()` on it, and `flatten()`, `sample()` to walk a parametric
+  curve evenly IN ITS PARAMETER (`resample()` is the arc-length one, and
+  is taken over a polyline `sample()` has already produced), `Sampled`
   and `resample()`, `bestAlignment()`/`applyAlignment()` for matching two
   closed contours, `toPath()` to rebuild (optionally through Catmull-Rom
   cubics), `smoothThrough()` to rebuild as a curve the points STEER — one
@@ -423,9 +426,10 @@ in no header.
   carries a node type and inventing one to serve one operator would put a
   font editor's model into a drawing library.
 - **`path/Fit.h`** — a dense RUN OF POINTS as few cubics.
-  `fitCurve(points, tolerance)` — and the same over a `Polyline`, fitted
-  as one loop when the polyline is closed, so its seam is a node like
-  any other — answers the fewest cubics that hold every point within the
+  `fitCurve(points, tolerance)` — and the same over a `Polyline`, which
+  when closed is fitted from its seam round to its seam and then closed,
+  so the seam is the one node the fit is pinned at and every other falls
+  where the tolerance puts it — answers the fewest cubics that hold every point within the
   tolerance, by Schneider's rule: fit one cubic by least squares with
   the ends' own directions as the tangents and the chord lengths as the
   first guess at each point's parameter, improve those parameters
@@ -592,8 +596,8 @@ in no header.
   extent in n−1 steps, `Closed` takes n steps so the last stops short of
   the first), `step()` and `along()` over an extent in the caller's own
   unit — radians round a ring, arc length along a contour — and
-  `onRing()`, item i's centre on the ellipse at a centre with a radius per
-  axis. The grid half is `Cell`, `cellAt()` (row-major index to column and
+  `onEllipse()`, the point at an angle on the ellipse at a centre with a
+  radius per axis, with `onRing()` over it for item i's centre. The grid half is `Cell`, `cellAt()` (row-major index to column and
   row), `moduleSize()` (the module that fits columns by rows of itself and
   the gaps between them exactly into a container) and `cellRect()` (the
   rect a block of cells covers, swallowing the gaps it crosses; nothing is

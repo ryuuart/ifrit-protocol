@@ -47,6 +47,7 @@ struct LatticeOptions {
    *  preference: a spacing far smaller than the rings it fills would
    *  otherwise answer with a vector nobody asked the size of. */
   int maxLines = 10000;
+  bool operator==(const LatticeOptions&) const = default;
 };
 
 /** PARALLEL LINES CUT TO THE EVEN-ODD INTERIOR of `rings`: each line's

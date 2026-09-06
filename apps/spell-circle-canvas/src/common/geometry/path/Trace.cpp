@@ -12,6 +12,13 @@
 namespace sigil::geometry::path {
 namespace {
 
+/** How far the four Runge-Kutta samples must agree for the step to be
+ *  taken. It is a bound on an average of UNIT directions, so it is a
+ *  fraction of a whole turn and not a field magnitude: below it the four
+ *  samples point far enough apart that the field turns faster than one
+ *  step resolves. */
+constexpr float kMinAgreement = 1e-3f;
+
 /** One walk from a seed, in one direction. The seed itself is not
  *  written: the caller joins the two halves and puts it in once. */
 void walk(const VectorField& field, glm::vec2 from, float sign,
@@ -39,7 +46,13 @@ void walk(const VectorField& field, glm::vec2 from, float sign,
     const glm::vec2 k3 = direction(at + k2 * (step * 0.5f));
     const glm::vec2 k4 = direction(at + k3 * step);
     const glm::vec2 move = (k1 + 2.0f * k2 + 2.0f * k3 + k4) / 6.0f;
-    if (glm::length(move) <= options.minSpeed) return;
+    // `move` is an average of UNIT directions, so its length measures how
+    // far the four samples agree and never the field's magnitude —
+    // `minSpeed`, which is a bound on that magnitude, says nothing about
+    // it. Samples that cancel mean the field turns faster than one step
+    // resolves, and the walk stops rather than stepping into the middle
+    // of the turn.
+    if (glm::length(move) <= kMinAgreement) return;
     at += move * step;
     if (bounded && !options.bounds.contains(at.x, at.y)) return;
     out.push_back(at);

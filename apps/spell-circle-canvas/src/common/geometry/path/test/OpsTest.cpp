@@ -36,6 +36,57 @@ using sigil::geometry::test::rect;
 
 namespace {
 
+/** Every on-curve point of a path, in order. */
+std::vector<SkPoint> pointsOf(const SkPath& path) {
+  std::vector<SkPoint> out;
+  SkPath::Iter iter(path, false);
+  SkPoint pts[4];
+  SkPath::Verb verb = SkPath::kMove_Verb;
+  while ((verb = iter.next(pts)) != SkPath::kDone_Verb) {
+    switch (verb) {
+      case SkPath::kMove_Verb:
+        out.push_back(pts[0]);
+        break;
+      case SkPath::kLine_Verb:
+        out.push_back(pts[1]);
+        break;
+      case SkPath::kQuad_Verb:
+      case SkPath::kConic_Verb:
+        out.push_back(pts[2]);
+        break;
+      case SkPath::kCubic_Verb:
+        out.push_back(pts[3]);
+        break;
+      default:
+        break;
+    }
+  }
+  return out;
+}
+
+/** How many DISTINCT places a path's on-curve points stand at. The
+ *  iterator spells a closed contour's return to its start, so the count
+ *  of points is one more than the count of places. */
+size_t placesOf(const SkPath& path) {
+  std::vector<SkPoint> points = pointsOf(path);
+  std::sort(points.begin(), points.end(), [](SkPoint a, SkPoint b) {
+    return a.fX != b.fX ? a.fX < b.fX : a.fY < b.fY;
+  });
+  points.erase(std::unique(points.begin(), points.end()), points.end());
+  return points.size();
+}
+
+/** The shoelace area of a path's on-curve points. */
+float areaOf(const SkPath& path) {
+  const std::vector<SkPoint> points = pointsOf(path);
+  float twice = 0;
+  for (size_t i = 0; i < points.size(); ++i) {
+    const SkPoint a = points[i], b = points[(i + 1) % points.size()];
+    twice += a.fX * b.fY - b.fX * a.fY;
+  }
+  return std::abs(twice) * 0.5f;
+}
+
 // ---------------------------------------------------------------------------
 // The booleans. Two unit squares overlapping by half: each operator names
 // one region of that pair, and the width alone cannot tell exclude from
@@ -485,6 +536,119 @@ TEST(PathFillType, TheSameDonutWoundStaysSolid) {
   const SkPath out = ops::roundCorners(winding, 6);
   EXPECT_EQ(out.getFillType(), SkPathFillType::kWinding);
   EXPECT_TRUE(out.contains(50, 50));
+}
+
+// ---------------------------------------------------------------------------
+// The polyline treatments: chamfer and the square wave.
+
+TEST(PathChamfer, EveryCornerOfASquareBecomesTwoNodesAndTheAreaShrinks) {
+  const SkPath square = rect(0, 0, 100, 100);
+  const SkPath cut = ops::chamferCorners(square, 10);
+  // Four corners, each replaced by an entry and an exit.
+  EXPECT_EQ(placesOf(cut), 8u);
+  EXPECT_EQ(cut.computeTightBounds(), square.computeTightBounds());
+  // Each corner loses a right triangle of leg 10.
+  EXPECT_NEAR(areaOf(cut), 100 * 100 - 4 * 0.5f * 10 * 10, 1.0f);
+}
+
+// The cut is half a leg at most, so a cut larger than the shape is the
+// shape's own midpoints rather than an outline that crosses itself.
+TEST(PathChamfer, ACutLargerThanTheLegsIsClampedToHalfOfEach) {
+  const SkPath square = rect(0, 0, 20, 20);
+  const SkPath cut = ops::chamferCorners(square, 1000);
+  const std::vector<SkPoint> points = pointsOf(cut);
+  ASSERT_FALSE(points.empty());
+  for (const SkPoint p : points) {
+    const bool onMidpoint = (p.fX == 10 && (p.fY == 0 || p.fY == 20)) ||
+                            (p.fY == 10 && (p.fX == 0 || p.fX == 20));
+    EXPECT_TRUE(onMidpoint) << p.fX << "," << p.fY;
+  }
+}
+
+// The vertex a closed walk STARTS at is a corner like the three it
+// passes; a treatment that only looked at interior vertices would leave
+// one square corner on every rectangle.
+TEST(PathChamfer, TheVertexTheWalkStartsAtIsCutToo) {
+  const SkPath square = rect(0, 0, 100, 100);
+  const std::vector<SkPoint> points = pointsOf(ops::chamferCorners(square, 10));
+  for (const SkPoint p : points) {
+    EXPECT_FALSE(p.fX == 0 && p.fY == 0) << "the starting corner survived";
+  }
+}
+
+TEST(PathChamfer, AStraightThroughVertexIsNotACornerAndIsLeftAlone) {
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.lineTo(50, 0);  // straight through
+  b.lineTo(100, 0);
+  b.lineTo(100, 50);
+  const SkPath cut = ops::chamferCorners(b.detach(), 10);
+  // Ends kept, the straight-through vertex kept, the one real corner cut.
+  EXPECT_EQ(placesOf(cut), 5u);
+}
+
+// A chamfer is a polyline treatment, so a contour carrying a curve is
+// copied exactly rather than flattened.
+TEST(PathChamfer, AContourWithACurvePassesThroughUntouched) {
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.quadTo(50, 100, 100, 0);
+  b.close();
+  const SkPath source = b.detach();
+  const SkPath cut = ops::chamferCorners(source, 10);
+  // The copy spells the closing line the source left to `close()`; what
+  // the promise is about is that the curve came back a curve, through
+  // the same points.
+  int quads = 0;
+  SkPath::Iter iter(cut, false);
+  SkPoint pts[4];
+  SkPath::Verb verb = SkPath::kMove_Verb;
+  while ((verb = iter.next(pts)) != SkPath::kDone_Verb)
+    if (verb == SkPath::kQuad_Verb) ++quads;
+  EXPECT_EQ(quads, 1);
+  EXPECT_EQ(pointsOf(cut), pointsOf(source));
+}
+
+// The wave is a whole number of periods round a closed contour, so the
+// mark meets itself at the seam instead of stepping mid-tooth.
+TEST(PathDisplaceSquare, AClosedContourCarriesAWholeNumberOfPeriods) {
+  const SkPath circle = SkPath::Circle(0, 0, 100);
+  const float circumference = kTau * 100.0f;
+  for (const float wavelength : {20.0f, 33.0f, 47.0f}) {
+    const SkPath wave = ops::displaceSquare(circle, 5, wavelength);
+    // Four plotted points per period — a pair at each half-step, where
+    // the wave changes side — plus the pair the walk opens with and the
+    // pair it closes with, both on the source curve.
+    const size_t plotted = pointsOf(wave).size();
+    const float periods = std::round(circumference / wavelength);
+    EXPECT_EQ(plotted, (size_t)(periods * 4.0f) + 2u)
+        << "wavelength " << wavelength;
+  }
+}
+
+TEST(PathDisplaceSquare, TheWaveStaysWithinItsAmplitudeOfTheSource) {
+  const SkPath circle = SkPath::Circle(0, 0, 100);
+  for (const SkPoint p : pointsOf(ops::displaceSquare(circle, 6, 25))) {
+    const float radius = std::hypot(p.fX, p.fY);
+    EXPECT_GE(radius, 100.0f - 6.5f);
+    EXPECT_LE(radius, 100.0f + 6.5f);
+  }
+}
+
+// `Contour::displace` promises an open contour's ends stay on the curve
+// they were displaced from; the resample distort has to promise it too.
+TEST(PathDistortEndpoints, ZigzagLeavesAnOpenContoursEndsWhereTheyWere) {
+  SkPathBuilder b;
+  b.moveTo(0, 0);
+  b.lineTo(300, 0);
+  const SkPath line = b.detach();
+  const SkPath wave = ops::Zigzag{.amplitude = 12, .wavelengthPx = 40}(line);
+  const std::vector<SkPoint> points = pointsOf(wave);
+  ASSERT_GE(points.size(), 2u);
+  EXPECT_NEAR(points.front().fY, 0.0f, 0.5f);
+  EXPECT_NEAR(points.back().fY, 0.0f, 0.5f);
+  EXPECT_NEAR(points.front().fX, 0.0f, 0.5f);
+  EXPECT_NEAR(points.back().fX, 300.0f, 0.5f);
 }
 
 }  // namespace

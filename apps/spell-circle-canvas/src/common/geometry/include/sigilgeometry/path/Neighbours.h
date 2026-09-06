@@ -93,6 +93,13 @@ class Neighbours {
   [[nodiscard]] std::optional<uint32_t> nearestOther(glm::vec3 p,
                                                      uint32_t skip) const;
 
+  /** The same three for a flat query point, at `z` of zero — the whole
+   *  family takes one, since a 2D index is asked 2D questions. */
+  [[nodiscard]] std::optional<uint32_t> nearest(glm::vec2 p) const;
+  [[nodiscard]] std::vector<uint32_t> nearest(glm::vec2 p, int k) const;
+  [[nodiscard]] std::optional<uint32_t> nearestOther(glm::vec2 p,
+                                                     uint32_t skip) const;
+
   /** The indices stored in one cell, empty when the cell is outside the
    *  grid. What a caller walking cells itself reads; `forEachWithin` is
    *  written in terms of it. */

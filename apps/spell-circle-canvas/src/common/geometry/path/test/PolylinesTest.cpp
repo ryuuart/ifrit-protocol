@@ -98,7 +98,9 @@ TEST(Polyline, SampleWalksTheParameterEvenlyAndCloses) {
   const Polyline circle =
       sample([](float t) { return glm::vec2{std::cos(t), std::sin(t)}; }, 0,
              kTau, 64, true);
-  EXPECT_EQ(circle.points.size(), 65u);
+  // A ring spells its closure rather than repeating the seam vertex, so
+  // 64 steps round the whole turn are 64 points.
+  EXPECT_EQ(circle.points.size(), 64u);
   EXPECT_TRUE(circle.closed);
   EXPECT_NEAR(circle.points.front().x, 1, 1e-5f);
   EXPECT_NEAR(circle.points[16].y, 1, 1e-5f);
@@ -276,6 +278,95 @@ TEST(Polyline, EdgeCrossingsComeNearestTheStartFirst) {
   const std::vector<glm::vec2> half = edgeCrossings(open, {-5, 5}, {15, 5});
   ASSERT_EQ(half.size(), 1u);
   EXPECT_NEAR(half[0].x, 10.0f, 1e-4f);
+}
+
+// ---------------------------------------------------------------------------
+// The parametric walk and the curve through a run of controls.
+
+// `sample` steps evenly IN THE PARAMETER and emits count + 1 points; a
+// closed curve arrives back where it started, and a ring spells its
+// closure instead of repeating that vertex.
+TEST(Polyline, SampleEmitsOneMoreThanItsCountAndClosesWithoutARepeat) {
+  const auto unitCircle = [](float t) {
+    return glm::vec2{std::cos(t), std::sin(t)};
+  };
+  // An open walk occupies both ends of its parameter range, so `count`
+  // steps are `count + 1` points.
+  const Polyline open = sample(unitCircle, 0, kPi, 64, false);
+  EXPECT_EQ(open.points.size(), 65u);
+  EXPECT_FALSE(open.closed);
+  EXPECT_NEAR(open.points.back().x, -1.0f, 1e-5f);
+
+  // A ring's seam is its closure and not a repeated vertex — the same
+  // answer `subdivide` and `catmullRom` give.
+  const Polyline ring = sample(unitCircle, 0, kTau, 64, true);
+  EXPECT_EQ(ring.points.size(), 64u);
+  EXPECT_GT(distance(ring.points.front(), ring.points.back()), 1e-3f);
+}
+
+// A closed run of controls is a RING: it carries a chord across its seam
+// like any other, so the curve comes back closed and uncut.
+TEST(Polyline, CatmullRomThroughAClosedRingComesBackClosedAndUncut) {
+  Polyline controls;
+  controls.closed = true;
+  for (int i = 0; i < 8; ++i) {
+    const float a = kTau * (float)i / 8.0f;
+    controls.points.push_back({100.0f * std::cos(a), 100.0f * std::sin(a)});
+  }
+  const Polyline curve = catmullRom(controls, 5.0f, 1.0f);
+  EXPECT_TRUE(curve.closed);
+  // The seam edge is as short as every other edge: a ring cut at the seam
+  // would leave one chord the length of a whole control span.
+  float longest = 0;
+  const size_t n = curve.points.size();
+  for (size_t i = 0; i < n; ++i)
+    longest =
+        std::max(longest, distance(curve.points[i], curve.points[(i + 1) % n]));
+  EXPECT_LT(longest, 6.0f);
+  // Every control is still on the curve, the seam control included.
+  for (const glm::vec2 control : controls.points) {
+    float nearest = std::numeric_limits<float>::infinity();
+    for (const glm::vec2 point : curve.points)
+      nearest = std::min(nearest, distance(point, control));
+    EXPECT_LT(nearest, 1.0f);
+  }
+}
+
+TEST(Polyline, CatmullRomThroughAnOpenChainStaysOpen) {
+  Polyline controls;
+  controls.points = {{0, 0}, {50, 60}, {100, 0}, {150, 60}};
+  const Polyline curve = catmullRom(controls, 5.0f, 1.0f);
+  EXPECT_FALSE(curve.closed);
+  EXPECT_EQ(curve.points.front(), controls.points.front());
+  EXPECT_EQ(curve.points.back(), controls.points.back());
+}
+
+// The centroid is LENGTH-WEIGHTED over the edges, not the plain average
+// of the vertices: a side cut into many nodes must not drag it.
+TEST(Polyline, TheCentroidIsWeightedByEdgeLengthAndNotByVertexCount) {
+  Polyline square;
+  square.closed = true;
+  square.points = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
+  const glm::vec2 plain = square.centroid();
+  EXPECT_NEAR(plain.x, 50.0f, 1e-3f);
+  EXPECT_NEAR(plain.y, 50.0f, 1e-3f);
+
+  Polyline cut = square;
+  cut.points = {{0, 0},   {25, 0},    {50, 0}, {75, 0},
+                {100, 0}, {100, 100}, {0, 100}};
+  const glm::vec2 weighted = cut.centroid();
+  EXPECT_NEAR(weighted.x, plain.x, 1e-3f);
+  EXPECT_NEAR(weighted.y, plain.y, 1e-3f);
+}
+
+TEST(Polyline, ReverseTurnsTheWindingAndKeepsTheShape) {
+  Polyline ring;
+  ring.closed = true;
+  ring.points = {{0, 0}, {100, 0}, {100, 100}, {0, 100}};
+  const float area = ring.signedArea();
+  ring.reverse();
+  EXPECT_FLOAT_EQ(ring.signedArea(), -area);
+  EXPECT_EQ(ring.points.front(), glm::vec2(0, 100));
 }
 
 }  // namespace

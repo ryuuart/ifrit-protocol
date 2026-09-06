@@ -19,6 +19,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 #include "sigilgeometry/path/Segments.h"
@@ -137,8 +138,11 @@ std::vector<float> turnsOf(const Segment& piece,
   return ts;
 }
 
-/** The piece split at one parameter, as two pieces of its own kind. */
-std::array<Segment, 2> splitAt(const Segment& piece, float t) {
+/** The piece split at one parameter, as two pieces of its own kind, or
+ *  nothing where the split cannot be taken — a conic whose chop the
+ *  rational form refuses. A caller that cannot split keeps the piece
+ *  whole; emitting the two halves anyway would emit the curve twice. */
+std::optional<std::array<Segment, 2>> splitAt(const Segment& piece, float t) {
   const std::array<SkPoint, 4> p = skPoints(piece);
   std::array<Segment, 2> out{piece, piece};
   const auto take = [&](Segment& into, const SkPoint* from) {
@@ -161,11 +165,7 @@ std::array<Segment, 2> splitAt(const Segment& piece, float t) {
     }
     case SegmentKind::Conic: {
       SkConic dst[2];
-      if (!SkConic(p.data(), piece.weight).chopAt(t, dst)) {
-        out[1] = piece;
-        out[0].points[1] = out[0].points[0];
-        return out;
-      }
+      if (!SkConic(p.data(), piece.weight).chopAt(t, dst)) return std::nullopt;
       take(out[0], dst[0].fPts);
       take(out[1], dst[1].fPts);
       out[0].weight = dst[0].fW;
@@ -199,9 +199,12 @@ SkPath extremes(const SkPath& path, const ExtremeOptions& options) {
         // parameter has to be measured in the remainder's own frame.
         const float local = (t - consumed) / (1.0f - consumed);
         if (!(local > 1e-4f && local < 1.0f - 1e-4f)) continue;
-        const std::array<Segment, 2> two = splitAt(rest, local);
-        split.push_back(two[0]);
-        rest = two[1];
+        const std::optional<std::array<Segment, 2>> two = splitAt(rest, local);
+        // A piece that will not split stays whole: it is pushed once
+        // below, and no later parameter of it can be taken either.
+        if (!two) break;
+        split.push_back((*two)[0]);
+        rest = (*two)[1];
         consumed = t;
       }
       split.push_back(rest);

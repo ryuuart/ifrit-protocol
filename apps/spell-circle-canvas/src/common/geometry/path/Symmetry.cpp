@@ -33,11 +33,9 @@ std::vector<SkMatrix> copies(const Symmetry& symmetry) {
   // A sweep of a whole turn puts the last copy one step short of the
   // first rather than on top of it; a partial sweep puts a copy on each
   // end of it. Both ends occupied is what a fan means.
-  const bool wholeTurn =
-      std::abs(std::abs(symmetry.sweep) - 6.28318531f) < 1e-4f;
+  const bool wholeTurn = std::abs(std::abs(symmetry.sweep) - kTau) < 1e-4f;
   const float divisor =
-      spokes > 1 ? (float)(wholeTurn || spokes == 1 ? spokes : spokes - 1)
-                 : 1.0f;
+      spokes > 1 ? (float)(wholeTurn ? spokes : spokes - 1) : 1.0f;
 
   for (int v = 0; v < alongV; ++v)
     for (int u = 0; u < alongU; ++u) {
@@ -49,7 +47,7 @@ std::vector<SkMatrix> copies(const Symmetry& symmetry) {
         for (int flip = 0; flip < mirrors; ++flip) {
           SkMatrix matrix = SkMatrix::Translate(offset.x, offset.y);
           matrix.preTranslate(symmetry.centre.x, symmetry.centre.y);
-          matrix.preRotate(angle * 180.0f / 3.14159265f);
+          matrix.preRotate(degrees(angle));
           if (flip == 1) matrix.preConcat(reflect);
           matrix.preTranslate(-symmetry.centre.x, -symmetry.centre.y);
           matrices.push_back(matrix);

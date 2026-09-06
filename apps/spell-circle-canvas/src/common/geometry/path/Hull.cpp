@@ -79,6 +79,7 @@ std::vector<Polyline> stitch(const Triangulation& mesh,
     ring.closed = true;
     const uint32_t start = outgoing.begin()->first;
     uint32_t at = start;
+    bool returned = false;
     while (true) {
       const auto edge = outgoing.find(at);
       if (edge == outgoing.end()) break;
@@ -86,9 +87,15 @@ std::vector<Polyline> stitch(const Triangulation& mesh,
       outgoing.erase(edge);
       ring.points.push_back(mesh.points[at]);
       at = next;
-      if (at == start) break;
+      if (at == start) {
+        returned = true;
+        break;
+      }
     }
-    if (ring.points.size() >= 3) rings.push_back(std::move(ring));
+    // ONLY A WALK THAT CAME BACK IS A RING. A vertex with no outgoing
+    // boundary edge leaves a partial chain, and spelling that closed
+    // draws a chord across the figure that no boundary edge stands on.
+    if (returned && ring.points.size() >= 3) rings.push_back(std::move(ring));
   }
   return rings;
 }
