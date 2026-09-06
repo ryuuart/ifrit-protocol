@@ -27,7 +27,12 @@ include(GoogleTest)
 
 # The documentation sites, whose registration sigil_library_root() calls
 # into: everything the whole tree shares is reached through this one file.
-include(${CMAKE_CURRENT_LIST_DIR}/Docs.cmake)
+# Not in SCRIPT MODE — the shader embedding at the foot of this file runs
+# `cmake -P` over it, where finding a package that declares an executable
+# is an error and no target exists to register anyway.
+if(NOT CMAKE_SCRIPT_MODE_FILE)
+  include(${CMAKE_CURRENT_LIST_DIR}/Docs.cmake)
+endif()
 
 # sigil_frameworks(<out> <name>...)
 #   Sets <out> in the caller's scope to the paths of the named Apple
