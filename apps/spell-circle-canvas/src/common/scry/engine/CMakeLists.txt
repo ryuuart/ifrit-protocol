@@ -58,6 +58,7 @@ if(APPLE)
   sigil_test(scry_test
     SOURCES test/EngineGpuTest.mm
     LIBRARIES SigilScryEngine ${METAL_FRAMEWORK}
+    SUPPORT_DIRS ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
     SUITES SlotDoors/SlotFillingTest WebViewGpuTest LABELS gpu)
   ultralight_copy_resources(scry_test)
 endif()

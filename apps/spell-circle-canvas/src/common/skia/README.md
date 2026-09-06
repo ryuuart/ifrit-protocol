@@ -339,18 +339,22 @@ or a scene.
 umbrella are always built, with one test binary `skia_test` over
 `draw/test/` and `graphite/test/` and one benchmark binary `skia_bench`
 (Google Benchmark, through the `benches` target and
-`scripts/sigil.py bench`). The `SkiaPixels` case is arithmetic over an
-`SkImage` — no device, no context, no bring-up — which is why it carries
-no label and runs on every machine. The `SigilSkiaGraphite` suite takes
+`scripts/sigil.py bench`). Three suites are arithmetic — no device, no
+context, no bring-up — which is why they carry no label and run on every
+machine: `LatticeEdges` over the band split, `SkiaPixels` over an
+`SkImage`'s pixels, and `SkiaGraphiteOptions` over the options every
+context and recorder is built with, which is where the recorder's two
+silent preconditions, the glyph-atlas budget the environment may cap and
+the shader-error handler are pinned. The `SigilSkiaGraphite` suite takes
 the Metal path end to end on
 the system device: a context, a wrapped texture, a clear, and the pixels
 read back through the queue the context shares. It reads the same
 texture back the other way as an image a draw samples, and refuses to
 wrap one that is not there. It then takes the same
 wrap through a device — a texture the device made, the surface built
-from its handle, a stale handle that wraps nothing, a fence the submit
-signals, and the factory that reads a device the host adopted — on
-Metal. The same wrap on a Vulkan device is SigilGeometry's
+from its handle, a stale handle that wraps nothing, a surface moved out
+of that submits nothing, a fence the submit signals, and the factory that
+reads a device the host adopted — on Metal. The same wrap on a Vulkan device is SigilGeometry's
 `AdoptedGraphite` suite's,
 since that is where a Vulkan device is made. The half-float read is
 checked in the `SkiaPixels` case, since its whole reason is a sampler
@@ -361,8 +365,13 @@ wanted, rather than failing on a machine with no Metal device. A case
 here asserts one thing a header promises and is named that promise as a
 sentence; it pins only what editing this library could falsify — a band
 split's arithmetic, a clear read back, a stale handle refused — never a
-size a rasteriser chose. The benchmark weighs the handle wrap against
-the native one on the same texture. The Qt adapters and the products are exercised
+size a rasteriser chose. The snap-insert-read-submit-spin readback those
+cases turn stands in `graphite/test/support/`, beside the context it
+turns and on the include path of any other library's test binary that
+draws on a device, so SigilGeometry's and SigilScry's device cases read a
+surface back the one way rather than each writing their own. The
+benchmark weighs the handle wrap against the native one on the same
+texture. The Qt adapters and the products are exercised
 through SigilCompose's `ComposeGpu` suite, SigilScry's GPU suites and
 the applications.
 

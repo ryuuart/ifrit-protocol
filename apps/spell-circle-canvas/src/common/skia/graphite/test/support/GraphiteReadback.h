@@ -10,6 +10,7 @@
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/Recorder.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
@@ -18,6 +19,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <mutex>
 
 namespace sigil::skia::test {
 
@@ -29,7 +31,13 @@ namespace sigil::skia::test {
 inline SkBitmap readGraphiteSurface(GraphiteContext& ctx, SkSurface* surface) {
   SkBitmap bitmap;
   const SkImageInfo info = surface->imageInfo();
-  if (auto recording = ctx.recorder()->snap()) {
+  std::unique_ptr<skgpu::graphite::Recording> recording =
+      ctx.recorder()->snap();
+  // Every call on the context below is under its own lock: the subject
+  // may be recording on a thread of its own over this very context, and a
+  // caller of this read never holds the lock itself.
+  const std::unique_lock<std::mutex> lock = ctx.lockContext();
+  if (recording) {
     skgpu::graphite::InsertRecordingInfo insert;
     insert.fRecording = recording.get();
     ctx.context()->insertRecording(insert);
@@ -65,6 +73,14 @@ inline SkBitmap readGraphiteSurface(GraphiteContext& ctx, SkSurface* surface) {
     std::memcpy(bitmap.pixmap().writable_addr(0, y), src + (size_t)y * rowBytes,
                 copyBytes);
   return bitmap;
+}
+
+/** The same read narrowed to the one pixel at @p x, @p y, unpremultiplied.
+ *  Transparent when the read never completed. */
+inline SkColor readGraphitePixel(GraphiteContext& ctx, SkSurface* surface,
+                                 int x, int y) {
+  const SkBitmap pixels = readGraphiteSurface(ctx, surface);
+  return pixels.isNull() ? SK_ColorTRANSPARENT : pixels.getColor(x, y);
 }
 
 }  // namespace sigil::skia::test

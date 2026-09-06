@@ -50,11 +50,12 @@ endif()
 set(SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test/support
     CACHE INTERNAL "the shared Graphite readback")
 
-# THE PIXEL READS ARE ARITHMETIC over an SkImage — no device, no context,
-# no bring-up — so they are declared unconditionally and run on every
-# machine, where the device cases below are Apple-only and labelled.
+# THE PIXEL READS AND THE OPTIONS ARE ARITHMETIC — over an SkImage and
+# over an options struct, with no device, no context and no bring-up — so
+# they are declared unconditionally and run on every machine, where the
+# device cases below are Apple-only and labelled.
 sigil_test(skia_test
-  SOURCES test/PixelsTest.cpp
+  SOURCES test/ContextOptionsTest.cpp test/PixelsTest.cpp
   LIBRARIES SigilSkiaGraphite)
 
 # The Metal path end to end on the system device, and the same wrap

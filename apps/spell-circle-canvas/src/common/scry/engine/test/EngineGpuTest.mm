@@ -40,6 +40,7 @@
 
 #include "EngineContract.h"
 #include "GraphiteReadback.h"
+#include "SharedGraphite.h"
 #include "Wait.h"
 
 using namespace sigil::scry;
@@ -172,9 +173,9 @@ TEST(WebViewGpuTest, RendersThroughMetalAndGraphite) {
     if (view->frameVersion() == 0) return SK_ColorTRANSPARENT;
     surface->getCanvas()->clear(SK_ColorGREEN);
     view->draw(*surface->getCanvas(), SkRect::MakeXYWH(32, 32, 64, 64));
-    return readbackPixel(*graphite, surface.get(), 64, 64);
+    return sigil::skia::test::readGraphitePixel(*graphite, surface.get(), 64, 64);
   }));
-  EXPECT_EQ(readbackPixel(*graphite, surface.get(), 8, 8), SK_ColorGREEN);
+  EXPECT_EQ(sigil::skia::test::readGraphitePixel(*graphite, surface.get(), 8, 8), SK_ColorGREEN);
 }
 
 // Skia -> Ultralight -> Skia without leaving the GPU, whichever door the
@@ -206,7 +207,7 @@ TEST_P(SlotFillingTest, ThePageShowsWhatFilledTheSlot) {
     if (view->frameVersion() == 0) return SK_ColorTRANSPARENT;
     surface->getCanvas()->clear(SK_ColorBLACK);
     view->draw(*surface->getCanvas(), SkRect::MakeWH(64, 64));
-    return readbackPixel(*graphite, surface.get(), 32, 32);
+    return sigil::skia::test::readGraphitePixel(*graphite, surface.get(), 32, 32);
   }));
 }
 

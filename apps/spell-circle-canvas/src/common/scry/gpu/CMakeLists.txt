@@ -50,7 +50,7 @@ if(APPLE)
   # than as a lane that passed.
   sigil_test(scry_test
     SOURCES test/GpuDriverTest.mm
-    SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
+    SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR} ${SIGIL_SKIA_GRAPHITE_TEST_SUPPORT_DIR}
     LIBRARIES SigilScryGpu Ultralight::Ultralight ${METAL_FRAMEWORK}
     SUITES ScryGpuDriver LABELS gpu
     ARC)

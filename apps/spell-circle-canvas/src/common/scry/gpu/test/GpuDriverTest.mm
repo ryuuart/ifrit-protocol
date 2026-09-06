@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "GraphiteReadback.h"
+#include "SharedGraphite.h"
 #include "metal/MetalDriver.h"
 
 using namespace sigil::scry;
@@ -56,7 +57,7 @@ SkColor centreOf(sigil::core::hardware::TextureHandle texture, int width, int he
       SkSurfaces::RenderTarget(graphite.recorder(), SkImageInfo::MakeN32Premul(width, height));
   surface->getCanvas()->clear(SK_ColorTRANSPARENT);
   surface->getCanvas()->drawImage(image, 0, 0);
-  return readbackPixel(graphite, surface.get(), width / 2, height / 2);
+  return sigil::skia::test::readGraphitePixel(graphite, surface.get(), width / 2, height / 2);
 }
 
 /** Premultiplied BGRA pixels of one colour. */
@@ -163,7 +164,7 @@ TEST(ScryGpuDriver, AReleasedHandleGoesStaleWhileItsWrapStillDraws) {
   sk_sp<SkSurface> surface =
       SkSurfaces::RenderTarget(graphite.recorder(), SkImageInfo::MakeN32Premul(16, 16));
   surface->getCanvas()->drawImage(wrap, 0, 0);
-  EXPECT_EQ(readbackPixel(graphite, surface.get(), 8, 8), SK_ColorRED);
+  EXPECT_EQ(sigil::skia::test::readGraphitePixel(graphite, surface.get(), 8, 8), SK_ColorRED);
 }
 
 TEST(ScryGpuDriver, AnEmptyFlushPublishesNothing) { EXPECT_TRUE(sharedDriver().flush().empty()); }

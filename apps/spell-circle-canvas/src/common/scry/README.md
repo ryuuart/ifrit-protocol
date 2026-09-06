@@ -240,15 +240,17 @@ one case per door a page-visible slot can be filled through.
 The GPU suites exist only on Apple and every case in them needs a
 device, so they carry the ctest label `gpu`: a machine without one shows
 them as a lane not run rather than as a lane that passed. Both take the
-device, the shared Graphite context and the asynchronous surface read
-from `test/GraphiteReadback.h`, whose read is turned rather than timed —
-the submit before it is synchronous, so what is left is Skia handing the
-result back, and the loop is bounded by turns of
+one device and Graphite context a process may own from
+`test/SharedGraphite.h`, and read a surface back through SigilSkia's
+`readGraphiteSurface` / `readGraphitePixel`, which stand beside the
+context they turn — the read is turned rather than timed, because the
+submit before it is synchronous and what is left is Skia handing the
+result back, so the loop is bounded by turns of
 `checkAsyncWorkCompletion` and not by a clock. The engine suites
 take the page waits from `engine/test/Wait.h`, where a wait that expires
 says so and names what it was waiting for, rather than reporting the
-colour a page never painted; each boots the one engine its mode needs,
-`cpuEngine()` and `gpuEngine()`. A claim that is about the engine and
+colour a page never painted; each of the two files boots the one engine
+its mode needs, for itself. A claim that is about the engine and
 not about how a frame is carried is written once, in
 `engine/test/EngineContract.h`, and asked of each. A process gets one
 renderer, and ctest runs every discovered case in a process of its own,
