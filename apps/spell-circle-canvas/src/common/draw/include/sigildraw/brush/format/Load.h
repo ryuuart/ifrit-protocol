@@ -13,6 +13,7 @@
 #include <sigilio/source/Source.h>
 
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 

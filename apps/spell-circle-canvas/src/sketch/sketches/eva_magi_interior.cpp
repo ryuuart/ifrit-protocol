@@ -309,11 +309,11 @@ const SkColor4f kPViolet = scaleRgb(hex(0x4A3283), kBack);
 // ---------------------------------------------------------------------------
 // TYPE
 
-inline const sk_sp<SkTypeface>& latin() { return evangelion::condensedBold(); }
-inline const sk_sp<SkTypeface>& latinPlain() {
+inline sk_sp<SkTypeface> latin() { return evangelion::condensedBold(); }
+inline sk_sp<SkTypeface> latinPlain() {
   return evangelion::condensedRegular();
 }
-inline const sk_sp<SkTypeface>& han() { return evangelion::minchoHeavy(); }
+inline sk_sp<SkTypeface> han() { return evangelion::minchoHeavy(); }
 
 inline weave::TextStyle type(const sk_sp<SkTypeface>& tf, float size,
                              SkColor4f color, float condense = 1.0f,

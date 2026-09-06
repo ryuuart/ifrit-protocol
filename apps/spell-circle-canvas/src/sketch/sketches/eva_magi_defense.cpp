@@ -292,7 +292,7 @@ constexpr int kRampN = (int)(sizeof(kRamp) / sizeof(kRamp[0]));
 // ---------------------------------------------------------------------------
 // TYPE. One condensed grotesque, with sizes selected by semantic role.
 
-inline const sk_sp<SkTypeface>& boldFace() {
+inline sk_sp<SkTypeface> boldFace() {
   return evangelion::condensedBold();
 }
 
