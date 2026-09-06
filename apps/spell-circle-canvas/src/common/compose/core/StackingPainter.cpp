@@ -530,8 +530,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     }
     if (!inst.glyphOutline.isEmpty()) decorationBase = &inst.glyphOutline;
   } else if (node.boundary == Boundary::Coverage && emitMarks) {
+    // TRACED AT THE HOST'S SCALE, whatever scale this paint is running at:
+    // a bake paints its content at a reduced raster scale of its own, and
+    // a silhouette traced there is a second answer that neither side of
+    // the frame can reuse — the derive pass asks at the host's scale, and
+    // one cached trace serves both.
     const SkPath& traced =
-        coverageOutline(inst, {bounds.width(), bounds.height()}, contentScale);
+        coverageOutline(inst, {bounds.width(), bounds.height()}, hostScale);
     if (!traced.isEmpty()) decorationBase = &traced;
   }
   SkPath marksPath = !marksShow ? *decorationBase
@@ -1174,7 +1179,10 @@ struct ProfileScope {
   ProfileScope(Composer::Impl* i, const detail::Instance& inst,
                const SkRect& rect)
       : impl(i) {
-    if (!impl->profileEnabled) return;
+    // A COVERAGE TRACE IS NOT A FRAME: it paints a node again into an
+    // offscreen raster to read what it drew, so its nodes are not nodes
+    // the viewer saw and their cost is not the frame's.
+    if (!impl->profileEnabled || impl->coverageTrace) return;
     row = impl->profileRows.size();
     impl->profileRows.push_back(Composer::NodeCost{profileLabel(inst, rect), 0,
                                                    0, impl->profDepth,
@@ -1768,6 +1776,10 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
    *  a cached subtree, the live draw for a leaf — folded into the rolling
    *  estimate, and the promotion decision taken from it. */
   const auto accrue = [&](double cost) {
+    // Nothing warms under a trace: the node is painted twice in the frame
+    // it is traced, and a promotion clock that counted both would run at
+    // double rate for a reason the viewer never sees.
+    if (coverageTrace) return;
     // EMA so one scheduling hiccup neither promotes nor un-promotes.
     inst.replayMs = inst.replayMs * 0.6f + (float)cost * 0.4f;
     if (promotable && inst.replayMs > kPromoteMs) {
@@ -1832,7 +1844,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.bakedScalars = scalarsNow;
           inst.paintDirty = false;
           stats.picturesRecorded++;
-          stats.texturesBaked++;
+          if (!coverageTrace) stats.texturesBaked++;
         }
       }
       if (inst.textureImage) {
@@ -1972,7 +1984,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.ownImage = layer->makeImageSnapshot();
           inst.ownBakeRect = want;
           inst.ownPaintDirty = false;
-          stats.texturesBaked++;
+          if (!coverageTrace) stats.texturesBaked++;
           // A bake per frame costs MORE than the live draw it replaced, so
           // a node whose own paint really is being invalidated every frame
           // must not hold the promotion on the strength of a measurement
@@ -2027,7 +2039,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // this half and never in the bake.
     paintContent(inst, canvas, hostScale, leafBlend, leafOpacity,
                  Phase::ChildrenOnly);
-    stats.nodesPainted++;
+    if (!coverageTrace) stats.nodesPainted++;
     inst.paintDirty = false;
     if (needsLayer) canvas.restore();
     canvas.restore();
@@ -2144,7 +2156,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           // will ever read.
           inst.picture.reset();
           stats.picturesRecorded++;
-          stats.texturesBaked++;
+          if (!coverageTrace) stats.texturesBaked++;
         }
       }
       if (inst.textureImage) {
@@ -2277,7 +2289,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
           inst.bakedScalars = scalarsNow;
           inst.paintDirty = false;
           stats.picturesRecorded++;
-          stats.texturesBaked++;
+          if (!coverageTrace) stats.texturesBaked++;
         }
       }
       if (inst.textureImage && inst.textureDeviceSpace) {
@@ -2397,42 +2409,73 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     // overflowing children truncate otherwise (same rule as the picture
     // cull).
     const SkRect bake = localBounds;
-    if (!inst.textureImage || inst.paintDirty || inst.textureScale != scale ||
-        inst.textureDeviceSpace || memoStale || inst.textureBakeRect != bake) {
-      const int pw = std::max(1, (int)std::ceil(bake.width() * scale));
-      const int ph = std::max(1, (int)std::ceil(bake.height() * scale));
+    const int pw = std::max(1, (int)std::ceil(bake.width() * scale));
+    const int ph = std::max(1, (int)std::ceil(bake.height() * scale));
+    // THE SAME CEILING EVERY BAKE TIER TAKES: a surface past it is a
+    // hundreds-of-megabytes allocation to hold one node, and the node is
+    // painted live instead. A surface the device refused is not a bake
+    // either — the node paints live rather than drawing through nothing.
+    const int64_t area = (int64_t)pw * ph;
+    if (area <= int64_t{16} * 1024 * 1024 &&
+        (!inst.textureImage || inst.paintDirty || inst.textureScale != scale ||
+         inst.textureDeviceSpace || memoStale ||
+         inst.textureBakeRect != bake)) {
       sk_sp<SkSurface> layer =
           canvas.makeSurface(SkImageInfo::MakeN32Premul(pw, ph));
       if (!layer)
         layer = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(pw, ph));
-      layer->getCanvas()->scale(scale, scale);
-      layer->getCanvas()->translate(-bake.left(), -bake.top());
-      profDraw("bake", [&] {  // no leaf blend: bakes isolate
-        const BakeLayerScope bakeLayer(this);
-        paintContent(inst, *layer->getCanvas(), scale, SkBlendMode::kSrcOver,
-                     1.0f, Phase::All, deferEffect);
-      });
-      // The ink grid, off the surface's own pixels — before the snapshot,
-      // so nothing is copied for it. A GPU surface answers no pixmap and
-      // the grid stays empty, which is the whole-rect blit this tier had
-      // before the grid existed.
-      SkPixmap baked;
-      inst.textureInk =
-          layer->peekPixels(&baked) ? inkGridOf(baked) : InkGrid{};
-      inst.textureImage = layer->makeImageSnapshot();
-      inst.textureScale = scale;
-      inst.textureDeviceSpace = false;
-      inst.textureBakeRect = bake;
-      inst.bakedLiveShader =
-          inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
-      inst.bakedScalars = std::move(scalarsNow);
-      inst.paintDirty = false;
-      stats.picturesRecorded++;
-      stats.texturesBaked++;
+      if (layer) {
+        layer->getCanvas()->scale(scale, scale);
+        layer->getCanvas()->translate(-bake.left(), -bake.top());
+        profDraw("bake", [&] {  // no leaf blend: bakes isolate
+          const BakeLayerScope bakeLayer(this);
+          paintContent(inst, *layer->getCanvas(), scale, SkBlendMode::kSrcOver,
+                       1.0f, Phase::All, deferEffect);
+        });
+        // The ink grid, off the surface's own pixels — before the
+        // snapshot, so nothing is copied for it. A GPU surface answers no
+        // pixmap and the grid stays empty, which is a whole-rect blit.
+        SkPixmap baked;
+        inst.textureInk =
+            layer->peekPixels(&baked) ? inkGridOf(baked) : InkGrid{};
+        inst.textureImage = layer->makeImageSnapshot();
+        inst.textureScale = scale;
+        inst.textureDeviceSpace = false;
+        inst.textureBakeRect = bake;
+        inst.bakedLiveShader = inst.hasPendingLiveFill
+                                   ? inst.pendingLiveFill.shaderValue
+                                   : nullptr;
+        inst.bakedScalars = std::move(scalarsNow);
+        inst.paintDirty = false;
+        stats.picturesRecorded++;
+        if (!coverageTrace) stats.texturesBaked++;
+      }
     }
     if (profileScope.row != SIZE_MAX) {
-      profileRows[profileScope.row].cacheState = Composer::CacheState::Texture;
+      profileRows[profileScope.row].cacheState =
+          inst.textureImage ? Composer::CacheState::Texture
+                            : Composer::CacheState::Live;
       profileRows[profileScope.row].promotion = Composer::Promotion::AskedFor;
+    }
+    if (!inst.textureImage) {
+      // Nothing to blit: the surface was refused, or the bake would be
+      // past the ceiling. The node paints itself — and takes back the
+      // blend and opacity the blit was to have carried, since there is no
+      // blit to carry them.
+      if (deferBlendToBlit) {
+        SkPaint layerPaint;
+        layerPaint.setAlphaf(opacity);
+        layerPaint.setBlendMode(node.paint.blendMode);
+        const SkRect content = recordBounds(inst);
+        canvas.saveLayer(&content, &layerPaint);
+      }
+      profDraw("live", [&] {
+        paintContent(inst, canvas, hostScale, leafBlend, leafOpacity);
+      });
+      if (deferBlendToBlit) canvas.restore();
+      if (needsLayer) canvas.restore();
+      canvas.restore();
+      return;
     }
     // Blit through the rect the bake ACTUALLY covers, not `bake`: pw/ph were
     // rounded UP, so stretching an image of ceil(w·s) texels across w local
@@ -2553,7 +2596,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     profDraw("replay", [&] { pictureBake->replay(target); });
     accrue(replayWatch.elapsedMs());
   } else {
-    stats.nodesPainted++;
+    if (!coverageTrace) stats.nodesPainted++;
     // A LEAF never records a picture — one draw call beats a nested
     // recording — so without this it would never be timed at all, and the
     // most expensive single object a scene can hold, a full-canvas box

@@ -133,8 +133,7 @@ bool Composer::Impl::resolveTethers() {
         anyAnchor = true;
         stood = placed;
       }
-      const SkRect within =
-          tether.within.isEmpty() ? canvas : tether.within;
+      const SkRect within = tether.within.isEmpty() ? canvas : tether.within;
       if (!within.contains(placed)) return;
       stood = placed;
       fitted = true;
@@ -236,14 +235,20 @@ bool Composer::Impl::resolveThreads() {
       // frame will hold. Read off the box that frame resolved to on the
       // pass before this one — 0 the first time round, which is weave's
       // "not known" and leaves the count at this frame's own measure.
-      const float nextMeasure = next ? instanceRect(*next).width() : 0.0f;
+      // A frame that has not been laid out reports a measure that is not a
+      // number; 0 is what weave reads as "not known", so the guard
+      // compares what will be STORED and not the raw answer — comparing
+      // the raw one is never equal, and the chain would report movement
+      // every round until the convergence budget ran out.
+      const float rawMeasure = next ? instanceRect(*next).width() : 0.0f;
+      const float nextMeasure =
+          std::isfinite(rawMeasure) && rawMeasure > 0 ? rawMeasure : 0.0f;
       if (frame->threadCursor != cursor ||
           frame->threadLineOffset != lineOffset ||
           frame->threadNextMeasure != nextMeasure) {
         frame->threadCursor = cursor;
         frame->threadLineOffset = lineOffset;
-        frame->threadNextMeasure =
-            std::isfinite(nextMeasure) && nextMeasure > 0 ? nextMeasure : 0.0f;
+        frame->threadNextMeasure = nextMeasure;
         frame->contentRev++;
         if (frame->yoga) YGNodeMarkDirty(frame->yoga);
         moved = true;
@@ -285,20 +290,29 @@ Composer::Impl::ChainFill Composer::Impl::fillRun(
     const std::vector<Instance*>& run, size_t first, size_t last, float depth,
     uint32_t cursor) {
   ChainFill filled;
+  // A frame with no box to fill holds nothing, so a run that ENDS on one
+  // has not been shown to hold what it was asked to hold: the verdict is
+  // the last filled frame's, and a skipped tail overrides it.
+  bool skippedTail = false;
   for (size_t i = first; i < last; ++i) {
     Instance* frame = run[i];
     const SkRect box = instanceRect(*frame);
-    if (!box.isFinite() || box.width() <= 0) continue;
+    if (!box.isFinite() || box.width() <= 0) {
+      skippedTail = true;
+      continue;
+    }
+    skippedTail = false;
     frame->threadCursor = cursor;
     layoutText(*frame, box.width(), depth);
     filled.lines += (uint32_t)std::max(frame->textLayout.lineCount, 0);
     filled.overflowed = frame->textLayout.overflowed();
-    cursor = filled.overflowed
-                 ? frame->textLayout.firstUnplacedWord
-                 : (frame->paragraph
-                        ? (uint32_t)frame->paragraph->words().size()
-                        : cursor);
+    cursor =
+        filled.overflowed
+            ? frame->textLayout.firstUnplacedWord
+            : (frame->paragraph ? (uint32_t)frame->paragraph->words().size()
+                                : cursor);
   }
+  if (skippedTail) filled.overflowed = true;
   filled.cursor = cursor;
   return filled;
 }
@@ -320,10 +334,10 @@ Composer::Impl::ChainFill Composer::Impl::fillRun(
 bool Composer::Impl::balanceRuns(const std::vector<Instance*>& chain) {
   bool moved = false;
   for (size_t first = 0; first < chain.size(); ++first) {
-    const detail::TextData* opens = chain[first]->description &&
-                                            chain[first]->description->textData
-                                        ? &*chain[first]->description->textData
-                                        : nullptr;
+    const detail::TextData* opens =
+        chain[first]->description && chain[first]->description->textData
+            ? &*chain[first]->description->textData
+            : nullptr;
     if (!opens || !opens->balanceChain) continue;
     size_t last = first + 1;
     while (last < chain.size()) {
@@ -357,7 +371,16 @@ bool Composer::Impl::balanceRuns(const std::vector<Instance*>& chain) {
         else
           tooShallow = trial;
       }
-    fillRun(chain, first, last, deepEnough, cursor);
+    const ChainFill settled = fillRun(chain, first, last, deepEnough, cursor);
+    // WHERE THE RUN STOPPED IS WHERE THE NEXT ONE STARTS: balancing moved
+    // the boundary, and a frame below it that kept the pre-balance cursor
+    // would resume at the wrong word.
+    if (last < chain.size() && chain[last]->threadCursor != settled.cursor) {
+      chain[last]->threadCursor = settled.cursor;
+      chain[last]->contentRev++;
+      if (chain[last]->yoga) YGNodeMarkDirty(chain[last]->yoga);
+      moved = true;
+    }
     for (size_t i = first; i < last; ++i) {
       if (!chain[i]->yoga) continue;
       if (std::abs(instanceRect(*chain[i]).height() - deepEnough) > 0.25f)

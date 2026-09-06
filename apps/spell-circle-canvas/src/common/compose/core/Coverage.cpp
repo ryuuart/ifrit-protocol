@@ -69,7 +69,10 @@ SkRegion regionOfCoveredPixels(const SkPixmap& alpha, uint8_t covered) {
     const uint8_t* pixels = alpha.addr8(0, y);
     int runStart = -1;
     for (int x = 0; x < width; ++x) {
-      const bool inside = pixels[x] >= covered;
+      // ANY INK AT ALL is the floor: a threshold of zero asks for
+      // everything the node drew, not for the whole box, and a pixel no
+      // paint reached is outside whatever the tolerance says.
+      const bool inside = pixels[x] > 0 && pixels[x] >= covered;
       if (inside && runStart < 0) runStart = x;
       if (!inside && runStart >= 0) {
         row.push_back(SkIRect::MakeLTRB(runStart, 0, x, 1));
@@ -150,8 +153,17 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   coverageTrace = &inst;
   const SkMatrix outerReplay = recordingReplay;
   const SkMatrix outerReplayInverse = recordingReplayInverse;
+  // A picture replayed inside the trace hands the ENCLOSING recording its
+  // device blits and its verdict on the matrix unless the trace holds them
+  // apart: this raster is not that recording, and what happens in it
+  // decides nothing about what the enclosing one may hold.
+  const uint32_t outerBakes = recordingDeviceBakes;
+  const bool outerDeferred = recordingDeviceDeferred;
+  const bool outerMatrixStable = recordingMatrixStable;
   recordingReplay = SkMatrix::I();
   recordingReplayInverse = SkMatrix::I();
+  recordingDeviceBakes = 0;
+  recordingDeviceDeferred = false;
   ++recordingDepth;
   ++unpinnedRecordingDepth;
   paintContent(inst, canvas, contentScale);
@@ -159,6 +171,9 @@ const SkPath& Composer::Impl::coverageOutline(Instance& inst, SkSize size,
   --recordingDepth;
   recordingReplay = outerReplay;
   recordingReplayInverse = outerReplayInverse;
+  recordingDeviceBakes = outerBakes;
+  recordingDeviceDeferred = outerDeferred;
+  recordingMatrixStable = outerMatrixStable;
   coverageTrace = outerTrace;
 
   SkPixmap alpha;
