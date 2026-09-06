@@ -273,7 +273,8 @@ Not every operator has one, and each absence is a boundary rather than a
 gap: a generator makes the points rather than mapping over them (every
 executor seeds through `pop::seedLanes()` and exports through
 `pop::exportLanes()`, so the two ends of a cook are one definition);
-`Relax` reads points it does not own; `Sort` is a permutation; `Promote`
+`Smooth`, `Relax`, `Cluster` and `Transfer` read points they do not own;
+`Sort` is a permutation; `Promote`
 addresses primitives no sink has formed yet; and `Noise` and `Deform` are
 defined in terms of a library sine, which is a different function from
 the polynomial a portable kernel would have to use — a kernel for either
@@ -354,9 +355,11 @@ the library root instead, in `test/support/`. Features nest by dependency — a 
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Sixteen headers that depend on
-nothing else in the library: Skia, glm, and SigilCoreCompute, whose
-seeded mixers the value-noise field is built on.
+**`path`** — `SigilGeometryPath`, the leaf. Twenty-three headers that
+depend on nothing else in the library: Skia, glm, SigilCoreCompute, whose
+seeded mixers the value-noise field and the scatter's stream are built
+on, and CDT, the Delaunay triangulator, read in one source file and named
+in no header.
 
 - **`path/Polyline.h`** — the resampling core. `Polyline` (its points, its
   closure and its `lane`, one scalar riding each vertex) and `flatten()`,
@@ -390,6 +393,88 @@ seeded mixers the value-noise field is built on.
   crowding each successive gap, and cuts them to the even-odd interior of
   a set of rings; each `LatticeMark` is a centreline. A hatch, a plotter
   fill and a mass of strokes are the same construction, so there is one.
+- **`path/Neighbours.h`** — the uniform grid, and the primitive under
+  everything below it. `Neighbours` is built once from a set of points
+  and copies them in, then answers `within()` (a radius, into a vector
+  the caller owns so a loop of queries allocates once), `nearest()` (the
+  nearest, or the k nearest in distance order, or the nearest that is not
+  a named point), `cellPoints()` and the allocation-free
+  `forEachWithin()`. The cell size is the one dial and choosing none is
+  the usual answer; the grid is bounded in cells, so a cell size given is
+  a request the index may coarsen and `cell()` says what it used. The
+  currency is three dimensions and flat points enter at `z` of zero, so a
+  sheet costs exactly what a two-dimensional grid would. Beside it
+  `relax()` and `Relaxation`: points pushed out of each other's radius,
+  every pass over a fresh index, with an optional `hold` deciding where a
+  moved point lands. It is a SNAPSHOT — a moved point set is a new index,
+  not an update — which is what makes a relaxation a loop of rebuilds and
+  each pass' answers consistent with one another.
+- **`path/Scatter.h`** — filling a shape with points. `Region` is a set of
+  rings read by the even-odd rule, built `of()` a path, a rect or a span
+  of rings or as a `disc()`, and answering `bounds()`, `contains()` and
+  `area()`; `Distribution` is where the points go, as one value with
+  props — a `Spread` (`Random` independent draws, `Lattice` whose
+  `jitter` runs from an exact grid to anywhere in the cell, `Poisson` a
+  minimum separation), a `Rate` saying whether `amount` is a count, a
+  density or a spacing, a seed and a `core::chance::Source`,
+  `relaxIterations`, and `maxPoints` as a bound rather than a preference.
+  `sample(region, distribution)` answers the points. `uniform()`,
+  `poisson()`, `blueNoise()`, `grid()` and `jittered()` are stock values
+  over that one type, not five functions: blue noise is any spread with
+  the relaxation switched on, and an exact grid is a lattice with no
+  jitter. A count is exact for `Random` and a CAP for the other two,
+  which answer what their pitch fits.
+- **`path/Triangulate.h`** — the Delaunay triangulation and its dual.
+  `delaunay()` answers a `Triangulation`: the points actually triangulated
+  (duplicates are one point), the triangles over them, what lies across
+  each edge, and `circumcentre()`, `circumradius()` and `adjacent()`.
+  `voronoi()` builds the dual CDT does not — one ring per point, each the
+  bounds cut once per neighbour by their perpendicular bisector, which is
+  why the bounds is an argument and not an option: the cells on the
+  outside are unbounded until something closes them. A set too degenerate
+  to triangulate still has a diagram and gets it.
+- **`path/Hull.h`** — `hull(points, alpha)`, one function with one dial.
+  At `alpha` of infinity — the default — it is the convex hull, by the
+  monotone chain and no triangulation at all. Below that it is the alpha
+  shape: triangles whose circumcircle is larger than the bound are not
+  inside, so the outline reaches into concavities, and below the spacing
+  of the points themselves the shape falls apart into islands — which is
+  why the answer is a set of rings, wound so they read by the even-odd
+  rule the rest of the library reads rings by.
+- **`path/Trace.h`** — walking a vector field. `VectorField` is any
+  `glm::vec2(glm::vec2)`; `streamline()` carries a seed along one by the
+  classical fourth-order Runge-Kutta step and answers a `Polyline`, so
+  `resample`, `subdivide`, `smoothThrough`, `catmullRom`, `toPath`, the
+  lattice and the band all apply to a flow line unchanged.
+  `TraceOptions` holds the step, the total length, an optional bounds,
+  `bothWays` (which makes the seed the middle of the line rather than its
+  start) and the speed below which a field has no direction. `flow()` is
+  the one adapter this library ships, turning a `core::noise::Field` into
+  a direction as an `Angle`, as its `Gradient` or as its `Curl` — three
+  genuinely different pictures of one noise, since a gradient field never
+  circulates and a curl field never converges.
+- **`path/Symmetry.h`** — repeating a figure into its own copies.
+  `Symmetry` is a rotation (`order`, `start`, `sweep`) about a `centre`, a
+  reflection (`mirror`, `mirrorAngle`) through it, and a translation
+  lattice (`cellU`, `cellV`, `repeatU`, `repeatV`) — three independent
+  things that multiply, defaulting to the identity so each switches one
+  repetition on without disturbing the others. `copies()` answers the
+  matrices themselves, or the polyline, the point set or the path under
+  each of them; the lattice is outermost, so drawing them in order lays a
+  whole rosette down per cell. `wallpaper()` names the plane groups this
+  value expresses EXACTLY — those whose point group is one rotation, or
+  one rotation and one mirror, about a single centre. The groups built on
+  glide reflections are not named rather than named and approximated.
+- **`path/Cells.h`** — the substrate every cellular automaton and
+  reaction-diffusion shares. `Cells<T>` is a rectangle of cells with a
+  spare: `at()` reads and writes a cell, `read()` reads one through the
+  `Edge` rule (`Clamp`, `Wrap`, or a stated `Constant` outside), and
+  `step(rule)` calls `rule(sheet, x, y)` for every cell, writing the
+  spare and swapping at the end — so nothing a rule reads has been
+  written by its own pass and the order the cells are walked in cannot
+  change the answer. THE RULES ARE NOT HERE: a fire, a slime mould and
+  Conway's life share this buffer and share nothing else, so a catalogue
+  of rules would be a catalogue of somebody else's pictures.
 - **`path/Contour.h`** — a path's sub-paths by arc length. `Contour::of()`
   splits a path (skipping zero-length contours); `length()`, `closed()`,
   `at()`, `around()`, `segment()`/`appendSegment()`, and `corners()`, which
@@ -823,13 +908,13 @@ of it.
 
 ### The operators
 
-`pop::Op` is a variant over twenty-two operator values, and `pop::Chain`
+`pop::Op` is a variant over twenty-five operator values, and `pop::Chain`
 is a vector of them. Generators seed a chain: `SplineScatter` (points along a
 window of a closed loop), `MeshScatter` (points on a formed model's
 faces) and `PointSet` (an existing `Cloud` — an import's `asCloud()`, a
 previous cook — every lane riding in as an attribute, so a Houdini group
 arrives as a mask under its own name). Filters rewrite attributes in place: `Jitter`, `Noise`, `Ramp`,
-`Vary`, `LookAt`, `Math`, `Relax`, `Fill`, `Atlas`, `Lookup`, `Affine`
+`Vary`, `LookAt`, `Math`, `Smooth`, `Fill`, `Atlas`, `Lookup`, `Affine`
 (any `mat4` on a position or a direction lane), `Peak` (push along a
 direction lane), `Deform` (twist, taper or bend about an axis), `Mix`
 (blend two lanes into a third by a constant or a lane) and `Normal` (make
@@ -838,7 +923,20 @@ outward from a centre or inward). `Select` is the selector: it writes a
 mask lane from a sphere or box region, feathered at its edge and combined
 into what the lane already holds (replace, union, intersect, subtract),
 and `Delete` is its other half — it drops the points a mask names, which
-is the one operator that changes the count. `Promote` and `Sort` are the
+is the one operator that changes the count. Four operators read points
+they do not own, each over `path::Neighbours`: `Smooth` eases a lane
+toward the midpoint of the two beside it IN THE CHAIN, `Relax` pushes
+every point out of the way of the points within its radius IN SPACE
+(they share Houdini's word and are different operators, which is why they
+have different names here), `Cluster` groups the set by k-means in
+whatever metric its `weights` name and writes which group each point
+landed in, and `Transfer` carries one lane over from another cloud by a
+distance-weighted gather with a taper back at the edge of its reach.
+Beside them `connectAdjacent()` is a SINK, not an operator: a cloud is
+positions plus lanes, all parallel and one value per point, and an edge
+is neither — so the pairs are answered instead, which costs the cloud
+nothing and is the currency a line, a mesh edge and a spring all already
+want. `Promote` and `Sort` are the
 primitive-class and permutation-class operators.
 
 Every operator addresses attributes by name through `pop::AttrRef`, with
@@ -895,7 +993,7 @@ message naming both the operator and the runtime.
 | `Vary` | filter | kernel | kernel | |
 | `LookAt` | filter | kernel | kernel | |
 | `Math` | filter | kernel | kernel | |
-| `Relax` | filter | yes | declines | a point reads two it does not own, so one lane cannot be both what is read and what is written |
+| `Smooth` | filter | yes | declines | a point reads two it does not own, so one lane cannot be both what is read and what is written |
 | `Fill` | creator | kernel | kernel | |
 | `Atlas` | filter | kernel | kernel | |
 | `Promote` | primitive | yes | declines | addresses triangles a sink has not formed yet |
@@ -908,6 +1006,9 @@ message naming both the operator and the runtime.
 | `Mix` | filter | kernel | kernel | |
 | `Delete` | set | yes | declines | the count is what it changes, and a per-point map cannot change it |
 | `Normal` | filter | kernel | kernel | |
+| `Relax` | filter | yes | declines | a point reads the points near it in SPACE, which no per-point map can address |
+| `Cluster` | filter | yes | declines | as above, and the groups are decided over the whole set at once |
+| `Transfer` | filter | yes | declines | the points it reads are not even in the cloud being cooked |
 
 And the sinks, which stand on the cooked cloud:
 
@@ -1341,6 +1442,17 @@ and Slang backend are named — it is the one place a geometry target names
 a material one other than `path/blend`'s private colour link, and it
 reads a texture and an environment map for one thing only: putting their
 pixels on the device.
+
+**Nothing here draws, and nothing here has a colour.** A scatter answers
+points, a triangulation answers indices, a hull and a Voronoi cell and a
+streamline answer rings and lines, a symmetry answers matrices, and a
+cell sheet answers whatever the caller put in it. What is stamped on a
+point, what a cell is filled with, how thick a flow line is drawn and in
+what ink are all the caller's, and each of these answers in a type
+something else already knows how to paint. That is what lets one scatter
+serve a stipple, a packing and the seeds of a flock without any of the
+three being spelled here — and it is why a "voronoi" that came back as a
+picture would be a worse primitive than one that comes back as rings.
 
 It deliberately does not own a window, a Qt dependency, a
 component or scene kernel, an animation timeline, an image decoder, a
