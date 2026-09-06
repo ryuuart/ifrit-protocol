@@ -90,6 +90,7 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Gloss.h>
+#include <sigilcompose/kit/Grid.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -498,10 +499,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
    *  hazard-stripe ground, with a flavour line, a tick cluster and a tick
    *  rail. Four panels wear this identically. */
   Element panelHeader(const char* boldHalf, const char* restHalf,
-                      const char* flavor, int cluster, float w) {
+                      const char* flavor, int cluster) {
     using namespace tav;
     return box()
-        .width(Dim(w))
         .height(28)
         .row()
         .alignItems(Align::Center)
@@ -650,7 +650,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        .child(t("V4.PROPHECY", heavy(14, kNear, 80))));
 
     return box()
-        .left(Dim(0))
+        .left(Dim(24))
         .top(Dim(0))
         .width(1892)
         .height(40)
@@ -727,8 +727,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
     };
 
     Element panel = singleBevel(
-        box().width(596).height(174).column().padding(9).gap(6), hex(0x3E1013));
-    panel.key("audio")
+        box().column().padding(9).gap(6), hex(0x3E1013));
+    panel.key("audio").area("audio")
         .foreground(
             styles::Brackets{kCyan, 18, 3, 4,
                      shapes::Corner::TopLeft | shapes::Corner::TopRight})
@@ -763,14 +763,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
   Element navBar() {
     using namespace tav;
     Element bar = singleBevel(box()
-                                  .width(584)
-                                  .height(46)
                                   .row()
                                   .justify(Justify::SpaceEvenly)
                                   .alignItems(Align::Center)
                                   .padding(6, 0),
                               kChrome);
-    bar.fill(stripesLive).staggerChildren(40ms);  // the items arrive in order
+    bar.key("nav").area("nav").fill(stripesLive).staggerChildren(40ms);
     for (int i = 0; i < 7; ++i) {
       bar.child(box()
                     .column()
@@ -831,8 +829,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
     }
 
     return box()
-        .width(700)
-        .height(236)
+        .key("masthead").area("masthead")
         .column()
         .translateX(
             animate(motion::from(320.0f).to(0.0f), {420ms, &ch::easeOutQuint, 1850ms}))
@@ -1246,11 +1243,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
   Element mainframe() {
     using namespace tav;
-    Element body = box().grow(1).clip().child(hero(1174, 316));
+    Element body = box().grow(1).clip().child(hero(1178, 316));
     // The transition shutters: six slats over the viewport, each one's
     // cover fraction a bound value — the hero underneath is never
     // re-described, so its bloom bake survives every section change.
-    const float slatW = 1174.0f / 6.0f;
+    const float slatW = 1178.0f / 6.0f;
     for (int i = 0; i < 6; ++i)
       body.child(box()
                      .left(Dim((float)i * slatW))
@@ -1268,7 +1265,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                      .transformOrigin(0.5f, 0.0f));
     // The ACCESSING readout that rides the closed shutters.
     body.child(box()
-                   .left(Dim(1174.0f / 2 - 220))
+                   .left(Dim(1178.0f / 2 - 220))
                    .top(Dim(316.0f / 2 - 32))
                    .width(440)
                    .height(64)
@@ -1284,15 +1281,14 @@ struct TwoAdvancedV4 : sketch::Sketch {
                    .opacity(&shutterInfo));
 
     Element panel = doubleBevel(
-        box().width(1180).height(350).column().padding(3), kChrome, 3);
-    panel.key("mainframe")
+        box().column().padding(3), kChrome, 3);
+    panel.key("mainframe").area("mainframe")
         .translateY(
             animate(motion::from(70.0f).to(0.0f), {520ms, &ch::easeOutQuint, 2400ms}))
         .opacity(
             animate(motion::from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 2400ms}))
         .child(panelHeader("MAIN", "FRAME",
-                           "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 0,
-                           1174))
+                           "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 0))
         .child(body);
     return panel;
   }
@@ -1312,10 +1308,9 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
   // ---- teal monitor panels ------------------------------------------------
 
-  Element monitorBody(float w, float h) {
+  Element monitorBody(float h) {
     using namespace tav;
     return box()
-        .width(Dim(w))
         .height(Dim(h))
         .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
                                    {{0.00f, kPanelHi},
@@ -1504,7 +1499,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
                            .child(t("ARCHIVED", micro(9, kDate, 200)))));
 
     Element bodyArea =
-        monitorBody(690, 316).row().padding(11).gap(11).child(leftCol).child(
+        monitorBody(316).row().padding(11).gap(11).child(leftCol).child(
             copy);
     // the hazard wedge, bottom-left — the STATIC baked-tile pattern path
     bodyArea.child(at(box()
@@ -1522,28 +1517,28 @@ struct TwoAdvancedV4 : sketch::Sketch {
                           .opacity(0.45f),
                       0, 316 - 46, 150, 46));
     bodyArea.child(box()
-                       .left(Dim(690 - 11 - 116))
+                       .left(Dim(694 - 11 - 116))
                        .top(Dim(316 - 11 - 34))
                        .child(cta("LAUNCH", 116, 34, kPanelSh)));
 
     Element panel = doubleBevel(
-        box().width(696).height(350).column().padding(3), kChrome, 3);
-    panel.key("feature")
+        box().column().padding(3), kChrome, 3);
+    panel.key("feature").area("feature")
         .translateX(
             animate(motion::from(90.0f).to(0.0f), {500ms, &ch::easeOutQuint, 2600ms}))
         .opacity(
             animate(motion::from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 2600ms}))
-        .child(panelHeader("FEATURE", " SYSTEM", "LATEST TRANSMISSION", 1, 690))
+        .child(panelHeader("FEATURE", " SYSTEM", "LATEST TRANSMISSION", 1))
         .child(bodyArea);
     return panel;
   }
 
   /** The entry column alone, so setup() can measure its laid-out height
    *  against the well and derive the real scroll overflow. kPressWellW is
-   *  the width the entries wrap at inside the well: the 690 monitor body
+   *  the width the entries wrap at inside the well: the 694 monitor body
    *  less its two 11 px paddings, the 8 px gap, the 16 px scrollbar and
    *  the clip's two 9 px paddings. */
-  static constexpr float kPressWellW = 690 - 2 * 11 - 8 - 16 - 2 * 9;
+  static constexpr float kPressWellW = 694 - 2 * 11 - 8 - 16 - 2 * 9;
   /** The row the well and its bar share: 376 less the two 11 px paddings,
    *  the 9 px column gap and the 34 px footer row. */
   static constexpr float kPressRowH = 376 - 2 * 11 - 9 - 34;
@@ -1648,7 +1643,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .gap(3);
 
     Element bodyArea =
-        monitorBody(690, 376)
+        monitorBody(376)
             .column()
             .padding(11)
             .gap(9)
@@ -1676,13 +1671,13 @@ struct TwoAdvancedV4 : sketch::Sketch {
                        .child(cta("ARCHIVES", 116, 34, kPanelSh)));
 
     Element panel = doubleBevel(
-        box().width(696).height(410).column().padding(3), kChrome, 3);
-    panel.key("press")
+        box().column().padding(3), kChrome, 3);
+    panel.key("press").area("press")
         .translateY(
             animate(motion::from(60.0f).to(0.0f), {420ms, &ch::easeOutQuint, 3250ms}))
         .opacity(
             animate(motion::from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 3250ms}))
-        .child(panelHeader("PRESS", " UPDATES", "STUDIO WIRE", 2, 690))
+        .child(panelHeader("PRESS", " UPDATES", "STUDIO WIRE", 2))
         .child(bodyArea);
     return panel;
   }
@@ -1846,15 +1841,14 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .child(auxView());
 
     Element panel = doubleBevel(
-        box().width(1180).height(168).column().padding(3), kChrome, 3);
-    panel.key("aux")
+        box().column().padding(3), kChrome, 3);
+    panel.key("aux").area("aux")
         .translateY(
             animate(motion::from(56.0f).to(0.0f), {400ms, &ch::easeOutQuint, 3100ms}))
         .opacity(
             animate(motion::from(0.0f).to(1.0f), {300ms, &ch::easeOutQuad, 3100ms}))
         .child(panelHeader("AUXILIARY", " PANEL",
-                           "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 3,
-                           1174))
+                           "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 3))
         .child(box()
                    .grow(1)
                    .row()
@@ -1942,14 +1936,12 @@ struct TwoAdvancedV4 : sketch::Sketch {
     };
 
     Element row = singleBevel(box()
-                                  .width(1892)
-                                  .height(100)
                                   .row()
                                   .alignItems(Align::Center)
                                   .padding(14, 0)
                                   .gap(18),
                               hex(0x2E0B0D));
-    row.key("subsys")
+    row.key("subsys").area("subsys")
         .background(
             styles::Overlay{hazard.material(), SkBlendMode::kSrcOver, 0.16f})
         .opacity(
@@ -2013,13 +2005,11 @@ struct TwoAdvancedV4 : sketch::Sketch {
   Element legalStrip() {
     using namespace tav;
     return box()
-        .width(1892)
-        .height(90)
         .column()
         .padding(6, 8)
         .alignItems(Align::Center)
         .gap(4)
-        .key("legal")
+        .key("legal").area("legal")
         .opacity(
             animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3750ms}))
         .child(
@@ -2115,10 +2105,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
       // the SWF as a plain image, monochrome oxblood, no live states.
       // Everything the procedural fallback rebuilds is already in it.
       return box()
-          .width(1892)
-          .height(220)
           .fill(stretchFill(footerGif, 1892, 220))
-          .key("dock")
+          .key("dock").area("dock")
           .opacity(
               animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3850ms}))
           .foreground(onEdges(
@@ -2127,8 +2115,6 @@ struct TwoAdvancedV4 : sketch::Sketch {
     }
     Element strip =
         box()
-            .width(1892)
-            .height(220)
             .fill(mskia::Paint::blend(
                 {{mskia::Paint::linearUnit(
                       {0, 0}, {0, 1}, {{0.0f, kD5}, {0.45f, kD2}, {1.0f, kD1}}),
@@ -2139,7 +2125,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
             .alignItems(Align::Center)
             .padding(14, 12)
             .gap(12)
-            .key("dock")
+            .key("dock").area("dock")
             .opacity(
                 animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad, 3850ms}))
             .foreground(onEdges(
@@ -2389,28 +2375,40 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
   // =========================================================================
 
-  /** THE PAGE, and what is NOT on it. The reference carries MAINFRAME,
-   *  FEATURE SYSTEM, AUXILIARY PANEL, PRESS UPDATES and SUB SYSTEM, and
-   *  then a large field of empty oxblood below the fold. That emptiness
-   *  is the composition: five panels in the top two thirds and nothing
-   *  under them is what makes the page read as an interface rather than
-   *  as a dashboard, and a panel invented to fill the space costs exactly
-   *  that. */
+  /** THE PAGE: one grid, the panels on it, the strip underneath. */
   Element describe() {
     using namespace tav;
-    Element stage =
-        box().left(Dim(24)).top(Dim(0)).width(1892).height(Dim(1530));
-    stage.child(statusBar());
-    stage.child(at(audioModule(), 0, 48, 596, 174));
-    stage.child(at(navBar(), 604, 48, 584, 46));
-    stage.child(at(masthead(), 1192, 8, 700, 236));
-    stage.child(at(mainframe(), 0, 246, 1180, 350));
-    stage.child(at(featureSystem(), 1196, 246, 696, 350));
-    stage.child(at(auxiliary(), 0, 616, 1180, 168));
-    stage.child(at(pressUpdates(), 1196, 616, 696, 410));
-    stage.child(at(subSystem(), 0, 1090, 1892, 96));
-    stage.child(at(legalStrip(), 0, 1196, 1892, 96));
-    stage.child(at(footerDock(), 0, 1310, 1892, 220));
+    using namespace layouts;
+    // THE PICTURE BELOW IS THE WHOLE OF THE PAGE'S GEOMETRY, and no panel
+    // states a rectangle of its own: three columns over the 8 px gutter,
+    // and one row per horizontal edge the reference draws at.
+    Element sheet =
+        layout(Grid{.columns = {px(596), fr(1), px(700)},
+                    .rows = {px(48), px(46), px(128), px(24), px(350), px(20),
+                             px(168), px(242), px(64), px(96), px(10), px(96),
+                             px(18), px(220)},
+                    // clang-format off
+                    .areas = {".         .         masthead",
+                              "audio     nav       masthead",
+                              "audio     .         masthead",
+                              ".         .         masthead",
+                              "mainframe mainframe feature",
+                              ".         .         .",
+                              "aux       aux       press",
+                              ".         .         press",
+                              ".         .         .",
+                              "subsys    subsys    subsys",
+                              ".         .         .",
+                              "legal     legal     legal",
+                              ".         .         .",
+                              "dock      dock      dock"},
+                    // clang-format on
+                    .gap = {8, 0}})
+            .left(Dim(24)).top(Dim(0)).width(1892).height(Dim(1530));
+    for (Element panel :
+         {audioModule(), navBar(), masthead(), mainframe(), featureSystem(),
+          auxiliary(), pressUpdates(), subSystem(), legalStrip(), footerDock()})
+      sheet.child(panel);
 
     // sitebackground.gif is a 1×1600 strip tiled across the page. When
     // the real strip is loaded it IS the page — repeated in x, ×2 in y,
@@ -2443,7 +2441,8 @@ struct TwoAdvancedV4 : sketch::Sketch {
     }
     return page.child(rail(false))
         .child(rail(true))
-        .child(stage)
+        .child(statusBar())
+        .child(sheet)
         .child(bootOverlay());
   }
 
@@ -2457,7 +2456,7 @@ struct TwoAdvancedV4 : sketch::Sketch {
 
     // The hero's world, baked at twice the panel's pixels because a plate
     // is taken at up to twice the canvas.
-    heroPlate = bakeHero(2348, 632, ctx);
+    heroPlate = bakeHero(2356, 632, ctx);
 
     // --- the production shell bitmaps, from the restoration host ----------
     // SigilIO's https path caches on disk (CacheFirst), so only the
