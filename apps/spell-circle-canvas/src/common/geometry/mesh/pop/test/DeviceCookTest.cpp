@@ -319,7 +319,7 @@ TEST(DevicePop, TheKernelAndTheRuntimeAgreeOnWhatHasOne) {
   const pop::Runtime runtime = pop::deviceRuntime(*on);
   namespace kernel = geometry::mesh::kernel;
   const pop::Op jitter = pop::Jitter{};
-  const pop::Op relax = pop::Relax{};
+  const pop::Op relax = pop::Smooth{};
   EXPECT_TRUE(kernel::has(jitter));
   EXPECT_FALSE(kernel::has(relax));
   EXPECT_EQ(runtime->supports(jitter), kernel::has(jitter));

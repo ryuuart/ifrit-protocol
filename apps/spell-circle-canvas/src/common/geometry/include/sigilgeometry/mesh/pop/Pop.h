@@ -141,18 +141,23 @@ struct Math {
   std::string mask;
   bool operator==(const Math&) const = default;
 };
-/** Filter: neighborhood smoothing — each point eases toward its
- *  chain-order neighbors' midpoint (ends clamp). It heals Noise
- *  kinks before a swept sink so parallel-transport frames stop
- *  tearing. Double-buffered, so order can't leak — which is also why
- *  it has no per-point kernel: a point reads two it does not own, so
- *  one lane cannot be both what is read and what is written. */
-struct Relax {
+/** Filter: CHAIN-ORDER SMOOTHING — each point eases toward the midpoint
+ *  of the two beside it IN THE CHAIN (ends clamp). It heals Noise kinks
+ *  before a swept sink so parallel-transport frames stop tearing.
+ *  Double-buffered, so order can't leak — which is also why it has no
+ *  per-point kernel: a point reads two it does not own, so one lane
+ *  cannot be both what is read and what is written.
+ *
+ *  It is not `Relax`, and the two are not variants of one operator: this
+ *  one reads the neighbours a SORT decides and works on any lane, and
+ *  that one reads the neighbours SPACE decides and works on positions.
+ *  A chain of points along a rail wants this; a scatter wants that. */
+struct Smooth {
   AttrRef lane = Lane::P;
   float strength = 0.5f;  ///< 0 = off, 1 = full midpoint
   int iterations = 1;
   std::string mask;
-  bool operator==(const Relax&) const = default;
+  bool operator==(const Smooth&) const = default;
 };
 /** Generator: scatter count points ON a formed model's surface.
  *  Seeds a chain from a Mesh — sweep a cable, scatter on it, form
@@ -225,7 +230,7 @@ struct Lookup {
  *  Chain ORDER is meaning here: the point sink draws in it (painter
  *  order for transparent sprites, which is what the Skia sink has
  *  instead of a depth buffer), the swept sinks thread their path
- *  through it, and Relax smooths along it. Sorting is therefore an
+ *  through it, and Smooth smooths along it. Sorting is therefore an
  *  authoring verb, not a display trick.
  *
  *  Host-only, and stated as a boundary rather than a gap: a
@@ -233,7 +238,7 @@ struct Lookup {
  *  want a sorting NETWORK — log^2(n) dispatches and a ping-pong —
  *  which is a different dispatch shape, not a different formula). A
  *  device executor declines any chain holding one, the way it
- *  declines Relax and Promote. */
+ *  declines Smooth and Promote. */
 struct Sort {
   AttrRef by = Lane::P;
   glm::vec4 weights = {0, 0, 1, 0};  ///< key = dot(by, weights)
@@ -401,12 +406,86 @@ struct Normal {
   std::string mask;
   bool operator==(const Normal&) const = default;
 };
+/** Filter: SPATIAL RELAXATION — every point pushed out of the way of the
+ *  points within `radius` of it, all of them at once, the pass repeated.
+ *  What turns a scatter that clumped into one that is evenly spread
+ *  without being a lattice, and the operator a packing, a stipple and a
+ *  settled particle set all want.
+ *
+ *  It is POSITIONAL by definition: the neighbours are the ones space
+ *  decides and the thing moved is where the point is, so there is no
+ *  lane to name. Two coincident points have no direction to separate
+ *  along and are left where they are — inventing a bearing for them
+ *  would make the answer depend on the order the points are walked in.
+ *
+ *  Host-only, and a boundary rather than a gap: a point reads points it
+ *  does not own, which is the same reason `Smooth` has no kernel. A
+ *  device executor declines a chain holding one by name. */
+struct Relax {
+  float radius = 1;
+  int iterations = 4;
+  float strength = 0.5f;  ///< how much of each pass' push is taken, 0 to 1
+  std::string mask;
+  bool operator==(const Relax&) const = default;
+};
+/** Filter: K-MEANS CLUSTERING — the points grouped into `count` groups by
+ *  proximity in whatever metric `weights` names, with the group each
+ *  point landed in written to the `to` lane's .x as a whole number.
+ *
+ *  `weights` is what makes one operator serve every grouping a caller
+ *  wants: {1, 1, 1, 0} over P groups by POSITION, {0, 0, 0, 1} over a
+ *  colour lane groups by ALPHA, and an uneven set groups by a squashed
+ *  metric — near in x, anywhere in y. The centres start at `count` points
+ *  drawn from the set itself, seeded, so one seed is one grouping.
+ *
+ *  Host-only for the reason every neighbourhood operator is. */
+struct Cluster {
+  AttrRef from = Lane::P;
+  std::string to = "cluster";
+  glm::vec4 weights = {1, 1, 1, 0};
+  int count = 8;
+  uint32_t seed = 1;
+  int iterations = 8;
+  bool operator==(const Cluster&) const = default;
+};
+/** Filter: ATTRIBUTE TRANSFER — one lane carried over from ANOTHER cloud,
+ *  each destination point taking a distance-weighted average of the
+ *  nearest `maxSamples` source points within `radius`.
+ *
+ *  `maxSamples` of one is a plain nearest-neighbour lookup, which is what
+ *  "give every scattered point the colour of the nearest sample" is.
+ *  Above one the gather smooths across the sources, weighted by one over
+ *  the distance, so a sparse source does not band. `blendWidth` is the
+ *  outer fraction of the radius over which the answer tapers back to
+ *  what the destination lane already held, so a transfer that only
+ *  covers part of a cloud does not leave a hard edge where its reach
+ *  ends. A point with no source in range keeps its own value whatever
+ *  the blend width is.
+ *
+ *  Host-only for the reason every neighbourhood operator is, and doubly
+ *  so: the points read are not even in the cloud being cooked. */
+struct Transfer {
+  Cloud source;
+  /** Which lane travels. The lane is read on the source and written on
+   *  the destination under the same name; an empty name transfers
+   *  nothing. */
+  std::string lane;
+  /** How far a destination point looks. Zero looks nowhere. */
+  float radius = 0;
+  int maxSamples = 1;
+  /** The outer fraction of the radius the answer fades back over, 0 to
+   *  1. Zero is a hard edge at the radius. */
+  float blendWidth = 0;
+  std::string mask;
+  bool operator==(const Transfer&) const = default;
+};
 /** Variant ORDER IS ABI: SigilWorld maps each op's variant index to
  *  a compute PSO. New ops are APPENDED, never inserted. */
 using Op =
-    std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math, Relax,
+    std::variant<SplineScatter, Jitter, Noise, Ramp, Vary, LookAt, Math, Smooth,
                  MeshScatter, Fill, Atlas, Promote, Lookup, Sort, Select,
-                 Affine, Peak, Deform, Mix, PointSet, Delete, Normal>;
+                 Affine, Peak, Deform, Mix, PointSet, Delete, Normal, Relax,
+                 Cluster, Transfer>;
 using Chain = std::vector<Op>;
 
 /** The operator's own name — "Jitter", "Select", "PointSet" — for a
@@ -610,9 +689,32 @@ class Builder {
     m_chain.emplace_back(Promote{std::move(from), std::move(to)});
     return *this;
   }
-  /** Heal kinks: neighborhood smoothing on P (the sweep-saver). */
+  /** Heal kinks: chain-order smoothing on P (the sweep-saver). */
   Builder& smooth(float strength = 0.5f, int iterations = 2) {
-    m_chain.emplace_back(Relax{Lane::P, strength, iterations});
+    m_chain.emplace_back(Smooth{Lane::P, strength, iterations});
+    return *this;
+  }
+  /** Push the points apart until nothing is nearer than @p radius. */
+  Builder& relax(float radius, int iterations = 4, float strength = 0.5f) {
+    m_chain.emplace_back(Relax{radius, iterations, strength});
+    return *this;
+  }
+  /** Group the points into @p count clusters and write which one each
+   *  landed in to a lane. */
+  Builder& cluster(int count, std::string to = "cluster") {
+    Cluster op;
+    op.count = count;
+    op.to = std::move(to);
+    m_chain.emplace_back(std::move(op));
+    return *this;
+  }
+  /** Carry a lane over from another cloud, gathered within @p radius. */
+  Builder& transfer(Cloud source, std::string lane, float radius) {
+    Transfer op;
+    op.source = std::move(source);
+    op.lane = std::move(lane);
+    op.radius = radius;
+    m_chain.emplace_back(std::move(op));
     return *this;
   }
   /** SELECT: write a mask lane from a region. `.select("top",
@@ -892,6 +994,43 @@ void deformFrame(const Deform& op, glm::vec3* axis, glm::vec3* direction,
  *  quietly missing an operator cooks a plausible cloud that is not the
  *  described one. */
 Cloud cook(const Chain& chain, const Runtime& runtime = Runtime::cpu());
+
+/** WHICH POINTS ARE NEAR ENOUGH TO BE JOINED, and to what.
+ *
+ *  `radius` is how far a point looks. `maxPerPoint` bounds how many
+ *  neighbours one point may reach — zero is every neighbour in range, and
+ *  one is "join each point to whichever is nearest", which is what a
+ *  constellation of a scatter is. `pieceLane` names a scalar lane whose
+ *  .x says which piece a point belongs to; with `acrossPiecesOnly` set,
+ *  only points of DIFFERENT pieces are joined, which is what makes this
+ *  a bridge between islands rather than a mesh over one. An unnamed piece
+ *  lane leaves every point in the same piece, so `acrossPiecesOnly` must
+ *  be off for any pair to be found at all. */
+struct Connect {
+  float radius = 1;
+  int maxPerPoint = 0;
+  std::string pieceLane;
+  bool acrossPiecesOnly = false;
+  bool operator==(const Connect&) const = default;
+};
+
+/** THE CONNECTION SINK: the pairs of points within reach of each other,
+ *  each pair once, the lower index first.
+ *
+ *  It is a SINK and not an operator, and that is the whole answer to
+ *  where the edges live: a `Cloud` is positions plus lanes, all parallel
+ *  and all one value per point, and topology is neither — one edge is two
+ *  points, and a point may own any number of them. Growing the cloud a
+ *  second kind of storage would make every operator, every lane
+ *  accessor, every append and every executor answer for it, and the
+ *  operators would still not read it. Answering the pairs instead costs
+ *  the cloud nothing and is the currency every consumer of them already
+ *  wants: a line for the canvas, an edge for a mesh, a spring for a
+ *  solver. A caller that wants the pairs drawn walks them and draws
+ *  them; a caller that wants them cooked hands them to whatever forms
+ *  the primitives. */
+std::vector<glm::uvec2> connectAdjacent(const Cloud& cloud,
+                                        const Connect& connect);
 
 /** The mesh-forming sink: cook @p chain and stamp @p stamp at every
  *  point into ONE Mesh (dir orients, size scales, tint colors) — a

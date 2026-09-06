@@ -62,9 +62,22 @@ void eachField(OpRef& op, F&& f) {
         } else if constexpr (std::is_same_v<T, pop::Math>) {
           vec4("mul", o.mul);
           vec4("add", o.add);
-        } else if constexpr (std::is_same_v<T, pop::Relax>) {
+        } else if constexpr (std::is_same_v<T, pop::Smooth>) {
           f("strength", o.strength);
           f("iterations", o.iterations);
+        } else if constexpr (std::is_same_v<T, pop::Relax>) {
+          f("radius", o.radius);
+          f("iterations", o.iterations);
+          f("strength", o.strength);
+        } else if constexpr (std::is_same_v<T, pop::Cluster>) {
+          vec4("weights", o.weights);
+          f("count", o.count);
+          f("seed", o.seed);
+          f("iterations", o.iterations);
+        } else if constexpr (std::is_same_v<T, pop::Transfer>) {
+          f("radius", o.radius);
+          f("maxSamples", o.maxSamples);
+          f("blendWidth", o.blendWidth);
         } else if constexpr (std::is_same_v<T, pop::MeshScatter>) {
           f("count", o.count);
           f("seed", o.seed);
@@ -177,8 +190,14 @@ std::string_view pop::opName(const pop::Op& op) {
           return "LookAt";
         else if constexpr (std::is_same_v<T, pop::Math>)
           return "Math";
+        else if constexpr (std::is_same_v<T, pop::Smooth>)
+          return "Smooth";
         else if constexpr (std::is_same_v<T, pop::Relax>)
           return "Relax";
+        else if constexpr (std::is_same_v<T, pop::Cluster>)
+          return "Cluster";
+        else if constexpr (std::is_same_v<T, pop::Transfer>)
+          return "Transfer";
         else if constexpr (std::is_same_v<T, pop::MeshScatter>)
           return "MeshScatter";
         else if constexpr (std::is_same_v<T, pop::Fill>)

@@ -324,4 +324,100 @@ BENCHMARK(BM_Sweep_Hang)
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
 
+// ---------------------------------------------------------------------------
+// The neighbourhood operators
+
+/** A cloud of `count` points in a box whose edge grows with the cube root
+ *  of the count, so the density and therefore the neighbour count per
+ *  point stay put and the arms measure the operator rather than the
+ *  crowding. */
+Cloud neighbourhoodCloud(int count) {
+  const float edge = 40.0f * std::cbrt((float)count);
+  return points::scatterBox({0, 0, 0}, {edge, edge, edge}, count);
+}
+
+/** SPATIAL RELAXATION: one grid build and one gather per pass. */
+void BM_Relax(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Cloud cloud = neighbourhoodCloud(count);
+  const pop::Chain chain = pop::on(cloud).relax(60.0f, 4).chain();
+  for ([[maybe_unused]] auto iteration : state) {
+    Cloud out = pop::cook(chain);
+    benchmark::DoNotOptimize(out.positions.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Relax)
+    ->RangeMultiplier(10)
+    ->Range(1000, 100000)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity(benchmark::oN);
+
+/** K-MEANS: every point measured against every centre, each pass. */
+void BM_Cluster(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Cloud cloud = neighbourhoodCloud(count);
+  const pop::Chain chain = pop::on(cloud).cluster(16).chain();
+  for ([[maybe_unused]] auto iteration : state) {
+    Cloud out = pop::cook(chain);
+    benchmark::DoNotOptimize(out.positions.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Cluster)
+    ->RangeMultiplier(10)
+    ->Range(1000, 100000)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity(benchmark::oN);
+
+/** ATTRIBUTE TRANSFER: one index over the source, one gather per
+ *  destination point. */
+void BM_Transfer(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  // The source covers the SAME box as the destination, at a quarter the
+  // density: a source huddled in a corner would measure how far the
+  // search has to reach rather than what a gather costs.
+  const float edge = 40.0f * std::cbrt((float)count);
+  Cloud source =
+      points::scatterBox({0, 0, 0}, {edge, edge, edge}, count / 4 + 1, 9);
+  source.scalar("heat", 1.0f);
+  const pop::Chain chain =
+      pop::on(neighbourhoodCloud(count)).transfer(source, "heat", 80.0f).chain();
+  for ([[maybe_unused]] auto iteration : state) {
+    Cloud out = pop::cook(chain);
+    benchmark::DoNotOptimize(out.positions.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_Transfer)
+    ->RangeMultiplier(10)
+    ->Range(1000, 100000)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity(benchmark::oN);
+
+/** THE CONNECTION SINK: one index, one radius query per point. */
+void BM_ConnectAdjacent(benchmark::State& state) {
+  const int count = (int)state.range(0);
+  const Cloud cloud = neighbourhoodCloud(count);
+  for ([[maybe_unused]] auto iteration : state) {
+    std::vector<glm::uvec2> pairs =
+        pop::connectAdjacent(cloud, pop::Connect{80.0f});
+    benchmark::DoNotOptimize(pairs.data());
+  }
+  state.counters["points/s"] =
+      benchmark::Counter(count, benchmark::Counter::kIsIterationInvariantRate);
+  state.SetComplexityN(count);
+}
+BENCHMARK(BM_ConnectAdjacent)
+    ->RangeMultiplier(10)
+    ->Range(1000, 100000)
+    ->Unit(benchmark::kMillisecond)
+    ->Complexity(benchmark::oN);
+
 }  // namespace

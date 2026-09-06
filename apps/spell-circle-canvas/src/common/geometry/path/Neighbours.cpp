@@ -194,11 +194,23 @@ std::vector<uint32_t> Neighbours::nearest(glm::vec3 p, int k) const {
   // from a radius that would hold k points if the set were even keeps the
   // growth to a round or two.
   const auto want = (size_t)std::min<size_t>((size_t)k, m_points.size());
-  float radius = m_cell * std::cbrt((float)want / kPointsPerCell + 1.0f);
+  // The first radius: enough to hold `want` points if the set were even,
+  // and never less than the distance from the query to the grid itself —
+  // a query outside the points would otherwise spend a doubling per
+  // octave of empty space before reaching any of them.
+  const glm::vec3 far = m_origin + glm::vec3(m_dimensions) * m_cell;
+  const glm::vec3 outside = glm::max(glm::max(m_origin - p, p - far),
+                                     glm::vec3(0.0f));
+  float radius = glm::length(outside) +
+                 m_cell * std::cbrt((float)want / kPointsPerCell + 1.0f);
   std::vector<uint32_t> gathered;
-  const glm::vec3 extent =
-      glm::vec3(m_dimensions) * m_cell + glm::vec3(m_cell);
-  const float limit = glm::length(extent) + m_cell;
+  // How far the search may ever need to reach: to the far side of the
+  // grid from wherever the query is. Measured from the QUERY and not from
+  // the grid, because a query far outside the points still has a nearest
+  // one and must not be given up on before it is reached.
+  const glm::vec3 extent = glm::vec3(m_dimensions) * m_cell;
+  const float limit =
+      glm::length(p - m_origin) + glm::length(extent) + m_cell;
   while (true) {
     within(p, radius, gathered);
     if (gathered.size() >= want || radius >= limit) break;

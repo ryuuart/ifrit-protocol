@@ -75,6 +75,7 @@ target_include_directories(SigilGeometryMeshPop PUBLIC
 sigil_test(geometry_test
   SOURCES test/PointsTest.cpp test/PopChainsTest.cpp test/PopFieldsTest.cpp
           test/PopFiltersTest.cpp test/PopLanesTest.cpp
+          test/PopNeighboursTest.cpp
           test/PopSelectionTest.cpp test/PopSinksTest.cpp
           test/RuntimeTest.cpp test/SweepTest.cpp test/SweptShapesTest.cpp
   LIBRARIES SigilGeometryMeshPop SigilGeometryMeshCodec SigilGeometryKit

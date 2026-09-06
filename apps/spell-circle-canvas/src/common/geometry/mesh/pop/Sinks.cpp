@@ -5,9 +5,14 @@
  * the runtime cooked; what each does with it afterwards is its own.
  */
 
+#include <algorithm>
+#include <cstdint>
+#include <glm/geometric.hpp>
 #include <string>
+#include <vector>
 
 #include "sigilgeometry/mesh/pop/Pop.h"
+#include "sigilgeometry/path/Neighbours.h"
 
 namespace sigil::geometry::mesh {
 
@@ -74,6 +79,58 @@ Mesh pop::cookSweep(const pop::Chain& chain, const Polyline& profile,
   const Spline3 path = pathThrough(chain, closed, runtime);
   if (path.points.size() < 2) return {};
   return pop::sweep(path, profile, options);
+}
+
+std::vector<glm::uvec2> pop::connectAdjacent(const Cloud& cloud,
+                                             const pop::Connect& connect) {
+  std::vector<glm::uvec2> pairs;
+  if (cloud.positions.size() < 2 || !(connect.radius > 0)) return pairs;
+
+  const std::vector<float>* pieces =
+      connect.pieceLane.empty() ? nullptr : cloud.scalarIf(connect.pieceLane);
+  const path::Neighbours index(cloud.positions, connect.radius);
+  std::vector<uint32_t> found;
+  std::vector<uint32_t> keep;
+  for (uint32_t i = 0; i < (uint32_t)cloud.positions.size(); ++i) {
+    const glm::vec3 here = cloud.positions[i];
+    index.within(here, connect.radius, found);
+    keep.clear();
+    for (const uint32_t other : found) {
+      if (other == i) continue;
+      if (connect.acrossPiecesOnly) {
+        // Without a piece lane every point is in the same piece, so
+        // nothing is across one — which is what the caller asked for.
+        if (!pieces || (*pieces)[other] == (*pieces)[i]) continue;
+      }
+      keep.push_back(other);
+    }
+    if (connect.maxPerPoint > 0 && keep.size() > (size_t)connect.maxPerPoint) {
+      // Nearest first, and only as many as asked for. The whole list is
+      // ordered rather than the head selected, so which neighbours a point
+      // keeps does not depend on the order the grid answered in.
+      std::sort(keep.begin(), keep.end(), [&](uint32_t a, uint32_t b) {
+        const float da = glm::length(cloud.positions[a] - here);
+        const float db = glm::length(cloud.positions[b] - here);
+        return da != db ? da < db : a < b;
+      });
+      keep.resize((size_t)connect.maxPerPoint);
+    }
+    // Lower index first, so a pair found from both ends is one entry and
+    // a pair only one end kept — which `maxPerPoint` makes possible — is
+    // still one edge rather than none.
+    for (const uint32_t other : keep)
+      pairs.push_back(i < other ? glm::uvec2{i, other}
+                                : glm::uvec2{other, i});
+  }
+  std::sort(pairs.begin(), pairs.end(), [](glm::uvec2 a, glm::uvec2 b) {
+    return a.x != b.x ? a.x < b.x : a.y < b.y;
+  });
+  pairs.erase(std::unique(pairs.begin(), pairs.end(),
+                          [](glm::uvec2 a, glm::uvec2 b) {
+                            return a.x == b.x && a.y == b.y;
+                          }),
+              pairs.end());
+  return pairs;
 }
 
 }  // namespace sigil::geometry::mesh

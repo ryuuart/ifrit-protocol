@@ -112,6 +112,17 @@ TEST(Neighbours, NearestKComesBackNearestFirstAndMatchesASort) {
               glm::length(points[found[i]] - query));
 }
 
+TEST(Neighbours, NearestKReachesAQueryFarOutsideThePoints) {
+  const std::vector<glm::vec3> points = {{0, 0, 0}, {1, 0, 0}};
+  const Neighbours index(points);
+  // A query nowhere near the points still has a nearest one, and the
+  // growing search must reach it rather than give up at the grid's edge.
+  const std::vector<uint32_t> found =
+      index.nearest(glm::vec3{100000, 0, 0}, 1);
+  ASSERT_EQ(found.size(), 1u);
+  EXPECT_EQ(found[0], 1u);
+}
+
 TEST(Neighbours, NearestKAsksForMoreThanItHolds) {
   const std::vector<glm::vec3> points = cloud(7, 10.0f, 4);
   const Neighbours index(points);
