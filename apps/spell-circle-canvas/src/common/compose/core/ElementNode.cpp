@@ -3,24 +3,11 @@
  * copy-on-write handle.
  */
 
-#include <include/core/SkContourMeasure.h>
-#include <include/core/SkImageFilter.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkPathUtils.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkTypes.h>  // SkDebugf — the slot-rename diagnostic
-#include <include/effects/SkImageFilters.h>
-#include <include/effects/SkRuntimeEffect.h>
-#include <include/pathops/SkPathOps.h>
-#include <sigilmaterial/skia/SkiaCompiler.h>
 
-#include <algorithm>
-#include <cmath>  // std::isfinite — the geometry::path::profileOffset non-finite guard
-#include <cstdio>  // std::snprintf — variationDrive's effect key
+#include <memory>
 
 #include "ComposeInternal.h"
-#include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose {
 

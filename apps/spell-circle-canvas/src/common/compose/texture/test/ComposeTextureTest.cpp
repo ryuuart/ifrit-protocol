@@ -3,11 +3,8 @@
 // ordinary texture with every dial on it.
 
 #include <sigilcompose/texture/Texture.h>
-
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilskia/graphite/GraphiteContext.h>
-#endif
 
 #include "support/Host.h"
 
@@ -135,8 +132,6 @@ TEST(ComposeTexture, NoDeviceMeansNoDeviceImage) {
   EXPECT_FALSE((bool)scene->texture().deviceImage());
 }
 
-#ifdef SIGILCOMPOSE_TEXTURE_DEVICE
-
 TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   namespace skia = sigil::skia;
   namespace core = sigil::core;
@@ -171,7 +166,5 @@ TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   scene->render(plate(SkColors::kRed), 1.0 / 60.0);
   EXPECT_EQ(scene->version(), painted);
 }
-
-#endif
 
 }  // namespace

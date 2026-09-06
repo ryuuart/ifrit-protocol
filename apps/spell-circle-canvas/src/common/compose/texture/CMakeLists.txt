@@ -17,9 +17,6 @@ sigil_library(SigilComposeTexture
   PUBLIC SigilComposeCore SigilMaterialTexture SigilSkiaGraphite
          SigilCoreHardware
   PRIVATE SigilMotionClock)
-target_compile_definitions(SigilComposeTexture PUBLIC
-  SIGILCOMPOSE_TEXTURE_DEVICE=1)
-
 # The raster half runs anywhere; the device half skips without a GPU, so
 # the whole suite carries the label rather than pretending to cover it.
 sigil_test(compose_test

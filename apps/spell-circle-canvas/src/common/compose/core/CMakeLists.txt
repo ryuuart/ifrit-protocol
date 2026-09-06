@@ -3,8 +3,8 @@
 # Holds the element value and its authoring grammar, the keyed reconciler,
 # Yoga layout with SigilWeave-measured text, stacking paint with automatic
 # picture caching of provably-static subtrees, transitions and bindings, the
-# composer's queries, the material value, the streaming feed and the
-# instanced sprite leaf. Dressed
+# composer's queries, the streaming feed and the instanced sprite leaf.
+# Dressed
 # type, the stroke grammar and the mask gates reach the kernel through the
 # seam values a description carries (TextPainter, StrokeResolver,
 # MaskResolver); their engines are the typography and brush tiers'. The
@@ -13,11 +13,12 @@
 # target as the host of both. Links SigilCoreCache, SigilCoreComparable,
 # SigilCoreCompute, SigilCoreReconcile, SigilGeometryPath, SigilImage,
 # SigilMotion, SigilSkiaDraw, SigilWeave and Skia publicly, because those
-# types appear in its headers — the seam value's erasure, the glyph mixer
-# and the direct atlas draw the instanced leaf stamps through among them,
-# each named by the header that spells it rather than reached through a
-# neighbour that happens to link it; Yoga is private, because no header
-# spells it.
+# types appear in its headers — the seam value's erasure, the paint value
+# a fill carries, the glyph mixer and the direct atlas draw the instanced
+# leaf stamps through among them, each named by the header that spells it
+# rather than reached through a neighbour that happens to link it;
+# SigilMaterial and SigilMeasure are public for the same reason. Yoga is
+# private, because no header spells it.
 #
 # The translation units that see this directory — ComposeInternal.h,
 # ComposeRuntime.h and the paint-phase internals — are this target's and
@@ -37,7 +38,7 @@ sigil_library(SigilComposeCore
     ElementLayout.cpp ElementShape.cpp ElementMask.cpp ElementPaint.cpp
     ElementMarks.cpp ElementTransform.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
-    Effects.cpp Diagnostics.cpp
+    ElementNode.cpp Diagnostics.cpp
     # the composer and its phases
     Composer.cpp Reconcile.cpp ReconcileHost.cpp Layout.cpp Derive.cpp
     Transitions.cpp Query.cpp
