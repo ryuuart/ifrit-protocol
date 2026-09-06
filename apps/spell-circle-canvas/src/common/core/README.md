@@ -32,10 +32,10 @@ member a hand-written comparator does not mention.
 **Compute** — the arithmetic several libraries have to agree on to the
 bit: the seeded mixers a jitter draws from, the stream a caller holds
 one of them as and the distributions drawn out of it, the noise field
-read at a point, and the folds a cache key is accumulated with. The
-standard library is the whole of its dependencies, so a shader's CPU
-twin, a point cook, a text cache and a resource store all reach the same
-bodies.
+read at a point, the folds a cache key is accumulated with, and the
+normal form a set of runs over one axis is put in. The standard library
+is the whole of its dependencies, so a shader's CPU twin, a point cook,
+a text cache and a resource store all reach the same bodies.
 
 **Schedule** — where independent work runs. One parallel for over the
 task runtime, taking a count, a grain and a body, so the runtime is
@@ -59,7 +59,7 @@ catalog. One target per directory:
 | target | directory | holds |
 |--------|-----------|-------|
 | `SigilCoreComparable` | `comparable/` | comparable type erasure, the field pin |
-| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds |
+| `SigilCoreCompute` | `compute/` | the seeded mixers, the stream and its distributions, the noise field, the identifying folds, the interval normal form |
 | `SigilCoreSchedule` | `schedule/` | the parallel for and its grain, and the fan-out for calls that block |
 | `SigilCoreReconcile` | `reconcile/` | the reconciler, its memo, the inherited-value channel, the phase runner, the order declared reads imply |
 | `SigilCoreCache` | `cache/` | the cache policy, the settled-subtree proof, the stability release, the bake seam, the keyed rebuild guard |
@@ -413,10 +413,10 @@ points near each other read near values and the two agree about what a
 seed means. It is one value with props and not a header per kind:
 Perlin, simplex and cellular noise are the `kind`, fBm is `octaves` with
 `gain` and `lacunarity`, ridged and billowed noise is the `fold`, a
-tileable field is a `period`, a warped one is `warp`. Seven of those are
-plain numbers and three are small enumerations, so a look chosen once
-for a sheet is one of these carried rather than seven arguments
-repeated, and a memo keyed on one may be skipped.
+tileable field is a `period`, a warped one is `warp`. Eight of those are
+plain numbers and two are small enumerations, so a look chosen once for
+a sheet is one of these carried rather than ten arguments repeated, and
+a memo keyed on one may be skipped.
 
 **Three value noises, and only one pair of them agrees.**
 `FieldKind::Value` at one octave IS `geometry::path::valueNoise`, to the
@@ -451,15 +451,16 @@ describe and lands in the reading node's own description. Two of the
 values above are shaped for exactly that, and they are shaped for it on
 purpose:
 
-- **`chance::Chance` is a sheet's seed.** One number, and every element
-  asks for its own stream by a NAME, so the streams are independent, a
-  new element leaves the others' draws alone, and changing the one seed
-  re-rolls the whole sheet at once — which is otherwise an edit to every
-  seed literal in a drawing.
+- **`chance::Chance` is a sheet's seed.** The seed, the source drawn
+  from, and the `density` and `jitter` a scatter is set by; every element
+  asks for its own stream by a NAME, which is folded into the seed, so
+  the streams are independent, a new element leaves the others' draws
+  alone, and changing the one seed re-rolls the whole sheet at once —
+  which is otherwise an edit to every seed literal in a drawing.
 - **`noise::Field` is a sheet's grain.** Ten numbers that say what a
   grain, a drift or an erosion looks like, so one bound value makes a
-  whole sheet's paper agree instead of the seven arguments being
-  re-spelled at each call.
+  whole sheet's paper agree instead of ten arguments being re-spelled at
+  each call.
 
 `Env.h` binds two conditions on anything carried this way, and both are
 why these are structs of plain members with a defaulted `==`. A binding
@@ -743,22 +744,24 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release
-ctest --test-dir build -C Release --output-on-failure -R '^(Comparable|Compute|Schedule|Reconcile|Cache|Hardware)'
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 The library has one test binary, `core_test`, built from every feature's
 `test/` directory; ctest discovers one entry per CASE out of it, so a
-suite or a case is selected by name with no target behind it:
+suite or a case is selected by name with no target behind it —
+`-R '^Reconciler\.'` for the reconciler's cases, `-R '^Field\.'` for the
+field's:
 
-| suites | what they prove | label |
+| directory | suites | what they prove |
 |---|---|---|
-| `comparable/test/` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes | — |
-| `compute/test/` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance over a hundred thousand draws; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points | — |
-| `schedule/test/` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once, two at a time, and joining every thread even when one item fails | — |
-| `reconcile/test/` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering | — |
-| `cache/test/` | the settled-subtree proof, the stability release and the bake seam over a fake host | — |
-| `hardware/test/HardwareTest` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows | — |
-| `hardware/test/DeviceTest` (`HardwareDevice`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, and the levels a texture is built with | `gpu` |
+| `comparable/test/` | `Erased`, `Fields` | the erased value — empty, copies of one value, two comparable models compared by type and by value, the escape hatch equal to nothing but its own copies — and the field pin over aggregates of the shapes a comparable value takes |
+| `compute/test/` | `Fnv1a`, `Fnv1aFold`, `Combine`, `Intervals`, `Noise`, `Stream`, `Draws`, `Shapes`, `Sequences`, `Shuffle`, `Reservoir`, `Chance`, `Field` | the mixers and folds, pinned to the exact words and floats they produce; the stream, pinned to the mixer it names word for word and to a sequence for a seed, with each distribution's moments held to a tolerance; the field, pinned per kind and against a transcription of the value noise it agrees with, with the claims a pin cannot make — a period that really repeats, a range that octaves do not widen, and near values at near points |
+| `schedule/test/` | `ScheduleParallel`, `ScheduleConcurrentIo` | what the work seam promises: chunks disjoint and covering the range exactly once, the grain alone deciding when a range stays on its caller, a body's exception reaching the caller, and the blocking fan-out running every item once and joining every thread even when one item fails |
+| `reconcile/test/` | `Reconciler`, `Env`, `Phases`, `Reads` | the reconciler over a fake host, the inherited-value channel, the phase runner and the read ordering |
+| `cache/test/` | `CacheProof`, `CacheHost`, `CacheSettle`, `CacheBake`, `RebuildGuard`, `CachedValue`, `QuantizeKey` | the settled-subtree proof, the stability release and the bake seam over a fake host, and the keyed rebuild guard with the quantized key a continuous input is bucketed by |
+| `hardware/test/` | `HardwareHandle`, `MipChain` | what the device feature decides without a device: generation-checked handles, and how deep a mip chain a size allows |
+| `hardware/test/DeviceTest.mm` | `HardwareDevice` (`gpu`) | a real device — what it comes up with, what it refuses to adopt, when a destroyed resource is really gone, who releases an imported texture, fences as timelines, and the levels a texture is built with |
 
 The `HardwareDevice` suite exists on Apple alone and every case in it
 skips where there is no GPU, which is why it carries a label: a case that
@@ -772,10 +775,11 @@ One file per subject, named for what it asserts: `HashTest`,
 `compute/test/`; `ErasedTest` in `comparable/test/` (the
 erasure and the field pin are one subject — what a value needs before
 anything can decide it did not change — and a consumer takes both or
-neither); `ReconcilerTest`, `EnvTest`, `PhasesTest` and `ReadsTest` in
-`reconcile/test/`; `VolatilityTest`, `SettleTest` and `BakeTest` in
-`cache/test/`; `HandleTest`, `MipChainTest` and `DeviceTest` in
-`hardware/test/`.
+neither); `ParallelTest` and `ConcurrentIoTest` in `schedule/test/`;
+`ReconcilerTest`, `EnvTest`, `PhasesTest` and `ReadsTest` in
+`reconcile/test/`; `VolatilityTest`, `SettleTest`, `BakeTest` and
+`RebuildTest` in `cache/test/`; `HandleTest`, `MipChainTest` and
+`DeviceTest` in `hardware/test/`.
 
 A case asserts one thing a public header promises and is named that
 promise as a sentence, so a failure line reads as the claim that broke.
@@ -812,7 +816,9 @@ one binary, `core_bench`. The comparable arms time
 each erased comparison against the same question asked of the model
 directly, so what erasure costs is the difference between two arms;
 the compute arms time each mixer one call at a time, which is how
-they are spent; the schedule arms time a divided range over a body
+they are spent, and the stream, its distributions and the field the
+same way, so what a source or an octave costs is one arm beside
+another; the schedule arms time a divided range over a body
 that does nothing but touch its item, at three sizes, so what is measured
 is the split rather than any consumer's arithmetic; the reconcile and
 cache arms time the reconciler and the proof over the fake

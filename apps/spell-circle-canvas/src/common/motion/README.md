@@ -5,9 +5,11 @@ library gives you a monotonic frame clock that turns wall-clock time into
 well-behaved per-frame deltas, a ticker that steps a
 [Choreograph](https://github.com/sansumbrella/Choreograph) timeline plus
 any callbacks you register and tells you whether anything is still
-moving, and a small set of value types describing how a property changes
-over time. It links Choreograph and two header-only SigilCore leaves, so
-anything can use it without dragging in a graphics stack.
+moving, a small set of value types describing how a property changes
+over time, a schedule saying how a run of units shares one progress, and
+a point set that is stepped rather than read. It links Choreograph and
+two header-only SigilCore leaves, so anything can use it without
+dragging in a graphics stack.
 
 Namespace `sigil::motion`. One feature library per directory, linked by
 what a consumer uses; every public header lives under
@@ -576,8 +578,7 @@ From `apps/spell-circle-canvas`:
 ```sh
 python3 scripts/setup.py --config Release
 cmake --build build --config Release --target motion_test
-ctest --test-dir build -C Release --output-on-failure \
-  -R '^(Bind|Clock|Ticker|Transition|Animatable|Cascade)'
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`,
@@ -588,14 +589,16 @@ feature directory (`bind/`, `values/`, `clock/`, `physics/`,
 
 One test binary, `motion_test`, built from every feature's `test/`
 directory; ctest discovers one entry per CASE out of it, so a suite or a
-case is selected by name with no target behind it:
+case is selected by name with no target behind it — `-R '^Physics\.'`
+for the stepper's cases, `-R '^Cascade\.'` for the schedule's:
 
-| suites | what they prove | what the feature must not be able to link |
-|---|---|---|
-| `bind/test/` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, and the wiggle field | anything above the leaf — the record that carries a curve is the lowest thing here |
-| `clock/test/` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
-| `values/test/` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
-| `schedule/test/` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
+| directory | suites | what they prove | what the feature must not be able to link |
+|---|---|---|---|
+| `bind/test/` | `Bind`, `Stages`, `StagePairs`, `Envelopes`, `PeriodicEnvelopes`, `BindNoise` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, and the wiggle field | anything above the leaf — the record that carries a curve is the lowest thing here |
+| `clock/test/` | `FrameClock`, `Ticker` | one reading after another, pause, time scale and the stall ceiling; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
+| `values/test/` | `Values`, `Forms`, `Animated`, `Lanes`, `Oscillator`, `Sequence`, `Spring` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, the two signals read from a time alone, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
+| `physics/test/` | `Physics` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, and the same run reproduced from the same `dt` | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
+| `schedule/test/` | `Spread`, `Order`, `Cascade`, `CascadeOrdering` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
 
 No binary needs a GPU, a font, an asset or a network, so none of them
 carries a ctest label and none of them skips. No test in any of them reads
@@ -616,10 +619,12 @@ repeat every period, the four forms an `Animatable<float>` holds, and the
 orderings a cascade deals its ranks in.
 
 One file per subject, named for what it asserts: `bind/test/BindTest.cpp`;
-`clock/test/ClockTest.cpp`; `schedule/test/ScheduleTest.cpp`; and, in
-`values/test/`, `ValuesTest` (the values themselves), `AnimatedTest` (the
-held motion), `LanesTest` (the lane list) and `SpringTest` (the one value
-that carries its own velocity).
+`clock/test/ClockTest.cpp`; `physics/test/PhysicsTest.cpp`;
+`schedule/test/ScheduleTest.cpp`; and, in `values/test/`, `ValuesTest`
+(the values themselves), `AnimatedTest` (the held motion), `LanesTest`
+(the lane list), `OscillatorTest` and `SequenceTest` (the two signals
+read from a time alone) and `SpringTest` (the one value that carries its
+own velocity).
 
 Fixtures more than one test binary needs live in `test/support/` at the
 library root, and every motion test includes `"support/<Name>.h"`. Two
@@ -641,8 +646,11 @@ which is where any number about this library belongs. Its arms:
 `bind/bench/` (`BoundFloat::apply`
 per call under each envelope and the full chain, and the wiggle field by
 octave), `values/bench/` (the consumer's read of an `Animatable`
-lane per slot for each kind it can hold, and copying and constructing such
-a lane), `clock/bench/` (the frame clock's own step, the timeline
-stepped with N motions on it, and the derivation pass at N derived cells)
-and `schedule/bench/` (resolving a cascade for a frame's counts, and
-the per-unit local-time read).
+lane per slot for each kind it can hold, copying and constructing such
+a lane, and the two time-only signals read one call at a time),
+`clock/bench/` (the frame clock's own step, the timeline
+stepped with N motions on it, and the derivation pass at N derived
+cells), `physics/bench/` (a field of free particles, the same field
+flocking — which is where comparing every pair shows — and a chain of
+sticks under its constraint passes) and `schedule/bench/` (resolving a
+cascade for a frame's counts, and the per-unit local-time read).
