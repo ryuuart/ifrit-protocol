@@ -107,6 +107,8 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -314,6 +316,12 @@ constexpr float kNodeNu = -130.0f;  ///< the manoeuvre node's true anomaly
 
 // ---------------------------------------------------------------------------
 // Shape generators the kit does not ship.
+//
+// EVERY ONE IS A COMPARABLE VALUE. A raw `std::function<SkPath(SkSize)>`
+// compares equal to nothing, so every node wearing one re-patches and
+// re-records on each describe however still the glyph is; these are
+// functions of the few numbers they close over, so those numbers are the
+// key and the node settles on them.
 
 /** The manoeuvre-handle PADDLE: a shaft from the hub end out to a triangular
  *  head whose TIP is at the box's right edge, drawn pointing +x so the arm's
@@ -321,9 +329,9 @@ constexpr float kNodeNu = -130.0f;  ///< the manoeuvre node's true anomaly
  *  FRACTIONS of the box; the six arms here share a shaft width and a head
  *  in px across boxes of different lengths, which is a different
  *  parameterisation. */
-inline std::function<SkPath(SkSize)> paddle(float shaftW, float headW,
-                                            float headL) {
-  return [shaftW, headW, headL](SkSize s) {
+inline Shape paddle(float shaftW, float headW, float headL) {
+  return keyedShape(std::tuple(shaftW, headW, headL), [shaftW, headW,
+                                                       headL](SkSize s) {
     const float w = s.width(), h = s.height(), cy = h * 0.5f;
     const float hl = std::min(headL, w);
     const float sh = shaftW * 0.5f, hh = headW * 0.5f;
@@ -337,13 +345,13 @@ inline std::function<SkPath(SkSize)> paddle(float shaftW, float headW,
     b.lineTo(0, cy + sh);
     b.close();
     return b.detach();
-  };
+  });
 }
 
 /** Ring + centre dot: normal / antinormal point OUT of the map plane, and an
  *  arrow cannot say that honestly in flat 2D. Two contours, one outline. */
-inline std::function<SkPath(SkSize)> ringDot(float ringW, float dotR) {
-  return [ringW, dotR](SkSize s) {
+inline Shape ringDot(float ringW, float dotR) {
+  return keyedShape(std::tuple(ringW, dotR), [ringW, dotR](SkSize s) {
     const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
     const float r = std::min(cx, cy);
     SkPathBuilder b;
@@ -351,26 +359,31 @@ inline std::function<SkPath(SkSize)> ringDot(float ringW, float dotR) {
     b.addCircle(cx, cy, std::max(1.0f, r - ringW), SkPathDirection::kCCW);
     if (dotR > 0) b.addCircle(cx, cy, dotR);
     return b.detach();
-  };
+  });
 }
 
 /** The hollow variant of the same glyph — ring only, no dot. */
-inline std::function<SkPath(SkSize)> ringOnly(float ringW) {
-  return ringDot(ringW, 0);
-}
+inline Shape ringOnly(float ringW) { return ringDot(ringW, 0); }
 
-inline std::function<SkPath(SkSize)> circleOutline() {
-  return [](SkSize s) {
+/** THE CIRCLE INSCRIBED IN A BOX THAT IS NOT SQUARE — a true circle on the
+ *  short side, where `shapes::circle()` is the box's oval. Four marks on
+ *  this plate want it: a kerbal's two eyes and the pupils in them, drawn
+ *  in boxes a pixel or two taller than they are wide. Everything on a
+ *  square box is `shapes::circle()` and says so. */
+inline Shape inscribedCircle() {
+  return keyedShape(std::string_view("inscribed"), [](SkSize s) {
     SkPathBuilder b;
     b.addCircle(s.width() * 0.5f, s.height() * 0.5f,
                 std::min(s.width(), s.height()) * 0.5f);
     return b.detach();
-  };
+  });
 }
 
-/** Small diamond — the Ap/Pe/AN/DN map marker. */
-inline std::function<SkPath(SkSize)> diamond() {
-  return [](SkSize s) {
+/** Small diamond — the Ap/Pe/AN/DN map marker. Not `polygon(4, 45)`: that
+ *  one is CIRCUMSCRIBED about the box's inscribed circle and this one has
+ *  its vertices ON the box's edges, so the two are different sizes. */
+inline Shape diamond() {
+  return keyedShape(std::string_view("diamond"), [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(s.width() * 0.5f, 0);
     b.lineTo(s.width(), s.height() * 0.5f);
@@ -378,13 +391,13 @@ inline std::function<SkPath(SkSize)> diamond() {
     b.lineTo(0, s.height() * 0.5f);
     b.close();
     return b.detach();
-  };
+  });
 }
 
 /** The gold level chevron: KSP's is a wide flat V with two outrigger bars,
  *  read straight off the flight-view frame. */
-inline std::function<SkPath(SkSize)> chevron() {
-  return [](SkSize s) {
+inline Shape chevron() {
+  return keyedShape(std::string_view("chevron"), [](SkSize s) {
     const float w = s.width(), h = s.height();
     const float cx = w * 0.5f, cy = h * 0.5f;
     const float arm = w * 0.20f, drop = h * 0.34f, th = h * 0.16f;
@@ -403,7 +416,7 @@ inline std::function<SkPath(SkSize)> chevron() {
     b.addRect(
         {cx + w * 0.5f - arm, cy - th * 0.5f, cx + w * 0.5f, cy + th * 0.5f});
     return b.detach();
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -645,7 +658,7 @@ struct KspMapView : sketch::Sketch {
     Element g = stack();
 
     g.child(at(box()
-                   .shape(circleOutline())
+                   .shape(shapes::circle())
                    // light offset toward the upper-left: the centre of the
                    // ramp is displaced, which is what fakes sphere shading.
                    .fill(Paint::radial({kKerbinR * 0.60f, kKerbinR * 0.50f},
@@ -1143,7 +1156,7 @@ struct KspMapView : sketch::Sketch {
     // Bezel: silver ring, gently lit from the top-left.
     g.child(
         at(box()
-               .shape(circleOutline())
+               .shape(shapes::circle())
                .fill(Paint::linearUnit({0.15f, 0}, {0.85f, 1},
                                           {{0.0f, hex(0xC8CDD0)},
                                            {0.45f, hex(0x8B9296)},
@@ -1152,7 +1165,7 @@ struct KspMapView : sketch::Sketch {
                                   .strokeFill = Fill::color(hex(0x2A3034))}),
            kBall, kBezelR * 2, kBezelR * 2));
     g.child(
-        at(box().shape(circleOutline()).fill(Paint::solid(hex(0x171B1E))),
+        at(box().shape(shapes::circle()).fill(Paint::solid(hex(0x171B1E))),
            kBall, (kBallR + 5) * 2, (kBallR + 5) * 2));
 
     // The sphere itself.
@@ -1219,7 +1232,7 @@ struct KspMapView : sketch::Sketch {
                      .width(Dim(kBallR * 1.84f))
                      .height(Dim(2.8f))
                      .fill(Paint::solid(hex(0xFFFFFF))));
-      g.child(at(box().shape(circleOutline()).clip().child(std::move(deck)),
+      g.child(at(box().shape(shapes::circle()).clip().child(std::move(deck)),
                  kBall, kBallR * 2, kBallR * 2));
     }
 
@@ -1282,7 +1295,7 @@ struct KspMapView : sketch::Sketch {
     auto arcLabel = [&](const char* s, float atFrac, float sz, SkColor4f c,
                         float off) {
       return at(t(s, body(sz, c, 1.1f))
-                    .onPath(TextPath{.path = circleOutline(),
+                    .onPath(TextPath{.path = shapes::circle(),
                                      .at = atFrac,
                                      .align = TextPath::Align::Center,
                                      .offset = off,
@@ -1304,7 +1317,7 @@ struct KspMapView : sketch::Sketch {
     for (int i = 0; i < 4; ++i)
       ring.child(t(kHdg[i], bold(9.0f, alpha(hex(0xEAF4F8), 0.85f), 0.6f))
                      .inset(0)
-                     .onPath(TextPath{.path = circleOutline(),
+                     .onPath(TextPath{.path = shapes::circle(),
                                       .at = 0.75f + (float)i / 4.0f,
                                       .align = TextPath::Align::Center,
                                       .offset = 2.0f,
@@ -1442,6 +1455,11 @@ struct KspMapView : sketch::Sketch {
                         t(count, bold(8, hex(0xF6D488))))),
                 x + 4, py, 27, 27);
     };
+    // NOT `sketch::kit::meter`, and the difference is the artefact: that
+    // component sets a bar's name and its reading in a row ABOVE the bar,
+    // where a KSP resource gauge carries its name INSIDE the tank, over
+    // the fuel. Everything else about it is the same bound level scaled
+    // from its left edge over a cached bed.
     auto fuelBar = [&](float py, const ch::Output<float>* fill) {
       return at(box()
                     .fill(Paint::solid(hex(0x14181B)))
@@ -1503,7 +1521,7 @@ struct KspMapView : sketch::Sketch {
             .child(box()
                        .width(Dim(15))
                        .height(Dim(15))
-                       .shape(circleOutline())
+                       .shape(shapes::circle())
                        .fill(Paint::radialUnit({0.38f, 0.30f}, 1.0f,
                                                   {{0.0f, hex(0xE6FDD1)},
                                                    {0.5f, kGo},
@@ -1659,7 +1677,7 @@ struct KspMapView : sketch::Sketch {
     Element dial = stack().inset(0);
     dial.child(
         at(box()
-               .shape(circleOutline())
+               .shape(shapes::circle())
                .fill(Paint::radialUnit({0.4f, 0.32f}, 1.0f,
                                           {{0.0f, hex(0xF2F4F5)},
                                            {0.7f, hex(0xD3D8DB)},
@@ -1688,7 +1706,7 @@ struct KspMapView : sketch::Sketch {
                       .rotate(bind(&gforce).target(-118, 118)),
                   dc, 62, 62));
     dial.child(
-        at(box().shape(circleOutline()).fill(Paint::solid(hex(0x33393E))),
+        at(box().shape(shapes::circle()).fill(Paint::solid(hex(0x33393E))),
            dc, 7, 7));
     g.child(std::move(dial));
     return g;
@@ -1712,7 +1730,7 @@ struct KspMapView : sketch::Sketch {
                5, 5, W - 10, H - 34));
     // helmet
     g.child(at(box()
-                   .shape(circleOutline())
+                   .shape(shapes::circle())
                    .fill(Paint::radialUnit({0.36f, 0.28f}, 1.0f,
                                               {{0.0f, hex(0xFFFFFF)},
                                                {0.5f, hex(0xD3D8DB)},
@@ -1721,22 +1739,22 @@ struct KspMapView : sketch::Sketch {
     // face under the glass: green, because that is the one thing about a
     // kerbal nobody gets wrong
     g.child(at(box()
-                   .shape(circleOutline())
+                   .shape(shapes::circle())
                    .fill(Paint::radialUnit(
                        {0.4f, 0.32f}, 1.0f,
                        {{0.0f, hex(0x9FC45C)}, {1.0f, hex(0x5F8330)}})),
                60, 48, 64, 64));
     g.child(
-        at(box().shape(circleOutline()).fill(Paint::solid(hex(0xF4F4F0))),
+        at(box().shape(inscribedCircle()).fill(Paint::solid(hex(0xF4F4F0))),
            74, 62, 14, 17));
     g.child(
-        at(box().shape(circleOutline()).fill(Paint::solid(hex(0xF4F4F0))),
+        at(box().shape(inscribedCircle()).fill(Paint::solid(hex(0xF4F4F0))),
            96, 62, 14, 17));
     g.child(
-        at(box().shape(circleOutline()).fill(Paint::solid(hex(0x141414))),
+        at(box().shape(inscribedCircle()).fill(Paint::solid(hex(0x141414))),
            78, 68, 6, 7));
     g.child(
-        at(box().shape(circleOutline()).fill(Paint::solid(hex(0x141414))),
+        at(box().shape(inscribedCircle()).fill(Paint::solid(hex(0x141414))),
            100, 68, 6, 7));
     g.child(at(box()
                    .shape(shapes::sector(20, 140, 0.0f))
@@ -1799,7 +1817,7 @@ struct KspMapView : sketch::Sketch {
     using namespace ksp;
     Element g = stack();
     g.child(at(box()
-                   .shape(circleOutline())
+                   .shape(shapes::circle())
                    .fill(Paint::radialUnit({0.38f, 0.30f}, 1.0f,
                                               {{0.0f, hex(0xB8C0C6)},
                                                {0.55f, hex(0x66707A)},
@@ -1848,9 +1866,19 @@ struct KspMapView : sketch::Sketch {
 
     Element map = mapLayer(ctx);
 
-    // Restrained photographic bloom: bright-pass → small Gaussian → kPlus,
+    // Restrained photographic bloom: bright-pass -> small Gaussian -> kPlus,
     // over the map layer only (the LCD panels get their own local glow).
     // No scanlines, no backdrop distortion, no tiling.
+    //
+    // THE SECOND `mapLayer(ctx)` IS THE COST OF THE RECIPE, and it is not
+    // avoidable at this seam: a bright pass has to run over the finished
+    // layer and be composited BACK over it, which is two nodes, and a node
+    // is described by building it. `Effect::phosphorBloom` retains its own
+    // source and would need only one — measured on this canvas it is 379 ms
+    // a frame against 123, because it is twenty-four taps per pixel over
+    // the whole 1200x800 map where this is one pass and a 4 px Gaussian.
+    // The cheap composite wins here and the duplicate describe is what it
+    // costs.
     Element bloom =
         mapLayer(ctx)
             .effect(
