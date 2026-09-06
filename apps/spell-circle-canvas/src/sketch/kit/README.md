@@ -131,7 +131,7 @@ the tree away.
 | --- | --- |
 | `stage(ctx, Stage)` | the canvas, the ground and the capture moment in one call — the whole `CanvasSpec`, with the ground taken from the theme unless the stage names one |
 | `page(Page, content)` | the sheet over the whole canvas: title, subtitle and footer set in the theme's three registers, its margins, its ground and its hairline |
-| `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — and, with `corners` and a `keyline`, the PLATE a panel stands on |
+| `well(Well, surface)` | the fixed surface a specimen is shown in, on the theme's cell ground — with `corners` and a `keyline`, the PLATE a panel stands on, and with a `recess`, the hole punched in one |
 | `caption(measure, label, note, body)` | one captioned specimen in the theme's voice; `measure` is the cell's own width, the one distance a caption cannot inherit |
 | `cells(Run)` | a run of cells along one axis at the theme's gutter, each at its own width |
 | `columns(Columns)` | equal shares of the width, one per cell — what `cells` cannot do, because a fixed width does not know how wide the page is |
@@ -167,6 +167,12 @@ box: a rule centred on the boundary puts half its width outside, and a
 plate that is not the width it was given is the one thing a fixed surface
 may not be. `paddingY` is there because a plate is often set tighter down
 than across, which one distance cannot say.
+
+`recess` is the well read as a HOLE punched in what holds it rather than
+as a patch of ground on it: a shadow cast inside its own edge, and a hard
+sunken lip under that shadow — the blur says how deep the surface goes
+and the lip says where it breaks. Unset is flush, which is the specimen
+well.
 
 ### What announces something — `Heading.h`
 
@@ -270,7 +276,7 @@ returns.
 
 | | |
 | --- | --- |
-| `meter(Meter)` | a fraction along a bar, with a label over it at the left and its reading at the right; `level` is the bound spelling, scaled rather than sized, for a bar that moves every frame |
+| `meter(Meter)` | a fraction along a bar, with a label over it at the left and its reading at the right; `level` is the bound spelling, scaled rather than sized, for a bar that moves every frame; `keyline` and `inset` set it in a bezel |
 | `gauge(Gauge)` | the same reading around a dial, over `geometry::shapes::sector` |
 
 ```cpp
@@ -280,6 +286,10 @@ sketch::kit::meter({.fraction = load, .label = toU8("cache"),
 
 A live fraction is a re-describe rather than a binding: the filled part
 is a width, and a width is layout.
+
+`keyline` and `inset` make the rail a BEZELLED gauge — a line drawn
+inside its own box and a bar held off that line — where the same reading
+on a sheet is a bare bar.
 
 ### A window's share of what it scrolls — `Scrollbar.h`
 

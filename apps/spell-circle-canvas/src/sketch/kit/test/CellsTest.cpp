@@ -5,6 +5,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/brush/PixelStyles.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -79,6 +81,38 @@ TEST(SketchKitCells, APlateIsAGroundedWellWithCornersAndOneKeyline) {
                              .corners = 8,
                              .keyline = edge},
                             compose::box().child(subject()))));
+}
+
+/** A RECESSED well is the flush one with the shadow inside its edge and
+ *  the sunken lip under it — a hole punched in what holds it. */
+TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
+  const Fill ground = Fill::color({0.10f, 0.11f, 0.14f, 1});
+  const kit::Well::Recess hole{
+      .lipLight = SkColor4f{0.42f, 0.38f, 0.31f, 0.30f},
+      .lipDark = SkColor4f{0, 0, 0, 0.55f}};
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .width(compose::Dim(140))
+          .height(compose::Dim(90))
+          .clip()
+          .fill(ground)
+          .foreground(compose::styles::InnerShadow{hole.shade.colorValue,
+                                                   hole.offset, hole.blur})
+          .overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
+                                              hole.lipWidth,
+                                              /*sunken=*/true)),
+      kit::well({.width = compose::Dim(140),
+                 .height = compose::Dim(90),
+                 .ground = ground,
+                 .recess = hole})));
+  // …and it is not the flush well: the recess draws something.
+  EXPECT_FALSE(sameDrawing(kit::well({.width = compose::Dim(140),
+                                      .height = compose::Dim(90),
+                                      .ground = ground}),
+                           kit::well({.width = compose::Dim(140),
+                                      .height = compose::Dim(90),
+                                      .ground = ground,
+                                      .recess = hole})));
 }
 
 /** A plate set tighter down than across, which one distance cannot say. */

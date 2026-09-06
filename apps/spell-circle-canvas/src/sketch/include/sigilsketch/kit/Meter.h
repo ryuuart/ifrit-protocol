@@ -41,6 +41,18 @@ struct Meter {
   /** The filled part; unset is the theme's figure colour. */
   std::optional<Ground> bar;
   float corners = 0;
+  /** ONE HAIRLINE ROUND THE RAIL, over its track — the bezel a
+   *  heads-up gauge is set in, where the same reading on a sheet is a
+   *  bare bar. Unset draws none.
+   *
+   *  It is drawn INSIDE the rail's own box, the way a well's keyline is,
+   *  so a meter and the meter beside it stay the width they were given. */
+  std::optional<compose::Fill> keyline;
+  float keylineWidth = 1;
+  /** Between the rail's edge and the filled part, px. The gap a bezelled
+   *  gauge leaves so its bar never touches its frame; unset is none, which
+   *  is the bar that fills its rail. */
+  std::optional<float> inset;
 };
 
 /** THE METER.

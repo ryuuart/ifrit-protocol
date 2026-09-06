@@ -56,11 +56,49 @@ TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {
                        .clip()
                        .child(compose::box()
                                   .width(compose::pct(40))
+                                  .height(compose::pct(100))
                                   .fill(Fill::color(house.palette.figure))
                                   .alignSelf(compose::Align::Stretch));
   EXPECT_TRUE(
       sameDrawing(std::move(byHand),
                   kit::meter({.fraction = 0.4f, .width = compose::Dim(220)})));
+}
+
+/** THE FILL STATES ITS OWN HEIGHT. A rail is laid out in whichever
+ *  direction the tree around it runs, and a fill that took its height
+ *  from the cross-axis stretch would be a hairline wherever that axis is
+ *  the horizontal one. */
+TEST(SketchKitMeter, TheBarFillsItsRailInsideAColumn) {
+  const SkColor4f figure = kit::houseTheme().palette.figure;
+  SkBitmap drawn = Drawn(compose::box().column().child(
+                             kit::meter({.fraction = 0.5f,
+                                         .width = compose::Dim(200),
+                                         .height = compose::Dim(20)})))
+                       .pixels();
+  const SkColor4f pixel = drawn.getColor4f(40, 10);
+  EXPECT_NEAR(pixel.fR, figure.fR, 0.02f);
+  EXPECT_NEAR(pixel.fG, figure.fG, 0.02f);
+}
+
+/** A KEYLINE AND AN INSET make the rail a bezelled gauge: the line is
+ *  drawn inside the rail's own box and the fill is held off it. */
+TEST(SketchKitMeter, ABezelHoldsTheFillOffTheFrame) {
+  const SkColor4f figure = kit::houseTheme().palette.figure;
+  SkBitmap drawn = Drawn(kit::meter({.fraction = 1.0f,
+                                     .width = compose::Dim(200),
+                                     .height = compose::Dim(24),
+                                     .keyline = Fill::color(SkColors::kRed),
+                                     .keylineWidth = 2.0f,
+                                     .inset = 6.0f}))
+                       .pixels();
+  // Inside the inset the bar; on the edge the keyline, and neither is
+  // the other.
+  const SkColor4f inside = drawn.getColor4f(100, 12);
+  EXPECT_NEAR(inside.fR, figure.fR, 0.02f);
+  EXPECT_NEAR(inside.fG, figure.fG, 0.02f);
+  const SkColor4f edge = drawn.getColor4f(100, 1);
+  EXPECT_GT(edge.fR, 0.5f);
+  EXPECT_LT(edge.fG, 0.3f);
 }
 
 /** A fraction outside 0..1 is clamped: a bar past its own end is a

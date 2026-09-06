@@ -6,6 +6,7 @@
  * arranged: along a line, into equal shares, and into a grid.
  */
 
+#include <include/core/SkPoint.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
@@ -46,6 +47,25 @@ struct Well {
    *  the one thing a fixed surface may not do. */
   std::optional<compose::Fill> keyline;
   float keylineWidth = 1;
+  /** THE RECESS: what makes a well read as a HOLE PUNCHED in what holds
+   *  it rather than as a patch of ground on it — a shadow cast inside the
+   *  well's own edge, and the lip round that edge. Unset is flush, which
+   *  is the specimen well. */
+  struct Recess {
+    /** The shadow inside the edge, its offset and how far it reaches. */
+    compose::Fill shade = compose::Fill::color({0, 0, 0, 0.75f});
+    SkVector offset{0, 2};
+    float blur = 3;
+    /** The lip's lit line and its shaded one, drawn SUNKEN — the hard
+     *  edge under the blur, which says where the surface breaks while the
+     *  blur says how deep it goes. Unset draws no lip, for the recess
+     *  that is all softness. */
+    std::optional<SkColor4f> lipLight;
+    std::optional<SkColor4f> lipDark;
+    float lipWidth = 1;
+    bool operator==(const Recess&) const = default;
+  };
+  std::optional<Recess> recess;
 };
 
 /** @p surface, sized, grounded, padded and clipped as @p spec and the

@@ -54,6 +54,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -351,23 +352,22 @@ inline float cellX(int c) { return cellRect(c, 0).fLeft; }
 inline float cellY(int r) { return cellRect(0, r).fTop; }
 inline float spanW(int cells) { return cellRect(0, 0, cells, 1).width(); }
 
-/** A well: the two-stop ramp under an inner shadow that makes a rectangle
- *  read as a hole punched in the panel. */
+/** A well: the two-stop ramp in the kit's recessed well, which is the
+ *  shadow inside the edge and the hard sunken lip under it — the blur
+ *  says the depth and the lip says where the surface breaks. */
 inline Element well(float w, float h, float alpha = 1.0f) {
-  return box()
-      .width(Dim(w))
-      .height(Dim(h))
-      .corners({2})
-      .fill(
-          Paint::linear({0, 0}, {0, h},
-                        {{0.0f, {kWellLo.fR, kWellLo.fG, kWellLo.fB, alpha}},
-                         {1.0f, {kWellHi.fR, kWellHi.fG, kWellHi.fB, alpha}}}))
-      .foreground(styles::InnerShadow{{0, 0, 0, 0.75f}, {0, 2}, 3})
-      // …and the hard edge under it: one light line and one dark line,
-      // SUNKEN, which is what a hole has always been on a screen of this
-      // era. The blur says the depth and this says the lip.
-      .overlay(styles::bevelPair({0.42f, 0.38f, 0.31f, 0.30f}, {0, 0, 0, 0.55f},
-                                 1.0f, /*sunken=*/true));
+  return sketch::kit::well(
+      {.width = Dim(w),
+       .height = Dim(h),
+       .ground =
+           Paint::linear({0, 0}, {0, h},
+                         {{0.0f, {kWellLo.fR, kWellLo.fG, kWellLo.fB, alpha}},
+                          {1.0f, {kWellHi.fR, kWellHi.fG, kWellHi.fB, alpha}}}),
+       .clip = false,
+       .corners = 2,
+       .recess = sketch::kit::Well::Recess{
+           .lipLight = SkColor4f{0.42f, 0.38f, 0.31f, 0.30f},
+           .lipDark = SkColor4f{0, 0, 0, 0.55f}}});
 }
 
 /** The bronze-framed stone panel every part of this UI sits in. */

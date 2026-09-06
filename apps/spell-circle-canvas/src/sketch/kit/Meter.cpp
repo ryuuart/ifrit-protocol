@@ -1,3 +1,4 @@
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/kit/Meter.h>
@@ -28,16 +29,25 @@ compose::Element meter(const Meter& bar) {
   if (bar.width.unit != Dim::Unit::Auto) rail.width(bar.width);
   rail.height(bar.height.value_or(Dim(look.spacing.barHeight)));
   if (bar.corners > 0) rail.corners(Corners{bar.corners});
+  if (bar.keyline)
+    rail.stroke(compose::stroke(bar.keylineWidth, *bar.keyline,
+                                compose::PathFormat::Align::Inner));
+  if (bar.inset && *bar.inset > 0) rail.padding(*bar.inset);
   if (bar.level) {
     // Scaled from the left edge rather than sized: the bed keeps its
     // recording and only the transform moves.
-    Element run = box().absolute().inset(0);
+    Element run = box().absolute().inset(bar.inset.value_or(0.0f));
     barPaint.paint(run);
     run.transformOrigin(0, 0.5f).scaleX(*bar.level);
     if (bar.corners > 0) run.corners(Corners{bar.corners});
     rail.child(std::move(run));
   } else if (filled > 0) {
-    Element run = box().width(compose::pct(filled * 100));
+    // The height is stated rather than left to the cross-axis stretch:
+    // a rail is laid out in whichever direction its caller's tree runs,
+    // and a fill that took its height from that would be a hairline on
+    // half of them.
+    Element run =
+        box().width(compose::pct(filled * 100)).height(compose::pct(100));
     barPaint.paint(run);
     run.alignSelf(Align::Stretch);
     if (bar.corners > 0) run.corners(Corners{bar.corners});

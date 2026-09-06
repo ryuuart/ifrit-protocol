@@ -1,4 +1,6 @@
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Grid.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -33,6 +35,15 @@ compose::Element well(const Well& spec, compose::Element surface) {
   if (spec.keyline)
     plate.stroke(compose::stroke(spec.keylineWidth, *spec.keyline,
                                  compose::PathFormat::Align::Inner));
+  if (spec.recess) {
+    const Well::Recess& hole = *spec.recess;
+    plate.foreground(compose::styles::InnerShadow{hole.shade.colorValue,
+                                                  hole.offset, hole.blur});
+    if (hole.lipLight && hole.lipDark)
+      plate.overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
+                                               hole.lipWidth,
+                                               /*sunken=*/true));
+  }
   return plate;
 }
 

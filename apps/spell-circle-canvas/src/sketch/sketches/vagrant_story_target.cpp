@@ -100,6 +100,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/kit/Surface.h>
+#include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/style/Type.h>
@@ -487,27 +488,24 @@ compose::Element plate(float x, float y, float w, float h, float alpha) {
   return e;
 }
 
-/** A gauge: a frame, a filled bar and nothing else. The reference's are
- *  heavy and sit hard in the corner. */
+/** A gauge: a bezel, a filled bar and nothing else. The reference's are
+ *  heavy and sit hard in the corner, which is the kit's meter with its
+ *  keyline set and its bar held off the frame. */
 compose::Element gauge(float x, float y, float w, float h, float fraction,
                        SkColor4f colour) {
-  compose::Element frame =
-      compose::box()
-          .width(w)
-          .height(h)
-          .fill(SkColor4f{0.031f, 0.039f, 0.071f, 0.86f})
-          .stroke(compose::decorations::border(
-              2.0f,
-              compose::Fill::color({kBone.fR, kBone.fG, kBone.fB, 0.72f})));
-  compose::Element fill =
-      compose::box()
-          .width(std::max(0.0f, std::min(1.0f, fraction)) * (w - 8.0f))
-          .height(h - 8.0f)
-          .fill(colour);
-  fill.absolute().left(4.0f).top(4.0f);
-  frame.child(std::move(fill));
-  frame.absolute().left(x).top(y);
-  return frame;
+  return sketch::kit::meter(
+             {.fraction = fraction,
+              .width = compose::Dim(w),
+              .height = compose::Dim(h),
+              .track = compose::Fill::color({0.031f, 0.039f, 0.071f, 0.86f}),
+              .bar = compose::Fill::color(colour),
+              .keyline =
+                  compose::Fill::color({kBone.fR, kBone.fG, kBone.fB, 0.72f}),
+              .keylineWidth = 2.0f,
+              .inset = 4.0f})
+      .absolute()
+      .left(x)
+      .top(y);
 }
 
 }  // namespace vs
