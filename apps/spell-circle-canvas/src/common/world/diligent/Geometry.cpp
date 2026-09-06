@@ -484,14 +484,17 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
                /*lit=*/true, &colour);
   }
 
-  if (work.coverageOut.empty()) return;
-  dg::ITexture* coverage = gpu.target(work.coverageOut);
-  if (!coverage) return;
-  const float clearNothing[4] = {0, 0, 0, 0};
-  openTarget(gpu, coverage, clearNothing, true);
-  const glm::vec4 white{1, 1, 1, 1};
-  drawBodies(gpu, view, viewProj, viewMatrix, &work.coverageOf, /*lit=*/false,
-             &white);
+  // One coverage per masked pass behind this one, each holding the
+  // selection that pass asked about.
+  for (const Coverage& painted : work.coverageOut) {
+    dg::ITexture* coverage = gpu.target(painted.name);
+    if (!coverage) continue;
+    const float clearNothing[4] = {0, 0, 0, 0};
+    openTarget(gpu, coverage, clearNothing, true);
+    const glm::vec4 white{1, 1, 1, 1};
+    drawBodies(gpu, view, viewProj, viewMatrix, &painted.of, /*lit=*/false,
+               &white);
+  }
 }
 
 }  // namespace sigil::world::diligent

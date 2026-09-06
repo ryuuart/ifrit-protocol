@@ -7,6 +7,7 @@
  * that knows better says so, and its word stands.
  */
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -32,7 +33,8 @@ Touches touchesOf(const PassWork& work) {
   if (!work.coverageIn.empty()) touches.reads.push_back(work.coverageIn);
   for (const std::string& name : work.pass->writes())
     touches.writes.push_back(name);
-  if (!work.coverageOut.empty()) touches.writes.push_back(work.coverageOut);
+  for (const Coverage& coverage : work.coverageOut)
+    touches.writes.push_back(coverage.name);
   return touches;
 }
 
@@ -63,9 +65,20 @@ std::string realise(std::span<const Pass> passes, std::span<const size_t> order,
       return "the post pass \"" + pass.name() +
              "\" narrows its selection, and no pass before it paints the "
              "bodies its coverage would be taken from";
+    // A coverage answers for one selector, so the producer paints one
+    // per selection asked of it: two masked passes behind the same
+    // producer each read their own, and two asking the same question
+    // share the one already there.
+    std::vector<Coverage>& painted = into[producer].coverageOut;
+    const auto same = std::find_if(
+        painted.begin(), painted.end(),
+        [&](const Coverage& already) { return already.of == pass.selector(); });
+    if (same != painted.end()) {
+      into[step].coverageIn = same->name;
+      continue;
+    }
     into[step].coverageIn = pass.name() + ".coverage";
-    into[producer].coverageOut = into[step].coverageIn;
-    into[producer].coverageOf = pass.selector();
+    painted.push_back({into[step].coverageIn, pass.selector()});
   }
   return {};
 }

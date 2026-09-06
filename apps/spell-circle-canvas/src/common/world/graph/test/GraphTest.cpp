@@ -8,6 +8,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilworld/graph/Plan.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -68,6 +69,27 @@ TEST(WorldGraph, AWriteRunsAfterTheWriteBeforeItAndAfterThatVersionsReaders) {
                           .pass(postPass("again").writes("colour"));
   const std::vector<std::string> expected = {"first", "read", "again"};
   EXPECT_EQ(namesOf(graph::build(frame)), expected);
+}
+
+TEST(WorldGraph, AReaderDeclaredFirstStillRunsBeforeTheSecondWrite) {
+  // "read" was written down before either writer, so the version it
+  // sees is the first one; the second write replaces that version and
+  // must therefore wait for the read. Its other dependency ("mist")
+  // is what makes an ordering that ignores the hazard schedulable.
+  const Frame frame =
+      framed()
+          .pass(postPass("read").reads("colour", "mist").writes("copy"))
+          .pass(geometryPass("first").writes("colour"))
+          .pass(postPass("again").writes("colour"))
+          .pass(geometryPass("mist").writes("mist"));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const std::vector<std::string> names = namesOf(plan);
+  const auto at = [&](const std::string& name) {
+    return std::find(names.begin(), names.end(), name) - names.begin();
+  };
+  EXPECT_LT(at("first"), at("read"));
+  EXPECT_LT(at("read"), at("again"));
 }
 
 TEST(WorldGraph, ASecondGeometryPassOverAWrittenTargetIsAnErrorNamingBoth) {
@@ -312,10 +334,62 @@ TEST(WorldGraph, AMaskedPassReadsTheCoverageThePassAheadOfItWrites) {
   ASSERT_NE(bloom, nullptr);
   ASSERT_NE(main, nullptr);
   EXPECT_FALSE(bloom->coverageIn.empty());
-  EXPECT_EQ(main->coverageOut, bloom->coverageIn);
-  EXPECT_EQ(main->coverageOf, sel::tag("glow"));
+  ASSERT_EQ(main->coverageOut.size(), 1u);
+  EXPECT_EQ(main->coverageOut.front().name, bloom->coverageIn);
+  EXPECT_EQ(main->coverageOut.front().of, sel::tag("glow"));
   // …and the coverage is a resource of the frame like any other.
   EXPECT_NE(plan.resource(bloom->coverageIn), nullptr);
+}
+
+TEST(WorldGraph, TwoMaskedPassesEachReadTheirOwnCoverage) {
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(postPass("bloom").reads("colour").writes("lit").only(
+              sel::tag("glow")))
+          .pass(postPass("blur").reads("lit").writes("final").only(
+              sel::tag("soft")));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const PassWork* main = stepNamed(plan, "main");
+  const PassWork* bloom = stepNamed(plan, "bloom");
+  const PassWork* blur = stepNamed(plan, "blur");
+  ASSERT_NE(main, nullptr);
+  ASSERT_NE(bloom, nullptr);
+  ASSERT_NE(blur, nullptr);
+  // Two selections asked of one producer are two coverages: neither
+  // reads a resource the other's selector painted.
+  ASSERT_EQ(main->coverageOut.size(), 2u);
+  EXPECT_NE(bloom->coverageIn, blur->coverageIn);
+  for (const Coverage& painted : main->coverageOut) {
+    EXPECT_NE(plan.resource(painted.name), nullptr);
+    if (painted.name == bloom->coverageIn)
+      EXPECT_EQ(painted.of, sel::tag("glow"));
+    else if (painted.name == blur->coverageIn)
+      EXPECT_EQ(painted.of, sel::tag("soft"));
+    else
+      ADD_FAILURE() << "a coverage no masked pass reads: " << painted.name;
+  }
+}
+
+TEST(WorldGraph, TwoMasksOfTheSameSelectionShareOneCoverage) {
+  const Frame frame =
+      framed()
+          .pass(geometryPass("main").writes("colour"))
+          .pass(postPass("bloom").reads("colour").writes("lit").only(
+              sel::tag("glow")))
+          .pass(postPass("blur").reads("lit").writes("final").only(
+              sel::tag("glow")));
+  const graph::Plan plan = graph::build(frame);
+  ASSERT_TRUE((bool)plan) << plan.error();
+  const PassWork* main = stepNamed(plan, "main");
+  const PassWork* bloom = stepNamed(plan, "bloom");
+  const PassWork* blur = stepNamed(plan, "blur");
+  ASSERT_NE(main, nullptr);
+  ASSERT_NE(bloom, nullptr);
+  ASSERT_NE(blur, nullptr);
+  ASSERT_EQ(main->coverageOut.size(), 1u);
+  EXPECT_EQ(bloom->coverageIn, blur->coverageIn);
 }
 
 TEST(WorldGraph, AMaskWithNothingPaintingBodiesAheadOfItIsAnError) {

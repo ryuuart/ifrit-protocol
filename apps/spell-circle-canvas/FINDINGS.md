@@ -236,20 +236,7 @@ Deferred by the rulings: the file splits by subject — `Pop.h` (1131),
 
 ## SigilWorld, SigilUsd, SigilSubstance, SigilImage (findings/review-geometry-material-world.md)
 
-Blocker:
-
-- `src/common/world/graph/Realise.cpp:67` — two masked post passes behind
-  one geometry pass: the second overwrites the producer's `coverageOut`,
-  the first's `coverageIn` is never written, `Targets::image()` answers
-  null and `CpuPost.cpp:89` applies the op unmasked, silently. Intended:
-  every masked pass reads coverage its producer paints. Fix: coverage as
-  a vector of (name, selector) or one coverage per (producer, selector).
-  Assert: `TwoMaskedPassesEachReadTheirOwnCoverage`.
-
-Should-fix: `world/graph/Order.cpp:99,109` a reader declared before the
-first writer gets no edge to the second and can read version 2 (assert
-`AReaderDeclaredFirstStillRunsBeforeTheSecondWrite`);
-`image/decode/Ktx.cpp:292-295,336-337,221` unchecked header products
+Should-fix: `image/decode/Ktx.cpp:292-295,336-337,221` unchecked header products
 overflow to a 2^62-float resize from a 100-byte file (cap dims, check
 each product); `usd/read/Mesh.cpp:97`, `Primvar.h:42` unchecked face
 indices and counts read out of bounds; `world/scene/Phases.cpp:356` a

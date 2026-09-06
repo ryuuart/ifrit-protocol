@@ -96,18 +96,20 @@ std::string order(std::span<const Pass> passes, std::vector<size_t>& into) {
       // or the first write of all when the reader was declared first —
       // a declaration order is not an execution order, and a reader
       // written down before its producer still reads what it produced.
-      size_t seen = touchers.writers.front();
-      for (size_t writer : touchers.writers)
-        if (writer < reader) seen = writer;
-      edge(seen, reader);
+      size_t version = 0;
+      for (size_t candidate = 0; candidate < touchers.writers.size();
+           ++candidate)
+        if (touchers.writers[candidate] < reader) version = candidate;
+      edge(touchers.writers[version], reader);
+      // And it runs before the write that REPLACES that version, which
+      // is the next one declared — including when the reader was
+      // declared before every writer, where the version it sees is the
+      // first and the write that takes it away is the second.
+      if (version + 1 < touchers.writers.size())
+        edge(reader, touchers.writers[version + 1]);
     }
-    for (size_t version = 1; version < touchers.writers.size(); ++version) {
-      const size_t replaced = touchers.writers[version - 1];
-      const size_t writer = touchers.writers[version];
-      edge(replaced, writer);
-      for (size_t reader : touchers.readers)
-        if (reader > replaced && reader < writer) edge(reader, writer);
-    }
+    for (size_t version = 1; version < touchers.writers.size(); ++version)
+      edge(touchers.writers[version - 1], touchers.writers[version]);
   }
 
   boost::container::flat_set<size_t> ready;

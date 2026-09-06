@@ -182,12 +182,15 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
     }
   }
 
-  if (work.coverageOut.empty()) return;
-  SkCanvas* coverage = targets.canvas(work.coverageOut);
-  if (!coverage) return;
-  coverage->clear(SkColor4f{0.0f, 0.0f, 0.0f, 0.0f});
-  geometry::mesh::render::MeshStyle flat = coverageStyle();
-  drawSelection(*coverage, view, work.coverageOf, flat, /*flat=*/true);
+  // One coverage per masked pass behind this one, each holding the
+  // selection that pass asked about.
+  for (const Coverage& painted : work.coverageOut) {
+    SkCanvas* coverage = targets.canvas(painted.name);
+    if (!coverage) continue;
+    coverage->clear(SkColor4f{0.0f, 0.0f, 0.0f, 0.0f});
+    geometry::mesh::render::MeshStyle flat = coverageStyle();
+    drawSelection(*coverage, view, painted.of, flat, /*flat=*/true);
+  }
 }
 
 void cookPoints(const PassWork& work, Targets& targets) {

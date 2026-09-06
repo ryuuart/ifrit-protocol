@@ -230,14 +230,22 @@ Pass postPass(std::string name);
  *  act on without knowing how the decision was made. It points at the
  *  pass it describes, so it stands only as long as the passes it was
  *  built from do. */
+/** ONE COVERAGE a geometry pass paints for a masked pass behind it: the
+ *  resource it goes into, and whose coverage it is. Two masked passes
+ *  behind the same producer asking for the same selection share one
+ *  entry; asking for different selections gets one entry each, because
+ *  a coverage answers for exactly one selector. */
+struct Coverage {
+  std::string name;
+  Selector of;
+};
+
 struct PassWork {
   const Pass* pass = nullptr;
   Selection realisation = Selection::None;
-  /** The resource this pass ALSO paints the coverage of a masked pass
-   *  downstream into; empty when nothing asked for one. */
-  std::string coverageOut;
-  /** Whose coverage `coverageOut` receives. */
-  Selector coverageOf;
+  /** The coverages this pass ALSO paints for the masked passes behind
+   *  it; empty when nothing asked for one. */
+  std::vector<Coverage> coverageOut;
   /** The resource a masked pass reads its coverage from; empty when the
    *  pass is not masked. */
   std::string coverageIn;
