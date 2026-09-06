@@ -82,6 +82,54 @@ TEST(DistanceFieldOverAMask,
   EXPECT_GT(field.at(outx, outy), kMargin);
 }
 
+TEST(DistanceFieldOverAMask, ANonSquareRasterMeasuresTheSameEitherWayRound) {
+  // A row pass and a column pass over one buffer is where a width used
+  // where a height belongs hides: on a square raster the two strides
+  // agree and the swap does not show. The same shape is measured in a
+  // 5x2 raster and in its transpose, and every distance must match.
+  SkBitmap wide = alphaRaster(5, 2);
+  *wide.getAddr8(0, 0) = 255;
+  SkBitmap tall = alphaRaster(2, 5);
+  *tall.getAddr8(0, 0) = 255;
+  const DistanceField across = distanceField(coverageMask(wide.pixmap(), 0.5f));
+  const DistanceField down = distanceField(coverageMask(tall.pixmap(), 0.5f));
+  ASSERT_EQ(across.width, 5);
+  ASSERT_EQ(across.height, 2);
+  ASSERT_EQ(down.width, 2);
+  ASSERT_EQ(down.height, 5);
+  for (int y = 0; y < 2; ++y)
+    for (int x = 0; x < 5; ++x)
+      EXPECT_NEAR(across.at(x, y), down.at(y, x), 1e-5f)
+          << "at " << x << ", " << y;
+  EXPECT_FLOAT_EQ(across.at(0, 0), 0.0f);
+  EXPECT_FLOAT_EQ(across.at(4, 0), 4.0f);
+  EXPECT_FLOAT_EQ(across.at(4, 1), std::sqrt(17.0f));
+}
+
+TEST(DistanceFieldOverAMask, OnePixelIsARasterLikeAnyOther) {
+  SkBitmap covered = alphaRaster(1, 1, 255);
+  const DistanceField inside =
+      distanceField(coverageMask(covered.pixmap(), 0.5f));
+  ASSERT_FALSE(inside.empty());
+  EXPECT_FLOAT_EQ(inside.at(0, 0), 0.0f);
+  EXPECT_EQ(inside.at(1, 0), DistanceField::kOutside);
+
+  SkBitmap bare = alphaRaster(1, 1);
+  const DistanceField empty = distanceField(coverageMask(bare.pixmap(), 0.5f));
+  ASSERT_FALSE(empty.empty());
+  EXPECT_EQ(empty.at(0, 0), DistanceField::kOutside);
+}
+
+TEST(DistanceFieldOverAMask, AMaskThatCoversEverythingIsZeroThroughout) {
+  SkBitmap raster = alphaRaster(5, 3, 255);
+  const DistanceField field =
+      distanceField(coverageMask(raster.pixmap(), 0.5f));
+  ASSERT_FALSE(field.empty());
+  for (int y = 0; y < 3; ++y)
+    for (int x = 0; x < 5; ++x)
+      EXPECT_FLOAT_EQ(field.at(x, y), 0.0f) << "at " << x << ", " << y;
+}
+
 TEST(DistanceFieldOverAMask, AMaskThatCoversNothingIsEverywhereOutside) {
   SkBitmap raster = alphaRaster(8, 8);
   const DistanceField field =

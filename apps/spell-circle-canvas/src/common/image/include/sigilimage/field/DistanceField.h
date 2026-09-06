@@ -14,7 +14,10 @@
  *
  * It is an image-domain primitive and not a shader: it answers for an
  * arbitrary raster, which an analytic distance function for a parameterised
- * shape cannot do.
+ * shape cannot do. Skia's own field generator is private to its `src/core`
+ * and answers a different question — an 8-bit signed field around a glyph,
+ * quantised for a texture atlas — so it serves neither the exact distances
+ * a margin is measured in nor a raster that is not a glyph.
  */
 
 #include <include/core/SkImage.h>

@@ -33,6 +33,21 @@ bool startsWith(const std::byte* bytes, size_t size,
          std::memcmp(bytes, identifier.data(), identifier.size()) == 0;
 }
 
+/** THE LARGEST SIDE this reader accepts. A header states its dimensions
+ *  as 32-bit fields, and nothing stops a file claiming 2^30 by 2^30: the
+ *  products taken from such a pair wrap to a small number, pass every
+ *  size check and hand the level a length no file holds. A side no image
+ *  reaches is refused instead, and every product below it is then taken
+ *  in a width a size_t holds. */
+constexpr uint32_t kLargestSide = 1u << 15;
+
+/** @p a * @p b, or nothing when the product does not fit a size_t. */
+std::optional<size_t> product(size_t a, size_t b) {
+  size_t out = 0;
+  if (__builtin_mul_overflow(a, b, &out)) return std::nullopt;
+  return out;
+}
+
 /** A little-endian reader over the file's bytes that refuses to read past
  *  the end rather than trusting the header's own sizes. */
 class Reader {
@@ -277,7 +292,8 @@ std::optional<Level> ktx1BaseLevel(const std::byte* bytes, size_t size) {
   const uint32_t keyValueBytes = in.u32();
   if (!in.ok()) return std::nullopt;
   const std::optional<Texel> texel = texelOfGl(glType, glFormat);
-  if (!texel || width == 0 || height == 0 || depth > 1 || arrayElements > 1 ||
+  if (!texel || width == 0 || height == 0 || width > kLargestSide ||
+      height > kLargestSide || depth > 1 || arrayElements > 1 ||
       (faces != 1 && faces != 6))
     return std::nullopt;
   in.seek(in.position() + keyValueBytes);
@@ -288,11 +304,16 @@ std::optional<Level> ktx1BaseLevel(const std::byte* bytes, size_t size) {
   level.height = (int)height;
   level.faces = (int)faces;
   level.texel = *texel;
-  level.rowBytes = ((size_t)width * texel->bytes() + 3) & ~(size_t)3;
-  const size_t faceBytes = level.rowBytes * height;
-  if (imageSize < faceBytes) return std::nullopt;
-  level.faceBytes = (faceBytes + 3) & ~(size_t)3;  // cubePadding
-  const size_t needed = level.faceBytes * (faces - 1) + faceBytes;
+  const std::optional<size_t> row = product(width, texel->bytes());
+  if (!row) return std::nullopt;
+  level.rowBytes = (*row + 3) & ~(size_t)3;
+  const std::optional<size_t> face = product(level.rowBytes, height);
+  if (!face || imageSize < *face) return std::nullopt;
+  level.faceBytes = (*face + 3) & ~(size_t)3;  // cubePadding
+  const std::optional<size_t> others = product(level.faceBytes, faces - 1);
+  if (!others) return std::nullopt;
+  const size_t needed = *others + *face;
+  if (needed < *others) return std::nullopt;
   level.data = in.view(needed);
   if (!level.data) return std::nullopt;
   return level;
@@ -315,7 +336,8 @@ std::optional<Level> ktx2BaseLevel(const std::byte* bytes, size_t size) {
   const uint32_t supercompression = in.u32();
   if (!in.ok()) return std::nullopt;
   const std::optional<Texel> texel = texelOfVk(vkFormat);
-  if (!texel || width == 0 || height == 0 || depth > 1 || layers > 1 ||
+  if (!texel || width == 0 || height == 0 || width > kLargestSide ||
+      height > kLargestSide || depth > 1 || layers > 1 ||
       (faces != 1 && faces != 6) || supercompression != 0)
     return std::nullopt;
   // The index: dfd, kvd and sgd offsets and lengths, then the level table
@@ -332,12 +354,16 @@ std::optional<Level> ktx2BaseLevel(const std::byte* bytes, size_t size) {
   level.height = (int)height;
   level.faces = (int)faces;
   level.texel = *texel;
-  level.rowBytes = (size_t)width * texel->bytes();
-  level.faceBytes = level.rowBytes * height;
-  const size_t needed = level.faceBytes * faces;
-  if (byteLength < needed || byteOffset > size) return std::nullopt;
+  const std::optional<size_t> row = product(width, texel->bytes());
+  if (!row) return std::nullopt;
+  level.rowBytes = *row;
+  const std::optional<size_t> face = product(level.rowBytes, height);
+  if (!face) return std::nullopt;
+  level.faceBytes = *face;
+  const std::optional<size_t> needed = product(level.faceBytes, faces);
+  if (!needed || byteLength < *needed || byteOffset > size) return std::nullopt;
   in.seek((size_t)byteOffset);
-  level.data = in.view(needed);
+  level.data = in.view(*needed);
   if (!level.data) return std::nullopt;
   return level;
 }

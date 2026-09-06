@@ -236,9 +236,7 @@ Deferred by the rulings: the file splits by subject — `Pop.h` (1131),
 
 ## SigilWorld, SigilUsd, SigilSubstance, SigilImage (findings/review-geometry-material-world.md)
 
-Should-fix: `image/decode/Ktx.cpp:292-295,336-337,221` unchecked header products
-overflow to a 2^62-float resize from a 100-byte file (cap dims, check
-each product); `usd/read/Mesh.cpp:97`, `Primvar.h:42` unchecked face
+Should-fix: `usd/read/Mesh.cpp:97`, `Primvar.h:42` unchecked face
 indices and counts read out of bounds; `world/scene/Phases.cpp:356` a
 per-frame `fprintf`; `world/frame/CpuGeometry.cpp:117`,
 `world/diligent/Geometry.cpp:459` `targets.points(name)` inserts an empty
@@ -249,8 +247,7 @@ run result and answers by output count; `usd/write/Stamps.cpp:63`,
 `world/scene/Draw.cpp:25,37` = `frame/CpuGeometry.cpp:22,77` identical
 `painterLight()`/`dress()`; `world/frame/Targets.cpp:107` `stamped`
 decides by a 64-bit fold alone against the store's "a hash is a bucket"
-rule; `image/field/test/DistanceFieldTest.cpp` every case square (add
-5×2, 2×5, 1×1, all-covered).
+rule.
 
 ## SigilWeave and SigilDraw (findings/review-weave-draw.md)
 

@@ -137,6 +137,37 @@ TEST(KtxDecode, ATruncatedFileIsRefused) {
   EXPECT_FALSE(sigil::image::probeImage(ktx2.data(), ktx2.size()).has_value());
 }
 
+// A crafted header, byte by byte over a good file: the fields a reader
+// takes its lengths from are the ones a hostile file lies about.
+void writeWord(std::vector<std::byte>& bytes, size_t at, uint32_t value) {
+  for (size_t i = 0; i < 4; ++i)
+    bytes[at + i] = (std::byte)((value >> (8 * i)) & 0xFFu);
+}
+
+TEST(KtxDecode, AHeaderWhoseLengthsOverflowIsRefused) {
+  // 2^30 by 2^30 at sixteen bytes a texel: the face length is a product
+  // of header fields that wraps to zero, so the length the file states
+  // covers it, the level is taken, and the image the reader is then
+  // asked to hold is 2^62 floats — from a file of a hundred-odd bytes.
+  auto ktx2 = sigil::image::test::cubeKtx2(kCubeFaces, 8);
+  writeWord(ktx2, 12, 109);       // vkFormat R32G32B32A32_SFLOAT
+  writeWord(ktx2, 20, 1u << 30);  // pixelWidth
+  writeWord(ktx2, 24, 1u << 30);  // pixelHeight
+  writeWord(ktx2, 36, 1);         // faceCount
+  EXPECT_FALSE(sigil::image::decodeImage(ktx2.data(), ktx2.size()).has_value());
+  EXPECT_FALSE(sigil::image::probeImage(ktx2.data(), ktx2.size()).has_value());
+
+  // The same lie in a KTX 1 header, where the width alone is past what
+  // any image holds.
+  auto ktx1 = sigil::image::test::cubeKtx1(kCubeFaces, 8);
+  writeWord(ktx1, 16, 0x1406);    // glType GL_FLOAT
+  writeWord(ktx1, 36, 1u << 30);  // pixelWidth
+  writeWord(ktx1, 40, 1u << 30);  // pixelHeight
+  writeWord(ktx1, 52, 1);         // numberOfFaces
+  EXPECT_FALSE(sigil::image::decodeImage(ktx1.data(), ktx1.size()).has_value());
+  EXPECT_FALSE(sigil::image::probeImage(ktx1.data(), ktx1.size()).has_value());
+}
+
 TEST(OiioDecode, ADdsCubeMapIsTheSixFacesAsAColumn) {
   if (!kOiioBackend) GTEST_SKIP() << "built without the OpenImageIO backend";
   expectCubeColumn(sigil::image::test::cubeDds(kCubeFaces, 8), "cube.dds");
