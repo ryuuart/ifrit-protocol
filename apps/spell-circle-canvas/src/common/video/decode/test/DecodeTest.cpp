@@ -1,10 +1,14 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkRect.h>
 #include <sigilvideo/decode/Decode.h>
 #include <sigilvideo/decode/Playback.h>
 
 #include <array>
+#include <cmath>
 #include <cstddef>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -35,6 +39,28 @@ std::shared_ptr<sigil::video::Video> bearClip(size_t cachedFrames = 4) {
   options.cachedFrames = cachedFrames;
   return sigil::video::decodeVideo(bytes.data(), bytes.size(), options,
                                    "bear-vp8a.webm");
+}
+
+/** @p video painted over one small raster surface at @p seconds. Null when
+ *  the draw refused. */
+SkBitmap painted(sigil::video::Video& video, double seconds, bool loop) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(64, 48));
+  bitmap.eraseColor(SK_ColorTRANSPARENT);
+  SkCanvas canvas(bitmap);
+  if (!video.draw(canvas, SkRect::MakeIWH(bitmap.width(), bitmap.height()),
+                  seconds, SkSamplingOptions(SkFilterMode::kLinear), loop))
+    bitmap.reset();
+  return bitmap;
+}
+
+bool samePixels(const SkBitmap& one, const SkBitmap& other) {
+  if (one.isNull() || one.dimensions() != other.dimensions()) return false;
+  for (int y = 0; y < one.height(); ++y)
+    if (std::memcmp(one.getAddr32(0, y), other.getAddr32(0, y),
+                    static_cast<size_t>(one.width()) * 4) != 0)
+      return false;
+  return true;
 }
 
 }  // namespace
@@ -124,6 +150,31 @@ TEST(VideoDecode, SeekingBackwardReturnsTheCoveringFrame) {
   ASSERT_TRUE(first);
   EXPECT_EQ(first.index, 0);
   EXPECT_EQ(first.presentationSeconds, 0.0);
+}
+
+TEST(VideoDecode, DrawOutsideTheDurationClampsOrWraps) {
+  std::shared_ptr<sigil::video::Video> video = bearClip();
+  ASSERT_NE(video, nullptr);
+  const double duration = video->probe().durationSeconds;
+  ASSERT_GT(duration, 0.0);
+
+  const SkBitmap first = painted(*video, 0.0, false);
+  const SkBitmap last = painted(*video, std::nextafter(duration, 0.0), false);
+  ASSERT_FALSE(first.isNull());
+  ASSERT_FALSE(last.isNull());
+  ASSERT_FALSE(samePixels(first, last)) << "the clip has to move to be read";
+
+  // A non-looping draw holds the ends: past the duration it stays on the
+  // last frame the duration covers, before zero on the first.
+  EXPECT_TRUE(samePixels(painted(*video, duration * 20.0, false), last));
+  EXPECT_TRUE(samePixels(painted(*video, -duration, false), first));
+
+  // A looping draw is the same clip over again, forwards and backwards.
+  const SkBitmap quarter = painted(*video, duration * 0.25, false);
+  ASSERT_FALSE(quarter.isNull());
+  EXPECT_TRUE(samePixels(
+      painted(*video, duration * 20.0 + duration * 0.25, true), quarter));
+  EXPECT_TRUE(samePixels(painted(*video, duration * -1.75, true), quarter));
 }
 
 TEST(VideoDecode, TheCacheHoldsCachedFramesAndNoMore) {

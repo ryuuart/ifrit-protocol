@@ -242,6 +242,8 @@ struct Video::Impl {
       metadata.hasAudio |=
           formatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO;
     metadata.hasAlpha = streamDeclaresAlpha(*stream);
+    timestampless = formatContext->iformat &&
+                    (formatContext->iformat->flags & AVFMT_NOTIMESTAMPS) != 0;
     streamStartSeconds = stream->start_time == AV_NOPTS_VALUE
                              ? 0.0
                              : stream->start_time * rational(stream->time_base);
@@ -335,11 +337,20 @@ struct Video::Impl {
   }
 
   bool seekTo(double seconds) {
-    const double absolute = seconds + streamStartSeconds;
-    const int64_t timestamp =
-        static_cast<int64_t>(absolute / rational(stream->time_base));
-    const int result = av_seek_frame(formatContext, videoStream, timestamp,
-                                     AVSEEK_FLAG_BACKWARD);
+    // Frames that carry no presentation timestamp are placed by decode
+    // order, and no time inside such a stream can be sought to. Its one
+    // determinate position is the first byte, from which the order is
+    // counted again.
+    int result = 0;
+    if (timestampless) {
+      result = av_seek_frame(formatContext, videoStream, 0, AVSEEK_FLAG_BYTE);
+    } else {
+      const double absolute = seconds + streamStartSeconds;
+      const int64_t timestamp =
+          static_cast<int64_t>(absolute / rational(stream->time_base));
+      result = av_seek_frame(formatContext, videoStream, timestamp,
+                             AVSEEK_FLAG_BACKWARD);
+    }
     if (result < 0) {
       error = ffmpegError(result);
       return false;
@@ -347,6 +358,7 @@ struct Video::Impl {
     avcodec_flush_buffers(codecContext);
     sentDrain = false;
     cursorSeconds = -std::numeric_limits<double>::infinity();
+    if (timestampless) decodedSequence = 0;
     return true;
   }
 
@@ -355,6 +367,7 @@ struct Video::Impl {
       int result = avcodec_receive_frame(codecContext, receiveFrame);
       if (result >= 0) {
         const int64_t timestamp = receiveFrame->best_effort_timestamp;
+        timestampless |= timestamp == AV_NOPTS_VALUE;
         double presentation =
             timestamp == AV_NOPTS_VALUE
                 ? (metadata.frameRate > 0 ? decodedSequence / metadata.frameRate
@@ -429,18 +442,37 @@ struct Video::Impl {
   }
 
   CachedFrame* cachedAt(double seconds) {
+    // The newest held frame at or before the ask, and the oldest one
+    // after it.
+    auto before = cache.end();
+    auto after = cache.end();
     for (auto found = cache.begin(); found != cache.end(); ++found) {
-      if (found->presentationSeconds <= seconds &&
-          seconds < found->presentationSeconds + found->durationSeconds) {
-        if (std::next(found) != cache.end()) {
-          CachedFrame promoted = std::move(*found);
-          cache.erase(found);
-          cache.push_back(std::move(promoted));
-        }
-        return &cache.back();
+      if (found->presentationSeconds <= seconds) {
+        if (before == cache.end() ||
+            found->presentationSeconds > before->presentationSeconds)
+          before = found;
+      } else if (after == cache.end() ||
+                 found->presentationSeconds < after->presentationSeconds) {
+        after = found;
       }
     }
-    return nullptr;
+    if (before == cache.end()) return nullptr;
+    // The frame answers a time it covers, and a time in the gap that its
+    // duration leaves before the frame that follows it — the same answer
+    // the decode loop gives, so a repeated ask does not depend on what
+    // the cache happens to hold. Two frames that are not neighbours in
+    // decode order say nothing about the gap between them: one that was
+    // evicted may cover it.
+    const bool covers =
+        seconds < before->presentationSeconds + before->durationSeconds;
+    if (!covers && (after == cache.end() || after->index != before->index + 1))
+      return nullptr;
+    if (std::next(before) != cache.end()) {
+      CachedFrame promoted = std::move(*before);
+      cache.erase(before);
+      cache.push_back(std::move(promoted));
+    }
+    return &cache.back();
   }
 
   sk_sp<SkImage> rasterize(const SharedFrame& decoded) {
@@ -560,10 +592,15 @@ struct Video::Impl {
       return materialize(*found, recorder, decodeOnly);
 
     const bool unopened = !std::isfinite(cursorSeconds);
-    if (unopened || seconds + 0.001 < cursorSeconds ||
-        seconds > cursorSeconds + 2.0) {
-      if (!seekTo(unopened && metadata.hasAlpha ? 0.0 : seconds)) return {};
-    }
+    // A stream placed by decode order is read from wherever it stands,
+    // because the only place a seek can put it is the beginning: it
+    // repositions for an ask behind the playhead and for nothing else.
+    const bool reposition =
+        timestampless ? (!unopened && seconds + 0.001 < cursorSeconds)
+                      : (unopened || seconds + 0.001 < cursorSeconds ||
+                         seconds > cursorSeconds + 2.0);
+    if (reposition && !seekTo(unopened && metadata.hasAlpha ? 0.0 : seconds))
+      return {};
 
     // The newest decoded frame at or before the asked time. When frame
     // durations leave a gap before the next frame, it is the answer; it
@@ -633,6 +670,10 @@ struct Video::Impl {
   double cursorSeconds = -std::numeric_limits<double>::infinity();
   int64_t decodedSequence = 0;
   bool hardwareActive = false;
+  // Whether frames arrive without presentation timestamps, so decode
+  // order is the only order there is. The container says so when it
+  // stamps nothing, and a frame that carries no timestamp says so too.
+  bool timestampless = false;
   // The surface the last decoded frame actually arrived on. The hardware
   // configuration is chosen when the decoder opens; whether the device
   // hands back a native frame is only known once one has been decoded.

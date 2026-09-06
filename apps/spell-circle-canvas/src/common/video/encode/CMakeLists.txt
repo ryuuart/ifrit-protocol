@@ -7,5 +7,5 @@ sigil_library(SigilVideoEncode
   PRIVATE sigil_video_ffmpeg)
 
 sigil_test(video_test
-  SOURCES test/EncodeTest.cpp
+  SOURCES test/EncodeTest.cpp test/ElementaryStreamTest.cpp
   LIBRARIES SigilVideoEncode SigilVideoDecode)

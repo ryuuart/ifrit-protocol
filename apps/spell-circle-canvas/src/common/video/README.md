@@ -38,7 +38,17 @@ clip->draw(canvas, destination, elapsedSeconds);
 call that created it. Opening finds the best video stream and prepares its
 decoder; it does not decode the whole file. `frameAt()` seeks when needed,
 decodes forward to the requested presentation time, and retains only
-`DecodeOptions::cachedFrames` decoded frames.
+`DecodeOptions::cachedFrames` decoded frames. `draw()` normalizes time first:
+a looping draw wraps by the probed duration and a non-looping one holds the
+ends, clamping to the first frame and to the last one that duration covers,
+while a clip whose duration the container does not state is drawn at the time
+it was given either way.
+
+A stream whose frames carry no presentation timestamps — a bare elementary
+stream, the container that would have stamped them absent — is placed by
+decode order against the probed frame rate. No time inside such a stream can
+be sought to, so an ask behind the playhead reads it again from the
+beginning.
 
 A device grants a hardware decompression session on the first decode, not
 when the decoder opens, so a `Video` separates the two: `hardwareConfigured()`
@@ -140,7 +150,10 @@ for the encoder's lifetime; odd dimensions are rejected because interoperable
 
 `finish()` flushes the delayed codec frames, writes the MP4 trailer, and hands
 back one `SkData`. The result can go through `Hub::write()` or any
-`ByteSink`; the encoder never opens an output path.
+`ByteSink`; the encoder never opens an output path. A video is at least one
+frame, so finishing with none answers nothing, and finishing is terminal on
+either outcome: a second `finish()` and every later `append()` are refused
+with the reason in `error()`.
 
 ## Caching and ownership
 
@@ -152,7 +165,10 @@ cached frames that still cover a later request, so repeated seek points remain
 hot while they fit the configured capacity. Every answered frame is
 materialized in the cache — the frame before a gap in presentation times
 included — so its raster or device wrap serves the next ask at the same
-time. Cache capacity zero is normalized to one.
+time. A held frame answers the gap after it only when the frame that
+follows it in decode order is held too, since a frame evicted from between
+the two may be the one that covers the time. Cache capacity zero is
+normalized to one.
 
 `Video` and `Encoder` are not thread-safe. A player that decodes on one thread
 and draws on another transfers `VideoFrame` values across its own queue; it
@@ -184,8 +200,13 @@ ctest --test-dir build -C Release --output-on-failure
 The encode cases create a short MP4 in memory, decode it through
 `SigilVideoDecode`, and check its timing and that the colours it was given
 read back through the CPU executor, beside the odd dimensions an encoder
-refuses and the extensions `formatForPath` recognises. The decode cases cover input that is not a video (one parameterised
+refuses, what a finished encoder refuses, the frameless finish it refuses,
+and the extensions `formatForPath` recognises. One of them re-containers
+that MP4 as a bare H.264 elementary stream, which is a stream whose frames
+carry no timestamps at all, and asks it for frames on either side of the
+playhead. The decode cases cover input that is not a video (one parameterised
 case over no bytes at all and bytes of something else), alpha, seeking,
+a non-looping and a looping `draw` outside the duration,
 the cache's capacity, `Playback` in its synchronous mode
 (`workerThreads = 0`, so a request is decoded before it returns) and its
 worker pool torn down with requests still in flight — nothing in either
