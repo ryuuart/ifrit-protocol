@@ -369,6 +369,9 @@ struct Wash {
     return material == o.material && blend == o.blend && amount == o.amount;
   }
   bool isAnimated() const { return material.isAnimated(); }
+  /** A wash through anything but source-over reads what is under the node
+   *  — which is the point of it, and why such a node cannot be baked. */
+  bool blends() const { return blend != SkBlendMode::kSrcOver; }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 };

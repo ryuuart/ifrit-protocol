@@ -118,6 +118,9 @@ struct Overlay {
   float opacity = 1.0f;
 
   bool operator==(const Overlay&) const = default;
+  /** An overlay through a blend mode resolves against what is under the
+   *  node, so its node cannot be baked into a layer of its own. */
+  bool blends() const { return blend != SkBlendMode::kSrcOver; }
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };

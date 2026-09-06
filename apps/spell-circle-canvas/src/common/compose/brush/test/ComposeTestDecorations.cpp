@@ -543,3 +543,59 @@ TEST(ComposeDecorations, AStrokeCanRefuseTheSmoothingThatBlursAHardRule) {
   off.frame();
   EXPECT_EQ(feathered(off), 0);
 }
+
+TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsNodeTheBake) {
+  // A wash through a blend mode reads what is UNDER the node — that is the
+  // whole of what a soft-light pass over a page is for. A bake would offer
+  // it the layer's transparent black instead, and the difference is the
+  // mark rather than a rounding. So the node declares it, and the promoter
+  // refuses the bake: the two renders are identical to the byte.
+  const auto page = [] {
+    return box()
+        .cache(Cache::None)
+        .child(box()
+                   .absolute()
+                   .left(0)
+                   .top(0)
+                   .width(200)
+                   .height(200)
+                   .fill(Fill::color({0.55f, 0.4f, 0.2f, 1})))
+        .child(box()
+                   .key("washed")
+                   .absolute()
+                   .left(30)
+                   .top(30)
+                   .width(140)
+                   .height(140)
+                   .foreground(decorations::wash(
+                       material::skia::Paint::solid({0.9f, 0.9f, 0.9f, 1}),
+                       SkBlendMode::kSoftLight, 0.8f)));
+  };
+  const auto render = [&](Composer::PromotionPolicy policy) {
+    Host host;
+    host.composer.setAutoTexturePromotion(policy);
+    host.composer.setProfiling(true);
+    host.composer.render(page());
+    for (int i = 0; i < 3; ++i) host.frame();
+    return host.composer.profile().empty() ? std::vector<SkColor>()
+                                           : grab(host);
+  };
+  const std::vector<SkColor> live = render(Composer::PromotionPolicy::Off);
+  const std::vector<SkColor> eager = render(Composer::PromotionPolicy::Eager);
+  ASSERT_EQ(live.size(), eager.size());
+  size_t differing = 0;
+  for (size_t i = 0; i < live.size(); ++i)
+    if (live[i] != eager[i]) ++differing;
+  EXPECT_EQ(differing, 0u)
+      << differing << " pixels moved: a node whose wash blends with the page "
+                      "was baked away from the page";
+
+  Host host;
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.composer.setProfiling(true);
+  host.composer.render(page());
+  host.frame();
+  const Composer::NodeCost* row = requireRow(host.composer, "washed");
+  ASSERT_NE(row, nullptr);
+  EXPECT_TRUE(row->refused(Composer::Promotion::ReadsBackdrop));
+}

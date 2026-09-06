@@ -396,6 +396,17 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       for (const Decoration& d : node.fxData->overlays) live |= d.isAnimated();
     return live;
   }();
+  // …and the other declaration a decoration makes about the canvas: a mark
+  // painted through a blend mode of its own resolves against what is under
+  // the node, and a bake would offer it transparent black instead.
+  const bool decorBlends = [&] {
+    bool blends = false;
+    for (const Decoration& d : node.backgrounds) blends |= d.blends();
+    for (const Decoration& d : node.foregrounds) blends |= d.blends();
+    if (node.fxData)
+      for (const Decoration& d : node.fxData->overlays) blends |= d.blends();
+    return blends;
+  }();
   const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
                          imageAssetOf(node)->animated();
   // A LIVE effect: the filter is captured by the recording, so bound
@@ -613,7 +624,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // which is the same bargain every other rounding-accepting opt-in makes.
   inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
                           node.paint.blendMode != SkBlendMode::kSrcOver ||
-                          node.kind == Kind::Custom;
+                          node.kind == Kind::Custom || decorBlends;
 
   // THE PROOF ITSELF is SigilCoreCache's: everything above resolves this
   // library's own lanes, materials, gates and text into the six

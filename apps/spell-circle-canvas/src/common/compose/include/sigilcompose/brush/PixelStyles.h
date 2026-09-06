@@ -180,6 +180,9 @@ struct Scanlines {
   SkBlendMode blend = SkBlendMode::kSrcOver;
 
   bool operator==(const Scanlines&) const = default;
+  /** The CRT reading composites with the picture beneath the rows; only
+   *  the print reading (source-over black) draws over itself alone. */
+  bool blends() const { return blend != SkBlendMode::kSrcOver; }
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };

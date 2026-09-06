@@ -400,6 +400,26 @@ concept ReachingDecoration = requires(const D& d) {
   { d.reach() } -> std::convertible_to<float>;
 };
 
+/** Optional on a DecorationScheme: does the mark composite with what is
+ *  ALREADY ON THE CANVAS?
+ *
+ *  A decoration that paints through a blend mode of its own — a soft-light
+ *  wash, an additive halo, a multiply scanline — resolves against whatever
+ *  lies beneath the node. That is exactly what it is for, and it is also
+ *  the one thing a cached bake cannot offer it: inside a layer the same
+ *  draw resolves against transparent black, and the difference is the
+ *  whole mark rather than a rounding. Declaring it refuses that node, and
+ *  every ancestor, the automatic bake and the memo hold.
+ *
+ *  Declared rather than introspected, for the same reason isAnimated() is:
+ *  a type-erased value cannot be looked inside. Say nothing and the mark
+ *  is taken to draw only over what it covers. A bare PaintProgram declares
+ *  nothing and can draw anything, so it is counted as blending. */
+template <typename D>
+concept BlendingDecoration = requires(const D& d) {
+  { d.blends() } -> std::convertible_to<bool>;
+};
+
 /** Optional on a DecorationScheme: element keys whose resolved PATHS this
  *  decoration needs (a weave's `strand::from(key)`). The element collects
  *  them at build time and the derive pass answers them into
@@ -426,6 +446,12 @@ class Decoration {
       : m_animated([&] {
           if constexpr (AnimatedDecoration<D>)
             return scheme.isAnimated();
+          else
+            return false;
+        }()),
+        m_blends([&] {
+          if constexpr (BlendingDecoration<D>)
+            return scheme.blends();
           else
             return false;
         }()),
@@ -464,7 +490,10 @@ class Decoration {
     };
   }
   Decoration(PaintProgram program)  // NOLINT: implicit by design
-      : m_paint(std::move(program)) {}
+      // A callable declares nothing and may draw through any blend mode,
+      // so it is counted as compositing with the canvas — the same reading
+      // a custom() leaf's program gets, and for the same reason.
+      : m_blends(true), m_paint(std::move(program)) {}
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const {
     if (m_paint) m_paint(canvas, ctx);
@@ -475,6 +504,10 @@ class Decoration {
   /** FULL width of the mark this decoration paints, across the outline it
    *  dresses (see ReachingDecoration). Falls back to bleed(), then to 0. */
   float reach() const { return m_reach; }
+  /** Whether the mark composites with what is already on the canvas (see
+   *  BlendingDecoration). True for a bare PaintProgram, which declares
+   *  nothing. */
+  bool blends() const { return m_blends; }
   /** Keyed elements whose resolved paths this decoration reads (see
    *  BorrowingDecoration). Empty for everything that borrows nothing. */
   const std::vector<std::string>& borrows() const { return m_borrows; }
@@ -495,6 +528,7 @@ class Decoration {
 
  private:
   bool m_animated = false;
+  bool m_blends = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
   std::vector<std::string> m_borrows;

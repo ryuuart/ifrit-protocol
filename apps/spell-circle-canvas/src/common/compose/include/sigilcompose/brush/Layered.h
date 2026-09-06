@@ -42,6 +42,15 @@ struct LayeredBrush {
 
   bool operator==(const LayeredBrush&) const = default;
 
+  /** An additive or otherwise blended pass reads the picture under the
+   *  outline, which is what an additive halo is FOR — and what stops the
+   *  node being baked into a layer of its own. */
+  bool blends() const {
+    for (const StrokeLayer& layer : layers)
+      if (layer.blend != SkBlendMode::kSrcOver) return true;
+    return false;
+  }
+
   /** Extra paint reach past the outline, so a cached recording's cull does
    *  not truncate the halo — the point of an additive stack is that it
    *  paints WIDE of the path, and a node culling at its own bounds loses
