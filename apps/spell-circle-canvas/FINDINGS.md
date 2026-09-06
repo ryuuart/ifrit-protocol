@@ -88,3 +88,52 @@ float (`penrose_paving`).
 
 Assert once fixed: the converted sketch's placement is `arrange::`, and
 its plate is rebased in the same commit that converts it.
+
+## Automatic texture promotion moves 26 plates past the one code value it may cost
+
+`scripts/plate_ledger.py --tier promotion` renders every scene with
+automatic texture promotion held off and again with it on and differences
+the pair. A promoted node is baked under the live matrix post-translated
+by an integer, and inverting that matrix at a scale whose reciprocal is
+inexact does not cancel the integer to the last bit, so a shaded pixel
+may land ONE code value from the live paint and nothing may land
+further. Over the registry, 134 of 160 comparable scenes stand within
+that. Twenty-six do not, worst channel first:
+
+    eva_magi_deliberation 253 (mean 31.34, p99 253) · volatility_cost 228
+    · spacejam_1996 213 · eva_magi_interior 191 · aero desktop 127 ·
+    thunder_fulu 88 · blur_falloff 70 · ksp_mapview 68 · lain_navi 62 ·
+    chladni_tab1 28 · ds2_bench 16 · thaumonomicon 13 · winamp_base 5 ·
+    twoadvanced_v4 5 · kumiko_asanoha 4 · vertigo_titles 3 ·
+    twoadvanced_v3 3 · sigillum_aemeth 3 · fallout2_charsheet 3 ·
+    world hud 2 · pop_stamps 2 · path_booleans 2 · gerstner grid 2 ·
+    floating_panels 2 · daemon console 2 · chevreul_circle 2
+
+`eva_magi_deliberation` is the one whose MEAN moves: the two pictures
+differ over the whole frame rather than at a few pixels, which is a
+different fault from the rest and the place to start.
+
+`volatility_cost` is not a defect and should be excluded by name once
+the rest are understood: the study DRAWS the runtime's own caching
+verdicts, so a promoted run is meant to read differently.
+
+Intended: a promotion is invisible but for rounding. What the tier
+measures is the promoter's whole correctness surface, and until now
+nothing headless exercised it at all — every plate is rendered with the
+feature switched out.
+
+Assert once fixed: `--tier promotion` reports every scene within one
+code value, and each cause gets a case in `compose_test` beside the four
+in `core/test/ComposeTestKernel.cpp` that already pin the rule.
+
+## chaucer_astrolabe cannot finish a plate under the sweep's ceiling
+
+Under the promotion tier's five concurrent jobs it was killed at the
+300 s per-scene ceiling in the held-off pass, so it is the one scene the
+tier could not judge. It renders alone, and the CPU tier's baseline
+holds a line for it, so this is contention rather than a hang — but a
+scene that only finishes when it has the machine to itself is a scene no
+parallel sweep can gate.
+
+Assert once fixed: `--tier promotion` and `--tier cpu` both render it
+inside the ceiling at the default job count.
