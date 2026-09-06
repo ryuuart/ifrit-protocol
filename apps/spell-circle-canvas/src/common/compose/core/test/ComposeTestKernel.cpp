@@ -716,7 +716,18 @@ std::vector<SkColor> surfaceOf(Host& host, int w, int h) {
  *  shader's local coordinates, and at a scale whose reciprocal is inexact
  *  that integer does not cancel to the last bit. So a shaded pixel may land
  *  one code value away and nothing may land further: worst > 1 is a picture
- *  that moved, not a picture that rounded. */
+ *  that moved, not a picture that rounded.
+ *
+ *  ONE VALUE IS THE BAKE OVER TRANSPARENT BLACK. A bake that lands on
+ *  CONTENT carries a second: the node's own paint is composited twice
+ *  where the live paint composited once — once into the bake, once when
+ *  the bake is blitted — and Skia's blit of a raster image is not the
+ *  arithmetic of its direct shader draw, so a partly transparent texel
+ *  over a bright backdrop can settle a value further out. It is still a
+ *  rounding and not a move: it appears only where the node's own alpha is
+ *  between none and all, and taking the bake at higher precision does not
+ *  remove it. Cases whose promoted node lands over other content say so
+ *  and allow the two. */
 int worstDrift(const std::vector<SkColor>& live,
                const std::vector<SkColor>& baked, size_t* differing) {
   int worst = 0;
@@ -745,7 +756,12 @@ PromotionDrift promotionDriftOf(const std::function<Element()>& page,
                                 const SkMatrix& hostMatrix, int w, int h) {
   const auto render = [&](bool promotion, bool* promotedOut) {
     Host host(w, h);
-    host.composer.setAutoTexturePromotion(promotion);
+    // EAGER on the promoted side, so the case is about the promoter and
+    // never about the machine: the cost rule is a stopwatch, and an idle
+    // runner crosses no bar and would compare two live renders.
+    host.composer.setAutoTexturePromotion(
+        promotion ? Composer::PromotionPolicy::Eager
+                  : Composer::PromotionPolicy::Off);
     host.composer.setProfiling(true);
     host.composer.render(profiledUnder(page().key("page")));
     for (int i = 0; i < 30; ++i) {
@@ -780,7 +796,9 @@ std::vector<SkColor> warmThenStillOf(const std::function<Element()>& page,
                                      bool promotion, float stillScale, int w,
                                      int h, bool* promotedOut) {
   Host host(w, h);
-  host.composer.setAutoTexturePromotion(promotion);
+  host.composer.setAutoTexturePromotion(promotion
+                                            ? Composer::PromotionPolicy::Eager
+                                            : Composer::PromotionPolicy::Off);
   host.composer.setProfiling(true);
   host.composer.render(profiledUnder(page().key("page")));
   for (int i = 0; i < 30; ++i) host.frame();
@@ -1002,9 +1020,127 @@ TEST(ComposeCache, APromotedTileSamplesWhereTheLivePaintSampled) {
   const PromotionDrift drift = promotionDriftOf(page, host, 400, 400);
   ASSERT_TRUE(drift.promoted)
       << "nothing was promoted, so this compared two live renders";
-  EXPECT_LE(drift.worstChannel, 1)
+  // TWO, because the tile is promoted over the page's own opaque paint: a
+  // texel of partial coverage composited into a bake and blitted from it
+  // settles up to a value further out than the same texel drawn once. A
+  // sample that landed anywhere else moves a magnified texel's worth,
+  // which is tens.
+  EXPECT_LE(drift.worstChannel, 2)
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
       << " code values, when a promoted node's paint SAMPLED an image";
+}
+
+TEST(ComposeCache, ACustomProgramIsCountedAsCompositingWithTheCanvas) {
+  // A custom() leaf is handed the canvas and may draw with ANY blend mode.
+  // Nothing in the library can look inside the callable, so the only sound
+  // reading is that it composites against what is already there — and a
+  // bake would hand it transparent black instead. The cost of getting this
+  // wrong is not a rounding: the plus-blended wash below lands more than a
+  // hundred code values off when its node is baked, which is a picture
+  // that changed rather than one that rounded.
+  const auto page = [] {
+    return box()
+        .cache(Cache::None)
+        .child(box()
+                   .key("ground")
+                   .absolute()
+                   .left(0)
+                   .top(0)
+                   .width(180)
+                   .height(180)
+                   .fill(Fill::color({0.45f, 0.35f, 0.15f, 1})))
+        .child(custom([](SkCanvas& canvas, const PaintContext& ctx) {
+                 SkPaint paint;
+                 paint.setColor4f({0.4f, 0.4f, 0.4f, 1});
+                 paint.setBlendMode(SkBlendMode::kPlus);
+                 canvas.drawRect(
+                     SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+                     paint);
+               })
+                   .key("plus")
+                   .absolute()
+                   .left(20)
+                   .top(20)
+                   .width(120)
+                   .height(120));
+  };
+  const std::function<Element()> fn = page;
+  const PromotionDrift drift =
+      promotionDriftOf(fn, SkMatrix::Scale(1.875f, 1.875f), 400, 400);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted at all, so this compared two live renders";
+  EXPECT_EQ(drift.worstChannel, 0)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values: a node holding a paint program was baked, and the "
+         "program's blend resolved against transparent black";
+
+  // …and the refusal SAYS so, since a refusal an author cannot read is a
+  // node that is silently slow.
+  Host host(400, 400);
+  host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+  host.composer.setProfiling(true);
+  host.composer.render(page());
+  host.frame();
+  const Composer::NodeCost* row = requireRow(host.composer, "plus");
+  ASSERT_NE(row, nullptr);
+  EXPECT_TRUE(row->refused(Composer::Promotion::ReadsBackdrop));
+}
+
+namespace {
+
+/** A tile most of whose texels are PARTIALLY TRANSPARENT: a flat wash at a
+ *  third alpha, and a turned bar whose antialiased edges carry every
+ *  coverage between none and all. A tile of opaque marks reads back where
+ *  a sample landed; this one reads back how the sample was COMPOSITED,
+ *  which is the half a bake changes — it composites into transparent black
+ *  and is blitted, where the live paint composites straight onto the
+ *  backdrop. */
+Pattern softTile() {
+  return Pattern::tile(
+      {16, 16},
+      box()
+          .child(box().absolute().left(1).top(1).width(14).height(14).fill(
+              Fill::color({1, 1, 1, 0.35f})))
+          .child(box()
+                     .absolute()
+                     .left(3)
+                     .top(3)
+                     .width(10)
+                     .height(3)
+                     .fill(Fill::color({0.2f, 0.9f, 0.3f, 0.6f}))
+                     .rotate(24)));
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedNodeCompositesAPartlyTransparentTileAsItDidLive) {
+  // Every star in a field is an opaque core inside a soft ring, repeated
+  // from one tile, and a bake that reads the ring differently draws the
+  // same wrong ring in every repeat. So the claim under test is not where
+  // the sample landed but what happened to it after: a bake composites the
+  // tile into transparent black and blits the result, and that must reach
+  // the same pixels as compositing it onto the backdrop directly.
+  Pattern pattern = softTile();
+  const auto page = [&] {
+    Element out = promotablePage();
+    out.child(box()
+                  .absolute()
+                  .left(10)
+                  .top(10)
+                  .width(160)
+                  .height(160)
+                  .fill(pattern.material(fonts())));
+    return out;
+  };
+  SkMatrix host = SkMatrix::Scale(1.875f, 1.875f);
+  host.postTranslate(0.37f, 0.61f);
+  const PromotionDrift drift = promotionDriftOf(page, host, 400, 400);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 2)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, where a promoted node composited a partly "
+         "transparent tile";
 }
 
 TEST(ComposeCache, AStillAtANewScaleResamplesATileWhereTheLivePaintDoes) {
@@ -1037,7 +1173,9 @@ TEST(ComposeCache, AStillAtANewScaleResamplesATileWhereTheLivePaintDoes) {
   ASSERT_EQ(live.size(), baked.size());
   size_t differing = 0;
   const int worst = worstDrift(live, baked, &differing);
-  EXPECT_LE(worst, 1) << differing << " pixels of the still moved, worst "
+  // Two for the same reason as the case above: the tile is promoted over
+  // the page's own paint, so its coverage is composited twice.
+  EXPECT_LE(worst, 2) << differing << " pixels of the still moved, worst "
                       << worst << " code values";
 }
 

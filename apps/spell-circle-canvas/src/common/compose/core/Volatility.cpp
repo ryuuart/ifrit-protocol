@@ -598,8 +598,22 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // OWN layer and draws children over the blit, so it must ask only about
   // the node's own paint — the children composite against the blit exactly
   // as they would against freshly rasterized pixels.
+  //
+  // A CUSTOM PROGRAM IS A CALLABLE, AND NOTHING HERE CAN LOOK INSIDE IT.
+  // It is handed the canvas and may draw with any blend mode it likes — a
+  // plus-blended glow, a multiply wash, a picture recorded elsewhere that
+  // holds either — and every one of those composites against what is
+  // already on the canvas. Baked, they resolve against the layer's
+  // transparent black instead, and the difference is not a rounding: it is
+  // tens or hundreds of code values wherever the program blends. The only
+  // sound reading of an opaque callable is the conservative one, so a node
+  // that hands the canvas to a program of its own is counted as reading
+  // the backdrop. An author who knows their program only draws over what
+  // it covers asks for the bake themselves with `.cache(Cache::Texture)`,
+  // which is the same bargain every other rounding-accepting opt-in makes.
   inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
-                          node.paint.blendMode != SkBlendMode::kSrcOver;
+                          node.paint.blendMode != SkBlendMode::kSrcOver ||
+                          node.kind == Kind::Custom;
 
   // THE PROOF ITSELF is SigilCoreCache's: everything above resolves this
   // library's own lanes, materials, gates and text into the six
