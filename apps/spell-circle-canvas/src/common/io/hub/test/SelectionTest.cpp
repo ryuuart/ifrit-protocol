@@ -1,8 +1,9 @@
 /** @file
  * Selection: one selector into a sorted, duplicate-free URI snapshot —
  * exact files, recursive directories, segment-aware globs, the mount a
- * URI belongs to when mounts overlap, file URLs and plain paths, and
- * the network URL that selects itself but cannot be globbed.
+ * URI belongs to when mounts overlap, file URLs and plain paths, a
+ * selector's own spelling of the same files, and the network URL that
+ * selects itself but cannot be globbed.
  */
 
 #include <gtest/gtest.h>
@@ -10,6 +11,7 @@
 
 #include <filesystem>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include "MountedHub.h"
@@ -17,6 +19,29 @@
 using namespace sigil::io;
 using sigil::test::ScratchDir;
 namespace fs = std::filesystem;
+
+namespace {
+
+/** The working directory for as long as one case needs it. A relative
+ *  selector is relative to something, and that something is process
+ *  state: it is put back on the way out so the next case starts where
+ *  this one did. */
+class WorkingDirectory {
+ public:
+  explicit WorkingDirectory(const fs::path& to)
+      : m_previous(fs::current_path()) {
+    fs::current_path(to);
+  }
+  ~WorkingDirectory() {
+    std::error_code ec;
+    fs::current_path(m_previous, ec);
+  }
+
+ private:
+  fs::path m_previous;
+};
+
+}  // namespace
 
 TEST_F(IOHub, SelectsFilesDirectoriesAndSegmentAwareGlobs) {
   dir.write("shaders/a.sksl", "a");
@@ -74,6 +99,24 @@ TEST_F(IOHub, FileUrlsSelectDirectoriesAndGlobsWithoutAMount) {
       (dir.path / "files").lexically_normal().generic_string();
   EXPECT_EQ(hub.select(plain + "/nested/*.sksl"),
             std::vector<std::string>{plain + "/nested/c.sksl"});
+}
+
+// `./shaders/*.sksl` and `shaders/*.sksl` name the same files, so they
+// select the same URIs: the leading `./` a shell or an editor puts on a
+// relative path is the same path, and the answers carry the spelling the
+// files have rather than the one the selector was written with.
+TEST_F(IOHub, ARelativeSelectorSelectsWhatItsPlainSpellingSelects) {
+  dir.write("shaders/a.sksl", "a");
+  dir.write("shaders/nested/b.sksl", "b");
+  dir.write("shaders/skipped.slang", "skipped");
+  const WorkingDirectory here(dir.path);
+
+  const std::vector<std::string> plain = hub.select("shaders/*.sksl");
+  EXPECT_EQ(plain, std::vector<std::string>{"shaders/a.sksl"});
+  EXPECT_EQ(hub.select("./shaders/*.sksl"), plain);
+  EXPECT_EQ(hub.select("./shaders/**/*.sksl"), hub.select("shaders/**/*.sksl"));
+  EXPECT_EQ(hub.select("./shaders"), hub.select("shaders"));
+  EXPECT_EQ(hub.select("./shaders/a.sksl"), hub.select("shaders/a.sksl"));
 }
 
 TEST_F(IOHub, NetworkSelectorsAreExactAndCannotGlob) {

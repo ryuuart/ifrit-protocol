@@ -2,21 +2,24 @@
  * Preloading and retention: bytes fetched ahead of the first ask, the
  * lease that says how long the hub keeps them, the selector snapshots a
  * lease refreshes, and what a discard of everything unretained leaves
- * standing.
+ * standing — including while other threads are loading.
  */
 
 #include <gtest/gtest.h>
 #include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilio/hub/Hub.h>
 
+#include <atomic>
 #include <filesystem>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "MountedHub.h"
 
 using namespace sigil::io;
 using sigil::io::test::leaseUris;
+using sigil::io::test::writePng;
 using sigil::test::ScratchDir;
 namespace fs = std::filesystem;
 
@@ -152,6 +155,74 @@ TEST_F(IOHub, EmptyResourceLeaseCanIncludeSeveralSelectors) {
   EXPECT_EQ(leaseUris(shaders),
             (std::vector<std::string>{"res://compose/b.slang",
                                       "res://material/a.sksl"}));
+}
+
+// Loads from several threads while leases are taken and dropped and
+// everything unretained is discarded underneath them: the cache, the
+// pin counts and the entries a load is publishing are one hub's state,
+// and every answer is a whole resource rather than a mixture of two.
+// What the lease promises is the last claim: the retained versions are
+// still the ones the hub answers with after the churn, even though the
+// files behind them have changed on disk.
+TEST_F(IOHub, ConcurrentLoadsRunBesideLeasesAndDiscards) {
+  constexpr size_t kFiles = 6;
+  constexpr size_t kLoaders = 4;
+  constexpr size_t kRounds = 40;
+  std::vector<std::string> kept;
+  std::vector<std::string> loose;
+  for (size_t i = 0; i != kFiles; ++i) {
+    const std::string name = std::to_string(i) + ".txt";
+    dir.write("kept/" + name, "kept " + std::to_string(i));
+    dir.write("loose/" + name, "loose " + std::to_string(i));
+    kept.push_back("res://kept/" + name);
+    loose.push_back("res://loose/" + name);
+  }
+  writePng(dir.path / "kept" / "tile.png", 3, SK_ColorRED);
+
+  ResourceLease retained = hub.retain("res://kept/**");
+  ASSERT_EQ(retained.uris().size(), kFiles + 1);
+  ASSERT_EQ(retained.preload(), kFiles + 1);
+  ASSERT_NE(hub.image("res://kept/tile.png"), nullptr);
+
+  std::atomic<bool> running{true};
+  std::vector<std::thread> workers;
+  for (size_t reader = 0; reader != kLoaders; ++reader)
+    workers.emplace_back([&] {
+      for (size_t round = 0; round != kRounds; ++round) {
+        for (size_t i = 0; i != kFiles; ++i) {
+          EXPECT_EQ(hub.text(kept[i]), "kept " + std::to_string(i));
+          EXPECT_EQ(hub.text(loose[i]), "loose " + std::to_string(i));
+        }
+        auto tile = hub.image("res://kept/tile.png");
+        ASSERT_NE(tile, nullptr);
+        EXPECT_EQ(tile->width(), 3);
+      }
+    });
+  std::thread churn([&] {
+    while (running.load()) {
+      ResourceLease temporary = hub.retain("res://loose/**");
+      temporary.refresh();
+      temporary = ResourceLease{};
+    }
+  });
+  std::thread discarding([&] {
+    while (running.load()) hub.discardUnretained();
+  });
+
+  for (std::thread& worker : workers) worker.join();
+  running = false;
+  churn.join();
+  discarding.join();
+
+  // The retained versions are the ones still cached: the files they came
+  // from now say something else, and no poll() has run.
+  for (size_t i = 0; i != kFiles; ++i)
+    dir.write("kept/" + std::to_string(i) + ".txt", "changed on disk");
+  for (size_t i = 0; i != kFiles; ++i)
+    EXPECT_EQ(hub.text(kept[i]), "kept " + std::to_string(i));
+  auto tile = hub.image("res://kept/tile.png");
+  ASSERT_NE(tile, nullptr);
+  EXPECT_EQ(tile->width(), 3);
 }
 
 TEST(IOResourceLease, MayBeDestroyedAfterItsHub) {

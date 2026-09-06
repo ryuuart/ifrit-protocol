@@ -1,7 +1,8 @@
 /** @file
  * Network resources: the cache filename a URL maps to, the disk cache
  * in front of every policy, what each policy does when a fetch fails,
- * and how a fetched body persists. Every case but the last one drives a
+ * how a fetched body persists, and what two fetches of one URL at once
+ * leave in the cache directory. Every case but the last one drives a
  * stub transport or a pre-seeded cache, so no case here leaves the
  * machine.
  */
@@ -15,10 +16,14 @@
 #include <sigilio/hub/Network.h>
 #include <sigilio/source/Sink.h>
 
+#include <atomic>
+#include <barrier>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "ScratchDir.h"
@@ -141,6 +146,54 @@ TEST(IONetwork, FetchedBytesPersistWholeOrNotAtAll) {
   offline.setNetworkCacheDir(cache.path);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
   EXPECT_EQ(offline.text(url), "ok");
+}
+
+// A cold ask for one URL may happen twice at once — the hub lets it, so
+// that a slow fetch never stalls another thread. Both fetches persist,
+// and one shared partial file would let each truncate what the other is
+// writing. The transport holds both asks inside itself until the second
+// arrives, so the two writes are guaranteed to overlap; what the cache
+// directory is left holding is one whole file and nothing beside it.
+TEST(IONetwork, TwoConcurrentFetchesOfOneUrlCommitOneWholeFile) {
+  const ScratchDir cache("sigilio_net");
+  const std::string url = "https://fake.invalid/wide.bin";
+  // Long enough that one writer is still writing when the other starts.
+  const std::string body(512 * 1024, 'x');
+  Hub hub;
+  hub.setNetworkCacheDir(cache.path);
+  std::barrier inside(2);
+  std::atomic<size_t> fetches{0};
+  hub.setNetworkTransport([&](std::string_view) {
+    ++fetches;
+    inside.arrive_and_wait();
+    std::vector<std::byte> bytes(body.size());
+    std::memcpy(bytes.data(), body.data(), body.size());
+    return std::optional<std::vector<std::byte>>{std::move(bytes)};
+  });
+
+  std::shared_ptr<const Bytes> fetched[2];
+  std::thread askers[2];
+  for (int i = 0; i != 2; ++i)
+    askers[i] = std::thread([&, i] { fetched[i] = hub.blob(url); });
+  for (std::thread& asker : askers) asker.join();
+
+  EXPECT_EQ(fetches.load(), 2u);
+  for (const auto& answer : fetched) {
+    ASSERT_NE(answer, nullptr);
+    EXPECT_EQ(answer->asText(), body);
+  }
+
+  // One file under the cache name, no partial left over, and every byte
+  // of it there: neither writer wrote into the other's file.
+  std::vector<std::string> left;
+  for (const auto& entry : fs::directory_iterator(cache.path))
+    left.push_back(entry.path().filename().string());
+  EXPECT_EQ(left, std::vector<std::string>{networkCacheKey(url)});
+
+  Hub offline;
+  offline.setNetworkCacheDir(cache.path);
+  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  EXPECT_EQ(offline.text(url), body);
 }
 
 // The one case in this file that reaches the network: fetch a URL over

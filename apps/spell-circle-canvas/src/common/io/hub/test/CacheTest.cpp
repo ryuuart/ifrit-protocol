@@ -14,10 +14,13 @@
 #include <sigilio/source/Sink.h>
 
 #include <array>
+#include <atomic>
 #include <barrier>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -252,6 +255,38 @@ TEST_F(IOHub, NetworkUrisCannotBeWritten) {
   const std::string_view payload = "nope";
   EXPECT_FALSE(
       hub.write("https://example.com/x.txt", payload.data(), payload.size()));
+}
+
+// A poll() and a write() on one URI are one entry's fate decided twice:
+// the write drops what was cached, and the poll commits a reload only
+// into an entry nobody replaced meanwhile. Whichever order they land
+// in, the cache is left holding one version of the resource, and it is
+// the version the file holds.
+TEST_F(IOHub, PollBesideAWriteLeavesOneCoherentVersion) {
+  constexpr size_t kWrites = 60;
+  const std::string uri = "res://raced.txt";
+  dir.write("raced.txt", "version 0");
+  ASSERT_EQ(hub.text(uri), "version 0");
+
+  std::atomic<bool> writing{true};
+  std::thread poller([&] {
+    while (writing.load()) hub.poll();
+  });
+  std::string last;
+  for (size_t i = 1; i <= kWrites; ++i) {
+    last = "version " + std::to_string(i);
+    ASSERT_TRUE(hub.write(uri, last.data(), last.size()));
+  }
+  writing = false;
+  poller.join();
+
+  // The last write dropped the entry it overwrote, so this ask reads
+  // the file — and reads it whole.
+  EXPECT_EQ(hub.text(uri), last);
+  std::ifstream file(dir.path / "raced.txt", std::ios::binary);
+  std::ostringstream onDisk;
+  onDisk << file.rdbuf();
+  EXPECT_EQ(onDisk.str(), last);
 }
 
 TEST_F(IOChannels, LdrFormatsNormalizeToFloats) {
