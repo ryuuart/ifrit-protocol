@@ -120,7 +120,8 @@ class Histogram {
     return width > 0.0 ? fraction(bin) / width : 0.0;
   }
 
-  /** The total weight that landed in a bin. */
+  /** The weight that landed in ANY bin: everything added but what
+   *  `below()` and `above()` hold. It is what `fraction()` divides by. */
   [[nodiscard]] double total() const { return m_inside; }
   /** The weight that fell below the low edge, and above the high one. */
   [[nodiscard]] double below() const { return m_below; }

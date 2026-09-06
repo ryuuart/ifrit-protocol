@@ -21,16 +21,16 @@ them all:
 | header | holds |
 |--------|-------|
 | `time/Stopwatch.h`    | `Stopwatch` (`elapsedMs()`, `elapsedUs()`, `reset()`), `toMicroseconds()` for a caller holding two clock readings, and `ScopedMs`, which writes a block's milliseconds into a double at scope exit |
-| `time/Laps.h`         | `Laps` — `mark(name)` returns the milliseconds since the previous mark and records the lap; `each()` reads them back |
-| `time/FrameTimer.h`   | `FrameTimer` — `begin()`, `composed()`, `finished()`, `presented()` feeding the `frame()`, `work()` and `present()` rings, with `headroomFps()` and `presentedFps()` read off them |
-| `stats/Samples.h`     | `Samples`, a rolling ring (`add`, `mean`, `percentile`, `min`, `max`, `last`, `size`, `samples`), the free `quantile()` it and everything else shares, `quantiles()` for several fractions off one sort, and `median()` |
-| `stats/Moments.h`     | `Moments` — a run of any length summarised in six words: `add`, `of`, `merge`, `count`, `mean`, `sum`, `variance`, `sampleVariance`, `sd`, `sampleSd`, `skewness`, `min`, `max`, `range` |
-| `stats/Histogram.h`   | `Histogram` — equal bins across a range: `add` (weighted), `over`, `binOf`, `edge`, `centre`, `binWidth`, `counts`, `count`, `fraction`, `density`, `total`, `below`, `above`, `mode`, `peak` |
-| `stats/Rescale.h`     | `Rescale` — an invertible straight-line map, with `zScore()` and `unitRange()` deriving one from a run |
-| `stats/Fit.h`         | `lineFit(xs, ys)` and the `LineFit` it answers — slope, intercept, `r2`, `correlation()`, max and rms residual, with `at()` and `residual()` |
-| `stats/Counters.h`    | `Counters` — named `int64_t` counters (`add`, `get`, `reset`, `each`) |
-| `stats/FrameSample.h` | `FrameSample` — the plain numbers a frame-budget gate judges a scene by |
-| `check/Check.h`       | `Check`, the `check()` overloads, `failures()` and `Table` |
+| `time/Laps.h`         | `Laps` — `mark(name)` returns the milliseconds since the previous mark and records the lap; `each()` reads them back, `size()` and `totalMs()` summarise them, `reset()` forgets them and starts the next phase there |
+| `time/FrameTimer.h`   | `FrameTimer` — `begin()`, `composed()`, `finished()`, `presented()` feeding the `frame()`, `work()` and `present()` rings, with `headroomFps()` and `presentedFps()` read off them; `addFrame()`, `addWork()` and `addPresent()` put a duration measured elsewhere into a lane, and `reset()` and `resetPresentation()` empty them |
+| `stats/Samples.h`     | `Samples`, a rolling ring (`add`, `clear`, `mean`, `percentile`, `min`, `max`, `last`, `size`, `capacity`, `empty`, `samples`), the free `quantile()` it and everything else shares, `quantiles()` for several fractions off one sort, and `median()` |
+| `stats/Moments.h`     | `Moments` — a run of any length summarised in six words: `add`, `of`, `merge`, `clear`, `count`, `empty`, `mean`, `sum`, `variance`, `sampleVariance`, `sd`, `sampleSd`, `skewness`, `min`, `max`, `range` |
+| `stats/Histogram.h`   | `Histogram` — equal bins across a range: `add` (weighted), `over`, `clear`, `binOf`, `bins`, `low`, `high`, `edge`, `centre`, `binWidth`, `counts`, `count`, `fraction`, `density`, `total`, `below`, `above`, `mode`, `peak` |
+| `stats/Rescale.h`     | `Rescale` — an invertible straight-line map (`centre`, `scale`, `origin`, applied with `operator()` and undone with `invert()`), with `zScore()` and `unitRange()` deriving one from a run |
+| `stats/Fit.h`         | `lineFit(xs, ys)` and the `LineFit` it answers — `slope`, `intercept`, `r2`, `correlation()`, `maxResidual`, `rmsResidual` and the `samples` they were read off, with `at()` and `residual()` |
+| `stats/Counters.h`    | `Counters` — named `int64_t` counters (`add`, `get`, `reset`, `clear`, `size`, `each`) |
+| `stats/FrameSample.h` | `FrameSample` — the plain numbers a frame-budget gate judges a scene by: `frameMs`, `workMs`, `p99Ms`, `headroomFps` |
+| `check/Check.h`       | `Check` (`label`, `expected`, `actual`, `pass`, a `Standing`, with `line()` and `judged()`), the `check()` overloads that build one, `finding()`, `reading()` and `heading()` for the other standings, the free `failures()` and `findings()` over a span, and `Table` — `add`, `lines`, `checks`, `failures`, `findings`, `pass` |
 
 ## Using it
 

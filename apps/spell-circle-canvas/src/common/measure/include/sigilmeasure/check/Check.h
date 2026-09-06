@@ -216,10 +216,13 @@ struct Table {
   }
 
   /** One string per row, then a final `  <n> checks, <m> failed` line
-   *  (`all passed` when none did), with `, <k> findings` after it when a
-   *  finding failed. The readings and headings are printed and not
-   *  counted. Empty when there are no rows: a table with nothing in it
-   *  prints nothing rather than a summary of nothing. */
+   *  (`all passed` when none did), with `, 1 finding` or `, <k> findings`
+   *  after it when a finding did not hold — the noun agrees with the
+   *  count, since a summary that says "1 findings" reads as a defect in
+   *  the report rather than in what was reported. The readings and
+   *  headings are printed and not counted. Empty when there are no rows: a
+   *  table with nothing in it prints nothing rather than a summary of
+   *  nothing. */
   std::vector<std::string> lines(int labelWidth = 44, int valueWidth = 8) const;
 };
 
