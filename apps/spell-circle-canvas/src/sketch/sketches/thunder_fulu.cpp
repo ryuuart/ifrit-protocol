@@ -167,10 +167,12 @@
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigildata/table/Table.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Polyline.h>
+#include <sigilio/IO.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -184,6 +186,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -196,6 +199,7 @@ namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
 namespace path = sigil::geometry::path;
+namespace data = sigil::data;
 namespace shapers = sigil::geometry::shapers;
 namespace shapes = sigil::geometry::shapes;
 namespace skia = sigil::material::skia;
@@ -250,144 +254,12 @@ constexpr float kCol = 306.0f;             // the spine: every part is strung
 // ORDER and DRAWING DIRECTION — which is the whole point of the file.
 
 struct Glyph {
-  const char* id;  // romanised: every caption on this canvas is Latin
-  const int16_t* data;
-  int strokes;
-};
-
-// 罡  U+7F61 — 10 strokes, 50 median points
-const int16_t k_gang[] = {
-    3,   228, 155, 262, 181, 315, 389, 10,  296, 162, 312, 173, 577, 126,
-    660, 115, 715, 115, 730, 123, 752, 152, 710, 287, 692, 324, 692, 350,
-    4,   401, 183, 424, 283, 432, 307, 444, 320, 4,   543, 154, 570, 176,
-    541, 292, 527, 298, 3,   335, 366, 354, 356, 661, 305, 6,   320, 461,
-    350, 469, 404, 470, 610, 438, 640, 436, 665, 444, 6,   471, 490, 499,
-    507, 510, 522, 501, 749, 503, 763, 520, 779, 4,   540, 636, 559, 625,
-    657, 607, 711, 605, 4,   281, 606, 325, 652, 340, 783, 327, 795, 6,
-    108, 839, 179, 860, 402, 816, 610, 803, 785, 806, 894, 849,
-};
-// 急  U+6025 — 9 strokes, 56 median points
-const int16_t k_ji[] = {
-    7,   466, 54,  485, 79,  492, 104, 467, 143, 378, 251, 319, 307, 268,
-    343, 9,   458, 209, 483, 196, 562, 177, 605, 176, 624, 184, 621, 206,
-    555, 291, 513, 338, 494, 348, 8,   297, 396, 351, 399, 534, 363, 620,
-    339, 663, 340, 702, 376, 645, 538, 618, 554, 4,   306, 508, 339, 510,
-    552, 478, 585, 485, 5,   290, 618, 321, 625, 608, 585, 654, 586, 682,
-    595, 3,   229, 704, 210, 777, 164, 874, 13,  330, 702, 343, 720, 366,
-    783, 389, 817, 418, 844, 460, 871, 505, 889, 584, 905, 714, 906, 750,
-    893, 767, 880, 741, 826, 686, 749, 3,   477, 674, 536, 722, 563, 761,
-    4,   725, 645, 833, 689, 860, 709, 892, 752,
-};
-// 如  U+5982 — 6 strokes, 41 median points
-const int16_t k_ru[] = {
-    9,   338, 103, 362, 123, 383, 160, 325, 408, 261, 612, 278, 631, 475, 757,
-    494, 782, 504, 811, 9,   450, 365, 468, 379, 486, 410, 442, 569, 392, 675,
-    354, 727, 300, 776, 241, 815, 164, 846, 5,   78,  472, 133, 495, 217, 469,
-    424, 423, 441, 406, 4,   558, 443, 582, 464, 595, 487, 636, 720, 9,   613,
-    446, 624, 454, 640, 455, 793, 412, 822, 418, 844, 434, 854, 446, 820, 592,
-    792, 617, 5,   656, 687, 674, 670, 779, 650, 830, 648, 858, 656,
-};
-// 律  U+5F8B — 9 strokes, 49 median points
-const int16_t k_lv[] = {
-    6,   317, 113, 335, 138, 340, 160, 299, 220, 203, 319, 145, 359, 7,
-    306, 296, 335, 335, 337, 345, 325, 368, 220, 518, 110, 634, 68,  667,
-    4,   268, 498, 290, 560, 278, 805, 282, 866, 7,   441, 228, 503, 230,
-    719, 181, 752, 187, 780, 215, 731, 374, 704, 394, 5,   404, 344, 449,
-    351, 833, 289, 872, 288, 930, 302, 5,   432, 463, 469, 466, 695, 423,
-    738, 422, 762, 429, 5,   447, 579, 469, 584, 516, 581, 718, 538, 768,
-    543, 5,   370, 708, 425, 714, 676, 671, 839, 652, 920, 669, 5,   548,
-    64,  573, 70,  609, 104, 600, 286, 595, 942,
-};
-// 令  U+4EE4 — 5 strokes, 34 median points
-const int16_t k_ling[] = {
-    9,   461, 67,  484, 88,  494, 118, 456, 198, 388, 302, 302, 407, 231, 476,
-    142, 547, 76,  586, 6,   510, 181, 509, 194, 608, 304, 733, 426, 783, 464,
-    975, 496, 3,   411, 408, 486, 460, 508, 491, 12,  261, 613, 286, 626, 323,
-    631, 540, 572, 579, 567, 604, 571, 632, 595, 637, 603, 634, 612, 515, 772,
-    512, 784, 502, 783, 4,   397, 743, 505, 842, 530, 884, 537, 922,
-};
-// 雨  U+96E8 — 8 strokes, 44 median points
-const int16_t k_yu[] = {
-    6,   312, 205, 343, 213, 396, 214, 520, 199, 698, 166, 747, 170, 6,
-    162, 394, 196, 429, 209, 475, 217, 597, 218, 754, 232, 811, 14,  232,
-    443, 246, 425, 259, 421, 510, 377, 813, 343, 845, 360, 855, 370, 858,
-    389, 840, 629, 826, 726, 808, 796, 780, 831, 679, 791, 661, 777, 6,
-    465, 230, 498, 249, 511, 275, 507, 588, 499, 690, 502, 764, 3,   318,
-    500, 372, 519, 405, 543, 3,   310, 631, 373, 661, 396, 682, 3,   598,
-    466, 670, 485, 697, 502, 3,   598, 608, 663, 634, 687, 654,
-};
-// 五  U+4E94 — 4 strokes, 26 median points
-const int16_t k_wu[] = {
-    5,   304, 206, 343, 215, 400, 214, 704, 165, 753, 167, 6,   460, 237,
-    489, 267, 483, 313, 391, 705, 375, 726, 362, 732, 8,   273, 465, 308,
-    472, 345, 470, 616, 424, 654, 433, 685, 466, 619, 700, 592, 721, 7,
-    63,  782, 138, 803, 419, 751, 654, 739, 855, 747, 905, 762, 966, 790,
-};
-// 鬼  U+9B3C — 9 strokes, 60 median points
-const int16_t k_gui[] = {
-    5,   434, 51,  447, 59,  467, 90,  373, 219, 350, 228, 4,   242, 254, 271,
-    276, 286, 305, 343, 537, 8,   296, 255, 329, 263, 617, 205, 680, 202, 702,
-    208, 735, 248, 699, 340, 658, 481, 4,   387, 381, 534, 346, 578, 340, 600,
-    345, 4,   364, 514, 380, 503, 613, 465, 635, 455, 10,  456, 258, 494, 282,
-    497, 296, 472, 445, 453, 520, 407, 629, 348, 719, 274, 791, 214, 832, 139,
-    870, 14,  506, 539, 529, 561, 546, 591, 536, 658, 533, 740, 541, 809, 559,
-    840, 598, 863, 674, 876, 762, 876, 835, 869, 912, 846, 932, 832, 924, 674,
-    8,   696, 521, 721, 551, 695, 617, 652, 686, 643, 720, 676, 720, 794, 686,
-    807, 690, 3,   774, 603, 832, 675, 844, 720,
-};
-// 雲  U+96F2 — 12 strokes, 62 median points
-const int16_t k_yun[] = {
-    5,   387, 133, 409, 139, 475, 138, 623, 105, 684, 106, 5,   224, 251,
-    233, 269, 235, 299, 188, 397, 183, 450, 10,  266, 286, 286, 295, 312,
-    294, 442, 268, 747, 225, 806, 223, 821, 228, 845, 243, 857, 267, 769,
-    358, 4,   480, 162, 512, 184, 518, 202, 509, 497, 3,   343, 345, 385,
-    361, 417, 385, 3,   328, 452, 385, 472, 410, 490, 3,   618, 319, 679,
-    337, 702, 353, 3,   613, 424, 676, 446, 702, 464, 4,   358, 576, 394,
-    576, 612, 536, 657, 542, 5,   213, 683, 263, 692, 498, 655, 725, 631,
-    807, 650, 13,  485, 695, 439, 713, 407, 760, 356, 812, 351, 820, 367,
-    830, 363, 867, 580, 816, 597, 817, 607, 809, 619, 813, 636, 803, 657,
-    808, 4,   623, 723, 726, 844, 747, 886, 753, 925,
-};
-// 雷  U+96F7 — 13 strokes, 63 median points
-const int16_t k_lei[] = {
-    4,   363, 125, 429, 132, 641, 96,  683, 98,  5,   204, 248, 216, 277,
-    214, 299, 176, 377, 168, 436, 8,   248, 280, 260, 290, 282, 290, 446,
-    260, 783, 219, 824, 235, 842, 261, 766, 345, 5,   479, 152, 513, 181,
-    513, 346, 502, 482, 505, 532, 3,   313, 371, 365, 383, 400, 403, 3,
-    306, 497, 363, 507, 382, 519, 3,   593, 325, 663, 343, 699, 370, 3,
-    589, 444, 667, 465, 694, 494, 5,   250, 602, 274, 619, 299, 655, 325,
-    832, 347, 907, 12,  296, 602, 307, 611, 346, 619, 527, 596, 660, 570,
-    698, 570, 717, 579, 741, 607, 740, 618, 707, 833, 684, 875, 683, 934,
-    4,   401, 723, 460, 729, 574, 703, 620, 704, 5,   476, 620, 503, 640,
-    510, 663, 508, 803, 493, 821, 3,   364, 870, 375, 857, 639, 831,
-};
-// 號  U+865F — 13 strokes, 92 median points
-const int16_t k_hao[] = {
-    4,   167, 150, 192, 168, 201, 183, 236, 313, 9,   224, 150, 234, 157, 326,
-    130, 343, 128, 357, 134, 377, 155, 375, 163, 356, 219, 330, 236, 4,   253,
-    290, 263, 279, 325, 261, 381, 264, 6,   70,  447, 87,  452, 131, 449, 317,
-    388, 344, 382, 376, 384, 12,  186, 463, 200, 470, 207, 486, 185, 563, 221,
-    565, 276, 551, 306, 558, 324, 578, 294, 723, 261, 794, 227, 819, 155, 772,
-    4,   601, 54,  641, 91,  637, 231, 620, 246, 3,   677, 138, 749, 116, 801,
-    112, 7,   476, 293, 498, 303, 750, 237, 810, 227, 827, 235, 842, 253, 787,
-    321, 9,   414, 280, 443, 309, 449, 339, 441, 491, 424, 600, 407, 672, 382,
-    742, 343, 820, 287, 899, 4,   511, 426, 573, 425, 702, 384, 733, 383, 10,
-    582, 316, 604, 342, 605, 463, 613, 486, 636, 508, 694, 521, 739, 515, 767,
-    503, 785, 486, 779, 409, 8,   532, 608, 550, 621, 563, 641, 554, 701, 537,
-    760, 517, 795, 481, 836, 409, 881, 12,  660, 587, 688, 623, 679, 749, 686,
-    824, 694, 844, 723, 867, 767, 880, 826, 883, 881, 875, 921, 854, 933, 838,
-    944, 712,
+  std::string id;  // romanised: every caption on this canvas is Latin
+  std::vector<int16_t> data;
+  int strokes = 0;
 };
 
 enum G { GANG, JI, RU, LV, LING, YU, WU, GUI, YUN, LEI, HAO, GCOUNT };
-const Glyph kGlyphs[GCOUNT] = {
-    {"GANG U+7F61", k_gang, 10}, {"JI   U+6025", k_ji, 9},
-    {"RU   U+5982", k_ru, 6},    {"LU   U+5F8B", k_lv, 9},
-    {"LING U+4EE4", k_ling, 5},  {"YU   U+96E8", k_yu, 8},
-    {"WU   U+4E94", k_wu, 4},    {"GUI  U+9B3C", k_gui, 9},
-    {"YUN  U+96F2", k_yun, 12},  {"LEI  U+96F7", k_lei, 13},
-    {"HAO  U+865F", k_hao, 13},
-};
 
 // KanjiVG kvg:type, mapped to the six classes, in KanjiVG's stroke order.
 // 罡 is ABSENT from KanjiVG entirely (kanji/07f61.svg → 404). That absence
@@ -395,25 +267,76 @@ const Glyph kGlyphs[GCOUNT] = {
 enum Cls { HENG, SHU, PIE, NA, DIAN, TURN, CLSN };
 const char* kClsName[CLSN] = {"HENG", "SHU ", "PIE ", "NA  ", "DIAN", "TURN"};
 
-const int8_t kKvg_ji[] = {2, 5, 5, 0, 0, 4, 5, 4, 4};
-const int8_t kKvg_ru[] = {5, 2, 0, 1, 5, 0};
-const int8_t kKvg_lv[] = {2, 2, 1, 5, 0, 0, 0, 0, 1};
-const int8_t kKvg_ling[] = {2, 3, 4, 5, 4};
-const int8_t kKvg_yu[] = {0, 1, 5, 1, 4, 4, 4, 4};
-const int8_t kKvg_wu[] = {0, 1, 5, 0};
-const int8_t kKvg_lei[] = {0, 4, 5, 1, 4, 4, 4, 4, 1, 5, 1, 0, 0};
-const int8_t kKvg_gui[] = {2, 1, 5, 1, 0, 0, 2, 5, 5, 4};
 // fields are grouped by what they belong to, not by size
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct KvgRow {
   int glyph;
-  const int8_t* cls;
+  std::vector<int8_t> cls;
   int n;
 };
-const KvgRow kKvg[] = {{JI, kKvg_ji, 9},    {RU, kKvg_ru, 6},
-                       {LV, kKvg_lv, 9},    {LING, kKvg_ling, 5},
-                       {YU, kKvg_yu, 8},    {WU, kKvg_wu, 4},
-                       {LEI, kKvg_lei, 13}, {GUI, kKvg_gui, 10}};
+
+/** THE TWO FILES THIS CANVAS IS WRITTEN FROM, as one value: the eleven
+ *  characters' medians in drawing order, and the eight of them KanjiVG
+ *  also classifies. */
+struct Font {
+  std::vector<Glyph> glyphs;
+  std::vector<KvgRow> kvg;
+
+  /** Which of the eleven carries @p id, or -1. */
+  int find(std::string_view id) const {
+    for (size_t i = 0; i < glyphs.size(); ++i)
+      if (glyphs[i].id == id) return (int)i;
+    return -1;
+  }
+};
+
+/** The whitespace-separated numbers of one field. */
+template <typename T>
+std::vector<T> words(std::string_view run) {
+  std::vector<T> out;
+  for (size_t at = 0; at < run.size();) {
+    if (run[at] == ' ') {
+      ++at;
+      continue;
+    }
+    int value = 0;
+    const auto read =
+        std::from_chars(run.data() + at, run.data() + run.size(), value);
+    if (read.ec != std::errc{}) break;
+    out.push_back((T)value);
+    at = (size_t)(read.ptr - run.data());
+  }
+  return out;
+}
+
+Font readFont(sigil::io::Hub& hub) {
+  Font font;
+  const auto file = [&hub](const char* name) {
+    return hub.load<data::Table>("res://data/thunder_fulu/" +
+                                 std::string(name));
+  };
+
+  if (const auto t = file("strokes.csv")) {
+    const auto id = t->column<std::string>("id");
+    const auto strokes = t->column<double>("strokes");
+    const auto medians = t->column<std::string>("medians");
+    for (size_t i = 0; i < id.size(); ++i)
+      font.glyphs.push_back(
+          {id[i], words<int16_t>(medians[i]), (int)strokes[i]});
+  }
+
+  if (const auto t = file("kanjivg.csv")) {
+    const auto id = t->column<std::string>("id");
+    const auto classes = t->column<std::string>("classes");
+    for (size_t i = 0; i < id.size(); ++i) {
+      std::vector<int8_t> cls = words<int8_t>(classes[i]);
+      const int n = (int)cls.size();
+      font.kvg.push_back({font.find(id[i]), std::move(cls), n});
+    }
+  }
+
+  return font;
+}
 
 // ---------------------------------------------------------------------------
 // MEDIANS → GEOMETRY.
@@ -421,10 +344,10 @@ const KvgRow kKvg[] = {{JI, kKvg_ji, 9},    {RU, kKvg_ru, 6},
 using Poly = std::vector<SkPoint>;
 
 /** One character's medians, in em units [0,1]², y down, drawing order. */
-std::vector<Poly> medians(int glyph) {
-  const Glyph& g = kGlyphs[glyph];
+std::vector<Poly> medians(const Font& font, int glyph) {
+  const Glyph& g = font.glyphs[(size_t)glyph];
   std::vector<Poly> out;
-  const int16_t* p = g.data;
+  const int16_t* p = g.data.data();
   for (int s = 0; s < g.strokes; ++s) {
     const int n = *p++;
     Poly poly;
@@ -678,7 +601,7 @@ constexpr float tStars = 13.10f;
 constexpr float kLoop = 27.0f;
 
 weave::TextStyle type(sk_sp<SkTypeface> face, float size, SkColor4f c,
-                             float tracking = 0) {
+                      float tracking = 0) {
   return weave::textStyle(
       {.face = std::move(face), .size = size, .color = c, .track = tracking});
 }
@@ -851,7 +774,7 @@ struct ThunderFulu : sketch::Sketch {
     for (const auto& [g, h] : parts) total += h;
     int idx = 0;
     for (const auto& [g, share] : parts) {
-      const std::vector<Poly> ms = medians(g);
+      const std::vector<Poly> ms = medians(font, g);
       const float bh = size * share / total;
       for (const auto& m : ms) {
         const int cls = classify(m);
@@ -880,9 +803,9 @@ struct ThunderFulu : sketch::Sketch {
                 .height(Dim(kPH + 44))
                 .shape(shapes::chamfered(26.0f))
                 .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
-                                           {{0.0f, hex(0x000000, 0.66f)},
-                                            {0.72f, hex(0x000000, 0.40f)},
-                                            {1.0f, hex(0x000000, 0.0f)}}))
+                                        {{0.0f, hex(0x000000, 0.66f)},
+                                         {0.72f, hex(0x000000, 0.40f)},
+                                         {1.0f, hex(0x000000, 0.0f)}}))
                 .key("ironshadow"));
 
     // the plate itself: hammered iron, warm under an altar lamp. The edge is
@@ -895,15 +818,15 @@ struct ThunderFulu : sketch::Sketch {
                 // a {0.1,0} -> {0.9,1} ramp is one pixel wide at the corner
                 // and clamps the whole plate to its last stop.
                 .fill(Paint::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
-                                           {{0.0f, hex(0x736a5b)},
-                                            {0.18f, hex(0x4f4840)},
-                                            {0.46f, kIronMid},
-                                            {0.78f, hex(0x201e1d)},
-                                            {1.0f, hex(0x161514)}}))
-                .foreground(lines::presets::hatch(Fill::color(hex(0xa79a83, 0.075f)),
-                                         13.0f, 1.6f, -18.0f))
-                .foreground(lines::presets::hatch(Fill::color(hex(0x000000, 0.13f)),
-                                         31.0f, 3.4f, 24.0f))
+                                        {{0.0f, hex(0x736a5b)},
+                                         {0.18f, hex(0x4f4840)},
+                                         {0.46f, kIronMid},
+                                         {0.78f, hex(0x201e1d)},
+                                         {1.0f, hex(0x161514)}}))
+                .foreground(lines::presets::hatch(
+                    Fill::color(hex(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
+                .foreground(lines::presets::hatch(
+                    Fill::color(hex(0x000000, 0.13f)), 31.0f, 3.4f, 24.0f))
                 .foreground(Wash{.material = ironGrain,
                                  .blend = SkBlendMode::kOverlay,
                                  .amount = 0.30f})
@@ -1047,8 +970,8 @@ struct ThunderFulu : sketch::Sketch {
       const int n = 72;
       for (int i = 0; i <= n; ++i) {
         const SkPoint q = arrange::onRing(
-            (size_t)i, (size_t)n + 1, {kCol, 242.0f},
-            {r * 1.02f, r * 0.96f}, -1.35f, 6.02f, arrange::Turn::Open);
+            (size_t)i, (size_t)n + 1, {kCol, 242.0f}, {r * 1.02f, r * 0.96f},
+            -1.35f, 6.02f, arrange::Turn::Open);
         i == 0 ? b.moveTo(q) : b.lineTo(q);
       }
       push(b.detach(), 7.4f, TURN, tRing, tRing + tRingDur, kCinnabar, "ring");
@@ -1077,7 +1000,7 @@ struct ThunderFulu : sketch::Sketch {
     // the plate. NOT wandered: its ten strokes are the argument, so it has
     // to stay countable.
     {
-      const std::vector<Poly> ms = medians(GANG);
+      const std::vector<Poly> ms = medians(font, GANG);
       const float size = 196.0f;
       for (size_t i = 0; i < ms.size(); ++i) {
         const int cls = classify(ms[i]);
@@ -1118,7 +1041,7 @@ struct ThunderFulu : sketch::Sketch {
       std::vector<std::pair<size_t, size_t>> strokeRanges;
       std::vector<float> strokeW;
       for (int c = 0; c < 5; ++c) {
-        const std::vector<Poly> ms = medians(seq[c]);
+        const std::vector<Poly> ms = medians(font, seq[c]);
         for (const Poly& m : ms) {
           Poly q = place(m, {xs[c] - sizes[c] * 0.5f, ys[c] - sizes[c] * 0.5f},
                          sizes[c], sizes[c]);
@@ -1177,7 +1100,7 @@ struct ThunderFulu : sketch::Sketch {
     const SkPoint at[3] = {{kCol - 116, 214}, {kCol + 116, 214}, {kCol, 330}};
     const int src[3] = {WU, GANG, LING};
     for (int k = 0; k < 3; ++k) {
-      const std::vector<Poly> ms = medians(src[k]);
+      const std::vector<Poly> ms = medians(font, src[k]);
       SkPathBuilder b;
       for (const auto& m : ms) {
         Poly q = place(m, {at[k].fX - 30.0f, at[k].fY - 30.0f}, 60.0f, 60.0f);
@@ -1191,8 +1114,8 @@ struct ThunderFulu : sketch::Sketch {
               .top(at[k].fY - 46)
               .width(92)
               .height(92)
-              .shape(heldPath(b.detach().makeOffset(-(at[k].fX - 46),
-                                                    -(at[k].fY - 46))))
+              .shape(heldPath(
+                  b.detach().makeOffset(-(at[k].fX - 46), -(at[k].fY - 46))))
               .fill(Fill::none())
               .stroke(brush::presets::taper(3.6f, 1.0f, Fill::color(cols[k])))
               .foreground(PathFormat{
@@ -1245,8 +1168,8 @@ struct ThunderFulu : sketch::Sketch {
             .inset(0)
             .shape(shapes::chamfered(6.0f))
             .fill(Fill::color(hex(0xb52a17, 0.90f)))
-            .foreground(lines::presets::crosshatch(Fill::color(hex(0x6d1409, 0.25f)),
-                                          5.0f, 0.8f, 18.0f))
+            .foreground(lines::presets::crosshatch(
+                Fill::color(hex(0x6d1409, 0.25f)), 5.0f, 0.8f, 18.0f))
             .stroke(PathFormat{.width = 5.0f,
                                .strokeFill = Fill::color(hex(0xc23520, 1.0f)),
                                .align = PathFormat::Align::Inner})
@@ -1255,7 +1178,7 @@ struct ThunderFulu : sketch::Sketch {
     // what 篆書 does inside a seal.
     const int half[2] = {WU, LEI};
     for (int k = 0; k < 2; ++k) {
-      const std::vector<Poly> ms = medians(half[k]);
+      const std::vector<Poly> ms = medians(font, half[k]);
       SkPathBuilder b;
       for (const Poly& m : ms) {
         Poly q = place(m, {12.0f, 11.0f + (float)k * 41.0f}, S - 24.0f, 40.0f);
@@ -1486,9 +1409,9 @@ struct ThunderFulu : sketch::Sketch {
                    .shape(shapes::shaped(shapes::chamfered(5.0f),
                                          shapers::Jitter{14.0f, 1.4f, 7}))
                    .fill(Paint::linearUnit({0.18f, 0.0f}, {0.88f, 1.0f},
-                                              {{0.0f, hex(0x4a443b)},
-                                               {0.55f, hex(0x272522)},
-                                               {1.0f, hex(0x161514)}}))
+                                           {{0.0f, hex(0x4a443b)},
+                                            {0.55f, hex(0x272522)},
+                                            {1.0f, hex(0x161514)}}))
                    .stroke(PathFormat{
                        .width = 1.2f,
                        .strokeFill = Fill::color(hex(0x5b5449, 0.85f)),
@@ -1496,7 +1419,7 @@ struct ThunderFulu : sketch::Sketch {
       // a miniature fu: the same grammar, four marks, generated
       SkPathBuilder b;
       const int srcs[4] = {YU, WU, LEI, YUN};
-      const std::vector<Poly> ms = medians(srcs[i % 4]);
+      const std::vector<Poly> ms = medians(font, srcs[i % 4]);
       const int take = 3 + (i % 3);
       // The rows must FIT the plate for every `take`, and `take` varies from
       // 3 to 5 with i % 3. A fixed pitch cannot do that: at five rows the
@@ -1522,7 +1445,8 @@ struct ThunderFulu : sketch::Sketch {
                    .inset(0)
                    .shape(heldPath(b.detach()))
                    .fill(Fill::none())
-                   .stroke(brush::presets::taper(3.6f, 1.4f, Fill::color(kCinnaWet))));
+                   .stroke(brush::presets::taper(3.6f, 1.4f,
+                                                 Fill::color(kCinnaWet))));
       if (i < 9) {
         mp.child(text(toU8(kOthers[i].pinyin),
                       type(faceMono, 8.0f, hex(0xa89264, 0.95f)))
@@ -1925,18 +1849,18 @@ struct ThunderFulu : sketch::Sketch {
                   .top(ry - 11)
                   .width(22)
                   .height(22)
-                  .shape(keyedShape(
-                      std::string_view("register-mark"),
-                      [](SkSize s) {
-                        SkPathBuilder b;
-                        b.moveTo(s.width() * 0.5f, 0);
-                        b.lineTo(s.width() * 0.5f, s.height());
-                        b.moveTo(0, s.height() * 0.5f);
-                        b.lineTo(s.width(), s.height() * 0.5f);
-                        b.addCircle(s.width() * 0.5f, s.height() * 0.5f,
-                                    s.width() * 0.30f);
-                        return b.detach();
-                      }))
+                  .shape(keyedShape(std::string_view("register-mark"),
+                                    [](SkSize s) {
+                                      SkPathBuilder b;
+                                      b.moveTo(s.width() * 0.5f, 0);
+                                      b.lineTo(s.width() * 0.5f, s.height());
+                                      b.moveTo(0, s.height() * 0.5f);
+                                      b.lineTo(s.width(), s.height() * 0.5f);
+                                      b.addCircle(s.width() * 0.5f,
+                                                  s.height() * 0.5f,
+                                                  s.width() * 0.30f);
+                                      return b.detach();
+                                    }))
                   .fill(Fill::none())
                   .stroke(PathFormat{
                       .width = 0.8f,
@@ -1950,19 +1874,20 @@ struct ThunderFulu : sketch::Sketch {
             .top(kPT)
             .width(20)
             .height(Dim(kPH))
-            .shape(keyedShape(
-                std::string_view("tick-ladder"),
-                [](SkSize s) {
-                  SkPathBuilder b;
-                  for (int i = 0; i <= 50; ++i) {
-                    const float y = s.height() * (float)i / 50.0f;
-                    const float len =
-                        (i % 10 == 0) ? 17.0f : (i % 5 == 0 ? 10.0f : 5.0f);
-                    b.moveTo(s.width(), y);
-                    b.lineTo(s.width() - len, y);
-                  }
-                  return b.detach();
-                }))
+            .shape(keyedShape(std::string_view("tick-ladder"),
+                              [](SkSize s) {
+                                SkPathBuilder b;
+                                for (int i = 0; i <= 50; ++i) {
+                                  const float y = s.height() * (float)i / 50.0f;
+                                  const float len =
+                                      (i % 10 == 0)
+                                          ? 17.0f
+                                          : (i % 5 == 0 ? 10.0f : 5.0f);
+                                  b.moveTo(s.width(), y);
+                                  b.lineTo(s.width() - len, y);
+                                }
+                                return b.detach();
+                              }))
             .fill(Fill::none())
             .stroke(PathFormat{.width = 0.9f,
                                .strokeFill = Fill::color(hex(0xb2914f, 0.40f))})
@@ -2056,8 +1981,8 @@ struct ThunderFulu : sketch::Sketch {
               "DRAWING ORDER"),
          "heading"});
     int totalPts = 0, totalStrokes = 0;
-    for (const Glyph& g : kGlyphs) {
-      const int16_t* p = g.data;
+    for (const Glyph& g : font.glyphs) {
+      const int16_t* p = g.data.data();
       for (int s = 0; s < g.strokes; ++s) {
         totalPts += *p;
         p += 1 + 2 * (*p);
@@ -2070,19 +1995,19 @@ struct ThunderFulu : sketch::Sketch {
                              totalStrokes, totalPts)),
          "dim"});
     logA.append({toU8(kit::formatted("  GANG U+7F61 has %d strokes",
-                                     kGlyphs[GANG].strokes)),
-                 kGlyphs[GANG].strokes == 10 ? "pass" : "fail"});
+                                     font.glyphs[GANG].strokes)),
+                 font.glyphs[GANG].strokes == 10 ? "pass" : "fail"});
     logA.append(
         {toU8("  doctrine: 10 strokes = the ten Heavenly Stems"), "dim"});
     logA.append({toU8("  JIA YI BING DING WU JI GENG XIN REN GUI \xe2\x80\x94 "
                       "the count MATCHES"),
-                 kGlyphs[GANG].strokes == 10 ? "pass" : "fail"});
-    logA.append(
-        {toU8(kit::formatted(
-             "  foot JI+JI+RU+LU+LING = %d+%d+%d+%d+%d = %d strokes",
-             kGlyphs[JI].strokes, kGlyphs[JI].strokes, kGlyphs[RU].strokes,
-             kGlyphs[LV].strokes, kGlyphs[LING].strokes, nFootStrokes)),
-         nFootStrokes == 38 ? "pass" : "fail"});
+                 font.glyphs[GANG].strokes == 10 ? "pass" : "fail"});
+    logA.append({toU8(kit::formatted(
+                     "  foot JI+JI+RU+LU+LING = %d+%d+%d+%d+%d = %d strokes",
+                     font.glyphs[JI].strokes, font.glyphs[JI].strokes,
+                     font.glyphs[RU].strokes, font.glyphs[LV].strokes,
+                     font.glyphs[LING].strokes, nFootStrokes)),
+                 nFootStrokes == 38 ? "pass" : "fail"});
     logA.append({toU8(kit::formatted(
                      "    drawn as ONE contour: %d spans = %d strokes + "
                      "%d ligatures",
@@ -2184,8 +2109,8 @@ struct ThunderFulu : sketch::Sketch {
   void validateClassifier() {
     kvgAgree = kvgTotal = 0;
     kvgMiss.clear();
-    for (const KvgRow& row : kKvg) {
-      const std::vector<Poly> ms = medians(row.glyph);
+    for (const KvgRow& row : font.kvg) {
+      const std::vector<Poly> ms = medians(font, row.glyph);
       if ((int)ms.size() != row.n)  // GUI: 9 vs 10 — reported, not compared
         continue;
       for (size_t i = 0; i < ms.size(); ++i) {
@@ -2195,7 +2120,8 @@ struct ThunderFulu : sketch::Sketch {
           ++kvgAgree;
         else
           kvgMiss.push_back(
-              kit::formatted("%s #%d  kvg %s  geo %s", kGlyphs[row.glyph].id,
+              kit::formatted("%s #%d  kvg %s  geo %s",
+                             font.glyphs[(size_t)row.glyph].id.c_str(),
                              (int)i + 1, kClsName[row.cls[i]], kClsName[got]));
       }
     }
@@ -2203,7 +2129,11 @@ struct ThunderFulu : sketch::Sketch {
 
   // =========================================================================
 
+  Font font;
+
   void setup(sketch::SketchContext& ctx) override {
+    font = readFont(ctx.assets.hub());
+
     // The single frame this sketch is photographed at, chosen on the 27 s
     // score: everything through the 19.65 s tap is complete and the foot is
     // about half way through its flying-white sweep, so one still shows both
