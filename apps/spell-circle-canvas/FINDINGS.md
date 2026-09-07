@@ -51,13 +51,14 @@ Taken on the merged tree after the post-merge compose pass:
   hidden in the sketches over 1000 lines: palette-indexed sprites and an
   atlas packer (`xcom_battlescape`, `cde_motif`, `thaumonomicon`) →
   `compose/kit/Sprites.h`; an HTML auto-table layout scheme
-  (`spacejam_1996:999-1200`) → compose kit layouts with a test; a conic
-  generator and four silhouettes (`ksp_mapview:244-566`) → geometry path
-  and `Silhouettes.h`; Motif bevels (`cde_motif`, `twoadvanced_v4`,
-  `winamp_base`, `fallout2_charsheet`) → `Chrome.h`; a stereographic and
+  (`spacejam_1996:999-1200`) → compose kit layouts with a test; Motif
+  bevels (`cde_motif`, `twoadvanced_v4`, `winamp_base`,
+  `fallout2_charsheet`) → `Chrome.h`; a stereographic and
   a chart projection (`chaucer_astrolabe`, `dunhuang_star_chart`) → a
   projection value in geometry path; a tartan sett-to-cloth weave
-  (`black_watch:234-295`) → material pattern; a pentagrid
+  (`black_watch:234-295`) and the orthographic-sphere navball with the
+  bright pass over it (`ksp_mapview:359-457`) → material pattern and
+  material stock; a pentagrid
   (`penrose_paving:264`) and mitred lattice joinery
   (`kumiko_asanoha:517`) → `Lattice.h`/`Ops.h`; Reeves particles
   (`genesis_fire:516`) → `sigilmotion/physics/Points.h`. Each is a

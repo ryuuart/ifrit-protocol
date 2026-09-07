@@ -66,6 +66,11 @@ SkPath Star::path(SkSize s) const {
 
 SkPath Circle::path(SkSize s) const {
   SkRect r = SkRect::MakeWH(s.width(), s.height());
+  if (uniform) {
+    const float side = std::min(s.width(), s.height());
+    r = SkRect::MakeXYWH((s.width() - side) * 0.5f, (s.height() - side) * 0.5f,
+                         side, side);
+  }
   r.inset(inset, inset);
   SkPathBuilder b;
   b.addOval(r, direction, startIndex);
@@ -73,14 +78,22 @@ SkPath Circle::path(SkSize s) const {
 }
 
 SkPath Annulus::path(SkSize s) const {
-  const float r = std::clamp(innerRatio, 0.0f, 0.999f);
   const SkRect outer = SkRect::MakeWH(s.width(), s.height());
   SkRect inner = outer;
-  inner.inset(outer.width() * 0.5f * (1 - r), outer.height() * 0.5f * (1 - r));
+  if (thickness > 0) {
+    inner.inset(thickness, thickness);
+  } else {
+    const float r = std::clamp(innerRatio, 0.0f, 0.999f);
+    inner.inset(outer.width() * 0.5f * (1 - r),
+                outer.height() * 0.5f * (1 - r));
+  }
   SkPathBuilder b;
   b.setFillType(SkPathFillType::kEvenOdd);
   b.addOval(outer);
-  b.addOval(inner);
+  // A hole with nothing left of it is no hole: an empty oval adds no
+  // contour, and what stands is the disc.
+  if (!inner.isEmpty()) b.addOval(inner);
+  if (dot > 0) b.addCircle(outer.centerX(), outer.centerY(), dot);
   return b.detach();
 }
 
@@ -346,16 +359,41 @@ SkPath Arrow::path(SkSize s) const {
   const float w = s.width(), h = s.height();
   const float half = std::clamp(shaftFrac, 0.02f, 1.0f) * h * 0.5f;
   const float head = std::clamp(headFrac, 0.05f, 1.0f) * w;
+  const float span = std::clamp(headSpan, 0.0f, 1.0f) * h * 0.5f;
   const float cy = h * 0.5f;
   SkPathBuilder b;
   b.moveTo(0, cy - half);
   b.lineTo(w - head, cy - half);
-  b.lineTo(w - head, 0);
+  b.lineTo(w - head, cy - span);
   b.lineTo(w, cy);
-  b.lineTo(w - head, h);
+  b.lineTo(w - head, cy + span);
   b.lineTo(w - head, cy + half);
   b.lineTo(0, cy + half);
   b.close();
+  return b.detach();
+}
+
+SkPath Chevron::path(SkSize s) const {
+  const float w = s.width(), h = s.height();
+  const float cx = w * 0.5f, cy = h * 0.5f;
+  const float out = w * spread, fall = h * drop, weight = h * thickness;
+  // The shoulders stand a third of the drop above centre, which is what
+  // keeps the two arms shallow enough to read as a level rather than as
+  // an arrowhead.
+  const float shoulder = cy - fall * 0.35f;
+  SkPathBuilder b;
+  b.moveTo(cx - out, shoulder);
+  b.lineTo(cx, cy + fall);
+  b.lineTo(cx + out, shoulder);
+  b.lineTo(cx + out - weight * 0.4f, shoulder - weight);
+  b.lineTo(cx, cy + fall - weight * 1.5f);
+  b.lineTo(cx - out + weight * 0.4f, shoulder - weight);
+  b.close();
+  if (bars > 0) {
+    const float run = w * bars;
+    b.addRect({0, cy - weight * 0.5f, run, cy + weight * 0.5f});
+    b.addRect({w - run, cy - weight * 0.5f, w, cy + weight * 0.5f});
+  }
   return b.detach();
 }
 

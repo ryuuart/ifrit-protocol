@@ -92,6 +92,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Conic.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
@@ -118,6 +119,7 @@ namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
 namespace sdf = sigil::material::sdf;
 namespace arrange = sigil::geometry::arrange;
+namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
@@ -239,192 +241,81 @@ inline Element at(Element e, SkPoint c, float w, float h) {
 // ---------------------------------------------------------------------------
 // Orbital mechanics — the conic, in canvas pixels.
 //
-// r(ν) = p / (1 + e·cos ν) with the primary at the FOCUS. Screen angles are
-// measured y-DOWN, so increasing θ runs clockwise on screen; that is exactly
-// what "prograde" means for a retrograde-looking 2D map and it is consistent
-// throughout. e < 1 closes; e > 1 is the hyperbolic escape.
+// `path::Conic` is the curve family: r(v) = p / (1 + e·cos v) about the
+// FOCUS, which is where Kerbin is. Screen angles are measured y-DOWN, so
+// increasing v runs clockwise on screen; that is exactly what "prograde"
+// means for a retrograde-looking 2D map and it is consistent throughout.
+// e < 1 closes; e > 1 is the hyperbolic escape.
 
-struct Conic {
-  SkPoint focus{0, 0};
-  float p = 200;   ///< semi-latus rectum, px
-  float e = 0.3f;  ///< eccentricity
-  float argp = 0;  ///< argument of periapsis, screen degrees
+using path::Conic;
+using path::ConicSpan;
 
-  float radius(float nuDeg) const {
-    const float nu = nuDeg * 0.017453293f;
-    return p / std::max(1e-3f, 1.0f + e * std::cos(nu));
-  }
-  SkPoint at(float nuDeg) const {
-    const float th = (argp + nuDeg) * 0.017453293f;
-    const float r = radius(nuDeg);
-    return {focus.fX + r * std::cos(th), focus.fY + r * std::sin(th)};
-  }
-  /** dP/dν, normalised — the prograde direction (direction of travel). */
-  SkVector prograde(float nuDeg) const {
-    const float nu = nuDeg * 0.017453293f;
-    const float th = (argp + nuDeg) * 0.017453293f;
-    const float r = radius(nuDeg);
-    const float drdnu =
-        r * e * std::sin(nu) / std::max(1e-3f, 1 + e * std::cos(nu));
-    SkVector v{drdnu * std::cos(th) - r * std::sin(th),
-               drdnu * std::sin(th) + r * std::cos(th)};
-    v.normalize();
-    return v;
-  }
-  /** r̂ — radial-OUT, away from the primary. */
-  SkVector radialOut(float nuDeg) const {
-    const float th = (argp + nuDeg) * 0.017453293f;
-    return {std::cos(th), std::sin(th)};
-  }
-  /** True anomaly of the asymptote (hyperbolae only). */
-  float nuInfinity() const {
-    return e <= 1 ? 180.0f : std::acos(-1.0f / e) * 57.29578f;
-  }
-  SkPath path(float nu0, float nu1, int steps) const {
-    SkPathBuilder b;
-    bool started = false;
-    for (int i = 0; i <= steps; ++i) {
-      const float nu = nu0 + (nu1 - nu0) * (float)i / (float)steps;
-      const SkPoint q = at(nu);
-      // A hyperbola runs to infinity; keep the path finite so contour
-      // measure (dashes, trim, onPath) stays sane.
-      if (std::abs(q.fX) > 6000 || std::abs(q.fY) > 6000) {
-        started = false;
-        continue;
-      }
-      if (!started) {
-        b.moveTo(q);
-        started = true;
-      } else {
-        b.lineTo(q);
-      }
-    }
-    if (e < 1 && std::abs(nu1 - nu0) >= 359.5f) b.close();
-    return b.detach();
-  }
-  std::function<SkPath(SkSize)> outline(float nu0, float nu1,
-                                        int steps = 320) const {
-    Conic self = *this;
-    return
-        [self, nu0, nu1, steps](SkSize) { return self.path(nu0, nu1, steps); };
-  }
-};
+/** A span of a conic as a COMPARABLE shape: the curve is a function of
+ *  the few numbers it stands on, so those numbers are the key and a node
+ *  wearing one settles instead of re-recording on every describe. */
+inline Shape trajectory(const Conic& conic, ConicSpan span) {
+  return keyedShape(std::pair(conic, span), [conic, span](SkSize) {
+    return path::conicPath(conic, span);
+  });
+}
+
+/** The gizmo hangs off the conic's own directions, and both are wanted as
+ *  Skia vectors at the call site. */
+inline SkPoint pointAt(const Conic& conic, float anomalyDeg) {
+  const glm::vec2 p = conic.at(anomalyDeg);
+  return {p.x, p.y};
+}
+inline float bearingDeg(glm::vec2 direction) {
+  return std::atan2(direction.y, direction.x) * 57.29578f;
+}
 
 // The scene's three trajectories. Kerbin sits at the shared focus.
 constexpr SkPoint kKerbin{500, 330};
+constexpr glm::vec2 kFocus{kKerbin.fX, kKerbin.fY};
 constexpr float kKerbinR = 140;
 
 // e = 0.42 with a 175 px periapsis: the eccentricity has to be visible or
 // the focus placement is a claim nobody can check.
-inline Conic currentOrbit() { return {kKerbin, 248.5f, 0.42f, 150.0f}; }
-inline Conic targetOrbit() { return {kKerbin, 507.5f, 0.75f, 270.0f}; }
-inline Conic escapeArc() { return {kKerbin, 430.0f, 1.55f, 96.0f}; }
+inline Conic currentOrbit() { return {kFocus, 248.5f, 0.42f, 150.0f}; }
+inline Conic targetOrbit() { return {kFocus, 507.5f, 0.75f, 270.0f}; }
+inline Conic escapeArc() { return {kFocus, 430.0f, 1.55f, 96.0f}; }
 
 constexpr float kNodeNu = -130.0f;  ///< the manoeuvre node's true anomaly
 
 // ---------------------------------------------------------------------------
-// Shape generators the kit does not ship.
+// The map's glyphs.
 //
 // EVERY ONE IS A COMPARABLE VALUE. A raw `std::function<SkPath(SkSize)>`
 // compares equal to nothing, so every node wearing one re-patches and
-// re-records on each describe however still the glyph is; these are
-// functions of the few numbers they close over, so those numbers are the
-// key and the node settles on them.
+// re-records on each describe however still the glyph is; a kit generator
+// is a function of the few numbers it holds, so those numbers are the key
+// and the node settles on them.
+//
+// They are the geometry kit's own, which is what makes them
+// comparable values a node can settle on: `arrow` with a head of its own
+// size for the manoeuvre handles, `ring` for the out-of-plane pair,
+// `Circle{.uniform}` where a box is a pixel out of square, `polygon(4)`
+// for the map markers and `chevron` for the gold level mark.
+//
+// THE MARKERS ARE `polygon(4)` AND NOT `polygon(4, 45)`: the kit's polygon
+// puts its first vertex UP and steps round the box's own ellipse, so four
+// sides unrotated IS the diamond with its vertices on the box's edges.
+// Rotated 45 degrees it is the square, whose vertices stand on the box's
+// diagonals instead — a different figure and a different size.
+//
+// THE EYES ARE `Circle{.uniform = true}`: a kerbal's eyes and the pupils
+// in them are drawn in boxes a pixel or two taller than they are wide, and
+// the default circle is the box's oval, which at that size reads as an
+// egg. Everything on a square box is `shapes::circle()` and says so.
 
-/** The manoeuvre-handle PADDLE: a shaft from the hub end out to a triangular
- *  head whose TIP is at the box's right edge, drawn pointing +x so the arm's
- *  rotate() is its bearing. `shapes::arrow` takes its shaft and head as
- *  FRACTIONS of the box; the six arms here share a shaft width and a head
- *  in px across boxes of different lengths, which is a different
- *  parameterisation. */
-inline Shape paddle(float shaftW, float headW, float headL) {
-  return keyedShape(std::tuple(shaftW, headW, headL),
-                    [shaftW, headW, headL](SkSize s) {
-                      const float w = s.width(), h = s.height(), cy = h * 0.5f;
-                      const float hl = std::min(headL, w);
-                      const float sh = shaftW * 0.5f, hh = headW * 0.5f;
-                      SkPathBuilder b;
-                      b.moveTo(0, cy - sh);
-                      b.lineTo(w - hl, cy - sh);
-                      b.lineTo(w - hl, cy - hh);
-                      b.lineTo(w, cy);
-                      b.lineTo(w - hl, cy + hh);
-                      b.lineTo(w - hl, cy + sh);
-                      b.lineTo(0, cy + sh);
-                      b.close();
-                      return b.detach();
-                    });
-}
-
-/** Ring + centre dot: normal / antinormal point OUT of the map plane, and an
- *  arrow cannot say that honestly in flat 2D. Two contours, one outline. */
-inline Shape ringDot(float ringW, float dotR) {
-  return keyedShape(std::tuple(ringW, dotR), [ringW, dotR](SkSize s) {
-    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    const float r = std::min(cx, cy);
-    SkPathBuilder b;
-    b.addCircle(cx, cy, r);
-    b.addCircle(cx, cy, std::max(1.0f, r - ringW), SkPathDirection::kCCW);
-    if (dotR > 0) b.addCircle(cx, cy, dotR);
-    return b.detach();
-  });
-}
-
-/** The hollow variant of the same glyph — ring only, no dot. */
-inline Shape ringOnly(float ringW) { return ringDot(ringW, 0); }
-
-/** THE CIRCLE INSCRIBED IN A BOX THAT IS NOT SQUARE — a true circle on the
- *  short side, where `shapes::circle()` is the box's oval. Four marks on
- *  this plate want it: a kerbal's two eyes and the pupils in them, drawn
- *  in boxes a pixel or two taller than they are wide. Everything on a
- *  square box is `shapes::circle()` and says so. */
-inline Shape inscribedCircle() {
-  return keyedShape(std::string_view("inscribed"), [](SkSize s) {
-    SkPathBuilder b;
-    b.addCircle(s.width() * 0.5f, s.height() * 0.5f,
-                std::min(s.width(), s.height()) * 0.5f);
-    return b.detach();
-  });
-}
-
-/** Small diamond — the Ap/Pe/AN/DN map marker. Not `polygon(4, 45)`: that
- *  one is CIRCUMSCRIBED about the box's inscribed circle and this one has
- *  its vertices ON the box's edges, so the two are different sizes. */
-inline Shape diamond() {
-  return keyedShape(std::string_view("diamond"), [](SkSize s) {
-    SkPathBuilder b;
-    b.moveTo(s.width() * 0.5f, 0);
-    b.lineTo(s.width(), s.height() * 0.5f);
-    b.lineTo(s.width() * 0.5f, s.height());
-    b.lineTo(0, s.height() * 0.5f);
-    b.close();
-    return b.detach();
-  });
-}
-
-/** The gold level chevron: KSP's is a wide flat V with two outrigger bars,
- *  read straight off the flight-view frame. */
-inline Shape chevron() {
-  return keyedShape(std::string_view("chevron"), [](SkSize s) {
-    const float w = s.width(), h = s.height();
-    const float cx = w * 0.5f, cy = h * 0.5f;
-    const float arm = w * 0.20f, drop = h * 0.34f, th = h * 0.16f;
-    SkPathBuilder b;
-    // the V
-    b.moveTo(cx - w * 0.20f, cy - drop * 0.35f);
-    b.lineTo(cx, cy + drop);
-    b.lineTo(cx + w * 0.20f, cy - drop * 0.35f);
-    b.lineTo(cx + w * 0.20f - th * 0.4f, cy - drop * 0.35f - th);
-    b.lineTo(cx, cy + drop - th * 1.5f);
-    b.lineTo(cx - w * 0.20f + th * 0.4f, cy - drop * 0.35f - th);
-    b.close();
-    // outrigger bars
-    b.addRect(
-        {cx - w * 0.5f, cy - th * 0.5f, cx - w * 0.5f + arm, cy + th * 0.5f});
-    b.addRect(
-        {cx + w * 0.5f - arm, cy - th * 0.5f, cx + w * 0.5f, cy + th * 0.5f});
-    return b.detach();
-  });
+/** The manoeuvre-handle PADDLE: a shaft from the hub end out to a
+ *  triangular head whose TIP is at the box's right edge, drawn pointing +x
+ *  so the arm's rotate() is its bearing. The head is a stated size across
+ *  and a stated length along, which the six arms share over boxes of
+ *  different lengths — so the head length is the one number that becomes
+ *  a fraction of the box the arm happens to be. */
+inline Shape paddle(float length) {
+  return shapes::arrow(4.5f / 20.0f, 14.0f / length, 15.0f / 20.0f);
 }
 
 // ---------------------------------------------------------------------------
@@ -746,7 +637,7 @@ struct KspMapView : sketch::Sketch {
     // the frame — the reference's "distant orbit glimpsed as a flat band".
     g.child(
         full(box()
-                 .shape(tgt.outline(-118, 118, 260))
+                 .shape(trajectory(tgt, {-118, 118, 260}))
                  .stroke(MarchingDots{.width = 1.4f,
                                       .color = mskia::withAlpha(kTarget, 0.80f),
                                       .intervals = {1.6f, 5.4f},
@@ -756,21 +647,20 @@ struct KspMapView : sketch::Sketch {
     // one lit segment of that same orbit crossing the top of the screen.
     g.child(full(
         box()
-            .shape(tgt.outline(-46, 46, 90))
+            .shape(trajectory(tgt, {-46, 46, 90}))
             .stroke(PathFormat{
                 .width = 1.5f,
                 .strokeFill = Fill::color(mskia::withAlpha(kTarget, 0.95f))})));
 
     // Escape / flyby hyperbola — open, not a closed shape. The window is
-    // hand-fitted to the part that crosses the frame: sampling out to the
-    // asymptote makes path() drop off-canvas points, which splits the
-    // result into several contours, and onPath treats each as its own
+    // hand-fitted to the part that crosses the frame rather than run out
+    // to the asymptote at esc.asymptoteDeg(): a span held to a reach
+    // BREAKS where it leaves it, and onPath treats each contour as its own
     // stretch of baseline that a word may not straddle.
     const float nuA = -104.0f, nuB = 98.0f;
-    (void)esc.nuInfinity();
     g.child(
         full(box()
-                 .shape(esc.outline(nuA, nuB, 260))
+                 .shape(trajectory(esc, {nuA, nuB, 260}))
                  .stroke(MarchingDots{.width = 1.2f,
                                       .color = mskia::withAlpha(kEscape, 0.50f),
                                       .intervals = {1.4f, 5.8f},
@@ -778,7 +668,7 @@ struct KspMapView : sketch::Sketch {
                                       .speed = 0.55f})));
     g.child(full(t("ESCAPE  ·  KERBIN SOI EXIT  T+ 1h 12m",
                    body(8.5f, mskia::withAlpha(kEscape, 0.6f), 1.3f))
-                     .onPath(TextPath{.path = esc.outline(nuA, nuB, 260),
+                     .onPath(TextPath{.path = trajectory(esc, {nuA, nuB, 260}),
                                       .at = 0.80f,
                                       .align = TextPath::Align::Center,
                                       .offset = 8.0f,
@@ -789,7 +679,7 @@ struct KspMapView : sketch::Sketch {
     // frame-level effect()).
     g.child(full(
         box()
-            .shape(cur.outline(0, 360, 360))
+            .shape(trajectory(cur, {0, 360, 360}))
             .stroke(spans::upTo(
                         animate(from(0.0f).to(1.0f), {900ms, ch::easeOutQuad})),
                     brush::presets::filament(mskia::withAlpha(kOrbit, 0.30f),
@@ -799,7 +689,7 @@ struct KspMapView : sketch::Sketch {
     // length, per-glyph tangent rotation. (Element::onPath.)
     g.child(full(t("KERBIN  ·  Ap 213,904 m  ·  Pe 88,012 m",
                    body(9.5f, mskia::withAlpha(kOrbit, 0.9f), 1.6f))
-                     .onPath(TextPath{.path = cur.outline(0, 360, 360),
+                     .onPath(TextPath{.path = trajectory(cur, {0, 360, 360}),
                                       .at = 0.855f,
                                       .align = TextPath::Align::Center,
                                       .offset = 8.0f,
@@ -817,7 +707,7 @@ struct KspMapView : sketch::Sketch {
     const Conic tgt = targetOrbit();
     return t("TGT · MUN TRANSFER",
              body(8.5f, mskia::withAlpha(kTarget, 0.85f), 1.4f))
-        .onPath(TextPath{.path = tgt.outline(-118, 118, 260),
+        .onPath(TextPath{.path = trajectory(tgt, {-118, 118, 260}),
                          .at = 0.30f,
                          .align = TextPath::Align::Center,
                          .offset = -9.0f,
@@ -838,7 +728,7 @@ struct KspMapView : sketch::Sketch {
                  SkVector lift = {12, -9}) {
     using namespace ksp;
     Element g = stack();
-    Element d = at(box().shape(diamond()), p, 9, 9);
+    Element d = at(box().shape(shapes::polygon(4)), p, 9, 9);
     if (filled)
       d.fill(Paint::solid(c));
     else
@@ -855,12 +745,10 @@ struct KspMapView : sketch::Sketch {
   Element gizmo() {
     using namespace ksp;
     const Conic cur = currentOrbit();
-    const SkPoint hub = cur.at(kNodeNu);
-    const SkVector pro = cur.prograde(kNodeNu);
-    const SkVector rad = cur.radialOut(kNodeNu);
-
-    const float aPro = std::atan2(pro.fY, pro.fX) * 57.29578f;
-    const float aRad = std::atan2(rad.fY, rad.fX) * 57.29578f;
+    const SkPoint hub = pointAt(cur, kNodeNu);
+    const glm::vec2 pro = cur.alongAt(kNodeNu);
+    const float aPro = bearingDeg(pro);
+    const float aRad = bearingDeg(cur.outwardAt(kNodeNu));
     // Prograde and radial-out are ≈113.8° apart at this node, so `sep` —
     // measured from prograde round to radial-out in screen-angle order — is
     // the explement, ≈246.2°. Bisecting THAT is what drops the out-of-plane
@@ -877,8 +765,7 @@ struct KspMapView : sketch::Sketch {
     // one shared builder, two lengths, two fill modes
     auto arm = [&](const char* k, float bearing, float len, SkColor4f c,
                    bool solid, bool jitter) {
-      Element e =
-          box().width(Dim(len)).height(Dim(20)).shape(paddle(4.5f, 15, 14));
+      Element e = box().width(Dim(len)).height(Dim(20)).shape(paddle(len));
       if (solid)
         e.fill(Paint::solid(c));
       else
@@ -900,7 +787,7 @@ struct KspMapView : sketch::Sketch {
           box()
               .width(Dim(18))
               .height(Dim(18))
-              .shape(solid ? ringDot(2.6f, 3.0f) : ringOnly(2.2f))
+              .shape(solid ? shapes::ring(2.6f, 3.0f) : shapes::ring(2.2f))
               .fill(Paint::solid(solid ? c : mskia::withAlpha(c, 0.62f)))
               .centerAt(arrange::onEllipse(hub, {40, 40}, rad2))
               .key(k)
@@ -953,12 +840,12 @@ struct KspMapView : sketch::Sketch {
     // Δv direction stub: the burn vector, drawn from the hub along prograde.
     g.child(box()
                 .inset(0)
-                .shape(keyedShape(std::tuple{hub.fX, hub.fY, pro.fX, pro.fY},
+                .shape(keyedShape(std::tuple{hub.fX, hub.fY, pro.x, pro.y},
                                   [hub, pro](SkSize) {
                                     SkPathBuilder b;
                                     b.moveTo(hub);
-                                    b.lineTo(hub.fX + pro.fX * 96,
-                                             hub.fY + pro.fY * 96);
+                                    b.lineTo(hub.fX + pro.x * 96,
+                                             hub.fY + pro.y * 96);
                                     return b.detach();
                                   }))
                 .stroke(lines::Line{
@@ -1344,8 +1231,10 @@ struct KspMapView : sketch::Sketch {
     g.child(std::move(ring));
 
     // The gold level chevron — screen-locked while everything under it turns.
-    g.child(
-        at(box().shape(chevron()).fill(Paint::solid(kGold)), kBall, 92, 26));
+    g.child(at(box()
+                   .shape(shapes::chevron(0.20f, 0.34f, 0.16f, 0.20f))
+                   .fill(Paint::solid(kGold)),
+               kBall, 92, 26));
 
     // Readouts above and below.
     g.child(at(
@@ -1782,18 +1671,22 @@ struct KspMapView : sketch::Sketch {
                                            {{0.0f, hexColor(0x9FC45C)},
                                             {1.0f, hexColor(0x5F8330)}})),
                60, 48, 64, 64));
-    g.child(at(
-        box().shape(inscribedCircle()).fill(Paint::solid(hexColor(0xF4F4F0))),
-        74, 62, 14, 17));
-    g.child(at(
-        box().shape(inscribedCircle()).fill(Paint::solid(hexColor(0xF4F4F0))),
-        96, 62, 14, 17));
-    g.child(at(
-        box().shape(inscribedCircle()).fill(Paint::solid(hexColor(0x141414))),
-        78, 68, 6, 7));
-    g.child(at(
-        box().shape(inscribedCircle()).fill(Paint::solid(hexColor(0x141414))),
-        100, 68, 6, 7));
+    g.child(at(box()
+                   .shape(shapes::Circle{.uniform = true})
+                   .fill(Paint::solid(hexColor(0xF4F4F0))),
+               74, 62, 14, 17));
+    g.child(at(box()
+                   .shape(shapes::Circle{.uniform = true})
+                   .fill(Paint::solid(hexColor(0xF4F4F0))),
+               96, 62, 14, 17));
+    g.child(at(box()
+                   .shape(shapes::Circle{.uniform = true})
+                   .fill(Paint::solid(hexColor(0x141414))),
+               78, 68, 6, 7));
+    g.child(at(box()
+                   .shape(shapes::Circle{.uniform = true})
+                   .fill(Paint::solid(hexColor(0x141414))),
+               100, 68, 6, 7));
     g.child(at(box()
                    .shape(shapes::sector(20, 140, 0.0f))
                    .fill(Paint::solid(hexColor(0x2E3A18))),
@@ -1881,22 +1774,20 @@ struct KspMapView : sketch::Sketch {
     Element g = stack().inset(0);
     g.child(planet());
     g.child(orbits(ctx));
-    g.child(marker("Ap", cur.at(180), kApLabel, true));
-    g.child(marker("Pe", cur.at(0), kPeLabel, true));
-    g.child(marker("AN", cur.at(100), kAnLabel, false));
-    g.child(marker("DN", cur.at(280), kApLabel, false, {12, 13}));
-    g.child(chip("◗", "Mun", tgt.at(28), kTarget, 12));
-    g.child(chip("✦", "", tgt.at(-64), kTarget, 8));
+    g.child(marker("Ap", pointAt(cur, 180), kApLabel, true));
+    g.child(marker("Pe", pointAt(cur, 0), kPeLabel, true));
+    g.child(marker("AN", pointAt(cur, 100), kAnLabel, false));
+    g.child(marker("DN", pointAt(cur, 280), kApLabel, false, {12, 13}));
+    g.child(chip("◗", "Mun", pointAt(tgt, 28), kTarget, 12));
+    g.child(chip("✦", "", pointAt(tgt, -64), kTarget, 8));
     g.child(targetLabel(ctx));
     g.child(gizmo());
     // the craft itself, riding its orbit ahead of the node
-    g.child(
-        at(box()
-               .shape(shapes::polygon(3, 90))
-               .fill(Paint::solid(hexColor(0xE8F2F4)))
-               .rotate(std::atan2(cur.prograde(-40).fY, cur.prograde(-40).fX) *
-                       57.29578f),
-           cur.at(-40), 13, 11));
+    g.child(at(box()
+                   .shape(shapes::polygon(3, 90))
+                   .fill(Paint::solid(hexColor(0xE8F2F4)))
+                   .rotate(bearingDeg(cur.alongAt(-40))),
+               pointAt(cur, -40), 13, 11));
     return g;
   }
 

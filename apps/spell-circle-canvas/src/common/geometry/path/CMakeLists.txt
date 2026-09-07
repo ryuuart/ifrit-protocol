@@ -3,9 +3,10 @@
 # noise, the numeric routines under them, where a run of n items falls on
 # a ring or in a grid, the path operators, the two comparable seams a mark is
 # deviated and widened through (Shaper and Profile) with the band those
-# rails cut, where a set of paths cross, and the two coordinate systems a
-# figure is measured in (the polar Frame and the unit-map Grid). Skia, glm and the
-# standard-library mixers under SigilCoreCompute — no mesh, no import, no
+# rails cut, where a set of paths cross, the two coordinate systems a
+# figure is measured in (the polar Frame and the unit-map Grid), and the
+# conic measured from its focus. Skia, glm and the standard-library
+# mixers under SigilCoreCompute — no mesh, no import, no
 # material — so a text engine or a drawable-component library can walk an
 # outline, or place a run of things, without linking the 3D half of
 # geometry or its importers. Noise.h names the seeded mixers, which live
@@ -19,12 +20,13 @@ find_package(CDT CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilGeometryPath
-  SOURCES Band.cpp Contour.cpp Crossings.cpp Direction.cpp Edges.cpp
+  SOURCES Band.cpp Conic.cpp Contour.cpp Crossings.cpp Direction.cpp Edges.cpp
           Extremes.cpp Fit.cpp Hull.cpp Interpolate.cpp Lattice.cpp
           Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp Scatter.cpp
           Segments.cpp Symmetry.cpp Tidy.cpp Trace.cpp Triangulate.cpp
-  HEADERS Arrange.h Band.h Cells.h Contour.h Crossings.h Direction.h Edges.h
-          Extremes.h Fit.h Frame.h Hull.h Interpolate.h Lattice.h Neighbours.h
+  HEADERS Arrange.h Band.h Cells.h Conic.h Contour.h Crossings.h Direction.h
+          Edges.h Extremes.h Fit.h Frame.h Hull.h Interpolate.h Lattice.h
+          Neighbours.h
           Noise.h Numeric.h Ops.h Polyline.h Pose.h Profile.h Scatter.h
           Segments.h Shaper.h Skia.h Stride.h Symmetry.h Tidy.h Trace.h
           Triangulate.h
@@ -38,10 +40,10 @@ sigil_library(SigilGeometryPath
 # Blend is not a boundary anyone reads: no consumer links it without Path,
 # and its every claim is about the contours this leaf resamples. One file
 # per subject inside it — contours, polylines, marks, operators, seams,
-# crossings, frames, blend.
+# crossings, frames, conics, blend.
 sigil_test(geometry_test
-  SOURCES test/ContoursTest.cpp test/PolylinesTest.cpp test/MarksTest.cpp
-          test/SegmentsTest.cpp test/NodesTest.cpp
+  SOURCES test/ContoursTest.cpp test/ConicsTest.cpp test/PolylinesTest.cpp
+          test/MarksTest.cpp test/SegmentsTest.cpp test/NodesTest.cpp
           test/NeighboursTest.cpp test/ScatterTest.cpp
           test/TriangulateTest.cpp test/FieldsTest.cpp
           test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp

@@ -72,7 +72,12 @@ INSTANTIATE_TEST_SUITE_P(
         Generator{"Sector", sector(0, 90)},
         Generator{"Parallelogram", parallelogram(12)},
         Generator{"ParallelogramLeaningBack", parallelogram(-12)},
-        Generator{"Arrow", arrow()}, Generator{"Chamfered", chamfered(8)},
+        Generator{"Arrow", arrow()},
+        Generator{"Paddle", arrow(0.2f, 0.3f, 0.5f)},
+        Generator{"Chevron", chevron()},
+        Generator{"ChevronWithBars", chevron(0.2f, 0.34f, 0.16f, 0.2f)},
+        Generator{"UniformCircle", Circle{.uniform = true}},
+        Generator{"Ring", ring(6, 3)}, Generator{"Chamfered", chamfered(8)},
         Generator{"Notched", notched(10, 6)}),
     [](const ::testing::TestParamInfo<Generator>& info) {
       return std::string(info.param.name);
@@ -379,4 +384,82 @@ TEST(Silhouettes, AShapedSilhouetteBendsOnceAtTheOutline) {
   // different picture rather than the same one.
   EXPECT_NE(rounded(shaped(polygon(6), wobble), 8)(kBox),
             shaped(rounded(polygon(6), 8), wobble)(kBox));
+}
+
+TEST(Silhouettes, ACircleInABoxThatIsNotSquareIsAnOvalUnlessItIsAskedNotToBe) {
+  // The box is 200 x 120, so the default is an oval out of round by 80 px
+  // and the uniform one is a circle on the short side, centred.
+  const SkRect oval = circle()(kBox).getBounds();
+  EXPECT_NEAR(oval.width(), 200.0f, 1e-3f);
+  EXPECT_NEAR(oval.height(), 120.0f, 1e-3f);
+
+  const SkRect round = Circle{.uniform = true}(kBox).getBounds();
+  EXPECT_NEAR(round.width(), 120.0f, 1e-3f);
+  EXPECT_NEAR(round.height(), 120.0f, 1e-3f);
+  EXPECT_NEAR(round.centerX(), 100.0f, 1e-3f);
+  EXPECT_NEAR(round.centerY(), 60.0f, 1e-3f);
+
+  // On a square box the two are the same figure, which is why a caller
+  // that never leaves square boxes never has to say which it wants.
+  constexpr SkSize kSquare{120, 120};
+  EXPECT_EQ(circle()(kSquare), (Circle{.uniform = true}(kSquare)));
+}
+
+TEST(Silhouettes, ARingIsAsThickAsItIsToldAndCarriesItsOwnDot) {
+  constexpr SkSize kSquare{100, 100};
+  // A ratio ring scales with the box; a pixel ring does not, which is the
+  // whole reason to say it that way.
+  // 10 px off a 50 px radius IS 0.8 of it, so at this size the two
+  // spellings are the same ring: ink 45 px out, hole 35 px out.
+  for (const SkPath& same : {annulus(0.8f)(kSquare), ring(10)(kSquare)}) {
+    EXPECT_TRUE(same.contains(50, 5));
+    EXPECT_FALSE(same.contains(50, 15));
+  }
+
+  // Double the box and they part: the ratio ring doubles its width, the
+  // pixel ring keeps it. A point 85 px out from the centre of a 200 px
+  // box lands in the pixel ring's hole and in the ratio ring's ink.
+  constexpr SkSize kBigger{200, 200};
+  EXPECT_FALSE(ring(10)(kBigger).contains(100, 15));
+  EXPECT_TRUE(annulus(0.8f)(kBigger).contains(100, 15));
+
+  // The hole and the dot are two more contours of one outline, so the
+  // dot fills where the hole does not.
+  const SkPath dotted = ring(10, 8)(kSquare);
+  EXPECT_TRUE(dotted.contains(50, 50));   // the dot
+  EXPECT_FALSE(dotted.contains(50, 30));  // the hole
+  EXPECT_TRUE(dotted.contains(50, 3));    // the ring itself
+
+  // A ring thicker than its own radius has no hole left, so it is a disc.
+  EXPECT_TRUE(ring(80)(kSquare).contains(50, 30));
+}
+
+TEST(Silhouettes, AChevronIsAVAndItsBarsAreLevelWithItsShoulders) {
+  constexpr SkSize kSquare{100, 100};
+  const SkRect bare = chevron()(kSquare).getBounds();
+  // Spread and drop are what the mark is: 20 per cent of the width either
+  // side of centre, and the point 34 per cent of the height below it.
+  EXPECT_NEAR(bare.left(), 30.0f, 1e-3f);
+  EXPECT_NEAR(bare.right(), 70.0f, 1e-3f);
+  EXPECT_NEAR(bare.bottom(), 84.0f, 1e-3f);
+
+  // The bars run in from the box's own edges, so they widen the mark to
+  // the full box while the V stays where it was.
+  const SkRect barred =
+      chevron(0.20f, 0.34f, 0.16f, 0.20f)(kSquare).getBounds();
+  EXPECT_NEAR(barred.left(), 0.0f, 1e-3f);
+  EXPECT_NEAR(barred.right(), 100.0f, 1e-3f);
+  EXPECT_NEAR(barred.bottom(), 84.0f, 1e-3f);
+}
+
+TEST(Silhouettes, AnArrowsHeadSpansTheBoxUnlessItIsGivenItsOwnSize) {
+  constexpr SkSize kWide{200, 40};
+  // The default barb fills the box's height; a paddle's head is a stated
+  // fraction of it, so a fan of arms of different lengths carries heads
+  // of one size.
+  EXPECT_NEAR(arrow()(kWide).getBounds().height(), 40.0f, 1e-3f);
+  EXPECT_NEAR(arrow(0.2f, 0.2f, 0.5f)(kWide).getBounds().height(), 20.0f,
+              1e-3f);
+  EXPECT_NEAR(arrow(0.2f, 0.2f, 0.5f)(kWide).getBounds().width(), 200.0f,
+              1e-3f);
 }

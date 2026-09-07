@@ -111,11 +111,20 @@ inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
  *  negative pushes it outside the box, which every consumer that clips
  *  at the box will truncate.
  *
+ *  @p uniform makes the figure a CIRCLE on a box that is not square — the
+ *  largest one that fits, centred — where the default is the box's own
+ *  oval. A box a pixel or two out of square gives an oval out of round by
+ *  a pixel or two, which reads as a mistake wherever the mark is small and
+ *  meant to be round: an eye, a pupil, a bullet, a dot on a dial. On a
+ *  square box the two are the same figure, so a caller that never leaves
+ *  square boxes never has to think about it.
+ *
  *  Exact conics either way — this is `addOval`, not a sampled polyline. */
 struct Circle {
   SkPathDirection direction = SkPathDirection::kCW;
   unsigned startIndex = 1;
   float inset = 0.0f;
+  bool uniform = false;
   bool operator==(const Circle&) const = default;
   SkPath path(SkSize s) const;
   SkPath operator()(SkSize s) const { return path(s); }
@@ -132,15 +141,36 @@ inline Circle circle(SkPathDirection direction, unsigned startIndex = 1,
 }
 
 /** A ring: the inscribed circle with a concentric hole at @p innerRatio
- *  of the radius. Even-odd, so it fills as an annulus. */
+ *  of the radius. Even-odd, so it fills as an annulus.
+ *
+ *  `thickness` is the same ring said the other way about — its own width
+ *  in PIXELS, which is what a ring keeps when the box it stands in does
+ *  not: a reticle, a dial's rim, a glyph that must read the same weight at
+ *  two sizes. Nonzero, it decides the hole and `innerRatio` is not read. A
+ *  thickness that eats the whole radius leaves a disc, which is what a
+ *  ring that thick is.
+ *
+ *  `dot` puts a concentric disc of that pixel radius at the centre. Two
+ *  marks are not always two things: a ring around a point says something
+ *  an arrow cannot — that what it names is not in the picture plane at
+ *  all — and as ONE outline the pair fills, strokes and animates
+ *  together. */
 struct Annulus {
   float innerRatio = 0.6f;
+  float thickness = 0.0f;
+  float dot = 0.0f;
   bool operator==(const Annulus&) const = default;
   SkPath path(SkSize s) const;
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
 inline Annulus annulus(float innerRatio = 0.6f) { return Annulus{innerRatio}; }
+
+/** The ring of a stated pixel width, with an optional dot at its
+ *  centre. */
+inline Annulus ring(float thickness, float dot = 0.0f) {
+  return Annulus{.thickness = thickness, .dot = dot};
+}
 
 /** Superellipse |x|^e + |y|^e = 1 — the squircle. @p exponent 2 is an
  *  ellipse; 4–5 is the familiar app-icon softness; large values
@@ -252,17 +282,52 @@ inline Parallelogram parallelogram(float skewDeg) {
 }
 
 /** An arrow along +x, inscribed in the box: a shaft of `shaftFrac` of the
- *  height and a head of `headFrac` of the width. */
+ *  height and a head of `headFrac` of the width.
+ *
+ *  `headSpan` is how far ACROSS the head reaches, as a fraction of the
+ *  height: 1 is the barb that fills the box, and less than that is the
+ *  paddle — a handle whose head is a stated size while its shaft runs
+ *  whatever length the box is. A fan of arms of different lengths off one
+ *  hub wants exactly that, since a head that is a fraction of the box
+ *  grows with the arm and a fan of arms then has heads of five sizes. */
 struct Arrow {
   float shaftFrac = 0.34f;
   float headFrac = 0.42f;
+  float headSpan = 1.0f;
   bool operator==(const Arrow&) const = default;
   SkPath path(SkSize s) const;
   SkPath operator()(SkSize s) const { return path(s); }
 };
 
-inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f) {
-  return Arrow{shaftFrac, headFrac};
+inline Arrow arrow(float shaftFrac = 0.34f, float headFrac = 0.42f,
+                   float headSpan = 1.0f) {
+  return Arrow{shaftFrac, headFrac, headSpan};
+}
+
+/** A chevron: a wide flat V pointing down the box, drawn as an outline of
+ *  its own thickness, with an optional pair of outrigger bars level with
+ *  its shoulders — the level indicator, the rank mark, the "you are here"
+ *  on a gauge.
+ *
+ *  It is a V and not an arrowhead: `spread` takes the shoulders out to a
+ *  fraction of the box's width, `drop` takes the point down a fraction of
+ *  its height, and the shoulders stand a third of the drop ABOVE centre,
+ *  which is what keeps the two arms shallow. `thickness` is the mark's own
+ *  width as a fraction of the height. `bars` is how far the outriggers run
+ *  in from each edge; zero leaves the V on its own. */
+struct Chevron {
+  float spread = 0.20f;
+  float drop = 0.34f;
+  float thickness = 0.16f;
+  float bars = 0.0f;
+  bool operator==(const Chevron&) const = default;
+  SkPath path(SkSize s) const;
+  SkPath operator()(SkSize s) const { return path(s); }
+};
+
+inline Chevron chevron(float spread = 0.20f, float drop = 0.34f,
+                       float thickness = 0.16f, float bars = 0.0f) {
+  return Chevron{spread, drop, thickness, bars};
 }
 
 }  // namespace sigil::geometry::shapes

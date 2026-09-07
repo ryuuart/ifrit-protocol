@@ -605,6 +605,23 @@ in no header.
   error or a bleed is the caller's to know). Here rather than in a
   catalog of placements because a catalog is where this arithmetic gets
   spelled a second time, and two spellings of one ring round apart.
+- **`path/Conic.h`** — the one curve family measured from a FOCUS rather
+  than centred on a box: `r(v) = p / (1 + e cos v)`, with `Conic` carrying
+  the focus, the semi-latus rectum, the eccentricity and where the near
+  point lies. Eccentricity alone decides which of the four curves it is —
+  circle, ellipse, parabola, hyperbola — and `v` is measured from the
+  periapsis, so the same angle means the same place on any of them.
+  `radiusAt()`, `at()`, `alongAt()` (the direction of travel, which is
+  square to the radius on a circle and on nothing else), `outwardAt()` and
+  `asymptoteDeg()` (the direction an open branch runs off along).
+  `conicPath(conic, span)` samples a span of it, closing only when a
+  closed conic goes the whole way round, and `ConicSpan::reach` BREAKS the
+  contour where the curve leaves what is near enough to draw, since a path
+  carrying a point a million units out is a path whose bounds and arc
+  length are decided by somewhere nobody can see. It stands here rather
+  than on the kit's shelf because it is not a silhouette in a box: what it
+  is measured from is off centre, and a drawing that puts the thing at the
+  focus in the middle of the ellipse has said something false.
 - **`path/Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
   `SkPoint`, and `centre()` of an `SkRect`.
 - **`path/Edges.h`** — narrowing an outline before something is drawn on
@@ -1194,11 +1211,23 @@ beneath, in `sigil::geometry::shapes`.
 - **`kit/Generators.h`** — the closed silhouettes: `svg()` (an SVG path-d
   string parsed once, its bounds mapped onto the box), `polygon()`,
   `star()` (with `waist`, which bows each arm edge inward the way an
-  engraved star narrows), `circle()` (winding, start point and a
-  concentric `inset`), `annulus()`, `squircle()`, `blob()` (seeded, so the
-  same seed is the same blob every run), `arc()` (open), `sector()`
-  (closed and fillable, with an inner radius for the donut slice),
-  `parallelogram()` and `arrow()`.
+  engraved star narrows), `circle()` (winding, start point, a concentric
+  `inset`, and `uniform` for the true CIRCLE on a box that is not square,
+  where the default is the box's oval), `annulus()` — with `ring()`, the
+  same ring stated as its own pixel width so it keeps that width when the
+  box changes, and a concentric `dot` at the centre, which is one outline
+  and not two marks — `squircle()`, `blob()` (seeded, so the same seed is
+  the same blob every run), `arc()` (open), `sector()` (closed and
+  fillable, with an inner radius for the donut slice), `parallelogram()`,
+  `arrow()` (whose `headSpan` is the head's own size across, so a fan of
+  arms of different lengths carries heads of one size rather than five)
+  and `chevron()` (the wide flat V, with outrigger bars).
+
+  Two shapes people reach for that are already here: the DIAMOND with its
+  points on the box's edges is `polygon(4)`, since a polygon's first
+  vertex is up and its vertices step round the box's own ellipse —
+  `polygon(4, 45)` is the square, a different figure at a different size —
+  and the true circle in an oblong box is `circle()` with `uniform`.
 - **`kit/Curves.h`** — the open silhouettes, evaluated in a unit frame and
   scaled onto the box's half-extents so a curve keeps its proportions when
   the box changes: `parametric()` raw and keyed, `lissajous()`,
@@ -1718,7 +1747,7 @@ suite's file sits in the feature it covers.
 
 | Files | Proves |
 | --- | --- |
-| `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `SegmentsTest`, `NodesTest`, `NeighboursTest`, `ScatterTest`, `TriangulateTest`, `FieldsTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, an outline read verb for verb and rewritten to start elsewhere or run the other way, the node arithmetic (nodes put where a curve turns, nodes taken away where they say nothing, a run of points fitted as few cubics, the exact in-between of a pair that pairs), the uniform grid judged against the brute-force answer, what each rate and each spread of a scatter guarantees, a triangulation on sets whose answer is known by hand with the dual cells and the outline at a tightness beside it, the three things a field is walked, repeated or stepped by, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, and how many steps a blend makes |
+| `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `SegmentsTest`, `NodesTest`, `NeighboursTest`, `ScatterTest`, `TriangulateTest`, `FieldsTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `ConicsTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, an outline read verb for verb and rewritten to start elsewhere or run the other way, the node arithmetic (nodes put where a curve turns, nodes taken away where they say nothing, a run of points fitted as few cubics, the exact in-between of a pair that pairs), the uniform grid judged against the brute-force answer, what each rate and each spread of a scatter guarantees, a triangulation on sets whose answer is known by hand with the dual cells and the outline at a tightness beside it, the three things a field is walked, repeated or stepped by, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, which of the four curves a conic is at each eccentricity with where its focus stands against the figure it draws, and how many steps a blend makes |
 | `mesh/test/` — `MeshTest`, `FacesTest`, `CameraTest` | the mesh currency, its faces and the camera that places it: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, a fanned polygon read as one face with one plane and one centroid, the face-up rotation landing the face it names on the axis it is given, and the view-projection and billboard transforms carried through to viewport pixels |
 | `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back with the lattice and the offset behind it, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled, and each regular solid counted by its own faces, closed on itself (V - E + F = 2), equal-edged and stood on a chosen face |
 | `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
