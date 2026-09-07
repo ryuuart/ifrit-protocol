@@ -303,7 +303,14 @@ phase performs. Neither replaces the other. A presented rate is bounded
 by the compositor, which means the display: a sketch comfortably inside
 its budget reads at the refresh rate and says nothing more, so the
 interesting rows are the ones BELOW it and `work` beside them says how
-much of the frame was the sketch. A baseline is therefore per machine
+much of the frame was the sketch. A row of the window lane is the sketch
+that was on screen and the stretch that was measured: the warm-up starts
+at the first frame of the selection's own session, the rolling windows
+are emptied where the measured stretch begins, one session is held at a
+time and no thumbnail is written while a rate is being taken — so a
+sketch reads in the sweep what it reads presented alone. A sketch the
+window never presented is stood down by name, and a sweep that stood one
+down exits non-zero rather than reporting a rate of zero. A baseline is therefore per machine
 AND per display mode, and the file records the window size and scale it
 was taken at so a mismatch is visible rather than silently compared.
 

@@ -179,6 +179,7 @@ void Host::openSession(const Kind& kind) {
   }
   m_workMs.clear();  // fresh sketch, fresh numbers
   m_drawMs.clear();
+  m_presentedFrames = 0;
 }
 
 bool Host::restartSession() {
@@ -193,6 +194,16 @@ bool Host::restartSession() {
   m_presentSince.reset();
   m_presentMs.clear();
   return m_session != nullptr;
+}
+
+void Host::resetMetrics() {
+  m_workMs.clear();
+  m_drawMs.clear();
+  m_presentMs.clear();
+  // The interval running when this was called spans the boundary, so it
+  // is not one of the intervals that follow it: the next presentation
+  // seeds a new one.
+  m_presentSince.reset();
 }
 
 SkSize Host::canvasSize() const {
@@ -474,6 +485,7 @@ double Host::presentedFps() const {
 }
 
 void Host::markPresented() {
+  ++m_presentedFrames;
   if (!m_presentSince) {
     m_presentSince.emplace();  // seeds the cadence; nothing to measure yet
     return;

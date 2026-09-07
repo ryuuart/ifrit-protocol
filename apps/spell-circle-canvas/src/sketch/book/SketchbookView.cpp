@@ -59,6 +59,7 @@ std::filesystem::path SketchbookView::sharedDir;
 sketch::Host* SketchbookView::host = nullptr;
 sigil::weave::FontContext* SketchbookView::fonts = nullptr;
 sketch::Residency SketchbookView::sessions;
+bool SketchbookView::oneSessionAtATime = false;
 // QMutex's constructor does not throw
 // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 QMutex SketchbookView::hostMutex;
@@ -642,6 +643,22 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   if (pixelSize.width() < 1 || pixelSize.height() < 1) {
     update();
     return;
+  }
+
+  // ONE SESSION AT A TIME: the outgoing one goes BEFORE the next opens,
+  // so that letting it go is not work inside the frames of the sketch
+  // that follows it. Outside the lock for the reason every release of a
+  // host is: ~Host waits on the build it may be in the middle of. The
+  // requested index is written on this thread, so reading it here needs
+  // nothing held.
+  if (SketchbookView::oneSessionAtATime && m_index != m_requestedIndex) {
+    std::unique_ptr<sketch::Host> leaving;
+    {
+      QMutexLocker lock(&SketchbookView::hostMutex);
+      leaving = SketchbookView::sessions.dropPresented();
+      SketchbookView::host = SketchbookView::sessions.presented();
+    }
+    leaving.reset();
   }
 
 #ifdef SIGILSKETCH_BOOK_GPU

@@ -125,6 +125,13 @@ class SketchbookView : public QQuickRhiItem {
    *  compiler, watched source and loaded libraries stay warm. Under the same
    *  mutex as `host`. */
   static sigil::sketch::Residency sessions;
+  /** ONE SESSION AT A TIME. The session on screen is let go before the
+   *  next one opens, rather than kept warm behind it. What a frame-rate
+   *  sweep is asked for is one sketch's own rate, and a set of sessions
+   *  standing behind it — holding their scenes, their images and their
+   *  pipelines, and let go inside a later sketch's frames — is a cost
+   *  that belongs to the window and not to the sketch being read. */
+  static bool oneSessionAtATime;
   static QMutex hostMutex;
 
  signals:

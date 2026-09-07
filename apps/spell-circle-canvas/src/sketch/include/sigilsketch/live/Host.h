@@ -206,6 +206,20 @@ class Host {
   [[nodiscard]] double drawMsAverage() const;
   [[nodiscard]] double presentedFps() const;
   void markPresented();
+  /** HOW MANY FRAMES OF THIS SESSION HAVE REACHED THE SCREEN, counted
+   *  from the moment it started running. A reader outside the render
+   *  thread has no other way to tell a session that is merely selected
+   *  from one that is being presented: the pointer to it is published
+   *  when it opens, and its first frame can be seconds behind that. */
+  [[nodiscard]] unsigned long long presentedFrames() const {
+    return m_presentedFrames;
+  }
+  /** EMPTIES THE ROLLING WINDOWS, so that what is read after this
+   *  describes what happened after this. A stretch a caller means to
+   *  measure begins with the frames before it thrown away — the first
+   *  frames of a session cost what a session costs once, and averaged in
+   *  they are the sketch's steady cost misreported. */
+  void resetMetrics();
   /** BEGINS PRESENTING AGAIN after a stretch in which something else
    *  held the window. That stretch is not a frame interval, so the next
    *  presentation starts one rather than extending the one this session
@@ -350,6 +364,7 @@ class Host {
   // Absent until the first presentation: there is no interval to measure
   // from before one, and resume() empties it for the same reason.
   std::optional<measure::Stopwatch> m_presentSince;
+  unsigned long long m_presentedFrames = 0;
   measure::Samples m_workMs{120};    // rolling frame-body cost window
   measure::Samples m_drawMs{120};    // …and the paint phase inside it
   measure::Samples m_presentMs{60};  // rolling present-interval window

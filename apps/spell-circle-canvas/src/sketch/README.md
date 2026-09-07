@@ -741,6 +741,29 @@ and p99, its paint phase, the submit, and the headroom the work alone
 would allow. A sketch this machine cannot run is named `SKIPPED` with
 what is missing, and no line is written for it.
 
+**Each row is the sketch that was on screen.** Selecting a sketch is an
+ask: the session opens on the render thread and its first frame — the
+program compiles, the texture bakes, the glyph atlases — can cost
+seconds. So the warm-up starts at the first frame of the selection's own
+session and not at the ask, and the rolling windows the readout comes
+from are emptied where the measured stretch begins, so a row is that
+sketch's frames over that stretch and carries nothing of what opening it
+cost. The rate is the whole stretch — the frames that reached the screen
+over the time they took — so a hitch inside it weighs what it was, while
+the panel's own readout beside the canvas stays the short rolling one a
+reader watches change. A selection that does not reach the screen within
+the ceiling is named `SKIPPED` with how long it was waited for, as is a
+stretch that ended with all but no frames in it; a run that stood any
+sketch down that way exits non-zero, because a rate it could not take is
+not a rate of zero.
+
+**Nothing else runs inside a measurement.** The store's still is not
+written while the lane is measuring, and the window keeps one session at
+a time — the one on screen goes as the next opens, rather than standing
+warm behind it and being let go in the middle of a later sketch's
+frames. So what a sketch reads in a sweep is what it reads presented
+alone, which is the only way a row means anything on its own.
+
 **It measures what `--bench` cannot.** The gate renders onto a raster
 surface at the sketch's declared size and presents nothing, which is
 what makes it a gate: the sketch's own cost, isolated. Here the frame is
@@ -749,7 +772,7 @@ and its device pixel ratio, and the numbers carry the host's own
 overhead with them — the submit or texture upload that puts the frame on
 screen, and, for a set drawn on a device, the readback and blit its
 paint phase performs. Selection goes through the same property a click
-sets, so the resident set is in the measurement too.
+sets, so a switch takes the path a reader's click takes.
 
 A presented rate is bounded by the compositor, which means by the
 display: a sketch comfortably inside its budget reads at the refresh
@@ -848,8 +871,11 @@ again this run.
 **The refresh, on opening.** Once a sketch is presented, its session is
 photographed once — as it reaches the moment it declared, or after a
 second of its own clock when it declares none — and that frame is written
-into the store under the sketch's current key. So the stills refresh as
-you browse, they are the frames you were looking at, and nothing renders
+into the store under the sketch's current key. A run measuring frames
+(`--window-bench`) is out of that: the photograph is taken on the render
+thread and inside a frame, which is the one thing a stretch whose whole
+subject is how long a frame takes cannot have in it. So the stills
+refresh as you browse, they are the frames you were looking at, and nothing renders
 in the background to keep them current. A sketch with no thumbnail yet
 gets a drawn glyph for the runtime it draws through.
 
@@ -1153,7 +1179,7 @@ src/sketch/
   set/        the 3D runtime: a ticker and a retained Scene
   draw/       the immediate-mode runtime: a clock, a ticker, a pen and a surface that persists
   kit/        the sheet a sketch stands on: the theme, the page and the furniture over it
-  live/       the reload engine and the resident set
+  live/       the reload engine, the resident set and the sweep's cadence
   scry/       the opt-in shared Ultralight engine a web sketch borrows
   plate/      the headless sweep, the montage, the plate comparison, the thumbnail store
   book/       Sketchbook: the app, and the headless entry point, with the browser's rows
@@ -1254,7 +1280,8 @@ it. `core/test/` covers the registry, the kind seam, the crash reporter
 and where a sketch stands on disk; `canvas/test/`,
 `set/test/` and `draw/test/` the three sessions;
 `kit/test/` the sheet a specimen stands on; `live/test/` the
-host and the resident set; `plate/test/` the sweep, the comparison
+host, the resident set and the cadence a window sweep keeps;
+`plate/test/` the sweep, the comparison
 of two directories of plates and the montage MP4 exporter;
 `book/test/` the reload path and the catalog's rows, each through the
 `Sketchbook` binary as a script; and `scry/test/` the shared web engine
