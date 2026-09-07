@@ -150,6 +150,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Sprites.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Shapers.h>
@@ -669,32 +670,24 @@ inline uint32_t mulHex(uint32_t word, float k) {
   return (r << 16u) | (gg << 8u) | b;
 }
 
-struct Ink {
-  SkCanvas& c;
-  void r(float x, float y, float w, float h, SkColor4f col) const {
-    if (col.fA <= 0) return;
-    SkPaint p;
-    p.setAntiAlias(false);
-    p.setColor4f(col, nullptr);
-    c.drawRect(SkRect::MakeXYWH(g(x), g(y), g(w), g(h)), p);
-  }
-  void px(float x, float y, SkColor4f col) const { r(x, y, 1, 1, col); }
-};
-
 /** A stoppered phial/bottle silhouette shared by several icons. */
-inline void glassVessel(const Ink& k, SkColor4f liquid, float top = 4) {
-  k.r(6, top - 1, 4, 2, hexColor(0x6B5030));  // cork
-  k.r(6, top + 1, 4, 1, hexColor(0x8A8FA0));  // neck
-  k.r(5, top + 2, 6, 11 - (top - 4), hexColor(0xB6C6D6, 0.35f));
-  k.r(5, top + 2, 1, 11 - (top - 4), hexColor(0xE7F1F8, 0.55f));
-  k.r(6, top + 6, 4, 7 - (top - 4), liquid);
-  k.r(5, 14, 6, 1, hexColor(0x2A3240));
+inline void glassVessel(kit::Sprite& k, SkColor4f liquid, float top = 4) {
+  k.rect(6, top - 1, 4, 2, hexColor(0x6B5030));  // cork
+  k.rect(6, top + 1, 4, 1, hexColor(0x8A8FA0));  // neck
+  k.rect(5, top + 2, 6, 11 - (top - 4), hexColor(0xB6C6D6, 0.35f));
+  k.rect(5, top + 2, 1, 11 - (top - 4), hexColor(0xE7F1F8, 0.55f));
+  k.rect(6, top + 6, 4, 7 - (top - 4), liquid);
+  k.rect(5, 14, 6, 1, hexColor(0x2A3240));
 }
 
-inline void drawGlyph(SkCanvas& canvas, int glyph, float alpha) {
-  const Ink k{canvas};
-  auto a = [alpha](uint32_t word, float mulA = 1.0f) {
-    return hexColor(word, alpha * mulA);
+/** One glyph as marks on its own 16 x 16 grid: what is drawn, at what
+ *  coordinates, in what colour — and nothing about where it lands or how
+ *  faded it is, which are the presentation's. */
+inline kit::Sprite glyphSprite(int glyph) {
+  kit::Sprite k;
+  k.grid = {16, 16};
+  const auto a = [](uint32_t word, float mulA = 1.0f) {
+    return hexColor(word, mulA);
   };
   switch (glyph) {
     case gAspect: {  // cat_alchemy.png — the alkimia aspect medallion
@@ -704,69 +697,69 @@ inline void drawGlyph(SkCanvas& canvas, int glyph, float alpha) {
                                          arrange::Turn::Closed);
         k.px(8 + 5 * std::cos(ang) - 0.5f, 8 + 5 * std::sin(ang) - 0.5f, c);
       }
-      k.r(6, 4, 4, 1, c);
-      k.r(5, 5, 1, 6, c);
-      k.r(10, 5, 1, 6, c);
-      k.r(6, 11, 4, 1, c);
-      k.r(7, 7, 2, 2, a(aspect::kAlkimia, 0.75f));
+      k.rect(6, 4, 4, 1, c);
+      k.rect(5, 5, 1, 6, c);
+      k.rect(10, 5, 1, 6, c);
+      k.rect(6, 11, 4, 1, c);
+      k.rect(7, 7, 2, 2, a(aspect::kAlkimia, 0.75f));
       break;
     }
     case gAlumentum:  // a burning nugget
-      k.r(6, 6, 4, 6, a(0x241A12));
-      k.r(7, 4, 2, 3, a(aspect::kIgnis));
-      k.r(6, 7, 1, 3, a(0xFFB25A, 0.9f));
-      k.r(9, 8, 1, 2, a(0xFF8020, 0.9f));
-      k.r(5, 12, 6, 1, a(0x120C08));
+      k.rect(6, 6, 4, 6, a(0x241A12));
+      k.rect(7, 4, 2, 3, a(aspect::kIgnis));
+      k.rect(6, 7, 1, 3, a(0xFFB25A, 0.9f));
+      k.rect(9, 8, 1, 2, a(0xFF8020, 0.9f));
+      k.rect(5, 12, 6, 1, a(0x120C08));
       break;
     case gIngot:  // ingot_brass
-      k.r(3, 8, 10, 4, a(0xB98A32));
-      k.r(4, 7, 8, 1, a(0xE0BE6A));
-      k.r(3, 11, 10, 1, a(0x6B4E18));
-      k.r(5, 9, 6, 1, a(0xE8D296, 0.7f));
+      k.rect(3, 8, 10, 4, a(0xB98A32));
+      k.rect(4, 7, 8, 1, a(0xE0BE6A));
+      k.rect(3, 11, 10, 1, a(0x6B4E18));
+      k.rect(5, 9, 6, 1, a(0xE8D296, 0.7f));
       break;
     case gCluster:  // cluster_iron
-      k.r(4, 9, 3, 4, a(0x6E6E72));
-      k.r(7, 6, 4, 7, a(0x9A9AA2));
-      k.r(8, 4, 2, 3, a(0xC8C8D0));
-      k.r(11, 10, 2, 3, a(0x55555A));
-      k.r(8, 7, 1, 3, a(0xE6E6EE, 0.8f));
+      k.rect(4, 9, 3, 4, a(0x6E6E72));
+      k.rect(7, 6, 4, 7, a(0x9A9AA2));
+      k.rect(8, 4, 2, 3, a(0xC8C8D0));
+      k.rect(11, 10, 2, 3, a(0x55555A));
+      k.rect(8, 7, 1, 3, a(0xE6E6EE, 0.8f));
       break;
     case gTallow:  // tallow
-      k.r(5, 5, 6, 8, a(0xE3D8A8));
-      k.r(5, 4, 6, 1, a(0xF6EFCC));
-      k.r(5, 12, 6, 1, a(0x8C8358));
-      k.r(7, 7, 1, 4, a(0xFFFCE2, 0.55f));
+      k.rect(5, 5, 6, 8, a(0xE3D8A8));
+      k.rect(5, 4, 6, 1, a(0xF6EFCC));
+      k.rect(5, 12, 6, 1, a(0x8C8358));
+      k.rect(7, 7, 1, 4, a(0xFFFCE2, 0.55f));
       break;
     case gBucket:  // bucket_death
-      k.r(4, 5, 8, 8, a(0x8D9299));
-      k.r(5, 6, 6, 5, a(aspect::kMortuus));
-      k.r(4, 4, 8, 1, a(0xB9BEC6));
-      k.r(4, 12, 8, 1, a(0x4A4E55));
-      k.r(3, 5, 1, 4, a(0x6E7278));
+      k.rect(4, 5, 8, 8, a(0x8D9299));
+      k.rect(5, 6, 6, 5, a(aspect::kMortuus));
+      k.rect(4, 4, 8, 1, a(0xB9BEC6));
+      k.rect(4, 12, 8, 1, a(0x4A4E55));
+      k.rect(3, 5, 1, 4, a(0x6E7278));
       break;
     case gBottle:  // bottle_taint
       glassVessel(k, a(aspect::kVitium), 3);
       k.px(7, 9, a(0xC060FF, 0.9f));
       break;
     case gSalts:  // bath_salts
-      k.r(4, 8, 8, 5, a(0xD8CFE6));
-      k.r(4, 7, 8, 1, a(0xF0E9F8));
+      k.rect(4, 8, 8, 5, a(0xD8CFE6));
+      k.rect(4, 7, 8, 1, a(0xF0E9F8));
       for (int i = 0; i < 7; ++i)
         k.px(4 + i, 5 + (float)(hash3(i, 3, 5) % 3u), a(0xEDE6FA, 0.85f));
-      k.r(4, 12, 8, 1, a(0x807A90));
+      k.rect(4, 12, 8, 1, a(0x807A90));
       break;
     case gSoap:  // sanity_soap
-      k.r(4, 7, 8, 5, a(0xE6E0C4));
-      k.r(4, 6, 8, 1, a(0xF7F3DC));
-      k.r(4, 11, 8, 1, a(0x8E8868));
-      k.r(6, 8, 4, 2, a(0xC9C29A, 0.8f));
+      k.rect(4, 7, 8, 5, a(0xE6E0C4));
+      k.rect(4, 6, 8, 1, a(0xF7F3DC));
+      k.rect(4, 11, 8, 1, a(0x8E8868));
+      k.rect(6, 8, 4, 2, a(0xC9C29A, 0.8f));
       k.px(11, 5, a(0xFFFFFF, 0.7f));
       k.px(12, 4, a(0xFFFFFF, 0.5f));
       break;
     case gSpa:  // spa
-      k.r(3, 9, 10, 4, a(0x9A7A50));
-      k.r(3, 8, 10, 1, a(0xC29B66));
-      k.r(4, 10, 8, 2, a(aspect::kAqua, 0.8f));
+      k.rect(3, 9, 10, 4, a(0x9A7A50));
+      k.rect(3, 8, 10, 1, a(0xC29B66));
+      k.rect(4, 10, 8, 2, a(aspect::kAqua, 0.8f));
       for (int i = 0; i < 3; ++i)
         k.px(5 + i * 3, 5 + (float)(hash3(i, 7, 2) % 2u), a(0xDDF2FF, 0.6f));
       break;
@@ -776,90 +769,93 @@ inline void drawGlyph(SkCanvas& canvas, int glyph, float alpha) {
       const uint32_t body = glyph == gSmelter        ? 0x7E5A34
                             : glyph == gSmelterThaum ? 0x6C6AA8
                                                      : 0x2C2438;
-      k.r(3, 5, 10, 7, a(body));
-      k.r(3, 4, 10, 1, a(body + 0x181818));
-      k.r(4, 6, 8, 3, a(aspect::kIgnis, 0.85f));
-      k.r(5, 7, 6, 1, a(0xFFD27A, 0.9f));
-      k.r(3, 12, 2, 2, a(mulHex(body, 0.6f)));
-      k.r(11, 12, 2, 2, a(mulHex(body, 0.6f)));
+      k.rect(3, 5, 10, 7, a(body));
+      k.rect(3, 4, 10, 1, a(body + 0x181818));
+      k.rect(4, 6, 8, 3, a(aspect::kIgnis, 0.85f));
+      k.rect(5, 7, 6, 1, a(0xFFD27A, 0.9f));
+      k.rect(3, 12, 2, 2, a(mulHex(body, 0.6f)));
+      k.rect(11, 12, 2, 2, a(mulHex(body, 0.6f)));
       break;
     }
     case gJar:  // jar_normal
-      k.r(4, 4, 8, 2, a(0x8A6E38));
-      k.r(4, 6, 8, 8, a(0xC5D9E4, 0.42f));
-      k.r(4, 6, 1, 8, a(0xE9F4FA, 0.6f));
-      k.r(5, 9, 6, 4, a(aspect::kAlkimia, 0.85f));
-      k.r(4, 13, 8, 1, a(0x3A4450));
+      k.rect(4, 4, 8, 2, a(0x8A6E38));
+      k.rect(4, 6, 8, 8, a(0xC5D9E4, 0.42f));
+      k.rect(4, 6, 1, 8, a(0xE9F4FA, 0.6f));
+      k.rect(5, 9, 6, 4, a(aspect::kAlkimia, 0.85f));
+      k.rect(4, 13, 8, 1, a(0x3A4450));
       break;
     case gTube:  // tube
-      k.r(2, 7, 12, 3, a(0x8A8FA0));
-      k.r(2, 7, 12, 1, a(0xC0C6D6));
-      k.r(6, 6, 4, 5, a(0x6B7080));
-      k.r(2, 9, 12, 1, a(0x4A4E5A));
+      k.rect(2, 7, 12, 3, a(0x8A8FA0));
+      k.rect(2, 7, 12, 1, a(0xC0C6D6));
+      k.rect(6, 6, 4, 5, a(0x6B7080));
+      k.rect(2, 9, 12, 1, a(0x4A4E5A));
       break;
     case gSmelterAux:  // smelter_aux
-      k.r(4, 6, 8, 7, a(0x6E5A3A));
-      k.r(4, 5, 8, 1, a(0x8E7448));
-      k.r(6, 3, 4, 3, a(0x8A8FA0));
-      k.r(5, 8, 6, 3, a(aspect::kIgnis, 0.7f));
+      k.rect(4, 6, 8, 7, a(0x6E5A3A));
+      k.rect(4, 5, 8, 1, a(0x8E7448));
+      k.rect(6, 3, 4, 3, a(0x8A8FA0));
+      k.rect(5, 8, 6, 3, a(aspect::kIgnis, 0.7f));
       break;
     case gVent:  // smelter_vent
-      k.r(5, 8, 6, 5, a(0x6E6E72));
-      k.r(4, 7, 8, 1, a(0x9A9AA2));
+      k.rect(5, 8, 6, 5, a(0x6E6E72));
+      k.rect(4, 7, 8, 1, a(0x9A9AA2));
       for (int i = 0; i < 3; ++i)
-        k.r(6 + i * 2, 3 + (float)(hash3(i, 2, 9) % 2u), 1, 3,
-            a(0xCFE2EE, 0.55f));
+        k.rect(6 + i * 2, 3 + (float)(hash3(i, 2, 9) % 2u), 1, 3,
+               a(0xCFE2EE, 0.55f));
       break;
     case gCentrifuge:  // centrifuge
-      k.r(4, 3, 8, 3, a(0x8A8FA0));
-      k.r(5, 6, 6, 6, a(0x5E626C));
-      k.r(6, 7, 4, 4, a(aspect::kAlkimia, 0.8f));
-      k.r(3, 12, 10, 2, a(0x3E424A));
+      k.rect(4, 3, 8, 3, a(0x8A8FA0));
+      k.rect(5, 6, 6, 6, a(0x5E626C));
+      k.rect(6, 7, 4, 4, a(aspect::kAlkimia, 0.8f));
+      k.rect(3, 12, 10, 2, a(0x3E424A));
       k.px(5, 4, a(0xE0E6F0, 0.8f));
       break;
     case gThaumatorium:  // thaumatorium
-      k.r(3, 4, 10, 9, a(0x5A4A2E));
-      k.r(3, 3, 10, 1, a(0x7E6A44));
-      k.r(5, 6, 6, 5, a(0x1C1810));
-      k.r(6, 7, 4, 3, a(aspect::kPraecantatio, 0.85f));
-      k.r(2, 6, 1, 5, a(0x8A6E38));
-      k.r(13, 6, 1, 5, a(0x8A6E38));
+      k.rect(3, 4, 10, 9, a(0x5A4A2E));
+      k.rect(3, 3, 10, 1, a(0x7E6A44));
+      k.rect(5, 6, 6, 5, a(0x1C1810));
+      k.rect(6, 7, 4, 3, a(aspect::kPraecantatio, 0.85f));
+      k.rect(2, 6, 1, 5, a(0x8A6E38));
+      k.rect(13, 6, 1, 5, a(0x8A6E38));
       break;
     case gInput:  // essentia_input
-      k.r(4, 4, 8, 8, a(0x6C6AA8));
-      k.r(5, 5, 6, 6, a(0x2A2840));
-      k.r(6, 6, 4, 4, a(aspect::kAlkimia, 0.9f));
-      k.r(4, 12, 8, 1, a(0x3A3860));
+      k.rect(4, 4, 8, 8, a(0x6C6AA8));
+      k.rect(5, 5, 6, 6, a(0x2A2840));
+      k.rect(6, 6, 4, 4, a(aspect::kAlkimia, 0.9f));
+      k.rect(4, 12, 8, 1, a(0x3A3860));
       break;
     case gUrn:  // everfull_urn
-      k.r(5, 3, 6, 2, a(0x7E6242));
-      k.r(4, 5, 8, 8, a(0x9A7A50));
-      k.r(4, 5, 1, 8, a(0xC29B66));
-      k.r(5, 7, 6, 4, a(aspect::kAqua, 0.75f));
-      k.r(4, 13, 8, 1, a(0x50402A));
+      k.rect(5, 3, 6, 2, a(0x7E6242));
+      k.rect(4, 5, 8, 8, a(0x9A7A50));
+      k.rect(4, 5, 1, 8, a(0xC29B66));
+      k.rect(5, 7, 6, 4, a(aspect::kAqua, 0.75f));
+      k.rect(4, 13, 8, 1, a(0x50402A));
       break;
     default:  // potion_sprayer
-      k.r(4, 6, 5, 7, a(0x8A8FA0));
-      k.r(5, 7, 3, 5, a(aspect::kVictus, 0.8f));
-      k.r(9, 4, 3, 3, a(0x6B7080));
+      k.rect(4, 6, 5, 7, a(0x8A8FA0));
+      k.rect(5, 7, 3, 5, a(aspect::kVictus, 0.8f));
+      k.rect(9, 4, 3, 3, a(0x6B7080));
       for (int i = 0; i < 4; ++i)
         k.px(12 + (float)(i % 2), 3 + (float)i, a(0xFFB6C8, 0.55f));
       break;
   }
+  return k;
 }
 
-/** The icon element: a 16x16 GUI box whose paint program is the glyph. `bw`
- *  is drawResearchIcon's monochrome pass — a locked node's icon is drawn at
- *  0.1-0.2 grey (:639-643, :683). */
-inline Element iconEl(int glyph, float alpha, bool bw) {
+/** The icon element: a 16x16 GUI box whose paint program stamps the glyph
+ *  at the GUI scale. `bw` is drawResearchIcon's monochrome pass — a locked
+ *  node's icon is drawn at 0.1-0.2 grey (:639-643, :683), which is the one
+ *  reading that wants a layer: the grey replaces the glyph's colours
+ *  wherever it drew, so it has to see the finished drawing. */
+inline Element iconEl(const kit::Sprite& art, float alpha, bool bw) {
   return box().width(g(16)).height(g(16)).background(
-      prog([glyph, alpha, bw](SkCanvas& c, const PaintContext&) {
+      prog([art, alpha, bw](SkCanvas& c, const PaintContext&) {
         if (!bw) {
-          drawGlyph(c, glyph, alpha);
+          kit::drawSprite(c, art, {0, 0}, {.cell = U, .alpha = alpha});
           return;
         }
         c.saveLayer(nullptr, nullptr);
-        drawGlyph(c, glyph, 1.0f);
+        kit::drawSprite(c, art, {0, 0}, {.cell = U});
         SkPaint dim;
         dim.setBlendMode(SkBlendMode::kSrcIn);
         dim.setColor4f({0.18f, 0.18f, 0.18f, alpha}, nullptr);
@@ -955,21 +951,21 @@ inline Element frameRun() {
   const float w = g(64), h = g(22);
   return box().width(w).height(h).background(
       prog([](SkCanvas& c, const PaintContext& in) {
-        const Ink k{c};
+        const kit::PixelInk k{c, U};
         const float W = in.size.width() / U, H = in.size.height() / U;
         // the band
-        k.r(0, 2, W, H - 4, kBrass);
-        k.r(0, 2, W, 1, kBrassLit);
-        k.r(0, H - 3, W, 1, kBrassDark);
-        k.r(0, 5, W, 1, mskia::scale(kBrassDark, 1, 0.55f));
-        k.r(0, H - 6, W, 1, mskia::scale(kBrassLit, 1, 0.35f));
+        k.rect(0, 2, W, H - 4, kBrass);
+        k.rect(0, 2, W, 1, kBrassLit);
+        k.rect(0, H - 3, W, 1, kBrassDark);
+        k.rect(0, 5, W, 1, mskia::scale(kBrassDark, 1, 0.55f));
+        k.rect(0, H - 6, W, 1, mskia::scale(kBrassLit, 1, 0.35f));
         // beading: a lens every 8 px, and a rivet every 16
         for (int i = 0; i < (int)W; i += 8) {
-          k.r((float)i + 2, 7, 4, H - 14, mskia::scale(kBrass, 1.22f));
-          k.r((float)i + 3, 8, 2, H - 16, mskia::scale(kBrass, 0.72f));
+          k.rect((float)i + 2, 7, 4, H - 14, mskia::scale(kBrass, 1.22f));
+          k.rect((float)i + 3, 8, 2, H - 16, mskia::scale(kBrass, 0.72f));
         }
         for (int i = 8; i < (int)W; i += 16) {
-          k.r((float)i - 1, H / 2 - 1, 2, 2, kBrassLit);
+          k.rect((float)i - 1, H / 2 - 1, 2, 2, kBrassLit);
           k.px((float)i - 1, H / 2, mskia::scale(kBrassDark, 1, 0.8f));
         }
       }));
@@ -1113,6 +1109,10 @@ struct Thaumonomicon : sketch::Sketch {
   // [tier][2*big + (handed>0)] — small/big elbow, left/right mirror
   std::array<std::array<Element, 4>, 3> elbows;
   Element runTile, cornerTile;
+  /** One sprite per reconstructed glyph, held by its `Glyph` id. The art is
+   *  a value, so a node's icon is a lookup rather than a switch run inside
+   *  a paint program on every describe. */
+  std::vector<kit::Sprite> glyphs;
 
   // ---- baked type ----------------------------------------------------------
   sk_sp<SkTypeface> face;
@@ -1346,10 +1346,10 @@ struct Thaumonomicon : sketch::Sketch {
     const uint32_t seed = (uint32_t)(n.col * 31 + n.row * 17 + 101);
     wrap.child(plateArt(n.meta, seed, spatter[0]).inset(g(2)));
     if (n.meta & kSpiky) wrap.child(spikyOverlay(seed + 7));
-    wrap.child(
-        iconEl(n.icon, n.state == kLocked ? 0.6f : 1.0f, n.state == kLocked)
-            .left(g(8))
-            .top(g(8)));
+    wrap.child(iconEl(glyphs[(size_t)n.icon], n.state == kLocked ? 0.6f : 1.0f,
+                      n.state == kLocked)
+                   .left(g(8))
+                   .top(g(8)));
     return wrap;
   }
 
@@ -1486,48 +1486,48 @@ struct Thaumonomicon : sketch::Sketch {
                      .opacity(selected ? 1.0f : 0.8f)
                      .background(prog(
                          [cat, selected](SkCanvas& c, const PaintContext&) {
-                           const Ink k{c};
+                           const kit::PixelInk k{c, U};
                            const SkColor4f col =
                                hexColor(cat.aspect, selected ? 1.0f : 0.66f);
                            // seven distinct runes, one per category
                            switch (cat.rune) {
                              case 0:
-                               k.r(7, 2, 2, 12, col);
-                               k.r(3, 6, 10, 2, col);
+                               k.rect(7, 2, 2, 12, col);
+                               k.rect(3, 6, 10, 2, col);
                                break;
                              case 1:
-                               k.r(3, 4, 10, 2, col);
-                               k.r(3, 10, 10, 2, col);
-                               k.r(7, 4, 2, 8, col);
+                               k.rect(3, 4, 10, 2, col);
+                               k.rect(3, 10, 10, 2, col);
+                               k.rect(7, 4, 2, 8, col);
                                break;
                              case 2:
-                               k.r(4, 3, 8, 2, col);
-                               k.r(4, 3, 2, 10, col);
-                               k.r(10, 3, 2, 10, col);
-                               k.r(4, 11, 8, 2, col);
-                               k.r(7, 7, 2, 2, col);
+                               k.rect(4, 3, 8, 2, col);
+                               k.rect(4, 3, 2, 10, col);
+                               k.rect(10, 3, 2, 10, col);
+                               k.rect(4, 11, 8, 2, col);
+                               k.rect(7, 7, 2, 2, col);
                                break;
                              case 3:
-                               k.r(3, 7, 10, 2, col);
-                               k.r(6, 3, 2, 10, col);
-                               k.r(10, 3, 2, 10, col);
+                               k.rect(3, 7, 10, 2, col);
+                               k.rect(6, 3, 2, 10, col);
+                               k.rect(10, 3, 2, 10, col);
                                break;
                              case 4:
-                               k.r(7, 2, 2, 12, col);
-                               k.r(3, 5, 10, 2, col);
-                               k.r(5, 11, 6, 2, col);
+                               k.rect(7, 2, 2, 12, col);
+                               k.rect(3, 5, 10, 2, col);
+                               k.rect(5, 11, 6, 2, col);
                                break;
                              case 5:
-                               k.r(6, 2, 4, 4, col);
-                               k.r(4, 7, 8, 4, col);
-                               k.r(5, 11, 2, 3, col);
-                               k.r(9, 11, 2, 3, col);
+                               k.rect(6, 2, 4, 4, col);
+                               k.rect(4, 7, 8, 4, col);
+                               k.rect(5, 11, 2, 3, col);
+                               k.rect(9, 11, 2, 3, col);
                                break;
                              default:
-                               k.r(3, 3, 2, 10, col);
-                               k.r(11, 3, 2, 10, col);
-                               k.r(5, 7, 6, 2, col);
-                               k.r(7, 3, 2, 4, col);
+                               k.rect(3, 3, 2, 10, col);
+                               k.rect(11, 3, 2, 10, col);
+                               k.rect(5, 7, 6, 2, col);
+                               k.rect(7, 3, 2, 4, col);
                                break;
                            }
                          })));
@@ -1632,6 +1632,8 @@ struct Thaumonomicon : sketch::Sketch {
     }
     runTile = frameRun();
     cornerTile = cornerPlate({1, 1, 1, 1});
+    for (int glyph = 0; glyph <= gSprayer; ++glyph)
+      glyphs.push_back(glyphSprite(glyph));
 
     // ---- motion ----------------------------------------------------------
     ctx.ticker.add([this, &ticker = ctx.ticker](double) {
