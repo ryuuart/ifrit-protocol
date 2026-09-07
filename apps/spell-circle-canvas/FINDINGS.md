@@ -231,19 +231,16 @@ Assert once fixed: `--bench` on `rota_convocationis` holds 60 FPS across
 the whole loop on a raster surface, and a case in `compose_bench` pins
 the cost of N emissive fills over one shape as flat in N past the first.
 
-## The device tier reads five scenes outside its bar
+## The device tier reads four scenes outside its bar
 
 `sigil.py plates --tier device` renders every scene on the GPU and
 differences it against the CPU plate of the same run, per channel, with
-a bar of mean 12 and p99 128. After the fix pass five scenes stand
-outside it:
+a bar of mean 12 and p99 128. Four scenes stand outside it:
 
     aero desktop     mean 21.95  p99 204  max 255
     winamp_base      mean 20.58  p99  97  max 204
     chevreul_circle  mean  7.81  p99 153  max 183
     nine slice       mean  4.67  p99 205  max 215
-    brushwork_currents: the GPU render crashes (RENDER FAILED, the
-    trace ends in sigil::sketch::sweep), so there is no second plate
 
 `winamp_base` and `chevreul_circle` moved on the CPU in the same pass
 (a colour mix in linear light; a check run rendered through the kit's
@@ -251,7 +248,7 @@ table), so the first question for each is whether the device path
 mixes or lays out differently from the host, or whether the CPU move
 merely exposed a difference that was already there. `aero desktop` and
 `nine slice` did not move on the CPU, so their difference is the
-device's alone. The crash is a defect whatever the picture.
+device's alone.
 
 Intended: a device plate is the CPU plate within the bar, and every
 scene renders on both. Assert once fixed: `--tier device` reports every

@@ -41,43 +41,6 @@ float dabAngle(Pen& pen, const Tool& tool, const Dab& dab) {
   return tool.angle + jitter;
 }
 
-std::optional<SkBlendMode> atlasBlend(Constant mode) {
-  switch (mode) {
-    case ADD:
-      return SkBlendMode::kPlus;
-    case DARKEST:
-      return SkBlendMode::kDarken;
-    case LIGHTEST:
-      return SkBlendMode::kLighten;
-    case DIFFERENCE:
-      return SkBlendMode::kDifference;
-    case EXCLUSION:
-      return SkBlendMode::kExclusion;
-    case MULTIPLY:
-      return SkBlendMode::kMultiply;
-    case SCREEN:
-      return SkBlendMode::kScreen;
-    case REPLACE:
-      return SkBlendMode::kSrc;
-    case REMOVE:
-      return SkBlendMode::kDstOut;
-    case OVERLAY:
-      return SkBlendMode::kOverlay;
-    case HARD_LIGHT:
-      return SkBlendMode::kHardLight;
-    case SOFT_LIGHT:
-      return SkBlendMode::kSoftLight;
-    case DODGE:
-      return SkBlendMode::kColorDodge;
-    case BURN:
-      return SkBlendMode::kColorBurn;
-    case SUBTRACT:
-      return std::nullopt;
-    default:
-      return SkBlendMode::kSrcOver;
-  }
-}
-
 /** The one sprite every round stamp samples: a white disc. */
 constexpr int kTipPixels = 32;
 
@@ -122,6 +85,43 @@ void drawStampsDirect(Pen& pen, std::span<const Stamp> stamps) {
 }
 
 }  // namespace
+
+std::optional<SkBlendMode> blendModeFor(Constant mode) {
+  switch (mode) {
+    case ADD:
+      return SkBlendMode::kPlus;
+    case DARKEST:
+      return SkBlendMode::kDarken;
+    case LIGHTEST:
+      return SkBlendMode::kLighten;
+    case DIFFERENCE:
+      return SkBlendMode::kDifference;
+    case EXCLUSION:
+      return SkBlendMode::kExclusion;
+    case MULTIPLY:
+      return SkBlendMode::kMultiply;
+    case SCREEN:
+      return SkBlendMode::kScreen;
+    case REPLACE:
+      return SkBlendMode::kSrc;
+    case REMOVE:
+      return SkBlendMode::kDstOut;
+    case OVERLAY:
+      return SkBlendMode::kOverlay;
+    case HARD_LIGHT:
+      return SkBlendMode::kHardLight;
+    case SOFT_LIGHT:
+      return SkBlendMode::kSoftLight;
+    case DODGE:
+      return SkBlendMode::kColorDodge;
+    case BURN:
+      return SkBlendMode::kColorBurn;
+    case SUBTRACT:
+      return std::nullopt;
+    default:
+      return SkBlendMode::kSrcOver;
+  }
+}
 
 DabStyle styleDab(Pen& pen, const Tool& tool, const Dab& dab,
                   bool scatterPosition) {
@@ -241,7 +241,7 @@ void depositScatter(Pen& pen, const Tool& tool, const Dab& dab,
 
 void drawStamps(Pen& pen, Constant blend, std::span<const Stamp> stamps) {
   SkCanvas* canvas = pen.canvas();
-  const std::optional<SkBlendMode> mode = atlasBlend(blend);
+  const std::optional<SkBlendMode> mode = blendModeFor(blend);
   if (!canvas || !mode) {
     drawStampsDirect(pen, stamps);
     return;

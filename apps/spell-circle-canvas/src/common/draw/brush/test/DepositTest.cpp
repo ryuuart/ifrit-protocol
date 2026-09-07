@@ -4,12 +4,14 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkBlendMode.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
 #include <sigildraw/Draw.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Sampler.h>
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <vector>
@@ -209,6 +211,52 @@ TEST(Deposit, ACustomTipGetsThePigmentAndTheDefaultModesEveryDab) {
     EXPECT_FLOAT_EQ(fill.fB, 1.0f);
     EXPECT_FLOAT_EQ(fill.fA, 1.0f);
   }
+}
+
+TEST(Deposit, AFibreStrokeUnderAnAdvancedBlendCompositesOnce) {
+  Paper paper(400, 200, SK_ColorWHITE);
+  paper.begin();
+  brush::Tool tool =
+      brush::watercolor(SkColor4f{0.5f, 0.5f, 0.5f, 1.0f}, 40.0f);
+  tool.opacity = 1.0f;
+  tool.blend = MULTIPLY;
+  brush::line(paper.pen, tool, {10, 100}, {390, 100});
+  paper.end();
+
+  const SkBitmap pixels = paper.pixels();
+  int darkest = 255;
+  for (int y = 0; y < 200; ++y)
+    for (int x = 0; x < 400; ++x)
+      darkest = std::min(darkest, (int)SkColorGetR(pixels.getColor(x, y)));
+  // The stroke is there, and half a grey multiplied into white once
+  // cannot pass half however many hairs cross: the hairs meet each other
+  // in a layer and the finished stroke meets the page a single time.
+  EXPECT_LT(darkest, 240);
+  EXPECT_GE(darkest, 124);
+}
+
+TEST(Deposit, ALongFibreStrokeLaysABoundedNumberOfMarks) {
+  const auto opsOverLength = [](float length) {
+    SkPictureRecorder recorder;
+    SkCanvas* canvas = recorder.beginRecording(length + 40.0f, 200);
+    Pen pen;
+    pen.begin(*canvas, {.width = length + 40.0f, .height = 200});
+    pen.randomSeed(29);
+    brush::Tool tool = brush::watercolor(SkColors::kBlack, 20.0f);
+    brush::line(pen, tool, {20, 100}, {20.0f + length, 100});
+    pen.end();
+    const sk_sp<SkPicture> picture = recorder.finishRecordingAsPicture();
+    return picture ? picture->approximateOpCount(true) : -1;
+  };
+  const int shortStroke = opsOverLength(1800.0f);
+  const int longStroke = opsOverLength(36000.0f);
+
+  // Twenty times the stroke is nowhere near twenty times the marks: past
+  // the cap a deposit joins more of them into each run instead of laying
+  // more of them.
+  ASSERT_GT(shortStroke, 8);
+  EXPECT_GT(longStroke, shortStroke);
+  EXPECT_LT(longStroke, shortStroke * 4);
 }
 
 }  // namespace

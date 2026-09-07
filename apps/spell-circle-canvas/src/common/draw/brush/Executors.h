@@ -10,6 +10,7 @@
  * over the whole deposit.
  */
 
+#include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPoint.h>
@@ -19,6 +20,7 @@
 #include <sigildraw/brush/Grain.h>
 #include <sigildraw/brush/Tool.h>
 
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -48,6 +50,10 @@ void depositDust(Pen& pen, const Tool& tool, const Dab& dab,
                  const DabStyle& style, std::vector<Stamp>& stamps);
 void depositScatter(Pen& pen, const Tool& tool, const Dab& dab,
                     const DabStyle& style, std::vector<Stamp>& stamps);
+/** p5's blend word as Skia spells it. Nothing for SUBTRACT, which is a
+ *  blender of two lines rather than a mode. */
+[[nodiscard]] std::optional<SkBlendMode> blendModeFor(Constant blend);
+
 /** Draws the stamps as one sprite batch under @p blend, or one ellipse
  *  each where the blend has no sprite form (SUBTRACT) or there is no
  *  canvas. */
