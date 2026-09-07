@@ -1,5 +1,6 @@
 # The path leaf: polylines, contours addressed by arc length, the walk
-# that spaces marks along one and the scanline lattice that fills it,
+# that spaces marks along one, the scanline lattice that fills it and the
+# multigrid that dualises into a tiling of rhombs,
 # noise, the numeric routines under them, where a run of n items falls on
 # a ring or in a grid, the path operators, the two comparable seams a mark is
 # deviated and widened through (Shaper and Profile) with the band those
@@ -23,6 +24,7 @@ find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilGeometryPath
   SOURCES Band.cpp Conic.cpp Contour.cpp Crossings.cpp Direction.cpp Edges.cpp
           Extremes.cpp Fit.cpp Hull.cpp Interpolate.cpp Lattice.cpp
+          Multigrid.cpp
           Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp Projection.cpp
           Scatter.cpp
           Segments.cpp Symmetry.cpp Tidy.cpp Trace.cpp Triangulate.cpp
@@ -51,6 +53,7 @@ sigil_test(geometry_test
           test/TriangulateTest.cpp test/FieldsTest.cpp
           test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/ProjectionsTest.cpp test/BlendTest.cpp
+          test/TilingsTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
 # One file per subject, over the one figure in bench/Figures.h.
@@ -59,6 +62,7 @@ sigil_bench(geometry_bench
           bench/NeighboursBench.cpp bench/ProjectionsBench.cpp
           bench/ScatterBench.cpp bench/TriangulateBench.cpp
           bench/FieldsBench.cpp bench/NodesBench.cpp
+          bench/TilingsBench.cpp
   LIBRARIES SigilGeometryPath)
 
 add_subdirectory(blend)

@@ -480,6 +480,29 @@ in no header.
   whose place is not fixed. `shapes::hatchOutline` is the stock value
   over this and the offset, for a caller holding an `SkPath` rather than
   a set of rings.
+
+  **`multigrid(families, MultigridOptions)` is the other reading of the
+  same lines**: N families of parallel lines DUALISED into a tiling of
+  rhombs, which is de Bruijn's construction and the one operation an
+  aperiodic rhomb tiling is. Each `MultigridFamily` is a `normal`, a
+  `spacing` and an `offset`; each crossing of two lines becomes a
+  `MultigridRhomb` whose edges are the two families' normals, placed by
+  counting how many lines of every family stand between the crossing and
+  the origin. `multigridRing(count, offset)` is the evenly spread ring —
+  a whole turn for an odd count and a half turn for an even one, which is
+  the smallest turn giving that many distinct line directions — so five
+  is the Penrose rhombs, four the Ammann-Beenker squares and 45-degree
+  rhombs, three the rhombille, and families at angles of the caller's own
+  choosing are the tiling those angles admit. `radius` is the only reach
+  there is: the line indices that answer it are derived by carrying the
+  reach back through the dual map, so no caller states an index range.
+  **It is solved in double and it answers in double**, because a rhomb's
+  place is a count of lines read off a crossing by a ceiling: a crossing
+  that lands a hair on the wrong side of a line moves that rhomb a whole
+  edge, so a grid rounded to float before it is dualised does not blur,
+  it tiles differently. The corners come back as one `vertices` list
+  welded at `tolerance`, so two rhombs meeting at a corner name the same
+  vertex.
 - **`path/Neighbours.h`** — the uniform grid, and the primitive under
   everything below it. `Neighbours` is built once from a set of points
   and copies them in, then answers `within()` (a radius, into a vector
