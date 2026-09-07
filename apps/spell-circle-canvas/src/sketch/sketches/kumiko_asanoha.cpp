@@ -625,7 +625,16 @@ Element stripElement(const Strip& s, TimberBank& bank,
                                           {1, 0.96f, 0.86f, bevelAlpha},
                                           {0.14f, 0.09f, 0.03f, bevelAlpha}})
           // The seam every abutting piece shows against its neighbour.
-          .stroke(stroke(0.6f, Fill::color(kSeam), PathFormat::Align::Inner));
+          .stroke(stroke(0.6f, Fill::color(kSeam), PathFormat::Align::Inner))
+          // A PIECE IS A PICTURE OF A PIECE. The timber is a shader and
+          // the arris a decoration over it, and neither changes once the
+          // board is cut: what the entrance moves is where the board is
+          // and how present it is, never what is on its face. Baked, the
+          // face is resolved once at the sheet's own density and the
+          // entrance is a blit that fades and swells; recorded, every
+          // strip re-runs its grain over every one of its pixels on every
+          // frame of the entrance, and there are hundreds of them.
+          .cache(Cache::Texture);
   if (fade) e.opacity(fade);
   if (pop) e.scale(pop);
   return e;
@@ -664,36 +673,30 @@ struct KumikoAsanoha : sketch::Sketch {
     //
     // Every strip is a wood-grain SkSL fill plus a BevelEmboss, rotated to
     // its own jig angle, carrying a bound opacity and a bound scale for the
-    // entrance. Those bindings keep each strip volatile forever — the Output
-    // never disconnects — so no per-node cache will ever hold pixels for it,
-    // and replaying the picture re-runs every shader over every pixel on
-    // every frame.
+    // entrance. Those bindings keep each strip volatile while the panel is
+    // assembling, so no cache above them can hold pixels for the panel as a
+    // whole until the last board has landed.
     //
-    // Two narrower bakes do NOT work here, and both are worth knowing about
-    // before trying them again:
-    //   * Per-strip .cache(Cache::Texture) does bake, but a bake ISOLATES.
-    //     Each bevel arris, and the compositing where two strips abut,
-    //     resolves differently baked than live, so the panel visibly changes.
-    //   * A container-level .cache(Cache::Texture) on this box is a no-op:
-    //     Texture bakes a node's OWN paint, and a fill-less container has
-    //     none. Giving it a transparent fill or forcing a stacking context
-    //     does not change that.
+    // Cache::Group is that cache. The whole lattice composites ONCE into a
+    // single unrotated device-space layer, so the rotations, arrises and
+    // abutments all resolve inside that bake, and the layer is held only
+    // while every bound opacity and scale beneath it still reads what it
+    // read last frame. The settled panel therefore costs one blit — and the
+    // ENTRANCE, which is the half of the cycle this cannot help with, is
+    // paid for one board at a time by the per-strip bake in stripElement.
     //
-    // Cache::Group is the same idea at the right granularity. The whole
-    // lattice composites ONCE into a single unrotated device-space layer, so
-    // the rotations, arrises and abutments all resolve inside that bake at
-    // full precision, and the layer is held only while every bound opacity
-    // and scale beneath it still reads what it read last frame. The staggered
-    // entrance therefore plays live and the settled panel costs one blit.
+    // A container-level .cache(Cache::Texture) on this box is a no-op and
+    // is worth knowing about before trying it: Texture bakes a node's OWN
+    // paint, and a fill-less container has none. Giving it a transparent
+    // fill or forcing a stacking context does not change that.
     return group;
   }
 
   Element frame() {
     // The same argument as lattice(), on four members instead of hundreds.
-    // The mitred keyaki boards carry the same bound entrance, so they are
-    // volatile forever too — and they are the largest single boards on the
-    // canvas, so replaying their timber shader per frame costs more than
-    // their count suggests.
+    // The mitred keyaki boards carry the same bound entrance — and they are
+    // the largest single boards on the canvas, so replaying their timber
+    // shader per frame would cost more than their count suggests.
     auto group = box().inset(0, 0, 0, 0).cache(Cache::Group);
     for (size_t i = 0; i < panel.strips.size(); ++i)
       if (panel.strips[i].role == kRoleFrame)

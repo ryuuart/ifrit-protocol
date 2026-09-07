@@ -239,21 +239,3 @@ whatever the backend. Assert once fixed: a case in `compose_test`'s GPU
 suite draws a coloured square over a subtree of a few thousand nodes and
 finds the square whole, and `--tier device` reports every scene within
 the bar.
-
-## kumiko_asanoha presents at half the display's rate
-
-Presented alone in the real window the lattice sheet reads 58 to 61 FPS
-against a 60 FPS gate, and 58.2 in a sweep; the frame-time gate refuses
-it outright — `--bench` reports p50 37.5 ms and p99 124 ms at
-1400x1210, with 55 ms of a 55 ms frame in drawing. The sheet describes
-545 pictures and 555 instances and bakes none of them: each slat (`box
-631x12`) is a recorded picture replayed every frame, and a replay
-re-runs the slat's shader over every one of its pixels. Drawn on the
-device the same tree costs 2.7 ms of work and 12 ms at p99, which is
-what halves the presented rate.
-
-Intended: a Kit sheet presents at the gate, and a lattice whose slats do
-not change between frames is baked once and blitted after.
-
-Assert once fixed: `sigil.py bench --lane fps --sketch kumiko_asanoha`
-reads at least 60 FPS, and `--bench` on it holds the 16.6 ms budget.
