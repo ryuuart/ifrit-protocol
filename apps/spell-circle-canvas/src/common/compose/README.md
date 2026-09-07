@@ -1179,6 +1179,18 @@ precision does not remove it. It appears only where the node's own alpha
 is partial; an opaque node over anything is exact. Anything beyond that
 second value is a picture that changed.
 
+**AND SO DOES TYPE THAT ADDS RATHER THAN COVERS.** A glyph pass carries
+an `SkPaint` of its own, so a phrase set additively — the blend on the
+paint, which is where it belongs, since a blend on the NODE opens a layer
+every frame — composites against what is under the node exactly as a
+blended decoration does. Every paint a text node can carry is asked: the
+style's foreground and its under- and overlays, its line decorations,
+each run of a `weave::RichText` value, and each `spanPaint()` restyle. A
+node carrying one, and every ancestor, is refused the automatic bake and
+the memo hold, and the row says `ReadsBackdrop` — because a bake would
+offer that light transparent black instead of the ground, and the light
+comes back flat.
+
 **A PAINT PROGRAM OF ONE'S OWN READS THE BACKDROP.** A `custom()` leaf is
 handed the canvas and may draw with any blend mode — and a picture
 recorded elsewhere and replayed through one may hold any blend inside it.

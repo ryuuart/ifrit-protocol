@@ -392,6 +392,40 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
         blends |= pass.what.blends();
     return blends;
   }();
+  // …and the same declaration made by TYPE. A glyph pass carries an SkPaint
+  // of its own, so a phrase set to ADD rather than to cover — an additive
+  // bloom, a multiply wash, a screened halo — resolves against what is
+  // under the node exactly as a blended decoration does, and a bake would
+  // offer it transparent black instead: the light comes back flat. Every
+  // paint a text node can carry is asked, because a phrase declines the
+  // bake on one pass and takes it on another — the style's own foreground
+  // and its under- and overlays, its line decorations, each run of a rich
+  // value, and each span restyle.
+  const bool typeBlends = [&] {
+    if (!node.textData) return false;
+    const auto paintBlends = [](const SkPaint& p) {
+      // A blender that is not a mode at all answers nothing, and nothing is
+      // not source-over: an opaque blend is counted as one.
+      return p.asBlendMode() != SkBlendMode::kSrcOver;
+    };
+    const auto styleBlends = [&](const sigil::weave::PaintStyle& style) {
+      if (paintBlends(style.foreground)) return true;
+      for (const sigil::weave::PaintLayer& l : style.underlays)
+        if (paintBlends(l.paint)) return true;
+      for (const sigil::weave::PaintLayer& l : style.overlays)
+        if (paintBlends(l.paint)) return true;
+      for (const sigil::weave::Decoration& d : style.decorations)
+        if (d.paint && paintBlends(*d.paint)) return true;
+      return false;
+    };
+    const TextData& text = *node.textData;
+    if (styleBlends(text.style.paint)) return true;
+    for (const sigil::weave::RichText::Run& run : text.rich.runs())
+      if (styleBlends(run.style.paint)) return true;
+    for (const SpanRestyle& span : text.spanRestyles)
+      if (styleBlends(span.style.paint)) return true;
+    return false;
+  }();
   const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
                          imageAssetOf(node)->animated();
   // A LIVE effect: the filter is captured by the recording, so bound
@@ -608,7 +642,8 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // which is the same bargain every other rounding-accepting opt-in makes.
   inst.ownReadsBackdrop = backdropEffectOf(node) != nullptr ||
                           node.paint.blendMode != SkBlendMode::kSrcOver ||
-                          node.kind == Kind::Custom || decorBlends;
+                          node.kind == Kind::Custom || decorBlends ||
+                          typeBlends;
 
   // THE PROOF ITSELF is SigilCoreCache's: everything above resolves this
   // library's own lanes, materials, gates and text into the six

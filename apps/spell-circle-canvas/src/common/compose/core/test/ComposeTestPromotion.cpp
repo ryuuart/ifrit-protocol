@@ -808,3 +808,44 @@ TEST(ComposeCache, APromotedNodeIsRebakedWhenTheClipThatCutItOpens) {
                       << " code values, after the clip that cut the bake "
                          "opened";
 }
+
+namespace {
+
+/** TYPE SET TO ADD RATHER THAN TO COVER. The blend is on the glyph PAINT,
+ *  not on the node — which is where an additive phrase belongs, since a
+ *  node-level blend opens a layer per frame — and it lands on a ground the
+ *  node itself does not paint. The heavy panel beside it carries no blend
+ *  and is there so the promoter has something left to bake: a page whose
+ *  type declares a blend refuses the page, and a case that compared two
+ *  live renders would pass whatever the promoter did. */
+Element additiveType() {
+  Element page = box()
+                     .width(300)
+                     .height(200)
+                     .cache(Cache::None)
+                     .fill(Fill::color({0.22f, 0.26f, 0.34f, 1}));
+  page.child(promotablePage().absolute().left(0).top(10).key("panel"));
+  sigil::weave::TextStyle lit = whiteStyle(40);
+  lit.paint.foreground.setColor(SkColorSetRGB(120, 200, 255));
+  lit.paint.foreground.setBlendMode(SkBlendMode::kPlus);
+  page.child(text(u8"LIT", lit).absolute().left(140).top(70).width(150));
+  return page;
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedPhraseThatAddsLightKeepsTheGroundUnderIt) {
+  // A glyph pass carries an SkPaint of its own, so a phrase set to ADD
+  // resolves against what is under the node exactly as a blended decoration
+  // does — and a bake would offer it transparent black instead, which is
+  // not a rounding: the light comes back flat, over a ground the blit then
+  // covers rather than adds to. Type declares the backdrop read the same
+  // way a decoration does, so the node is refused the automatic bake.
+  const PromotionDrift drift =
+      promotionDriftOf(additiveType, SkMatrix::I(), 300, 200);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 2)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when the library promoted type that adds light";
+}
