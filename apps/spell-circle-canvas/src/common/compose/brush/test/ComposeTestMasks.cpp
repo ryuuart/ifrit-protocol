@@ -940,6 +940,34 @@ TEST(ComposeMaskGates, ThreeMasksAtThreeRatesIntersectPerFrame) {
   EXPECT_EQ(redInk(host, 145, 60, 180, 150), 0) << "right of the fast edge";
 }
 
+TEST(ComposeMaskGates, TheOvalRegionCutsTheInscribedEllipseAndNotItsBox) {
+  // `Region::oval` is a form of its own rather than sugar for a path,
+  // because a rounded gate is what most gates are; it is worth nothing if
+  // it resolves to the RECT it is inscribed in, and nothing tells the two
+  // apart except a corner. The oval is stated in the node's local space,
+  // so its box is the plate's own 100x100 and the corners it cuts are the
+  // plate's.
+  Host host(200, 200);
+  const auto plate = [] {
+    return box().absolute().left(20).top(20).width(100).height(100).fill(red());
+  };
+  host.composer.render(stack().child(
+      plate().mask(by::shape(Region::oval(SkRect::MakeWH(100, 100))))));
+  host.frame();
+  EXPECT_GT(SkColorGetR(host.pixel(70, 70)), 180) << "the middle is kept";
+  EXPECT_GT(SkColorGetR(host.pixel(70, 25)), 180) << "…and the top of the arc";
+  EXPECT_GT(SkColorGetR(host.pixel(25, 70)), 180) << "…and its left";
+  EXPECT_EQ(host.pixel(26, 26), SK_ColorBLACK) << "the box's corner is cut";
+  EXPECT_EQ(host.pixel(114, 114), SK_ColorBLACK) << "…and the far one";
+  // The complement is the same region read the other way round.
+  Host outside(200, 200);
+  outside.composer.render(stack().child(
+      plate().mask(by::outside(Region::oval(SkRect::MakeWH(100, 100))))));
+  outside.frame();
+  EXPECT_EQ(outside.pixel(70, 70), SK_ColorBLACK);
+  EXPECT_GT(SkColorGetR(outside.pixel(26, 26)), 180);
+}
+
 // ---- Region is a VALUE ---------------------------------------------------
 
 TEST(ComposeMaskGates, RegionIsAComparableValue) {

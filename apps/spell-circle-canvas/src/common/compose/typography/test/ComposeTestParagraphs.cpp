@@ -699,6 +699,59 @@ void twoFrames(Host& host, float measure = 160.0f) {
 
 }  // namespace
 
+TEST(ComposeStory, ABalancedRunHoldsTheStoryDownToTheLineItWasGiven) {
+  // `balanceChain(throughLine)` is what stops a run of columns at a
+  // spanning element: the run is shortened to the shallowest depth that
+  // still holds the story DOWN TO THAT LINE, and everything after it is
+  // left to the frames below. The number is the STORY's line, which is the
+  // one address a second run can be given — a count of its own lines would
+  // say nothing about where the first run ended.
+  std::u8string words;
+  for (int i = 0; i < 120; ++i) words += u8"aa ";
+  words.pop_back();
+  const sigil::weave::Story article{words, whiteStyle(12)};
+  Host host(600, 500);
+  const uint32_t through = 5;
+  host.composer.render(box()
+                           .row()
+                           .child(frame(article)
+                                      .key("a")
+                                      .thread("b")
+                                      .width(Dim(120.0f))
+                                      .height(Dim(200.0f))
+                                      .balanceChain(through))
+                           .child(frame(article)
+                                      .key("b")
+                                      .thread("c")
+                                      .width(Dim(120.0f))
+                                      .height(Dim(200.0f)))
+                           .child(frame(article)
+                                      .key("c")
+                                      .width(Dim(120.0f))
+                                      .height(Dim(200.0f))
+                                      .balanceChain()));
+  host.frame();
+  host.frame();  // the first draw has no fill to balance against
+
+  const float depthA = require(host.composer.bounds("a")).height();
+  const float depthB = require(host.composer.bounds("b")).height();
+  EXPECT_FLOAT_EQ(depthA, depthB) << "a run resolves to ONE depth";
+  EXPECT_LT(depthA, 200) << "…shallower than the depth it declared";
+  EXPECT_GT(depthA, 0);
+
+  const auto holds = [&](const char* key, uint32_t line) {
+    return !host.composer
+                .units(key, sigil::weave::sel::line(line),
+                       sigil::weave::Unit::Line)
+                .empty();
+  };
+  // The line the run was asked to reach is the last one it holds, and the
+  // line after it opens the frame below the run.
+  EXPECT_TRUE(holds("a", through) || holds("b", through));
+  EXPECT_FALSE(holds("c", through));
+  EXPECT_TRUE(holds("c", through + 1));
+}
+
 TEST(ComposeStory, LinesAreNumberedFromTheStoryAndNotFromTheFrame) {
   Host host(600, 500);
   twoFrames(host);

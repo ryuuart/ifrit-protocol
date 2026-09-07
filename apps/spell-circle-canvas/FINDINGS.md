@@ -102,9 +102,6 @@ the pass, plus this file):
 
 ## Compose, left by the fix pass
 
-- Test-gap nits: `drawInkedImage`'s recorded-region and non-invertible
-  paths, `Region::oval` (constructed in a brush case, asserted about
-  nowhere), `balanceThroughLine`.
 - `Track::over` against `Annotation::unit` — one spelling, with
   `kit/Typeset.h`, `core/Element.h` and TYPOGRAPHY.md following.
 

@@ -7,10 +7,9 @@
 #include <include/core/SkPictureRecorder.h>
 #include <sigilcompose/core/Feed.h>
 
-#include "BakeInk.h"  // the ink grid a local bake is blitted through
-
 #include <numeric>
 
+#include "BakeInk.h"  // the ink grid a local bake is blitted through
 #include "support/CoreTestSupport.h"
 
 namespace {
@@ -402,9 +401,10 @@ int maxChannelDifference(Host& a, Host& b, int w, int h) {
   for (int y = 0; y < h; ++y)
     for (int x = 0; x < w; ++x) {
       const SkColor p = ba.getColor(x, y), q = bb.getColor(x, y);
-      worst = std::max({worst, std::abs((int)SkColorGetR(p) - (int)SkColorGetR(q)),
-                        std::abs((int)SkColorGetG(p) - (int)SkColorGetG(q)),
-                        std::abs((int)SkColorGetB(p) - (int)SkColorGetB(q))});
+      worst =
+          std::max({worst, std::abs((int)SkColorGetR(p) - (int)SkColorGetR(q)),
+                    std::abs((int)SkColorGetG(p) - (int)SkColorGetG(q)),
+                    std::abs((int)SkColorGetB(p) - (int)SkColorGetB(q))});
     }
   return worst;
 }
@@ -413,23 +413,25 @@ int maxChannelDifference(Host& a, Host& b, int w, int h) {
  *  CONTAINER — the container carries a second child, so it takes the
  *  automatic picture and the pill is painted into that recording. */
 Element turnedPill(float degrees, Cache mode) {
-  return box().cache(Cache::None).child(
-      box()
-          .inset(0)
-          .child(box().absolute().left(2).top(2).width(4).height(4).fill(
-              Fill::color({0, 0.3f, 0, 1})))
-          .child(box()
-                     .absolute()
-                     .left(60)
-                     .top(100)
-                     .width(140)
-                     .height(28)
-                     .key("pill")
-                     .cache(mode)
-                     .rotate(degrees)
-                     .transformOrigin(0.5f, 0.5f)
-                     .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))
-                     .child(text(u8"LEFT SIDE BARRIER", whiteStyle(15)))));
+  return box()
+      .cache(Cache::None)
+      .child(
+          box()
+              .inset(0)
+              .child(box().absolute().left(2).top(2).width(4).height(4).fill(
+                  Fill::color({0, 0.3f, 0, 1})))
+              .child(box()
+                         .absolute()
+                         .left(60)
+                         .top(100)
+                         .width(140)
+                         .height(28)
+                         .key("pill")
+                         .cache(mode)
+                         .rotate(degrees)
+                         .transformOrigin(0.5f, 0.5f)
+                         .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))
+                         .child(text(u8"LEFT SIDE BARRIER", whiteStyle(15)))));
 }
 
 }  // namespace
@@ -510,23 +512,27 @@ TEST(ComposeCaching, ANodeUnderALiveTransformKeepsTheLocalBakeInItsRecording) {
   Host host(300, 300);
   choreograph::Output<float> slide{0.0f};
   host.composer.render(
-      box().cache(Cache::None).child(
-          box()
-              .absolute()
-              .translateX(&slide)
-              .child(box().absolute().left(2).top(2).width(4).height(4).fill(
-                  Fill::color({0, 0.3f, 0, 1})))
-              .child(box()
-                         .absolute()
-                         .left(60)
-                         .top(100)
-                         .width(60)
-                         .height(60)
-                         .cache(Cache::Texture)
-                         .rotate(-90.0f)
-                         .transformOrigin(0.5f, 0.5f)
-                         .fill(red())
-                         .child(box().width(20).height(20).fill(green())))));
+      box()
+          .cache(Cache::None)
+          .child(
+              box()
+                  .absolute()
+                  .translateX(&slide)
+                  .child(
+                      box().absolute().left(2).top(2).width(4).height(4).fill(
+                          Fill::color({0, 0.3f, 0, 1})))
+                  .child(
+                      box()
+                          .absolute()
+                          .left(60)
+                          .top(100)
+                          .width(60)
+                          .height(60)
+                          .cache(Cache::Texture)
+                          .rotate(-90.0f)
+                          .transformOrigin(0.5f, 0.5f)
+                          .fill(red())
+                          .child(box().width(20).height(20).fill(green())))));
   host.frame();
   EXPECT_GE(host.composer.stats().texturesBaked, 1u);
   // The still -> moving transition costs one remake, as it does through a
@@ -557,14 +563,15 @@ TEST(ComposeCaching, AMemoShellsCacheIsCarriedOntoItsProduce) {
   };
   Host host;
   const auto describe = [](int tick) {
-    return box().cache(Cache::None).child(
-        memo(Props{tick},
-             [](const Props& p) {
-               return box().width(40).height(40).fill(p.tick % 2 ? red()
-                                                                  : green());
-             })
-            .key("cell")
-            .cache(Cache::Picture));
+    return box()
+        .cache(Cache::None)
+        .child(memo(Props{tick},
+                    [](const Props& p) {
+                      return box().width(40).height(40).fill(
+                          p.tick % 2 ? red() : green());
+                    })
+                   .key("cell")
+                   .cache(Cache::Picture));
   };
   host.composer.render(describe(0));
   host.frame();
@@ -1038,12 +1045,11 @@ TEST(ComposeRail, AFreePointAnchorsToNothingAndIsStillOnTheRoute) {
   Host host;
   host.composer.render(
       box()
-          .child(box().key("a").absolute().rect(SkRect::MakeXYWH(10, 10, 20,
-                                                                 20)))
-          .child(box().key("b").absolute().rect(SkRect::MakeXYWH(150, 150, 20,
-                                                                 20)))
-          .child(rail({Anchor{.nodeKey = "a"},
-                       Anchor{.point = {20.0f, 160.0f}},
+          .child(
+              box().key("a").absolute().rect(SkRect::MakeXYWH(10, 10, 20, 20)))
+          .child(box().key("b").absolute().rect(
+              SkRect::MakeXYWH(150, 150, 20, 20)))
+          .child(rail({Anchor{.nodeKey = "a"}, Anchor{.point = {20.0f, 160.0f}},
                        Anchor{.nodeKey = "b"}})
                      .key("elbow")
                      .absolute()
@@ -1059,11 +1065,11 @@ TEST(ComposeRail, AFreePointAnchorsToNothingAndIsStillOnTheRoute) {
   EXPECT_EQ(host.composer.routesAt("a").size(), 1u);
   EXPECT_EQ(host.composer.routesAt("b").size(), 1u);
   // A rail of free points alone binds nothing and still draws.
-  host.composer.render(box().child(rail({Anchor{.point = {10.0f, 10.0f}},
-                                         Anchor{.point = {10.0f, 180.0f}}})
-                                       .key("free")
-                                       .absolute()
-                                       .inset(0)));
+  host.composer.render(box().child(
+      rail({Anchor{.point = {10.0f, 10.0f}}, Anchor{.point = {10.0f, 180.0f}}})
+          .key("free")
+          .absolute()
+          .inset(0)));
   host.frame();
   EXPECT_EQ(host.composer.hitTest({10, 100}), "free");
 }
@@ -1181,7 +1187,8 @@ std::vector<int> blockPeaks(Host& host, int w, int h, int block) {
   for (int y = 0; y < h; ++y)
     for (int x = 0; x < w; ++x) {
       const SkColor c = bm.getColor(x, y);
-      int& peak = peaks[(size_t)(y / block) * (size_t)cols + (size_t)(x / block)];
+      int& peak =
+          peaks[(size_t)(y / block) * (size_t)cols + (size_t)(x / block)];
       peak = std::max({peak, (int)SkColorGetR(c), (int)SkColorGetG(c),
                        (int)SkColorGetB(c)});
     }
@@ -1309,4 +1316,128 @@ TEST(ComposeCaching, TheInkGridSkipsAnEmptyTileAndKeepsEveryLitOne) {
       << "a solid bake has nothing to skip";
   EXPECT_TRUE(scan([](SkCanvas& c) { c.clear(SK_ColorWHITE); }, 48).empty())
       << "a small bake is blitted in less time than the scan would take";
+}
+
+namespace {
+
+/** A bake with tiles to skip: a thin ring on a transparent square, and the
+ *  grid read off its own pixels — the value `drawInkedImage` is handed. */
+struct InkedBake {
+  sk_sp<SkImage> image;
+  detail::InkGrid grid;
+};
+
+InkedBake ringBake(int side) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
+  SkCanvas& canvas = *surface->getCanvas();
+  canvas.clear(SK_ColorTRANSPARENT);
+  SkPaint p;
+  p.setAntiAlias(true);
+  p.setStyle(SkPaint::kStroke_Style);
+  p.setStrokeWidth(10);
+  p.setColor(SK_ColorWHITE);
+  canvas.drawCircle((float)side * 0.5f, (float)side * 0.5f, (float)side * 0.35f,
+                    p);
+  SkPixmap px;
+  EXPECT_TRUE(surface->peekPixels(&px));
+  InkedBake out;
+  out.grid = detail::inkGridOf(px);
+  out.image = surface->makeImageSnapshot();
+  return out;
+}
+
+/** The surface's pixels, row-major, so two draws can be compared byte for
+ *  byte. */
+std::vector<SkColor> pixelsOf(SkSurface& surface, int w, int h) {
+  SkBitmap bm;
+  bm.allocPixels(SkImageInfo::MakeN32Premul(w, h));
+  surface.readPixels(bm.pixmap(), 0, 0);
+  std::vector<SkColor> out;
+  out.reserve((size_t)w * (size_t)h);
+  for (int y = 0; y < h; ++y)
+    for (int x = 0; x < w; ++x) out.push_back(bm.getColor(x, y));
+  return out;
+}
+
+}  // namespace
+
+TEST(ComposeCaching, AnInkedBlitInsideARecordingLandsWhereThePlainBlitDoes) {
+  // THE REGION IS DEVICE PIXELS AND A RECORDING IS NOT THE DEVICE. A blit
+  // recorded into a picture is replayed under a matrix of its own, and a
+  // region computed in the recording's own space would be applied unchanged
+  // in the space it is replayed into — the wrong units in the wrong place,
+  // cutting the bake to pieces. So the caller hands over the matrix the
+  // picture is replayed under, and the recorded blit must land exactly
+  // where the single blit lands.
+  const int side = 400, canvasSide = 700;
+  const InkedBake bake = ringBake(side);
+  ASSERT_FALSE(bake.grid.empty()) << "a ring has tiles to skip";
+  const SkRect dst = SkRect::MakeXYWH(10, 10, (float)side, (float)side);
+  const SkMatrix replay = SkMatrix::Translate(180, 130);
+  const auto record = [&](bool inked) {
+    SkPictureRecorder recorder;
+    SkCanvas* rec =
+        recorder.beginRecording(SkRect::MakeIWH(canvasSide, canvasSide));
+    if (inked)
+      detail::drawInkedImage(*rec, bake.image, bake.grid, dst, replay,
+                             SkIRect::MakeWH(canvasSide, canvasSide),
+                             SkSamplingOptions(), nullptr);
+    else
+      rec->drawImageRect(bake.image, dst, SkSamplingOptions(), nullptr);
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(canvasSide, canvasSide));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    surface->getCanvas()->concat(replay);
+    surface->getCanvas()->drawPicture(recorder.finishRecordingAsPicture());
+    return pixelsOf(*surface, canvasSide, canvasSide);
+  };
+  const std::vector<SkColor> plain = record(false);
+  const std::vector<SkColor> skipped = record(true);
+  ASSERT_EQ(plain.size(), skipped.size());
+  size_t differing = 0;
+  for (size_t i = 0; i < plain.size(); ++i)
+    if (plain[i] != skipped[i]) ++differing;
+  EXPECT_EQ(differing, 0u)
+      << differing
+      << " pixels of a recorded blit moved when its empty tiles were skipped";
+}
+
+TEST(ComposeCaching, AnInkedBlitWithNoInverseIsTheWholeBlit) {
+  // The skip is arithmetic through the INVERSE of the device matrix — a
+  // patch of the canvas is carried back into the image to ask which tiles
+  // lie under it. A matrix with no inverse (a collapsed axis, a zero scale
+  // arriving from a settling transform) answers no such question, and the
+  // only sound reading is the whole blit rather than a guess or an empty
+  // canvas.
+  const int side = 400, canvasSide = 460;
+  const InkedBake bake = ringBake(side);
+  ASSERT_FALSE(bake.grid.empty());
+  const SkRect dst = SkRect::MakeXYWH(10, 10, (float)side, (float)side);
+  const auto draw = [&](const SkMatrix& toDevice, bool inked) {
+    sk_sp<SkSurface> surface =
+        SkSurfaces::Raster(SkImageInfo::MakeN32Premul(canvasSide, canvasSide));
+    surface->getCanvas()->clear(SK_ColorBLACK);
+    if (inked)
+      detail::drawInkedImage(*surface->getCanvas(), bake.image, bake.grid, dst,
+                             toDevice, SkIRect::MakeWH(canvasSide, canvasSide),
+                             SkSamplingOptions(), nullptr);
+    else
+      surface->getCanvas()->drawImageRect(bake.image, dst, SkSamplingOptions(),
+                                          nullptr);
+    return pixelsOf(*surface, canvasSide, canvasSide);
+  };
+  SkMatrix collapsed = SkMatrix::I();
+  collapsed.setScaleX(0);
+  ASSERT_FALSE(collapsed.invert(nullptr));
+  const std::vector<SkColor> plain = draw(SkMatrix::I(), false);
+  const std::vector<SkColor> noInverse = draw(collapsed, true);
+  ASSERT_EQ(plain.size(), noInverse.size());
+  size_t differing = 0;
+  for (size_t i = 0; i < plain.size(); ++i)
+    if (plain[i] != noInverse[i]) ++differing;
+  EXPECT_EQ(differing, 0u)
+      << differing
+      << " pixels differ: a blit whose device matrix has no "
+         "inverse must be the plain blit";
 }
