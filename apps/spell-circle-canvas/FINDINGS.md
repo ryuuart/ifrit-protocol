@@ -43,10 +43,6 @@ Taken on the merged tree after the post-merge compose pass:
 
 ## Deferred past the merge, each a campaign of its own
 
-- The library extractions the sketch review names — the mechanisms
-  hidden in the sketches over 1000 lines: Reeves particles
-  (`genesis_fire:516`) → `sigilmotion/physics/Points.h`. Each is a
-  rewrite to the seam, never a verbatim move.
 - The source-file splits by subject: `material/skia/Paint.cpp` (1573),
   `Paint.h` (771), `Effect.cpp` (748); `geometry/mesh/pop/Pop.h` (1131),
   `mesh/pop/Cook.cpp` (792), `mesh/codec/Geo.cpp` (601),

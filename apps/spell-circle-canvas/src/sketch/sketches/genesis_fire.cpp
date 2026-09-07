@@ -95,6 +95,14 @@
 //   extinction rules and one additive pass, sixty times a minute of
 //   film. So the piece is a pen program, and the parts divide by what
 //   each is:
+//     * the cloud is SigilMotion's. A `physics::Emitter` per system
+//       throws births off its generation segment into one
+//       `physics::Particles`, drawing every attribute from a middle and
+//       a variation on this file's own seeded stream; the point set ages
+//       them, moves each attribute at its own rate and buries what the
+//       three extinction rules condemn. The integration is here because
+//       the acceleration is each system's own outward normal, and so is
+//       the whole of the look.
 //     * the field is the pen's. 8,000 streaks per SkVertices list, six
 //       triangles each with a colour ramp across the cross-section, put
 //       down by `pen.vertices()` under `blendMode(ADD)` - light ADDS and
@@ -142,7 +150,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilcore/compute/Noise.h>
+#include <sigilcore/compute/Chance.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/field/Field.h>
@@ -150,6 +158,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/Animation.h>
+#include <sigilmotion/physics/Physics.h>
 #include <sigilsketch/draw/Draw.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -165,6 +174,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
+namespace chance = sigil::core::chance;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
 namespace arrange = sigil::geometry::arrange;
@@ -288,6 +298,16 @@ constexpr float kMinIntensity = 0.020f;
 // Derived timing, printed on the canvas.
 constexpr double kFrontCrossSeconds = (kStageW - kX0) / kSpread;  // 5.762 s
 
+// What a particle carries beyond the point set's own position, velocity
+// and lifetime: four of [R83 §2.2]'s seven attributes, and the index of
+// the second-level system that threw it, which the per-system gravity
+// and the below-surface cull read.
+constexpr const char* kSize = "size";
+constexpr const char* kRed = "red";
+constexpr const char* kGreen = "green";
+constexpr const char* kBlue = "blue";
+constexpr const char* kSite = "site";
+
 // ---------------------------------------------------------------------------
 // Type
 
@@ -365,20 +385,16 @@ struct GenesisFire final : sketch::DrawSketch {
     // ragged silhouette instead of a uniform arc.
     float vScale = 1.0f;
   };
-  struct Particle {
-    SkPoint pos{0, 0}, vel{0, 0};
-    float r = 0, g = 0, b = 0;  // emission ([R83 §2.2]'s seven attributes)
-    float size = 0, grow = 0;   // diameter, px + its per-frame rate
-    float age = 0, life = 0;    // FRAMES
-    uint16_t site = 0;
-  };
-
   std::vector<Site> sites;
-  std::vector<Particle> parts;
+  // One emitter per second-level system, and the cloud they all throw
+  // into. The extinction rules below are this study's own.
+  std::vector<physics::Emitter> mouths;
+  physics::Particles parts;
   std::vector<sk_sp<SkVertices>> fieldChunks;
 
   // --- the A/B bench: one explosion, three renderers -----------------------
-  std::vector<Particle> abParts;
+  physics::Emitter abMouth;
+  physics::Particles abParts;
   std::vector<sk_sp<SkVertices>> abChunks;
   std::shared_ptr<instancing::Atlas> abAtlas;
   std::shared_ptr<instancing::Pool> abPool;
@@ -398,7 +414,10 @@ struct GenesisFire final : sketch::DrawSketch {
   double loopT = 0;
   bool stepped = false;  // set by the fixed-timestep steppable
   uint64_t simSteps = 0;
-  uint32_t rng = 0x9E3779B9u;
+  /** [R83 §2.1]: "Rand is a procedure returning a uniformly distributed
+   *  random number between -1.0 and +1.0" — `signedUnit`, and `unit` for
+   *  the half of it an angle and a coin toss want. */
+  chance::Stream rng = chance::Stream::xorshift(0x9E3779B9u);
 
   /** THE FILM CLOCK'S LEFTOVER FRACTION, published by addFixed. The
    *  particles step in whole FILM frames — that is what [R83] counts
@@ -426,66 +445,83 @@ struct GenesisFire final : sketch::DrawSketch {
   size_t vertCount = 0;
 
   // =========================================================================
-  // RNG — [R83 §2.1] "Rand is a procedure returning a uniformly distributed
-  // random number between -1.0 and +1.0".
+  // One second-level system, as an emitter
 
-  float rand01() { return sigil::core::noise::xorshiftUnitNext(rng); }
-  float rand11() { return rand01() * 2.0f - 1.0f; }
-
-  // =========================================================================
-  // One second-level system
-
-  void emitAt(std::vector<Particle>& into, const Site& s, uint16_t si,
-              float speedScale, float sizeScale, float genScale) {
-    Particle p;
-    const float off = kRGen * genScale * rand11();
-    p.pos = {s.p.fX + s.u.fX * off, s.p.fY + s.u.fY * off};
-    // In-plane ejection angle. A slice through the paper's axisymmetric
-    // inverted cone reads as uniform in psi, not area-uniform on a disc.
-    const float psi = kPsiMax * rand01();
-    const float sgn = rand01() < 0.5f ? -1.0f : 1.0f;
-    const float c = std::cos(psi), sn = std::sin(psi) * sgn;
-    const SkVector dir{s.n.fX * c + s.u.fX * sn, s.n.fY * c + s.u.fY * sn};
-    const float speed =
-        (kMeanSpeed + rand11() * kVarSpeed) * speedScale * s.vScale;
-    p.vel = {dir.fX * speed, dir.fY * speed};
-    p.size = std::max(0.7f, (kMeanSize + rand11() * kVarSize) * sizeScale);
-    p.grow = kSizeRate * sizeScale;
-    p.life = std::max(6.0f, kMeanLife + rand11() * kVarLife);
-    p.r = kE0r * (1.0f + rand11() * kColorVar);
-    p.g = kE0g * (1.0f + rand11() * kColorVar);
-    p.b = kE0b * (1.0f + rand11() * kColorVar);
-    p.site = si;
-    into.push_back(p);
+  /** THE GENERATION SHAPE AND THE SEVEN ATTRIBUTES, as one value: the
+   *  mouth is [R83 §2.2]'s generation segment about the surface point,
+   *  the aim is the outward normal and the cone is the ejection cone,
+   *  which a slice through the paper's axisymmetric inverted cone reads
+   *  as uniform in psi rather than area-uniform on a disc. The three
+   *  scales are the dial a smaller copy of the same explosion turns. */
+  static physics::Emitter mouthFor(const Site& s, int index, float speedScale,
+                                   float sizeScale, float genScale) {
+    return physics::Emitter{
+        .from = physics::EmitFrom::Segment,
+        .at = s.p,
+        .along = s.u,
+        .size = {kRGen * genScale, 0.0f},
+        .aim = s.n,
+        .cone = kPsiMax,
+        .speed = {.mean = kMeanSpeed,
+                  .variation = kVarSpeed,
+                  .scale = speedScale * s.vScale},
+        .attributes =
+            {{kSize,
+              {.mean = kMeanSize, .variation = kVarSize, .scale = sizeScale}},
+             {std::string(physics::kLife),
+              {.mean = kMeanLife, .variation = kVarLife}},
+             {kRed, {.mean = 1.0f, .variation = kColorVar, .scale = kE0r}},
+             {kGreen, {.mean = 1.0f, .variation = kColorVar, .scale = kE0g}},
+             {kBlue, {.mean = 1.0f, .variation = kColorVar, .scale = kE0b}}},
+        .fixed = {{kSite, (float)index}}};
   }
 
-  /** Per-frame integration + the three documented extinction rules. */
-  void advance(std::vector<Particle>& v, const std::vector<Site>& ss,
-               float gravity, bool killBelowSurface) {
-    for (size_t i = 0; i < v.size();) {
-      Particle& p = v[i];
-      const Site& s = ss[p.site];
-      p.vel.fX -= s.n.fX * gravity;  // acceleration -> parabolic arcs
-      p.vel.fY -= s.n.fY * gravity;
-      p.pos.fX += p.vel.fX;
-      p.pos.fY += p.vel.fY;
-      p.age += 1.0f;
-      p.size += p.grow;  // size change at a rate global to the system
-      // colour change: LINEAR RATES, red slowest — [R83 §2.3, §3]
-      p.r = std::max(0.0f, p.r - kDecR);
-      p.g = std::max(0.0f, p.g - kDecG);
-      p.b = std::max(0.0f, p.b - kDecB);
-      const bool dead =
-          p.age >= p.life || (p.r + p.g + p.b) < kMinIntensity ||
-          (killBelowSurface && p.pos.fY > limbY(p.pos.fX) + 1.5f) ||
-          (!killBelowSurface && p.pos.fY > s.p.fY + 2.0f);
-      if (dead) {
-        v[i] = v.back();
-        v.pop_back();
-      } else {
-        ++i;
-      }
+  /** The rates a cloud's attributes change at: [R83 §2.3]'s size change,
+   *  global to the system, and the colour decay whose ORDERING is
+   *  documented ("green and blue dropped off quickly, and the red
+   *  followed at a slower rate") while the rates are reconstruction. */
+  static void setRates(physics::Particles& cloud, float sizeScale) {
+    cloud.attribute(kSize).rate = kSizeRate * sizeScale;
+    for (const auto& [name, decay] :
+         {std::pair{kRed, kDecR}, std::pair{kGreen, kDecG},
+          std::pair{kBlue, kDecB}}) {
+      physics::Attribute& channel = cloud.attribute(name);
+      channel.rate = -decay;
+      channel.least = 0.0f;
     }
+    // The site stamp is made here too, so the reads below find every
+    // attribute rather than adding one.
+    cloud.attribute(kSite);
+  }
+
+  /** Per-frame integration + the three documented extinction rules. The
+   *  acceleration is the system's own outward normal reversed, which is
+   *  what makes the arcs parabolic about a curved surface rather than
+   *  about one flat down. */
+  void advance(physics::Particles& cloud, const std::vector<Site>& ss,
+               float gravity, bool killBelowSurface) {
+    // Every one of these exists from setup: asking for an attribute a
+    // cloud does not carry ADDS it, which moves the others.
+    const std::vector<float>& which = cloud.attribute(kSite).values;
+    const std::vector<float>& red = cloud.attribute(kRed).values;
+    const std::vector<float>& green = cloud.attribute(kGreen).values;
+    const std::vector<float>& blue = cloud.attribute(kBlue).values;
+
+    for (size_t i = 0; i < cloud.size(); ++i) {
+      const Site& s = ss[(size_t)which[i]];
+      cloud.points.velocity[i] -= physics::Vec2(s.n) * gravity;
+      cloud.points.position[i] += cloud.points.velocity[i];
+    }
+    // One film frame older, and every attribute moved by its own rate.
+    cloud.live(1.0f);
+
+    cloud.reap([&](size_t i) {
+      const physics::Vec2 at = cloud.points.position[i];
+      return cloud.expired(i) ||
+             (red[i] + green[i] + blue[i]) < kMinIntensity ||
+             (killBelowSurface ? at.y > limbY(at.x) + 1.5f
+                               : at.y > ss[(size_t)which[i]].p.fY + 2.0f);
+    });
   }
 
   void stepSim() {
@@ -501,16 +537,17 @@ struct GenesisFire final : sketch::DrawSketch {
       if (f < 0.0f || f >= kGenWindow) continue;
       const float rate = kInitialMeanParts + kDeltaMeanParts * f;
       const int n =
-          (int)std::lround(std::max(0.0f, rate + rand11() * kVarParts));
-      for (int k = 0; k < n; ++k) emitAt(parts, sites[i], i, 1.0f, 1.0f, 1.0f);
+          (int)std::lround(std::max(0.0f, rate + rng.signedUnit() * kVarParts));
+      mouths[i].burst(parts, rng, (size_t)n);
     }
     advance(parts, sites, kGravity, true);
 
     // The A/B bench: one steady-state explosion on a fixed recipe, births
     // stopping at the pool's kAbCount slots.
-    const int nb = (int)std::lround(std::max(0.0f, 25.0f + rand11() * 5.0f));
-    for (int k = 0; k < nb && abParts.size() < kAbCount; ++k)
-      emitAt(abParts, abSite(), 0, 0.55f, 0.72f, 0.35f);
+    const int nb =
+        (int)std::lround(std::max(0.0f, 25.0f + rng.signedUnit() * 5.0f));
+    abMouth.burst(abParts, rng,
+                  std::min((size_t)std::max(0, nb), kAbCount - abParts.size()));
     advance(abParts, abSites, 1.06f, false);
 
     liveCount = parts.size();
@@ -538,10 +575,14 @@ struct GenesisFire final : sketch::DrawSketch {
   // antialias its own edges, so the falloff lives in the vertex colours).
   // ADD is the whole colour model: light ADDS and the buffer CLAMPS.
 
-  void buildStreaks(const std::vector<Particle>& v,
+  void buildStreaks(physics::Particles& cloud,
                     std::vector<sk_sp<SkVertices>>& out) {
     out.clear();
-    if (v.empty()) return;
+    if (cloud.empty()) return;
+    const std::vector<float>& sizes = cloud.attribute(kSize).values;
+    const std::vector<float>& red = cloud.attribute(kRed).values;
+    const std::vector<float>& green = cloud.attribute(kGreen).values;
+    const std::vector<float>& blue = cloud.attribute(kBlue).values;
     // SkVertices indices are uint16, so one list holds 65,535 vertices ->
     // 8,191 streaks at eight each. Chunk the way drawSpriteAtlas does.
     constexpr size_t kChunk = 8000;
@@ -554,8 +595,8 @@ struct GenesisFire final : sketch::DrawSketch {
     // coverage, because the flat interior is where the light lives.)
     static constexpr uint16_t kTri[18] = {0, 1, 2, 0, 2, 3, 3, 2, 4,
                                           3, 4, 5, 5, 4, 6, 5, 6, 7};
-    for (size_t base = 0; base < v.size(); base += kChunk) {
-      const size_t cnt = std::min(kChunk, v.size() - base);
+    for (size_t base = 0; base < cloud.size(); base += kChunk) {
+      const size_t cnt = std::min(kChunk, cloud.size() - base);
       pos.clear();
       col.clear();
       idx.clear();
@@ -563,11 +604,12 @@ struct GenesisFire final : sketch::DrawSketch {
       col.reserve(cnt * 8);
       idx.reserve(cnt * 18);
       for (size_t i = 0; i < cnt; ++i) {
-        const Particle& p = v[base + i];
-        const float speed = p.vel.length();
-        const SkVector d = speed > 1e-4f
-                               ? SkVector{p.vel.fX / speed, p.vel.fY / speed}
-                               : SkVector{0.0f, -1.0f};
+        const size_t at = base + i;
+        const physics::Vec2 velocity = cloud.points.velocity[at];
+        const float speed = velocity.length();
+        const SkVector d =
+            speed > 1e-4f ? SkVector{velocity.x / speed, velocity.y / speed}
+                          : SkVector{0.0f, -1.0f};
         // streaked spherical: length 0.5*|v| but never less than half the
         // diameter, width `size`. So the quad is elongated at ejection and
         // ends up wider than it is long once the particle slows at apogee.
@@ -576,16 +618,17 @@ struct GenesisFire final : sketch::DrawSketch {
         // here for the other reason: Reeves' own renderer was "merely
         // antialiased lines", and one SkVertices list per 8,000 streaks is
         // that, with a per-vertex alpha ramp no atlas cell carries.
-        const float len = std::max(p.size * 0.5f, speed * 0.5f);
-        const SkPoint head = p.pos;
-        const SkPoint tail{p.pos.fX - d.fX * len, p.pos.fY - d.fY * len};
-        const float hw = p.size * 0.5f;
+        const float len = std::max(sizes[at] * 0.5f, speed * 0.5f);
+        const SkPoint head{cloud.points.position[at].x,
+                           cloud.points.position[at].y};
+        const SkPoint tail{head.fX - d.fX * len, head.fY - d.fY * len};
+        const float hw = sizes[at] * 0.5f;
         const SkVector nn{-d.fY * hw, d.fX * hw};
         const SkVector ni{nn.fX * 0.42f, nn.fY * 0.42f};
         const SkColor c = SkColorSetARGB(
-            255, (uint8_t)std::lround(std::min(1.0f, p.r) * 255.0f),
-            (uint8_t)std::lround(std::min(1.0f, p.g) * 255.0f),
-            (uint8_t)std::lround(std::min(1.0f, p.b) * 255.0f));
+            255, (uint8_t)std::lround(std::min(1.0f, red[at]) * 255.0f),
+            (uint8_t)std::lround(std::min(1.0f, green[at]) * 255.0f),
+            (uint8_t)std::lround(std::min(1.0f, blue[at]) * 255.0f));
         constexpr SkColor kEdge = 0x00000000;
         const uint16_t v0 = (uint16_t)pos.size();
         pos.push_back({tail.fX + nn.fX, tail.fY + nn.fY});
@@ -654,23 +697,27 @@ struct GenesisFire final : sketch::DrawSketch {
     auto sz = abPool->sizes();
     auto tn = abPool->tints();
     auto fr = abPool->frames();
+    const std::vector<float>& sizes = abParts.attribute(kSize).values;
+    const std::vector<float>& red = abParts.attribute(kRed).values;
+    const std::vector<float>& green = abParts.attribute(kGreen).values;
+    const std::vector<float>& blue = abParts.attribute(kBlue).values;
     for (size_t i = 0; i < kAbCount; ++i) {
       if (i < abParts.size()) {
-        const Particle& q = abParts[i];
-        const float speed = q.vel.length();
+        const physics::Vec2 velocity = abParts.points.velocity[i];
+        const float speed = velocity.length();
         // The same two numbers the field's own quads are built from, so
         // the bench is a picture of the field's shape rather than of a
         // second one.
-        const float len = std::max(q.size * 0.5f, speed * 0.5f);
-        p[i] = q.pos;
-        r[i] = std::atan2(q.vel.fY, q.vel.fX);
+        const float len = std::max(sizes[i] * 0.5f, speed * 0.5f);
+        p[i] = {abParts.points.position[i].x, abParts.points.position[i].y};
+        r[i] = std::atan2(velocity.y, velocity.x);
         s[i] = 1.0f;
         // The cell's own ink is 4.4 x 2.3, and the lane is a multiplier on
         // it: the long axis takes the streak's length, the short one its
         // diameter.
-        sz[i] = {std::max(0.12f, len / 4.4f), std::max(0.12f, q.size / 2.3f)};
-        tn[i] = {std::min(1.0f, q.r), std::min(1.0f, q.g), std::min(1.0f, q.b),
-                 1.0f};
+        sz[i] = {std::max(0.12f, len / 4.4f), std::max(0.12f, sizes[i] / 2.3f)};
+        tn[i] = {std::min(1.0f, red[i]), std::min(1.0f, green[i]),
+                 std::min(1.0f, blue[i]), 1.0f};
         fr[i] = 0;
       } else {
         p[i] = {-999, -999};
@@ -730,23 +777,23 @@ struct GenesisFire final : sketch::DrawSketch {
                              hexColor(0xFFC48A), hexColor(0xFF9E6E)};
     const int bvWeight[6] = {6, 12, 20, 26, 24, 12};
     starPool = std::make_shared<instancing::Pool>();
-    rng = 0x5EED1982u;
+    rng.reseed(0x5EED1982u);
     for (int m = 0; m < 5; ++m) {
       for (int k = 0; k < bin[m]; ++k) {
         float x = 0, y = 0;
         for (int guard = 0; guard < 24; ++guard) {
-          x = rand01() * kStageW;
-          y = rand01() * (kStageH * 0.86f);
+          x = rng.unit() * kStageW;
+          y = rng.unit() * (kStageH * 0.86f);
           if (y < limbY(x) - 8.0f) break;
         }
-        int pick = (int)(rand01() * 100.0f), c = 0, acc = 0;
+        int pick = (int)(rng.unit() * 100.0f), c = 0, acc = 0;
         for (; c < 6; ++c) {
           acc += bvWeight[c];
           if (pick < acc) break;
         }
         SkColor4f col = bv[std::min(c, 5)];
-        col.fA = 0.30f + 0.55f * rand01();
-        starPool->add({x, y}, m, 0.0f, 0.60f + 0.45f * rand01(), col);
+        col.fA = 0.30f + 0.55f * rng.unit();
+        starPool->add({x, y}, m, 0.0f, 0.60f + 0.45f * rng.unit(), col);
       }
     }
   }
@@ -773,12 +820,12 @@ struct GenesisFire final : sketch::DrawSketch {
     planPool = std::make_shared<instancing::Pool>();
     planMarks.clear();
     const SkPoint impact{34.0f, 106.0f};  // disc-local (disc centre 92,92)
-    rng = 0x51A7C0DEu;
+    rng.reseed(0x51A7C0DEu);
     const float radii[7] = {14, 30, 46, 62, 78, 94, 110};
     for (float r : radii) {
       const int n = (int)std::lround(0.055f * 2.0f * 3.14159265f * r);
       for (int i = 0; i < n; ++i) {
-        const float a = rand01() * 6.2831853f;
+        const float a = rng.unit() * 6.2831853f;
         const SkPoint p = arrange::onEllipse(impact, {r, r}, a);
         planMarks.push_back({p, r});
         planPool->add(p, 0, 0.0f, 1.0f, {1, 1, 1, 0.55f});
@@ -1487,7 +1534,7 @@ struct GenesisFire final : sketch::DrawSketch {
     abChunks.clear();
 
     // The 53 second-level systems, and THE STAGGER.
-    rng = 0x0F1E2D3Cu;
+    rng.reseed(0x0F1E2D3Cu);
     sites.clear();
     for (int i = 0; i < kSiteCount; ++i) {
       const float x = kX0 + kSiteStep * (float)i;
@@ -1496,16 +1543,22 @@ struct GenesisFire final : sketch::DrawSketch {
       const float l = n.length();
       n = {n.fX / l, n.fY / l};
       // one mean-velocity draw per system, fixed for its whole life
-      const float vs = 0.80f + 0.42f * rand01();
+      const float vs = 0.80f + 0.42f * rng.unit();
       sites.push_back(Site{{x, y}, n, {-n.fY, n.fX}, (x - kX0) / kSpread, vs});
     }
+    mouths.clear();
+    for (int i = 0; i < kSiteCount; ++i)
+      mouths.push_back(mouthFor(sites[(size_t)i], i, 1.0f, 1.0f, 1.0f));
+    setRates(parts, 1.0f);
+    abMouth = mouthFor(abSite(), 0, 0.55f, 0.72f, 0.35f);
+    setRates(abParts, 0.72f);
 
     seedStars();
     seedPlan();
     // (seedStars/seedPlan reseed rng; the site velocities were drawn
     //  above from the sketch's own stream.)
     seedBench();
-    rng = 0x9E3779B9u;
+    rng.reseed(0x9E3779B9u);
 
     // The clock. [R83] counts lifetimes in FRAMES and the frames in
     // question are film frames, so the whole simulation runs at a fixed
