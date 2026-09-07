@@ -432,6 +432,15 @@ front and antialiases their edges while the other depth-tests them. It
 is the 2D twin of `sketch::runtime()`, which is the whole frame a set
 draws through; a process on a device installs both.
 
+**A session keeps the painter it opened with.** What a host installed is
+the default a session takes, not a value its body re-reads: while a
+session draws, `painterRuntime()` answers that one on the drawing
+thread, so installing another reaches nothing already running.
+`onPainterRuntime(kind, painter)` is how a host opens one somewhere else
+— it is the 2D twin of `onRuntime`, and a kind that stands no mesh up of
+its own comes back unchanged. The thumbnail worker says both, with empty
+runtimes, so a still is the CPU tier's whatever the process holds.
+
 `sketch::device()` — from `<sigilsketch/core/Device.h>`, on both
 surfaces — is the fourth, and the only one that is not a runtime: it is
 the `geometry::device::Device` this process brought up, or **null**,
@@ -845,9 +854,10 @@ canvas dark, and draws a still for every sketch that has none: the
 sketch's kind opened and stepped to its declared moment — the same
 capture the CPU plate tier takes — scaled to the thumbnail size, one at a
 time, on the CPU and never touching the device. That holds whatever the
-process installed: a still opens every kind on the CPU runtime, so a set
-sketch's thumbnail is drawn on the mesh executor even in a window whose
-live canvas is lighting sets on a device. The status strip counts
+process installed: a still opens every kind on the CPU runtime — a set's
+whole frame and a 2D body's mesh painter alike — so a sketch's thumbnail
+is drawn on the mesh executor even in a window whose live canvas is
+lighting sets on a device. The status strip counts
 them off, `thumbnails 12/41 …`, and each row fills in as its file lands
 without remounting the others; a row on screen is moved to the front of
 the queue, so what you are looking at is drawn first. **Opening a sketch

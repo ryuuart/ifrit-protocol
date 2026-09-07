@@ -90,16 +90,6 @@ the pass, plus this file):
   `Composer.cpp`, `ComposerImpl.h`, `Volatility.cpp`, `Instance.h`,
   `Layout.cpp`, `ComposeInternal.h`, `Derive.cpp`).
 
-## Sketch framework, left by the fix pass
-
-- `sketch::device()` and `sketch::painterRuntime()` are still
-  process-wide where a set's runtime is now per-session, so a CANVAS
-  sketch that stands a mesh up in space (`floating_panels`,
-  `painter_gpu`) still draws its background thumbnail through whatever
-  device the process installed. Intended: a still is CPU-only whatever
-  the process holds, for every runtime. Assert: a canvas thumbnail with
-  a painter runtime installed never reaches it.
-
 ## Automatic texture promotion moves 84 of 161 plates past one code value
 
 `sigil.py plates --tier promotion` renders every scene twice on the CPU —

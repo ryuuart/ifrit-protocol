@@ -10,6 +10,7 @@
 #include <include/core/SkRefCnt.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpec.h>
 #include <sigilsketch/core/Device.h>
@@ -19,6 +20,7 @@
 #include <algorithm>
 #include <concepts>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace sigil::compose {
@@ -29,9 +31,6 @@ class Frame;
 }
 namespace sigil::geometry::mesh::camera {
 struct Camera;
-}
-namespace sigil::geometry::mesh::render {
-class Runtime;
 }
 
 namespace sigil::sketch {
@@ -272,9 +271,27 @@ class CanvasKind final : public KindOps {
   explicit CanvasKind(Factory factory) : m_factory(factory) {}
   /** Written out rather than defaulted: the operations a kind answers
    *  are an abstract base, and a defaulted comparison would try to
-   *  compare that. What identifies a kind is the body it opens. */
+   *  compare that. What identifies a kind is the body it opens and the
+   *  painter it opens it on. */
   bool operator==(const CanvasKind& other) const {
-    return m_factory == other.m_factory;
+    return m_factory == other.m_factory && m_painter == other.m_painter;
+  }
+
+  /** THIS KIND, OPENING ITS SESSIONS ON @p painter — an empty one being
+   *  the CPU mesh executor.
+   *
+   *  A session takes its painter once, when it opens, and every mesh its
+   *  body stands up goes through that one: what a host installed on the
+   *  process is the DEFAULT a session takes, not a value it re-reads.
+   *  So a host that must draw somewhere other than where the process's
+   *  device stands — a background still on a thread that shares no queue
+   *  with the one presenting — says so here, and the sessions it opens
+   *  are unaffected by what any other thread installed. */
+  [[nodiscard]] CanvasKind on(
+      const geometry::mesh::render::Runtime& painter) const {
+    CanvasKind stated = *this;
+    stated.m_painter = painter;
+    return stated;
   }
 
   [[nodiscard]] std::string_view runtime() const override { return "canvas"; }
@@ -285,7 +302,19 @@ class CanvasKind final : public KindOps {
 
  private:
   Factory m_factory;
+  /** Unset is the process's own — the painter a host installed once. */
+  std::optional<geometry::mesh::render::Runtime> m_painter;
 };
+
+/** @p kind WITH THE MESH PAINTER ITS SESSIONS DRAW THROUGH STATED,
+ *  rather than read off the process when each opens.
+ *
+ *  A kind that stands no mesh up of its own — a set, a pen — is returned
+ *  unchanged, so a host may say this about whatever it is holding. An
+ *  empty painter is the CPU mesh executor, which is what a caller that
+ *  must not reach the process's device asks for. */
+[[nodiscard]] Kind onPainterRuntime(
+    const Kind& kind, const geometry::mesh::render::Runtime& painter);
 
 /** THE MESH PAINTER EVERY 2D SKETCH DRAWS THROUGH, for this process.
  *
@@ -307,6 +336,11 @@ class CanvasKind final : public KindOps {
  *  Installing an empty runtime — what a host does when it lets its
  *  device go — puts the CPU executor back rather than leaving a value
  *  that draws nothing.
+ *
+ *  IT IS READ AT OPEN, not at every draw: a session keeps the painter it
+ *  opened with and answers that one while it is drawing, so installing
+ *  another does not reach into a session already running, and
+ *  `onPainterRuntime` above is how a host opens one somewhere else.
  *
  *  Its own words are SigilGeometry's, from
  *  `<sigilgeometry/mesh/render/Runtime.h>`.

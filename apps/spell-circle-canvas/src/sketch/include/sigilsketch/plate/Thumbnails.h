@@ -11,9 +11,10 @@
  * a hash of the sketch's SOURCE and nothing else — so a thumbnail whose
  * key no longer matches is stale and is re-rendered. The render is the
  * same capture the CPU plate tier takes, scaled down, and it never
- * touches a device: it opens every kind on the CPU runtime whatever the
- * process installed, which is what lets it run on a worker thread beside
- * a window that is presenting.
+ * touches a device: it opens every kind on the CPU runtimes whatever the
+ * process installed — a set's whole frame and a 2D body's mesh painter
+ * alike — which is what lets it run on a worker thread beside a window
+ * that is presenting.
  */
 
 #include <sigilsketch/core/Registry.h>
@@ -153,10 +154,11 @@ struct ThumbnailRun {
  *  it names none), takes the still the plate tier takes, and scales it so
  *  its larger side is `run.maxDimension` pixels before encoding a PNG.
  *  CPU ONLY, whatever the process holds — it allocates a raster surface
- *  and never a device one, and it opens the kind on the CPU runtime
- *  rather than on the one a host installed, so it can run on a worker
- *  that shares no device and no queue with the thread that is
- *  presenting. Any older thumbnail for `run.stem` under the output's
+ *  and never a device one, and it opens the kind on the CPU runtimes
+ *  rather than on the ones a host installed, both the frame a set draws
+ *  through and the painter a 2D body stands a mesh up on, so it can run
+ *  on a worker that shares no device and no queue with the thread that
+ *  is presenting. Any older thumbnail for `run.stem` under the output's
  *  directory is removed. */
 [[nodiscard]] ThumbnailOutcome renderThumbnail(const Entry& entry,
                                                weave::FontContext& fonts,

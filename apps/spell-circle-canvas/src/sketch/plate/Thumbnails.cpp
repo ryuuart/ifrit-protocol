@@ -9,6 +9,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
+#include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/CanvasSpec.h>
 #include <sigilsketch/core/Kind.h>
 #include <sigilsketch/core/Session.h>
@@ -180,10 +181,11 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   // worker beside a window that is presenting, and a device is one device
   // and one queue: a background walk driving the queue the render thread
   // is drawing with is two threads inside one graphics context. So the
-  // kind is opened on an empty runtime — the CPU mesh executor, which is
-  // also the tier a plate is hashed from — and what a host installed
-  // reaches nothing here.
-  const Kind kind = onRuntime(entry.kind(), {});
+  // kind is opened on empty runtimes — the CPU mesh executor, which is
+  // also the tier a plate is hashed from — for both doors a sketch draws
+  // a mesh through: a set's whole frame, and the mesh style a 2D body
+  // stands up in space. What a host installed reaches nothing here.
+  const Kind kind = onPainterRuntime(onRuntime(entry.kind(), {}), {});
   if (!kind) return ThumbnailOutcome::Failed;
   // Deterministic, so a sketch that measured something about its own
   // execution pins it — a thumbnail is a picture that will be looked at

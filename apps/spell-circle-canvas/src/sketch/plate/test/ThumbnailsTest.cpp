@@ -5,6 +5,8 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Thumbnails.h>
 #include <sigilsketch/set/Set.h>
@@ -15,6 +17,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <string>
 #include <utility>
 
@@ -111,6 +114,51 @@ struct Reached : world::Executor {
   }
 };
 
+namespace render = sigil::geometry::mesh::render;
+
+/** THE 2D TWIN: a mesh executor that draws nothing and remembers being
+ *  reached, so a case can assert that a canvas sketch standing geometry
+ *  up in space never drew its still through the painter a host
+ *  installed. */
+struct PainterReached : render::Executor {
+  std::atomic_int* reached = nullptr;
+  void drawMesh(SkCanvas&, const sigil::geometry::mesh::Mesh&, const glm::mat4&,
+                const sigil::geometry::mesh::camera::Camera&, SkSize,
+                const render::MeshStyle&) const override {
+    if (reached) reached->fetch_add(1);
+  }
+  void drawPanel(SkCanvas&, const glm::mat4&,
+                 const sigil::geometry::mesh::camera::Camera&, SkSize,
+                 const std::function<void(SkCanvas&)>&) const override {
+    if (reached) reached->fetch_add(1);
+  }
+  bool operator==(const PainterReached& other) const {
+    return reached == other.reached;
+  }
+};
+
+/** A 2D sketch that stands one mesh up in space through whichever
+ *  painter it was opened on — the shape `floating_panels` and
+ *  `painter_gpu` are, with nothing else on the sheet. */
+struct Standing : Sketch {
+  void setup(SketchContext& ctx) override {
+    ctx.canvas(48, 32);
+    ctx.background({0, 0, 0, 1});
+    ctx.captureAt(0.05);
+  }
+  void update(double /*elapsed*/, SketchContext& ctx) override {
+    // The painter is read where a sketch reads it: from inside the body,
+    // as it declares.
+    ctx.composer.render(box().width(32).height(24).child(
+        custom("mesh", [painter = painterRuntime()](SkCanvas& canvas,
+                                                    const PaintContext& paint) {
+          const sigil::geometry::mesh::camera::Camera camera;
+          painter.get()->drawPanel(canvas, glm::mat4(1.0f), camera, paint.size,
+                                   [](SkCanvas&) {});
+        })));
+  }
+};
+
 /** A set with nothing in it: what is being asserted is which runtime the
  *  session opened on, which needs no subject. */
 struct Lit : Set {
@@ -158,6 +206,31 @@ TEST(ThumbnailStore, ASetIsDrawnOnTheCpuWhateverTheProcessInstalled) {
   EXPECT_TRUE(std::filesystem::exists(run.out));
   EXPECT_EQ(reached.load(), 0)
       << "the still went through the runtime the process installed";
+}
+
+/** A STILL IS CPU-ONLY FOR EVERY RUNTIME, not only a set's. A 2D sketch
+ *  that stands geometry up in space hands `painterRuntime()` to a mesh
+ *  style, and the still it is drawn for must reach the CPU executor
+ *  whatever the process installed — the same one device, one queue that
+ *  keeps a set's still off the device. */
+TEST(ThumbnailStore, ACanvasIsPaintedOnTheCpuWhateverTheProcessInstalled) {
+  const ScratchDir dir("sigil_thumbnail_canvas");
+  std::atomic_int reached{0};
+  PainterReached installed;
+  installed.reached = &reached;
+  usePainterRuntime(render::Runtime(installed));
+
+  const Entry entry = entryOf<Standing>("standing");
+  ThumbnailRun run =
+      runInto(thumbnailFile(dir.path, "standing", "aaaa"), "standing");
+  const ThumbnailOutcome outcome =
+      renderThumbnail(entry, fonts(), assets(), run);
+  usePainterRuntime({});
+
+  EXPECT_EQ(ThumbnailOutcome::Wrote, outcome);
+  EXPECT_TRUE(std::filesystem::exists(run.out));
+  EXPECT_EQ(reached.load(), 0)
+      << "the still went through the painter the process installed";
 }
 
 /** A file with @p text in it, so a key has something to hash. */

@@ -16,11 +16,50 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace sigil::sketch {
 
 namespace {
+
+namespace {
+
+/** The process's mesh painter. It starts as the CPU executor rather than
+ *  as nothing, so a sketch that hands it to a style draws on a machine
+ *  where no host ever installed one — an empty runtime draws no mesh at
+ *  all, which would read as a bug in the sketch. */
+geometry::mesh::render::Runtime& processPainter() {
+  static geometry::mesh::render::Runtime painter =
+      geometry::mesh::render::Runtime::cpu();
+  return painter;
+}
+
+/** The painter the calling thread is drawing a session through, or null
+ *  where no session is drawing on it. */
+const geometry::mesh::render::Runtime*& threadPainter() {
+  thread_local const geometry::mesh::render::Runtime* painter = nullptr;
+  return painter;
+}
+
+/** THE SESSION'S PAINTER, FOR AS LONG AS THIS STANDS. A sketch body asks
+ *  for the painter from inside its own describe, so the answer has to be
+ *  the one the session opened with rather than whatever the process last
+ *  installed — a still drawn on a worker beside a window that is
+ *  presenting is the case that makes the difference. */
+class PainterScope {
+ public:
+  explicit PainterScope(const geometry::mesh::render::Runtime& painter)
+      : m_was(std::exchange(threadPainter(), &painter)) {}
+  ~PainterScope() { threadPainter() = m_was; }
+  PainterScope(const PainterScope&) = delete;
+  PainterScope& operator=(const PainterScope&) = delete;
+
+ private:
+  const geometry::mesh::render::Runtime* m_was;
+};
+
+}  // namespace
 
 /** ONE 2D SKETCH, RUNNING.
  *
@@ -31,11 +70,16 @@ namespace {
 class CanvasSession final : public Session {
  public:
   CanvasSession(Sketch* sketch, weave::FontContext& fonts, Assets& assets,
-                bool deterministic)
+                bool deterministic,
+                const geometry::mesh::render::Runtime& painter)
       : m_fonts(fonts),
         m_assets(assets),
         m_sketch(sketch),
+        m_painter(painter ? painter : geometry::mesh::render::Runtime::cpu()),
         m_deterministic(deterministic) {
+    // Setup declares too, so the painter is the session's from the first
+    // line of the body onward.
+    const PainterScope on(m_painter);
     m_composer = std::make_unique<compose::Composer>(m_ticker, m_fonts);
     m_composer->setClock(&m_clock);
     // A deterministic session is one whose picture will be diffed, and the
@@ -75,6 +119,7 @@ class CanvasSession final : public Session {
   [[nodiscard]] const CanvasSpec& canvas() const override { return m_spec; }
 
   void frame(SkCanvas& canvas, double dt) override {
+    const PainterScope on(m_painter);
     m_laps.reset();
     // A STATED step and a wall-clock one are the same clock: `advance`
     // takes the caller's delta through the same pause, time scale and
@@ -118,7 +163,10 @@ class CanvasSession final : public Session {
                Lane{"volat", stats.volatileMs}, Lane{"paint", stats.paintMs}};
   }
 
-  void repaint(SkCanvas& canvas) override { m_composer->draw(canvas); }
+  void repaint(SkCanvas& canvas) override {
+    const PainterScope on(m_painter);
+    m_composer->draw(canvas);
+  }
 
   /** One more stepped frame, at the capture's own scale: a bake re-runs
    *  at that scale instead of being upsampled. */
@@ -127,6 +175,7 @@ class CanvasSession final : public Session {
   [[nodiscard]] float oversample() const override { return 2.0f; }
 
   void redeclare() override {
+    const PainterScope on(m_painter);
     // The body declares everything again, its texture scenes included,
     // so the ones it asked for last time are let go before it asks.
     m_scenes.clear();
@@ -264,6 +313,7 @@ class CanvasSession final : public Session {
   std::array<Lane, 4> m_lanes{};
   SkSize m_applied = m_spec.size;  // what the composer was last told
   bool m_stepping = false;         // the last frame took a stated step
+  geometry::mesh::render::Runtime m_painter;
   bool m_deterministic;
 };
 
@@ -272,30 +322,27 @@ class CanvasSession final : public Session {
 std::unique_ptr<Session> CanvasKind::open(weave::FontContext& fonts,
                                           Assets& assets,
                                           bool deterministic) const {
-  return std::make_unique<CanvasSession>(m_factory(), fonts, assets,
-                                         deterministic);
+  return std::make_unique<CanvasSession>(
+      m_factory(), fonts, assets, deterministic,
+      m_painter ? *m_painter : painterRuntime());
 }
 
-namespace {
-
-/** The process's mesh painter. It starts as the CPU executor rather than
- *  as nothing, so a sketch that hands it to a style draws on a machine
- *  where no host ever installed one — an empty runtime draws no mesh at
- *  all, which would read as a bug in the sketch. */
-geometry::mesh::render::Runtime& processPainter() {
-  static geometry::mesh::render::Runtime painter =
-      geometry::mesh::render::Runtime::cpu();
-  return painter;
+Kind onPainterRuntime(const Kind& kind,
+                      const geometry::mesh::render::Runtime& painter) {
+  // The painter is a 2D kind's own vocabulary, so only a 2D kind answers
+  // to it and everything else comes back as it went in.
+  if (const auto* canvas = dynamic_cast<const CanvasKind*>(kind.get()))
+    return canvas->on(painter);
+  return kind;
 }
-
-}  // namespace
 
 void usePainterRuntime(const geometry::mesh::render::Runtime& runtime) {
   processPainter() = runtime ? runtime : geometry::mesh::render::Runtime::cpu();
 }
 
 const geometry::mesh::render::Runtime& painterRuntime() {
-  return processPainter();
+  const geometry::mesh::render::Runtime* const session = threadPainter();
+  return session ? *session : processPainter();
 }
 
 }  // namespace sigil::sketch
