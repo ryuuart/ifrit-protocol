@@ -679,6 +679,79 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
 }
 BENCHMARK(BM_Draw_TileGrid_SkSLFill);
 
+// ---- A CHARGED DISC: N emissive stacks over one shape ---------------------
+//
+// The shape a lit diagram takes: every lit band, seal and star is a stack of
+// additive fills laid over the whole disc, each stack gated by a beat of its
+// own. What the arms below separate is the cost of the LIGHT from the cost
+// of the NODES — a stack that composites through a layer of its own pays a
+// bounded intermediate per stack, where one that rides its blit pays a blit.
+
+namespace {
+
+/** One grade of a glow: a disc filled at a low alpha through kPlus, which
+ *  is how a bloom is built out of nested discs. */
+Element grade(float radius, float alpha) {
+  return box()
+      .absolute()
+      .left(200 - radius)
+      .top(200 - radius)
+      .width(radius * 2)
+      .height(radius * 2)
+      .shape([](SkSize s) {
+        return SkPath::Oval(SkRect::MakeWH(s.fWidth, s.fHeight));
+      })
+      .fill(Fill::color({1.0f, 0.72f, 0.31f, alpha}))
+      .blend(SkBlendMode::kPlus);
+}
+
+/** One lit element: four grades over the same disc, held as one bake and
+ *  composited at its own gain — the form a lit diagram repeats. */
+Element emissiveStack(int index, Cache mode) {
+  const float radius = 60.0f + (float)(index % 8) * 14.0f;
+  return box()
+      .key("lit" + std::to_string(index))
+      .absolute()
+      .left(0)
+      .top(0)
+      .width(400)
+      .height(400)
+      .cache(mode)
+      .blend(SkBlendMode::kPlus)
+      .opacity(0.55f + 0.04f * (float)(index % 8))
+      .child(grade(radius, 0.085f))
+      .child(grade(radius * 0.72f, 0.16f))
+      .child(grade(radius * 0.5f, 0.42f))
+      .child(grade(radius * 0.3f, 0.96f));
+}
+
+void chargedDiscArm(benchmark::State& state, Cache mode) {
+  const int count = (int)state.range(0);
+  Host host(400, 400);
+  Element disc =
+      box().width(400).height(400).fill(Fill::color({0.05f, 0.04f, 0.06f, 1}));
+  for (int i = 0; i < count; ++i) disc.child(emissiveStack(i, mode));
+  host.composer.render(disc);
+  host.draw();
+  for ([[maybe_unused]] auto iteration : state) host.draw();
+  sigil::compose::bench::reportNodes(state, count);
+}
+
+}  // namespace
+
+/** Each stack held as its own bake: the draw is one blit per stack. */
+static void BM_Draw_ChargedDisc_Baked(benchmark::State& state) {
+  chargedDiscArm(state, Cache::Texture);
+}
+BENCHMARK(BM_Draw_ChargedDisc_Baked)->Arg(1)->Arg(4)->Arg(16)->Arg(64);
+
+/** The same picture with nothing held: every grade is rasterized again on
+ *  every frame, which is what the cost of the light alone looks like. */
+static void BM_Draw_ChargedDisc_Live(benchmark::State& state) {
+  chargedDiscArm(state, Cache::None);
+}
+BENCHMARK(BM_Draw_ChargedDisc_Live)->Arg(1)->Arg(4)->Arg(16)->Arg(64);
+
 #ifdef SIGIL_BENCH_GPU
 // ---- The same arms against a Graphite Metal surface ----
 // Cache tiers trade re-recording against re-rasterizing, and which side wins
