@@ -355,7 +355,7 @@ the library root instead, in `test/support/`. Features nest by dependency — a 
 what sits above it in the tree — and each header includes what it needs,
 so including a deeper one pulls the shallower ones in.
 
-**`path`** — `SigilGeometryPath`, the leaf. Twenty-nine headers that
+**`path`** — `SigilGeometryPath`, the leaf. Thirty headers that
 depend on nothing else in the library: Skia, glm, SigilCoreCompute, whose
 seeded mixers the value-noise field and the scatter's stream are built
 on, and CDT, the Delaunay triangulator, read in one source file and named
@@ -733,6 +733,40 @@ in no header.
   anything else is an anisotropic map; a rect comes back sorted either
   way. `centred` is the rect both are read
   through.
+- **`path/Projection.h`** — the SPHERE laid onto a plane, and the rotation
+  that turns the sphere before it is laid. `Spherical` is a direction in
+  degrees (`lonDeg`, `latDeg` — right ascension and declination under the
+  sky's names) with `direction()` and `of()` between it and a unit vector,
+  `angleBetween()` for how far apart two of them stand and `offsetFrom()`
+  for the great-circle step a spherical construction is made of — the
+  horizon point at an azimuth, the pole of the circle a chart's own line
+  is. `Projection` is the map: a `Scheme` (`Stereographic`,
+  `Orthographic`, `AzimuthalEquidistant`, `Equirectangular`, `Mercator`),
+  a `centre`, a `scale`, a `rollDeg` and a `Vantage`, with `at()` out,
+  `from()` home, `angleFrom()` to cull by, and `radiusAt()`/`arcAtRadius()`
+  for the law itself — the RADIUS on an azimuthal map, where the map is
+  round and the law holds at every bearing, and the ORDINATE on a
+  cylindrical one, where it does not. **The scheme is a field and not five
+  functions** because the five differ in one line of arithmetic each and
+  agree about the centring, the handedness, the turn and the way back, and
+  a caller asking which of them a measured chart was drawn on has to hold
+  two of them in variables and swap. `scale` is plane units per radian AT
+  THE CENTRE, the one derivative all five share there, so changing the
+  scheme leaves the middle of the map the size it was. The plane is y UP
+  and isotropic: a chart measured at one number of degrees per centimetre
+  across and another down is this under a `Grid`, since a per-axis scale
+  here would turn a stereographic's circles into ellipses. `circleOf()` is
+  what a stereographic alone can answer — every circle on the sphere is a
+  circle on the plane, which is what lets an instrument's whole family of
+  them be struck with a compass — and it answers nothing rather than an
+  infinity for a circle passing through the point the projection is taken
+  FROM, whose image is a straight line; `circleThrough()` beside it is the
+  same circle reached the maker's way, through three of its points.
+  `Rotation` is the sphere turned: `aboutX/Y/Z`, `zyz` (the three-angle
+  form an epoch-to-epoch precession is published in), `then()`,
+  `inverse()`, applied to a vector or to a `Spherical`. WHICH angles is
+  the caller's — the astronomy of a precession, and a measured artefact's
+  own departures from its law, belong beside the artefact.
 - **`path/Crossings.h`** — where a set of paths cross each other and who
   is on top there. `discoverCrossings()` finds every PROPER crossing —
   coincident paths and endpoint touches are meetings, not crossings —
@@ -1715,7 +1749,7 @@ Targets: one static library per feature — `SigilGeometryPath`,
 
 | Arms | Measure |
 | --- | --- |
-| `path/bench/` | flattening and resampling by point count, corner detection and the parallel and displaced constructions by contour length, the noise hashes per call, the pose read over one contour and over many, and a conic sampled by step count — whole, and held to a reach that drops most of the sweep — beside one point and one direction read on their own |
+| `path/bench/` | flattening and resampling by point count, corner detection and the parallel and displaced constructions by contour length, the noise hashes per call, the pose read over one contour and over many, a conic sampled by step count — whole, and held to a reach that drops most of the sweep — beside one point and one direction read on their own, and each projection scheme by the star read out and home with the closed-form image of a circle and the turn of a whole sky beside them |
 | `path/blend/bench/` | a two-key blend by step count and by sample density, and the same blend threaded onto a spine |
 | `mesh/bench/` | the parametric sheet by vertex count, and the two whole-mesh rewrites: appending and unwelding a primitive colour lane |
 | `mesh/camera/bench/` | the per-frame transform builds: view, view-projection, the matrix seam, and the two placement helpers |
@@ -1747,7 +1781,7 @@ suite's file sits in the feature it covers.
 
 | Files | Proves |
 | --- | --- |
-| `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `SegmentsTest`, `NodesTest`, `NeighboursTest`, `ScatterTest`, `TriangulateTest`, `FieldsTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `ConicsTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, an outline read verb for verb and rewritten to start elsewhere or run the other way, the node arithmetic (nodes put where a curve turns, nodes taken away where they say nothing, a run of points fitted as few cubics, the exact in-between of a pair that pairs), the uniform grid judged against the brute-force answer, what each rate and each spread of a scatter guarantees, a triangulation on sets whose answer is known by hand with the dual cells and the outline at a tightness beside it, the three things a field is walked, repeated or stepped by, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, which of the four curves a conic is at each eccentricity with where its focus stands against the figure it draws, and how many steps a blend makes |
+| `path/test/` — `ContoursTest`, `PolylinesTest`, `MarksTest`, `SegmentsTest`, `NodesTest`, `NeighboursTest`, `ScatterTest`, `TriangulateTest`, `FieldsTest`, `OpsTest`, `SeamsTest`, `CrossingsTest`, `FramesTest`, `ConicsTest`, `ProjectionsTest`, `BlendTest` | the 2D leaf and the shape interpolation over it: where a distance along a contour lands (held against an independent walk of the same contours), what a polyline flattens and resamples to, where marks land inside a shape, an outline read verb for verb and rewritten to start elsewhere or run the other way, the node arithmetic (nodes put where a curve turns, nodes taken away where they say nothing, a run of points fitted as few cubics, the exact in-between of a pair that pairs), the uniform grid judged against the brute-force answer, what each rate and each spread of a scatter guarantees, a triangulation on sets whose answer is known by hand with the dual cells and the outline at a tightness beside it, the three things a field is walked, repeated or stepped by, what each path operator names of two outlines, the two comparable seams a mark is deviated and widened through, who goes over at a crossing, the two coordinate systems a figure is measured in, which of the four curves a conic is at each eccentricity with where its focus stands against the figure it draws, every map coming back from the plane it lands on with the middle of it the same size whichever scheme was chosen — a stereographic carrying circles to circles and saying so rather than approximating where it cannot, the plate an astrolabe is with its pole and its horizon, the two cylindrical forms' parallels spaced by their own rule, and the three-angle turn that carries a star from one epoch to the next — and how many steps a blend makes |
 | `mesh/test/` — `MeshTest`, `FacesTest`, `CameraTest` | the mesh currency, its faces and the camera that places it: the sheet's coherent lanes, transform and append with every lane kept sized to its elements, the primitive bake, a fanned polygon read as one face with one plane and one centroid, the face-up rotation landing the face it names on the axis it is given, and the view-projection and billboard transforms carried through to viewport pixels |
 | `kit/test/` — `SilhouettesTest`, `ShapersTest`, `HatchesTest`, `DivisionsTest`, `SolidsTest` | the shelves: every silhouette inscribed in its box and equal values drawing equal paths (the contract a caching consumer prunes on), every shaper answering the deviation seam and moving the mark, the hatch door taking an outline and giving one back with the lattice and the offset behind it, a tick ladder and a chord fan as one multi-contour path at their frame's convention, and a path lifted with its hole intact, a profile lathed, the named surfaces closed and unit-normalled, and each regular solid counted by its own faces, closed on itself (V - E + F = 2), equal-edged and stood on a chosen face |
 | `mesh/curve/test/CurveTest` | splines, the two rails, the pose read along them, and the projection to a 2D path |
