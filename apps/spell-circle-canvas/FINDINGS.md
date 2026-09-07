@@ -26,13 +26,13 @@ Taken on a fresh build directory at the head of the branch:
 - Promotion tier: 121 of 195 within one code value; the remainder is
   the entry below.
 - ASan with UBSan and TSan: 3247 of 3247 each, no report.
-- Benchmark baseline retaken and committed. Window-FPS baseline
-  committed from the last sweep at an unlocked screen; nothing reads
-  under the gate at the head (a per-sketch verification), and the two
-  rows the ledger still shows under it (`pop_math`, `kumiko_asanoha`)
-  were fixed after that sweep — one `sigil.py bench --lane fps --rebase`
-  at an unlocked screen collects them. The lane refuses a locked
-  screen, which throttles an invisible window's GPU work.
+- Benchmark and window-FPS baselines retaken at an unlocked screen and
+  committed: 195 sketches, none under the gate. The lane refuses a
+  locked screen, which throttles an invisible window's GPU work. One
+  sketch, `dunhuang_star_chart`, stood down inside the sweep (no frame
+  presented within its slot after the sketch before it) and was
+  measured alone at the display's rate and merged; a heavy first frame
+  following another session is the shape to watch if it recurs.
 
 ## Rulings for the post-merge pass
 
@@ -45,7 +45,6 @@ Taken on a fresh build directory at the head of the branch:
 - rota keeps its look; the library question is taken: a settled node
   with a static layer effect is baked without it and filtered at the
   blit, with the identity test.
-- The FPS ledger is retaken now at the unlocked screen.
 
 ## Deferred past the merge, each a campaign of its own
 
