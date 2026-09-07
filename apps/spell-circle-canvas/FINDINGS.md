@@ -91,7 +91,7 @@ the pass, plus this file):
   `Composer.cpp`, `ComposerImpl.h`, `Volatility.cpp`, `Instance.h`,
   `Layout.cpp`, `ComposeInternal.h`, `Derive.cpp`).
 
-## Automatic texture promotion moves 84 of 161 plates past one code value
+## Automatic texture promotion moves 74 of 195 plates past one code value
 
 `sigil.py plates --tier promotion` renders every scene twice on the CPU —
 once with promotion off, once EAGER (every node the promoter's rules
@@ -101,43 +101,54 @@ its live paint paints, within one code value per channel over transparent
 black and two where the bake lands on content, and a scene that moves
 further is a defect in compose rather than a plate to rebase.
 
-    161 scenes, 48 within one code value.
-    Two causes fixed → 77 within. Eighty-four still move.
+    195 scenes, 120 within one code value.
+    (chaucer_astrolabe is the one the sweep could not judge — its own
+    entry below.)
 
-The worst that remain, max channel first:
+ONE CAUSE IS FIXED and it was the one this entry was written about: a
+text leaf reported the band of its lines as its paint bounds, and the ink
+a face draws outside that band — a comma's tail, an accent — was cut by
+the bake. That is why so many unrelated scenes reported the SAME maximum:
+they share the sketch kit's chrome type. The class it accounted for (90
+on five scenes, 87 on eight) is gone; `half_float`, `spacing_passes`,
+`encode_write`, `axis_ripple`, `winamp_base`, `tategaki`,
+`nightingale_coxcomb`, `twoadvanced_*`, `cde_motif` and `env_lanes` are
+now within the rule, and `annotated_margin` (221 → 2), `ruby_kenten`
+(211 → 2), `mawarikomi` (213 → 12), `y2k chrome` (111 → 2), `chladni_tab1`
+(195 → 28), `paragraph_sheet` (217 → 83), `black_watch` (199 → 82) and
+`stroke_atlas` (190 → 105) each lost a whole cause.
 
-    flourish 244 · axis_ripple 237 · beethoven 228 · volatility_cost 228 ·
-    annotated_margin 221 · winamp_base 218 · paragraph_sheet 217 ·
-    dunhuang_star_chart 216 · mawarikomi 213 · ruby_kenten 211 ·
-    nightingale_coxcomb 206 · black_watch 199 · chaucer_astrolabe 199 ·
-    sigillum_aemeth 196 · chladni_tab1 195 · minard_1869 194 ·
-    twoadvanced_equipment 194 · stroke_atlas 190 · eva_magi_interior 190 ·
-    eva_magi_deliberation 188 · spacejam_1996 185 · eva_magi_defense 174 ·
-    lain_navi 164 · tile map 161 · twoadvanced_v4 143 ·
-    kumiko_asanoha 137 · twoadvanced_v3 128 · tategaki 119 ·
-    coverage_boundary 118 · y2k chrome 111 · cde_motif 102 ·
-    thunder_fulu 96 · cjk_rules 90 · encode_write 90 · half_float 90 ·
-    spacing_passes 90 · svg_silhouette 90 · substance_swatches 89 ·
-    env_lanes 87 · exact_tangent 87 · …and forty-three more at 87 or less
+WHAT REMAINS, max channel first:
 
-`volatility_cost` is not a defect and wants an exclusion by name: the
-study DRAWS the runtime's own caching verdicts, so a promoted run is
-meant to read differently.
+    flourish 244 · volatility_cost 228 · beethoven 228 · nine slice 221 ·
+    dunhuang_star_chart 216 · eva_magi_interior 190 ·
+    eva_magi_deliberation 188 · spacejam_1996 185 · lain_navi 176 ·
+    eva_magi_defense 174 · minard_1869 163 · tile map 161 ·
+    sigillum_aemeth 125 · coverage_boundary 118 · stroke_atlas 105 ·
+    kumiko_asanoha 89 · hit_slots 86 · paragraph_sheet 83 ·
+    black_watch 82 · thunder_fulu 77 · material_child 66 ·
+    blur_falloff 55 · thaumonomicon 43 · fx_scatter_mix 37 ·
+    chevreul_circle 35 · astral_tome 35 · chladni_tab1 28 ·
+    aero desktop 23 · …and forty-six more at 16 or less, thirty-one of
+    them at 6 or less
 
-What is left is almost all type, and that is the next thing to find. On
-`half_float` (90) the difference is confined to the text and every
-picture on the sheet is byte identical. The differing pixels are glyph
-edges, tens of code values apart on a few of them, which is a glyph
-rasterized from a different mask rather than a glyph moved. The same
-number recurs across unrelated scenes (90 on five, 87 on eight), so it is
-one drawing shared by the sketch kit's chrome rather than a per-sketch
-accident. Ruled out, each pinned in `core/test/ComposeTestKernel.cpp`:
-a line of type promoted as a node of its own, over an opaque ground, at a
-plate's own view scale and fractional host translation, is exact.
+Two of those are known and not this entry's: `volatility_cost` DRAWS the
+runtime's own caching verdicts, so a promoted run is meant to read
+differently and it wants an exclusion by name; `nine slice` draws its
+difference on purpose and has its own ruling.
+
+WHAT TO LOOK AT NEXT. The tail — thirty-one scenes at 6 or less — is a
+different shape from the head: on `svg_silhouette` (6) the differing
+pixels are the APEX of a filled triangle and one pixel of a rule beside
+it, an antialiased corner resolving one way in the bake and another live,
+where the glyph cut was a whole coverage value. The head (flourish,
+beethoven, the eva_magi trio, dunhuang) is untouched by the type fix and
+has not been read yet.
 
 Assert once fixed: `--tier promotion` reports every scene within the rule,
-and the cause gets a case in `compose_test` beside the ones that already
-pin it.
+and each cause gets a case in `compose_test` beside the two that pin the
+type one (`ComposeCache.APromotedLineKeepsTheInkThatStandsOutsideItsBox`
+and `ComposeFaces.APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics`).
 
 ## chaucer_astrolabe cannot finish a plate under the sweep's ceiling
 
