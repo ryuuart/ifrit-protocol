@@ -194,6 +194,7 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Projection.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
@@ -223,6 +224,7 @@ namespace data = sigil::data;
 namespace field = sigil::material::field;
 namespace patterns = sigil::material::pattern;
 namespace arrange = sigil::geometry::arrange;
+namespace path = sigil::geometry::path;
 namespace shapers = sigil::geometry::shapers;
 namespace measure = sigil::measure;
 namespace shapes = sigil::geometry::shapes;
@@ -336,38 +338,28 @@ inline float wrap180(float d) {
 
 // ---------------------------------------------------------------------------
 // PRECESSION — IAU 1976 ζ/z/θ. T is Julian centuries from J2000 and sweeps
-// 0 → −13.00 cy over the score, J2000 → +700.
+// 0 → −13.00 cy over the score, J2000 → +700. The three published angles
+// are the astronomy and stand here; the turn of the sphere they name is
+// path::Rotation's three-angle form.
 
-struct Mat3 {
-  float m[9];
-};
-
-Mat3 precMatrix(float T) {
-  const float s = kD / 3600.0f;
-  const float z1 =
+path::Rotation precession(float T) {
+  const float s = 1.0f / 3600.0f;  // the angles are published in arcseconds
+  const float zeta =
       (2306.2181f * T + 0.30188f * T * T + 0.017998f * T * T * T) * s;
-  const float z2 =
+  const float z =
       (2306.2181f * T + 1.09468f * T * T + 0.018203f * T * T * T) * s;
-  const float th =
+  const float theta =
       (2004.3109f * T - 0.42665f * T * T - 0.041833f * T * T * T) * s;
-  const float c1 = std::cos(z1), s1 = std::sin(z1);
-  const float c2 = std::cos(z2), s2 = std::sin(z2);
-  const float ct = std::cos(th), st = std::sin(th);
-  return {{c1 * ct * c2 - s1 * s2, -s1 * ct * c2 - c1 * s2, -st * c2,
-           c1 * ct * s2 + s1 * c2, -s1 * ct * s2 + c1 * c2, -st * s2, c1 * st,
-           -s1 * st, ct}};
+  return path::Rotation::zyz(z, -theta, zeta);
 }
 
-inline void precess(const Mat3& M, float ra, float dec, float& raOut,
-                    float& decOut) {
-  const float r = ra * kD, d = dec * kD;
-  const float cd = std::cos(d);
-  const float v0 = cd * std::cos(r), v1 = cd * std::sin(r), v2 = std::sin(d);
-  const float w0 = M.m[0] * v0 + M.m[1] * v1 + M.m[2] * v2;
-  const float w1 = M.m[3] * v0 + M.m[4] * v1 + M.m[5] * v2;
-  const float w2 = M.m[6] * v0 + M.m[7] * v1 + M.m[8] * v2;
-  raOut = wrap360(std::atan2(w1, w0) / kD);
-  decOut = std::asin(std::clamp(w2, -1.0f, 1.0f)) / kD;
+/** The catalogue is held as two float lanes per star, so the turn is read
+ *  back into the pair it came out of. */
+inline void precess(const path::Rotation& turn, float ra, float dec,
+                    float& raOut, float& decOut) {
+  const path::Spherical p = turn({ra, dec});
+  raOut = p.lonDeg;
+  decOut = p.latDeg;
 }
 
 // ---------------------------------------------------------------------------
@@ -413,17 +405,24 @@ struct Departure {
   float maxDeg, mm, ratio, sigma;
 };
 
+/** The two candidate projections, at unit scale: the chart is tested for
+ *  how far each one's ordinate departs from a ruler, and a scale would
+ *  cancel out of that. The stereographic is centred on the equator, which
+ *  is the aspect a strip of sky along it is the azimuthal twin of. */
+const path::Projection kMercator{.scheme = path::Scheme::Mercator};
+const path::Projection kStereographic{.scheme = path::Scheme::Stereographic,
+                                      .scale = 0.5f};
+
 /** THE ORDINATE A PROJECTION LAYS DOWN, sampled over [lo, hi] in @p n + 1
- *  even steps. Mercator is log tan(45 + dec/2); its azimuthal twin is the
- *  stereographic tan(p/2). Everything below reads one of these two. */
+ *  even steps — read off the scheme itself, so the curve drawn and the
+ *  number reported cannot be two spellings of one law. */
 std::vector<float> ordinate(float lo, float hi, bool mercator, int n) {
   std::vector<float> ys;
   ys.reserve((size_t)n + 1);
   for (int i = 0; i <= n; ++i) {
     const float v = arrange::along(lo, hi - lo, (size_t)i, (size_t)n + 1,
                                    arrange::Turn::Open);
-    ys.push_back(mercator ? std::log(std::tan((45.0f + v * 0.5f) * kD))
-                          : std::tan(v * 0.5f * kD));
+    ys.push_back((mercator ? kMercator : kStereographic).radiusAt(v));
   }
   return ys;
 }
@@ -778,7 +777,7 @@ struct DunhuangStarChart : sketch::Sketch {
       return;
     lastEpoch = epoch;
     lastFold = fold;
-    const Mat3 M = precMatrix((epoch - 2000.0f) * 0.01f);
+    const path::Rotation M = precession((epoch - 2000.0f) * 0.01f);
     auto pos = pool->positions();
     auto tint = pool->tints();
     for (int i = 0; i < nStars; ++i) {
@@ -838,7 +837,7 @@ struct DunhuangStarChart : sketch::Sketch {
 
     // per-star school: from its asterism where the paper gives one
     std::vector<char> starSchool((size_t)nStars, ' ');
-    const Mat3 M = precMatrix(-13.0f);
+    const path::Rotation M = precession(-13.0f);
     for (int a = 0; a < nAst; ++a) {
       const AstRec& A = cat.ast(a);
       double sx = 0, sy = 0;
@@ -1374,7 +1373,7 @@ struct DunhuangStarChart : sketch::Sketch {
    *  trim() on its own beat. */
   void buildAsterismArt() {
     astArt.clear();
-    const Mat3 M = precMatrix(-13.0f);
+    const path::Rotation M = precession(-13.0f);
     for (int a = 0; a < nAst; ++a) {
       const AstRec& A = cat.ast(a);
       SkPathBuilder pb;
@@ -1474,7 +1473,7 @@ struct DunhuangStarChart : sketch::Sketch {
   bool astCentroid(std::string_view cid, SkPoint& out, int& region) const {
     for (int a = 0; a < nAst; ++a) {
       if (cat.ast(a).id != cid) continue;
-      const Mat3 M = precMatrix(-13.0f);
+      const path::Rotation M = precession(-13.0f);
       double sx = 0, sy = 0;
       int n = 0, reg = 0;
       for (int w = 0; w < cat.ast(a).words; ++w) {
@@ -1501,7 +1500,7 @@ struct DunhuangStarChart : sketch::Sketch {
    *  does not belong — all six defects drawn, none corrected, each flagged.
    *  The flags are the audit's, not the chart's: the chart just has them. */
   void buildFixtures() {
-    const Mat3 M = precMatrix(-13.0f);
+    const path::Rotation M = precession(-13.0f);
     for (int m = 0; m < 28; ++m) {
       float ra = 0, dec = 0;
       precess(M, cat.ra(cat.xiu(m).star), cat.dec(cat.xiu(m).star), ra, dec);
@@ -1897,9 +1896,12 @@ struct DunhuangStarChart : sketch::Sketch {
                  .key("pole")
                  .opacity(gate(tPrec0 - 0.8f, tPrec0 + 0.2f));
     auto poleAt = [](float epoch, float& ra, float& dec) {
-      const Mat3 M = precMatrix((epoch - 2000.0f) * 0.01f);
-      ra = wrap360(std::atan2(M.m[5], M.m[2]) / kD);
-      dec = std::asin(std::clamp(M.m[8], -1.0f, 1.0f)) / kD;
+      // where the pole of J2000 stands in that epoch's own coordinates,
+      // which is the circle the pole is drawn walking round
+      const path::Spherical p =
+          precession((epoch - 2000.0f) * 0.01f)({.lonDeg = 0, .latDeg = 90});
+      ra = p.lonDeg;
+      dec = p.latDeg;
     };
     auto plot = [&](float ra, float dec) {
       const float r = (90.0f - dec) * pxPerDeg;

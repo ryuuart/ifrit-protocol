@@ -49,9 +49,7 @@ Taken on the merged tree after the post-merge compose pass:
   `compose/kit/Sprites.h`; an HTML auto-table layout scheme
   (`spacejam_1996:999-1200`) → compose kit layouts with a test; Motif
   bevels (`cde_motif`, `twoadvanced_v4`, `winamp_base`,
-  `fallout2_charsheet`) → `Chrome.h`; a stereographic and
-  a chart projection (`chaucer_astrolabe`, `dunhuang_star_chart`) → a
-  projection value in geometry path; a tartan sett-to-cloth weave
+  `fallout2_charsheet`) → `Chrome.h`; a tartan sett-to-cloth weave
   (`black_watch:234-295`) and the orthographic-sphere navball with the
   bright pass over it (`ksp_mapview:359-457`) → material pattern and
   material stock; a pentagrid
