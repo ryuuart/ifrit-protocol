@@ -39,6 +39,28 @@ the pass, plus this file):
   and committed; the app-FPS baseline likewise (its lane presents every
   sketch in the real window).
 
+## Rulings for the pre-merge pass
+
+- `nine slice` changes rather than the ledger: the trap cell that calls
+  Skia's own lattice draw goes (or draws through SigilSkia's
+  decomposition), the `DEVICE_DIVERGENT` list is deleted, and the tier
+  judges every scene again.
+- The TSan compensation in the schedule library stands.
+- The Graphite draw-order defect behind `winamp_base` and
+  `chevreul_circle` is fixed before the merge, at its cause, with a test.
+- The painter runtime becomes per-session like the set runtime, so a
+  canvas thumbnail never reaches the installed device; the p5 key table
+  stays as it is.
+- `Track::over` against `Annotation::unit`: the rename is done with its
+  docs; the compose items declined with a reason leave this file.
+- Every standing entry is worked before the merge: `pop_math`'s gate and
+  the four arrange sites; the slang serial and chaucer's ceiling; the
+  promotion tier's glyph edges and the blend-declaring callables; rota's
+  emissive stack in the compositor.
+- After the merge: the extractions first, then the file splits.
+- The merge itself is a merge commit on `main` once the closing chain
+  is green again with a sound FPS lane.
+
 ## Deferred past the merge, each a campaign of its own
 
 - The library extractions the sketch review names — the mechanisms
@@ -77,26 +99,14 @@ the pass, plus this file):
   device the process installed. Intended: a still is CPU-only whatever
   the process holds, for every runtime. Assert: a canvas thumbnail with
   a painter runtime installed never reaches it.
-- `book/SketchbookView.cpp` — `keyAs` (the p5 key table) is an
-  anonymous-namespace function in the app and untested; its input is a
-  `Qt::Key` and `core/` is Qt-free. Either it moves with a seam of its
-  own or the table is pinned where it stands, from the book's script
-  tests.
 
 ## Compose, left by the fix pass
 
 - Test-gap nits: `drawInkedImage`'s recorded-region and non-invertible
   paths, `Region::oval` (constructed in a brush case, asserted about
   nowhere), `balanceThroughLine`.
-- `Track::over` against `Annotation::unit` — the better rename touches
-  `kit/Typeset.h`, `core/Element.h` and TYPOGRAPHY.md; a vocabulary pass
-  takes it.
-- Named and declined with a reason in the fix report, kept here so the
-  review is not re-run: the three pan-only predicates are three
-  questions; `Ribbon::band` is a documented join vocabulary;
-  `turnedArea` wants a span overload in SigilGeometry first; the
-  ornament's Bernstein and the two `Hatch` constructions would move
-  plates for a nit with no defect behind them.
+- `Track::over` against `Annotation::unit` — one spelling, with
+  `kit/Typeset.h`, `core/Element.h` and TYPOGRAPHY.md following.
 
 ## Ring and grid placement is respelled where geometry already has it
 
