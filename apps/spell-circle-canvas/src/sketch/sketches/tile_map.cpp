@@ -16,11 +16,11 @@
  * holds and fades without touching it. What flashes is what the
  * reconciler did work on; three quarters of the map never moves.
  *
- * THE READOUT is the composer's own count for the frame that did the
- * work — nodes described, memo hits, instances patched, recordings held,
- * nodes painted live — read at the NEXT edit, once the frame that did the work
- * has been drawn, because a still cannot show the numbers of the frame it is
- * itself part of. The counts are a function of the description and are
+ * THE READOUT is a composer's own count for the frame that did the work —
+ * nodes described, memo hits, instances patched, recordings held, nodes
+ * painted live — read at the NEXT edit, once the frame that did the work
+ * has been drawn, because a still cannot show the numbers of the frame it
+ * is itself part of. The counts are a function of the description and are
  * the same on every machine; the milliseconds are a function of the run
  * and are shown only in the window, because a number a sketch measured
  * about its own execution differs from itself between two captures.
@@ -32,6 +32,7 @@
  */
 
 #include <include/core/SkBitmap.h>
+#include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -206,7 +207,20 @@ struct TileMap final : sketch::Sketch {
   double clock = 0.0;
   double nextMutation = 0.0;
 
-  /** The composer's own count for the frame that did the work. */
+  /** The composer's own count for the frame that did the work, and the
+   *  composer it is taken from.
+   *
+   *  A COUNT OF RECORDINGS IS TAKEN AGAINST A CACHING POLICY. Nodes
+   *  described, memo hits and instances patched are the reconciler's and
+   *  are a function of the description alone; recordings held and nodes
+   *  painted live are the paint tier's, and a host that promotes turns a
+   *  recording into a bake and a painted node into a blit. So the counts
+   *  are read off a composer the sheet owns rather than off the one the
+   *  host opened: the same tree, stepped on the same clock, with the
+   *  promoter held off — which is the regime this sheet is about. It
+   *  draws into nothing; a no-draw canvas runs the whole phase and fills
+   *  no pixels. */
+  std::unique_ptr<Composer> probe;
   Composer::Stats worked;
 
   void setup(sketch::SketchContext& ctx) override {
@@ -228,6 +242,10 @@ struct TileMap final : sketch::Sketch {
             motion::decay((float)(clock - editedAt[(size_t)i]), kFade);
       return true;
     });
+    probe = std::make_unique<Composer>(ctx.ticker, *ctx.fonts);
+    probe->setSize(ctx.size);
+    probe->setAutoTexturePromotion(Composer::PromotionPolicy::Off);
+    probe->render(describe(ctx));
     ctx.composer.render(describe(ctx));
   }
 
@@ -289,12 +307,18 @@ struct TileMap final : sketch::Sketch {
    *  equal, and the tree is described again. Between edits nothing is
    *  described at all — the wash fades on its lane. */
   void update(double elapsed, sketch::SketchContext& ctx) override {
+    // The probe is stepped every frame the sheet is, because a recording
+    // is counted by the draw that writes it.
+    if (probe) {
+      SkNoDrawCanvas nowhere((int)ctx.size.width(), (int)ctx.size.height());
+      probe->draw(nowhere);
+    }
     if (elapsed < nextMutation) return;
     nextMutation = elapsed + kPeriod;
     // What the PREVIOUS edit cost, now that the frame which did the work
     // has been drawn: a describe is counted when it runs and a recording
     // when the draw after it writes one.
-    worked = ctx.composer.stats();
+    worked = probe->stats();
     const long long step = motion::stepIndex(elapsed, 1.0 / kPeriod);
     const int chunk = (int)(step % kChunks);
     const uint32_t h = (uint32_t)step * 2654435761u;
@@ -306,6 +330,7 @@ struct TileMap final : sketch::Sketch {
     edits[(size_t)chunk] = Edit{cell, (rule + 1 + (int)(h % 3u)) % 4};
     ++revisions[(size_t)chunk];
     editedAt[(size_t)chunk] = clock;
+    probe->render(describe(ctx));
     ctx.composer.render(describe(ctx));
   }
 };

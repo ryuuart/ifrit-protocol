@@ -25,7 +25,13 @@
  *     output moves. A parked binding costs what a plain colour costs and
  *     only starts paying when it is actually used.
  *
- * THE PROOF, in three readings, all taken from the composer itself:
+ * THE PROOF, in three readings, all taken from a COMPOSER THE SHEET OWNS.
+ * A caching verdict is taken against a promotion policy, so a sheet that
+ * read its own tree would be reporting the host it was opened by rather
+ * than a property of what it describes. This one hands the same tree to a
+ * composer of its own, opened EAGER, and reads that: what every node's
+ * DESCRIPTION admits or refuses, identical on every machine and under
+ * every host.
  *   THE TIER PER NODE. `Composer::profile()` reports, for every node, how
  *     it produced its pixels — Live, Picture, Texture, Promoted, SplitOwn
  *     or Group — and, when it was NOT baked, which condition refused. Each
@@ -64,6 +70,7 @@
  */
 
 #include <include/core/SkPaint.h>
+#include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -214,6 +221,21 @@ Element cells(const choreograph::Output<Fill>* tint) {
 }  // namespace
 
 struct VolatilityCost final : sketch::Sketch {
+  /** THE PROBE, and why the sheet owns one. Every number here is a
+   *  CACHING VERDICT, and a verdict is taken against a promotion policy —
+   *  so a sheet reading its own tree would report the host's policy rather
+   *  than a property of the description, and the same binary would draw a
+   *  different sheet depending on how it was opened. This composer is the
+   *  sheet's own: it is handed the SAME tree, stepped on the same clock,
+   *  and opened EAGER, so what it reports is which nodes the promoter's
+   *  rules admit and which condition refused the rest — the description's
+   *  own answer, identical on every machine and under every host.
+   *
+   *  It draws into nothing. Painting is what produces a verdict, so the
+   *  probe is painted; a no-draw canvas runs the whole phase and fills no
+   *  pixels. And it is LET GO the moment the reading is frozen, so the
+   *  sheet's steady-state frame costs exactly what it did before. */
+  std::unique_ptr<Composer> probe;
   std::vector<std::unique_ptr<choreograph::Output<float>>> movers;
   choreograph::Output<Fill> tint{Fill::color(kAccent)};  // assigned ONCE
   int step = 0;
@@ -423,7 +445,7 @@ struct VolatilityCost final : sketch::Sketch {
                           "bound leaf decides what its whole subtree "
                           "costs \xe2\x80\x94 every keyed node is "
                           "outlined in the tier it took, read back "
-                          "from the composer at " +
+                          "from a probe of its own at " +
                           ms(kSnapAt) + " s"),
          .footer = toU8("a picture records the DRAW CALLS, so "
                         "replaying one re-runs every shader over "
@@ -445,10 +467,16 @@ struct VolatilityCost final : sketch::Sketch {
     marks.clear();
     worst.clear();
     snapped = false;
+    makeMovers(ctx.ticker);
+    // The probe carries the same tree at the same size, so every rect it
+    // answers lands where the sheet drew the node it is about.
+    probe = std::make_unique<Composer>(ctx.ticker, *ctx.fonts);
+    probe->setSize(ctx.size);
     // The per-node reading is what this sheet is; it costs a timing call
     // per node and is off everywhere else.
-    ctx.composer.setProfiling(true);
-    makeMovers(ctx.ticker);
+    probe->setProfiling(true);
+    probe->setAutoTexturePromotion(Composer::PromotionPolicy::Eager);
+    probe->render(describe(ctx));
     ctx.composer.render(describe(ctx));
   }
 
@@ -465,11 +493,19 @@ struct VolatilityCost final : sketch::Sketch {
             {0.20f + 0.70f * t, 0.55f - 0.30f * t, 0.85f - 0.40f * t, 1.0f});
       }
     }
-    if (snapped || elapsed < kSnapAt) return;
+    if (snapped) return;
+    // The probe is painted every frame up to the reading and never after
+    // it: a verdict is what a paint produces, and there is no second
+    // reading to take.
+    if (probe) {
+      SkNoDrawCanvas nowhere((int)ctx.size.width(), (int)ctx.size.height());
+      probe->draw(nowhere);
+    }
+    if (elapsed < kSnapAt) return;
 
-    // THE READING, once. Everything below is read off the tree that was
-    // just drawn; nothing here computes a second copy of it.
-    Composer& composer = ctx.composer;
+    // THE READING, once, off the probe's tree — the same tree the sheet
+    // drew, judged under a policy the sheet owns.
+    Composer& composer = *probe;
     frame = composer.stats();
     // A PROFILE IS A RANKING BY THE STOPWATCH, and a capture that will be
     // diffed cannot carry one: on a machine that ran differently the same
@@ -503,7 +539,8 @@ struct VolatilityCost final : sketch::Sketch {
     worst.assign(rows.begin(),
                  rows.begin() + (long)std::min<size_t>(kRows, rows.size()));
     snapped = true;
-    composer.render(describe(ctx));
+    probe.reset();  // the reading is frozen; nothing else asks it anything
+    ctx.composer.render(describe(ctx));
   }
 };
 

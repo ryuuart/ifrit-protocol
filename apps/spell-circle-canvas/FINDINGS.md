@@ -40,8 +40,6 @@ Taken on a fresh build directory at the head of the branch:
   plates, spacejam, lain_navi, minard, tile map) is researched now, one
   cause at a time with a `compose_test` pin each; the tail is judged
   after it.
-- `volatility_cost` is made to agree: the sketch draws its verdicts in a
-  way that reads the same promoted or not; no exclusion anywhere.
 - rota keeps its look; the library question is taken and answered: a
   settled node with a static layer effect is baked without it and the
   effect is run OVER that bake, with the identity test. Not at the blit,
@@ -150,10 +148,21 @@ WHAT REMAINS, max channel first:
     aero desktop 23 · …and forty-six more at 16 or less, thirty-one of
     them at 6 or less
 
-Two of those are known and not this entry's: `volatility_cost` DRAWS the
-runtime's own caching verdicts, so a promoted run is meant to read
-differently and it wants an exclusion by name; `nine slice` draws its
-difference on purpose and has its own ruling.
+TWO SHEETS DREW THE RUNTIME'S OWN CACHING VERDICTS and therefore read
+differently under a promoted run: `volatility_cost` (the tier per node,
+the split and `Composer::stats()`) and `tile map` (recordings held and
+nodes painted live, beside the reconciler's counts). Both now read a
+composer THE SHEET OWNS — the same tree, stepped on the same clock,
+drawing into nothing, opened under a policy the sheet declares
+(`volatility_cost` eager, so its map is what the promoter's rules admit
+rather than what a stopwatch reached; `tile map` held off, which is the
+regime its memo lesson is about). Neither is excluded anywhere.
+`tile map` is now within the rule and its CPU plate is byte-identical;
+`volatility_cost` fell 228 → 17, the remainder being the ordinary drift
+over its star panel, and its CPU plate moved because the tier column now
+names what the description admits instead of what the host was opened
+with. `nine slice` draws its difference on purpose and has its own
+ruling.
 
 WHAT TO LOOK AT NEXT. The tail — thirty-one scenes at 6 or less — is a
 different shape from the head: on `svg_silhouette` (6) the differing
