@@ -806,10 +806,28 @@ into are the kit's, one era per header: `kit/Gel.h`, `kit/Chrome.h`,
 rectangles on the pixel lattice, never a blur: `styles::BevelPair`, a
 light edge and a dark edge kept inside the silhouette, raised or sunken
 as one value (`styles::bevelPair` states the two tones or derives them
-from the face); `styles::Brackets`, the reticle's L's standing off a box
-at the corners asked for; `styles::TickRail`, a ruler of marks along one
-edge with every n-th one long; and `styles::Scanlines`, hard rows over
-the outline through a blend mode.
+from the face), meeting at the two corners they collide on as
+`styles::BevelCorner` says — `Square` (the near band full width, the far
+band under it), `Mitre` (the 45° step, the corner pixel to the near band)
+or `MitreFar` (the same diagonal one pixel over, which is what an inner
+ring wants so a groove closes); `styles::Brackets`, the reticle's L's
+standing off a box at the corners asked for; `styles::TickRail`, a ruler
+of marks along one edge with every n-th one long; `styles::Scanlines`,
+hard rows over the outline through a blend mode; and `styles::Stipple`,
+one colour laid through a repeating 1-bit mask — the mask as BITS rather
+than an image, so a stippled node compares equal to itself, with
+`styles::stipple` for the 50 % checkerboard and `styles::dither` for one
+tone of an ordered dither.
+
+The bevel as a LOOK is `kit/Chrome.h`'s `kit::Bevel`: the tones, the
+depth, the corner, `sunken`, a `softness` that turns the drawn edge into
+a moulded one, and an optional `kit::BevelInner` — the second ring a gap
+further in, `inverted` for the groove a separator is. It is a value
+decoration in its own right, so `.overlay(theBevel)` dresses a panel, and
+it is a theme token: `env::Provide<kit::Bevel>` over a subtree and
+`kit::ambientBevel()` at each use site puts one era on every button,
+panel and well under it. `kit::bevels::motif`, `motifEtched`, `flash`,
+`skin` and `plate` are the token sets four toolkits' edges resolve to.
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance
 becomes a paint through `material::skia::Paint::recipe`, an effect

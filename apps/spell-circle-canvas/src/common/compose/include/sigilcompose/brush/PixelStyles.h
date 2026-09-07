@@ -5,7 +5,8 @@
  * bitmap-era panel is dressed with, as value decorations beside the
  * blurred ones in `LayerStyles.h`: the BEVEL PAIR (a light edge and a
  * dark edge, raised or sunken as one value), corner BRACKETS standing
- * off a box, a TICK RAIL along one of its edges, and SCANLINES over it.
+ * off a box, a TICK RAIL along one of its edges, SCANLINES over it, and
+ * the STIPPLE a colour is laid through.
  *
  * Every one is made of strokes and rectangles on the pixel lattice and
  * never of a blur or a shader, which is what the era looked like: a 1 px
@@ -30,8 +31,32 @@
 #include <sigilgeometry/path/Edges.h>
 
 #include <algorithm>
+#include <cstdint>
 
 namespace sigil::compose::styles {
+
+/** WHERE THE TWO BANDS MEET at the two corners they collide on — the
+ *  top-right and the bottom-left of a raised pair, where one band arrives
+ *  along the top or the left and the other along the right or the bottom.
+ *  (The other two corners belong to one band outright and have nothing to
+ *  decide.)
+ *
+ *  Every toolkit that drew a bevel picked one of these three and drew
+ *  every control in it, which is why the choice is a token rather than a
+ *  per-mark argument. */
+enum class BevelCorner {
+  /** The near band runs the full width and the far band lies under it —
+   *  the square step, and what a stroked pair does by itself. */
+  Square,
+  /** The bands meet on the 45° diagonal, with the pixel ON the diagonal
+   *  taken by the NEAR band. */
+  Mitre,
+  /** The same diagonal one pixel over: the corner pixel taken by the FAR
+   *  band. This is what the inner ring of a doubled frame wants — two
+   *  rings that both claim the corner leave a bright notch in a groove
+   *  that is meant to read as continuous. */
+  MitreFar,
+};
 
 /** THE BEVEL PAIR: a light edge on the top and left of the outline and a
  *  dark edge on the bottom and right, each a stroke kept inside the
@@ -40,12 +65,17 @@ namespace sigil::compose::styles {
  *  which is what a well, a trough and a pressed button have always been,
  *  and why it is one bool on one value rather than a twin type.
  *
- *  The edges are the outline's sub-contours facing each box edge, so the
- *  pair follows a chamfered panel onto its chamfers. The two vertical
- *  edges are painted first and the two horizontal ones over them, so the
- *  top-right corner belongs to the top edge and the bottom-left to the
- *  bottom — the square corner step a raised panel has, where a mitred
- *  stroke pair would split each corner on the diagonal.
+ *  UNDER `Square` the edges are the outline's sub-contours facing each
+ *  box edge, so the pair follows a chamfered panel onto its chamfers. The
+ *  two vertical edges are painted first and the two horizontal ones over
+ *  them, so the top-right corner belongs to the top edge and the
+ *  bottom-left to the bottom.
+ *
+ *  UNDER A MITRE the mark is the box's RING, split on the two diagonals
+ *  and clipped inside the outline. A diagonal is a corner's idea and a
+ *  corner is a box's, so a mitre says nothing about a chamfer or a round;
+ *  a rounded panel wearing one gets the ring its box describes with the
+ *  round cut out of it.
  *
  *  The widths are separate because the era's panels were not symmetric:
  *  a 3 px lift over a 2 px drop is one common spelling, 1 px over 1 px
@@ -59,6 +89,12 @@ struct BevelPair {
   bool sunken = false;
   /** The edge classification's sampling length in px. */
   float step = 3.0f;
+  BevelCorner corner = BevelCorner::Square;
+  /** ON is the smooth edge a vector-era panel has. OFF is the lattice a
+   *  toolkit drew on: the ring's coordinates are rounded to whole pixels
+   *  and every mark is hard, which is the only way a 1 px highlight
+   *  reads as a line rather than as a blur. */
+  bool antiAlias = true;
 
   bool operator==(const BevelPair&) const = default;
   /** The same pair the other way up. */
@@ -192,5 +228,50 @@ inline Scanlines scanlines(SkColor4f color, float period = 4.0f,
                            SkBlendMode blend = SkBlendMode::kSrcOver) {
   return Scanlines{color, period, on, 0.0f, blend};
 }
+
+/** THE STIPPLE: one colour laid through a repeating 1-BIT MASK on the
+ *  pixel lattice, clipped inside the outline — the insensitive control of
+ *  a toolkit that had no alpha, the 50 % dither a ramp was made of before
+ *  there were gradients, the screen a monochrome printer shaded with.
+ *
+ *  THE MASK IS BITS, NOT AN IMAGE, and must be. A decoration is compared
+ *  by value and an image inside one compares by POINTER, so a node whose
+ *  stipple carries a tile cut where it is asked for never compares equal
+ *  to itself and is re-recorded on every describe, forever. Bits compare
+ *  like the numbers they are, and the tile they name is cut once for the
+ *  process.
+ *
+ *  Bit `y * size + x`, counting from the low bit, is the cell at (x, y):
+ *  set takes the colour, clear leaves what is under it. `size` is at most
+ *  eight, which is every screen a bitmap toolkit ever shipped.
+ *
+ *  It is a TINT through a mask rather than a `Pattern`, and that is the
+ *  distinction: a Pattern bakes its colours into its tile, so a themed
+ *  stipple would need one tile per palette per colour, where one mask
+ *  serves every colour it is ever drawn in. */
+struct Stipple {
+  SkColor4f color = {0, 0, 0, 1};
+  /** The 50 % checkerboard: cells (0,0) and (1,1) of a 2 × 2 lattice. */
+  uint64_t bits = 0b1001;
+  int size = 2;
+  /** Px per cell. Whole numbers keep the mask on the lattice. */
+  float cell = 1.0f;
+
+  bool operator==(const Stipple&) const = default;
+
+  void paint(SkCanvas& c, const PaintContext& ctx) const;
+};
+
+/** The 50 % checkerboard in @p color — `stipple(x, y) = (x + y) & 1`,
+ *  which is the one every toolkit greyed a dead control out with. */
+inline Stipple stipple(SkColor4f color, float cell = 1.0f) {
+  return Stipple{color, 0b1001, 2, cell};
+}
+
+/** A stipple of @p on cells in every `size × size` block, filled in the
+ *  order a Bayer threshold matrix fills them — the ordered dither, one
+ *  tone of it. @p size is 2, 4 or 8; @p on runs from 0 (nothing) to
+ *  `size * size` (solid). */
+Stipple dither(SkColor4f color, int on, int size = 4, float cell = 1.0f);
 
 }  // namespace sigil::compose::styles
