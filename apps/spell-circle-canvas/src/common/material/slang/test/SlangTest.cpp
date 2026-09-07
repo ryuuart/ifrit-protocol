@@ -8,6 +8,7 @@
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilshaders/MaterialSlang.h>
 
+#include <cctype>
 #include <cstring>
 #include <string>
 
@@ -179,6 +180,31 @@ TEST(MaterialSlang, ABodyThatDoesNotCompileSaysWhy) {
                              /*lit=*/false, &built, &error));
   EXPECT_FALSE(error.empty());
   EXPECT_TRUE(built.empty());
+}
+
+TEST(MaterialSlang, ADiagnosticSaysNothingAboutWhatWasCompiledBefore) {
+  // A module is loaded under a name no other module shares, and the
+  // compiler quotes that name back at every source location it reports.
+  // What a caller reads is about the source it handed over, so the same
+  // body read twice — with a compile in between — says the same thing.
+  Compiled built;
+  std::string first;
+  std::string second;
+  EXPECT_FALSE(compileModule("this is not Slang", "vsTest", "fsTest",
+                             /*lit=*/false, &built, &first));
+  EXPECT_TRUE(compileModule(kModule, "vsTest", "fsTest", /*lit=*/false, &built,
+                            &second))
+      << second;
+  EXPECT_FALSE(compileModule("this is not Slang", "vsTest", "fsTest",
+                             /*lit=*/false, &built, &second));
+  EXPECT_EQ(first, second);
+  for (size_t at = first.find("SigilProgram"); at != std::string::npos;
+       at = first.find("SigilProgram", at + 1)) {
+    const size_t after = at + std::strlen("SigilProgram");
+    EXPECT_FALSE(after < first.size() &&
+                 std::isdigit((unsigned char)first[after]))
+        << first;
+  }
 }
 
 TEST(MaterialSlang, AMissingEntryPointIsNamed) {

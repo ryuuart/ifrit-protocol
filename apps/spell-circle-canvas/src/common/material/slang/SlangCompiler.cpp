@@ -157,33 +157,33 @@ bool codeOf(::slang::IComponentType& linked, int entry,
   return true;
 }
 
-}  // namespace
+/** The stem every diagnostic names the compiled source by. */
+constexpr std::string_view programStem = "SigilProgram";
 
-const UniformSlot* Compiled::uniform(std::string_view name) const {
-  const auto it = uniforms.find(name);
-  return it == uniforms.end() ? nullptr : &it->second;
+/** @p text with @p name cut back to the stem.
+ *
+ *  A module is loaded under a name no other module shares, and the
+ *  compiler quotes that name back in every diagnostic that carries a
+ *  source location. A caller handed over one source and is being told
+ *  about that one, so what distinguishes the name from every other
+ *  compile's comes back out: the same mistake in the same body reads the
+ *  same whatever else was compiled first. */
+std::string withoutSerial(std::string text, std::string_view name) {
+  for (size_t at = text.find(name); at != std::string::npos;
+       at = text.find(name, at + programStem.size()))
+    text.replace(at, name.size(), programStem);
+  return text;
 }
 
-bool compileModule(std::string_view source, std::string_view vertexEntry,
-                   std::string_view fragmentEntry, bool lit, Compiled* out,
-                   std::string* error) {
-  // The compiler is not re-entrant across sessions it shares a global
-  // session with, and a program cache is asked from whichever thread
-  // resolves a material first.
-  static std::mutex mutex;
-  const std::lock_guard<std::mutex> lock(mutex);
-
+/** One compile, of a module loaded under @p name. */
+bool compileNamed(const std::string& name, std::string_view source,
+                  std::string_view vertexEntry, std::string_view fragmentEntry,
+                  bool lit, Compiled* out, std::string* error) {
   ::slang::ISession* session = Compiler::shared().session(lit, error);
   if (!session) return false;
 
   Slang::ComPtr<::slang::IBlob> diagnostics;
   const std::string text(source);
-  // A NAME NO OTHER MODULE HAS. A session remembers a module by its
-  // name, so two recipes loaded under one name would be one module and
-  // every material after the first would be drawn with the first one's
-  // program.
-  static uint64_t serial = 0;
-  const std::string name = "SigilProgram" + std::to_string(++serial);
   ::slang::IModule* module = session->loadModuleFromSourceString(
       name.c_str(), (name + ".slang").c_str(), text.c_str(),
       diagnostics.writeRef());
@@ -236,6 +236,38 @@ bool compileModule(std::string_view source, std::string_view vertexEntry,
   reflect(layout, &built);
   *out = std::move(built);
   return true;
+}
+
+}  // namespace
+
+const UniformSlot* Compiled::uniform(std::string_view name) const {
+  const auto it = uniforms.find(name);
+  return it == uniforms.end() ? nullptr : &it->second;
+}
+
+bool compileModule(std::string_view source, std::string_view vertexEntry,
+                   std::string_view fragmentEntry, bool lit, Compiled* out,
+                   std::string* error) {
+  // The compiler is not re-entrant across sessions it shares a global
+  // session with, and a program cache is asked from whichever thread
+  // resolves a material first.
+  static std::mutex mutex;
+  const std::lock_guard<std::mutex> lock(mutex);
+
+  // A NAME NO OTHER MODULE HAS. A session remembers a module by its
+  // name, so two recipes loaded under one name would be one module and
+  // every material after the first would be drawn with the first one's
+  // program. The serial that keeps them apart counts what the process
+  // compiled before, which is nothing the caller asked about, so it is
+  // taken back out of anything the caller reads.
+  static uint64_t serial = 0;
+  const std::string name = std::string(programStem) + std::to_string(++serial);
+  std::string diagnostic;
+  if (compileNamed(name, source, vertexEntry, fragmentEntry, lit, out,
+                   &diagnostic))
+    return true;
+  if (error) *error = withoutSerial(std::move(diagnostic), name);
+  return false;
 }
 
 void Uniforms::set(std::string_view name, const float* values, size_t count) {
