@@ -8,6 +8,7 @@
 #include <sigilcore/hardware/Handle.h>
 
 #include <cstdint>
+#include <memory>
 
 class SkCanvas;
 class SkSurface;
@@ -15,6 +16,7 @@ class SkSurface;
 namespace sigil::skia {
 
 class GraphiteContext;
+class PaintOrderCanvas;
 
 /**
  * A Vulkan image to draw into, as opaque values so this header pulls in
@@ -81,7 +83,9 @@ class OffscreenSurface {
   OffscreenSurface& operator=(const OffscreenSurface&) = delete;
   ~OffscreenSurface();
 
-  /** Null if wrapping the backend texture failed. */
+  /** Null if wrapping the backend texture failed. Draws described
+   *  through it keep the order they were described in, whatever the
+   *  backend does with them — see <sigilskia/graphite/PaintOrder.h>. */
   SkCanvas* canvas() const;
   /** The wrapped surface itself, for a readback or a snapshot; null if
    *  wrapping failed. */
@@ -107,6 +111,9 @@ class OffscreenSurface {
  private:
   GraphiteContext* m_context;
   sk_sp<SkSurface> m_surface;
+  /** Made on the first `canvas()` and kept, because it carries the
+   *  fence's own state across the draws of one frame. */
+  mutable std::unique_ptr<PaintOrderCanvas> m_ordered;
 };
 
 }  // namespace sigil::skia

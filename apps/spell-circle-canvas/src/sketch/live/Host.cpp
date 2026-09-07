@@ -506,7 +506,9 @@ bool Host::capture(const std::filesystem::path& out, float scale) {
                                  ? m_captureBackend.makeSurface(info)
                                  : SkSurfaces::Raster(info);
   if (!surface) return false;
-  SkCanvas& canvas = *surface->getCanvas();
+  SkCanvas* through =
+      m_captureBackend.canvasOf ? m_captureBackend.canvasOf(*surface) : nullptr;
+  SkCanvas& canvas = through ? *through : *surface->getCanvas();
   canvas.clear(spec.background.toSkColor());
   canvas.scale(scale, scale);
   m_session->repaint(canvas);

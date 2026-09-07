@@ -18,6 +18,7 @@
 #include <sigilgeometry/device/Device.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/PaintOrder.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <chrono>
@@ -371,4 +372,67 @@ TEST(AdoptedGraphite, RenderTargetClearsAndReadsBack) {
   const SkBitmap pixels = skia::test::readGraphiteSurface(*ctx, target.get());
   ASSERT_FALSE(pixels.empty());
   EXPECT_EQ(pixels.getColor(3, 3), SkColorSetARGB(255, 0, 255, 0));
+}
+
+// A scene whose painting order the device must keep: an opaque ground, a
+// fill that blends with what is under it, and an opaque box described
+// after both. Graphite paints out of order and leans on the depth test to
+// reject what the original order buried; where the destination read costs
+// the depth attachment, the blending fill lands over the box that was
+// described after it and the box comes back with a hole in it.
+// PaintOrder.h states the whole of it. The claim here is the one a plate
+// is judged on: the device picture is the CPU's, pixel for pixel.
+TEST(AdoptedGraphite, PaintingOrderHoldsThroughADestinationRead) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  skia::GraphiteContext* ctx = on->graphite();
+  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+
+  const auto describe = [](SkCanvas& c) {
+    c.clear(SK_ColorWHITE);
+    SkPaint fill;
+    fill.setColor(SK_ColorRED);
+    c.drawRect(SkRect::MakeXYWH(0, 0, 100, 100), fill);
+    fill.setColor(SK_ColorMAGENTA);
+    c.drawRect(SkRect::MakeXYWH(20, 20, 60, 60), fill);
+    // A blend the hardware cannot express, so the backend reads back what
+    // it is blending with.
+    SkPaint shade;
+    shade.setColor(SkColorSetARGB(255, 128, 128, 128));
+    shade.setBlendMode(SkBlendMode::kMultiply);
+    c.drawRect(SkRect::MakeXYWH(0, 0, 100, 100), shade);
+    fill.setColor(SK_ColorBLUE);
+    c.drawRect(SkRect::MakeXYWH(40, 40, 20, 20), fill);
+    // and the same again through a layer whose own paint is the blend
+    SkPaint layer;
+    layer.setBlendMode(SkBlendMode::kMultiply);
+    c.saveLayer(nullptr, &layer);
+    SkPaint pale;
+    pale.setColor(SkColorSetARGB(255, 200, 200, 255));
+    c.drawRect(SkRect::MakeXYWH(0, 60, 100, 40), pale);
+    c.restore();
+    fill.setColor(SK_ColorGREEN);
+    c.drawRect(SkRect::MakeXYWH(5, 70, 20, 20), fill);
+  };
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(100, 100);
+  sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
+  ASSERT_NE(raster, nullptr);
+  describe(*raster->getCanvas());
+  SkBitmap cpu;
+  cpu.allocPixels(info);
+  ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
+
+  sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  ASSERT_NE(target, nullptr);
+  skia::PaintOrderCanvas ordered(*ctx, target->getCanvas());
+  describe(ordered);
+  const SkBitmap device = skia::test::readGraphiteSurface(*ctx, target.get());
+  ASSERT_FALSE(device.empty());
+
+  // The blend and the layer are the two reads, so a backend that needs
+  // the fence closes the recording exactly twice.
+  EXPECT_EQ(ordered.fences(), skia::PaintOrderCanvas::needed(*ctx) ? 2 : 0);
+  for (int y = 0; y < info.height(); ++y)
+    for (int x = 0; x < info.width(); ++x)
+      ASSERT_EQ(cpu.getColor(x, y), device.getColor(x, y)) << x << "," << y;
 }

@@ -33,15 +33,22 @@ find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilSkiaGraphite
   SOURCES GraphiteContext.cpp GraphiteContextVulkan.cpp GraphiteOnDevice.cpp
           OffscreenSurface.cpp OffscreenSurfaceOnDevice.cpp
-          OffscreenSurfaceVulkan.cpp Pixels.cpp
+          OffscreenSurfaceVulkan.cpp PaintOrder.cpp Pixels.cpp
           ${SIGIL_SKIA_GRAPHITE_METAL_SOURCES}
-  HEADERS ../Skia.h GraphiteContext.h OffscreenSurface.h Pixels.h
-          TextureImage.h
+  HEADERS ../Skia.h GraphiteContext.h OffscreenSurface.h PaintOrder.h
+          Pixels.h TextureImage.h
   PUBLIC unofficial::skia::skia SigilCoreHardware
   PRIVATE Vulkan::Headers Boost::unordered)
 if(APPLE)
   target_link_libraries(SigilSkiaGraphite PRIVATE ${FOUNDATION_FRAMEWORK})
 endif()
+
+# Skia is compiled with RTTI off, so the typeinfo of a Skia class that has
+# a key function is never emitted. A translation unit deriving from one
+# must be compiled the same way, or its own vtable asks the linker for a
+# symbol that does not exist.
+set_source_files_properties(PaintOrder.cpp PROPERTIES COMPILE_OPTIONS
+                            -fno-rtti)
 
 # The Graphite readback every binary that draws on a device reads: this
 # target owns the context, so the one spelling of the snap-insert-read-

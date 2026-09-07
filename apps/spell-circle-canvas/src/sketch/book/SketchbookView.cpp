@@ -11,6 +11,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilskia/graphite/PaintOrder.h>
 #include <sigilskia/qt/QtInterop.h>
 #endif
 
@@ -198,6 +199,9 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
 #ifdef SIGILSKETCH_BOOK_GPU
   bool readbackGraphite(SkSurface& surface, const SkPixmap& out);
   std::unique_ptr<sigil::skia::GraphiteContext> m_graphiteContext;
+  /** Kept alive for the length of a capture: the fence the still on a
+   *  device is described through. */
+  std::unique_ptr<sigil::skia::PaintOrderCanvas> m_captureCanvas;
 #endif
   SketchbookView* m_view = nullptr;
   QRhi* m_rhi = nullptr;
@@ -362,14 +366,20 @@ std::unique_ptr<sketch::Host> SketchbookRenderer::openSketch(int index) {
 void SketchbookRenderer::installCaptureBackend(sketch::Host& host) {
 #ifdef SIGILSKETCH_BOOK_GPU
   if (!m_graphiteContext) return;
-  host.setCaptureBackend({[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
-                            if (!m_graphiteContext) return nullptr;
-                            return SkSurfaces::RenderTarget(
-                                m_graphiteContext->recorder(), info);
-                          },
-                          [this](SkSurface& surface, const SkPixmap& out) {
-                            return readbackGraphite(surface, out);
-                          }});
+  host.setCaptureBackend(
+      {[this](const SkImageInfo& info) -> sk_sp<SkSurface> {
+         if (!m_graphiteContext) return nullptr;
+         return SkSurfaces::RenderTarget(m_graphiteContext->recorder(), info);
+       },
+       [this](SkSurface& surface, const SkPixmap& out) {
+         return readbackGraphite(surface, out);
+       },
+       [this](SkSurface& surface) -> SkCanvas* {
+         if (!m_graphiteContext) return nullptr;
+         m_captureCanvas = std::make_unique<sigil::skia::PaintOrderCanvas>(
+             *m_graphiteContext, surface.getCanvas());
+         return m_captureCanvas.get();
+       }});
 #else
   (void)host;
 #endif

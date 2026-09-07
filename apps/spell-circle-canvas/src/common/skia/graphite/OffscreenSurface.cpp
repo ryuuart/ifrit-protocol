@@ -9,8 +9,10 @@
 #include <include/gpu/graphite/Recording.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilskia/graphite/PaintOrder.h>
 
 #include <cstdio>
+#include <memory>
 #include <mutex>
 #include <utility>
 
@@ -23,12 +25,18 @@ namespace sigil::skia {
 // move is an ordinary path and not a corner.
 OffscreenSurface::OffscreenSurface(OffscreenSurface&& other) noexcept
     : m_context(std::exchange(other.m_context, nullptr)),
-      m_surface(std::move(other.m_surface)) {}
+      m_surface(std::move(other.m_surface)),
+      m_ordered(std::move(other.m_ordered)) {}
 
 OffscreenSurface::~OffscreenSurface() = default;
 
 SkCanvas* OffscreenSurface::canvas() const {
-  return m_surface ? m_surface->getCanvas() : nullptr;
+  if (!m_surface) return nullptr;
+  if (!m_context) return m_surface->getCanvas();
+  if (!m_ordered)
+    m_ordered =
+        std::make_unique<PaintOrderCanvas>(*m_context, m_surface->getCanvas());
+  return m_ordered.get();
 }
 
 SkSurface* OffscreenSurface::surface() const { return m_surface.get(); }

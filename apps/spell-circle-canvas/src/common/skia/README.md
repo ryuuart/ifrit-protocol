@@ -29,7 +29,7 @@ directory, and links only what it needs.
 
 | Feature | Target | Headers | What it holds |
 |---|---|---|---|
-| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/TextureImage.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, the image over one, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
+| graphite | `SigilSkiaGraphite` | `<sigilskia/graphite/GraphiteContext.h>`, `<sigilskia/graphite/OffscreenSurface.h>`, `<sigilskia/graphite/PaintOrder.h>`, `<sigilskia/graphite/TextureImage.h>`, `<sigilskia/graphite/Pixels.h>` | the context over a native device and queue, the surface over a texture, the image over one, the canvas that keeps a scene's painting order, and the pixel reads a device upload takes; Metal and Vulkan as parallel paths, and the entry points that read a `GpuDevice` — `GraphiteContext::create`, the `OffscreenSurface` wrap over a `TextureHandle`, the submit that signals a `FenceHandle` |
 | qt | `SigilSkiaQt` | `<sigilskia/qt/QtInterop.h>` | the adapters that unwrap a `QRhi`'s native handles and forward to graphite |
 | draw | `SigilSkiaDraw` | `<sigilskia/draw/Direct.h>` | the two `SkCanvas` ops Graphite leaves unimplemented, decomposed into ones every backend performs |
 
@@ -322,6 +322,37 @@ Graphite performs no implicit upload for direct image use.
 This feature is unconditional where the rest of the library is gated:
 the ops vanish on a Graphite canvas whether or not this repository is the
 one that stood that canvas up.
+
+## Painting order, and the fence that keeps it
+
+Graphite paints out of order on purpose. Every draw carries a depth
+value, the backend executes draws in whatever order suits it, and the
+depth test rejects what the original order buried. A draw that BLENDS
+with what is already on the canvas cannot be reordered that freely, so
+Graphite makes it depend on the draws it overlaps and still leans on the
+depth test to reject it where a later draw has already landed.
+
+On the Vulkan backend such a blend reads the destination as an input
+attachment, guarded by a barrier inside the render pass. **MoltenVK
+serves that barrier by restarting the pass, and the depth attachment does
+not survive the restart**: every draw the pass had already executed loses
+its depth, and the blending draw paints over content described after it.
+A solid box over a dense window comes back with holes in it, each hole
+the shape of something drawn earlier.
+
+`PaintOrderCanvas` (`<sigilskia/graphite/PaintOrder.h>`) is the fence.
+Draw a scene through one and it forwards every op to the canvas beneath
+it, closing the recording after any draw whose blend the hardware cannot
+express — so that draw is the last of its render pass and the ones
+described after it begin a pass of their own. The picture is then the
+CPU's, pixel for pixel; the cost is one render pass per blending draw,
+which for a dense scene is a handful. `PaintOrderCanvas::needed()` says
+whether the backend needs it at all; a canvas over one that does not
+forwards everything and closes nothing, so a host wraps unconditionally.
+
+`OffscreenSurface::canvas()` already answers a fenced canvas, so a host
+that draws through a wrapped texture pays nothing to be right. A host
+that makes its own `SkSurfaces::RenderTarget` wraps it itself.
 
 ## Boundary
 

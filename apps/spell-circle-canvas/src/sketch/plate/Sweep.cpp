@@ -24,6 +24,7 @@
 #include <sigilsketch/plate/FrameStats.h>
 #include <sigilsketch/plate/Graphite.h>
 #include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilskia/graphite/PaintOrder.h>
 
 #include <algorithm>
 #include <cmath>
@@ -32,6 +33,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace sigil::sketch {
@@ -220,15 +222,22 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       };
     }
     if (!surface) surface = SkSurfaces::Raster(info);
+    // On a device the frame is described through the canvas that keeps
+    // painting order, which is the canvas a running host draws through,
+    // so what is measured here is what that host pays.
+    std::optional<skia::PaintOrderCanvas> ordered;
+    if (graphite) ordered.emplace(*graphite, surface->getCanvas());
+    SkCanvas* const frameCanvas =
+        ordered ? static_cast<SkCanvas*>(&*ordered) : surface->getCanvas();
 
     FrameStats stats;
-    const auto stepOne = [&](SkSurface& target) {
+    const auto stepOne = [&](SkSurface&) {
       // One watch, read twice: the two lanes both start at the top of the
       // frame and differ only in whether the backend drain is inside.
       const measure::Stopwatch watch;
-      target.getCanvas()->clear(clearColor);
+      frameCanvas->clear(clearColor);
       PhaseMark mark(Phase::Update);
-      session->frame(*target.getCanvas(), kStep);
+      session->frame(*frameCanvas, kStep);
       stats.addWork(watch.elapsedMs());
       if (flushHook) flushHook();
       stats.add(watch.elapsedMs());
@@ -384,9 +393,10 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         if (timingJson) std::fclose(timingJson);
         return 1;
       }
-      plate->getCanvas()->clear(clearColor);
-      plate->getCanvas()->scale(scale, scale);
-      session->still(*plate->getCanvas());
+      skia::PaintOrderCanvas orderedPlate(*graphite, plate->getCanvas());
+      orderedPlate.clear(clearColor);
+      orderedPlate.scale(scale, scale);
+      session->still(orderedPlate);
       if (auto recording = graphite->recorder()->snap()) {
         skgpu::graphite::InsertRecordingInfo insert;
         insert.fRecording = recording.get();

@@ -241,6 +241,12 @@ class Host {
   struct CaptureBackend {
     std::function<sk_sp<SkSurface>(const SkImageInfo&)> makeSurface;
     std::function<bool(SkSurface&, const SkPixmap&)> readback;
+    /** The canvas the still is described through, given the surface
+     *  makeSurface just built. A backend whose device needs the draws
+     *  kept in order answers a canvas that keeps them; unset, and null,
+     *  leave the surface's own canvas in place. The canvas belongs to
+     *  the backend and must outlive the capture. */
+    std::function<SkCanvas*(SkSurface&)> canvasOf;
   };
   void setCaptureBackend(CaptureBackend backend) {
     m_captureBackend = std::move(backend);
