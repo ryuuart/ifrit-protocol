@@ -94,6 +94,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Conic.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -117,6 +118,7 @@
 namespace sketch = sigil::sketch;
 namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
+namespace matkit = sigil::material::kit;
 namespace sdf = sigil::material::sdf;
 namespace arrange = sigil::geometry::arrange;
 namespace path = sigil::geometry::path;
@@ -354,105 +356,6 @@ struct MarchingDots {
     canvas.drawPath(ctx.outline, p);
   }
 };
-
-// ---------------------------------------------------------------------------
-// The navball: an orthographic sphere, evaluated per pixel.
-//
-// Inverse projection — screen disc → sphere surface → sphere-local frame by
-// undoing roll, pitch and heading — then latitude/longitude bands from plane
-// distances (exact, and the foreshortening near the limb falls out for free).
-// The back hemisphere is never sampled: z = +sqrt(1 − r²) picks the front.
-// One monolithic main(), no user-defined SkSL functions, no loops.
-
-inline sk_sp<SkRuntimeEffect> navballEffect() {
-  const char* src = R"(
-uniform float2 uResolution;
-uniform float  uYaw;
-uniform float  uPitch;
-uniform float  uRoll;
-uniform float4 uSky;
-uniform float4 uSkyHi;
-uniform float4 uGnd;
-uniform float4 uGndLo;
-
-half4 main(float2 xy) {
-  float2 c = uResolution * 0.5;
-  float R = min(c.x, c.y);
-  float2 q = (xy - c) / R;
-  float rr = dot(q, q);
-  if (rr > 1.0) { return half4(0.0); }
-  float z = sqrt(max(0.0, 1.0 - rr));
-  float3 v = float3(q.x, -q.y, z);
-
-  float cr = cos(-uRoll), sr = sin(-uRoll);
-  v = float3(v.x * cr - v.y * sr, v.x * sr + v.y * cr, v.z);
-  float cp = cos(-uPitch), sp = sin(-uPitch);
-  v = float3(v.x, v.y * cp - v.z * sp, v.y * sp + v.z * cp);
-  float cyw = cos(uYaw), syw = sin(uYaw);
-  v = float3(v.x * cyw + v.z * syw, v.y, -v.x * syw + v.z * cyw);
-
-  float lat = asin(clamp(v.y, -1.0, 1.0));
-  float lon = atan(v.x, v.z);
-  float px  = 1.0 / R;
-
-  float hemi = smoothstep(-0.010, 0.010, v.y);
-  float3 sky = mix(uSky.rgb, uSkyHi.rgb, clamp(lat / 1.5707963, 0.0, 1.0));
-  float3 gnd = mix(uGnd.rgb, uGndLo.rgb, clamp(-lat / 1.5707963, 0.0, 1.0));
-  float3 col = mix(gnd, sky, hemi);
-
-  float s10 = 0.17453293;
-  float lk  = floor(lon / s10 + 0.5) * s10;
-  float dMe = abs(v.x * cos(lk) - v.z * sin(lk));
-  float l90 = floor(lon / 1.5707963 + 0.5) * 1.5707963;
-  float dM9 = abs(v.x * cos(l90) - v.z * sin(l90));
-  float pk  = floor(lat / s10 + 0.5) * s10;
-  float dPa = abs(v.y - sin(pk));
-  float p30 = floor(lat / 0.5235988 + 0.5) * 0.5235988;
-  float dP3 = abs(v.y - sin(p30));
-
-  float w = 0.85 * px;
-  float minor = max(1.0 - smoothstep(w, w * 2.4, dMe),
-                    1.0 - smoothstep(w, w * 2.4, dPa));
-  float major = max(1.0 - smoothstep(w * 1.5, w * 3.4, dM9),
-                    1.0 - smoothstep(w * 1.5, w * 3.4, dP3));
-  float horiz = 1.0 - smoothstep(w * 1.7, w * 3.6, abs(v.y));
-
-  col = mix(col, float3(1.0), clamp(minor * 0.34 + major * 0.62, 0.0, 1.0));
-  col = mix(col, float3(1.0), horiz * 0.95);
-
-  col *= (0.58 + 0.42 * z);
-  float3 L = normalize(float3(-0.42, 0.52, 0.74));
-  float spec = pow(max(0.0, dot(L, float3(q.x, -q.y, z))), 14.0);
-  col += spec * 0.16;
-
-  float edge = 1.0 - smoothstep(1.0 - 2.2 * px, 1.0, sqrt(rr));
-  return half4(half3(col * edge), half(edge));
-}
-)";
-  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-  if (!e) std::fprintf(stderr, "navball sksl: %s\n", err.c_str());
-  return e;
-}
-
-/** Restrained bright-pass: luminance above a knee, nothing else. Paired with
- *  a small Gaussian and re-blended kPlus — the photographic half of the CRT
- *  recipe, deliberately without the scanline/backdrop half. */
-inline sk_sp<SkRuntimeEffect> brightPassEffect() {
-  const char* src = R"(
-uniform shader content;
-half4 main(float2 xy) {
-  half4 s = content.eval(xy);
-  float a = max(s.a, 1e-4);
-  float3 straight = float3(s.rgb) / a;
-  float l = max(max(straight.r, straight.g), straight.b);
-  float k = smoothstep(0.68, 0.98, l) * float(a);
-  return half4(half3(straight * k), half(k));
-}
-)";
-  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-  if (!e) std::fprintf(stderr, "brightpass sksl: %s\n", err.c_str());
-  return e;
-}
 
 }  // namespace ksp
 
@@ -1070,15 +973,15 @@ struct KspMapView : sketch::Sketch {
         at(box().shape(shapes::circle()).fill(Paint::solid(hexColor(0x171B1E))),
            kBall, (kBallR + 5) * 2, (kBallR + 5) * 2));
 
-    // The sphere itself.
-    Paint ball = Paint::sksl(navballEffect(), {});
-    ball.uniform("uSky", kSky);
-    ball.uniform("uSkyHi", kSkyHi);
-    ball.uniform("uGnd", kGround);
-    ball.uniform("uGndLo", kGroundLo);
-    ball.uniform("uYaw", &yaw);
-    ball.uniform("uPitch", &pitchOut);
-    ball.uniform("uRoll", &rollOut);
+    // The sphere itself: the library's orthographic globe, at KSP's own
+    // sky and ground, driven by the same three Outputs the ladder rides.
+    Paint ball = Paint::recipe(matkit::globe({.sky = kSky,
+                                              .skyPole = kSkyHi,
+                                              .ground = kGround,
+                                              .groundPole = kGroundLo})
+                                   .bind("yaw", &yaw)
+                                   .bind("pitch", &pitchOut)
+                                   .bind("roll", &rollOut));
     g.child(at(box().fill(std::move(ball)).key("navball"), kBall, kBallR * 2,
                kBallR * 2));
 
@@ -1797,23 +1700,22 @@ struct KspMapView : sketch::Sketch {
 
     Element map = mapLayer(ctx);
 
-    // Restrained photographic bloom: bright-pass -> small Gaussian -> kPlus,
-    // over the map layer only (the LCD panels get their own local glow).
-    // No scanlines, no backdrop distortion, no tiling.
+    // Restrained photographic bloom: the bright pass, a small Gaussian and
+    // a kPlus composite, over the map layer only (the LCD panels get their
+    // own local glow). No scanlines, no backdrop distortion, no tiling.
     //
-    // THE SECOND `mapLayer(ctx)` IS THE COST OF THE RECIPE, and it is not
-    // avoidable at this seam: a bright pass has to run over the finished
-    // layer and be composited BACK over it, which is two nodes, and a node
-    // is described by building it. `Effect::phosphorBloom` retains its own
-    // source and would need only one — measured on this canvas it is 379 ms
-    // a frame against 123, because it is twenty-four taps per pixel over
-    // the whole 1200x800 map where this is one pass and a 4 px Gaussian.
-    // The cheap composite wins here and the duplicate describe is what it
-    // costs.
+    // THE SECOND `mapLayer(ctx)` IS THE COST OF THIS SEAM, and it is not
+    // avoidable: a bright pass has to run over the finished layer and be
+    // composited BACK over it, which is two nodes, and a node is described
+    // by building it. `Effect::phosphorBloom` retains its own source and
+    // would need only one, but it GATHERS — twenty-four taps a pixel over
+    // the whole map, where this is one tap and a separable blur. Over a
+    // canvas this size the cheap composite wins, and the duplicate
+    // describe is what it costs.
     Element bloom =
         mapLayer(ctx)
             .effect(
-                Effect::shader(brightPassEffect())
+                Effect::brightPass(0.68f, 0.30f)
                     .then(Effect::filter(SkImageFilters::Blur(4, 4, nullptr))))
             .blend(SkBlendMode::kPlus)
             .opacity(0.34f);
