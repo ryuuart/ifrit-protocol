@@ -44,9 +44,8 @@ Taken on the merged tree after the post-merge compose pass:
 ## Deferred past the merge, each a campaign of its own
 
 - The library extractions the sketch review names — the mechanisms
-  hidden in the sketches over 1000 lines: an HTML auto-table layout scheme
-  (`spacejam_1996:999-1200`) → compose kit layouts with a test; Motif
-  bevels (`cde_motif`, `twoadvanced_v4`, `winamp_base`,
+  hidden in the sketches over 1000 lines: Motif bevels (`cde_motif`,
+  `twoadvanced_v4`, `winamp_base`,
   `fallout2_charsheet`) → `Chrome.h`; a tartan sett-to-cloth weave
   (`black_watch:234-295`) and the orthographic-sphere navball with the
   bright pass over it (`ksp_mapview:359-457`) → material pattern and
