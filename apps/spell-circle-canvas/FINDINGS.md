@@ -49,9 +49,7 @@ Taken on the merged tree after the post-merge compose pass:
   `fallout2_charsheet`) → `Chrome.h`; a tartan sett-to-cloth weave
   (`black_watch:234-295`) and the orthographic-sphere navball with the
   bright pass over it (`ksp_mapview:359-457`) → material pattern and
-  material stock; a pentagrid
-  (`penrose_paving:264`) and mitred lattice joinery
-  (`kumiko_asanoha:517`) → `Lattice.h`/`Ops.h`; Reeves particles
+  material stock; Reeves particles
   (`genesis_fire:516`) → `sigilmotion/physics/Points.h`. Each is a
   rewrite to the seam, never a verbatim move.
 - The source-file splits by subject: `material/skia/Paint.cpp` (1573),
