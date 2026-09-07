@@ -3,6 +3,7 @@
  * each toolkit's edge was, in tones, depth, corner and softness.
  */
 
+#include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcore/reconcile/Env.h>
@@ -59,6 +60,21 @@ void Bevel::paint(SkCanvas& c, const PaintContext& ctx) const {
 }
 
 Bevel ambientBevel(Bevel fallback) { return core::env::inheritedOr(fallback); }
+
+Element& bevelled(Element& e, const Bevel& b) {
+  Bevel outer = b;
+  outer.inner.reset();
+  e.overlay(outer);
+  if (!b.inner) return e;
+  Bevel in = outer;
+  in.light = b.inner->light;
+  in.shadow = b.inner->shadow;
+  in.depth = b.inner->depth;
+  in.shadowDepth = b.inner->shadowDepth;
+  in.sunken = b.sunken != b.inner->inverted;
+  e.foreground(inset(b.inner->gap, Decoration(in)));
+  return e;
+}
 
 namespace bevels {
 

@@ -167,6 +167,38 @@ TEST(KitChrome, AnInvertedInnerRingTurnsTheDoubledBevelIntoAGroove) {
   EXPECT_EQ(at(host, 50, kH - 2), SK_ColorRED);
 }
 
+TEST(KitChrome, DressingAPanelPutsTheInnerRingOverItsContent) {
+  // The panel's own content reaches the padding line, which is exactly
+  // where a doubled bevel's inner ring stands.
+  kit::Bevel b = plain();
+  b.inner = kit::BevelInner{6, {1, 1, 1, 1}, {0, 0, 0, 1}, 1, 1, false};
+  const auto panelWith = [&](bool dressed) {
+    Element face = box().width(Dim(kW)).height(Dim(kH)).fill(kFace).padding(6);
+    if (dressed)
+      kit::bevelled(face, b);
+    else
+      face.overlay(b);
+    face.child(box().grow(1).fill(SkColor4f{1, 0, 1, 1}));
+    return box().padding(kX).child(std::move(face));
+  };
+
+  Host dressed(140, 100);
+  dressed.composer.render(panelWith(true));
+  dressed.frame();
+  EXPECT_EQ(at(dressed, 50, 6), SK_ColorWHITE);
+
+  // Attached as one decoration in the overlay slot, the content covers
+  // the ring — which is the right answer for a node with no content and
+  // the wrong one for a panel.
+  Host covered(140, 100);
+  covered.composer.render(panelWith(false));
+  covered.frame();
+  EXPECT_EQ(at(covered, 50, 6), SK_ColorMAGENTA);
+  // The outer ring is on the node's own edge either way.
+  EXPECT_EQ(at(dressed, 50, 0), SK_ColorRED);
+  EXPECT_EQ(at(covered, 50, 0), SK_ColorRED);
+}
+
 TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
   Host host(140, 100);
   host.composer.render(box().padding(kX).child(

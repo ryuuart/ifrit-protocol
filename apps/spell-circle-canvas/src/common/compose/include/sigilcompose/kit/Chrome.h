@@ -114,6 +114,21 @@ struct Bevel {
  *  nothing provides one. */
 Bevel ambientBevel(Bevel fallback = {});
 
+/** @p e DRESSED in @p b — the whole bevel, each ring in the slot it
+ *  belongs in, which is the one call a panel needs.
+ *
+ *  The two rings do NOT go in the same slot. The outer one is an OVERLAY:
+ *  it stands on the node's own edge, over the fill and under the content,
+ *  which is where an edge belongs. The inner one is a FOREGROUND: a
+ *  second ring a gap in from the edge stands at the padding line, and a
+ *  frame there is a border the content sits INSIDE rather than an edge
+ *  the content rides over — put it under the content and the first label
+ *  long enough to reach the padding erases it.
+ *
+ *  Attaching the value yourself with `.overlay(b)` paints both rings in
+ *  that one slot, which is what a node with no content wants. */
+Element& bevelled(Element& e, const Bevel& b);
+
 /** THE ERA TOKEN SETS: the SHAPE of each toolkit's bevel, taking the two
  *  tones, because how a toolkit derived its tones from a face is that
  *  toolkit's own arithmetic and belongs where the face is. */
