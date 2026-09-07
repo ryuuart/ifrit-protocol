@@ -27,7 +27,8 @@ sigil_library(SigilGeometryPath
           Multigrid.cpp
           Neighbours.cpp Noise.cpp Ops.cpp Polyline.cpp Pose.cpp Projection.cpp
           Scatter.cpp
-          Segments.cpp Symmetry.cpp Tidy.cpp Trace.cpp Triangulate.cpp
+          Segments.cpp Strips.cpp Symmetry.cpp Tidy.cpp Trace.cpp
+          Triangulate.cpp
   HEADERS Arrange.h Band.h Cells.h Conic.h Contour.h Crossings.h Direction.h
           Edges.h Extremes.h Fit.h Frame.h Hull.h Interpolate.h Lattice.h
           Neighbours.h
@@ -53,7 +54,7 @@ sigil_test(geometry_test
           test/TriangulateTest.cpp test/FieldsTest.cpp
           test/OpsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/ProjectionsTest.cpp test/BlendTest.cpp
-          test/TilingsTest.cpp
+          test/TilingsTest.cpp test/StripsTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
 # One file per subject, over the one figure in bench/Figures.h.
@@ -62,7 +63,7 @@ sigil_bench(geometry_bench
           bench/NeighboursBench.cpp bench/ProjectionsBench.cpp
           bench/ScatterBench.cpp bench/TriangulateBench.cpp
           bench/FieldsBench.cpp bench/NodesBench.cpp
-          bench/TilingsBench.cpp
+          bench/TilingsBench.cpp bench/StripsBench.cpp
   LIBRARIES SigilGeometryPath)
 
 add_subdirectory(blend)

@@ -682,6 +682,31 @@ in no header.
   whole number of periods fits, which is what keeps a closed mark from
   meeting itself mid-step.
 
+  **STRIP JOINERY** is the third family here, over a `Strip` — a segment
+  cut to a width, the piece a lattice, a trellis, a window bar and a
+  Voronoi cage are all made of. `stripOutlines()` answers one closed
+  contour per piece with its ends cut to the joints it stands in: a node
+  is wherever ends meet, the ends there are put in order round it, and
+  the seam between each neighbouring pair is the bisector of their two
+  directions, so every piece is planed to the same face as the piece
+  beside it. Two ends meeting give the corner mitre a picture frame is
+  cut to, three or more give each piece a wedge — which is what a lattice
+  node actually is — and an end that meets nothing is cut square across.
+  `StripOptions::join` picks between the true mitre (bounded by
+  `miterLimit`), a bevel that stops each end a half-width short, and a
+  round that finishes each end with an arc of its own half-width about
+  the node. `strips()` is those outlines united, the lattice as one
+  silhouette with its joints closed.
+
+  `stripLaps()` is the other joint: where two pieces CROSS rather than
+  meet, which is the half-lap a lattice is held together by. Each
+  `StripLap` names the two pieces, the point, each piece's direction and
+  the fraction along it, and `halfSpan` — the other piece's width carried
+  across at the angle the two cross, which is the seam the piece passing
+  over shows, bounded by `lapLimit` so a grazing crossing does not run
+  away. Which piece is on top is the caller's: a lattice's layer order is
+  not a property of its geometry.
+
   **`offset(path, distance, OffsetOptions)` is one operator for what an
   outline offset, a concentric frame, a parallel rail and a bolder
   silhouette all are.** `join`, `cap` and `miterLimit` are Skia's stroker

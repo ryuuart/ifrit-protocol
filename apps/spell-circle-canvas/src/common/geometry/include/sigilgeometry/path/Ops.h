@@ -2,7 +2,7 @@
 
 /** @file
  * SigilGeometry path operations — the Pathfinder panel and the Distort
- * menu, as values. Two families:
+ * menu, as values. Three families:
  *
  *  - BOOLEANS over Skia's pathops: unite/subtract/intersect/exclude
  *    plus simplify (self-intersection cleanup) and a stroke-expand
@@ -12,6 +12,11 @@
  *    path rather than an error. Beside them the two POLYLINE corner and
  *    displacement treatments, roundCorners/chamferCorners and
  *    displaceSquare.
+ *  - STRIP JOINERY over a set of pieces of stock — a segment cut to a
+ *    width: the outline of each piece mitred to the joints it stands
+ *    in, the whole figure those outlines unite into, and the half-laps
+ *    where two pieces cross rather than meet. Where a lattice, a
+ *    trellis, a window bar or a Voronoi cage is joined up.
  *  - DISTORTS as parameter structs: Roughen, Zigzag, PuckerBloat,
  *    Twirl. Each is a small value carrying its dials and applying on
  *    demand (operator()), so a recipe stays editable — restack, retune,
@@ -28,6 +33,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <glm/vec2.hpp>
+#include <span>
 #include <vector>
 
 namespace sigil::geometry::path::ops {
@@ -166,6 +173,88 @@ SkPath chamferCorners(const SkPath& path, float cut);
  *  fits the contour, which is what keeps a closed mark from meeting itself
  *  mid-step. */
 SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength);
+
+// ---------------------------------------------------------------------------
+// Strip joinery: pieces of stock, and what happens where they meet.
+
+/** ONE PIECE OF STOCK: a segment cut to a width, the piece a lattice, a
+ *  trellis, a window bar, a rail frame and a Voronoi cage are all made
+ *  of. It carries no material, no order and no identity — a caller keeps
+ *  those beside it, indexed the same way. */
+struct Strip {
+  glm::vec2 from{0, 0};
+  glm::vec2 to{0, 0};
+  float width = 1;
+};
+
+/** HOW A SET OF PIECES IS CUT WHERE IT MEETS ITSELF. */
+struct StripOptions {
+  /** The cut at a node. `Miter` planes each end back to the seams it
+   *  shares with its neighbours round the node, so the pieces fill the
+   *  node with no gap and no overlap — real mitred joinery, and the one
+   *  join a wood or metal lattice is actually cut to. `Bevel` stops each
+   *  end a half-width from the node instead, blunting the point. `Round`
+   *  finishes each end with an arc of its own half-width about the node,
+   *  which at a lone end is a round cap and at a joint a rounded one. */
+  Join join = Join::Miter;
+  /** How many half-widths a mitred point may stand from its node before
+   *  it is cut back: the sharper the angle, the further a true mitre
+   *  reaches, and a needle-thin one reaches off the page. */
+  float miterLimit = 4.0f;
+  /** HOW NEAR A MEETING IS A MEETING: two ends within this of each other
+   *  are one node, and a crossing within this of either piece's end is a
+   *  meeting rather than a lap. */
+  float tolerance = 0.5f;
+  /** How far a lap's seam may run, in widths of the piece it crosses. A
+   *  bound rather than a preference: two pieces crossing at a grazing
+   *  angle overlap along a length that runs away as the angle closes. */
+  float lapLimit = 3.0f;
+  bool operator==(const StripOptions&) const = default;
+};
+
+/** THE OUTLINE OF EACH PIECE, ITS ENDS CUT TO THE JOINTS IT STANDS IN —
+ *  one closed contour per piece, in the order the pieces were given, and
+ *  an empty path for a piece of no length.
+ *
+ *  A node is wherever ends meet: the ends there are put in order round
+ *  it, and the seam between each neighbouring pair is the bisector of
+ *  their two directions, so every piece is planed to the same face as
+ *  the piece beside it. Two ends meeting give the corner mitre a picture
+ *  frame is cut to; three or more give each piece a wedge, which is what
+ *  a lattice node actually is; an end that meets nothing is cut square
+ *  across. Nothing here reads which piece is on top — a lattice is one
+ *  layer of stock at a time, and `stripLaps` is where the layers cross. */
+std::vector<SkPath> stripOutlines(std::span<const Strip> pieces,
+                                  const StripOptions& options = {});
+
+/** THE WHOLE JOINED FIGURE: every piece's outline united into one path,
+ *  which for a mitred set is the lattice as a single silhouette with its
+ *  joints closed. */
+SkPath strips(std::span<const Strip> pieces, const StripOptions& options = {});
+
+/** WHERE TWO PIECES CROSS RATHER THAN MEET: the half-lap, the joint a
+ *  lattice is held together by. */
+struct StripLap {
+  /** The two pieces, in the order they were given. */
+  int pieces[2]{0, 0};
+  glm::vec2 at{0, 0};
+  /** Each piece's own unit direction, indexed as `pieces`. */
+  glm::vec2 along[2]{};
+  /** Where the crossing falls along each piece, as a fraction of it. */
+  float at01[2]{0, 0};
+  /** HALF THE LENGTH OF THE OVERLAP ALONG EACH PIECE: the OTHER piece's
+   *  width carried across at the angle the two cross, which is the seam
+   *  a half-lap shows on the piece that passes over. Bounded by
+   *  `lapLimit`. */
+  float halfSpan[2]{0, 0};
+};
+
+/** Every place two pieces cross away from their ends. A crossing at an
+ *  end is a meeting, which `stripOutlines` mitres instead, and two
+ *  parallel pieces cross nowhere. The laps come in the order the pairs
+ *  stand in, the lower index first. */
+std::vector<StripLap> stripLaps(std::span<const Strip> pieces,
+                                const StripOptions& options = {});
 
 // ---------------------------------------------------------------------------
 // Distorts. All resample-based: segmentPx bounds fidelity (smaller =
