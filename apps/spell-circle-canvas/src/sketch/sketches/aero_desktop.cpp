@@ -106,10 +106,18 @@ inline sk_sp<SkRuntimeEffect> auroraEffect() {
       // smooth teal field — which is the case this scene's own header
       // says defeats the glass, because a tight blur over a smooth field
       // shows nothing and the pane then reads as a flat tint.
-      float b1 = exp(-pow((d - 0.05 + wob) * 8.5, 2.0));
-      float b2 = exp(-pow((d + 0.30 - wob * 0.7) * 7.0, 2.0));
-      float b3 = exp(-pow((d - 0.46 + wob * 1.3) * 11.0, 2.0));
-      float b4 = exp(-pow((d - 0.24 - wob * 1.1) * 13.0, 2.0));
+      // SQUARED BY MULTIPLICATION, never pow: a curtain's gaussian is
+      // taken of the signed distance to its centre, half of which is
+      // negative, and pow of a negative base is undefined — a device
+      // answers it with a NaN that clamps the whole sky to black.
+      float g1 = (d - 0.05 + wob) * 8.5;
+      float g2 = (d + 0.30 - wob * 0.7) * 7.0;
+      float g3 = (d - 0.46 + wob * 1.3) * 11.0;
+      float g4 = (d - 0.24 - wob * 1.1) * 13.0;
+      float b1 = exp(-g1 * g1);
+      float b2 = exp(-g2 * g2);
+      float b3 = exp(-g3 * g3);
+      float b4 = exp(-g4 * g4);
       // curtains hang in the upper sky
       float sky = 1.0 - smoothstep(0.10, 0.72, uv.y);
       // the main green curtain shifts green->cyan along its run
