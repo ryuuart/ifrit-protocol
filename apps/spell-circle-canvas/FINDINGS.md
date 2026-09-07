@@ -102,6 +102,24 @@ now within the rule, and `annotated_margin` (221 → 2), `ruby_kenten`
 (195 → 28), `paragraph_sheet` (217 → 83), `black_watch` (199 → 82) and
 `stroke_atlas` (190 → 105) each lost a whole cause.
 
+A SECOND CAUSE IS FIXED: a device bake was allocated to exactly what the
+node paints, and Skia decides whether a path needs its CLIPPED
+rasterisation from the path's control-point bounds — which for a curve
+stand outside the ink it draws, about a hundredth of the curve's own
+extent for the cubics a stroker approximates an offset with. So every
+stroked curve was baked on Skia's clipped route and painted live on its
+unclipped one, and the two do not answer the same antialiased coverage:
+tens of code values along the whole length of the curve, which on a
+high-contrast plate is the difference between the two inks. Every device
+bake now carries a margin (a thirty-second of its larger side, never less
+than two pixels), so what bounds the drawing is the clip the bake carries
+in and never the allocation. Pinned by
+`ComposeCache.APromotedCurveKeepsTheCoverageItsLivePaintComputes`. On the
+narrowed head: `flourish` 244 → 8, `eva_magi_defense` 174 → 1 (within),
+`eva_magi_deliberation` 188 → 2; `beethoven`, `dunhuang_star_chart`,
+`eva_magi_interior`, `lain_navi`, `minard_1869` and `spacejam_1996` did
+not move and are a different cause.
+
 WHAT REMAINS, max channel first:
 
     flourish 244 · volatility_cost 228 · beethoven 228 · nine slice 221 ·

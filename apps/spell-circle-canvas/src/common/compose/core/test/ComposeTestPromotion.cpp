@@ -682,3 +682,59 @@ TEST(ComposeFaces, APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics) {
       << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
       << " code values, when the library promoted a line of type";
 }
+
+namespace {
+
+/** A stroke that declares what it is: a value-comparable scheme that
+ *  paints only over what it covers, so the node wearing it is one the
+ *  promoter admits. */
+struct FlatStroke {
+  float width = 22;
+  bool operator==(const FlatStroke&) const = default;
+  bool blends() const { return false; }
+  float bleed() const { return width * 0.5f; }
+  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    SkPaint p;
+    p.setStyle(SkPaint::kStroke_Style);
+    p.setStrokeWidth(width);
+    p.setColor(SK_ColorWHITE);
+    p.setAntiAlias(true);
+    canvas.drawPath(ctx.outline, p);
+  }
+};
+
+/** A STROKED CURVE THAT FILLS ITS NODE, which is what a ring, an arc table,
+ *  a dial and a border ornament all are. The stroke's own offset curves are
+ *  approximated by cubics whose control points stand outside the ink they
+ *  draw, and the page is large enough that the stand-off is several
+ *  pixels. */
+Element strokedArc() {
+  Element page = box().width(400).height(400).fill(Fill::color({0, 0, 0, 1}));
+  page.child(box()
+                 .absolute()
+                 .left(31)
+                 .top(31)
+                 .width(338)
+                 .height(338)
+                 .shape(sigil::geometry::shapes::arc(-30.0f))
+                 .stroke(FlatStroke{22}));
+  return page;
+}
+
+}  // namespace
+
+TEST(ComposeCache, APromotedCurveKeepsTheCoverageItsLivePaintComputes) {
+  // Skia decides whether a path needs its clipped rasterisation from the
+  // path's CONTROL-POINT bounds, and the clipped and unclipped routes do
+  // not answer the same antialiased coverage. A bake allocated to exactly
+  // what the node paints cuts inside those bounds for every curve, so the
+  // promoted picture of a stroked arc moves by tens of code values along
+  // its whole length. The bake's margin is what keeps the two on one route.
+  const PromotionDrift drift =
+      promotionDriftOf(strokedArc, SkMatrix::I(), 420, 420);
+  ASSERT_TRUE(drift.promoted)
+      << "nothing was promoted, so this compared two live renders";
+  EXPECT_LE(drift.worstChannel, 1)
+      << drift.differingPixels << " pixels moved, worst " << drift.worstChannel
+      << " code values, when the library promoted a stroked curve";
+}

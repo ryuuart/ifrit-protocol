@@ -1144,6 +1144,18 @@ does not cancel; and nothing live may be inside the bake. A scene whose
 promoted frame differs from its unpromoted one by more than a value is a
 defect in this library, never a plate to rebase.
 
+**AND THE BAKE STANDS CLEAR OF WHAT IT PAINTS.** Skia decides whether a
+path needs its clipped rasterisation from the path's control-point
+bounds, and its clipped and unclipped routes do not answer the same
+antialiased coverage. A curve's control points stand outside the ink it
+draws — about a hundredth of the curve's own extent for the cubics a
+stroker approximates an offset with — so a bake allocated to exactly what
+the node paints cuts inside them, and a stroked ring or arc baked flush
+moves by tens of code values along its whole length. Every device bake is
+therefore allocated with a margin, a thirty-second of its own larger side
+and never less than two pixels, so what bounds the drawing is the clip the
+bake carries in and never the allocation.
+
 The one value is the bake **over transparent black**. A bake that lands
 on CONTENT carries a second, and it is a rounding rather than a move: the
 node's own coverage is composited twice where the live paint composited

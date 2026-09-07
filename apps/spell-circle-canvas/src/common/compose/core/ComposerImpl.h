@@ -14,6 +14,7 @@
 #include <sigilcore/reconcile/Reconciler.h>
 #include <sigilgeometry/path/Numeric.h>
 
+#include <algorithm>
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <optional>
 
@@ -247,6 +248,27 @@ struct Composer::Impl {
   // PaintContext::rootSize is read from here.
   SkSize rootLayoutSize = SkSize::MakeEmpty();
   static constexpr size_t kPromotedBudget = size_t{192} * 1024 * 1024;
+  /** THE MARGIN EVERY DEVICE BAKE IS ALLOCATED WITH, in device pixels, for
+   *  a bake whose larger side is @p extent.
+   *
+   *  A bake surface sized to exactly what the node paints puts that paint
+   *  flush against the surface's own edge, and Skia does not rasterize a
+   *  path that reaches its clip the way it rasterizes one standing clear of
+   *  it: the decision is taken on the path's CONTROL-POINT bounds, and the
+   *  two routes do not answer the same antialiased coverage. A stroked
+   *  curve baked flush moves by TENS of code values along its whole length
+   *  — not the one an integer device offset costs — so the margin is what
+   *  makes a promoted node paint the picture its live paint paints.
+   *
+   *  It is a FRACTION of the bake because the reach it has to cover is one:
+   *  a stroker approximates an offset curve with cubics whose control
+   *  points stand outside the ink they draw, by about a hundredth of the
+   *  curve's own extent. A thirty-second is that with room, and the two are
+   *  the floor for a bake too small for the fraction to reach a pixel. What
+   *  it costs is a frame of transparent pixels around each bake. */
+  static constexpr int bakeMargin(int extent) {
+    return 2 + std::max(0, extent) / 32;
+  }
   std::vector<Composer::NodeCost> profileRows;
   double profChildMs = 0;
   int profDepth = 0;
