@@ -111,6 +111,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
+#include <sigilgeometry/path/Lattice.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
@@ -215,28 +216,6 @@ const double kGenAt[4] = {0.70, 1.55, 2.45, 3.35};
 // ---------------------------------------------------------------------------
 // de Bruijn's pentagrid
 
-struct V2 {
-  double x = 0, y = 0;
-};
-inline V2 operator+(V2 a, V2 b) { return {a.x + b.x, a.y + b.y}; }
-inline V2 operator*(V2 a, double k) { return {a.x * k, a.y * k}; }
-inline double dot(V2 a, V2 b) { return a.x * b.x + a.y * b.y; }
-
-/** THE FIVE FAMILY DIRECTIONS — unit vectors 72° apart, which is what
- *  makes the grid a PENTAgrid. Built where it is asked for, which is once
- *  per field: this file is a dylib a reload unloads, and a table held in a
- *  static outlives the code that computed it. */
-std::array<V2, 5> zeta() {
-  std::array<V2, 5> out{};
-  // Not arrange::onRing: the pentagrid is solved in DOUBLE, and a ring
-  // rounded to float here moves every rhomb in the tiling.
-  for (int j = 0; j < 5; ++j) {
-    const double a = 2.0 * 3.14159265358979323846 * (double)j / 5.0;
-    out[(size_t)j] = {std::cos(a), std::sin(a)};
-  }
-  return out;
-}
-
 // γ_j — the SAME offset in every family, so Σγ = 1 ≡ 0 (mod 1) (de Bruijn's
 // Γ = 0, the genuine Penrose class) AND the whole five-line system is
 // invariant under the 72° rotation that cyclically permutes the families, so
@@ -270,80 +249,54 @@ inline uint32_t hash4(int a, int b, int c, int d) {
 std::vector<Tile> buildField(float module, float padPx) {
   std::vector<Tile> out;
   // z ≈ (5/2)·x* (because Σ_j ζ_jζ_jᵀ = (5/2)I for five evenly spaced unit
-  // vectors), so the index range needed to reach radius R in px is
-  // |k| ≲ R/(2.5·module) + 1. Take three extra rings of margin and let the
-  // clip below discard the rest — no authored index table.
+  // vectors), so the plaza's own half-diagonal in px is that many rhomb
+  // edges of tiling. Two edges of margin past it, and the clip below
+  // discards whatever the corner of the canvas does not reach — no
+  // authored index table anywhere.
   const float reach = std::hypot(kW * 0.5f, kH * 0.5f) + padPx;
-  const int K = (int)std::ceil(reach / (module * 2.5f)) + 3;
   const SkRect keep = SkRect::MakeWH(kW, kH).makeOutset(padPx, padPx);
-  const std::array<V2, 5> z5 = zeta();
+  const path::MultigridTiling tiling = path::multigrid(
+      path::multigridRing(5, kOffset),
+      {.radius = (double)(reach / module) + 2.0, .maxRhombs = 200000});
 
-  for (int r = 0; r < 5; ++r) {
-    for (int s = r + 1; s < 5; ++s) {
-      const V2 zr = z5[(size_t)r], zs = z5[(size_t)s];
-      const double det = zr.x * zs.y - zr.y * zs.x;
-      if (std::abs(det) < 1e-9)
-        continue;  // never happens: five distinct 72° directions
-      const int dd = std::min(std::abs(r - s), 5 - std::abs(r - s));
-      const bool fat = (dd == 1);
-
-      for (int kr = -K; kr <= K; ++kr) {
-        for (int ks = -K; ks <= K; ++ks) {
-          const double a = (double)kr - kOffset;
-          const double b = (double)ks - kOffset;
-          // The one intersection point of grid line k_r (family r) and k_s
-          // (family s).
-          const V2 x{(a * zs.y - b * zr.y) / det, (zr.x * b - zs.x * a) / det};
-
-          V2 z{0, 0};
-          for (int j = 0; j < 5; ++j) {
-            const int Kj =
-                (j == r)   ? kr
-                : (j == s) ? ks
-                           : (int)std::ceil(dot(z5[(size_t)j], x) + kOffset);
-            z = z + z5[(size_t)j] * (double)Kj;
-          }
-
-          Tile t;
-          t.r = r;
-          t.s = s;
-          t.kr = kr;
-          t.ks = ks;
-          t.fat = fat;
-          const V2 c[4] = {z, z + zr, z + zr + zs, z + zs};
-          double sx = 0, sy = 0;
-          for (int i = 0; i < 4; ++i) {
-            t.v[i] = {kCx + (float)(c[i].x * module),
-                      kCy + (float)(c[i].y * module)};
-            sx += c[i].x;
-            sy += c[i].y;
-          }
-          t.centre = {kCx + (float)(sx * 0.25 * module),
-                      kCy + (float)(sy * 0.25 * module)};
-          t.radius = std::hypot(t.centre.x() - kCx, t.centre.y() - kCy);
-
-          // The arcs always sit on the ζ_r+ζ_s DIAGONAL — v[0] (= z, the
-          // canonical low corner) and v[2] — never on "the acute pair". That
-          // is forced, not chosen: in the dualization every edge of the whole
-          // tiling runs tail → tail + ζ_j for a fixed j, so marking each edge
-          // at a·s from its tail puts BOTH marks around v[0] at a·s and both
-          // around v[2] at (1−a)·s, while the other two corners see one of
-          // each and admit no circular arc at all. The two arc classes are
-          // exactly de Bruijn's single/double arrow. (a = 1/2 here is also
-          // forced: an arc at the thin rhomb's 144° corner must clear the
-          // far edge at s·sin36° = 0.588s, so a ∈ [0.412, 0.588], and 1/2 is
-          // the only value that makes the two classes congruent — which is
-          // what makes the chain C1 as well as C0.)
-          t.arcAt[0] = 0;
-          t.arcAt[1] = 2;
-          t.seed = hash4(r, s, kr, ks);
-
-          SkRect bb = SkRect::MakeEmpty();
-          bb.setBounds({t.v, 4});
-          if (SkRect::Intersects(bb, keep)) out.push_back(t);
-        }
-      }
+  for (const path::MultigridRhomb& r : tiling.rhombs) {
+    const int apart = std::abs(r.families[0] - r.families[1]);
+    Tile t;
+    t.r = r.families[0];
+    t.s = r.families[1];
+    t.kr = r.lines[0];
+    t.ks = r.lines[1];
+    t.fat = std::min(apart, 5 - apart) == 1;
+    double sx = 0, sy = 0;
+    for (int i = 0; i < 4; ++i) {
+      const glm::dvec2 c = tiling.vertices[(size_t)r.corners[i]];
+      t.v[i] = {kCx + (float)(c.x * module), kCy + (float)(c.y * module)};
+      sx += c.x;
+      sy += c.y;
     }
+    t.centre = {kCx + (float)(sx * 0.25 * module),
+                kCy + (float)(sy * 0.25 * module)};
+    t.radius = std::hypot(t.centre.x() - kCx, t.centre.y() - kCy);
+
+    // The arcs always sit on the ζ_r+ζ_s DIAGONAL — v[0] (the tiling's
+    // canonical low corner) and v[2] — never on "the acute pair". That is
+    // forced, not chosen: in the dualization every edge of the whole tiling
+    // runs tail → tail + ζ_j for a fixed j, so marking each edge at a·s
+    // from its tail puts BOTH marks around v[0] at a·s and both around
+    // v[2] at (1−a)·s, while the other two corners see one of each and
+    // admit no circular arc at all. The two arc classes are exactly de
+    // Bruijn's single/double arrow. (a = 1/2 here is also forced: an arc at
+    // the thin rhomb's 144° corner must clear the far edge at s·sin36° =
+    // 0.588s, so a ∈ [0.412, 0.588], and 1/2 is the only value that makes
+    // the two classes congruent — which is what makes the chain C1 as well
+    // as C0.)
+    t.arcAt[0] = 0;
+    t.arcAt[1] = 2;
+    t.seed = hash4(t.r, t.s, t.kr, t.ks);
+
+    SkRect bb = SkRect::MakeEmpty();
+    bb.setBounds({t.v, 4});
+    if (SkRect::Intersects(bb, keep)) out.push_back(t);
   }
   return out;
 }
@@ -1196,9 +1149,10 @@ struct PenrosePaving : sketch::Sketch {
       // Seed: ONE fat rhomb = two obtuse Robinson halves mirrored across its
       // long diagonal (which joins the 72° corners and has length φ·s).
       const double a0 = -0.9424777961;  // −54°: the first edge's direction
-      const V2 u{std::cos(a0), std::sin(a0)};
-      const V2 v{std::cos(a0 + 1.2566370614), std::sin(a0 + 1.2566370614)};
-      auto P = [&](V2 p) { return SkPoint{(float)p.x, (float)p.y}; };
+      const glm::dvec2 u{std::cos(a0), std::sin(a0)};
+      const glm::dvec2 v{std::cos(a0 + 1.2566370614),
+                         std::sin(a0 + 1.2566370614)};
+      auto P = [&](glm::dvec2 p) { return SkPoint{(float)p.x, (float)p.y}; };
       const SkPoint V0 = P({0, 0}), V1 = P(u), V2p = P(u + v), V3 = P(v);
       gens.clear();
       gens.push_back({{1, V1, V0, V2p}, {1, V3, V2p, V0}});
