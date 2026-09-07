@@ -648,14 +648,19 @@ Prints how far every plate in one directory stands from the plate of the
 same name in the other, decoded and differenced channel by channel:
 
 ```
-compared <name> mean <mean> p99 <p99> max <max>
+compared <name> mean <mean> p99 <p99> max <max> clear <max> content <max>
 size <name> <W>x<H> <W>x<H>
 missing <name> first|second
 unreadable <name> first|second
 ```
 
-The three distances are absolute differences of one 8-bit channel, in
-0..255, over every channel of every pixel. It opens no sketch, needs no
+Every distance is an absolute difference of one 8-bit channel, in 0..255,
+over every channel of every pixel. `clear` and `content` are the same
+worst difference split by what the FIRST plate holds where the difference
+is — transparent black, or anything at all — because a caller's tolerance
+can depend on it: a picture drawn over nothing and the same picture drawn
+over something are not composited the same number of times. It opens no
+sketch, needs no
 fonts, no assets and no device, and it JUDGES NOTHING — how close is
 close enough is a tolerance about a machine, which is the plate ledger's
 to hold. The ledger's device and promotion tiers are the callers: each

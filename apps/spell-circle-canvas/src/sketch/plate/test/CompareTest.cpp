@@ -91,6 +91,47 @@ TEST(SketchCompare, ReportsTheChannelDistanceItMeasured) {
       << report;
 }
 
+/** A plate whose top half is transparent black and whose bottom half
+ *  holds a colour, with a different amount moved in each half. */
+void writeSplitPlate(const std::filesystem::path& dir, const std::string& name,
+                     SkColor overClear, SkColor overContent) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(8, 8));
+  bitmap.eraseColor(SK_ColorTRANSPARENT);
+  bitmap.erase(overClear, SkIRect::MakeLTRB(0, 0, 8, 4));
+  bitmap.erase(overContent, SkIRect::MakeLTRB(0, 4, 8, 8));
+  const sk_sp<SkData> png =
+      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
+  ASSERT_TRUE(png);
+  std::filesystem::create_directories(dir);
+  std::ofstream out(dir / (std::string(kPlatePrefix) + name + ".png"),
+                    std::ios::binary);
+  out.write(reinterpret_cast<const char*>(png->data()),
+            (std::streamsize)png->size());
+}
+
+/** THE WORST DIFFERENCE, SPLIT BY WHAT IS UNDER IT. A caller whose
+ *  tolerance is "one code value over nothing, two over something" needs
+ *  the two numbers apart, and only the FIRST plate — the reference — can
+ *  say which side a pixel is on. */
+TEST(SketchCompare, SplitsTheWorstDistanceByWhatTheFirstPlateHolds) {
+  const ScratchDir scratch("compare_split");
+  const std::filesystem::path first = scratch.path / "a";
+  const std::filesystem::path second = scratch.path / "b";
+  // The reference: nothing at all in the top half, an opaque red in the
+  // bottom. The comparand moves the top by 3 and the bottom by 9.
+  writeSplitPlate(first, "probe", SK_ColorTRANSPARENT,
+                  SkColorSetARGB(255, 100, 0, 0));
+  writeSplitPlate(second, "probe", SkColorSetARGB(3, 0, 0, 0),
+                  SkColorSetARGB(255, 109, 0, 0));
+
+  testing::internal::CaptureStdout();
+  EXPECT_EQ(compare({first.string(), second.string()}), 0);
+  const std::string report = testing::internal::GetCapturedStdout();
+  EXPECT_NE(report.find("max 9 clear 3 content 9"), std::string::npos)
+      << report;
+}
+
 TEST(SketchCompare, NamesAPlateThatStandsInOnlyOneDirectory) {
   const ScratchDir scratch("compare_missing");
   const std::filesystem::path first = scratch.path / "a";

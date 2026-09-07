@@ -233,11 +233,11 @@ implement says so with a call every backend performs.
 
 `--tier promotion` renders the same sketches twice on the CPU — once
 with automatic texture promotion held off, once with every promotable
-node eagerly baked — and judges the pair within ONE code value on any
-channel of any pixel. It exists because nothing else exercises the
-promoter: a headless session is opened deterministic and a deterministic
-session holds promotion off, so every other tier renders the runtime
-with that feature switched out.
+node eagerly baked — and judges the pair against the contract compose
+states. It exists because nothing else exercises the promoter: a
+headless session is opened deterministic and a deterministic session
+holds promotion off, so every other tier renders the runtime with that
+feature switched out.
 
 The ON half is eager so the tier tests the same node set on every
 machine. The runtime's own rule is a stopwatch — a node is baked once
@@ -247,14 +247,30 @@ different handful each run, and a tier that measures the machine
 measures nothing. Eager bakes every node the rules admit, from its first
 frame, and changes nothing about what a bake may do.
 
-The ceiling is not a tolerance anyone chose. A promoted node is baked
-under the live matrix post-translated by an integer, and inverting that
-matrix to find a shader's local coordinates does not cancel the integer
-to the last bit at a scale whose reciprocal is inexact, so a shaded
-pixel can land one code value from the live paint and nothing may land
-further. A worst channel over one is a picture that MOVED — a bake
-somewhere else, rasterised against another clip, or gone stale — which
-is a defect to file against the promoter. The tier keeps no baseline and
+THE CEILING IS TWO BARS, and neither is a tolerance anyone chose. Each
+differing pixel is judged by what the HELD-OFF plate — the reference —
+holds in that pixel.
+
+Where that pixel is TRANSPARENT BLACK the bar is one code value. A
+promoted node is baked under the live matrix post-translated by an
+integer, and inverting that matrix to find a shader's local coordinates
+does not cancel the integer to the last bit at a scale whose reciprocal
+is inexact, so a shaded pixel can land one value from the live paint and
+nothing may land further.
+
+Where it holds CONTENT the bar is two. There the bake lands on
+something, so the node's own coverage is composited twice where the live
+paint composited once — into the bake, and again when the bake is
+blitted — and Skia's blit of a raster image is not the arithmetic of its
+direct shader draw. A texel whose alpha is between none and all can
+settle one value further out over a bright backdrop, and taking the bake
+at higher precision does not remove it.
+
+Past either bar is a picture that MOVED — a bake somewhere else,
+rasterised against another clip, or gone stale — which is a defect to
+file against the promoter. `Sketchbook --compare` reports the worst
+difference under each bar (`clear` and `content` on its line), which is
+what lets the two be judged apart. The tier keeps no baseline and
 refuses `--rebase`, because there is nothing here to adopt.
 
 ### Where the plates go

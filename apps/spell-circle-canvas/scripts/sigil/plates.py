@@ -65,14 +65,31 @@ GPU_TOLERANCE = {
 }
 
 # How far a promoted plate may stand from the same scene rendered with the
-# promoter held off: one code value on any channel of any pixel. It is not
-# a tolerance anyone chose. A promoted node is baked under the live matrix
-# post-translated by an integer, and inverting that matrix to find a
-# shader's local coordinates does not cancel the integer to the last bit at
-# a scale whose reciprocal is inexact — so a shaded pixel can land one code
-# value from the live paint and nothing may land further. Anything past it
-# is a picture that moved rather than a picture that rounded.
+# promoter held off, and it is TWO BARS because the contract compose states
+# has two. Neither is a tolerance anyone chose.
+#
+# ONE CODE VALUE WHERE THE HELD-OFF PLATE IS TRANSPARENT BLACK. A promoted
+# node is baked under the live matrix post-translated by an integer, and
+# inverting that matrix to find a shader's local coordinates does not
+# cancel the integer to the last bit at a scale whose reciprocal is
+# inexact — so a shaded pixel can land one code value from the live paint
+# and nothing may land further.
+#
+# TWO WHERE IT HOLDS CONTENT. There the bake LANDS ON something: the
+# node's own coverage is composited twice where the live paint composited
+# once — into the bake, and again when the bake is blitted — and Skia's
+# blit of a raster image is not the arithmetic of its direct shader draw,
+# so a texel whose alpha is between none and all can settle one value
+# further out. It is still a rounding: it appears only where the node's
+# own alpha is partial, and taking the bake at higher precision does not
+# remove it.
+#
+# The held-off plate is the reference, so it is the one that says which
+# bar a differing pixel is judged by; `--compare` reports the worst
+# difference under each. Anything past them is a picture that moved rather
+# than a picture that rounded.
 PROMOTION_DRIFT_CEILING = 1
+PROMOTION_DRIFT_CEILING_OVER_CONTENT = 2
 
 
 def registry(binary, kinds):
@@ -142,8 +159,9 @@ def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
 
 def compared(binary, first, second):
     """Every plate in both directories, differenced by the renderer that
-    wrote them: name -> (mean, p99, max), plus the names it could not
-    compare.
+    wrote them: name -> (mean, p99, max, max over the transparent-black
+    pixels of `first`, max over the rest of them), plus the names it could
+    not compare.
 
     Decoding a PNG and differencing two pictures is what the binary
     already does; what stays here is the judgement — which distance is
@@ -156,9 +174,15 @@ def compared(binary, first, second):
         # A registry name CAN CARRY SPACES, so every row is read from its
         # ends inward: the verb is the first word, the fixed-width tail is
         # the last, and whatever lies between them is the name.
-        if len(words) >= 8 and words[0] == "compared" and words[-6] == "mean":
-            name = " ".join(words[1:-6])
-            distances[name] = (float(words[-5]), int(words[-3]), int(words[-1]))
+        if len(words) >= 12 and words[0] == "compared" and words[-10] == "mean":
+            name = " ".join(words[1:-10])
+            distances[name] = (
+                float(words[-9]),
+                int(words[-7]),
+                int(words[-5]),
+                int(words[-3]),
+                int(words[-1]),
+            )
         elif words and words[0] == "size" and len(words) >= 4:
             name = " ".join(words[1:-2])
             unusable[name] = "size " + " ".join(words[-2:])
@@ -282,7 +306,7 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
         if scene not in distances:
             verdict = 1
             continue
-        mean, p99, worst = distances[scene]
+        mean, p99, worst = distances[scene][:3]
         mean_cap, p99_cap = GPU_TOLERANCE.get(scene, DEFAULT_GPU_TOLERANCE)
         over = mean > mean_cap or p99 > p99_cap
         print(
@@ -313,10 +337,14 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     nodes — an idle machine promotes nothing by cost and would report a
     clean sweep it never earned.
 
-    THE BAR IS ONE CODE VALUE ANYWHERE, and a scene past it is a defect to
-    file against the promoter, never a plate to rebase — there is no
-    baseline here to rebase into. Both halves are kept, so a scene reported
-    MOVED can be opened beside the plate it was meant to match."""
+    THE BAR IS THE CONTRACT AS COMPOSE STATES IT, and it has two halves,
+    judged per pixel against the HELD-OFF plate: one code value where that
+    plate is transparent black, two where it holds content and the bake
+    therefore composited the node's own coverage twice. A scene past
+    either is a defect to file against the promoter, never a plate to
+    rebase — there is no baseline here to rebase into. Both halves are
+    kept, so a scene reported MOVED can be opened beside the plate it was
+    meant to match."""
 
     print("[promotion off]")
     _, off_errors = sweep(
@@ -340,8 +368,13 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
         if scene not in distances:
             verdict = 1
             continue
-        mean, p99, worst = distances[scene]
-        if worst <= PROMOTION_DRIFT_CEILING:
+        mean, p99, worst, over_clear, over_content = distances[scene]
+        # EACH HALF AGAINST ITS OWN BAR, and the held-off plate is what
+        # says which half a pixel is in.
+        if (
+            over_clear <= PROMOTION_DRIFT_CEILING
+            and over_content <= PROMOTION_DRIFT_CEILING_OVER_CONTENT
+        ):
             within += 1
             # A scene the promoter never fired on differs in nothing at
             # all, and one it did fire on differs by a code value on the
@@ -350,16 +383,25 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
             # printed for every scene rather than only for the movers.
             print(f"  WITHIN {scene:<24} max {worst:3d}  mean {mean:6.2f}")
             continue
+        over = (
+            f"{over_clear} over nothing"
+            if over_clear > PROMOTION_DRIFT_CEILING
+            else f"{over_content} over content"
+        )
         print(
-            f"  MOVED  {scene:<24} max {worst:3d} (> "
-            f"{PROMOTION_DRIFT_CEILING})  mean {mean:6.2f}  p99 {p99:4d}"
-            f"   <-- FINDING"
+            f"  MOVED  {scene:<24} max {worst:3d} ({over})"
+            f"  mean {mean:6.2f}  p99 {p99:4d}   <-- FINDING"
         )
         verdict = 1
-    print(f"\n{within} of {len(scenes)} within one code value, {errors} failed")
+    print(
+        f"\n{within} of {len(scenes)} within the rule "
+        f"({PROMOTION_DRIFT_CEILING} over transparent black, "
+        f"{PROMOTION_DRIFT_CEILING_OVER_CONTENT} over content), "
+        f"{errors} failed"
+    )
     print(f"plates kept: {off_dir}\n             {on_dir}")
     if verdict == 0 and not errors:
-        print("VERDICT: the promoter moves no picture by more than one code value")
+        print("VERDICT: the promoter moves no picture past the contract's bar")
     return verdict or (1 if errors else 0)
 
 
@@ -381,7 +423,8 @@ def main(argv: list) -> int:
         "against the CPU plate of the same run; no baseline. promotion: "
         "the same scenes rendered with automatic texture promotion held "
         "off and again with every promotable node eagerly baked, judged "
-        "within one code value; no baseline",
+        "within one code value where the held-off plate is transparent "
+        "black and two where it holds content; no baseline",
     )
     ap.add_argument(
         "--kind",

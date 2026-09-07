@@ -62,11 +62,21 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
 }
 
 /** Mean, 99th percentile and worst absolute channel difference, in
- *  0..255, over every channel of every pixel. */
+ *  0..255, over every channel of every pixel — and the worst split by what
+ *  the FIRST plate holds where the difference is.
+ *
+ *  The split is there because a caller's tolerance can depend on it: a
+ *  picture drawn over transparent black and the same picture drawn over
+ *  something are not composited the same number of times, so the second is
+ *  allowed a rounding the first is not. Which pixels are which is a fact
+ *  about the two files and is answered here; how much each is allowed is a
+ *  judgement and is not. */
 struct Distance {
   double mean = 0;
   int p99 = 0;
   int worst = 0;
+  int worstOverClear = 0;    ///< where the first plate is transparent black
+  int worstOverContent = 0;  ///< where it holds anything at all
 };
 
 Distance distanceBetween(const Plate& first, const Plate& second) {
@@ -78,6 +88,20 @@ Distance distanceBetween(const Plate& first, const Plate& second) {
 
   Distance distance;
   if (count == 0) return distance;
+  // The same differences again, gathered PER PIXEL rather than per channel,
+  // because what a pixel stands on is a property of all four of its
+  // channels together.
+  for (size_t at = 0; at + 3 < count; at += 4) {
+    int worst = 0;
+    for (size_t channel = 0; channel < 4; ++channel)
+      worst = std::max(worst, std::abs((int)first.pixels[at + channel] -
+                                       (int)second.pixels[at + channel]));
+    if (worst == 0) continue;
+    const bool clear = first.pixels[at] == 0 && first.pixels[at + 1] == 0 &&
+                       first.pixels[at + 2] == 0 && first.pixels[at + 3] == 0;
+    int& into = clear ? distance.worstOverClear : distance.worstOverContent;
+    into = std::max(into, worst);
+  }
   size_t total = 0;
   for (size_t value = 0; value < histogram.size(); ++value)
     total += value * histogram[value];
@@ -154,8 +178,9 @@ int compare(const CompareOptions& options) {
       continue;
     }
     const Distance distance = distanceBetween(*a, *b);
-    std::printf("compared %s mean %.4f p99 %d max %d\n", name.c_str(),
-                distance.mean, distance.p99, distance.worst);
+    std::printf("compared %s mean %.4f p99 %d max %d clear %d content %d\n",
+                name.c_str(), distance.mean, distance.p99, distance.worst,
+                distance.worstOverClear, distance.worstOverContent);
   }
   std::fflush(stdout);
   return verdict;
