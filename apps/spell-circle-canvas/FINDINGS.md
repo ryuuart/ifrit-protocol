@@ -46,10 +46,7 @@ Taken on the merged tree after the post-merge compose pass:
 - The library extractions the sketch review names — the mechanisms
   hidden in the sketches over 1000 lines: Motif bevels (`cde_motif`,
   `twoadvanced_v4`, `winamp_base`,
-  `fallout2_charsheet`) → `Chrome.h`; a tartan sett-to-cloth weave
-  (`black_watch:234-295`) and the orthographic-sphere navball with the
-  bright pass over it (`ksp_mapview:359-457`) → material pattern and
-  material stock; Reeves particles
+  `fallout2_charsheet`) → `Chrome.h`; Reeves particles
   (`genesis_fire:516`) → `sigilmotion/physics/Points.h`. Each is a
   rewrite to the seam, never a verbatim move.
 - The source-file splits by subject: `material/skia/Paint.cpp` (1573),
