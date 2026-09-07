@@ -10,41 +10,25 @@ The merge-readiness review of branch `sigil/library-campaigns` against
 done; the full review reports are the files under `findings/`. What
 remains of them is below, then the standing entries.
 
-## Verification state at the merge
+## Verification state on main
 
-Taken on a fresh build directory at the head of the branch:
+Taken on the merged tree after the post-merge compose pass:
 
-- Release build: zero errors, zero warnings. `ctest`: 3247 of 3247.
-- CPU plate tier: 195 scenes, every mover of the pass named by the
-  pass that moved it and rebased with the cause; the sweep no longer
-  fills the frames it discards, so `chaucer_astrolabe` renders in
-  seconds and every plate is byte-identical to before.
-- Device tier: 195 of 195 within the per-channel bar after two causes
-  were found on the Vulkan path (a blending draw painted over what was
-  described after it; a fenced pass resolving multisamples over the
-  pass before it).
-- Promotion tier: 121 of 195 within one code value; the remainder is
-  the entry below.
-- ASan with UBSan and TSan: 3247 of 3247 each, no report.
-- Benchmark and window-FPS baselines retaken at an unlocked screen and
-  committed: 195 sketches, none under the gate. The lane refuses a
-  locked screen, which throttles an invisible window's GPU work. One
-  sketch, `dunhuang_star_chart`, stood down inside the sweep (no frame
-  presented within its slot after the sketch before it) and was
-  measured alone at the display's rate and merged; a heavy first frame
-  following another session is the shape to watch if it recurs.
-
-## Rulings for the post-merge pass
-
-- The promotion tier's head (flourish, beethoven, dunhuang, the eva_magi
-  plates, spacejam, lain_navi, minard, tile map) is researched now, one
-  cause at a time with a `compose_test` pin each; the tail is judged
-  after it. Three causes are found and fixed and five scenes are left,
-  with the ablations that narrow them: the entry below.
-- rota keeps its look; the library question is taken and answered: a
-  settled node with a static layer effect is baked without it and the
-  effect is run OVER that bake, with the identity test. Not at the blit,
-  which the measurement refused — see the entry below.
+- Release build: zero errors, zero warnings. `ctest`: 3252 of 3252.
+- CPU plate tier: 195 scenes; the six that moved in the post-merge
+  pass were rebased with their causes (`volatility_cost` reads a
+  composer of its own; the eva_magi plates, chaucer, dunhuang and
+  minard by a few code values where a device bake now carries the
+  margin a stroked curve's rasterisation route needs).
+- Device tier: 195 of 195 within the per-channel bar. Promotion tier:
+  126 of 195 within one code value, twenty more at the second value the
+  contract allows; the rest is the entry below.
+- ASan with UBSan and TSan: clean over the suite at the merge.
+- Benchmark and window-FPS baselines retaken at an unlocked screen:
+  195 sketches, none under the gate. The FPS lane refuses a locked
+  screen, which throttles an invisible window's GPU work; one heavy
+  first frame following another session (`dunhuang_star_chart`) stood
+  down once in a sweep and measured at the display's rate alone.
 
 ## Deferred past the merge, each a campaign of its own
 
