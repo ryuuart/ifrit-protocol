@@ -77,6 +77,7 @@
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Marquee.h>
@@ -230,17 +231,16 @@ inline Element at(Element e, float x, float y, float w, float h) {
  *
  *  RAISED AND SUNKEN ARE ONE VALUE and not two drawings — the same two
  *  tones on the far edges instead of the near ones, which is what a
- *  well, a trough and a pressed button have always been. The library's
- *  `styles::BevelPair` carries that as one bool, so this file states the
- *  skin's tones and nothing about how a bevel is drawn.
+ *  well, a trough and a pressed button have always been. The kit's skin
+ *  token set carries that as one bool, so this file states the skin's
+ *  tones and nothing about how a bevel is drawn.
  *
  *  It goes in `.overlay()`: over the fill, under the content and the
  *  children. A bevel in `.background()` is painted and then covered by
  *  the surface it was meant to sit on. */
 inline Element& raised(Element& e, SkColor4f hi = kBtnHi, SkColor4f lo = kBtnLo,
                        float w = 1.0f) {
-  e.overlay(styles::BevelPair{hi, lo, n(w), n(w)});
-  return e;
+  return kit::bevelled(e, kit::bevels::skin(hi, lo, n(w)));
 }
 /** The same pair the other way up. Every LCD well, trough and list frame
  *  in the skin. */
@@ -248,9 +248,12 @@ inline Element& sunken(Element& e,
                        SkColor4f hi = mskia::withAlpha(hexColor(0x5C5C86),
                                                        0.9f),
                        SkColor4f lo = hexColor(0x101018), float w = 1.0f) {
-  e.overlay(styles::BevelPair{hi, lo, n(w), n(w), true});
-  return e;
+  return kit::bevelled(e, kit::bevels::skin(hi, lo, n(w), true));
 }
+/** THE WELL EDGE the three list frames share — a fainter light and a
+ *  deeper shadow than a button's, which is what a hole in the body is. */
+inline const SkColor4f kWellHi = mskia::withAlpha(hexColor(0x585880), 0.7f);
+inline const SkColor4f kWellLo = hexColor(0x0E0E18);
 
 /** Right/left/up-pointing triangles for the transport glyphs, as outlines
  *  so the node IS the shape.
@@ -552,9 +555,11 @@ struct WinampBase : sketch::Sketch {
                                      {0.55f, kBtnFace},
                                      {1.0f, dark(kBtnFace, 0.22f)}}));
     raised(e);
-    // The second keyline, one native px in — shapes::inset is literally
-    // "the same bevel again, N px further in", which is Winamp's doubled
-    // button edge without a second element.
+    // WINAMP'S DOUBLED BUTTON EDGE: the same bevel again one native px
+    // in. It is a HALF ring rather than the token set's inner one — a
+    // stroke on the two shaded edges alone, with no light opposite it,
+    // because the key's second line is a deepened shadow and not a
+    // second bevel; a pair there lights the top of a 3 px key.
     e.foreground(inset(
         n(1), onEdges(path::Edge::Bottom | path::Edge::Right,
                       stroke(n(1), Fill::color(mskia::withAlpha(kBtnLo, 0.45f)),
@@ -647,7 +652,7 @@ struct WinampBase : sketch::Sketch {
     // The brushed body, on its own leaf so the bake is a texture and the
     // window's live children never drag the grain shader back per frame.
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, mskia::withAlpha(hexColor(0x585880), 0.7f), hexColor(0x0E0E18));
+    raised(w, kWellHi, kWellLo);
     w.child(titleBar(275, "WINAMP", false));
 
     // ---- the big display well (native x 0..275, y 21..58) ---------------
@@ -988,7 +993,7 @@ struct WinampBase : sketch::Sketch {
     using namespace wa;
     Element w = box().width(Dim(n(275))).height(Dim(n(116)));
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, mskia::withAlpha(hexColor(0x585880), 0.7f), hexColor(0x0E0E18));
+    raised(w, kWellHi, kWellLo);
     w.child(titleBar(275, "WINAMP EQUALIZER", false, false));
 
     // ON / AUTO / PRESETS
@@ -1139,7 +1144,7 @@ struct WinampBase : sketch::Sketch {
     const float W = 400, H = 377;
     Element w = box().width(Dim(n(W))).height(Dim(n(H)));
     w.child(box().inset(0).fill(steel).cache(Cache::Texture));
-    raised(w, mskia::withAlpha(hexColor(0x585880), 0.7f), hexColor(0x0E0E18));
+    raised(w, kWellHi, kWellLo);
     w.child(titleBar(W, "WINAMP PLAYLIST", true, false, 20.0f));
 
     // The list well: left rail 12, right rail 20. At this window height it
