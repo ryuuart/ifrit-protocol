@@ -211,6 +211,7 @@
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilcompose/kit/PixelType.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilcompose/kit/Sprites.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
@@ -405,27 +406,25 @@ constexpr uint8_t kDigit[10][5] = {
 // sized axis-aligned rect with antialiasing off. Nothing else can put a colour
 // on the canvas that is not in the table above.
 
+/** The pen a mark is made with, in INDICES rather than colours, because
+ *  indices are this file's whole vocabulary: `kit::PixelInk` at the tile
+ *  scale with the table applied on the way through. Index 0 is `C(0)`,
+ *  whose alpha is zero, so the chroma key is a hole here exactly as it is
+ *  in the index bake.
+ *
+ *  A drawing headed for the ATLAS fills a `kit::Sprite` instead, which
+ *  speaks the same three verbs and RECORDS the indices rather than
+ *  resolving them — see `indexCell`. */
 struct Ink {
-  SkCanvas& c;
-  /** INDEX MODE: write the palette INDEX itself into the red channel rather
-   *  than the colour that index names. One drawing then serves every shade
-   *  and every marker block, because the table and the two index arithmetics
-   *  are applied afterwards, in the shader — which is what an 8-bit sprite
-   *  sheet always was. */
-  bool indexed = false;
+  kit::PixelInk ink;
+  explicit Ink(SkCanvas& c) : ink{c, PX} {}
   void rect(float x, float y, float w, float h, int idx) const {
-    if (idx == 0) return;
-    SkPaint p;
-    p.setAntiAlias(false);
-    p.setColor4f(
-        indexed ? SkColor4f{(float)idx / 255.0f, 0.0f, 0.0f, 1.0f} : C(idx),
-        nullptr);
-    c.drawRect(SkRect::MakeXYWH(x * PX, y * PX, w * PX, h * PX), p);
+    ink.rect(x, y, w, h, C(idx));
   }
-  void px(float x, float y, int idx) const { rect(x, y, 1, 1, idx); }
+  void px(float x, float y, int idx) const { ink.px(x, y, C(idx)); }
   /** Run-length row: [x0, x0+w) at row y. */
-  void run(float x0, float y, float w, int idx) const {
-    rect(x0, y, w, 1, idx);
+  void row(float x0, float y, float w, int idx) const {
+    ink.row(x0, y, w, C(idx));
   }
 };
 
@@ -476,15 +475,16 @@ inline sigil::material::Palette palette() {
   return table;
 }
 
-/** One cell's art, drawn once into a 128 x 160 index raster. */
-inline sk_sp<SkImage> indexCell(const std::function<void(const Ink&)>& art) {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul((int)kCellW, (int)kCellH));
-  bm.eraseColor(SK_ColorTRANSPARENT);
-  SkCanvas canvas(bm);
-  art(Ink{canvas, true});
-  bm.setImmutable();
-  return bm.asImage();
+/** One cell's art, plotted once as INDICES and baked into a 128 x 160
+ *  index raster: the value in each pixel is the palette entry, not the
+ *  colour it names, so one drawing serves every shade and every marker
+ *  block and the table is applied afterwards in the shader. That is what
+ *  an 8-bit sprite sheet always was. */
+inline sk_sp<SkImage> indexCell(const std::function<void(kit::Sprite&)>& art) {
+  kit::Sprite cell;
+  cell.grid = {(int)(kCellW / PX), (int)(kCellH / PX)};
+  art(cell);
+  return kit::indexImage(cell, PX);
 }
 
 /** @p indices read through @p table at @p shade, optionally with the block
@@ -670,7 +670,7 @@ inline std::array<TileData, (size_t)kMapSize * kMapSize> buildMap() {
  *  variant the dither repeats identically under the (+-16, +8) lattice and a
  *  coherent moire appears across the whole map — the flyweight's own failure
  *  mode, and one that only shows up in the picture, never in the arithmetic. */
-inline void paintFloor(const Ink& ink, Floor kind, int variant) {
+inline void paintFloor(kit::Sprite& ink, Floor kind, int variant) {
   int base = blk(3, 5), alt = blk(3, 7), speck = blk(3, 9), rare = blk(2, 4);
   if (kind == kDirt) {
     base = blk(6, 7);
@@ -700,7 +700,7 @@ inline void paintFloor(const Ink& ink, Floor kind, int variant) {
     for (int r = 3; r < 16; r += 6) {
       int x0, w;
       diamondRow(r, x0, w);
-      ink.run((float)x0, (float)(kDiamondTop + r), (float)w, blk(14, 9));
+      ink.row((float)x0, (float)(kDiamondTop + r), (float)w, blk(14, 9));
     }
 }
 
@@ -718,7 +718,7 @@ inline void diamondColumn(int x, int& rTop, int& rBot) {
  *  which is what makes the crash site the only two-level structure here — the
  *  wall face blits at z = 0 and the deck plate at z = 1, exactly the
  *  O_OBJECT / O_FLOOR split Map::drawTerrain walks. */
-inline void paintHullWall(const Ink& ink) {
+inline void paintHullWall(kit::Sprite& ink) {
   for (int x = 0; x < 32; ++x) {
     int rTop, rBot;
     diamondColumn(x, rTop, rBot);
@@ -734,7 +734,7 @@ inline void paintHullWall(const Ink& ink) {
     ink.px((float)x, (float)y0, blk(14, 4));  // top lip
   }
 }
-inline void paintHullDeck(const Ink& ink) {
+inline void paintHullDeck(kit::Sprite& ink) {
   paintFloor(ink, kHull, 0);
   for (int r = 0; r < 16; ++r) {  // a bright rim so the deck reads as raised
     int x0, w;
@@ -750,8 +750,8 @@ inline void paintHullDeck(const Ink& ink) {
  *  last step past 15 — so the terminator on a dusk tree is literally
  *  PAL[15] #000000, not the ramp's darkest green. That is the overflow branch
  *  in shd(), and it is why X-COM's night terrain looks the way it does. */
-inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
-                        int litStep, uint32_t seed) {
+inline void paintCanopy(kit::Sprite& ink, float cx, float cy, float rx,
+                        float ry, int litStep, uint32_t seed) {
   const int r0 = (int)std::floor(cy - ry), r1 = (int)std::ceil(cy + ry);
   for (int r = r0; r <= r1; ++r) {
     const float t = ((float)r + 0.5f - cy) / ry;
@@ -775,13 +775,13 @@ inline void paintCanopy(const Ink& ink, float cx, float cy, float rx, float ry,
  *  diamond's centre (row 32). 28 original px tall, which is what the reference
  *  measures. It has to fit in ONE cell: a tree drawn across two levels comes
  *  out around 48 px and reads as a column rather than as a tree. */
-inline void paintTree(const Ink& ink) {
+inline void paintTree(kit::Sprite& ink) {
   for (int r = 23; r <= 32; ++r)
-    ink.run(15.0f, (float)r, r > 29 ? 3.0f : 2.0f, blk(10, 6));
-  ink.run(13.0f, 32.0f, 6.0f, blk(10, 8));
+    ink.row(15.0f, (float)r, r > 29 ? 3.0f : 2.0f, blk(10, 6));
+  ink.row(13.0f, 32.0f, 6.0f, blk(10, 8));
   paintCanopy(ink, 16.0f, 16.0f, 9.5f, 8.5f, 6, 5u);
 }
-inline void paintBush(const Ink& ink) {
+inline void paintBush(kit::Sprite& ink) {
   paintCanopy(ink, 16.0f, 27.0f, 8.0f, 5.5f, 7, 17u);
 }
 
@@ -789,7 +789,7 @@ inline void paintBush(const Ink& ink) {
  *  authored in block 0 and the LUT replaces the block per cell — which is
  *  exactly what blitNShade(..., newBaseColor) does at runtime.
  *  dir: 0 = down-left (map +y), 1 = down-right (map +x). */
-inline void paintArrow(const Ink& ink, int dir) {
+inline void paintArrow(kit::Sprite& ink, int dir) {
   const auto put = [&](int x, int y, int step) {
     ink.px((float)(dir == 0 ? x : 31 - x), (float)y, blk(0, step));
   };
@@ -813,7 +813,7 @@ inline void paintArrow(const Ink& ink, int dir) {
  *  the tile the HONEST inverse returns; the game's own picker biases the mouse
  *  ten pixels down first (Map.cpp:1314), and runAudit reports both answers so
  *  the difference is visible. */
-inline void paintCursor(const Ink& ink) {
+inline void paintCursor(kit::Sprite& ink) {
   const int lit = blk(2, 0), dim = blk(2, 2);
   const int lift = 12;  // the box is half a level tall
   for (int r = 0; r < 16; ++r) {
@@ -874,7 +874,7 @@ inline void paintBobArrow(SkCanvas& canvas, int frame) {
   const Ink ink{canvas};
   const int dy = kArrowBob[(unsigned)frame & 7u];
   for (int k = 0; k < 5; ++k)
-    ink.run((float)(12 + k), (float)(dy + 4 + k), (float)(10 - 2 * k),
+    ink.row((float)(12 + k), (float)(dy + 4 + k), (float)(10 - 2 * k),
             blk(1, k == 0 ? 0 : 1));
 }
 
@@ -964,11 +964,11 @@ inline void paintPlate(SkCanvas& canvas, int w, int h) {
         (r == 0 || r == h - 1) ? 3 : ((r == 1 || r == h - 2) ? 1 : 0);
     const int x0 = inset, run = w - 2 * inset;
     const bool top = r < h / 2;
-    ink.run((float)x0, (float)r, (float)run, blk(5, top ? 6 : 8));
+    ink.row((float)x0, (float)r, (float)run, blk(5, top ? 6 : 8));
     if (r == 0 || r == 1)
-      ink.run((float)x0, (float)r, (float)run, blk(5, 1 + r));
-    if (r == h - 1) ink.run((float)x0, (float)r, (float)run, blk(5, 12));
-    if (r == h - 2) ink.run((float)x0, (float)r, (float)run, blk(5, 11));
+      ink.row((float)x0, (float)r, (float)run, blk(5, 1 + r));
+    if (r == h - 1) ink.row((float)x0, (float)r, (float)run, blk(5, 12));
+    if (r == h - 2) ink.row((float)x0, (float)r, (float)run, blk(5, 11));
     ink.px((float)x0, (float)r, blk(5, r == 0 ? 1 : 3));
     ink.px((float)(x0 + run - 1), (float)r, blk(5, r == h - 1 ? 12 : 10));
   }
@@ -985,12 +985,12 @@ inline void paintButtonGlyph(SkCanvas& canvas, int id) {
     for (int k = 0; k < size; ++k) {
       const int wdt = 2 * (up ? k : size - 1 - k) + 1;
       const int x0 = cx - wdt / 2;
-      ink.run((float)x0, (float)(cy + k), (float)wdt, d);
+      ink.row((float)x0, (float)(cy + k), (float)wdt, d);
     }
   };
   const auto bars = [&](int x, int y, int rows, int wdt) {
     for (int k = 0; k < rows; ++k)
-      ink.run((float)x, (float)(y + k * 2), (float)wdt, d);
+      ink.row((float)x, (float)(y + k * 2), (float)wdt, d);
   };
   const auto figure = [&](int x, int y) {
     ink.rect((float)(x + 2), (float)y, 2, 2, d);
@@ -1055,12 +1055,12 @@ inline void paintButtonGlyph(SkCanvas& canvas, int id) {
     case 10:  // layers: three stacked plates, the top one lit
       for (int k = 0; k < 3; ++k) {
         const int y = 4 + k * 3;
-        ink.run(8.0f, (float)y, 10.0f, k == 0 ? l : d);
-        ink.run(9.0f, (float)(y + 1), 8.0f, d);
+        ink.row(8.0f, (float)y, 10.0f, k == 0 ? l : d);
+        ink.row(9.0f, (float)(y + 1), 8.0f, d);
       }
       break;
     case 11:  // help: a question mark
-      ink.run(13.0f, 3.0f, 5.0f, d);
+      ink.row(13.0f, 3.0f, 5.0f, d);
       ink.rect(17, 4, 2, 2, d);
       ink.rect(15, 6, 2, 2, d);
       ink.rect(15, 9, 2, 2, d);
@@ -1078,8 +1078,8 @@ inline void paintButtonGlyph(SkCanvas& canvas, int id) {
     default:  // abort: a bird
       for (int k = 0; k < 6; ++k) {
         const int y = 8 - k / 2, w = 3 - k / 3, x1 = 18 - k / 2 + k;
-        ink.run((float)(10 + k), (float)y, (float)w, d);
-        ink.run((float)x1, (float)y, (float)w, d);
+        ink.row((float)(10 + k), (float)y, (float)w, d);
+        ink.row((float)x1, (float)y, (float)w, d);
       }
       ink.rect(15, 7, 3, 2, d);
       break;
@@ -1229,8 +1229,8 @@ struct XcomBattlescape : sketch::Sketch {
     for (int f = 0; f < 3; ++f)
       for (int v = 0; v < 2; ++v) {
         const Floor kind = (Floor)f;
-        idxFloor[f][v] =
-            indexCell([kind, v](const Ink& ink) { paintFloor(ink, kind, v); });
+        idxFloor[f][v] = indexCell(
+            [kind, v](kit::Sprite& ink) { paintFloor(ink, kind, v); });
       }
     const sk_sp<SkImage> idxBush = indexCell(paintBush);
     const sk_sp<SkImage> idxTree = indexCell(paintTree);
@@ -1238,7 +1238,7 @@ struct XcomBattlescape : sketch::Sketch {
     const sk_sp<SkImage> idxDeck = indexCell(paintHullDeck);
     sk_sp<SkImage> idxArrow[2];
     for (int d = 0; d < 2; ++d)
-      idxArrow[d] = indexCell([d](const Ink& ink) { paintArrow(ink, d); });
+      idxArrow[d] = indexCell([d](kit::Sprite& ink) { paintArrow(ink, d); });
     const sk_sp<SkImage> idxCursor = indexCell(paintCursor);
 
     // THE CELLS, DERIVED. Ninety-seven sheet frames, every one of them the
@@ -1592,21 +1592,21 @@ struct XcomBattlescape : sketch::Sketch {
             .child(custom("rank badge", [](SkCanvas& c, const PaintContext&) {
               const Ink ink{c};
               for (int r = 0; r < 23; ++r)
-                ink.run(0, (float)r, 26, blk(9, 2 + r / 6));
-              ink.run(0, 0, 26, blk(9, 0));
-              ink.run(0, 22, 26, blk(10, 6));
+                ink.row(0, (float)r, 26, blk(9, 2 + r / 6));
+              ink.row(0, 0, 26, blk(9, 0));
+              ink.row(0, 22, 26, blk(10, 6));
               for (int r = 0; r < 23; ++r) {
                 ink.px(0, (float)r, blk(9, 1));
                 ink.px(25, (float)r, blk(10, 5));
               }
               // A chevron — STR_SQUADDIE.
               for (int k = 0; k < 7; ++k) {
-                ink.run((float)(13 - k - 1), (float)(6 + k), 3, blk(10, 8));
-                ink.run((float)(13 + k - 1), (float)(6 + k), 3, blk(10, 8));
+                ink.row((float)(13 - k - 1), (float)(6 + k), 3, blk(10, 8));
+                ink.row((float)(13 + k - 1), (float)(6 + k), 3, blk(10, 8));
               }
               for (int k = 0; k < 7; ++k) {
-                ink.run((float)(13 - k - 1), (float)(5 + k), 3, blk(9, 0));
-                ink.run((float)(13 + k - 1), (float)(5 + k), 3, blk(9, 0));
+                ink.row((float)(13 - k - 1), (float)(5 + k), 3, blk(9, 0));
+                ink.row((float)(13 + k - 1), (float)(5 + k), 3, blk(9, 0));
               }
             })));
 
@@ -1650,13 +1650,13 @@ struct XcomBattlescape : sketch::Sketch {
                             [holdsRifle](SkCanvas& c, const PaintContext&) {
                               const Ink ink{c};
                               for (int r = 0; r < 48; ++r)
-                                ink.run(0, (float)r, 32, blk(0, 15));
+                                ink.row(0, (float)r, 32, blk(0, 15));
                               for (int r = 0; r < 48; ++r) {
                                 ink.px(0, (float)r, blk(14, 8));
                                 ink.px(31, (float)r, blk(14, 11));
                               }
-                              ink.run(0, 0, 32, blk(14, 8));
-                              ink.run(0, 47, 32, blk(14, 11));
+                              ink.row(0, 0, 32, blk(14, 8));
+                              ink.row(0, 47, 32, blk(14, 11));
                               if (!holdsRifle) return;
                               // STR_RIFLE, a 32x48 BIGOB reconstruction.
                               ink.rect(14, 5, 4, 26, blk(15, 2));
