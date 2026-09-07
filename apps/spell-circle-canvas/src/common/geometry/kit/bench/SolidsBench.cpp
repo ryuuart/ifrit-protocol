@@ -1,7 +1,8 @@
 /** @file
  * Benchmarks of the solid shelf: extrude, revolve and the named surfaces
  * by output size — how an extrusion's cost grows with the outline it
- * lifts, and a lathe's with the profile and sweep it turns.
+ * lifts, and a lathe's with the profile and sweep it turns — with each
+ * regular solid built from its corner table beside them.
  */
 
 #include <benchmark/benchmark.h>
@@ -123,5 +124,23 @@ BENCHMARK(BM_Torus)
     ->Range(16, 1024)
     ->Unit(benchmark::kMicrosecond)
     ->Complexity(benchmark::oN);
+
+/** The regular solids: the faces are gathered from the corners rather
+ *  than tabulated, so what this measures is that search — and it is the
+ *  reason a caller that stands a solid up every frame holds the mesh it
+ *  built instead. */
+void BM_Platonic(benchmark::State& state) {
+  const auto solid = (Platonic)state.range(0);
+  Mesh last;
+  for ([[maybe_unused]] auto iteration : state) {
+    last = mesh::platonic(solid, {.circumradius = 100.0f});
+    benchmark::DoNotOptimize(last.positions.data());
+  }
+  countVertices(state, last);
+}
+BENCHMARK(BM_Platonic)
+    ->DenseRange(0, 4, 1)
+    ->ArgNames({"solid"})
+    ->Unit(benchmark::kMicrosecond);
 
 }  // namespace

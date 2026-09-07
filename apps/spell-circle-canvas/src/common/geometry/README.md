@@ -1715,7 +1715,7 @@ Targets: one static library per feature — `SigilGeometryPath`,
 
 | Arms | Measure |
 | --- | --- |
-| `path/bench/` | flattening and resampling by point count, corner detection and the parallel and displaced constructions by contour length, the noise hashes per call, and the pose read over one contour and over many |
+| `path/bench/` | flattening and resampling by point count, corner detection and the parallel and displaced constructions by contour length, the noise hashes per call, the pose read over one contour and over many, and a conic sampled by step count — whole, and held to a reach that drops most of the sweep — beside one point and one direction read on their own |
 | `path/blend/bench/` | a two-key blend by step count and by sample density, and the same blend threaded onto a spine |
 | `mesh/bench/` | the parametric sheet by vertex count, and the two whole-mesh rewrites: appending and unwelding a primitive colour lane |
 | `mesh/camera/bench/` | the per-frame transform builds: view, view-projection, the matrix seam, and the two placement helpers |
@@ -1724,7 +1724,7 @@ Targets: one static library per feature — `SigilGeometryPath`,
 | `mesh/pop/bench/` | the cook per operator over a thousand points, whole chains by count and operator mix, the runtime seam's dispatch against the same cook reached directly, and the swept operator by tessellation for a circle profile, a line profile and a line on a hung rail — with the ring seam measured on its own |
 | `mesh/codec/bench/` | OBJ, GLB and `.geo` decoded from bytes in memory, per triangle or point |
 | `device/bench/` | the way in, less the driver: the Vulkan handles read off Diligent's interfaces and adopted, with Graphite stood up on what comes back |
-| `kit/bench/` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with; and the solids by output size, an extrusion against the outline it lifts and a lathe against the profile it turns |
+| `kit/bench/` | one silhouette generated from a value — analytic, sampled by density, seeded, wrapped — against the comparison a caching consumer prunes with; and the solids by output size, an extrusion against the outline it lifts, a lathe against the profile it turns, and each regular solid gathered from its own corner table |
 
 A test asserts ONE behaviour this library promises through its public
 headers to a caller who has read only this document, and its name is that
