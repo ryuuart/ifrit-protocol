@@ -34,6 +34,19 @@ Taken on a fresh build directory at the head of the branch:
   at an unlocked screen collects them. The lane refuses a locked
   screen, which throttles an invisible window's GPU work.
 
+## Rulings for the post-merge pass
+
+- The promotion tier's head (flourish, beethoven, dunhuang, the eva_magi
+  plates, spacejam, lain_navi, minard, tile map) is researched now, one
+  cause at a time with a `compose_test` pin each; the tail is judged
+  after it.
+- `volatility_cost` is made to agree: the sketch draws its verdicts in a
+  way that reads the same promoted or not; no exclusion anywhere.
+- rota keeps its look; the library question is taken: a settled node
+  with a static layer effect is baked without it and filtered at the
+  blit, with the identity test.
+- The FPS ledger is retaken now at the unlocked screen.
+
 ## Deferred past the merge, each a campaign of its own
 
 - The library extractions the sketch review names — the mechanisms
