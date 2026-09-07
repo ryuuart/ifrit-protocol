@@ -94,8 +94,8 @@
 //    nothing but this comment tells them apart.
 //  · SUNKEN IS NOT A DIFFERENT DRAWING. XmeDrawShadows implements
 //    XmSHADOW_IN by swapping the two GCs and calling the same function.
-//    One boolean covers every Motif widget state, and MotifShadow below
-//    is built that way.
+//    One boolean covers every Motif widget state, and `kit::Bevel`'s
+//    `sunken` is built that way.
 //
 // VERIFICATION. calculate() reproduces, to the byte, the four values
 // sampled off the Solaris screenshot: Front Panel ts #DCDEE5, bs
@@ -152,14 +152,13 @@
 //    shaped node can never prune costs this artefact exactly nothing.
 //    The only three corners() in the file are inside the clock icon,
 //    which is artwork, not chrome.
-//  · THE BEVEL IS NOT `styles::BevelPair`, deliberately. That one
-//    classifies an outline's edges by sampling it every `step` px and
-//    lays a light and a dark stroke along the two families, which is the
-//    right shape for a bevel on any silhouette. Motif's is not a stroke
-//    on an outline: `XmeDrawShadows` draws two MITRED L paths on the
-//    integer pixel lattice, and `XmSHADOW_ETCHED_IN` is a second pass at
-//    half thickness with the two colours swapped. `MotifShadow` below is
-//    that, and it is a comparable value like any other decoration.
+//  · THE BEVEL IS `kit::bevels::motif`, which is the kit's own token
+//    set and not a drawing this file owns. Motif's bevel is not a
+//    stroke laid along an outline: `XmeDrawShadows` draws two MITRED L
+//    paths on the integer pixel lattice, and `XmSHADOW_ETCHED_IN` is a
+//    second pass at half thickness with the two colours swapped. Both
+//    are tokens on one value — the corner the two bands meet on, and
+//    the inner ring, turned over.
 //  · `.background()` IS NOT WHERE A BEVEL GOES. It paints BENEATH the
 //    fill (the CSS box-shadow ordering), so a bevel put there is drawn
 //    and then covered by the surface it was meant to sit on, leaving a
@@ -182,8 +181,6 @@
 //                      is the correction that puts a Helvetica run at the
 //                      X core face's own width.
 
-#include <include/core/SkBitmap.h>
-#include <include/core/SkColorFilter.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
@@ -193,6 +190,7 @@
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Sprites.h>
 #include <sigilcompose/testing/Checks.h>
@@ -503,98 +501,40 @@ struct Theme {
 inline ColorSet ambient() { return env::inheritedOr(ColorSet{}); }
 
 // ===========================================================================
-// 4. THE BEVEL — lib/Xm/Draw.c, DrawSimpleShadow(), segment for segment.
+// 4. THE BEVEL — lib/Xm/Draw.c, DrawSimpleShadow().
 // ===========================================================================
 
-/** X11's XDrawSegments includes BOTH endpoints and draws one pixel wide,
- *  so a segment is the half-open rect [min, max+1). */
-inline void seg(SkPathBuilder& p, int x0, int y0, int x1, int y1) {
-  const float l = (float)std::min(x0, x1), t = (float)std::min(y0, y1);
-  const float r = (float)(std::max(x0, x1) + 1),
-              b = (float)(std::max(y0, y1) + 1);
-  p.addRect(SkRect::MakeLTRB(l, t, r, b));
-}
-
-/** DrawSimpleShadow(x, y, w, h, T, cor), verbatim.
- *
- *  The mitre FALLS OUT OF THE ARITHMETIC and is the entire corner
- *  treatment: TOP's right end is `x + w - i - 1`, so at T=2 the top row
- *  runs full width and the second row stops one pixel short. LEFT starts
- *  at `y + T`, not `y + i`, so the top-LEFT corner is entirely top-shadow
- *  and square — only the two off-corners step. A reconstruction that
- *  strokes a rectangle misses both. */
-inline void motifShadowPaths(SkPathBuilder& topP, SkPathBuilder& botP, int x,
-                             int y, int w, int h, int T, int cor) {
-  T = std::min({T, w / 2, h / 2});
-  if (T <= 0) return;
-  for (int i = 0; i < T; ++i) {
-    seg(topP, x, y + i, x + w - i - 1, y + i);                  // TOP
-    seg(topP, x + i, y + T, x + i, y + h - i - 1);              // LEFT
-    seg(botP, x + i + (cor ? 0 : 1), y + h - i - 1, x + w - 1,  // BOTTOM
-        y + h - i - 1);
-    seg(botP, x + w - i - 1, y + i + 1 - cor, x + w - i - 1,
-        y + h - 1);  // RIGHT
-  }
-}
-
-/** The Motif shadow as a comparable DecorationScheme, holding the two
- *  Output<Fill>s so a palette change repaints it without a re-describe.
- *
- *  `sunken` is XmSHADOW_IN and it is LITERALLY A SWAP of the two colours —
- *  XmeDrawShadows does exactly that and then calls the same function.
- *  `etched` is XmSHADOW_ETCHED_IN: two passes at T/2 with cor=1, the
- *  second inverted, which is the only place in a CDE session that branch
- *  is visible (menu separators).
- *
- *  Antialiasing is OFF. Every coordinate here is an integer on the device
- *  pixel lattice at contentScale 1; AA can only soften it. */
-struct MotifShadow {
-  float thickness = 2;
-  bool sunken = false;
-  bool etched = false;
-  SkColor4f top{1, 1, 1, 1}, bottom{0, 0, 0, 1};
-
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
-    const SkRect b = ctx.outline.getBounds();
-    const int x = (int)std::lround(b.left()), y = (int)std::lround(b.top());
-    const int w = (int)std::lround(b.width()), h = (int)std::lround(b.height());
-    if (w <= 0 || h <= 0) return;
-    SkColor4f ct = top, cb = bottom;
-    if (sunken) std::swap(ct, cb);
-    const int T = (int)thickness;
-    SkPathBuilder pt, pb;
-    if (etched && T != 1) {
-      motifShadowPaths(pt, pb, x, y, w, h, T / 2, 1);
-      motifShadowPaths(pb, pt, x + T / 2, y + T / 2, w - T, h - T, T / 2, 1);
-    } else {
-      motifShadowPaths(pt, pb, x, y, w, h, T, 0);
-    }
-    SkPaint p;
-    p.setAntiAlias(false);
-    p.setColor(ct, nullptr);
-    canvas.drawPath(pt.detach(), p);
-    p.setColor(cb, nullptr);
-    canvas.drawPath(pb.detach(), p);
-  }
-  bool operator==(const MotifShadow&) const = default;
-};
-
 /** The bevel of the AMBIENT colour set — top shadow over bottom shadow.
- *  Handed nothing: a bevel is drawn in the set of the window it is in. */
-inline MotifShadow bevel(float T, bool sunken, bool etched) {
+ *  Handed nothing: a bevel is drawn in the set of the window it is in.
+ *
+ *  XmeDrawShadows IS the kit's Motif token set. `sunken` is XmSHADOW_IN
+ *  and is literally the two colours swapped, which is one bool there;
+ *  `etched` is XmSHADOW_ETCHED_IN, two passes at half the thickness with
+ *  the second inverted, which is the token set's inner ring. The mitre
+ *  the two off corners step on is the corner token: DrawSimpleShadow's
+ *  TOP runs to `x + w - i - 1` and its LEFT starts at `y + T`, so the
+ *  top-left corner is square and the two off corners fall on the
+ *  diagonal, and the etched pass hands each of those corner pixels to
+ *  the far band so the groove closes.
+ *
+ *  Antialiasing is OFF and the marks land on whole pixels, which is the
+ *  token set's own doing: every coordinate a 1993 toolkit computed was an
+ *  integer and AA can only soften it. */
+inline kit::Bevel bevel(float T, bool sunken, bool etched) {
   const ColorSet s = ambient();
-  return MotifShadow{T, sunken, etched, s.ts, s.bs};
+  return etched ? kit::bevels::motifEtched(s.ts, s.bs, T, sunken)
+                : kit::bevels::motif(s.ts, s.bs, T, sunken);
 }
 /** A bevel drawn in the FOREGROUND on both faces — the flat outline Motif
  *  puts inside a maximise box, which is a shadow with one colour. */
-inline MotifShadow bevelFg(float T) {
-  const ColorSet s = ambient();
-  return MotifShadow{T, false, false, s.fg, s.fg};
+inline kit::Bevel bevelFg(float T) {
+  const SkColor4f fg = ambient().fg;
+  return kit::bevels::motif(fg, fg, T);
 }
 
 /** XmeDrawHighlight: a square ring of `highlightThickness` inside the
  *  widget's own edge. No mitre, no shading — it is not a shadow, which is
- *  why it is a plain stroke where `MotifShadow` below is a paint program.
+ *  why it is a plain stroke where the bevel above is a token set.
  *
  *  highlightThickness 2 [MEAS], in the widget's foreground — Motif's
  *  default highlightColor. Only the focused widget shows one. The ring is
@@ -612,55 +552,11 @@ inline PathFormat highlight(float T) {
  *  round — the background painted over the complementary half — which is
  *  the identical result and lets the colour stay bound.
  *
- *  patterns::checker(1, on, off) is this pattern exactly, and it is not
- *  usable here: a Pattern BAKES its colours into the tile, so a themed
- *  stipple would need one Pattern per palette per colour. A 2x2 mask
- *  image plus SkColorFilters::Blend(colour, kSrcIn) is one tile for all
- *  of them, tinted where it is drawn. */
-inline sk_sp<SkImage> checkerMask() {
-  SkBitmap bm;
-  bm.allocPixels(SkImageInfo::MakeN32Premul(2, 2));
-  bm.eraseColor(SK_ColorTRANSPARENT);
-  *bm.getAddr32(0, 0) = 0xFFFFFFFFu;
-  *bm.getAddr32(1, 1) = 0xFFFFFFFFu;
-  bm.setImmutable();
-  return bm.asImage();
-}
-
-/** THE ONE TILE the whole desktop is stippled through, reached the same way
- *  a colour set is. A paint program is compared BY VALUE and an image inside
- *  one by POINTER, so every insensitive label has to carry the same tile or
- *  none of them compares equal to itself on the next describe — and the
- *  palette snaps every three seconds, so there is a next describe. Whoever
- *  describes holds one and binds it; unbound, a tile is cut where it is
- *  asked for, which draws the same picture and merely does not prune. Not a
- *  static: a static in this dylib is held for the process, past the reload
- *  that unloads the code which cut it. */
-struct Stipple {
-  sk_sp<SkImage> tile;
-  bool operator==(const Stipple&) const = default;
-};
-
-struct MotifStipple {
-  sk_sp<SkImage> tile;
-  SkColor4f color{1, 1, 1, 1};
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
-    if (!tile) return;
-    SkPaint p;
-    p.setAntiAlias(false);
-    p.setShader(tile->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
-                                 SkSamplingOptions(SkFilterMode::kNearest)));
-    p.setColorFilter(
-        SkColorFilters::Blend(color.toSkColor(), SkBlendMode::kSrcIn));
-    canvas.drawRect(ctx.outline.getBounds(), p);
-  }
-  bool operator==(const MotifStipple&) const = default;
-};
-
-inline MotifStipple stipple() {
-  const Stipple* bound = env::inherited<Stipple>();
-  return MotifStipple{bound ? bound->tile : checkerMask(), ambient().bg};
-}
+ *  patterns::checker(1, on, off) is this pattern and is not usable here:
+ *  a Pattern BAKES its colours into the tile, so a themed stipple would
+ *  need one Pattern per palette per colour. The kit's stipple is a mask
+ *  the colour is laid THROUGH, which is one lattice for all of them. */
+inline styles::Stipple stipple() { return styles::stipple(ambient().bg); }
 
 // ===========================================================================
 // 5. THE BACKDROP — cde/programs/backdrops/PinStripe.pm, 28 x 52, 2 colours.
@@ -1012,7 +908,6 @@ struct CdeMotifSketch : sketch::Sketch {
 
   /** The one 2x2 tile every insensitive label on the desktop is painted
    *  through, cut once and bound over the whole description. */
-  sk_sp<SkImage> stippleTile = cde::checkerMask();
   cde::Theme theme;
   int paletteIndex = 0;
   double nextSwitch = 0.0;
@@ -1790,7 +1685,6 @@ struct CdeMotifSketch : sketch::Sketch {
   }
 
   Element describe(sketch::SketchContext& ctx) {
-    const env::Provide<cde::Stipple> stipple(cde::Stipple{stippleTile});
     Element root = stack().width(Dim(1152)).height(Dim(900));
 
     // 1. The root window: PinStripe, tiled, in colour set 3's shadows.
