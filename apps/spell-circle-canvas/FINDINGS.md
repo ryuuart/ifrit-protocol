@@ -287,3 +287,17 @@ whatever the backend. Assert once fixed: a case in `compose_test`'s GPU
 suite draws a coloured square over a subtree of a few thousand nodes and
 finds the square whole, and `--tier device` reports every scene within
 the bar.
+
+## pop_math misses the frame gate
+
+Presented alone in the real window, `pop_math` reads 59 FPS with 16.4 ms
+of work per frame against a 60 FPS gate, and it did so before the fix
+pass as well; every other point-operator sheet (`pop_order`,
+`pop_deform`, `pop_billboards`) presents at the display's rate. The
+sheet cooks its chains every frame, so what it draws each frame is the
+cost of a cook rather than of a draw, and a cook that cannot finish in a
+frame belongs on the retained path the other sheets take, or the sheet
+should declare that it animates its chains and cook only what moved.
+
+Intended: a Kit sheet presents at the gate. Assert once fixed:
+`sigil.py bench --lane fps --sketch pop_math` reads at least 60 FPS.
