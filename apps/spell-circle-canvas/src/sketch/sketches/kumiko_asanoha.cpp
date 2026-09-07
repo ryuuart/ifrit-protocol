@@ -91,6 +91,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Ops.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Color.h>
@@ -108,6 +109,7 @@
 namespace sketch = sigil::sketch;
 namespace matkit = sigil::material::kit;
 namespace mat = sigil::material;
+namespace ops = sigil::geometry::path::ops;
 namespace shapes = sigil::geometry::shapes;
 namespace skia = sigil::material::skia;
 namespace weave = sigil::weave;
@@ -515,40 +517,29 @@ struct Panel {
   }
 
   void buildSeams() {
-    std::vector<size_t> lat;
-    for (size_t i = 0; i < strips.size(); ++i)
-      if (rank(strips[i].role) >= 4) lat.push_back(i);
+    // Every piece as stock, indexed as the panel holds it, so a lap the
+    // joinery finds names the boards it is between. The tolerance is the
+    // distance at which a crossing is a piece landing on another's face
+    // — a butt joint, which shows no lap.
+    std::vector<ops::Strip> stock;
+    stock.reserve(strips.size());
+    for (const Strip& s : strips)
+      stock.push_back({{s.a.x(), s.a.y()}, {s.b.x(), s.b.y()}, s.w});
 
-    for (size_t a = 0; a < lat.size(); ++a) {
-      for (size_t b = a + 1; b < lat.size(); ++b) {
-        const Strip &s1 = strips[lat[a]], &s2 = strips[lat[b]];
-        if (rank(s1.role) == rank(s2.role))
-          continue;  // same notch layer: they butt, they don't lap
-        const SkVector d1{s1.b.x() - s1.a.x(), s1.b.y() - s1.a.y()};
-        const SkVector d2{s2.b.x() - s2.a.x(), s2.b.y() - s2.a.y()};
-        const float det = d1.x() * d2.y() - d1.y() * d2.x();
-        if (std::abs(det) < 1e-3f) continue;
-        const float rx = s2.a.x() - s1.a.x(), ry = s2.a.y() - s1.a.y();
-        const float t = (rx * d2.y() - ry * d2.x()) / det;
-        const float u = (rx * d1.y() - ry * d1.x()) / det;
-        const float l1 = d1.length(), l2 = d2.length();
-        const float m1 = 2.5f / std::max(l1, 1.0f);
-        const float m2 = 2.5f / std::max(l2, 1.0f);
-        if (t < m1 || t > 1 - m1 || u < m2 || u > 1 - m2)
-          continue;  // an endpoint meeting is a butt joint, not a half-lap
-        const bool oneOnTop = rank(s1.role) > rank(s2.role);
-        const Strip& up = oneOnTop ? s1 : s2;
-        const Strip& lo = oneOnTop ? s2 : s1;
-        const SkVector uu = norm(oneOnTop ? d1 : d2);
-        const SkVector ul = norm(oneOnTop ? d2 : d1);
-        const float sinT = std::abs(uu.x() * ul.y() - uu.y() * ul.x());
-        const float halfSpan =
-            std::min(lo.w * 3.0f, (lo.w * 0.5f) / std::max(sinT, 0.15f));
-        seams.push_back({{s1.a.x() + d1.x() * t, s1.a.y() + d1.y() * t},
-                         uu,
-                         halfSpan,
-                         up.w});
-      }
+    for (const ops::StripLap& lap :
+         ops::stripLaps(stock, {.tolerance = 2.5f, .lapLimit = 3.0f})) {
+      const Strip& s1 = strips[(size_t)lap.pieces[0]];
+      const Strip& s2 = strips[(size_t)lap.pieces[1]];
+      // Only the lattice laps: a leaf piece sits on the face of what it
+      // crosses rather than through it, and two members of one notch
+      // layer butt instead of lapping.
+      if (rank(s1.role) < 4 || rank(s2.role) < 4) continue;
+      if (rank(s1.role) == rank(s2.role)) continue;
+      const int up = rank(s1.role) > rank(s2.role) ? 0 : 1;
+      seams.push_back({{lap.at.x, lap.at.y},
+                       {lap.along[up].x, lap.along[up].y},
+                       lap.halfSpan[up],
+                       strips[(size_t)lap.pieces[up]].w});
     }
   }
 };
