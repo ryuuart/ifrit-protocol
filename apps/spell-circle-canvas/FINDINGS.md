@@ -42,9 +42,10 @@ Taken on a fresh build directory at the head of the branch:
   after it.
 - `volatility_cost` is made to agree: the sketch draws its verdicts in a
   way that reads the same promoted or not; no exclusion anywhere.
-- rota keeps its look; the library question is taken: a settled node
-  with a static layer effect is baked without it and filtered at the
-  blit, with the identity test.
+- rota keeps its look; the library question is taken and answered: a
+  settled node with a static layer effect is baked without it and the
+  effect is run OVER that bake, with the identity test. Not at the blit,
+  which the measurement refused — see the entry below.
 
 ## Deferred past the merge, each a campaign of its own
 
@@ -152,47 +153,41 @@ and each cause gets a case in `compose_test` beside the two that pin the
 type one (`ComposeCache.APromotedLineKeepsTheInkThatStandsOutsideItsBox`
 and `ComposeFaces.APromotedLineKeepsTheInkAFaceDrawsOutsideItsOwnMetrics`).
 
-## rota_convocationis misses the raster gate on pixels, not on layers
+## rota_convocationis misses the raster gate on the halo it re-bakes
 
 The scene draws one charged disc, and `--bench` fails on it at the
 moments of the cycle where the disc is fully lit — the RASTER lane only.
 Presented in the real window across the whole loop it holds well over the
 gate, with p99 inside half the budget, and the app-FPS lane reports it
-within band.
+within band. At the sketch's own moment the raster lane passes
+(p99 7.3 ms of the 16.6 ms budget).
 
-WHAT THE COMPOSITOR ALREADY DOES, contrary to what this entry said
-before: none of the emissive elements composites through a layer. A
-fill-only leaf routes its blend and opacity onto the fill paint
-(`leafDirectBlend`) and a `Cache::Texture` node routes them onto its blit
-(`deferBlendToBlit`), so a lit element costs one additive blit of its own
-bake and nothing else. `BM_Draw_ChargedDisc_*` in `compose_bench` prices
-that shape: the cost is linear in the count of lit elements because each
-one is a distinct blit of a distinct bake, and there is no layer to
-coalesce — every stack carries a gain of its own, so no two of them can
-share a bake either.
+THE LIBRARY QUESTION IS ANSWERED AND CLOSED. A settled node's static
+layer effect is no longer rasterized inside its bake: the content goes
+into one surface with the effect left out and the effect is one image
+draw over it into the surface the node holds
+(`src/common/compose/README.md`,
+`ComposeCaching.AStaticEffectOverSettledContentIsRunOverItsBake`,
+`BM_Draw_StaticGlow_*`). It is NOT applied at the blit the way a MOVING
+effect is: the same arms measure a filter on a blit at a whole filter per
+frame while the node turns — Skia answers one from its cache only while
+the mapping that draw stands under holds still — against once per bake
+here. rota's plate is byte-identical, and rota is the only scene in the
+registry that takes the tier at all: the population is a node that holds
+a LOCAL bake, and a node standing still bakes in device space, where a
+filter would have to be re-expressed in device units to be lifted.
 
-WHERE THE RASTER FRAME ACTUALLY GOES, from `COMPOSE_PROF` and from
-ablating a copy of the sketch:
+WHAT IS LEFT IS THE LOOK, and it is the author's. At the crest of
+ignition the ring of names re-bakes on EVERY frame — its charge is a
+memoized scalar and the scalar ticks — and each re-bake pays 9 ms of
+content and about 70 ms of drop shadow over an 820x820 band. That
+proportion corrects what this entry said before: the filter's own layer
+dominates a small bake, and over a band this size the halo itself is the
+cost. The run of additive blits over the disc — fringe, rays, flood, the
+emblem — is about 15% of the same frame, and each of them is one blit of
+its own bake with its own gain, which no compositor change can coalesce
+(`BM_Draw_ChargedDisc_*` prices that shape: linear in the count of lit
+elements).
 
-- the additive stack over the disc — one anonymous full-canvas group
-  whose own paint is the run of blits — is about three quarters of the
-  frame at the moments the disc is fully lit;
-- `nomina`, the ring of names, is the rest. Its bake is taken once and
-  held, and the bench's node table reports the ONE profiled frame, which
-  is a frame that re-bakes it — so the row that named it is a bake and
-  not a per-frame cost. Removing its `styles::textGlow` alone takes that
-  node from tens of milliseconds to under one, and a sigma of 0.5 costs
-  nearly what a sigma of 6 does: it is the layer the filter needs over
-  that node's whole band, not the blur's own arithmetic.
-
-So a frame's cost already tracks the pixels the scene touches. What is
-left is a LOOK decision the sketch's author owns — how much of the disc
-is lit at once, and how large a band wears a glow — beside one library
-question worth its own measurement: whether a held bake can wear a STATIC
-layer effect at its blit the way a deferred one wears a moving one, which
-would make a glow-wearing node that re-bakes pay the bake alone.
-
-Assert if that is taken: a node whose content is settled and whose layer
-effect is static is baked with the effect left out and filtered at the
-blit, and its picture is identical to the same node filtered inside the
-bake.
+So the two dials are the author's: how large a band wears a glow while
+the charge is running, and how much of the disc is lit at once.
