@@ -26,8 +26,8 @@ namespace sigil::material::kit {
 /** An instance of every recipe the kit ships, one apiece: the two
  *  metallic-roughness surfaces and the unlit one, the reflective gold,
  *  chrome and glass over a stand-in normal map and environment, the
- *  grained stone, timber, latten and board, the constant and sampled
- *  masks, and the six text paints. The layer styles and the girih panel
+ *  grained stone, timber, latten and board, the globe, the constant and
+ *  sampled masks, and the six text paints. The layer styles and the girih panel
  *  are not here because neither is a recipe — one is colour tables, the
  *  other a baked tile. */
 std::vector<Material> everyRecipe();

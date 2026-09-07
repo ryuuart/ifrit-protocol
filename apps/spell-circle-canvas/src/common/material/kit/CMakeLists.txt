@@ -1,7 +1,8 @@
 # The kit: presets — the reflective surfaces over a normal map and an
 # environment map, the grained surfaces (stone, timber, latten, board),
-# the girih panel, the gel and chrome colour tables, the text paints, and
-# the two named skies a reflective surface is lit by.
+# the orthographic globe, the girih panel, the gel and chrome colour
+# tables, the text paints, and the two named skies a reflective surface
+# is lit by.
 # Bodies are shader text; the kit links the pattern feature for the tile
 # the panel bakes into and no renderer. A backend's declaration is
 # visible library-wide under the one include root, so "no renderer" is
@@ -16,9 +17,10 @@ set(SIGIL_MATERIAL_KIT_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
 
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMaterialKit
-  SOURCES Environments.cpp Grained.cpp LayerStyles.cpp Patterns.cpp
-          Ramps.cpp Recipes.cpp Surface.cpp Surfaces.cpp TextPaint.cpp
-  HEADERS Environments.h Grained.h LayerStyles.h Patterns.h Ramps.h
+  SOURCES Environments.cpp Globe.cpp Grained.cpp LayerStyles.cpp
+          Patterns.cpp Ramps.cpp Recipes.cpp Surface.cpp Surfaces.cpp
+          TextPaint.cpp
+  HEADERS Environments.h Globe.h Grained.h LayerStyles.h Patterns.h Ramps.h
           Recipes.h Surface.h Surfaces.h TextPaint.h
   PUBLIC SigilMaterialPattern SigilMaterialColor SigilMaterialMask
          Boost::container)
@@ -35,7 +37,7 @@ sigil_shader_sources(SigilMaterialKit
 # arithmetic cannot be compared from inside one of them.
 sigil_test(material_test
   SOURCES test/KitTest.cpp test/TermsTest.cpp test/GrainedTest.cpp
-          test/RampsTest.cpp
+          test/GlobeTest.cpp test/RampsTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_KIT_SHADER_DIR="${SIGIL_MATERIAL_KIT_SHADER_DIR}"
   LIBRARIES SigilMaterialKit SigilMaterialSkia SigilGeometryMeshRender)

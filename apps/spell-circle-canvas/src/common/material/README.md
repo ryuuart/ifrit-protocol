@@ -72,7 +72,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor` / `skia::toColors`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through, with `skia::paletteImage` and `skia::paletteLookup` the palette's two beside them; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
-| `SigilMaterialKit` | the presets: the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
+| `SigilMaterialKit` | the presets: the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board`; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
 | `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, and `stock::warmup(target)`, which compiles the list into the shared program cache before a host's first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
 
 `SigilMaterial` is the umbrella, an interface over all twelve. Headers live
@@ -486,7 +486,25 @@ on the bisector between neighbours, so the star sharpens as the angle
 grows. At the 45° default the rays through an octagon are collinear, the
 panel is the classic one, and it is drawn in the closed form it has
 always had: two squares through the octagon's edge midpoints, whose union
-is the {8/2} khatam and whose outlines are the interlace. The gel and
+is the {8/2} khatam and whose outlines are the interlace.
+
+`kit::globe` is the sphere seen ORTHOGRAPHICALLY: the disc inscribed in
+the node it fills, inverted back onto its own near hemisphere, carried
+into the sphere's frame by undoing `yaw`, `pitch` and `roll`, and read
+for two hemispheres, a graticule at three pitches and a horizon. It is a
+preset and not a renderer: there is no perspective, no depth and no
+mesh, so a globe on a page, a planet on a map and an aircraft's attitude
+ball are one recipe at three sets of colours. Every rule in the
+graticule is a PLANE DISTANCE — a meridian is the plane through the
+poles at its longitude, a parallel the plane at its own sine — so a
+rule's width is measured in the sphere's own space and the crowding
+toward the limb and toward the poles falls out of the arithmetic instead
+of being drawn. `GlobeParams`'s `ambient` and `diffuse` are what a point
+keeps at the limb and what it gains facing the eye, which is the whole of
+what makes the disc read as a ball, and the alpha falls to nothing across
+`edgeFeather` so nothing outside the disc is painted.
+
+The gel and
 chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`,
 `contourRing` — are `RampStop` lists and alpha ladders a renderer turns
 into its own gradient, and nothing else: which highlight a bundle shows

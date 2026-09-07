@@ -1,14 +1,16 @@
 /** @file
  * The stock surfaces under load: a material built per recipe, the shader
- * made from it, a badge filled per bevel size, and the metallic-roughness
- * surface built, masked and stacked.
+ * made from it, a badge filled per bevel size, the globe shaded per disc
+ * size, and the metallic-roughness surface built, masked and stacked.
  */
 
 #include <benchmark/benchmark.h>
+#include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Environments.h>
+#include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
 #include <sigilmaterial/mask/Mask.h>
@@ -76,6 +78,34 @@ void PbrBuild(benchmark::State& state) {
   }
 }
 BENCHMARK(PbrBuild)->Arg(0)->Arg(1);
+
+/** The globe: what one costs to build, and what a disc of it costs to
+ *  shade at two sizes. */
+void GlobeBuild(benchmark::State& state) {
+  skia::install();
+  const kit::GlobeParams params;
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(kit::globe(params));
+}
+BENCHMARK(GlobeBuild);
+
+void GlobeShade(benchmark::State& state) {
+  skia::install();
+  const int side = (int)state.range(0);
+  const Material globe = kit::globe();
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(side, side));
+  SkCanvas canvas(bitmap);
+  for ([[maybe_unused]] auto iteration : state) {
+    SkPaint paint;
+    paint.setShader(
+        skia::shader(globe, {.resolution = {(float)side, (float)side}}));
+    canvas.drawPaint(paint);
+    benchmark::DoNotOptimize(bitmap.getPixels());
+  }
+  state.SetItemsProcessed(state.iterations() * (int64_t)side * side);
+}
+BENCHMARK(GlobeShade)->Arg(168)->Arg(512);
 
 void StackShader(benchmark::State& state) {
   skia::install();

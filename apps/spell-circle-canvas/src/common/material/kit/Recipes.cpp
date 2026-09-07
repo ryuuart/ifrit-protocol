@@ -11,6 +11,7 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/kit/Environments.h>
+#include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/kit/Surface.h>
 #include <sigilmaterial/kit/Surfaces.h>
@@ -54,6 +55,7 @@ std::vector<Material> everyRecipe() {
       timber(),
       latten(),
       board(),
+      globe(),
       maskConstant(0.5f),
       maskMap(stand(SK_ColorWHITE)),
       water(bounds, kSeconds),
