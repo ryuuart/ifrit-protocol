@@ -24,10 +24,11 @@ the pass, plus this file):
   `horizontal_flow` and `penrose_paving` on the kit's table and well,
   `lain_navi` and `winamp_base` on a colour mix in linear light). The
   baseline was rebased from that sweep, draw scenes included.
-- Device tier: 190 of 195 within the per-channel bar; four over
-  (`aero desktop` mean 21.95, `winamp_base` 20.58, `chevreul_circle`
-  7.81 with p99 153, `nine slice` p99 205) and `brushwork_currents`
-  crashes on the GPU lane — filed below.
+- Device tier: 190 of 195 within the per-channel bar. Of the five that
+  were not, `brushwork_currents` (which crashed the GPU lane) and `aero
+  desktop` are fixed, `nine slice` draws the difference on purpose and
+  is named as such, and `winamp_base` and `chevreul_circle` are the
+  entry below.
 - Promotion tier: 111 of 195 within one code value; the 84 outside are
   the standing entry below, which reports rather than gates.
 - Sanitizers and the bench and app-FPS retake: run after this state was
@@ -231,21 +232,54 @@ Assert once fixed: `--bench` on `rota_convocationis` holds 60 FPS across
 the whole loop on a raster surface, and a case in `compose_bench` pins
 the cost of N emissive fills over one shape as flat in N past the first.
 
-## The device tier reads two scenes outside its bar
+## A dense scene loses its later draws to its earlier ones on the device
 
 `sigil.py plates --tier device` renders every scene on the GPU and
 differences it against the CPU plate of the same run, per channel, with
-a bar of mean 12 and p99 128. Two scenes stand outside it:
+a bar of mean 12 and p99 128. Two scenes stand outside it, and both
+stand outside it for one reason:
 
     winamp_base      mean 20.58  p99  97  max 204
     chevreul_circle  mean  7.81  p99 153  max 183
 
-Both moved on the CPU in the same pass (a colour mix in linear light; a
-check run rendered through the kit's table), so the first question for
-each is whether the device path mixes or lays out differently from the
-host, or whether the CPU move merely exposed a difference that was
-already there.
+What the pictures show. On `winamp_base` the playlist well is the
+window's own steel body where the host paints it black, the transport
+glyphs and the bevels are gone, and the analyser's dotted ground is
+gone. On `chevreul_circle` all seventy-two colour blades of the wheel
+are the paper they are drawn on, the continuous sweep ring with them,
+and three of the twelve grey patches in the simultaneous-contrast panel
+are missing. In every case what the device shows is what was drawn
+UNDER the missing thing, never garbage and never the background.
 
-Intended: a device plate is the CPU plate within the bar, and every
-scene renders on both. Assert once fixed: `--tier device` reports every
-scene within the bar and none failed.
+The reproduction is one line, and it does not need either sketch's
+subject. Add
+
+    root.child(box().left(Dim(200)).top(Dim(150))
+                    .width(Dim(200)).height(Dim(200))
+                    .fill(SkColor4f{1, 0, 1, 1}));
+
+as the LAST child of `winamp_base`'s root, over the main window. On the
+host it is a solid square over everything it overlaps. On the device
+41 % of it is missing, and what stands in front of it is the main
+window's own content — the LCD readout, the analyser, the transport
+keys — every one of them an EARLIER sibling of an earlier sibling. Move
+the same square onto the empty desktop, where nothing but the wallpaper
+plane is under it, and it paints whole. Move it over the playlist well
+and none of it paints at all.
+
+So this is not lost content and not a lost render pass: it is paint
+ORDER. Where a device draw meets a destination the scene has already
+drawn into many times, the later draw loses. Ruled out by probe, each
+by rendering the scene with the property removed and reading the same
+square: the windows' `opacity()` animations, their `transform`s, the
+`Cache::Texture` planes under them, the overlay bevels, the advanced
+blend mode inside the `Paint::blend` materials, the plate's oversample
+(the fraction lost is the same at 1x and 2x), and the size of the scene
+(dropping two of the three windows does not move the number by a pixel).
+
+Intended: a device plate is the CPU plate within the bar, and the order
+two draws reach the canvas in is the order they were described in,
+whatever the backend. Assert once fixed: a case in `compose_test`'s GPU
+suite draws a coloured square over a subtree of a few thousand nodes and
+finds the square whole, and `--tier device` reports every scene within
+the bar.
