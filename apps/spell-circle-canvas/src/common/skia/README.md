@@ -354,6 +354,17 @@ forwards everything and closes nothing, so a host wraps unconditionally.
 that draws through a wrapped texture pays nothing to be right. A host
 that makes its own `SkSurfaces::RenderTarget` wraps it itself.
 
+Ending a pass has a price the same backend charges: it cannot bring a
+colour attachment's pixels back into a multisample attachment, so a pass
+that begins where another ended starts from undefined samples and
+resolves them over everything the pass before it drew — the ground and
+the whole top of a sheet come back as garbage. Since the fence ends
+passes mid-scene by design, the Vulkan context is built with Graphite's
+internal multisampling off (`fInternalMultisampleCount` of one), and a
+path is antialiased through the atlas instead, which survives the cut.
+The two belong together: turn the fence on for a backend and this goes
+with it.
+
 ## Boundary
 
 Public dependencies: Skia and, for the two features that bring Graphite

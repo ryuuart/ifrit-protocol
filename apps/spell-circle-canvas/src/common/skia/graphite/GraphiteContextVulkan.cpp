@@ -14,6 +14,7 @@
 
 #include <gpu/graphite/Context.h>
 #include <gpu/graphite/ContextOptions.h>
+#include <gpu/graphite/GraphiteTypes.h>
 #include <gpu/graphite/Recorder.h>
 #include <gpu/graphite/vk/VulkanGraphiteContext.h>
 #include <gpu/vk/VulkanBackendContext.h>
@@ -68,9 +69,20 @@ std::unique_ptr<GraphiteContext> GraphiteContext::createVulkan(
       backendContext, skgpu::ThreadSafe::kNo);
   if (!backendContext.fMemoryAllocator) return nullptr;
 
+  skgpu::graphite::ContextOptions options = makeContextOptions();
+  // workaround: this backend cannot bring a colour attachment's pixels back
+  // into a multisample attachment, so a render pass that begins where an
+  // earlier one ended starts from undefined samples and resolves them over
+  // everything that pass had drawn. A scene here is painted through the
+  // canvas that keeps painting order (<sigilskia/graphite/PaintOrder.h>),
+  // which ends a pass after any draw whose blend the hardware cannot
+  // express — passes therefore end mid-scene, and internal multisampling
+  // would take the picture with them. Off, Graphite antialiases a path
+  // through its atlas instead, which survives the cut.
+  options.fInternalMultisampleCount = skgpu::graphite::SampleCount::k1;
+
   std::unique_ptr<skgpu::graphite::Context> context =
-      skgpu::graphite::ContextFactory::MakeVulkan(backendContext,
-                                                  makeContextOptions());
+      skgpu::graphite::ContextFactory::MakeVulkan(backendContext, options);
   if (!context) return nullptr;
 
   std::unique_ptr<skgpu::graphite::Recorder> recorder =

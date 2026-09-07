@@ -12,6 +12,8 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
+#include <include/core/SkPath.h>
+#include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilcore/hardware/GpuDevice.h>
@@ -21,7 +23,10 @@
 #include <sigilskia/graphite/PaintOrder.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
+#include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -435,4 +440,107 @@ TEST(AdoptedGraphite, PaintingOrderHoldsThroughADestinationRead) {
   for (int y = 0; y < info.height(); ++y)
     for (int x = 0; x < info.width(); ++x)
       ASSERT_EQ(cpu.getColor(x, y), device.getColor(x, y)) << x << "," << y;
+}
+
+// A pass the fence cut in two must keep what the pass before it drew.
+// Graphite antialiases a large path by rendering it multisampled and
+// resolving the samples onto the target; a backend that cannot bring the
+// target's pixels back into the multisample attachment starts the second
+// pass from undefined samples and resolves them over the first pass's
+// work, so the ground and everything on it comes back as garbage. The
+// scene here is the smallest one that asks for both: a path big enough to
+// take the multisample renderer on either side of a draw whose blend the
+// hardware cannot express, which is what ends the pass between them.
+//
+// Antialiased edges are the one thing two rasterisers are allowed to
+// disagree about, so the claim is made where neither is guessing: every
+// pixel the CPU painted one of the scene's flat colours, the device
+// painted the same colour.
+TEST(AdoptedGraphite, AFencedPassKeepsWhatThePassBeforeItDrew) {
+  SIGIL_ON_DEVICE_OR_SKIP(on);
+  skia::GraphiteContext* ctx = on->graphite();
+  if (!ctx) GTEST_SKIP() << "this Skia carries no Vulkan backend";
+
+  // A star: concave, many-sided and large, which is the shape Graphite
+  // hands to its multisample renderer rather than to an analytic one.
+  const auto star = [](float cx, float cy, float outer, float inner) {
+    SkPathBuilder path;
+    for (int i = 0; i < 10; ++i) {
+      const float angle = (float)i * 3.14159265f / 5.0f - 1.5707963f;
+      const float r = (i % 2 == 0) ? outer : inner;
+      const float x = cx + r * std::cos(angle);
+      const float y = cy + r * std::sin(angle);
+      if (i == 0)
+        path.moveTo(x, y);
+      else
+        path.lineTo(x, y);
+    }
+    path.close();
+    return path.detach();
+  };
+
+  const auto describe = [&star](SkCanvas& c) {
+    c.clear(SK_ColorWHITE);
+    SkPaint fill;
+    fill.setAntiAlias(true);
+    fill.setColor(SK_ColorRED);
+    c.drawPath(star(300, 200, 170, 70), fill);
+    // The blend the hardware cannot express: over the white ground alone,
+    // so what it leaves is a flat colour too.
+    SkPaint shade;
+    shade.setColor(SkColorSetARGB(255, 128, 128, 128));
+    shade.setBlendMode(SkBlendMode::kMultiply);
+    c.drawRect(SkRect::MakeXYWH(0, 0, 120, 60), shade);
+    // Described after the read, so it belongs to the pass that begins
+    // where the fence ended the one before.
+    fill.setColor(SK_ColorBLUE);
+    c.drawPath(star(300, 460, 130, 55), fill);
+  };
+
+  const SkImageInfo info = SkImageInfo::MakeN32Premul(600, 600);
+  sk_sp<SkSurface> raster = SkSurfaces::Raster(info);
+  ASSERT_NE(raster, nullptr);
+  describe(*raster->getCanvas());
+  SkBitmap cpu;
+  cpu.allocPixels(info);
+  ASSERT_TRUE(raster->readPixels(cpu, 0, 0));
+
+  sk_sp<SkSurface> target = SkSurfaces::RenderTarget(ctx->recorder(), info);
+  ASSERT_NE(target, nullptr);
+  skia::PaintOrderCanvas ordered(*ctx, target->getCanvas());
+  describe(ordered);
+  const SkBitmap device = skia::test::readGraphiteSurface(*ctx, target.get());
+  ASSERT_FALSE(device.empty());
+  EXPECT_EQ(ordered.fences(), skia::PaintOrderCanvas::needed(*ctx) ? 1 : 0);
+
+  const SkColor flat[] = {SK_ColorWHITE, SK_ColorRED, SK_ColorBLUE,
+                          SkColorSetARGB(255, 128, 128, 128)};
+  // A flat colour is flat on both rasterisers, but a pixel one of them
+  // still resolved through a coverage value can come back a code value or
+  // two off it. The claim is that the pixel is the colour it was painted,
+  // not that two rasterisers agree bit for bit, so a couple of code values
+  // are allowed and a lost pass — a whole colour away — is not.
+  const auto worstChannel = [](SkColor a, SkColor b) {
+    const auto gap = [](uint32_t l, uint32_t r) {
+      return (int)(l > r ? l - r : r - l);
+    };
+    return std::max({gap(SkColorGetR(a), SkColorGetR(b)),
+                     gap(SkColorGetG(a), SkColorGetG(b)),
+                     gap(SkColorGetB(a), SkColorGetB(b)),
+                     gap(SkColorGetA(a), SkColorGetA(b))});
+  };
+  int judged = 0;
+  for (int y = 0; y < info.height(); ++y) {
+    for (int x = 0; x < info.width(); ++x) {
+      const SkColor want = cpu.getColor(x, y);
+      bool isFlat = false;
+      for (const SkColor c : flat) isFlat = isFlat || c == want;
+      if (!isFlat) continue;
+      ++judged;
+      ASSERT_LE(worstChannel(want, device.getColor(x, y)), 4) << x << "," << y;
+    }
+  }
+  // The whole ground, both stars and the multiplied corner: a scene this
+  // size has no way to be judged on a handful of pixels.
+  EXPECT_GT(judged, 300000);
 }
